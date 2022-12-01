@@ -1,19 +1,18 @@
-/* eslint-disable react/no-unescaped-entities */
 import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { useEffect } from 'react'
-import Bridge from '../components/Bridge'
-import Logo from '../components/Logo'
+import Bridge from '../components/Icons/Bridge'
+import Logo from '../components/Icons/Logo'
 import Modal from '../components/Modal'
 import cloudinary from '../utils/cloudinary'
 import getBase64ImageUrl from '../utils/generateBlurPlaceholder'
-import { ImageProps } from '../utils/imageType'
+import type { ImageProps } from '../utils/types'
 import { useLastViewedPhoto } from '../utils/useLastViewedPhoto'
 
-const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
+const Home: NextPage = ({ images }: { images: ImageProps[] }) => {
   const router = useRouter()
   const { photoId } = router.query
   const [lastViewedPhoto, setLastViewedPhoto] = useLastViewedPhoto()
@@ -35,17 +34,17 @@ const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
         <title>Next.js Conf 2022 Photos</title>
         <meta
           property="og:image"
-          content="https://nextconf-images.vercel.app/og-image.png"
+          content="https://nextjsconf-pics.vercel.app/og-image.png"
         />
         <meta
           name="twitter:image"
-          content="https://nextconf-images.vercel.app/og-image.png"
+          content="https://nextjsconf-pics.vercel.app/og-image.png"
         />
       </Head>
       <main className="mx-auto max-w-[1960px] p-4">
         {photoId && (
           <Modal
-            images={photos}
+            images={images}
             onClose={() => {
               setLastViewedPhoto(photoId)
             }}
@@ -68,42 +67,39 @@ const Home: NextPage = ({ photos }: { photos: ImageProps[] }) => {
               Our incredible Next.js community got together in San Francisco for
               our first ever in-person conference!
             </p>
-            <p className="z-10 text-white/75 sm:max-w-[20ch]">
-              <a
-                href="https://www.google.com/"
-                className="decoration cursor-pointer font-semibold text-white underline decoration-dashed underline-offset-4"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Deploy your own
-              </a>{' '}
-              image gallery using this template.
-            </p>
-          </div>
-          {photos.map(({ id, public_id, format, blurDataUrl }) => (
-            <div
-              className="after:content group relative after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:shadow-highlight"
-              key={id}
+            <a
+              className="pointer z-10 mt-6 rounded-lg border border-white bg-white px-3 py-2 text-sm font-semibold text-black transition hover:bg-white/10 hover:text-white md:mt-4"
+              href="https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-cloudinary&project-name=nextjs-image-gallery&repository-name=with-cloudinary&env=NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,CLOUDINARY_API_KEY,CLOUDINARY_API_SECRET,CLOUDINARY_FOLDER&envDescription=API%20Keys%20from%20SFCC%20needed%20to%20run%20this%20application"
+              target="_blank"
+              rel="noreferrer"
             >
-              <Link
-                href={`/?photoId=${id}`}
-                as={`/p/${id}`}
-                id={`photo-${id}`}
-                shallow
-                className="cursor-zoom-in"
-              >
-                <Image
-                  alt="Next.js Conf photo"
-                  className="transform rounded-lg brightness-90 transition will-change-auto group-hover:brightness-110"
-                  style={{ transform: 'translate3d(0, 0, 0)' }}
-                  placeholder="blur"
-                  blurDataURL={blurDataUrl}
-                  src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/c_scale,w_720/${public_id}.${format}`}
-                  width={720}
-                  height={480}
-                />
-              </Link>
-            </div>
+              Clone and Deploy
+            </a>
+          </div>
+          {images.map(({ id, public_id, format, blurDataUrl }) => (
+            <Link
+              key={id}
+              href={`/?photoId=${id}`}
+              as={`/p/${id}`}
+              id={`photo-${id}`}
+              shallow
+              className="after:content group relative cursor-zoom-in after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:shadow-highlight"
+            >
+              <Image
+                alt="Next.js Conf photo"
+                className="transform rounded-lg brightness-90 transition will-change-auto group-hover:brightness-110"
+                style={{ transform: 'translate3d(0, 0, 0)' }}
+                placeholder="blur"
+                blurDataURL={blurDataUrl}
+                src={`https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload/c_scale,w_720/${public_id}.${format}`}
+                width={720}
+                height={480}
+                sizes="(max-width: 640px) 100vw,
+                  (max-width: 1280px) 50vw,
+                  (max-width: 1536px) 33vw,
+                  25vw"
+              />
+            </Link>
           ))}
         </div>
       </main>
@@ -149,7 +145,6 @@ export async function getStaticProps() {
     .sort_by('public_id', 'desc')
     .max_results(400)
     .execute()
-
   let reducedResults: ImageProps[] = []
 
   let i = 0
@@ -160,14 +155,22 @@ export async function getStaticProps() {
       width: result.width,
       public_id: result.public_id,
       format: result.format,
-      blurDataUrl: await getBase64ImageUrl(result),
     })
     i++
   }
 
+  const blurImagePromises = results.resources.map((image: ImageProps) => {
+    return getBase64ImageUrl(image)
+  })
+  const imagesWithBlurDataUrls = await Promise.all(blurImagePromises)
+
+  for (let i = 0; i < reducedResults.length; i++) {
+    reducedResults[i].blurDataUrl = imagesWithBlurDataUrls[i]
+  }
+
   return {
     props: {
-      photos: reducedResults,
+      images: reducedResults,
     },
   }
 }

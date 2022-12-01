@@ -1,17 +1,14 @@
-import { MotionConfig } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/router'
 import useKeypress from 'react-use-keypress'
-import { ImageProps } from '../utils/imageType'
+import type { ImageProps } from '../utils/types'
 import { useLastViewedPhoto } from '../utils/useLastViewedPhoto'
 import SharedModal from './SharedModal'
 
 export default function Carousel({
-  images,
   index,
   currentPhoto,
 }: {
-  images: ImageProps[]
   index: number
   currentPhoto: ImageProps
 }) {
@@ -20,63 +17,38 @@ export default function Carousel({
 
   function closeModal() {
     setLastViewedPhoto(currentPhoto.id)
-    router.push('/')
+    router.push('/', undefined, { shallow: true })
   }
 
   function changePhotoId(newVal: number) {
-    router.push(
-      {
-        pathname: `/p/${newVal}`,
-      },
-      undefined,
-      { shallow: true }
-    )
+    return newVal
   }
-
-  useKeypress('ArrowRight', () => {
-    if (index + 1 < images.length) {
-      changePhotoId(index + 1)
-    }
-  })
-
-  useKeypress('ArrowLeft', () => {
-    if (index > 0) {
-      changePhotoId(index - 1)
-    }
-  })
 
   useKeypress('Escape', () => {
     closeModal()
   })
 
   return (
-    <MotionConfig
-      transition={{
-        duration: 0.7,
-        ease: [0.32, 0.72, 0, 1],
-      }}
-    >
-      <div className="fixed inset-0 flex items-center justify-center">
-        <button
-          className="absolute inset-0 z-30 cursor-default bg-black backdrop-blur-2xl"
-          onClick={closeModal}
-        >
-          <Image
-            src={images[index].blurDataUrl}
-            className="pointer-events-none h-full w-full"
-            alt="blurred background"
-            fill
-          />
-        </button>
-
-        <SharedModal
-          index={index}
-          images={images}
-          changePhotoId={changePhotoId}
-          currentPhoto={currentPhoto}
-          closeModal={closeModal}
+    <div className="fixed inset-0 flex items-center justify-center">
+      <button
+        className="absolute inset-0 z-30 cursor-default bg-black backdrop-blur-2xl"
+        onClick={closeModal}
+      >
+        <Image
+          src={currentPhoto.blurDataUrl}
+          className="pointer-events-none h-full w-full"
+          alt="blurred background"
+          fill
+          priority={true}
         />
-      </div>
-    </MotionConfig>
+      </button>
+      <SharedModal
+        index={index}
+        changePhotoId={changePhotoId}
+        currentPhoto={currentPhoto}
+        closeModal={closeModal}
+        navigation={false}
+      />
+    </div>
   )
 }
