@@ -15,7 +15,7 @@ export default function Page() {
 export const generateStaticParams = async () => {
   const paths = [
     {
-      route: [''],
+      route: [],
     },
     {
       route: ['test'],
