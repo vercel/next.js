@@ -10,9 +10,7 @@ bench = false
 
 [features]
 __swc = []
-__swc_core = [
-  "__swc",
-]
+__swc_core = ["__swc"]
 __swc_core_next_core = [
   "__swc_core",
   "swc_core/common_concurrent",
@@ -29,7 +27,7 @@ __swc_core_next_core = [
   "swc_core/ecma_parser",
   "swc_core/ecma_parser_typescript",
   "swc_core/cached",
-  "swc_core/base"
+  "swc_core/base",
 ]
 
 __swc_core_binding_napi = [
@@ -54,9 +52,7 @@ __swc_core_binding_napi = [
   "swc_core/ecma_utils",
   "swc_core/ecma_visit",
 ]
-__swc_core_binding_napi_plugin = [
-  "swc_core/plugin_transform_host_native"
-]
+__swc_core_binding_napi_plugin = ["swc_core/plugin_transform_host_native"]
 
 __swc_core_binding_wasm = [
   "__swc_core",
@@ -71,62 +67,41 @@ __swc_core_binding_wasm = [
   "swc_core/ecma_parser",
   "swc_core/ecma_parser_typescript",
   "swc_core/ecma_utils",
-  "swc_core/ecma_visit"
+  "swc_core/ecma_visit",
 ]
-__swc_core_binding_wasm_plugin = [
-  "swc_core/plugin_transform_host_js"
-]
+__swc_core_binding_wasm_plugin = ["swc_core/plugin_transform_host_js"]
 
-__swc_core_testing_transform = [
-  "swc_core/testing_transform"
-]
+__swc_core_testing_transform = ["swc_core/testing_transform"]
 
 __turbo = []
-__feature_next_dev_server = [
-  "__turbo",
-  "next-dev/serializable"
-]
-__feature_node_file_trace = [
-  "__turbo",
-  "node-file-trace/node-api"
-]
+__feature_next_dev_server = ["__turbo", "next-dev/serializable"]
+__feature_node_file_trace = ["__turbo", "node-file-trace/node-api"]
 
 __features = []
-__feature_mdx_rs = [ "__features", "mdxjs/serializable"]
+__feature_mdx_rs = ["__features", "mdxjs/serializable"]
 
 __swc_custom_transform = []
 __swc_transform_styled_components = [
   "__swc",
   "__swc_custom_transform",
-  "styled_components"
+  "styled_components",
 ]
-__swc_transform_styled_jsx = [
-  "__swc",
-  "__swc_custom_transform",
-  "styled_jsx"
-]
-__swc_transform_emotion = [
-  "__swc",
-  "__swc_custom_transform",
-  "swc_emotion"
-]
+__swc_transform_styled_jsx = ["__swc", "__swc_custom_transform", "styled_jsx"]
+__swc_transform_emotion = ["__swc", "__swc_custom_transform", "swc_emotion"]
 __swc_transform_modularize_imports = [
   "__swc",
   "__swc_custom_transform",
-  "modularize_imports"
+  "modularize_imports",
 ]
-__swc_testing = [
-  "__swc",
-  "testing"
-]
+__swc_testing = ["__swc", "testing"]
 
 [dependencies]
-swc_core = { optional = true, workspace = true }
 mdxjs = { optional = true, workspace = true }
+modularize_imports = { optional = true, workspace = true }
 next-dev = { optional = true, workspace = true }
 node-file-trace = { optional = true, workspace = true }
-styled_components = { optional = true,workspace = true }
-styled_jsx = { optional = true,workspace = true}
-swc_emotion = { optional = true,workspace = true}
-testing = {optional = true, workspace = true}
-modularize_imports = { optional = true,workspace = true}
+styled_components = { optional = true, workspace = true }
+styled_jsx = { optional = true, workspace = true }
+swc_core = { optional = true, workspace = true }
+swc_emotion = { optional = true, workspace = true }
+testing = { optional = true, workspace = true }

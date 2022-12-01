@@ -18,6 +18,6 @@ serde = "1.0.136"
 toml = "0.5"
 turbo-tasks-macros-shared = { path = "../turbo-tasks-macros-shared" }
 
-[dependencies.syn]
-features = ["full"]
-version = "1.0"
+  [dependencies.syn]
+  features = ["full"]
+  version = "1.0"
