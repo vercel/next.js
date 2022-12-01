@@ -139,7 +139,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
 
   const [displayState, setDisplayState] = React.useState<
     'minimized' | 'fullscreen' | 'hidden'
-  >('fullscreen')
+  >('minimized')
   const [activeIdx, setActiveIndex] = React.useState<number>(0)
   const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
     e?.preventDefault()
