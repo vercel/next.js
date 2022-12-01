@@ -297,7 +297,7 @@ impl Fold for NextDynamicPatcher {
                         expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
 
-                    let second_arg = ExprOrSpread {
+                    let mut second_arg = ExprOrSpread {
                         spread: None,
                         expr: Box::new(Expr::Object(ObjectLit {
                             span: DUMMY_SP,
@@ -306,6 +306,11 @@ impl Fold for NextDynamicPatcher {
                     };
 
                     if expr.args.len() == 2 {
+                        // For server components, ignore the 2nd argument `options` since the
+                        // component will still be SSR'd
+                        if has_ssr_false && self.is_server_components {
+                            second_arg = Lit::Null(Null { span: DUMMY_SP }).as_arg();
+                        }
                         expr.args[1] = second_arg;
                     } else {
                         expr.args.push(second_arg)

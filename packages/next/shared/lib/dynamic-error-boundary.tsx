@@ -1,8 +1,7 @@
 'use client'
 
 import React from 'react'
-
-export const NEXT_DYNAMIC_NO_SSR_CODE = 'DYNAMIC_SERVER_USAGE'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from './no-ssr-error'
 
 class DynamicErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -14,8 +13,7 @@ class DynamicErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    console.log('error.digest', error.digest, error.message)
-    if (error.digest === 'DYNAMIC_SERVER_USAGE') {
+    if (error.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
       return { noSSR: true }
     }
     // Re-throw if error is not for dynamic

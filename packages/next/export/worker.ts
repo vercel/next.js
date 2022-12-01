@@ -32,7 +32,6 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { IncrementalCache } from '../server/lib/incremental-cache'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic-error-boundary'
 
 loadRequireHook()
@@ -432,7 +431,6 @@ export default async function exportPage({
             curRenderOpts
           )
         } catch (err: any) {
-          console.log('page static', err)
           if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
             throw err
           }

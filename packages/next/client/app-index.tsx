@@ -7,7 +7,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic-error-boundary'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic'
 
 /// <reference types="react-dom/experimental" />
 
@@ -114,6 +114,12 @@ if (document.readyState === 'loading') {
   DOMContentLoaded()
 }
 
+// Skip certain custom errors which are not expected to throw on client
+function onRecoverableError(err: any) {
+  if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) return
+  throw err
+}
+
 const nextServerDataLoadingGlobal = ((self as any).__next_f =
   (self as any).__next_f || [])
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
@@ -191,7 +197,9 @@ export function hydrate() {
     if (rootLayoutMissingTagsError) {
       const reactRootElement = document.createElement('div')
       document.body.appendChild(reactRootElement)
-      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement)
+      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement, {
+        onRecoverableError,
+      })
 
       reactRoot.render(
         <GlobalLayoutRouterContext.Provider
@@ -233,11 +241,7 @@ export function hydrate() {
   )
 
   const options = {
-    onRecoverableError(err: any) {
-      // Skip certain custom errors which are not expected to throw on client
-      if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) return
-      throw err
-    },
+    onRecoverableError,
   }
   const isError = document.documentElement.id === '__next_error__'
   const reactRoot = isError

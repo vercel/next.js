@@ -1,8 +1,10 @@
 import React, { Suspense } from 'react'
 import Loadable from './loadable'
-import DynamicBoundary, {
-  NEXT_DYNAMIC_NO_SSR_CODE,
-} from './dynamic-error-boundary'
+import DynamicBoundary from './dynamic-error-boundary'
+
+import { NEXT_DYNAMIC_NO_SSR_CODE } from './no-ssr-error'
+
+export { NEXT_DYNAMIC_NO_SSR_CODE }
 
 export type LoaderComponent<P = {}> = Promise<{
   default: React.ComponentType<P>
@@ -45,7 +47,7 @@ export type LoadableFn<P = {}> = (
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
 function DynamicThrownOnServer() {
-  const error = new Error('next/dynamic with noSSR on server')
+  const error = new Error(NEXT_DYNAMIC_NO_SSR_CODE)
   ;(error as any).digest = NEXT_DYNAMIC_NO_SSR_CODE
   throw error
 }
