@@ -51,7 +51,7 @@ use self::{
     cjs::CjsAssetReferenceVc,
     esm::{
         export::EsmExport, EsmAssetReferenceVc, EsmAsyncAssetReferenceVc, EsmExports,
-        EsmModuleItemVc,
+        EsmModuleItemVc, ImportMetaBindingVc, ImportMetaRefVc,
     },
     node::{DirAssetReferenceVc, PackageJsonReferenceVc},
     raw::SourceAssetReferenceVc,
@@ -396,6 +396,7 @@ pub(crate) async fn analyze_ecmascript_module(
 
             analysis.set_exports(exports);
 
+            #[allow(clippy::too_many_arguments)]
             fn handle_call_boxed<
                 'a,
                 FF: Future<Output = Result<JsValue>> + Send + 'a,
@@ -430,6 +431,7 @@ pub(crate) async fn analyze_ecmascript_module(
                 ))
             }
 
+            #[allow(clippy::too_many_arguments)]
             async fn handle_call<
                 FF: Future<Output = Result<JsValue>> + Send,
                 F: Fn(JsValue) -> FF + Sync,
@@ -1062,6 +1064,9 @@ pub(crate) async fn analyze_ecmascript_module(
             let linker = |value| value_visitor(source, origin, value, environment);
             let effects = take(&mut var_graph.effects);
             let link_value = |value| link(&var_graph, value, &linker, &cache);
+            // There can be many references to import.meta, but only the first should hoist
+            // the object allocation.
+            let mut first_import_meta = true;
 
             for effect in effects.into_iter() {
                 match effect {
@@ -1157,14 +1162,13 @@ pub(crate) async fn analyze_ecmascript_module(
                             }
                         }
                     }
-                    Effect::ImportMeta { span, ast_path: _ } => {
-                        handler.span_warn_with_code(
-                            span,
-                            "import.meta is not yet supported",
-                            DiagnosticId::Error(
-                                errors::failed_to_analyse::ecmascript::IMPORT_META.to_string(),
-                            ),
-                        );
+                    Effect::ImportMeta { span: _, ast_path } => {
+                        if first_import_meta {
+                            first_import_meta = false;
+                            analysis.add_code_gen(ImportMetaBindingVc::new(source.path()));
+                        }
+
+                        analysis.add_code_gen(ImportMetaRefVc::new(AstPathVc::cell(ast_path)));
                     }
                 }
             }
@@ -1327,7 +1331,18 @@ fn analyze_amd_define_with_deps(
     ));
 }
 
-async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {
+/// Used to generate the "root" path to a __filename/__dirname/import.meta.url
+/// reference.
+pub async fn as_abs_path(path: FileSystemPathVc) -> Result<JsValue> {
+    // TODO: This should be updated to generate a real system path on the fly
+    // during runtime, so that the generated code is constant between systems
+    // but the runtime evaluation can take into account the project's
+    // actual root directory.
+    require_resolve(path).await
+}
+
+/// Generates an absolute path usable for `require.resolve()` calls.
+async fn require_resolve(path: FileSystemPathVc) -> Result<JsValue> {
     Ok(format!("/ROOT/{}", path.await?.path.as_str()).into())
 }
 
@@ -1360,11 +1375,11 @@ async fn value_visitor_inner(
                     let request = RequestVc::parse(Value::new(pat.clone()));
                     let resolved = cjs_resolve(origin, request).await?;
                     match &*resolved {
-                        ResolveResult::Single(asset, _) => as_abs_path(asset.path()).await?,
+                        ResolveResult::Single(asset, _) => require_resolve(asset.path()).await?,
                         ResolveResult::Alternatives(assets, _) => JsValue::alternatives(
                             assets
                                 .iter()
-                                .map(|asset| as_abs_path(asset.path()))
+                                .map(|asset| require_resolve(asset.path()))
                                 .try_join()
                                 .await?,
                         ),

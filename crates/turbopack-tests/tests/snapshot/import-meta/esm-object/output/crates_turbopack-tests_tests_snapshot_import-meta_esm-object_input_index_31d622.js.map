@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/import-meta/esm-object/input/index.js"],"sourcesContent":["import './mod.mjs';\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/import-meta/esm-object/input/mod.mjs"],"sourcesContent":["console.log(import.meta);\n"],"names":[],"mappings":"AAAA;;;;AAAA,QAAQ,GAAG"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
