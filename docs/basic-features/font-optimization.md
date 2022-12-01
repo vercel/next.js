@@ -6,6 +6,8 @@ description: Optimizing loading web fonts with the built-in `@next/font` loaders
 
 [**`@next/font`**](/docs/api-reference/next/font.md) will automatically optimize your fonts (including custom fonts) and remove external network requests for improved privacy and performance.
 
+> **🎥 Watch:** Learn more about how to use `@next/font` → [YouTube (6 minutes)](https://www.youtube.com/watch?v=L8_98i_bMMA).
+
 ## Overview
 
 `@next/font` includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with zero layout shift, thanks to the underlying CSS `size-adjust` property used.

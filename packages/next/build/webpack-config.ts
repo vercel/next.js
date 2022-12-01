@@ -867,6 +867,9 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
   }
 
+  const reactDir = path.dirname(require.resolve('react/package.json'))
+  const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
@@ -881,16 +884,6 @@ export default async function getBaseWebpackConfig(
       // let this alias hit before `next` alias.
       ...(isEdgeServer
         ? {
-            // app-router-context can not be ESM and CJS so force CJS
-            'next/dist/shared/lib/app-router-context': path.join(
-              __dirname,
-              '../dist/shared/lib/app-router-context.js'
-            ),
-            'next/dist/client/components': path.join(
-              __dirname,
-              '../client/components'
-            ),
-
             'next/dist/client': 'next/dist/esm/client',
             'next/dist/shared': 'next/dist/esm/shared',
             'next/dist/pages': 'next/dist/esm/pages',
@@ -913,6 +906,10 @@ export default async function getBaseWebpackConfig(
               'next/dist/esm/pages/_document',
             [require.resolve('next/dist/pages/_app')]:
               'next/dist/esm/pages/_app',
+            [require.resolve('next/dist/client/components/navigation')]:
+              'next/dist/client/components/navigation',
+            [require.resolve('next/dist/client/components/headers')]:
+              'next/dist/client/components/headers',
           }
         : undefined),
 
@@ -936,7 +933,13 @@ export default async function getBaseWebpackConfig(
               'next/dist/compiled/react/jsx-dev-runtime',
             'react/jsx-runtime$': 'next/dist/compiled/react/jsx-runtime',
           }
-        : undefined),
+        : {
+            react: reactDir,
+            'react-dom$': reactDomDir,
+            'react-dom/server$': `${reactDomDir}/server`,
+            'react-dom/server.browser$': `${reactDomDir}/server.browser`,
+            'react-dom/client$': `${reactDomDir}/client`,
+          }),
 
       'styled-jsx/style$': require.resolve(`styled-jsx/style`),
       'styled-jsx$': require.resolve(`styled-jsx`),
@@ -1148,15 +1151,16 @@ export default async function getBaseWebpackConfig(
 
     const isLocalCallback = (localRes: string) => {
       // Makes sure dist/shared and dist/server are not bundled
-      // we need to process shared `router/router` and `dynamic`,
-      // so that the DefinePlugin can inject process.env values
+      // we need to process shared `router/router`, `head` and `dynamic`,
+      // so that the DefinePlugin can inject process.env values.
+
+      // Treat next internals as non-external for server layer
+      if (layer === WEBPACK_LAYERS.server) return
+
       const isNextExternal =
-        // Treat next internals as non-external for server layer
-        layer === WEBPACK_LAYERS.server
-          ? false
-          : /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
-              localRes
-            )
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|head[^-]))/.test(
+          localRes
+        )
 
       if (isNextExternal) {
         // Generate Next.js external import
@@ -1173,10 +1177,6 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/')
         )
         return `commonjs ${externalRequest}`
-      } else if (layer !== WEBPACK_LAYERS.client) {
-        // We don't want to retry local requests
-        // with other preferEsm options
-        return
       }
     }
 
@@ -1999,7 +1999,7 @@ export default async function getBaseWebpackConfig(
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
       config.outputFileTracing &&
-        (isNodeServer || isEdgeServer) &&
+        isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -2295,6 +2295,7 @@ export default async function getBaseWebpackConfig(
     emotion: config.compiler?.emotion,
     modularizeImports: config.experimental?.modularizeImports,
     legacyBrowsers: config.experimental?.legacyBrowsers,
+    imageLoaderFile: config.images.loaderFile,
   })
 
   const cache: any = {

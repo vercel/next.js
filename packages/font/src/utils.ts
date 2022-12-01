@@ -13,19 +13,24 @@ const DEFAULT_SERIF_FONT = {
 }
 
 function calcAverageWidth(font: Font): number | undefined {
-  const avgCharacters = 'aaabcdeeeefghiijklmnnoopqrrssttuvwxyz      '
-  const hasAllChars = font
-    .glyphsForString(avgCharacters)
-    .flatMap((glyph) => glyph.codePoints)
-    .every((codePoint) => font.hasGlyphForCodePoint(codePoint))
+  try {
+    const avgCharacters = 'aaabcdeeeefghiijklmnnoopqrrssttuvwxyz      '
+    const hasAllChars = font
+      .glyphsForString(avgCharacters)
+      .flatMap((glyph) => glyph.codePoints)
+      .every((codePoint) => font.hasGlyphForCodePoint(codePoint))
 
-  if (!hasAllChars) return undefined
+    if (!hasAllChars) return undefined
 
-  const widths = font
-    .glyphsForString(avgCharacters)
-    .map((glyph) => glyph.advanceWidth)
-  const totalWidth = widths.reduce((sum, width) => sum + width, 0)
-  return totalWidth / widths.length
+    const widths = font
+      .glyphsForString(avgCharacters)
+      .map((glyph) => glyph.advanceWidth)
+    const totalWidth = widths.reduce((sum, width) => sum + width, 0)
+    return totalWidth / widths.length
+  } catch {
+    // Could not calculate average width from the font file, skip size-adjust
+    return undefined
+  }
 }
 
 function formatOverrideValue(val: number) {
@@ -54,4 +59,10 @@ export function calculateFallbackFontValues(
     fallbackFont: fallbackFont.name,
     sizeAdjust: formatOverrideValue(sizeAdjust),
   }
+}
+
+export function nextFontError(message: string): never {
+  const err = new Error(message)
+  err.name = 'NextFontError'
+  throw err
 }
