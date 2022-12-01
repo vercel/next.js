@@ -67,10 +67,9 @@
 .card p {
   margin: 0;
   opacity: 0.6;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   line-height: 1.5;
-  word-spacing: -0.1rem;
-  font-family: var(--font-mono);
+  max-width: 34ch;
 }
 
 .center {
