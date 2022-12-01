@@ -261,7 +261,6 @@ function getInt(x: unknown): number | undefined {
 function handleLoading(
   img: ImgElementWithDataProp,
   src: string,
-  placeholder: PlaceholderValue,
   onLoadRef: React.MutableRefObject<OnLoad | undefined>,
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
   unoptimized: boolean
@@ -432,7 +431,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
                 handleLoading(
                   img,
                   srcString,
-                  placeholder,
                   onLoadRef,
                   onLoadingCompleteRef,
                   unoptimized
@@ -441,7 +439,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             },
             [
               srcString,
-              placeholder,
               onLoadRef,
               onLoadingCompleteRef,
               onError,
@@ -454,7 +451,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             handleLoading(
               img,
               srcString,
-              placeholder,
               onLoadRef,
               onLoadingCompleteRef,
               unoptimized
