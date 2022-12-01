@@ -8,15 +8,15 @@
     "postinstall": "npx @xata.io/cli@latest schema upload schema.template.json --branch main --create-only --yes"
   },
   "devDependencies": {
-    "@types/node": "18.6.5",
-    "@types/react": "18.0.17",
-    "@types/react-dom": "18.0.6",
-    "eslint": "8.21.0",
+    "@types/node": "18.11.10",
+    "@types/react": "18.0.25",
+    "@types/react-dom": "18.0.9",
+    "eslint": "8.28.0",
     "eslint-config-next": "latest",
-    "typescript": "4.7.4"
+    "typescript": "4.9.3"
   },
   "dependencies": {
-    "@xata.io/client": "^0.16.1",
+    "@xata.io/client": "^0.21.3",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
