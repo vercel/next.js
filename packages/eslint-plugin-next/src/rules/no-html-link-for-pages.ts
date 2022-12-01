@@ -75,7 +75,9 @@ export = defineRule({
       return fsExistsSyncCache[dir]
     })
 
-    const appDirs = rootDirs.map((dir) => [path.join(dir, 'app')]).flat()
+    const appDirs = rootDirs
+      .map((dir) => [path.join(dir, 'app'), path.join(dir, 'src', 'app')])
+      .flat()
 
     const foundAppDirs = appDirs.filter((dir) => {
       if (fsExistsSyncCache[dir] === undefined) {
