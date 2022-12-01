@@ -1,8 +1,7 @@
 use anyhow::{anyhow, bail, Result};
 use turbo_tasks::ValueToString;
 use turbo_tasks_fs::FileSystemPathVc;
-
-use crate::path_regex::{PathRegexBuilder, PathRegexVc};
+use turbopack_node::path_regex::{PathRegexBuilder, PathRegexVc};
 
 /// Converts a filename within the server root to a regular expression with
 /// named capture groups for every dynamic segment.

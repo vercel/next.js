@@ -1,3 +1,6 @@
+#![feature(async_closure)]
+#![feature(min_specialization)]
+
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::Write as _,
@@ -33,12 +36,14 @@ use self::{
 };
 use crate::source_map::{SourceMapTraceVc, StackFrame, TraceResult};
 
-pub(crate) mod bootstrap;
-pub(crate) mod issue;
-pub(crate) mod node_api_source;
-pub(crate) mod node_entry;
-pub(crate) mod node_rendered_source;
-pub(crate) mod pool;
+pub mod bootstrap;
+pub mod issue;
+pub mod node_api_source;
+pub mod node_entry;
+pub mod node_rendered_source;
+pub mod path_regex;
+pub mod pool;
+pub mod source_map;
 
 #[turbo_tasks::function]
 async fn emit(
@@ -229,7 +234,7 @@ pub async fn get_intermediate_asset(
 }
 
 #[turbo_tasks::value(shared)]
-pub(super) struct RenderData {
+pub struct RenderData {
     params: IndexMap<String, String>,
     method: String,
     url: String,
@@ -451,7 +456,7 @@ async fn trace_stack(
 }
 
 #[turbo_tasks::value(shared)]
-pub(super) struct ResponseHeaders {
+pub struct ResponseHeaders {
     status: u16,
     headers: Vec<String>,
 }
@@ -613,4 +618,12 @@ async fn proxy_error(
         body: body.into(),
     }
     .cell())
+}
+
+pub fn register() {
+    turbo_tasks::register();
+    turbo_tasks_fs::register();
+    turbopack_dev_server::register();
+    turbopack::register();
+    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
