@@ -49,7 +49,7 @@ describe('ReactRefreshLogBox app', () => {
     )
     await session.evaluate(() => document.querySelector('a').click())
 
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
@@ -228,7 +228,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
@@ -325,7 +325,7 @@ describe('ReactRefreshLogBox app', () => {
         export default ClassDefault;
       `
     )
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
@@ -370,7 +370,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     if (process.platform === 'win32') {
       expect(await session.getRedboxSource()).toMatchSnapshot()
     } else {
@@ -423,7 +423,7 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     // We get an error because Foo didn't import React. Fair.
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     // Let's add that to Foo.
@@ -475,7 +475,7 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     if (process.platform === 'win32') {
       expect(await session.getRedboxSource()).toMatchSnapshot()
     } else {
@@ -562,7 +562,7 @@ describe('ReactRefreshLogBox app', () => {
       `export default function FunctionDefault() { throw new Error('no'); }`
     )
 
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
     expect(
       await session.evaluate(() => document.querySelector('h2').textContent)
@@ -664,7 +664,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello')
@@ -681,7 +681,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await session.patch(
@@ -764,9 +764,9 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
 
     const header = await session.getRedboxDescription()
     expect(header).toMatchSnapshot()
@@ -810,9 +810,9 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
 
     const header2 = await session.getRedboxDescription()
     expect(header2).toMatchSnapshot()
@@ -856,9 +856,9 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
 
     const header3 = await session.getRedboxDescription()
     expect(header3).toMatchSnapshot()
@@ -902,9 +902,9 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toMatchInlineSnapshot(
