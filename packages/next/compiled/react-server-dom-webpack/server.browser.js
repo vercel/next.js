@@ -579,6 +579,7 @@ var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL
 
 var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
 
+var dataElementQuotedEnd = stringToPrecomputedChunk('"></template>');
 var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
@@ -649,21 +650,31 @@ var endSegmentColGroup = stringToPrecomputedChunk('</colgroup></table>');
 var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegment + ';$RS("');
 var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
 var completeSegmentScript2 = stringToPrecomputedChunk('","');
-var completeSegmentScript3 = stringToPrecomputedChunk('")</script>');
+var completeSegmentScriptEnd = stringToPrecomputedChunk('")</script>');
+var completeSegmentData1 = stringToPrecomputedChunk('<template data-rsi="" data-sid="');
+var completeSegmentData2 = stringToPrecomputedChunk('" data-pid="');
 var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundary + ';$RC("');
 var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("');
 var completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(completeBoundary + ';' + completeBoundaryWithStyles + ';$RR("');
 var completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(completeBoundaryWithStyles + ';$RR("');
 var completeBoundaryWithStylesScript1Partial = stringToPrecomputedChunk('$RR("');
 var completeBoundaryScript2 = stringToPrecomputedChunk('","');
-var completeBoundaryScript2a = stringToPrecomputedChunk('",');
-var completeBoundaryScript3 = stringToPrecomputedChunk('"');
-var completeBoundaryScript4 = stringToPrecomputedChunk(')</script>');
+var completeBoundaryScript3a = stringToPrecomputedChunk('",');
+var completeBoundaryScript3b = stringToPrecomputedChunk('"');
+var completeBoundaryScriptEnd = stringToPrecomputedChunk(')</script>');
+var completeBoundaryData1 = stringToPrecomputedChunk('<template data-rci="" data-bid="');
+var completeBoundaryWithStylesData1 = stringToPrecomputedChunk('<template data-rri="" data-bid="');
+var completeBoundaryData2 = stringToPrecomputedChunk('" data-sid="');
+var completeBoundaryData3a = stringToPrecomputedChunk('" data-sty="');
 var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
 var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
 var clientRenderScript1A = stringToPrecomputedChunk('"');
-var clientRenderScript2 = stringToPrecomputedChunk(')</script>');
 var clientRenderErrorScriptArgInterstitial = stringToPrecomputedChunk(',');
+var clientRenderScriptEnd = stringToPrecomputedChunk(')</script>');
+var clientRenderData1 = stringToPrecomputedChunk('<template data-rxi="" data-bid="');
+var clientRenderData2 = stringToPrecomputedChunk('" data-dgst="');
+var clientRenderData3 = stringToPrecomputedChunk('" data-msg="');
+var clientRenderData4 = stringToPrecomputedChunk('" data-stck="');
 
 var precedencePlaceholderStart = stringToPrecomputedChunk('<style data-precedence="');
 var precedencePlaceholderEnd = stringToPrecomputedChunk('"></style>');
@@ -671,7 +682,7 @@ var precedencePlaceholderEnd = stringToPrecomputedChunk('"></style>');
 var arrayFirstOpenBracket = stringToPrecomputedChunk('[');
 var arraySubsequentOpenBracket = stringToPrecomputedChunk(',[');
 var arrayInterstitial = stringToPrecomputedChunk(',');
-var arrayCloseBracket = stringToPrecomputedChunk(']');
+var arrayCloseBracket = stringToPrecomputedChunk(']'); // This function writes a 2D array of strings to be embedded in javascript.
 
 var rendererSigil;
 
@@ -2396,13 +2407,14 @@ function x(a,b,d,c,f,g,h){this.acceptsBooleans=2===b||3===b||4===b;this.attribut
 A);new x(b,1,!1,a,null,!1,!1)});"xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type".split(" ").forEach(function(a){var b=a.replace(z,A);new x(b,1,!1,a,"http://www.w3.org/1999/xlink",!1,!1)});["xml:base","xml:lang","xml:space"].forEach(function(a){var b=a.replace(z,A);new x(b,1,!1,a,"http://www.w3.org/XML/1998/namespace",!1,!1)});["tabIndex","crossOrigin"].forEach(function(a){new x(a,1,!1,a.toLowerCase(),null,!1,!1)});
 new x("xlinkHref",1,!1,"xlink:href","http://www.w3.org/1999/xlink",!0,!1);["src","href","action","formAction"].forEach(function(a){new x(a,1,!1,a.toLowerCase(),null,!0,!0)});
 var B={animationIterationCount:!0,aspectRatio:!0,borderImageOutset:!0,borderImageSlice:!0,borderImageWidth:!0,boxFlex:!0,boxFlexGroup:!0,boxOrdinalGroup:!0,columnCount:!0,columns:!0,flex:!0,flexGrow:!0,flexPositive:!0,flexShrink:!0,flexNegative:!0,flexOrder:!0,gridArea:!0,gridRow:!0,gridRowEnd:!0,gridRowSpan:!0,gridRowStart:!0,gridColumn:!0,gridColumnEnd:!0,gridColumnSpan:!0,gridColumnStart:!0,fontWeight:!0,lineClamp:!0,lineHeight:!0,opacity:!0,order:!0,orphans:!0,tabSize:!0,widows:!0,zIndex:!0,zoom:!0,
-fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},ra=["Webkit","ms","Moz","O"];Object.keys(B).forEach(function(a){ra.forEach(function(b){b=b+a.charAt(0).toUpperCase()+a.substring(1);B[b]=B[a]})});var sa=Array.isArray;r("<script>");r("\x3c/script>");r('<script src="');r('<script type="module" src="');r('" integrity="');r('" async="">\x3c/script>');r("\x3c!-- --\x3e");r(' style="');r(":");r(";");r(" ");r('="');r('"');
-r('=""');r(">");r("/>");r(' selected=""');r("\n");r("<!DOCTYPE html>");r("</");r(">");r('<template id="');r('"></template>');r("\x3c!--$--\x3e");r('\x3c!--$?--\x3e<template id="');r('"></template>');r("\x3c!--$!--\x3e");r("\x3c!--/$--\x3e");r("<template");r('"');r(' data-dgst="');r(' data-msg="');r(' data-stck="');r("></template>");r('<div hidden id="');r('">');r("</div>");r('<svg aria-hidden="true" style="display:none" id="');r('">');r("</svg>");r('<math aria-hidden="true" style="display:none" id="');
-r('">');r("</math>");r('<table hidden id="');r('">');r("</table>");r('<table hidden><tbody id="');r('">');r("</tbody></table>");r('<table hidden><tr id="');r('">');r("</tr></table>");r('<table hidden><colgroup id="');r('">');r("</colgroup></table>");r('$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};;$RS("');r('$RS("');r('","');r('")\x3c/script>');r('$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};;$RC("');
+fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},ra=["Webkit","ms","Moz","O"];Object.keys(B).forEach(function(a){ra.forEach(function(b){b=b+a.charAt(0).toUpperCase()+a.substring(1);B[b]=B[a]})});var sa=Array.isArray;r('"></template>');r("<script>");r("\x3c/script>");r('<script src="');r('<script type="module" src="');r('" integrity="');r('" async="">\x3c/script>');r("\x3c!-- --\x3e");r(' style="');r(":");r(";");
+r(" ");r('="');r('"');r('=""');r(">");r("/>");r(' selected=""');r("\n");r("<!DOCTYPE html>");r("</");r(">");r('<template id="');r('"></template>');r("\x3c!--$--\x3e");r('\x3c!--$?--\x3e<template id="');r('"></template>');r("\x3c!--$!--\x3e");r("\x3c!--/$--\x3e");r("<template");r('"');r(' data-dgst="');r(' data-msg="');r(' data-stck="');r("></template>");r('<div hidden id="');r('">');r("</div>");r('<svg aria-hidden="true" style="display:none" id="');r('">');r("</svg>");r('<math aria-hidden="true" style="display:none" id="');
+r('">');r("</math>");r('<table hidden id="');r('">');r("</table>");r('<table hidden><tbody id="');r('">');r("</tbody></table>");r('<table hidden><tr id="');r('">');r("</tr></table>");r('<table hidden><colgroup id="');r('">');r("</colgroup></table>");r('$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};;$RS("');r('$RS("');r('","');r('")\x3c/script>');r('<template data-rsi="" data-sid="');
+r('" data-pid="');r('$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};;$RC("');
 r('$RC("');r('$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};;$RM=new Map;\n$RR=function(p,q,v){function r(l){this.s=l}for(var t=$RC,u=$RM,m=new Map,n=document,g,e,f=n.querySelectorAll("link[data-precedence],style[data-precedence]"),d=0;e=f[d++];)m.set(e.dataset.precedence,g=e);e=0;f=[];for(var c,h,b,a;c=v[e++];){var k=0;h=c[k++];if(b=u.get(h))"l"!==b.s&&f.push(b);else{a=n.createElement("link");a.href=h;a.rel="stylesheet";for(a.dataset.precedence=d=c[k++];b=c[k++];)a.setAttribute(b,c[k++]);b=a._p=new Promise(function(l,w){a.onload=l;a.onerror=w});b.then(r.bind(b,\n"l"),r.bind(b,"e"));u.set(h,b);f.push(b);c=m.get(d)||g;c===g&&(g=a);m.set(d,a);c?c.parentNode.insertBefore(a,c.nextSibling):(d=n.head,d.insertBefore(a,d.firstChild))}}Promise.all(f).then(t.bind(null,p,q,""),t.bind(null,p,q,"Resource failed to load"))};;$RR("');
 r('$RM=new Map;\n$RR=function(p,q,v){function r(l){this.s=l}for(var t=$RC,u=$RM,m=new Map,n=document,g,e,f=n.querySelectorAll("link[data-precedence],style[data-precedence]"),d=0;e=f[d++];)m.set(e.dataset.precedence,g=e);e=0;f=[];for(var c,h,b,a;c=v[e++];){var k=0;h=c[k++];if(b=u.get(h))"l"!==b.s&&f.push(b);else{a=n.createElement("link");a.href=h;a.rel="stylesheet";for(a.dataset.precedence=d=c[k++];b=c[k++];)a.setAttribute(b,c[k++]);b=a._p=new Promise(function(l,w){a.onload=l;a.onerror=w});b.then(r.bind(b,\n"l"),r.bind(b,"e"));u.set(h,b);f.push(b);c=m.get(d)||g;c===g&&(g=a);m.set(d,a);c?c.parentNode.insertBefore(a,c.nextSibling):(d=n.head,d.insertBefore(a,d.firstChild))}}Promise.all(f).then(t.bind(null,p,q,""),t.bind(null,p,q,"Resource failed to load"))};;$RR("');
-r('$RR("');r('","');r('",');r('"');r(")\x3c/script>");r('$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};;$RX("');r('$RX("');r('"');r(")\x3c/script>");r(",");r('<style data-precedence="');r('"></style>');r("[");r(",[");r(",");r("]");var C=null;
-function D(a,b){if(a!==b){a.context._currentValue=a.parentValue;a=a.parent;var d=b.parent;if(null===a){if(null!==d)throw Error("The stacks must reach the root at the same time. This is a bug in React.");}else{if(null===d)throw Error("The stacks must reach the root at the same time. This is a bug in React.");D(a,d);b.context._currentValue=b.value}}}function ta(a){a.context._currentValue=a.parentValue;a=a.parent;null!==a&&ta(a)}
+r('$RR("');r('","');r('",');r('"');r(")\x3c/script>");r('<template data-rci="" data-bid="');r('<template data-rri="" data-bid="');r('" data-sid="');r('" data-sty="');r('$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};;$RX("');r('$RX("');r('"');r(",");r(")\x3c/script>");r('<template data-rxi="" data-bid="');r('" data-dgst="');r('" data-msg="');r('" data-stck="');r('<style data-precedence="');
+r('"></style>');r("[");r(",[");r(",");r("]");var C=null;function D(a,b){if(a!==b){a.context._currentValue=a.parentValue;a=a.parent;var d=b.parent;if(null===a){if(null!==d)throw Error("The stacks must reach the root at the same time. This is a bug in React.");}else{if(null===d)throw Error("The stacks must reach the root at the same time. This is a bug in React.");D(a,d);b.context._currentValue=b.value}}}function ta(a){a.context._currentValue=a.parentValue;a=a.parent;null!==a&&ta(a)}
 function ua(a){var b=a.parent;null!==b&&ua(b);a.context._currentValue=a.value}function va(a,b){a.context._currentValue=a.parentValue;a=a.parent;if(null===a)throw Error("The depth must equal at least at zero before reaching the root. This is a bug in React.");a.depth===b.depth?D(a,b):va(a,b)}
 function wa(a,b){var d=b.parent;if(null===d)throw Error("The depth must equal at least at zero before reaching the root. This is a bug in React.");a.depth===d.depth?D(a,d):wa(a,d);b.context._currentValue=b.value}function G(a){var b=C;b!==a&&(null===b?ua(a):null===a?ta(b):b.depth===a.depth?D(b,a):b.depth>a.depth?va(b,a):wa(b,a),C=a)}function xa(a,b){var d=a._currentValue;a._currentValue=b;var c=C;return C=a={parent:c,depth:null===c?0:c.depth+1,context:a,parentValue:d,value:b}}var H=Error("Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`");
 function ya(){}function za(a,b,d){d=a[d];void 0===d?a.push(b):d!==b&&(b.then(ya,ya),b=d);switch(b.status){case "fulfilled":return b.value;case "rejected":throw b.reason;default:if("string"!==typeof b.status)switch(a=b,a.status="pending",a.then(function(a){if("pending"===b.status){var c=b;c.status="fulfilled";c.value=a}},function(a){if("pending"===b.status){var c=b;c.status="rejected";c.reason=a}}),b.status){case "fulfilled":return b.value;case "rejected":throw b.reason;}I=b;throw H;}}var I=null;
