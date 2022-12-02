@@ -643,28 +643,6 @@ export async function hasRedbox(browser, expected = true) {
   return false
 }
 
-export async function hasErrorToast(browser, expected = true) {
-  for (let i = 0; i < 30; i++) {
-    const result = await evaluate(browser, () => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
-      )
-    })
-
-    if (result === expected) {
-      return result
-    }
-    await waitFor(1000)
-  }
-  return false
-}
-
-export async function waitForAndOpenRuntimeError(browser) {
-  return browser.waitForElementByCss('[data-nextjs-toast]').click()
-}
-
 export async function getRedboxHeader(browser) {
   return retry(
     () =>
