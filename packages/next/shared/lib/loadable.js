@@ -23,7 +23,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 
 import React from 'react'
 import { LoadableContext } from './loadable-context'
-import DynamicBoundary from './dynamic-error-boundary'
 
 const ALL_INITIALIZERS = []
 const READY_INITIALIZERS = []
@@ -130,11 +129,7 @@ function createLoadableComponent(loadFn, options) {
       {
         fallback: fallbackElement,
       },
-      React.createElement(
-        DynamicBoundary,
-        null,
-        React.createElement(opts.lazy, props)
-      )
+      React.createElement(opts.lazy, props)
     )
   }
 

@@ -1,6 +1,5 @@
 import React, { Suspense } from 'react'
 import Loadable from './loadable'
-import DynamicBoundary from './dynamic-error-boundary'
 
 import { NEXT_DYNAMIC_NO_SSR_CODE } from './no-ssr-error'
 
@@ -75,8 +74,6 @@ export function noSSR<P = {}>(
   return () => (
     <Suspense fallback={fallback}>
       <NoSSRComponent />
-      {/* <DynamicBoundary>
-      </DynamicBoundary> */}
     </Suspense>
   )
 }
