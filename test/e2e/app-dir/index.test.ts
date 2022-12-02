@@ -1,14 +1,10 @@
-import os from 'os'
 import { createNext, FileRef } from 'e2e-utils'
 import crypto from 'crypto'
 import { NextInstance } from 'test/lib/next-modes/base'
 import {
   check,
   fetchViaHTTP,
-  findPort,
   getRedboxHeader,
-  initNextServerScript,
-  killApp,
   renderViaHTTP,
   waitFor,
   waitForAndOpenRuntimeError,
@@ -2554,44 +2550,4 @@ describe('app dir', () => {
   }
 
   runTests()
-
-  if ((global as any).isNextStart) {
-    it('should work correctly with output standalone', async () => {
-      const tmpFolder = path.join(os.tmpdir(), 'next-standalone-' + Date.now())
-      await fs.move(path.join(next.testDir, '.next/standalone'), tmpFolder)
-      let server
-
-      try {
-        const testServer = path.join(tmpFolder, 'server.js')
-        const appPort = await findPort()
-        server = await initNextServerScript(
-          testServer,
-          /Listening on/,
-          {
-            ...process.env,
-            PORT: appPort,
-          },
-          undefined,
-          {
-            cwd: tmpFolder,
-          }
-        )
-
-        for (const testPath of [
-          '/',
-          '/api/hello',
-          '/blog/first',
-          '/dashboard',
-          '/dashboard/deployments/123',
-          '/catch-all/first',
-        ]) {
-          const res = await fetchViaHTTP(appPort, testPath)
-          expect(res.status).toBe(200)
-        }
-      } finally {
-        if (server) await killApp(server)
-        await fs.remove(tmpFolder)
-      }
-    })
-  }
 })
