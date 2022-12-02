@@ -606,38 +606,38 @@ describe('create next app', () => {
       projectFilesShouldExist({ cwd, projectName, files })
     })
   })
-})
 
-it('should infer pnpm as the package manager with example', async () => {
-  try {
-    await execa('pnpm', ['--version'])
-  } catch (_) {
-    // install pnpm if not available
-    await execa('npm', ['i', '-g', 'pnpm'])
-  }
+  it('should infer pnpm as the package manager with example', async () => {
+    try {
+      await execa('pnpm', ['--version'])
+    } catch (_) {
+      // install pnpm if not available
+      await execa('npm', ['i', '-g', 'pnpm'])
+    }
 
-  await useTempDir(async (cwd) => {
-    const projectName = 'infer-package-manager-npm'
-    const res = await run(
-      [
-        projectName,
-        '--js',
-        '--eslint',
-        '--example',
-        `${exampleRepo}/${examplePath}`,
-      ],
-      { cwd, env: { ...process.env, npm_config_user_agent: 'pnpm' } }
-    )
+    await useTempDir(async (cwd) => {
+      const projectName = 'infer-package-manager-npm'
+      const res = await run(
+        [
+          projectName,
+          '--js',
+          '--eslint',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
+        { cwd, env: { ...process.env, npm_config_user_agent: 'pnpm' } }
+      )
 
-    const files = [
-      'package.json',
-      'pages/index.tsx',
-      '.gitignore',
-      'pnpm-lock.yaml',
-      'node_modules/next',
-    ]
+      const files = [
+        'package.json',
+        'pages/index.tsx',
+        '.gitignore',
+        'pnpm-lock.yaml',
+        'node_modules/next',
+      ]
 
-    expect(res.exitCode).toBe(0)
-    projectFilesShouldExist({ cwd, projectName, files })
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({ cwd, projectName, files })
+    })
   })
 })

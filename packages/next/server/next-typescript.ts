@@ -196,16 +196,20 @@ export function createTSPlugin(modules: {
   }
 
   function create(info: ts.server.PluginCreateInfo) {
-    const appDir = path.join(info.project.getCurrentDirectory(), 'app')
+    const projectDir = info.project.getCurrentDirectory()
+    const appDir = new RegExp(
+      '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
+    )
+
     const isAppEntryFile = (filePath: string) => {
       return (
-        filePath.startsWith(appDir) &&
+        appDir.test(filePath) &&
         /^(page|layout)\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
       )
     }
     const isPageFile = (filePath: string) => {
       return (
-        filePath.startsWith(appDir) &&
+        appDir.test(filePath) &&
         /^page\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
       )
     }
@@ -292,7 +296,7 @@ export function createTSPlugin(modules: {
       info.project.projectService.logger.info(message)
     }
 
-    log('Starting Next.js TypeScript plugin: ' + appDir)
+    log('Starting Next.js TypeScript plugin: ' + projectDir)
 
     // Set up decorator object
     const proxy = Object.create(null)
