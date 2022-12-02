@@ -6,10 +6,10 @@ on:
 
 jobs:
   triage:
-    runs-on: ubuntu-latest
-    name: Triage
     if: |
       ${{ github.event.label.name == 'template: bug' }}
+    name: Triage
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
