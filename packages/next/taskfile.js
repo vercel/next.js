@@ -1538,6 +1538,20 @@ export async function ncc_react(task, opts) {
   await fs.remove(join(reactDomCompiledDir, 'unstable_testing.js'))
   await fs.remove(join(reactDomCompiledDir, 'test-utils.js'))
   await fs.remove(join(reactDomCompiledDir, 'profiling.js'))
+  await fs.remove(join(reactDomCompiledDir, 'server.bun.js'))
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-server.bun.development.js')
+  )
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-server.bun.production.min.js')
+  )
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-test-utils.development.js')
+  )
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-test-utils.production.min.js')
+  )
+
   await fs.remove(
     join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
   )

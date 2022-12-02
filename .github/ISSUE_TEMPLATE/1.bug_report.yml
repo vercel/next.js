@@ -23,7 +23,7 @@ body:
       required: true
   - type: dropdown
     attributes:
-      label: Which area of Next.js is affected? (leave empty if unsure)
+      label: Which area(s) of Next.js are affected? (leave empty if unsure)
       multiple: true
       options:
         - 'App directory (appDir: true)'
@@ -32,6 +32,7 @@ body:
         - 'Dynamic imports (next/dynamic)'
         - 'ESLint (eslint-config-next)'
         - 'Font optimization (@next/font)'
+        - 'Head component/file (next/head / head.js)'
         - 'Internationalzation (i18n)'
         - 'Image optmization (next/image, next/legacy/image)'
         - 'Jest (next/jest)'
@@ -45,7 +46,6 @@ body:
         - 'SWC transpilation'
         - 'Turbopack (--turbo)'
         - 'TypeScript'
-        - 'Other'
   - type: input
     attributes:
       label: Link to reproduction - Issues with a link to complete (but minimal) reproduction code will be addressed faster

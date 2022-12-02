@@ -1,0 +1,20 @@
+# https://github.com/github/issue-labeler#create-workflow
+
+name: Label issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    if: |
+      ${{ github.event.label.name == 'template: bug' }}
+    name: Triage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: github/issue-labeler@v2.5
+        with:
+          repo-token: '${{ secrets.GITHUB_TOKEN }}'
+          configuration-path: '.github/issue-labeler.yml'
+          enable-versioned-regex: 0
