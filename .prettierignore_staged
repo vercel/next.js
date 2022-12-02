@@ -9,5 +9,5 @@ packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
 pnpm-lock.yaml
 .github/actions/issue-validator/index.mjs
-.github/actions/issue-validator/index.mjs
+.github/actions/issue-labeler/index.mjs
 **/convex/_generated/**
