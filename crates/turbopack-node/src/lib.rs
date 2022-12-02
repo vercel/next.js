@@ -206,9 +206,12 @@ async fn get_renderer_pool(
 
     emit(intermediate_asset, intermediate_output_path).await?;
 
-    if let Some(dir) = to_sys_path(intermediate_output_path).await? {
-        let entrypoint = dir.join("index.js");
-        let pool = NodeJsPool::new(dir, entrypoint, HashMap::new(), 4);
+    let cwd = intermediate_output_path.root();
+    let entrypoint = intermediate_output_path.join("index.js");
+
+    if let (Some(cwd), Some(entrypoint)) = (to_sys_path(cwd).await?, to_sys_path(entrypoint).await?)
+    {
+        let pool = NodeJsPool::new(cwd, entrypoint, HashMap::new(), 4);
         Ok(pool.cell())
     } else {
         Err(anyhow!("can only render from a disk filesystem"))
