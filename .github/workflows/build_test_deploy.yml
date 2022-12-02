@@ -24,7 +24,7 @@ jobs:
         run: ./scripts/check-examples.sh
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-4-core-oss
     env:
       NEXT_TELEMETRY_DISABLED: 1
       # we build a dev binary for use in CI so skip downloading
