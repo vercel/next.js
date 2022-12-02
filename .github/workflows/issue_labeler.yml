@@ -1,5 +1,3 @@
-# https://github.com/github/issue-labeler#create-workflow
-
 name: Label issues
 
 on:
@@ -8,13 +6,16 @@ on:
 
 jobs:
   triage:
+    runs-on: ubuntu-latest
+    name: Triage
     if: |
       ${{ github.event.label.name == 'template: bug' }}
-    name: Triage
-    runs-on: ubuntu-latest
     steps:
-      - uses: github/issue-labeler@v2.5
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
         with:
-          repo-token: '${{ secrets.GITHUB_TOKEN }}'
-          configuration-path: '.github/issue-labeler.yml'
-          enable-versioned-regex: 0
+          node-version: 18
+      - name: 'Run issue validator'
+        run: node ./.github/actions/issue-labeler/index.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
