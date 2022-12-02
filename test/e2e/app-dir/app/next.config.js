@@ -5,7 +5,6 @@ module.exports = {
       algorithm: 'sha256',
     },
   },
-  // TODO: (wyattjoh) enable once we've resolved issues with app directory and standalone output mode
   // output: 'standalone',
   rewrites: async () => {
     return {
