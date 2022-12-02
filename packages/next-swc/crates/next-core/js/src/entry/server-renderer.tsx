@@ -130,6 +130,9 @@ async function runOperation(
     },
   };
 
+  if ("getStaticPaths" in otherExports) {
+    renderOpts.getStaticPaths = otherExports.getStaticPaths;
+  }
   if ("getStaticProps" in otherExports) {
     renderOpts.getStaticProps = otherExports.getStaticProps;
   }
