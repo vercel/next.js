@@ -181,11 +181,6 @@ function createHeadInsertionTransformStream(
           freezing = true
           inserted = true
         }
-        if (process.env.NODE_ENV !== 'production' && insertion && !inserted) {
-          console.error(
-            `server inserted HTML couldn't be inserted into the stream. You are missing '<head/>' element in your layout - please add it.`
-          )
-        }
       }
 
       if (!inserted) {
