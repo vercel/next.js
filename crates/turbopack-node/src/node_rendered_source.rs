@@ -38,6 +38,7 @@ use crate::path_regex::PathRegexVc;
 pub fn create_node_rendered_source(
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
+    pathname: StringVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -46,6 +47,7 @@ pub fn create_node_rendered_source(
     let source = NodeRenderContentSource {
         specificity,
         server_root,
+        pathname,
         path_regex,
         entry,
         runtime_entries,
@@ -68,6 +70,7 @@ pub fn create_node_rendered_source(
 struct NodeRenderContentSource {
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
+    pathname: StringVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -176,7 +179,7 @@ impl ContentSource for NodeRenderContentSource {
                                 .headers
                                 .clone()
                                 .ok_or_else(|| anyhow!("headers needs to be provided"))?,
-                            path: format!("/{path}"),
+                            path: format!("/{}", this.pathname.await?),
                         }
                         .cell(),
                     );

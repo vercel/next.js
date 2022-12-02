@@ -3,7 +3,7 @@ use std::{
     io::Write,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use turbo_tasks::{
     primitives::{StringVc, StringsVc},
     TryJoinIterExt, Value, ValueToString,
@@ -66,7 +66,7 @@ use crate::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
-    util::regular_expression_for_path,
+    util::{pathname_for_path, regular_expression_for_path},
 };
 
 #[turbo_tasks::function]
@@ -315,12 +315,12 @@ async fn create_app_source_for_directory(
 
         let layout = files.get("layout");
 
+        // If a page exists but no layout exists, create a basic root layout
+        // in `app/layout.js` or `app/layout.tsx`.
+        //
         // TODO: Use let Some(page_file) = page in expression below when
         // https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands
-        if page.is_some() && layout.is_none() && target == server_root {
-            // If a page exists but no layout exists, create a basic root layout
-            // in `app/layout.js` or `app/layout.tsx`.
-            let page_file = page.context("page must not be none")?;
+        if let (Some(page_file), None, true) = (page, layout, target == server_root) {
             // Use the extension to determine if the page file is TypeScript.
             // TODO: Use the presence of a tsconfig.json instead, like Next.js
             // stable does.
@@ -358,10 +358,14 @@ async fn create_app_source_for_directory(
         list.push(LayoutSegment { files, target }.cell());
         layouts = LayoutSegmentsVc::cell(list);
         if let Some(page_path) = page {
+            let pathname = pathname_for_path(server_root, target, false);
+            let path_regex = regular_expression_for_path(server_root, target, false);
+
             sources.push(create_node_rendered_source(
                 specificity,
                 server_root,
-                regular_expression_for_path(server_root, target, false),
+                pathname,
+                path_regex,
                 AppRenderer {
                     context_ssr,
                     context,
