@@ -13,7 +13,7 @@ bench = false
 anyhow = "1.0.47"
 async-trait = "0.1.56"
 auto-hash-map = { path = "../auto-hash-map" }
-browserslist-rs = "=0.11.0"                                               # Keep consistent with preset_env_base through swc_core
+browserslist-rs = { workspace = true }
 futures = "0.3.24"
 indexmap = { workspace = true }
 lazy_static = "1.4.0"
