@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - name: 'Run issue validator'
+      - name: 'Run issue labeler'
         run: node ./.github/actions/issue-labeler/index.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
