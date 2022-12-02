@@ -12,7 +12,6 @@ import {
 import path from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import fs from 'fs-extra'
 
 describe('app dir', () => {
   const isDev = (global as any).isNextDev
