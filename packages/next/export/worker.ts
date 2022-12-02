@@ -32,7 +32,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic-error-boundary'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 
 loadRequireHook()
 
@@ -477,15 +477,22 @@ export default async function exportPage({
         try {
           await promises.access(ampHtmlFilepath)
         } catch (_) {
+          let ampRenderResult
           // make sure it doesn't exist from manual mapping
-          let ampRenderResult = await renderMethod(
-            req,
-            res,
-            page,
-            // @ts-ignore
-            { ...query, amp: '1' },
-            curRenderOpts as any
-          )
+          try {
+            ampRenderResult = await renderMethod(
+              req,
+              res,
+              page,
+              // @ts-ignore
+              { ...query, amp: '1' },
+              curRenderOpts as any
+            )
+          } catch (err: any) {
+            if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
+              throw err
+            }
+          }
 
           const ampHtml = ampRenderResult
             ? ampRenderResult.toUnchunkedString()

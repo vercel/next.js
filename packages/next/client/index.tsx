@@ -43,7 +43,7 @@ import {
   PathnameContextProviderAdapter,
 } from '../shared/lib/router/adapters'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 
 /// <reference types="react-dom/experimental" />
 

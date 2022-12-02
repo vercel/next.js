@@ -7,7 +7,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/dynamic'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 
 /// <reference types="react-dom/experimental" />
 

@@ -74,9 +74,9 @@ export function noSSR<P = {}>(
 
   return () => (
     <Suspense fallback={fallback}>
-      <DynamicBoundary>
-        <NoSSRComponent />
-      </DynamicBoundary>
+      <NoSSRComponent />
+      {/* <DynamicBoundary>
+      </DynamicBoundary> */}
     </Suspense>
   )
 }
