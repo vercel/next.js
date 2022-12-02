@@ -1,6 +1,8 @@
 import { createNext } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
+// @ts-expect-error missing types
+import stripAnsi from 'strip-ansi'
 
 describe('correct tsconfig.json defaults', () => {
   let next: NextInstance
@@ -72,6 +74,9 @@ describe('correct tsconfig.json defaults', () => {
 
       await next.start()
 
+      // Wait until compilation is done
+      await check(() => stripAnsi(next.cliOutput), /compiled client/i)
+
       expect(next.cliOutput).not.toContain('tsconfig-target-option')
     } finally {
       await next.stop()
@@ -90,6 +95,9 @@ describe('correct tsconfig.json defaults', () => {
       await next.patchFile('tsconfig.json', JSON.stringify(tsconfig))
 
       await next.start()
+
+      // Wait until compilation is done
+      await check(() => stripAnsi(next.cliOutput), /compiled client/i)
 
       expect(next.cliOutput).toContain('tsconfig-target-option')
     } finally {
