@@ -1127,20 +1127,6 @@ export async function renderToHTMLOrFlight(
         }
       }
 
-      // TODO-APP: move these errors to the loader instead?
-      // we will also need a migration doc here to link to
-      if (typeof layoutOrPageMod?.getServerSideProps === 'function') {
-        throw new Error(
-          `getServerSideProps is not supported in app/, detected in ${segment}`
-        )
-      }
-
-      if (typeof layoutOrPageMod?.getStaticProps === 'function') {
-        throw new Error(
-          `getStaticProps is not supported in app/, detected in ${segment}`
-        )
-      }
-
       /**
        * The React Component to render.
        */

@@ -1598,6 +1598,7 @@ export async function copyTracedFiles(
   dir: string,
   distDir: string,
   pageKeys: ReadonlyArray<string>,
+  appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest
@@ -1668,7 +1669,33 @@ export async function copyTracedFiles(
     }
   }
 
+  for (const page of Object.values(middlewareManifest.functions)) {
+    for (const file of page.files) {
+      const originalPath = path.join(distDir, file)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+    for (const file of [...(page.wasm ?? []), ...(page.assets ?? [])]) {
+      const originalPath = path.join(distDir, file.filePath)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file.filePath
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+  }
+
   for (const page of pageKeys) {
+    if (middlewareManifest.functions.hasOwnProperty(page)) {
+      continue
+    }
     const pageFile = path.join(
       distDir,
       'server',
@@ -1679,6 +1706,18 @@ export async function copyTracedFiles(
     await handleTraceFiles(pageTraceFile).catch((err) => {
       Log.warn(`Failed to copy traced files for ${pageFile}`, err)
     })
+  }
+  if (appPageKeys) {
+    for (const page of appPageKeys) {
+      if (middlewareManifest.functions.hasOwnProperty(page)) {
+        continue
+      }
+      const pageFile = path.join(distDir, 'server', 'app', `${page}`, 'page.js')
+      const pageTraceFile = `${pageFile}.nft.json`
+      await handleTraceFiles(pageTraceFile).catch((err) => {
+        Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      })
+    }
   }
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
@@ -1750,6 +1789,7 @@ server.listen(currentPort, (err) => {
 })`
   )
 }
+
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }

@@ -147,6 +147,11 @@ describe('app dir - external dependency', () => {
     ).toBe('rgb(255, 0, 0)')
   })
 
+  it('should use the same export type for packages in both ssr and client', async () => {
+    const browser = await webdriver(next.url, '/client-dep')
+    expect(await browser.eval(`window.document.body.innerText`)).toBe('hello')
+  })
+
   it('should handle external css modules in pages', async () => {
     const browser = await webdriver(next.url, '/test-pages')
 

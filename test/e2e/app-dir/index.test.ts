@@ -5,9 +5,9 @@ import {
   check,
   fetchViaHTTP,
   getRedboxHeader,
-  hasRedbox,
   renderViaHTTP,
   waitFor,
+  waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
@@ -377,6 +377,49 @@ describe('app dir', () => {
         }
       }
     )
+    ;(isDev ? describe : describe.skip)('HMR', () => {
+      it('should HMR correctly for client component', async () => {
+        const filePath = 'app/client-component-route/page.js'
+        const origContent = await next.readFile(filePath)
+
+        try {
+          const browser = await webdriver(next.url, '/client-component-route')
+
+          const ssrInitial = await renderViaHTTP(
+            next.url,
+            '/client-component-route'
+          )
+
+          expect(ssrInitial).toContain('hello from app/client-component-route')
+
+          expect(await browser.elementByCss('p').text()).toContain(
+            'hello from app/client-component-route'
+          )
+
+          await next.patchFile(
+            filePath,
+            origContent.replace('hello from', 'swapped from')
+          )
+
+          await check(() => browser.elementByCss('p').text(), /swapped from/)
+
+          const ssrUpdated = await renderViaHTTP(
+            next.url,
+            '/client-component-route'
+          )
+          expect(ssrUpdated).toContain('swapped from')
+
+          await next.patchFile(filePath, origContent)
+
+          await check(() => browser.elementByCss('p').text(), /hello from/)
+          expect(
+            await renderViaHTTP(next.url, '/client-component-route')
+          ).toContain('hello from')
+        } finally {
+          await next.patchFile(filePath, origContent)
+        }
+      })
+    })
 
     it('should handle hash in initial url', async () => {
       const browser = await webdriver(next.url, '/dashboard#abc')
@@ -1327,52 +1370,6 @@ describe('app dir', () => {
           })
         })
       })
-
-      if (isDev) {
-        it('should HMR correctly for client component', async () => {
-          const filePath = 'app/client-component-route/page.js'
-          const origContent = await next.readFile(filePath)
-
-          try {
-            const browser = await webdriver(next.url, '/client-component-route')
-
-            const ssrInitial = await renderViaHTTP(
-              next.url,
-              '/client-component-route'
-            )
-
-            expect(ssrInitial).toContain(
-              'hello from app/client-component-route'
-            )
-
-            expect(await browser.elementByCss('p').text()).toContain(
-              'hello from app/client-component-route'
-            )
-
-            await next.patchFile(
-              filePath,
-              origContent.replace('hello from', 'swapped from')
-            )
-
-            await check(() => browser.elementByCss('p').text(), /swapped from/)
-
-            const ssrUpdated = await renderViaHTTP(
-              next.url,
-              '/client-component-route'
-            )
-            expect(ssrUpdated).toContain('swapped from')
-
-            await next.patchFile(filePath, origContent)
-
-            await check(() => browser.elementByCss('p').text(), /hello from/)
-            expect(
-              await renderViaHTTP(next.url, '/client-component-route')
-            ).toContain('hello from')
-          } finally {
-            await next.patchFile(filePath, origContent)
-          }
-        })
-      }
     })
 
     describe('css support', () => {
@@ -2058,7 +2055,7 @@ describe('app dir', () => {
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          await waitForAndOpenRuntimeError(browser)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -2108,12 +2105,10 @@ describe('app dir', () => {
           '/error/global-error-boundary'
         )
         await browser.elementByCss('#error-trigger-button').click()
-        // .waitForElementByCss('body')
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
-          console.log('getRedboxHeader', await getRedboxHeader(browser))
-          // expect(await getRedboxHeader(browser)).toMatch(/An error occurred: this is a test/)
+          await waitForAndOpenRuntimeError(browser)
+          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
             await browser

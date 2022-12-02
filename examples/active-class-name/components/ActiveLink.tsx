@@ -1,22 +1,20 @@
 import { useRouter } from 'next/router'
 import Link, { LinkProps } from 'next/link'
-import React, { useState, useEffect, ReactElement, Children } from 'react'
+import React, { PropsWithChildren, useState, useEffect } from 'react'
 
 type ActiveLinkProps = LinkProps & {
-  children: ReactElement
+  className?: string
   activeClassName: string
 }
 
 const ActiveLink = ({
   children,
   activeClassName,
+  className,
   ...props
-}: ActiveLinkProps) => {
+}: PropsWithChildren<ActiveLinkProps>) => {
   const { asPath, isReady } = useRouter()
-
-  const child = Children.only(children)
-  const childClassName = child.props.className || ''
-  const [className, setClassName] = useState(childClassName)
+  const [computedClassName, setComputedClassName] = useState(className)
 
   useEffect(() => {
     // Check if the router fields are updated client-side
@@ -33,11 +31,11 @@ const ActiveLink = ({
 
       const newClassName =
         linkPathname === activePathname
-          ? `${childClassName} ${activeClassName}`.trim()
-          : childClassName
+          ? `${className} ${activeClassName}`.trim()
+          : className
 
-      if (newClassName !== className) {
-        setClassName(newClassName)
+      if (newClassName !== computedClassName) {
+        setComputedClassName(newClassName)
       }
     }
   }, [
@@ -45,17 +43,14 @@ const ActiveLink = ({
     isReady,
     props.as,
     props.href,
-    childClassName,
     activeClassName,
-    setClassName,
     className,
+    computedClassName,
   ])
 
   return (
-    <Link {...props} legacyBehavior>
-      {React.cloneElement(child, {
-        className: className || null,
-      })}
+    <Link className={computedClassName} {...props}>
+      {children}
     </Link>
   )
 }

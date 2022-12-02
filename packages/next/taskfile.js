@@ -389,7 +389,7 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       precompiled: false,
       packageName: '@next/react-dev-overlay',
       externals: overlayExternals,
-      target: 'es5',
+      target: 'es2018',
     })
     .target('dist/compiled/@next/react-dev-overlay/dist')
 
@@ -1538,6 +1538,20 @@ export async function ncc_react(task, opts) {
   await fs.remove(join(reactDomCompiledDir, 'unstable_testing.js'))
   await fs.remove(join(reactDomCompiledDir, 'test-utils.js'))
   await fs.remove(join(reactDomCompiledDir, 'profiling.js'))
+  await fs.remove(join(reactDomCompiledDir, 'server.bun.js'))
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-server.bun.development.js')
+  )
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-server.bun.production.min.js')
+  )
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-test-utils.development.js')
+  )
+  await fs.remove(
+    join(reactDomCompiledDir, 'cjs/react-dom-test-utils.production.min.js')
+  )
+
   await fs.remove(
     join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
   )
@@ -2223,7 +2237,11 @@ export async function nextbuildstatic(task, opts) {
 export async function pages_app(task, opts) {
   await task
     .source('pages/_app.tsx')
-    .swc('client', { dev: opts.dev, keepImportAssertions: true })
+    .swc('client', {
+      dev: opts.dev,
+      keepImportAssertions: true,
+      interopClientDefaultExport: true,
+    })
     .target('dist/pages')
 }
 

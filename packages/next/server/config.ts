@@ -95,13 +95,7 @@ export function setHttpClientAndAgentOptions(config: {
 function setFontLoaderDefaults(config: NextConfigComplete) {
   try {
     // eslint-disable-next-line import/no-extraneous-dependencies
-    const nextFontVersion = require('@next/font/package.json').version
-    const nextVersion = require('next/package.json').version
-    if (nextFontVersion !== nextVersion) {
-      Log.warn(
-        `Different versions of @next/font (${nextFontVersion}) and next (${nextVersion}) detected. This may lead to unexpected behavior.`
-      )
-    }
+    require('@next/font/package.json')
 
     const googleFontLoader = {
       loader: '@next/font/google',
