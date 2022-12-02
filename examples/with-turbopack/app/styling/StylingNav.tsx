@@ -38,7 +38,7 @@ const StylingNav = () => {
       {items.map((item) => (
         <TabNavItem
           key={item.slug}
-          href={`/styling/${item.slug}`}
+          href={`/styling${item.slug ? `/${item.slug}` : ''}`}
           isActive={item.slug === selectedLayoutSegments}
         >
           {item.name}
