@@ -8,9 +8,6 @@ const nextConfig = {
         ? '../static/wasm/[modulehash].wasm'
         : 'static/wasm/[modulehash].wasm'
 
-    // Ensure the .wasm bundle has the same filename on the client and server
-    config.optimization.moduleIds = 'named'
-
     // Since Webpack 5 doesn't enable WebAssembly by default, we should do it manually
     config.experiments = { ...config.experiments, asyncWebAssembly: true }
 
