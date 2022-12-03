@@ -1215,7 +1215,7 @@ export async function renderToHTMLOrFlight(
         // otherwise
         if (layoutOrPageMod.dynamic === 'force-static') {
           staticGenerationStore.forceStatic = true
-        } else {
+        } else if (layoutOrPageMod.dynamic !== 'error') {
           staticGenerationStore.forceStatic = false
         }
       }
