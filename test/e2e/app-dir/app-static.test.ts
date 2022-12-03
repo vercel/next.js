@@ -175,7 +175,7 @@ describe('app-dir static/dynamic handling', () => {
           dataRoute: '/variable-revalidate/revalidate-3.rsc',
           initialRevalidateSeconds: 3,
           srcRoute: '/variable-revalidate/revalidate-3',
-        }
+        },
       })
       expect(manifest.dynamicRoutes).toEqual({
         '/blog/[author]/[slug]': {
