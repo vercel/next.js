@@ -1,13 +1,16 @@
-//@ts-ignore
-import add_module from '../../add.wasm?module'
+import type { AddModuleExports } from '../../wasm'
+// @ts-ignore
+import addWasm from '../../add.wasm?module'
 
-const instance$ = WebAssembly.instantiateStreaming(add_module)
-
-export const config = { runtime: 'experimental-edge' }
+const module$ = WebAssembly.instantiate(addWasm)
 
 export default async function handler() {
-  const { exports } = (await instance$) as any
-  const number = exports.add_one(10)
+  const instance = (await module$) as any
+  const exports = instance.exports as AddModuleExports
+  const { add_one: addOne } = exports
+  const number = addOne(10)
 
   return new Response(`got: ${number}`)
 }
+
+export const config = { runtime: 'experimental-edge' }
