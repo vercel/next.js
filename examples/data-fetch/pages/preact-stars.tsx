@@ -3,12 +3,20 @@ import type { InferGetStaticPropsType } from 'next'
 import type { Repository } from '../types/github'
 
 export async function getStaticProps() {
-  const res = await fetch('https://api.github.com/repos/preactjs/preact')
-  const json: Repository = await res.json()
-  return {
-    props: {
-      stars: json.stargazers_count,
-    },
+  try {
+    const res = await fetch('https://api.github.com/repos/preactjs/preact')
+    const json: Repository = await res.json()
+    return {
+      props: {
+        stars: json.stargazers_count,
+      },
+    }
+  } catch (err) {
+    return {
+      props: {
+        error: err.message,
+      },
+    }
   }
 }
 
