@@ -28,7 +28,14 @@ export const projectSpecification: ProjectSpecification = {
       'node_modules/next',
       '.gitignore',
     ],
-    deps: ['next', 'react', 'react-dom', 'eslint', 'eslint-config-next'],
+    deps: [
+      'next',
+      '@next/font',
+      'react',
+      'react-dom',
+      'eslint',
+      'eslint-config-next',
+    ],
     devDeps: [],
   },
   default: {
