@@ -697,6 +697,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       const htmlElement = document.documentElement
       const existing = htmlElement.style.scrollBehavior
       htmlElement.style.scrollBehavior = 'auto'
+      htmlElement.getClientRects()
       window.scrollTo(input.scroll.x, input.scroll.y)
       htmlElement.style.scrollBehavior = existing
     }

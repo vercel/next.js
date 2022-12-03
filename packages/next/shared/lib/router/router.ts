@@ -659,6 +659,7 @@ function handleSmoothScroll(fn: () => void) {
   const htmlElement = document.documentElement
   const existing = htmlElement.style.scrollBehavior
   htmlElement.style.scrollBehavior = 'auto'
+  htmlElement.getClientRects()
   fn()
   htmlElement.style.scrollBehavior = existing
 }
