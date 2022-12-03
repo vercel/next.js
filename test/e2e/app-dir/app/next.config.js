@@ -5,6 +5,7 @@ module.exports = {
       algorithm: 'sha256',
     },
   },
+  // output: 'standalone',
   rewrites: async () => {
     return {
       afterFiles: [
