@@ -584,6 +584,10 @@ jobs:
 
       - run: echo ${{needs.build.outputs.docsChange}}
 
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
       - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
@@ -600,13 +604,15 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
+      # - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      #   timeout-minutes: 10
+      #   if: ${{needs.build.outputs.docsChange == 'nope'}}
       # - run: npx @replayio/playwright install chromium
       #   if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - uses: docker://mcr.microsoft.com/playwright:v1.22.2-focal
+      # - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/22
+      #   if: ${{needs.build.outputs.docsChange == 'nope'}}
+      - run: docker run -it --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && xvfb-run node run-tests.js --timings -g 1/22 >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          entrypoint: /bin/bash
-          args: -c "xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/22"
         # env:
         # RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testIntegration / Group ${{ matrix.group }}
         # RECORD_ALL_CONTENT: 1
