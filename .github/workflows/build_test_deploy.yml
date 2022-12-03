@@ -611,7 +611,7 @@ jobs:
       #   if: ${{needs.build.outputs.docsChange == 'nope'}}
       # - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/22
       #   if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - run: docker run -it --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && xvfb-run node run-tests.js --timings -g 1/22 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && xvfb-run node run-tests.js --timings -g 1/22 >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
         # RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testIntegration / Group ${{ matrix.group }}
