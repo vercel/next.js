@@ -53,7 +53,7 @@ url = "2.3.0"
 webbrowser = "0.7.1"
 
 [dev-dependencies]
-chromiumoxide = { version = "0.3.5", features = [
+chromiumoxide = { version = "0.4.0", features = [
   "tokio-runtime",
 ], default-features = false }
 criterion = { version = "0.3.5", features = ["async_tokio"] }
