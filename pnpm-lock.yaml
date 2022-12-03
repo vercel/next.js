@@ -113,6 +113,7 @@ importers:
       glob: 7.1.6
       gzip-size: 5.1.1
       html-validator: 5.1.18
+      http-proxy: 1.18.1
       husky: 8.0.0
       image-size: 0.9.3
       is-animated: 2.0.2
@@ -162,6 +163,7 @@ importers:
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
       shell-quote: 1.7.3
+      strip-ansi: 6.0.0
       styled-components: 6.0.0-beta.5
       styled-jsx-plugin-postcss: 3.0.2
       swr: 2.0.0-rc.0
@@ -276,6 +278,7 @@ importers:
       glob: 7.1.6
       gzip-size: 5.1.1
       html-validator: 5.1.18
+      http-proxy: 1.18.1
       husky: 8.0.0
       image-size: 0.9.3
       is-animated: 2.0.2
@@ -325,6 +328,7 @@ importers:
       selenium-webdriver: 4.0.0-beta.4
       semver: 7.3.7
       shell-quote: 1.7.3
+      strip-ansi: 6.0.0
       styled-components: 6.0.0-beta.5_biqbaboplfbrettd7655fr4n2y
       styled-jsx-plugin-postcss: 3.0.2
       swr: 2.0.0-rc.0_react@18.2.0
@@ -20817,7 +20821,7 @@ packages:
     dev: true
 
   /requires-port/1.0.0:
-    resolution: {integrity: sha1-kl0mAdOaxIXgkc8NpcbmlNw9yv8=}
+    resolution: {integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==}
     dev: true
 
   /reselect/4.1.6:
