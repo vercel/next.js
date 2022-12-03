@@ -11273,7 +11273,7 @@ function validateURLKeyedUpdatedProps(pendingProps, currentProps, resourceType, 
           }
         }
 
-        error('A %s with %s "%s" recieved new props with different values from the props used' + ' when this Resource was first rendered. React will only use the props provided when' + ' this resource was first rendered until a new %s is provided. Unlike conventional' + ' DOM elements, Resources instances do not have a one to one correspondence with Elements' + ' in the DOM and as such, every instance of a Resource for a single Resource identifier' + ' (%s) must have props that agree with each other. The differences are described below.%s', latestWarningName, urlPropKey, currentProps[urlPropKey], urlPropKey, urlPropKey, comparisonStatement);
+        error('A %s with %s "%s" received new props with different values from the props used' + ' when this Resource was first rendered. React will only use the props provided when' + ' this resource was first rendered until a new %s is provided. Unlike conventional' + ' DOM elements, Resources instances do not have a one to one correspondence with Elements' + ' in the DOM and as such, every instance of a Resource for a single Resource identifier' + ' (%s) must have props that agree with each other. The differences are described below.%s', latestWarningName, urlPropKey, currentProps[urlPropKey], urlPropKey, urlPropKey, comparisonStatement);
 
         return true;
       }
@@ -22496,7 +22496,7 @@ function deferHiddenOffscreenComponent(current, workInProgress, nextBaseLanes, r
   var nextState = {
     baseLanes: nextBaseLanes,
     // Save the cache pool so we can resume later.
-    cachePool:  getOffscreenDeferredCache() 
+    cachePool:  getOffscreenDeferredCache()
   };
   workInProgress.memoizedState = nextState;
 
@@ -34693,6 +34693,6 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(new Error());
 }
-        
+
   })();
 }
