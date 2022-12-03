@@ -18,7 +18,7 @@ auto-hash-map = { path = "../auto-hash-map" }
 bitflags = "1.3.2"
 bytes = "1.1.0"
 concurrent-queue = "1.2.2"
-futures = "0.3.24"
+futures = "0.3.25"
 futures-retry = "0.6.0"
 include_dir = { version = "0.7.2", features = ["nightly"] }
 jsonc-parser = { version = "0.21.0", features = ["serde"] }

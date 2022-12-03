@@ -49,7 +49,7 @@ swc_core = { workspace = true, features = [
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }
 difference = "2.0"
-futures = "0.3.21"
+futures = "0.3.25"
 rstest = "0.12.0"
 rstest_reuse = "0.3.0"
 test-generator = "0.3.0"

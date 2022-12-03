@@ -11,7 +11,7 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
-futures = "0.3.21"
+futures = "0.3.25"
 httparse = "1.6.0"
 hyper = { version = "0.14", features = ["full"] }
 hyper-tungstenite = "0.8.1"

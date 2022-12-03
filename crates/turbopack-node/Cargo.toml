@@ -11,7 +11,7 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
-futures = "0.3.21"
+futures = "0.3.25"
 indexmap = { workspace = true, features = ["serde"] }
 mime = "0.3.16"
 regex = "1.6.0"

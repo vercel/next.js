@@ -23,7 +23,7 @@ bitflags = "1.3.2"
 dashmap = "5.4.0"
 erased-serde = "0.3.20"
 event-listener = "2.5.3"
-futures = "0.3.21"
+futures = "0.3.25"
 indexmap = { workspace = true, features = ["serde"] }
 mopa = "0.2.0"
 nohash-hasher = "0.2.0"

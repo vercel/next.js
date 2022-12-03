@@ -33,7 +33,7 @@ profile = []
 anyhow = "1.0.47"
 clap = { version = "4.0.18", features = ["derive", "env"] }
 console-subscriber = { version = "0.1.8", optional = true }
-futures = "0.3.21"
+futures = "0.3.25"
 mime = "0.3.16"
 next-core = { path = "../next-core" }
 owo-colors = "3"

@@ -14,7 +14,7 @@ anyhow = "1.0.47"
 async-trait = "0.1.56"
 auto-hash-map = { path = "../auto-hash-map" }
 browserslist-rs = { workspace = true }
-futures = "0.3.24"
+futures = "0.3.25"
 indexmap = { workspace = true }
 lazy_static = "1.4.0"
 patricia_tree = "0.3.1"
