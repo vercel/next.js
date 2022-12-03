@@ -135,7 +135,9 @@ describe('@next/font/google', () => {
       expect(JSON.parse($('#nabla').text())).toEqual({
         className: expect.stringMatching(/__className_.{6}/),
         style: {
-          fontFamily: expect.stringMatching(/^'__Nabla_.{6}'$/),
+          fontFamily: expect.stringMatching(
+            /'__Nabla_.{6}', '__Nabla_Fallback_.{6}'/
+          ),
           fontStyle: 'normal',
         },
       })
@@ -405,7 +407,7 @@ describe('@next/font/google', () => {
         const descentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).descentOverride'
         )
-        expect(descentOverride).toBe('52%')
+        expect(descentOverride).toBe('51.94%')
 
         const lineGapOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2_Fallback")).lineGapOverride'
@@ -429,7 +431,7 @@ describe('@next/font/google', () => {
         const descentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).descentOverride'
         )
-        expect(descentOverride).toBe('22.08%')
+        expect(descentOverride).toBe('22.09%')
 
         const lineGapOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1_Fallback")).lineGapOverride'
@@ -527,7 +529,7 @@ describe('@next/font/google', () => {
         const descentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).descentOverride'
         )
-        expect(descentOverride).toBe('51.94%')
+        expect(descentOverride).toBe('52%')
 
         const lineGapOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).lineGapOverride'
@@ -537,7 +539,7 @@ describe('@next/font/google', () => {
         const sizeAdjust = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).sizeAdjust'
         )
-        expect(sizeAdjust).toBe('94%')
+        expect(sizeAdjust).toBe('93.9%')
       })
 
       test('Fraunces', async () => {
@@ -551,7 +553,7 @@ describe('@next/font/google', () => {
         const descentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).descentOverride'
         )
-        expect(descentOverride).toBe('22.09%')
+        expect(descentOverride).toBe('22.08%')
 
         const lineGapOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).lineGapOverride'
@@ -561,7 +563,7 @@ describe('@next/font/google', () => {
         const sizeAdjust = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).sizeAdjust'
         )
-        expect(sizeAdjust).toBe('115.45%')
+        expect(sizeAdjust).toBe('115.47%')
       })
     })
   })

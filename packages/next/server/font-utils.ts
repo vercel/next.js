@@ -116,7 +116,7 @@ export function calculateOverrideValues(fontName: any) {
     lineGap,
     unitsPerEm,
     category,
-  } = require(`@capsizecss/metrics/${formatName(fontName)}`)
+  } = require(`next/dist/compiled/@capsizecss/metrics/${formatName(fontName)}`)
 
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
@@ -140,10 +140,10 @@ export function calculateSizeAdjustValues(fontName: any) {
     unitsPerEm,
     xAvgLetterFrequency,
     category,
-  } = require(`@capsizecss/metrics/${formatName(fontName)}`)
+  } = require(`next/dist/compiled/@capsizecss/metrics/${formatName(fontName)}`)
   const fallbackFont =
     category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
-  const fallbackFontMetrics = require(`@capsizecss/metrics/${formatName(
+  const fallbackFontMetrics = require(`next/dist/compiled/@capsizecss/metrics/${formatName(
     fallbackFont.name
   )}`)
 

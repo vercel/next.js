@@ -9,6 +9,11 @@ const fs = require('fs-extra')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
 
+export async function copy_capsizecss_metrics(task, opts) {
+  const srcDir = dirname(require.resolve('@capsizecss/metrics/package.json'))
+  await fs.copy(srcDir, join(__dirname, 'compiled/@capsizecss/metrics'))
+}
+
 export async function next__polyfill_nomodule(task, opts) {
   await task
     .source(
@@ -2087,6 +2092,7 @@ export async function ncc(task, opts) {
       'ncc_jest_worker',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime',
+      'copy_capsizecss_metrics',
     ],
     opts
   )

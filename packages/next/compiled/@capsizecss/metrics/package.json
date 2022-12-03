@@ -1,0 +1,48 @@
+{
+  "name": "@capsizecss/metrics",
+  "version": "0.0.0-x-avg-char-width-20221118004523",
+  "description": "Font metrics library for system and Google fonts",
+  "author": {
+    "name": "Michael Taranto",
+    "homepage": "https://github.com/michaeltaranto"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seek-oss/capsize.git",
+    "directory": "packages/metrics"
+  },
+  "keywords": [
+    "capsize",
+    "leading trim",
+    "white space",
+    "baseline",
+    "basekick",
+    "cap height",
+    "typography",
+    "line gap",
+    "leading"
+  ],
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@capsizecss/unpack": "0.0.0-x-avg-char-width-20221118004523",
+    "@types/cli-progress": "^3.9.2",
+    "@types/dedent": "^0.7.0",
+    "@types/node": "^16.18.2",
+    "cli-progress": "^3.9.1",
+    "dedent": "^0.7.0",
+    "del": "^6.0.0",
+    "node-fetch": "^2.6.2",
+    "p-queue": "^6.6.2",
+    "ts-node": "^10.2.1",
+    "typescript": "^4.8.4"
+  },
+  "scripts": {
+    "clean": "ts-node scripts/clean",
+    "prebuild": "pnpm clean",
+    "build": "ts-node scripts/build",
+    "extract-system-metrics": "ts-node scripts/extractSystemFontMetrics",
+    "analyse": "ts-node scripts/analyse",
+    "download": "ts-node scripts/download"
+  }
+}
