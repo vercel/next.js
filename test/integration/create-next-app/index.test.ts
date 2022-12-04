@@ -301,22 +301,29 @@ describe('create next app', () => {
   it('should exit if the folder is not writable', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'not-writable'
+
+      // if the folder isn't able to be write restricted we can't test
+      // this so skip
+      if (
+        await fs
+          .writeFile(path.join(cwd, 'test'), 'hello')
+          .then(() => true)
+          .catch(() => false)
+      ) {
+        console.warn(
+          `Test folder is not write restricted skipping write permission test`
+        )
+        return
+      }
       const res = await run([projectName, '--js', '--eslint'], {
         cwd,
         reject: false,
       })
 
-      if (process.platform === 'win32') {
-        expect(res.exitCode).toBe(0)
-        const files = ['package.json']
-        projectFilesShouldExist({ cwd, projectName, files })
-        return
-      }
-
-      expect(res.exitCode).toBe(1)
       expect(res.stderr).toMatch(
         /you do not have write permissions for this folder/
       )
+      expect(res.exitCode).toBe(1)
     }, 0o500)
   })
 
