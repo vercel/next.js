@@ -561,6 +561,7 @@ export class FlightClientEntryPlugin {
     return shouldInvalidate
   }
 
+  // TODO-APP: make sure dependsOn is added for layouts/pages
   addEntry(
     compilation: any,
     context: string,

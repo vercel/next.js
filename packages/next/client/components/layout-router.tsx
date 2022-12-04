@@ -209,6 +209,7 @@ export function InnerLayoutRouter({
 
   // If cache node has a data request we have to unwrap response by `use` and update the cache.
   if (childNode.data) {
+    // TODO-APP: error case
     /**
      * Flight response data
      */
@@ -228,6 +229,7 @@ export function InnerLayoutRouter({
     setTimeout(() => {
       // @ts-ignore startTransition exists
       React.startTransition(() => {
+        // TODO-APP: handle redirect
         changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
       })
     })

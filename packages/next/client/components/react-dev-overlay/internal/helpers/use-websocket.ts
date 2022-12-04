@@ -55,6 +55,7 @@ export function useWebsocketPing(
       sendMessage(
         JSON.stringify({
           event: 'ping',
+          // TODO-APP: fix case for dynamic parameters, this will be resolved wrong currently.
           tree,
           appDirRoute: true,
         })

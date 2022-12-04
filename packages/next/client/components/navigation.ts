@@ -109,6 +109,7 @@ export {
   useServerInsertedHTML,
 } from '../../shared/lib/server-inserted-html'
 
+// TODO-APP: Move the other router context over to this one
 /**
  * Get the router methods. For example router.push('/dashboard')
  */

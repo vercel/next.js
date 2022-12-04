@@ -1586,6 +1586,7 @@ export async function renderToHTMLOrFlight(
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
+        // TODO-APP: change walk to output without ''
         (
           await walkTreeWithFlightRouterState({
             createSegmentPath: (child) => child,
@@ -1791,6 +1792,7 @@ export async function renderToHTMLOrFlight(
           res.statusCode = 404
         }
 
+        // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
           element: (

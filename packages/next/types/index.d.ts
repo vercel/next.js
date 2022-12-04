@@ -40,6 +40,7 @@ declare module 'react' {
     nonce?: string
   }
 
+  // TODO-APP: check if this is the right type.
   function use<T>(promise: Promise<T> | React.Context<T>): T
   function cache<T extends Function>(fn: T): T
 }
