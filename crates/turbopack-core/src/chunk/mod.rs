@@ -458,8 +458,6 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
                                 inner_chunk_items.push(manifest_loader_item);
                                 inner_chunk_groups
                                     .push(ChunkGroupVc::from_asset(manifest_chunk, context));
-                                inner_chunk_groups
-                                    .push(ChunkGroupVc::from_asset(chunkable_asset, context));
                             } else {
                                 external_asset_references.push(reference);
                                 continue 'outer;
