@@ -82,6 +82,7 @@ importers:
       async-sema: 3.0.1
       body-parser: 1.20.1
       browserslist: 4.20.2
+      buffer: 5.6.0
       chalk: 5.0.1
       cheerio: 0.22.0
       cookie: 0.4.1
@@ -179,9 +180,11 @@ importers:
       tsec: 0.2.1
       turbo: 1.6.3
       typescript: 4.8.2
+      unfetch: 4.2.0
       wait-port: 0.2.2
       webpack: 5.74.0
       webpack-bundle-analyzer: 4.7.0
+      whatwg-fetch: 3.0.0
       ws: 8.2.3
     devDependencies:
       '@babel/core': 7.18.0
@@ -254,6 +257,7 @@ importers:
       async-sema: 3.0.1
       body-parser: 1.20.1
       browserslist: 4.20.2
+      buffer: 5.6.0
       chalk: 5.0.1
       cheerio: 0.22.0
       cookie: 0.4.1
@@ -351,9 +355,11 @@ importers:
       tsec: 0.2.1_sbe2uaqno6akssxfwbhgeg7v2q
       turbo: 1.6.3
       typescript: 4.8.2
+      unfetch: 4.2.0
       wait-port: 0.2.2
       webpack: 5.74.0_@swc+core@1.2.203
       webpack-bundle-analyzer: 4.7.0
+      whatwg-fetch: 3.0.0
       ws: 8.2.3
 
   bench/vercel:
@@ -14877,7 +14883,7 @@ packages:
     resolution: {integrity: sha512-V0tmJSYfkKokZ5mgl0cmfQMTb7MLHsBMngTkbLY0eXvKqiVRRoZP04Ly+KhKrJfKtzC9E6Pp15Jo+bwh7Vi2XQ==}
     dependencies:
       node-fetch: 2.6.7
-      unfetch: 4.1.0
+      unfetch: 4.2.0
     transitivePeerDependencies:
       - encoding
     dev: true
@@ -23124,8 +23130,8 @@ packages:
       busboy: 1.6.0
     dev: true
 
-  /unfetch/4.1.0:
-    resolution: {integrity: sha512-crP/n3eAPUJxZXM9T80/yv0YhkTEx2K1D3h7D1AJM6fzsWZrxdyRuLN0JH/dkZh1LNH8LxCnBzoPFCPbb2iGpg==}
+  /unfetch/4.2.0:
+    resolution: {integrity: sha512-F9p7yYCn6cIW9El1zi0HI6vqpeIvBsr3dSuRO6Xuppb1u5rXpCPmMvLSyECLhybr9isec8Ohl0hPekMVrEinDA==}
     dev: true
 
   /unherit/1.1.2:
