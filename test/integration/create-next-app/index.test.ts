@@ -305,7 +305,10 @@ describe('create next app', () => {
       // if the folder isn't able to be write restricted we can't test
       // this so skip
       if (
-        await fs.writeFile(path.join(cwd, 'test'), 'hello').catch(() => true)
+        await fs
+          .writeFile(path.join(cwd, 'test'), 'hello')
+          .then(() => true)
+          .catch(() => false)
       ) {
         console.warn(
           `Test folder is not write restricted skipping write permission test`
