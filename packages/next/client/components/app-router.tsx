@@ -358,7 +358,7 @@ function Router({
         return
       }
 
-      // This case happens when when the history entry was pushed by the `pages` router.
+      // This case happens when the history entry was pushed by the `pages` router.
       if (!state.__NA) {
         window.location.reload()
         return
