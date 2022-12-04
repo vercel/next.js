@@ -326,6 +326,12 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
     expect(await session.hasRedbox(true)).toBe(true)
+
+    await check(async () => {
+      const source = await session.getRedboxSource()
+      return source?.length > 1 ? 'success' : source
+    }, 'success')
+
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
