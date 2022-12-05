@@ -92,6 +92,7 @@ export default function EvilPage(): JSX.Element {
 }
 `
         )
+        appPort = await findPort()
         app = await launchApp(appDir, appPort)
 
         const $ = await get$('/hello')

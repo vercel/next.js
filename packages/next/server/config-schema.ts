@@ -277,6 +277,9 @@ const configSchema = {
         fallbackNodePolyfills: {
           type: 'boolean',
         },
+        fetchCache: {
+          type: 'boolean',
+        },
         forceSwcTransforms: {
           type: 'boolean',
         },
