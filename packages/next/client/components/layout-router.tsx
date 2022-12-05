@@ -95,7 +95,6 @@ class Scroller extends React.Component<{
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef } = this.props
     const domNode = findDOMNode(this)
-    console.log({ domNode })
 
     if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
       // State is mutated to ensure that the focus and scroll is applied only once.
