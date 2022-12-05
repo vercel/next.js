@@ -13,10 +13,7 @@ import type { FocusAndScrollRef } from './reducer'
 
 import React, { useContext, useEffect, use } from 'react'
 import { findDOMNode as ReactDOMfindDOMNode } from 'react-dom'
-import type {
-  ChildProp,
-  //Segment
-} from '../../server/app-render'
+import type { ChildProp } from '../../server/app-render'
 import {
   CacheStates,
   LayoutRouterContext,
