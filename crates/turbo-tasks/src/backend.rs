@@ -76,6 +76,14 @@ pub enum PersistentTaskType {
 }
 
 impl PersistentTaskType {
+    pub fn shrink_to_fit(&mut self) {
+        match self {
+            Self::Native(_, inputs) => inputs.shrink_to_fit(),
+            Self::ResolveNative(_, inputs) => inputs.shrink_to_fit(),
+            Self::ResolveTrait(_, _, inputs) => inputs.shrink_to_fit(),
+        }
+    }
+
     pub fn len(&self) -> usize {
         match self {
             PersistentTaskType::Native(_, v)

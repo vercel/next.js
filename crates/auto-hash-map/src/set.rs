@@ -76,6 +76,11 @@ impl<K: Hash + Eq, H: BuildHasher + Default> AutoSet<K, H> {
         self.map.extend(iter.into_iter().map(|item| (item, ())))
     }
 
+    /// see [HashSet::shrink_to_fit](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.shrink_to_fit)
+    pub fn shrink_to_fit(&mut self) {
+        self.map.shrink_to_fit();
+    }
+
     /// see [HashSet::contains](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.contains)
     pub fn contains(&self, key: &K) -> bool {
         self.map.contains_key(key)

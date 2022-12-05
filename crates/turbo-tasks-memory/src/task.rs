@@ -555,9 +555,14 @@ impl Task {
             match state.state_type {
                 InProgress { ref mut event } => {
                     let event = event.take();
-                    state.state_type = Done {
-                        dependencies: take(&mut dependencies),
-                    };
+                    let mut dependencies = take(&mut dependencies);
+                    // This will stay here for longer, so make sure to not consume too much memory
+                    dependencies.shrink_to_fit();
+                    for cells in state.cells.values_mut() {
+                        cells.shrink_to_fit();
+                    }
+                    state.cells.shrink_to_fit();
+                    state.state_type = Done { dependencies };
                     for scope in state.scopes.iter() {
                         backend.with_scope(scope, |scope| {
                             scope.decrement_unfinished_tasks(backend);

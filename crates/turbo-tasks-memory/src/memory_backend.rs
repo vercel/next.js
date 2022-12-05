@@ -421,7 +421,7 @@ impl Backend for MemoryBackend {
 
     fn get_or_create_persistent_task(
         &self,
-        task_type: PersistentTaskType,
+        mut task_type: PersistentTaskType,
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
@@ -433,6 +433,9 @@ impl Backend for MemoryBackend {
             // "in progress" until they become active
             task
         } else {
+            // It's important to avoid overallocating memory as this will go into the task
+            // cache and stay there forever. We can to be as small as possible.
+            task_type.shrink_to_fit();
             // slow pass with key lock
             let id = turbo_tasks.get_fresh_task_id();
             let task = match &task_type {
