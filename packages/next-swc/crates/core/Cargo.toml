@@ -5,9 +5,7 @@ version = "0.0.0"
 publish = false
 
 [features]
-plugin = [
-  "swc_core/plugin_transform_host_native"
-]
+plugin = ["swc_core/plugin_transform_host_native"]
 
 [dependencies]
 chrono = "0.4"
@@ -19,10 +17,10 @@ pathdiff = "0.2.0"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
-swc_emotion = "0.28.3"
-styled_components = "0.52.7"
-styled_jsx = "0.29.7"
-modularize_imports = "0.25.7"
+swc_emotion = { git = "https://github.com/kwonoj/plugins.git", rev = "536b025152ef3622d0e09c730ad95c20dab9265d" }
+styled_jsx = { git = "https://github.com/kwonoj/plugins.git", rev = "536b025152ef3622d0e09c730ad95c20dab9265d" }
+styled_components = { git = "https://github.com/kwonoj/plugins.git", rev = "536b025152ef3622d0e09c730ad95c20dab9265d" }
+modularize_imports = { git = "https://github.com/kwonoj/plugins.git", rev = "536b025152ef3622d0e09c730ad95c20dab9265d" }
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 
 swc_core = { features = [
@@ -41,10 +39,12 @@ swc_core = { features = [
   "ecma_parser",
   "ecma_parser_typescript",
   "cached",
-  "base"
-], version = "0.44.2" }
+  "base",
+], git = "https://github.com/swc-project/swc.git", rev = "171733e8bb26e0ea7b88cba4279fecd243d0a440" }
 
 [dev-dependencies]
-swc_core = { features = ["testing_transform"], version = "0.44.2" }
-testing = "0.31.14"
+swc_core = { features = [
+  "testing_transform",
+], git = "https://github.com/swc-project/swc.git", rev = "171733e8bb26e0ea7b88cba4279fecd243d0a440" }
+testing = { git = "https://github.com/swc-project/swc.git", rev = "171733e8bb26e0ea7b88cba4279fecd243d0a440" }
 walkdir = "2.3.2"

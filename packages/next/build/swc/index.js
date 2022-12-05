@@ -89,6 +89,7 @@ export async function loadBindings() {
     try {
       return resolve(loadNative(isCustomTurbopack))
     } catch (a) {
+      Log.error(a)
       attempts = attempts.concat(a)
     }
 
@@ -276,7 +277,9 @@ function loadNative(isCustomTurbopack = false) {
       bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
       Log.info('Using locally built binary of @next/swc')
       break
-    } catch (e) {}
+    } catch (e) {
+      Log.error(e)
+    }
   }
 
   if (!bindings) {
@@ -289,6 +292,7 @@ function loadNative(isCustomTurbopack = false) {
         if (e?.code === 'MODULE_NOT_FOUND') {
           attempts.push(`Attempted to load ${pkg}, but it was not installed`)
         } else {
+          Log.error(e)
           attempts.push(
             `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
           )

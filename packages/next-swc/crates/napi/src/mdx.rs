@@ -1,6 +1,6 @@
 use mdxjs::{compile, Options};
 use napi::bindgen_prelude::*;
-
+/*
 pub struct MdxCompileTask {
     pub input: String,
     pub option: Buffer,
@@ -41,3 +41,4 @@ pub fn mdx_compile_sync(value: String, option: Buffer) -> napi::Result<String> {
     compile(value.as_str(), &option)
         .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{:?}", err)))
 }
+ */

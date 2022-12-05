@@ -50,14 +50,14 @@ swc_core = { features = [
   "ecma_transforms_typescript",
   "ecma_utils",
   "ecma_visit",
-], version = "0.44.2" }
+], git = "https://github.com/swc-project/swc.git", rev = "171733e8bb26e0ea7b88cba4279fecd243d0a440" }
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
-next-dev = { git = "https://github.com/vercel/turbo.git", rev = "c69298c4a31516129bb62263f163a1da9c5614da", features = ["serializable"] }
-node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "c69298c4a31516129bb62263f163a1da9c5614da", default-features = false, features = ["node-api"] }
-mdxjs = { version = "0.1.3", features = ["serializable"] }
+next-dev = { git = "https://github.com/vercel/turbo.git", rev = "ba264de5dffea6de6cbd69b71bba2901e81b37bc", features = ["serializable"] }
+node-file-trace = { git = "https://github.com/vercel/turbo.git", rev = "ba264de5dffea6de6cbd69b71bba2901e81b37bc", default-features = false, features = ["node-api"] }
+mdxjs = { git = "https://github.com/kwonoj/mdxjs-rs.git", rev = "5a7b1453c98f04c7d025c14e120c226b1eb32ca8" }
 # There are few build targets we can't use native-tls which default features rely on,
 # allow to specify alternative (rustls) instead via features.
 # Note to opt in rustls default-features should be disabled

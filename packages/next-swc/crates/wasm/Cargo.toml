@@ -31,7 +31,7 @@ wasm-bindgen-futures = "0.4.8"
 getrandom = { version = "0.2.5", optional = true, default-features = false }
 js-sys = "0.3.59"
 serde-wasm-bindgen = "0.4.3"
-mdxjs = { version = "0.1.3", features = ["serializable"] }
+mdxjs = { git = "https://github.com/kwonoj/mdxjs-rs.git", rev = "5a7b1453c98f04c7d025c14e120c226b1eb32ca8" }
 
 swc_core = { features = [
   "common_concurrent",
@@ -46,7 +46,7 @@ swc_core = { features = [
   "ecma_parser_typescript",
   "ecma_utils",
   "ecma_visit"
-], version = "0.44.2" }
+], git = "https://github.com/swc-project/swc.git", rev = "171733e8bb26e0ea7b88cba4279fecd243d0a440" }
 
 
 # Workaround a bug

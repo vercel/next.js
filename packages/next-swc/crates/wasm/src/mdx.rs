@@ -3,6 +3,7 @@ use mdxjs::{compile, Options};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
+/*
 #[wasm_bindgen(js_name = "mdxCompileSync")]
 pub fn mdx_compile_sync(value: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
     let value: String = value.into();
@@ -19,3 +20,4 @@ pub fn mdx_compile(value: JsString, opts: JsValue) -> js_sys::Promise {
     // support.
     future_to_promise(async { mdx_compile_sync(value, opts) })
 }
+*/
