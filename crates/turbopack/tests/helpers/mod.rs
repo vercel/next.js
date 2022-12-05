@@ -6,7 +6,7 @@ pub fn print_changeset(changeset: &Changeset) -> String {
     assert!(changeset.split == "\n");
     let mut result = String::from("--- DIFF ---\n- Expected\n+ Actual\n------------\n");
     const CONTEXT_LINES: usize = 3;
-    let mut context = VecDeque::new();
+    let mut context = VecDeque::with_capacity(CONTEXT_LINES);
     let mut need_context = CONTEXT_LINES;
     let mut has_spacing = false;
     for diff in changeset.diffs.iter() {

@@ -94,7 +94,7 @@ impl SingleAssetReferenceVc {
 pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsVc> {
     let references_set = asset.references().await?;
     let mut assets = Vec::new();
-    let mut queue = VecDeque::new();
+    let mut queue = VecDeque::with_capacity(32);
     for reference in references_set.iter() {
         queue.push_back(reference.resolve_reference());
     }
@@ -137,7 +137,7 @@ pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsVc> {
 #[turbo_tasks::function]
 pub async fn all_assets(asset: AssetVc) -> Result<AssetsVc> {
     // TODO need to track import path here
-    let mut queue = VecDeque::new();
+    let mut queue = VecDeque::with_capacity(32);
     queue.push_back((asset, all_referenced_assets(asset)));
     let mut assets = HashSet::new();
     assets.insert(asset);

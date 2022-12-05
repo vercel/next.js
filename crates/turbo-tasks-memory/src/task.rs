@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     cell::RefCell,
-    cmp::Ordering,
+    cmp::{max, Ordering},
     collections::VecDeque,
     fmt::{self, Debug, Display, Formatter, Write},
     future::Future,
@@ -743,6 +743,9 @@ impl Task {
                     }
                 }
 
+                if queue.capacity() == 0 {
+                    queue.reserve(max(children.len(), SPLIT_OFF_QUEUE_AT * 2));
+                }
                 queue.extend(children.iter().copied().map(|child| (child, depth + 1)));
 
                 // add to dirty list of the scope (potentially schedule)
@@ -764,7 +767,8 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        let mut queue = VecDeque::new();
+        // VecDeque::new() would allocate with 7 items capacity. We don't want that.
+        let mut queue = VecDeque::with_capacity(0);
         self.add_to_scope_internal_shallow(
             id,
             is_optimization_scope,
@@ -908,6 +912,9 @@ impl Task {
             TaskScopes::Inner(ref mut set, _) => {
                 if set.remove(id) {
                     self.remove_self_from_scope(&mut state, id, backend, turbo_tasks);
+                    if queue.capacity() == 0 {
+                        queue.reserve(max(state.children.len(), SPLIT_OFF_QUEUE_AT * 2));
+                    }
                     queue.extend(state.children.iter().copied());
                     drop(state);
                 }
@@ -921,7 +928,8 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        let mut queue = VecDeque::new();
+        // VecDeque::new() would allocate with 7 items capacity. We don't want that.
+        let mut queue = VecDeque::with_capacity(0);
         self.remove_from_scope_internal_shallow(id, backend, turbo_tasks, &mut queue);
         run_remove_from_scope_queue(queue, id, backend, turbo_tasks);
     }
@@ -1540,8 +1548,8 @@ pub fn run_add_to_scope_queue(
                 &mut queue,
             );
         });
-        if queue.len() > SPLIT_OFF_QUEUE_AT {
-            let split_off_queue = queue.split_off(SPLIT_OFF_QUEUE_AT);
+        while queue.len() > SPLIT_OFF_QUEUE_AT {
+            let split_off_queue = queue.split_off(queue.len() - SPLIT_OFF_QUEUE_AT);
             turbo_tasks.schedule_backend_foreground_job(backend.create_backend_job(
                 Job::AddToScopeQueue(split_off_queue, id, is_optimization_scope),
             ));
@@ -1560,8 +1568,8 @@ pub fn run_remove_from_scope_queue(
         backend.with_task(child, |child| {
             child.remove_from_scope_internal_shallow(id, backend, turbo_tasks, &mut queue);
         });
-        if queue.len() > SPLIT_OFF_QUEUE_AT {
-            let split_off_queue = queue.split_off(SPLIT_OFF_QUEUE_AT);
+        while queue.len() > SPLIT_OFF_QUEUE_AT {
+            let split_off_queue = queue.split_off(queue.len() - SPLIT_OFF_QUEUE_AT);
 
             turbo_tasks.schedule_backend_foreground_job(
                 backend.create_backend_job(Job::RemoveFromScopeQueue(split_off_queue, id)),

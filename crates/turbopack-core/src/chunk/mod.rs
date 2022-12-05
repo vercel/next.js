@@ -346,7 +346,7 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
     let mut chunks = Vec::new();
     let mut async_chunk_groups = Vec::new();
     let mut external_asset_references = Vec::new();
-    let mut queue = VecDeque::new();
+    let mut queue = VecDeque::with_capacity(32);
 
     let chunk_item = I::from_asset(context, entry).await?.unwrap();
     queue.push_back(ChunkContentWorkItem::AssetReferences(

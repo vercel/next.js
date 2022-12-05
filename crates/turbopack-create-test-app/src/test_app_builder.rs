@@ -82,7 +82,7 @@ const SETUP_EFFECT_PROPS: &str = indoc! {r#"
 let EFFECT_PROPS = {};
 "#};
 const SETUP_EVAL: &str = indoc! {r#"
-/* @turbopack-bench:eval-start */ 
+/* @turbopack-bench:eval-start */
 /* @turbopack-bench:eval-end */
 "#};
 const USE_EFFECT: &str = indoc! {r#"
@@ -115,7 +115,7 @@ impl TestAppBuilder {
         let mut remaining_directories = self.directories_count;
         let mut remaining_dynamic_imports = self.dynamic_import_count;
 
-        let mut queue = VecDeque::new();
+        let mut queue = VecDeque::with_capacity(32);
         queue.push_back((src.join("triangle.jsx"), 0));
         remaining_modules -= 1;
         let mut is_root = true;

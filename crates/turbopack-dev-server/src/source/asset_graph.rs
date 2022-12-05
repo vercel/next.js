@@ -91,7 +91,7 @@ impl AssetGraphContentSourceVc {
         let mut map = HashMap::new();
         let root_path = this.root_path.await?;
         let mut assets = Vec::new();
-        let mut queue = VecDeque::new();
+        let mut queue = VecDeque::with_capacity(32);
         let mut assets_set = HashSet::new();
         let root_assets = this.root_assets.await?;
         if let Some(state) = &this.state {

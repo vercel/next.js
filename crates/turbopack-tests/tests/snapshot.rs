@@ -211,7 +211,7 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
         .await?;
 
     let mut seen = HashSet::new();
-    let mut queue = VecDeque::new();
+    let mut queue = VecDeque::with_capacity(32);
     for chunk in chunks {
         queue.push_back(chunk.as_asset());
     }
