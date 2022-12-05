@@ -19,7 +19,7 @@ name = "mod"
 harness = false
 
 [features]
-default = ["cli"]
+default = ["cli", "custom_allocator"]
 cli = []
 serializable = []
 tokio_console = [
@@ -28,6 +28,7 @@ tokio_console = [
   "turbo-tasks/tokio_tracing",
 ]
 profile = []
+custom_allocator = ["turbo-malloc/custom_allocator"]
 
 [dependencies]
 anyhow = "1.0.47"
@@ -41,7 +42,7 @@ portpicker = "0.1.1"
 serde = "1.0.136"
 serde_json = "1.0.85"
 tokio = { version = "1.21.2", features = ["full"] }
-turbo-malloc = { path = "../turbo-malloc" }
+turbo-malloc = { path = "../turbo-malloc", default-features = false }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
