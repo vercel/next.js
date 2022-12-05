@@ -28,21 +28,16 @@ https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app Module not found missing global CSS 1`] = `
-"./node_modules/.pnpm/file+..+next-repo-9e165f6d92f258db5d4c64bec9a889bf_f5jd4j2xaecksvjvnsk22mhdqi/node_modules/next/dist/client/script.js
-  x NEXT_RSC_ERR_CLIENT_DIRECTIVE
-    ,-[15:1]
- 15 | var _headManagerContext = require(\\"../shared/lib/head-manager-context\\");
- 16 | var _headManager = require(\\"./head-manager\\");
- 17 | var _requestIdleCallback = require(\\"./request-idle-callback\\");
- 18 | 'use client';
-    : ^^^^^^^^^^^^^
- 19 | const ScriptCache = new Map();
- 20 | const LoadCache = new Set();
- 21 | const ignoreProps = [
-    \`----
-  node_modules/.pnpm/file+..+next-repo-9e165f6d92f258db5d4c64bec9a889bf_f5jd4j2xaecksvjvnsk22mhdqi/node_modules/next/dist/client/script.js
-  node_modules/.pnpm/file+..+next-repo-9e165f6d92f258db5d4c64bec9a889bf_f5jd4j2xaecksvjvnsk22mhdqi/node_modules/next/dist/client/index.js
-  node_modules/.pnpm/file+..+next-repo-9e165f6d92f258db5d4c64bec9a889bf_f5jd4j2xaecksvjvnsk22mhdqi/node_modules/next/dist/client/next-dev.js"
+"./app/page.js:2:10
+Module not found: Can't resolve './non-existent.css'
+  1 | 'use client'
+> 2 |           import './non-existent.css'
+    |          ^
+  3 |         export default function Page(props) {
+  4 |           return <p>index page</p>
+  5 |         }
+
+https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app Node.js builtins 1`] = `
