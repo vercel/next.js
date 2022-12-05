@@ -2,6 +2,7 @@ import { Open_Sans } from '@next/font/google'
 const openSans = Open_Sans({
   fallback: ['system-ui', 'Arial'],
   variable: '--open-sans',
+  adjustFontFallback: false,
 })
 
 export default function WithFonts() {

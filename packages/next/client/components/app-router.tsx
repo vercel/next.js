@@ -95,7 +95,6 @@ export async function fetchServerResponse(
 }
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
-// TODO-APP: move this back into AppRouter
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
   typeof window === 'undefined' ? null! : new Map()
 
@@ -254,7 +253,6 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      // TODO-APP: implement prefetching of flight
       prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.
         if (prefetched.has(href)) {
@@ -264,7 +262,6 @@ function Router({
         const url = new URL(href, location.origin)
         try {
           const routerTree = window.history.state?.tree || initialTree
-          // TODO-APP: handle case where history.state is not the new router history entry
           const serverResponse = await fetchServerResponse(
             url,
             // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
@@ -301,8 +298,6 @@ function Router({
         React.startTransition(() => {
           dispatch({
             type: ACTION_REFRESH,
-
-            // TODO-APP: revisit if this needs to be passed.
             cache: {
               status: CacheStates.LAZY_INITIALIZED,
               data: null,
@@ -363,8 +358,7 @@ function Router({
         return
       }
 
-      // TODO-APP: this case happens when pushState/replaceState was called outside of Next.js or when the history entry was pushed by the old router.
-      // It reloads the page in this case but we might have to revisit this as the old router ignores it.
+      // This case happens when the history entry was pushed by the `pages` router.
       if (!state.__NA) {
         window.location.reload()
         return

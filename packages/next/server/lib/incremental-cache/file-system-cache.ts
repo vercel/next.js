@@ -2,11 +2,12 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 
+let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
+
 export default class FileSystemCache implements CacheHandler {
   private fs: CacheHandlerContext['fs']
   private flushToDisk?: CacheHandlerContext['flushToDisk']
   private serverDistDir: CacheHandlerContext['serverDistDir']
-  private memoryCache?: LRUCache<string, CacheHandlerValue>
   private appDir: boolean
 
   constructor(ctx: CacheHandlerContext) {
@@ -15,8 +16,8 @@ export default class FileSystemCache implements CacheHandler {
     this.serverDistDir = ctx.serverDistDir
     this.appDir = !!ctx._appDir
 
-    if (ctx.maxMemoryCacheSize) {
-      this.memoryCache = new LRUCache({
+    if (ctx.maxMemoryCacheSize && !memoryCache) {
+      memoryCache = new LRUCache({
         max: ctx.maxMemoryCacheSize,
         length({ value }) {
           if (!value) {
@@ -25,6 +26,8 @@ export default class FileSystemCache implements CacheHandler {
             return JSON.stringify(value.props).length
           } else if (value.kind === 'IMAGE') {
             throw new Error('invariant image should not be incremental-cache')
+          } else if (value.kind === 'FETCH') {
+            return JSON.stringify(value.data || '').length
           }
           // rough estimate of size of cache value
           return (
@@ -35,40 +38,55 @@ export default class FileSystemCache implements CacheHandler {
     }
   }
 
-  public async get(key: string) {
-    let data = this.memoryCache?.get(key)
+  public async get(key: string, fetchCache?: boolean) {
+    let data = memoryCache?.get(key)
 
     // let's check the disk for seed data
     if (!data) {
       try {
-        const { filePath: htmlPath, isAppPath } = await this.getFsPath(
-          `${key}.html`
-        )
-        const html = await this.fs.readFile(htmlPath)
-        const pageData = isAppPath
-          ? await this.fs.readFile(
-              (
-                await this.getFsPath(`${key}.rsc`, true)
-              ).filePath
-            )
-          : JSON.parse(
-              await this.fs.readFile(
-                await (
-                  await this.getFsPath(`${key}.json`, false)
+        const { filePath, isAppPath } = await this.getFsPath({
+          pathname: fetchCache ? key : `${key}.html`,
+          fetchCache,
+        })
+        const fileData = await this.fs.readFile(filePath)
+        const { mtime } = await this.fs.stat(filePath)
+
+        if (fetchCache) {
+          const lastModified = mtime.getTime()
+          data = {
+            lastModified,
+            value: JSON.parse(fileData),
+          }
+        } else {
+          const pageData = isAppPath
+            ? await this.fs.readFile(
+                (
+                  await this.getFsPath({ pathname: `${key}.rsc`, appDir: true })
                 ).filePath
               )
-            )
-        const { mtime } = await this.fs.stat(htmlPath)
-
-        data = {
-          lastModified: mtime.getTime(),
-          value: {
-            kind: 'PAGE',
-            html,
-            pageData,
-          },
+            : JSON.parse(
+                await this.fs.readFile(
+                  await (
+                    await this.getFsPath({
+                      pathname: `${key}.json`,
+                      appDir: false,
+                    })
+                  ).filePath
+                )
+              )
+          data = {
+            lastModified: mtime.getTime(),
+            value: {
+              kind: 'PAGE',
+              html: fileData,
+              pageData,
+            },
+          }
         }
-        this.memoryCache?.set(key, data)
+
+        if (data) {
+          memoryCache?.set(key, data)
+        }
       } catch (_) {
         // unable to get data from disk
       }
@@ -77,41 +95,66 @@ export default class FileSystemCache implements CacheHandler {
   }
 
   public async set(key: string, data: CacheHandlerValue['value']) {
-    if (!this.flushToDisk) return
-
-    this.memoryCache?.set(key, {
+    memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
     })
+    if (!this.flushToDisk) return
 
     if (data?.kind === 'PAGE') {
       const isAppPath = typeof data.pageData === 'string'
-      const { filePath: htmlPath } = await this.getFsPath(
-        `${key}.html`,
-        isAppPath
-      )
+      const { filePath: htmlPath } = await this.getFsPath({
+        pathname: `${key}.html`,
+        appDir: isAppPath,
+      })
       await this.fs.mkdir(path.dirname(htmlPath))
       await this.fs.writeFile(htmlPath, data.html)
 
       await this.fs.writeFile(
         (
-          await this.getFsPath(
-            `${key}.${isAppPath ? 'rsc' : 'json'}`,
-            isAppPath
-          )
+          await this.getFsPath({
+            pathname: `${key}.${isAppPath ? 'rsc' : 'json'}`,
+            appDir: isAppPath,
+          })
         ).filePath,
         isAppPath ? data.pageData : JSON.stringify(data.pageData)
       )
+    } else if (data?.kind === 'FETCH') {
+      const { filePath } = await this.getFsPath({
+        pathname: key,
+        fetchCache: true,
+      })
+      await this.fs.mkdir(path.dirname(filePath))
+      await this.fs.writeFile(filePath, JSON.stringify(data))
     }
   }
 
-  private async getFsPath(
-    pathname: string,
+  private async getFsPath({
+    pathname,
+    appDir,
+    fetchCache,
+  }: {
+    pathname: string
     appDir?: boolean
-  ): Promise<{
+    fetchCache?: boolean
+  }): Promise<{
     filePath: string
     isAppPath: boolean
   }> {
+    if (fetchCache) {
+      // we store in .next/cache/fetch-cache so it can be persisted
+      // across deploys
+      return {
+        filePath: path.join(
+          this.serverDistDir,
+          '..',
+          'cache',
+          'fetch-cache',
+          pathname
+        ),
+        isAppPath: false,
+      }
+    }
     let isAppPath = false
     let filePath = path.join(this.serverDistDir, 'pages', pathname)
 
