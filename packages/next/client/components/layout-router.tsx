@@ -1,10 +1,4 @@
 'use client'
-
-import React, { useContext, useEffect, useRef, use } from 'react'
-import type {
-  ChildProp,
-  //Segment
-} from '../../server/app-render'
 import type {
   AppRouterInstance,
   ChildSegmentMap,
@@ -15,6 +9,14 @@ import type {
   // FlightDataPath,
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
+import type { FocusAndScrollRef } from './reducer'
+
+import React, { useContext, useEffect, useRef, use } from 'react'
+import { findDOMNode } from 'react-dom'
+import type {
+  ChildProp,
+  //Segment
+} from '../../server/app-render'
 import {
   CacheStates,
   LayoutRouterContext,
@@ -85,6 +87,71 @@ function topOfElementInViewport(element: HTMLElement) {
   return rect.top >= 0
 }
 
+function Scroller({
+  focusAndScrollRef,
+  children,
+}: {
+  focusAndScrollRef: FocusAndScrollRef
+  children: React.ReactNode
+}) {
+  const focusAndScrollElementRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
+    if (focusAndScrollRef.apply && focusAndScrollElementRef.current) {
+      // State is mutated to ensure that the focus and scroll is applied only once.
+      focusAndScrollRef.apply = false
+      // Set focus on the element
+      focusAndScrollElementRef.current.focus()
+      // Only scroll into viewport when the layout is not visible currently.
+      if (!topOfElementInViewport(focusAndScrollElementRef.current)) {
+        const htmlElement = document.documentElement
+        const existing = htmlElement.style.scrollBehavior
+        htmlElement.style.scrollBehavior = 'auto'
+        focusAndScrollElementRef.current.scrollIntoView()
+        htmlElement.style.scrollBehavior = existing
+      }
+    }
+  }, [focusAndScrollRef])
+
+  return (
+    <div ref={focusAndScrollElementRef} data-nextjs-scroll-focus-boundary={''}>
+      {children}
+    </div>
+  )
+}
+
+class Scroller2 extends React.Component<{
+  focusAndScrollRef: FocusAndScrollRef
+  children: React.ReactNode
+}> {
+  componentDidMount() {
+    // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
+    const { focusAndScrollRef } = this.props
+    const domNode = findDOMNode(this)
+    console.log({ domNode })
+
+    if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
+      // State is mutated to ensure that the focus and scroll is applied only once.
+      focusAndScrollRef.apply = false
+      // Set focus on the element
+      domNode.focus()
+      // Only scroll into viewport when the layout is not visible currently.
+      if (!topOfElementInViewport(domNode)) {
+        const htmlElement = document.documentElement
+        const existing = htmlElement.style.scrollBehavior
+        htmlElement.style.scrollBehavior = 'auto'
+        domNode.scrollIntoView()
+        htmlElement.style.scrollBehavior = existing
+      }
+    }
+  }
+
+  render() {
+    return this.props.children
+  }
+}
+
 /**
  * InnerLayoutRouter handles rendering the provided segment based on the cache.
  */
@@ -116,26 +183,6 @@ export function InnerLayoutRouter({
   }
 
   const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
-
-  const focusAndScrollElementRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
-    if (focusAndScrollRef.apply && focusAndScrollElementRef.current) {
-      // State is mutated to ensure that the focus and scroll is applied only once.
-      focusAndScrollRef.apply = false
-      // Set focus on the element
-      focusAndScrollElementRef.current.focus()
-      // Only scroll into viewport when the layout is not visible currently.
-      if (!topOfElementInViewport(focusAndScrollElementRef.current)) {
-        const htmlElement = document.documentElement
-        const existing = htmlElement.style.scrollBehavior
-        htmlElement.style.scrollBehavior = 'auto'
-        focusAndScrollElementRef.current.scrollIntoView()
-        htmlElement.style.scrollBehavior = existing
-      }
-    }
-  }, [focusAndScrollRef])
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(path)
@@ -257,9 +304,7 @@ export function InnerLayoutRouter({
 
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return rootLayoutIncluded ? (
-    <div ref={focusAndScrollElementRef} data-nextjs-scroll-focus-boundary={''}>
-      {subtree}
-    </div>
+    <Scroller2 focusAndScrollRef={focusAndScrollRef}>{subtree}</Scroller2>
   ) : (
     subtree
   )
