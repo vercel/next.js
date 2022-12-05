@@ -12,7 +12,7 @@ import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './reducer'
 
 import React, { useContext, useEffect, useRef, use } from 'react'
-import { findDOMNode } from 'react-dom'
+import { findDOMNode as ReactDOMfindDOMNode } from 'react-dom'
 import type {
   ChildProp,
   //Segment
@@ -77,6 +77,31 @@ function walkAddRefetch(
   }
 
   return treeToRecreate
+}
+
+// TODO-APP: Replace with new React API for finding dom nodes without a `ref` when available
+/**
+ * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
+ */
+function findDOMNode(
+  instance: Parameters<typeof ReactDOMfindDOMNode>[0]
+): ReturnType<typeof ReactDOMfindDOMNode> {
+  // Only apply strict mode warning when not in production
+  if (process.env.NODE_ENV !== 'production') {
+    const originalConsoleError = console.error
+    try {
+      console.error = (...messages) => {
+        // Ignore strict mode warning for the findDomNode call below
+        if (!messages[0].includes('Warning: %s is deprecated in StrictMode.')) {
+          originalConsoleError(...messages)
+        }
+      }
+      return ReactDOMfindDOMNode(instance)
+    } finally {
+      console.error = originalConsoleError!
+    }
+  }
+  return ReactDOMfindDOMNode(instance)
 }
 
 /**
