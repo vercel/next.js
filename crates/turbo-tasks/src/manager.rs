@@ -27,6 +27,7 @@ use crate::{
     id::{BackendJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
     raw_vc::{CellId, RawVc},
+    registry,
     task_input::{SharedReference, TaskInput},
     timed_future::{self, TimedFuture},
     trace::TraceRawVcs,
@@ -344,9 +345,23 @@ impl<B: Backend> TurboTasks<B> {
     pub fn trait_call(
         &self,
         trait_type: TraitTypeId,
-        trait_fn_name: Cow<'static, str>,
+        mut trait_fn_name: Cow<'static, str>,
         inputs: Vec<TaskInput>,
     ) -> RawVc {
+        // avoid creating a wrapper task if self is already resolved
+        // for resolved cells we already know the value type so we can lookup the
+        // function
+        let first_input = inputs.first().expect("trait call without self argument");
+        if let &TaskInput::TaskCell(_, CellId { type_id, .. }) = first_input {
+            let value_type = registry::get_value_type(type_id);
+            let key = (trait_type, trait_fn_name);
+            if let Some(native_fn) = value_type.get_trait_method(&key) {
+                return self.dynamic_call(*native_fn, inputs);
+            }
+            trait_fn_name = key.1;
+        }
+
+        // create a wrapper task to resolve all inputs
         RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
             PersistentTaskType::ResolveTrait(trait_type, trait_fn_name, inputs),
             current_task("turbo_function calls"),

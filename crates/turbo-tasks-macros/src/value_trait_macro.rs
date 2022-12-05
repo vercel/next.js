@@ -126,7 +126,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
             if let Some(block) = default.take() {
                 default_method_registers.push(quote! {
-                    trait_type.register_default_trait_method(stringify!(#method_ident).to_string(), *#function_id_ident);
+                    trait_type.register_default_trait_method(stringify!(#method_ident).into(), *#function_id_ident);
                 });
                 native_functions.push(quote! {
                     impl #ref_ident {

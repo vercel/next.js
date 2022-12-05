@@ -183,7 +183,7 @@ pub fn value_impl(_args: TokenStream, input: TokenStream) -> TokenStream {
                 let internal_function_ident =
                     get_internal_trait_impl_function_ident(trait_ident, ident);
                 trait_registers.push(quote! {
-                    value.register_trait_method(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id(), stringify!(#ident).to_string(), *#function_id_ident);
+                    value.register_trait_method(<#trait_ref_path as turbo_tasks::ValueTraitVc>::get_trait_type_id(), stringify!(#ident).into(), *#function_id_ident);
                 });
                 let name = Literal::string(&(struct_ident.to_string() + "::" + &ident.to_string()));
                 let (native_function_code, mut input_raw_vc_arguments) = gen_native_function_code(

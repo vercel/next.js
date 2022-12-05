@@ -401,7 +401,7 @@ impl TaskInput {
             TaskInput::SharedValue(SharedValue(ty, _))
             | TaskInput::SharedReference(SharedReference(ty, _)) => {
                 if let Some(ty) = *ty {
-                    let key = (trait_type, name.into_owned());
+                    let key = (trait_type, name);
                     if let Some(func) = registry::get_value_type(ty).get_trait_method(&key) {
                         Ok(*func)
                     } else if let Some(func) = registry::get_trait(trait_type)
@@ -410,7 +410,7 @@ impl TaskInput {
                     {
                         Ok(*func)
                     } else {
-                        Err(Cow::Owned(key.1))
+                        Err(key.1)
                     }
                 } else {
                     Err(name)
