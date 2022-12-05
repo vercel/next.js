@@ -226,6 +226,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             }
         }
         for c in code_generation.await?.iter() {
+            let c = c.resolve().await?;
             code_gens.push(c.code_generation(context));
         }
         // need to keep that around to allow references into that

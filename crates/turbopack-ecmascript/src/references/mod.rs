@@ -138,25 +138,28 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.exports = exports;
     }
 
-    /// Builds the final analysis result.
-    pub fn build(self) -> AnalyzeEcmascriptModuleResultVc {
-        AnalyzeEcmascriptModuleResultVc::cell(AnalyzeEcmascriptModuleResult {
-            references: AssetReferencesVc::cell(self.references),
-            code_generation: CodeGenerateablesVc::cell(self.code_gens),
-            exports: self.exports.into(),
-        })
+    /// Builds the final analysis result. Resolves internal Vcs for performance
+    /// in using them.
+    pub async fn build(mut self) -> Result<AnalyzeEcmascriptModuleResultVc> {
+        for r in self.references.iter_mut() {
+            *r = r.resolve().await?;
+        }
+        for c in self.code_gens.iter_mut() {
+            *c = c.resolve().await?;
+        }
+        Ok(AnalyzeEcmascriptModuleResultVc::cell(
+            AnalyzeEcmascriptModuleResult {
+                references: AssetReferencesVc::cell(self.references),
+                code_generation: CodeGenerateablesVc::cell(self.code_gens),
+                exports: self.exports.into(),
+            },
+        ))
     }
 }
 
 impl Default for AnalyzeEcmascriptModuleResultBuilder {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl From<AnalyzeEcmascriptModuleResultBuilder> for AnalyzeEcmascriptModuleResultVc {
-    fn from(builder: AnalyzeEcmascriptModuleResultBuilder) -> Self {
-        builder.build()
     }
 }
 
@@ -273,6 +276,25 @@ pub(crate) async fn analyze_ecmascript_module(
                     title: None,
                 },
             );
+            let var_graph = HANDLER.set(&handler, || {
+                GLOBALS.set(globals, || create_graph(program, eval_context))
+            });
+
+            for (src, annotations) in eval_context.imports.references() {
+                let r = EsmAssetReferenceVc::new(
+                    origin,
+                    RequestVc::parse(Value::new(src.to_string().into())),
+                    Value::new(annotations.clone()),
+                );
+                import_references.push(r);
+            }
+            for r in import_references.iter_mut() {
+                // Resolving these references here avoids many resolve wrapper tasks when
+                // passing that to other turbo tasks functions later.
+                *r = r.resolve().await?;
+                analysis.add_reference(*r);
+            }
+
             let (
                 mut var_graph,
                 webpack_runtime,
@@ -282,18 +304,6 @@ pub(crate) async fn analyze_ecmascript_module(
                 esm_star_exports,
             ) = HANDLER.set(&handler, || {
                 GLOBALS.set(globals, || {
-                    let var_graph = create_graph(program, eval_context);
-
-                    for (src, annotations) in eval_context.imports.references() {
-                        let r = EsmAssetReferenceVc::new(
-                            origin,
-                            RequestVc::parse(Value::new(src.to_string().into())),
-                            Value::new(annotations.clone()),
-                        );
-                        import_references.push(r);
-                        analysis.add_reference(r);
-                    }
-
                     // TODO migrate to effects
                     let mut visitor = AssetReferencesVisitor::new(
                         eval_context,
@@ -1176,7 +1186,7 @@ pub(crate) async fn analyze_ecmascript_module(
         ParseResult::Unparseable | ParseResult::NotFound => {}
     };
 
-    Ok(analysis.build())
+    analysis.build().await
 }
 
 fn analyze_amd_define(
