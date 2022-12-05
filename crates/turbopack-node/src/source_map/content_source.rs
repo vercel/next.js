@@ -8,7 +8,7 @@ use turbopack_core::{
 };
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    ContentSourceResultVc, ContentSourceVc,
+    ContentSourceResultVc, ContentSourceVc, ContentSourcesVc,
 };
 use url::Url;
 
@@ -99,6 +99,11 @@ impl ContentSource for NextSourceMapTraceContentSource {
         Ok(ContentSourceResultVc::exact(
             ContentSourceContent::Static(traced.content().into()).cell(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn get_children(&self) -> ContentSourcesVc {
+        ContentSourcesVc::cell(vec![self.asset_source])
     }
 }
 

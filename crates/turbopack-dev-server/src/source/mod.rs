@@ -306,6 +306,22 @@ pub trait ContentSource {
     /// arguments, so we want to make the arguments contain as little
     /// information as possible to increase cache hit ratio.
     fn get(&self, path: &str, data: Value<ContentSourceData>) -> ContentSourceResultVc;
+
+    /// Gets any content sources wrapped in this content source.
+    fn get_children(&self) -> ContentSourcesVc {
+        ContentSourcesVc::empty()
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ContentSources(Vec<ContentSourceVc>);
+
+#[turbo_tasks::value_impl]
+impl ContentSourcesVc {
+    #[turbo_tasks::function]
+    pub fn empty() -> Self {
+        ContentSourcesVc::cell(Vec::new())
+    }
 }
 
 /// An empty ContentSource implementation that responds with NotFound for every

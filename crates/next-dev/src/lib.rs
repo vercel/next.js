@@ -18,7 +18,8 @@ use anyhow::{anyhow, Context, Result};
 use devserver_options::DevServerOptions;
 use next_core::{
     create_app_source, create_server_rendered_source, create_web_entry_source, env::load_env,
-    next_image::NextImageContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
+    manifest::DevManifestContentSource, next_image::NextImageContentSourceVc,
+    source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
 use turbo_tasks::{
@@ -325,8 +326,18 @@ async fn source(
     .into();
     let static_source =
         StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
-    let main_source =
-        CombinedContentSourceVc::new(vec![static_source, app_source, rendered_source, web_source]);
+    let manifest_source = DevManifestContentSource {
+        page_roots: vec![app_source, rendered_source],
+    }
+    .cell()
+    .into();
+    let main_source = CombinedContentSourceVc::new(vec![
+        manifest_source,
+        static_source,
+        app_source,
+        rendered_source,
+        web_source,
+    ]);
     let introspect = IntrospectionSource {
         roots: HashSet::from([main_source.into()]),
     }

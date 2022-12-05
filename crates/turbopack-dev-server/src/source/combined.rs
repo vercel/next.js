@@ -6,6 +6,7 @@ use super::{
     specificity::SpecificityReadRef, ContentSource, ContentSourceData, ContentSourceResultVc,
     ContentSourceVc,
 };
+use crate::source::ContentSourcesVc;
 
 /// Combines multiple [ContentSource]s by trying all content sources in order.
 /// First [ContentSource] that responds with something other than NotFound will
@@ -49,6 +50,11 @@ impl ContentSource for CombinedContentSource {
         } else {
             Ok(ContentSourceResultVc::not_found())
         }
+    }
+
+    #[turbo_tasks::function]
+    fn get_children(&self) -> ContentSourcesVc {
+        ContentSourcesVc::cell(self.sources.clone())
     }
 }
 

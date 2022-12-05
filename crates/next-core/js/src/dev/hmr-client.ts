@@ -300,7 +300,7 @@ function triggerUpdate(msg: ServerMessage) {
 // They must be reloaded here instead.
 function subscribeToInitialCssChunksUpdates(assetPrefix: string) {
   const initialCssChunkLinks: NodeListOf<HTMLLinkElement> =
-    document.head.querySelectorAll("link");
+    document.head.querySelectorAll(`link[rel="stylesheet"]`);
   const cssChunkPrefix = `${assetPrefix}/`;
   initialCssChunkLinks.forEach((link) => {
     const href = link.href;

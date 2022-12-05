@@ -67,7 +67,7 @@ pub fn create_node_rendered_source(
 
 /// see [create_node_rendered_source]
 #[turbo_tasks::value]
-struct NodeRenderContentSource {
+pub struct NodeRenderContentSource {
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     pathname: StringVc,
@@ -75,6 +75,14 @@ struct NodeRenderContentSource {
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl NodeRenderContentSourceVc {
+    #[turbo_tasks::function]
+    pub async fn get_pathname(self) -> Result<StringVc> {
+        Ok(self.await?.pathname)
+    }
 }
 
 impl NodeRenderContentSource {

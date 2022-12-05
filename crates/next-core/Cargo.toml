@@ -11,6 +11,7 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 indexmap = { workspace = true, features = ["serde"] }
+mime = "0.3.16"
 rand = "0.8.5"
 serde = "1.0.136"
 serde_json = "1.0.85"

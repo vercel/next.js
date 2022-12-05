@@ -8,6 +8,7 @@ use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, Intro
 use super::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceResultVc, ContentSourceVc,
 };
+use crate::source::ContentSourcesVc;
 
 /// Combines two [ContentSource]s like the [CombinedContentSource], but only
 /// allows to serve from the second source when the first source has
@@ -98,6 +99,11 @@ impl ContentSource for ConditionalContentSource {
         } else {
             Ok(second)
         }
+    }
+
+    #[turbo_tasks::function]
+    fn get_children(&self) -> ContentSourcesVc {
+        ContentSourcesVc::cell(vec![self.activator, self.action])
     }
 }
 
