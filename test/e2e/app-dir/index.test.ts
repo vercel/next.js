@@ -2111,13 +2111,13 @@ describe('app dir', () => {
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
-            await browser
-              .waitForElementByCss('body')
-              .elementByCss('body')
-              .text()
+            await browser.waitForElementByCss('body').elementByCss('h2').text()
           ).toBe(
             'Application error: a client-side exception has occurred (see the browser console for more information).'
           )
+          expect(
+            await browser.waitForElementByCss('body').elementByCss('p').text()
+          ).toBe('Error digest: CUSTOM_DIGEST')
         }
       })
 
