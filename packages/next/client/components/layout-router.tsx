@@ -6,7 +6,6 @@ import type {
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  // FlightDataPath,
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './reducer'
