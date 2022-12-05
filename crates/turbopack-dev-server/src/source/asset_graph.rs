@@ -1,11 +1,8 @@
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    sync::{Arc, Mutex},
-};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use anyhow::Result;
 use indexmap::indexset;
-use turbo_tasks::{get_invalidator, primitives::StringVc, Invalidator, Value, ValueToString};
+use turbo_tasks::{primitives::StringVc, State, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{AssetVc, AssetsSetVc},
@@ -19,11 +16,6 @@ use super::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceResultVc, ContentSourceVc,
 };
 
-struct State {
-    expanded: HashSet<AssetVc>,
-    invalidator: Option<Invalidator>,
-}
-
 #[turbo_tasks::value(transparent)]
 struct AssetsMap(HashMap<String, AssetVc>);
 
@@ -31,8 +23,7 @@ struct AssetsMap(HashMap<String, AssetVc>);
 pub struct AssetGraphContentSource {
     root_path: FileSystemPathVc,
     root_assets: AssetsSetVc,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    state: Option<Arc<Mutex<State>>>,
+    expanded: Option<State<HashSet<AssetVc>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -43,7 +34,7 @@ impl AssetGraphContentSourceVc {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets: AssetsSetVc::cell(indexset! { root_asset }),
-            state: None,
+            expanded: None,
         })
     }
 
@@ -54,10 +45,7 @@ impl AssetGraphContentSourceVc {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets: AssetsSetVc::cell(indexset! { root_asset }),
-            state: Some(Arc::new(Mutex::new(State {
-                expanded: HashSet::new(),
-                invalidator: None,
-            }))),
+            expanded: Some(State::new(HashSet::new())),
         })
     }
 
@@ -67,7 +55,7 @@ impl AssetGraphContentSourceVc {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets,
-            state: None,
+            expanded: None,
         })
     }
 
@@ -78,10 +66,7 @@ impl AssetGraphContentSourceVc {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets,
-            state: Some(Arc::new(Mutex::new(State {
-                expanded: HashSet::new(),
-                invalidator: None,
-            }))),
+            expanded: Some(State::new(HashSet::new())),
         })
     }
 
@@ -94,11 +79,10 @@ impl AssetGraphContentSourceVc {
         let mut queue = VecDeque::with_capacity(32);
         let mut assets_set = HashSet::new();
         let root_assets = this.root_assets.await?;
-        if let Some(state) = &this.state {
-            let mut state = state.lock().unwrap();
-            state.invalidator = Some(get_invalidator());
+        if let Some(expanded) = &this.expanded {
+            let expanded = expanded.get();
             for root_asset in root_assets.iter() {
-                let expanded = state.expanded.contains(root_asset);
+                let expanded = expanded.contains(root_asset);
                 assets.push((root_asset.path(), *root_asset));
                 assets_set.insert(*root_asset);
                 if expanded {
@@ -116,9 +100,8 @@ impl AssetGraphContentSourceVc {
         while let Some(references) = queue.pop_front() {
             for asset in references.await?.iter() {
                 if assets_set.insert(*asset) {
-                    let expanded = if let Some(state) = &this.state {
-                        let state = state.lock().unwrap();
-                        state.expanded.contains(asset)
+                    let expanded = if let Some(expanded) = &this.expanded {
+                        expanded.get().contains(asset)
                     } else {
                         true
                     };
@@ -161,13 +144,8 @@ impl ContentSource for AssetGraphContentSource {
         if let Some(asset) = assets.get(path) {
             {
                 let this = self_vc.await?;
-                if let Some(state) = &this.state {
-                    let mut state = state.lock().unwrap();
-                    if state.expanded.insert(*asset) {
-                        if let Some(invalidator) = state.invalidator.take() {
-                            invalidator.invalidate();
-                        }
-                    }
+                if let Some(expanded) = &this.expanded {
+                    expanded.update_conditionally(|expanded| expanded.insert(*asset));
                 }
             }
             return Ok(ContentSourceResultVc::exact(

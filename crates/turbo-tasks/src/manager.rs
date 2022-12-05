@@ -1065,6 +1065,12 @@ pub fn get_invalidator() -> Invalidator {
     }
 }
 
+/// Marks the current task as stateful. This prevents the tasks from being
+/// dropped without persisting the state.
+pub fn mark_stateful() {
+    // TODO pass this to the backend
+}
+
 pub fn emit<T: ValueTraitVc>(collectible: T) {
     with_turbo_tasks(|tt| tt.emit_collectible(T::get_trait_type_id(), collectible.into()))
 }

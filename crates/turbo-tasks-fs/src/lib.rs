@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{fs, io::AsyncReadExt};
 use turbo_tasks::{
+    mark_stateful,
     primitives::{BoolVc, StringReadRef, StringVc},
     spawn_thread,
     trace::TraceRawVcs,
@@ -271,6 +272,7 @@ pub fn path_to_key(path: impl AsRef<Path>) -> String {
 impl DiskFileSystemVc {
     #[turbo_tasks::function]
     pub async fn new(name: String, root: String) -> Result<Self> {
+        mark_stateful();
         // create the directory for the filesystem on disk, if it doesn't exist
         fs::create_dir_all(&root).await?;
 

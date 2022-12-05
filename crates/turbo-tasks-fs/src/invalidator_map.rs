@@ -71,3 +71,16 @@ impl<'de> Deserialize<'de> for InvalidatorMap {
         deserializer.deserialize_newtype_struct("InvalidatorMap", V)
     }
 }
+
+impl Drop for InvalidatorMap {
+    fn drop(&mut self) {
+        while let Ok((_, value)) = self.queue.pop() {
+            value.invalidate();
+        }
+        for (_, invalidators) in self.map.lock().unwrap().drain() {
+            for invalidator in invalidators {
+                invalidator.invalidate();
+            }
+        }
+    }
+}
