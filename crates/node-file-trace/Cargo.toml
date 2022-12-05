@@ -11,8 +11,8 @@ path = "src/main.rs"
 bench = false
 
 [features]
-default = ["cli"]
-cli = ["dep:clap", "dep:turbo-malloc"]
+default = ["cli", "custom_allocator"]
+cli = ["dep:clap", "turbo-malloc"]
 persistent_cache = [
   # "dep:turbo-tasks-rocksdb"
 ]
@@ -22,11 +22,12 @@ tokio_console = [
   "turbo-tasks/tokio_tracing",
 ]
 node-api = []
+custom_allocator = ["turbo-malloc", "turbo-malloc/custom_allocator"]
 
 [dependencies]
 clap = { version = "4.0.18", optional = true, features = ["derive"] }
 owo-colors = "3"
-turbo-malloc = { path = "../turbo-malloc", optional = true }
+turbo-malloc = { path = "../turbo-malloc", optional = true, default-features = false }
 turbo-tasks = { path = "../turbo-tasks" }
 # turbo-tasks-memory = { path = "../turbo-tasks-memory", features = ["log_running_tasks", "log_scheduled_tasks", "log_activate_tasks", "log_connect_tasks"] }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }

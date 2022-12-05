@@ -79,3 +79,24 @@ impl Debug for FormatDuration {
         write!(f, "{}ms", (self.0.as_micros() as f32) / 1000.0)
     }
 }
+
+pub struct FormatBytes(pub usize);
+
+impl Display for FormatBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let b = self.0;
+        const KB: usize = 1_024;
+        const MB: usize = 1_024 * KB;
+        const GB: usize = 1_024 * MB;
+        if b > GB {
+            return write!(f, "{:.2}GiB", ((b / MB) as f32) / 1_024.0);
+        }
+        if b > MB {
+            return write!(f, "{:.2}MiB", ((b / KB) as f32) / 1_024.0);
+        }
+        if b > KB {
+            return write!(f, "{:.2}KiB", (b as f32) / 1_024.0);
+        }
+        write!(f, "{}B", b)
+    }
+}

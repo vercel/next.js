@@ -10,7 +10,13 @@ autobenches = false
 bench = false
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-mimalloc = { version = "0.1.30" }
+mimalloc = { version = "0.1.32", features = [], optional = true }
 
 [target.'cfg(all(target_os = "linux", not(target_arch = "aarch64")))'.dependencies]
-mimalloc = { version = "0.1.30", features = ["local_dynamic_tls"] }
+mimalloc = { version = "0.1.32", features = [
+  "local_dynamic_tls",
+], optional = true }
+
+[features]
+custom_allocator = ["dep:mimalloc"]
+default = ["custom_allocator"]
