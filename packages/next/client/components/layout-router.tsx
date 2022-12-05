@@ -11,7 +11,7 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './reducer'
 
-import React, { useContext, useEffect, useRef, use } from 'react'
+import React, { useContext, useEffect, use } from 'react'
 import { findDOMNode as ReactDOMfindDOMNode } from 'react-dom'
 import type {
   ChildProp,
