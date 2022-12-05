@@ -20,8 +20,19 @@ import * as page from ".";
     assetPrefix,
   });
 
+  const pagePath = window.__NEXT_DATA__.page;
+  window.__BUILD_MANIFEST = {
+    [pagePath]: [],
+    __rewrites: {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    } as any,
+    sortedPages: [pagePath, "/_app"],
+  };
+
   window.__NEXT_P.push(["/_app", () => _app]);
-  window.__NEXT_P.push([window.__NEXT_DATA__.page, () => page]);
+  window.__NEXT_P.push([pagePath, () => page]);
 
   console.debug("Hydrating the page");
 

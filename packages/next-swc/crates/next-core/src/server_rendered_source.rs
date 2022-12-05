@@ -173,6 +173,7 @@ async fn create_server_rendered_source_for_file(
         create_node_api_source(
             specificity,
             server_root,
+            pathname,
             path_regex,
             SsrEntry {
                 context,
