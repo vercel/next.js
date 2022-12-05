@@ -112,7 +112,7 @@ function topOfElementInViewport(element: HTMLElement) {
   return rect.top >= 0
 }
 
-class Scroller extends React.Component<{
+class ScrollAndFocusHandler extends React.Component<{
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
 }> {
@@ -294,7 +294,9 @@ export function InnerLayoutRouter({
 
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return rootLayoutIncluded ? (
-    <Scroller focusAndScrollRef={focusAndScrollRef}>{subtree}</Scroller>
+    <ScrollAndFocusHandler focusAndScrollRef={focusAndScrollRef}>
+      {subtree}
+    </ScrollAndFocusHandler>
   ) : (
     subtree
   )
