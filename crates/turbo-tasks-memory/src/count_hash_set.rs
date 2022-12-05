@@ -51,12 +51,21 @@ impl<T, H: Default> CountHashSet<T, H> {
 }
 
 impl<T, H> CountHashSet<T, H> {
+    /// Get the number of positive entries
     pub fn len(&self) -> usize {
         self.inner.len() - self.negative_entries
     }
 
+    /// Checks if the set looks empty from outside. It might still have negative
+    /// entries, but they should be treated as not existing.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Checks if this set is equal to a fresh created set, meaning it has no
+    /// positive but also no negative entries.
+    pub fn is_unset(&self) -> bool {
+        self.inner.is_empty()
     }
 }
 
