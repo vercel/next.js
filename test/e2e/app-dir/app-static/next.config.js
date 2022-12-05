@@ -1,6 +1,7 @@
 module.exports = {
   experimental: {
     appDir: true,
+    fetchCache: true,
   },
   // assetPrefix: '/assets',
   rewrites: async () => {

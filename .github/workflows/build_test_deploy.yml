@@ -261,15 +261,8 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
-        group: [1, 2]
+        group: [1, 2, 3, 4]
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          node-version: ${{ matrix.node }}
-          check-latest: true
-
       - run: echo ${{needs.build.outputs.docsChange}}
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -289,16 +282,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g pnpm@${PNPM_VERSION}
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
-        timeout-minutes: 10
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      # - run: npx @replayio/playwright install chromium
-      #   if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - run: node run-tests.js --type development --timings -g ${{ matrix.group }}/2
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type development --timings -g ${{ matrix.group }}/4 >> /proc/1/fd/1"
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
@@ -338,15 +322,8 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
-        group: [1, 2, 3]
+        group: [1, 2, 3, 4, 5, 6, 7]
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          node-version: ${{ matrix.node }}
-          check-latest: true
-
       - run: echo ${{needs.build.outputs.docsChange}}
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -366,16 +343,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g pnpm@${PNPM_VERSION}
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
-        timeout-minutes: 10
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      # - run: npx @replayio/playwright install chromium
-      #   if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - run: node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         env:
@@ -415,15 +383,8 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
-        group: [1, 2]
+        group: [1, 2, 3]
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          node-version: ${{ matrix.node }}
-          check-latest: true
-
       - run: echo ${{needs.build.outputs.docsChange}}
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -443,16 +404,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g pnpm@${PNPM_VERSION}
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
-        timeout-minutes: 10
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      # - run: npx @replayio/playwright install chromium
-      #   if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - run: node run-tests.js --type production --timings -g ${{ matrix.group }}/2
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type production --timings -g ${{ matrix.group }}/3 >> /proc/1/fd/1"
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
@@ -482,15 +434,8 @@ jobs:
       fail-fast: false
       matrix:
         node: [16, 18]
-        group: [1, 2, 3]
+        group: [1, 2, 3, 4, 5, 6, 7]
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          node-version: ${{ matrix.node }}
-          check-latest: true
-
       - run: echo ${{needs.build.outputs.docsChange}}
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -510,16 +455,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g pnpm@${PNPM_VERSION}
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
-        timeout-minutes: 10
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      # - run: npx @replayio/playwright install chromium
-      #   if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - run: node run-tests.js --type e2e --timings -g ${{ matrix.group }}/3
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         env:
@@ -571,15 +507,13 @@ jobs:
             18,
             19,
             20,
+            21,
+            22,
+            23,
+            24,
+            25,
           ]
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          node-version: 16
-          check-latest: true
-
       - run: echo ${{needs.build.outputs.docsChange}}
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -599,16 +533,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g pnpm@${PNPM_VERSION}
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
-        timeout-minutes: 10
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      # - run: npx @replayio/playwright install chromium
-      #   if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/20
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/25 >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
         # RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testIntegration / Group ${{ matrix.group }}

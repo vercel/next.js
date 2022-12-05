@@ -5,9 +5,9 @@ import {
   check,
   fetchViaHTTP,
   getRedboxHeader,
+  hasRedbox,
   renderViaHTTP,
   waitFor,
-  waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
@@ -2055,7 +2055,7 @@ describe('app dir', () => {
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          await waitForAndOpenRuntimeError(browser)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -2107,7 +2107,7 @@ describe('app dir', () => {
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          await waitForAndOpenRuntimeError(browser)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(

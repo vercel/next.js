@@ -12,7 +12,7 @@ import '../server/node-polyfill-fetch'
 import { loadRequireHook } from '../build/webpack/require-hook'
 
 import { extname, join, dirname, sep } from 'path'
-import { promises } from 'fs'
+import fs, { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -33,6 +33,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE } from '../client/components/bailout-to-client-rendering'
+import { IncrementalCache } from '../server/lib/incremental-cache'
 
 loadRequireHook()
 
@@ -99,6 +100,7 @@ interface RenderOpts {
   domainLocales?: DomainLocale[]
   trailingSlash?: boolean
   supportsDynamicHTML?: boolean
+  incrementalCache?: import('../server/lib/incremental-cache').IncrementalCache
 }
 
 // expose AsyncLocalStorage on globalThis for react usage
@@ -311,6 +313,31 @@ export default async function exportPage({
       // and bail when dynamic dependencies are detected
       // only fully static paths are fully generated here
       if (isAppDir) {
+        curRenderOpts.incrementalCache = new IncrementalCache({
+          dev: false,
+          requestHeaders: {},
+          flushToDisk: true,
+          maxMemoryCacheSize: 50 * 1024 * 1024,
+          getPrerenderManifest: () => ({
+            version: 3,
+            routes: {},
+            dynamicRoutes: {},
+            preview: {
+              previewModeEncryptionKey: '',
+              previewModeId: '',
+              previewModeSigningKey: '',
+            },
+            notFoundRoutes: [],
+          }),
+          fs: {
+            readFile: (f) => fs.promises.readFile(f, 'utf8'),
+            readFileSync: (f) => fs.readFileSync(f, 'utf8'),
+            writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
+            mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+            stat: (f) => fs.promises.stat(f),
+          },
+          serverDistDir: join(distDir, 'server'),
+        })
         const { renderToHTMLOrFlight } =
           require('../server/app-render') as typeof import('../server/app-render')
 
