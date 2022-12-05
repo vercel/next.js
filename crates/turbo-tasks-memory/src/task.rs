@@ -8,6 +8,7 @@ use std::{
     hash::Hash,
     mem::{replace, take},
     pin::Pin,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -16,10 +17,10 @@ use auto_hash_map::{AutoMap, AutoSet};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use tokio::task_local;
 use turbo_tasks::{
-    backend::PersistentTaskType,
+    backend::{PersistentTaskType, TaskExecutionSpec},
     event::{Event, EventListener},
-    get_invalidator, registry, CellId, FunctionId, Invalidator, RawVc, StatsType, TaskId,
-    TaskInput, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    get_invalidator, registry, CellId, Invalidator, RawVc, StatsType, TaskId, TraitTypeId,
+    TurboTasksBackendApi, ValueTypeId,
 };
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
@@ -62,18 +63,8 @@ enum TaskType {
     /// applied.
     Once(OnceTaskFn),
 
-    /// A normal task execution a native (rust) function
-    Native(FunctionId, NativeTaskFn),
-
-    /// A resolve task, which resolves arguments and calls the function with
-    /// resolve arguments. The inner function call will do a cache lookup.
-    ResolveNative(FunctionId),
-
-    /// A trait method resolve task. It resolves the first (`self`) argument and
-    /// looks up the trait method on that value. Then it calls that method.
-    /// The method call will do a cache lookup and might resolve arguments
-    /// before.
-    ResolveTrait(TraitTypeId, Cow<'static, str>),
+    /// A normal persistent task
+    Persistent(Arc<PersistentTaskType>),
 }
 
 impl Debug for TaskType {
@@ -81,21 +72,16 @@ impl Debug for TaskType {
         match self {
             Self::Root(..) => f.debug_tuple("Root").finish(),
             Self::Once(..) => f.debug_tuple("Once").finish(),
-            Self::Native(native_fn, _) => f
-                .debug_tuple("Native")
-                .field(&registry::get_function(*native_fn).name)
-                .finish(),
-            Self::ResolveNative(native_fn) => f
-                .debug_tuple("ResolveNative")
-                .field(&registry::get_function(*native_fn).name)
-                .finish(),
-            Self::ResolveTrait(trait_type, name) => f
-                .debug_tuple("ResolveTrait")
-                .field(&registry::get_trait(*trait_type).name)
-                .field(name)
-                .finish(),
+            Self::Persistent(ty) => ty.fmt(f),
         }
     }
+}
+
+#[derive(Default)]
+enum PrepareTaskType {
+    #[default]
+    None,
+    Native(NativeTaskFn),
 }
 
 /// A Task is an instantiation of an Function with some arguments.
@@ -103,11 +89,6 @@ impl Debug for TaskType {
 /// Task instance.
 pub struct Task {
     id: TaskId,
-    // TODO move that into TaskType where needed
-    // TODO we currently only use that for visualization
-    // TODO this can be removed
-    /// The arguments of the Task
-    inputs: Vec<TaskInput>,
     /// The type of the task
     ty: TaskType,
     /// The mutable state of the task
@@ -140,6 +121,10 @@ struct TaskState {
     /// Collectibles are only modified from execution
     collectibles: MaybeCollectibles,
 
+    /// Preparations done for the task type with the bound arguments, e. g.
+    /// argument validation
+    prepared_type: PrepareTaskType,
+
     output: Output,
     cells: AutoMap<ValueTypeId, Vec<Cell>>,
 
@@ -157,6 +142,7 @@ impl TaskState {
             children: Default::default(),
             collectibles: Default::default(),
             output: Default::default(),
+            prepared_type: PrepareTaskType::None,
             cells: Default::default(),
             stats: TaskStats::new(stats_type),
             #[cfg(feature = "track_wait_dependencies")]
@@ -173,6 +159,7 @@ impl TaskState {
             children: Default::default(),
             collectibles: Default::default(),
             output: Default::default(),
+            prepared_type: PrepareTaskType::None,
             cells: Default::default(),
             stats: TaskStats::new(stats_type),
             #[cfg(feature = "track_wait_dependencies")]
@@ -278,46 +265,14 @@ use crate::{
 };
 
 impl Task {
-    pub(crate) fn new_native(
+    pub(crate) fn new_persistent(
         id: TaskId,
-        inputs: Vec<TaskInput>,
-        native_fn: FunctionId,
-        stats_type: StatsType,
-    ) -> Self {
-        let bound_fn = registry::get_function(native_fn).bind(&inputs);
-        Self {
-            id,
-            inputs,
-            ty: TaskType::Native(native_fn, bound_fn),
-            state: RwLock::new(TaskState::new(id, stats_type)),
-        }
-    }
-
-    pub(crate) fn new_resolve_native(
-        id: TaskId,
-        inputs: Vec<TaskInput>,
-        native_fn: FunctionId,
+        task_type: Arc<PersistentTaskType>,
         stats_type: StatsType,
     ) -> Self {
         Self {
             id,
-            inputs,
-            ty: TaskType::ResolveNative(native_fn),
-            state: RwLock::new(TaskState::new(id, stats_type)),
-        }
-    }
-
-    pub(crate) fn new_resolve_trait(
-        id: TaskId,
-        trait_type: TraitTypeId,
-        trait_fn_name: Cow<'static, str>,
-        inputs: Vec<TaskInput>,
-        stats_type: StatsType,
-    ) -> Self {
-        Self {
-            id,
-            inputs,
-            ty: TaskType::ResolveTrait(trait_type, trait_fn_name),
+            ty: TaskType::Persistent(task_type),
             state: RwLock::new(TaskState::new(id, stats_type)),
         }
     }
@@ -330,7 +285,6 @@ impl Task {
     ) -> Self {
         Self {
             id,
-            inputs: Vec::new(),
             ty: TaskType::Root(Box::new(functor)),
             state: RwLock::new(TaskState::new_scheduled_in_scope(id, scope, stats_type)),
         }
@@ -344,7 +298,6 @@ impl Task {
     ) -> Self {
         Self {
             id,
-            inputs: Vec::new(),
             ty: TaskType::Once(Mutex::new(Some(Box::pin(functor)))),
             state: RwLock::new(TaskState::new_scheduled_in_scope(id, scope, stats_type)),
         }
@@ -354,24 +307,26 @@ impl Task {
         match &self.ty {
             TaskType::Root(..) => format!("[{}] root", self.id),
             TaskType::Once(..) => format!("[{}] once", self.id),
-            TaskType::Native(native_fn, _) => {
-                format!("[{}] {}", self.id, registry::get_function(*native_fn).name)
-            }
-            TaskType::ResolveNative(native_fn) => {
-                format!(
-                    "[{}] [resolve] {}",
-                    self.id,
-                    registry::get_function(*native_fn).name
-                )
-            }
-            TaskType::ResolveTrait(trait_type, fn_name) => {
-                format!(
-                    "[{}] [resolve trait] {} in trait {}",
-                    self.id,
-                    fn_name,
-                    registry::get_trait(*trait_type).name
-                )
-            }
+            TaskType::Persistent(ty) => match &**ty {
+                PersistentTaskType::Native(native_fn, _) => {
+                    format!("[{}] {}", self.id, registry::get_function(*native_fn).name)
+                }
+                PersistentTaskType::ResolveNative(native_fn, _) => {
+                    format!(
+                        "[{}] [resolve] {}",
+                        self.id,
+                        registry::get_function(*native_fn).name
+                    )
+                }
+                PersistentTaskType::ResolveTrait(trait_type, fn_name, _) => {
+                    format!(
+                        "[{}] [resolve trait] {} in trait {}",
+                        self.id,
+                        fn_name,
+                        registry::get_trait(*trait_type).name
+                    )
+                }
+            },
         }
     }
 
@@ -432,12 +387,27 @@ impl Task {
         }
     }
 
-    pub(crate) fn execution_started(
+    pub(crate) fn execute(
         self: &Task,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> bool {
+    ) -> Option<TaskExecutionSpec> {
         let mut state = self.state.write();
+        if !self.try_start_execution(&mut state, turbo_tasks, backend) {
+            return None;
+        }
+        let future = self.make_execution_future(state, turbo_tasks);
+        Some(TaskExecutionSpec { future })
+    }
+
+    /// Tries to change the state to InProgress and returns true if it was
+    /// possible.
+    fn try_start_execution(
+        &self,
+        state: &mut RwLockWriteGuard<TaskState>,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+        backend: &MemoryBackend,
+    ) -> bool {
         match state.state_type {
             Done { .. } | InProgress { .. } | InProgressDirty { .. } => {
                 // should not start in this state
@@ -500,8 +470,7 @@ impl Task {
                 }
             }
             Dirty { .. } => {
-                let state_type = Task::state_string(&state);
-                drop(state);
+                let state_type = Task::state_string(&*state);
                 panic!(
                     "{:?} execution started in unexpected state {}",
                     self, state_type
@@ -509,6 +478,52 @@ impl Task {
             }
         };
         true
+    }
+
+    /// Prepares task execution and returns a future that will execute the task.
+    fn make_execution_future(
+        self: &Task,
+        mut state: RwLockWriteGuard<TaskState>,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> {
+        match &self.ty {
+            TaskType::Root(bound_fn) => bound_fn(),
+            TaskType::Once(mutex) => mutex.lock().take().expect("Task can only be executed once"),
+            TaskType::Persistent(ty) => match &**ty {
+                PersistentTaskType::Native(native_fn, inputs) => {
+                    if let PrepareTaskType::Native(bound_fn) = &state.prepared_type {
+                        bound_fn()
+                    } else {
+                        let bound_fn = registry::get_function(*native_fn).bind(inputs);
+                        let future = bound_fn();
+                        state.prepared_type = PrepareTaskType::Native(bound_fn);
+                        future
+                    }
+                }
+                PersistentTaskType::ResolveNative(ref native_fn, inputs) => {
+                    let native_fn = *native_fn;
+                    let inputs = inputs.clone();
+                    let turbo_tasks = turbo_tasks.pin();
+                    Box::pin(PersistentTaskType::run_resolve_native(
+                        native_fn,
+                        inputs,
+                        turbo_tasks,
+                    ))
+                }
+                PersistentTaskType::ResolveTrait(trait_type, name, inputs) => {
+                    let trait_type = *trait_type;
+                    let name = name.clone();
+                    let inputs = inputs.clone();
+                    let turbo_tasks = turbo_tasks.pin();
+                    Box::pin(PersistentTaskType::run_resolve_trait(
+                        trait_type,
+                        name,
+                        inputs,
+                        turbo_tasks,
+                    ))
+                }
+            },
+        }
     }
 
     pub(crate) fn execution_result(
@@ -1130,35 +1145,6 @@ impl Task {
         })
     }
 
-    pub(crate) fn execute(&self, tt: &dyn TurboTasksBackendApi) -> NativeTaskFuture {
-        match &self.ty {
-            TaskType::Root(bound_fn) => bound_fn(),
-            TaskType::Once(mutex) => {
-                let future = mutex.lock().take().expect("Task can only be executed once");
-                // let task = self.clone();
-                Box::pin(future)
-            }
-            TaskType::Native(_, bound_fn) => bound_fn(),
-            TaskType::ResolveNative(ref native_fn) => {
-                let native_fn = *native_fn;
-                let inputs = self.inputs.clone();
-                let tt = tt.pin();
-                Box::pin(PersistentTaskType::run_resolve_native(
-                    native_fn, inputs, tt,
-                ))
-            }
-            TaskType::ResolveTrait(trait_type, name) => {
-                let trait_type = *trait_type;
-                let name = name.clone();
-                let inputs = self.inputs.clone();
-                let tt = tt.pin();
-                Box::pin(PersistentTaskType::run_resolve_trait(
-                    trait_type, name, inputs, tt,
-                ))
-            }
-        }
-    }
-
     /// Get an [Invalidator] that can be used to invalidate the current [Task]
     /// based on external events.
     pub fn get_invalidator() -> Invalidator {
@@ -1251,9 +1237,13 @@ impl Task {
         match &self.ty {
             TaskType::Root(_) => stats::TaskType::Root(self.id),
             TaskType::Once(_) => stats::TaskType::Once(self.id),
-            TaskType::Native(f, _) => stats::TaskType::Native(*f),
-            TaskType::ResolveNative(f) => stats::TaskType::ResolveNative(*f),
-            TaskType::ResolveTrait(t, n) => stats::TaskType::ResolveTrait(*t, n.to_string()),
+            TaskType::Persistent(ty) => match &**ty {
+                PersistentTaskType::Native(f, _) => stats::TaskType::Native(*f),
+                PersistentTaskType::ResolveNative(f, _) => stats::TaskType::ResolveNative(*f),
+                PersistentTaskType::ResolveTrait(t, n, _) => {
+                    stats::TaskType::ResolveTrait(*t, n.to_string())
+                }
+            },
         }
     }
 
@@ -1279,10 +1269,16 @@ impl Task {
                 }
             }
         }
-        {
-            for input in self.inputs.iter() {
-                if let Some(task) = input.get_task_id() {
-                    refs.push((stats::ReferenceType::Input, task));
+        if let TaskType::Persistent(ty) = &self.ty {
+            match &**ty {
+                PersistentTaskType::Native(_, inputs)
+                | PersistentTaskType::ResolveNative(_, inputs)
+                | PersistentTaskType::ResolveTrait(_, _, inputs) => {
+                    for input in inputs.iter() {
+                        if let Some(task) = input.get_task_id() {
+                            refs.push((stats::ReferenceType::Input, task));
+                        }
+                    }
                 }
             }
         }

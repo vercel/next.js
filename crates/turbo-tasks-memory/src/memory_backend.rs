@@ -5,6 +5,7 @@ use std::{
     future::Future,
     hash::BuildHasherDefault,
     pin::Pin,
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -39,7 +40,7 @@ pub struct MemoryBackend {
     pub(crate) initial_scope: TaskScopeId,
     backend_jobs: NoMoveVec<Job>,
     backend_job_id_factory: IdFactory<BackendJobId>,
-    task_cache: DashMap<PersistentTaskType, TaskId, BuildHasherDefault<FxHasher>>,
+    task_cache: DashMap<Arc<PersistentTaskType>, TaskId, BuildHasherDefault<FxHasher>>,
 }
 
 impl Default for MemoryBackend {
@@ -219,15 +220,7 @@ impl Backend for MemoryBackend {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Option<TaskExecutionSpec> {
-        self.with_task(task, |task| {
-            if task.execution_started(self, turbo_tasks) {
-                Some(TaskExecutionSpec {
-                    future: task.execute(turbo_tasks),
-                })
-            } else {
-                None
-            }
-        })
+        self.with_task(task, |task| task.execute(self, turbo_tasks))
     }
 
     fn task_execution_result(
@@ -436,27 +429,10 @@ impl Backend for MemoryBackend {
             // It's important to avoid overallocating memory as this will go into the task
             // cache and stay there forever. We can to be as small as possible.
             task_type.shrink_to_fit();
+            let task_type = Arc::new(task_type);
             // slow pass with key lock
             let id = turbo_tasks.get_fresh_task_id();
-            let task = match &task_type {
-                PersistentTaskType::Native(fn_id, inputs) => {
-                    // TODO inputs doesn't need to be cloned when are would be able to get a
-                    // reference to the task type stored inside of the task
-                    Task::new_native(id, inputs.clone(), *fn_id, turbo_tasks.stats_type())
-                }
-                PersistentTaskType::ResolveNative(fn_id, inputs) => {
-                    Task::new_resolve_native(id, inputs.clone(), *fn_id, turbo_tasks.stats_type())
-                }
-                PersistentTaskType::ResolveTrait(trait_type, trait_fn_name, inputs) => {
-                    Task::new_resolve_trait(
-                        id,
-                        *trait_type,
-                        trait_fn_name.clone(),
-                        inputs.clone(),
-                        turbo_tasks.stats_type(),
-                    )
-                }
-            };
+            let task = Task::new_persistent(id, task_type.clone(), turbo_tasks.stats_type());
             // Safety: We have a fresh task id that nobody knows about yet
             unsafe {
                 self.memory_tasks.insert(*id, task);
