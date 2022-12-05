@@ -18,6 +18,7 @@ futures = "0.3.25"
 indexmap = { workspace = true }
 lazy_static = "1.4.0"
 patricia_tree = "0.3.1"
+qstring = "0.7.2"
 rand = "0.8.5"
 regex = "1.5.4"
 serde = { version = "1.0.136", features = ["rc"] }

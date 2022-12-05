@@ -16,6 +16,7 @@ use turbopack_core::{
         },
         origin::ResolveOriginVc,
         parse::{Request, RequestVc},
+        pattern::QueryMapVc,
         resolve, AliasPattern, ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
@@ -235,7 +236,12 @@ pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result
     let context_path = origin.origin_path().parent();
     let options = origin.resolve_options();
     let options = apply_typescript_types_options(options);
-    let types_request = if let Request::Module { module: m, path: p } = &*request.await? {
+    let types_request = if let Request::Module {
+        module: m,
+        path: p,
+        query: _,
+    } = &*request.await?
+    {
         let m = if let Some(stripped) = m.strip_prefix('@') {
             stripped.replace('/', "__")
         } else {
@@ -244,6 +250,7 @@ pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result
         Some(RequestVc::module(
             format!("@types/{m}"),
             Value::new(p.clone()),
+            QueryMapVc::none(),
         ))
     } else {
         None

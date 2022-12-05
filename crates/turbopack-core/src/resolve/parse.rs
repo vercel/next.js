@@ -1,9 +1,10 @@
 use anyhow::Result;
+use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::Regex;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 
-use super::pattern::Pattern;
+use super::pattern::{Pattern, QueryMapVc};
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
@@ -19,6 +20,7 @@ pub enum Request {
     Module {
         module: String,
         path: Pattern,
+        query: QueryMapVc,
     },
     ServerRelative {
         path: Pattern,
@@ -57,6 +59,7 @@ impl Request {
             Request::Module {
                 module,
                 path: Pattern::Constant(path),
+                query: _,
             } => format!("{module}{path}"),
             Request::ServerRelative {
                 path: Pattern::Constant(path),
@@ -101,7 +104,7 @@ impl Request {
                             Regex::new(r"^([A-Za-z]:\\|\\\\)").unwrap();
                         static ref URI_PATH: Regex = Regex::new(r"^([^/\\]+:)(.+)").unwrap();
                         static ref MODULE_PATH: Regex =
-                            Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)").unwrap();
+                            Regex::new(r"^((?:@[^/]+/)?[^/]+)([^?]*)(.*)").unwrap();
                     }
                     if WINDOWS_PATH.is_match(r) {
                         return Request::Windows { path: request };
@@ -116,10 +119,15 @@ impl Request {
                         }
                     }
                     if let Some(caps) = MODULE_PATH.captures(r) {
-                        if let (Some(module), Some(path)) = (caps.get(1), caps.get(2)) {
+                        if let (Some(module), Some(path), query) =
+                            (caps.get(1), caps.get(2), caps.get(3))
+                        {
                             return Request::Module {
                                 module: module.as_str().to_string(),
                                 path: path.as_str().to_string().into(),
+                                query: QueryMapVc::cell(query.map(|q| {
+                                    IndexMap::from_iter(qstring::QString::from(q.as_str()))
+                                })),
                             };
                         }
                     }
@@ -137,7 +145,11 @@ impl Request {
                         Request::Relative { path, .. } => {
                             path.extend(iter);
                         }
-                        Request::Module { module: _, path } => {
+                        Request::Module {
+                            module: _,
+                            path,
+                            query: _,
+                        } => {
                             path.extend(iter);
                         }
                         Request::ServerRelative { path } => {
@@ -205,10 +217,11 @@ impl RequestVc {
     }
 
     #[turbo_tasks::function]
-    pub fn module(module: String, path: Value<Pattern>) -> Self {
+    pub fn module(module: String, path: Value<Pattern>, query: QueryMapVc) -> Self {
         Self::cell(Request::Module {
             module,
             path: path.into_value(),
+            query,
         })
     }
 }
@@ -238,7 +251,11 @@ impl ValueToString for Request {
                     format!("relative {path}")
                 }
             }
-            Request::Module { module, path } => {
+            Request::Module {
+                module,
+                path,
+                query: _,
+            } => {
                 if path.could_match_others("") {
                     format!("module \"{module}\" with subpath {path}")
                 } else {

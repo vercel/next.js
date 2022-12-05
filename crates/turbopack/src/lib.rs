@@ -521,7 +521,12 @@ async fn warn_on_unsupported_modules(
     request: RequestVc,
     origin_path: FileSystemPathVc,
 ) -> Result<()> {
-    if let Request::Module { module, path } = &*request.await? {
+    if let Request::Module {
+        module,
+        path,
+        query: _,
+    } = &*request.await?
+    {
         // Warn if the package is known not to be supported by Turbopack at the moment.
         if UNSUPPORTED_PACKAGES.contains(module) {
             UnsupportedModuleIssue {

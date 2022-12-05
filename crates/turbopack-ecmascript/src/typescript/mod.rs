@@ -8,7 +8,10 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
-    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResult, ResolveResultVc},
+    resolve::{
+        origin::ResolveOriginVc, parse::RequestVc, pattern::QueryMapVc, ResolveResult,
+        ResolveResultVc,
+    },
 };
 
 use self::resolve::{read_from_tsconfigs, read_tsconfigs, type_resolve};
@@ -114,7 +117,11 @@ impl Asset for TsConfigModuleAsset {
                 references.push(
                     TsConfigTypesReferenceVc::new(
                         self.origin,
-                        RequestVc::module(name, Value::new("".to_string().into())),
+                        RequestVc::module(
+                            name,
+                            Value::new("".to_string().into()),
+                            QueryMapVc::none(),
+                        ),
                     )
                     .into(),
                 );

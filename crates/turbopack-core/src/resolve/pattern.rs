@@ -1,6 +1,7 @@
 use std::{collections::HashSet, fmt::Display, mem::take};
 
 use anyhow::Result;
+use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -10,6 +11,17 @@ use turbo_tasks::{
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc, LinkContent, LinkType,
 };
+
+#[turbo_tasks::value(transparent)]
+pub struct QueryMap(#[turbo_tasks(trace_ignore)] Option<IndexMap<String, String>>);
+
+#[turbo_tasks::value_impl]
+impl QueryMapVc {
+    #[turbo_tasks::function]
+    pub fn none() -> Self {
+        Self::cell(None)
+    }
+}
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Clone, Debug)]
