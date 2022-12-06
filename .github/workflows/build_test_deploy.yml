@@ -869,13 +869,6 @@ jobs:
       - run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
         id: docs-change
 
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          node-version: 16
-          check-latest: true
-
       - name: Cache cargo registry
         uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
