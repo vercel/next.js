@@ -25,7 +25,7 @@ describe('Error Overlay for server components', () => {
   afterAll(() => next.destroy())
 
   describe('createContext called in Server Component', () => {
-    test('should show error when React.createContext is called', async () => {
+    it('should show error when React.createContext is called', async () => {
       const { session, browser, cleanup } = await sandbox(
         next,
         new Map([
@@ -59,7 +59,7 @@ describe('Error Overlay for server components', () => {
       await cleanup()
     })
 
-    test('should show error when external package React.createContext is called', async () => {
+    it('should show error when React.createContext is called in external package', async () => {
       const { session, browser, cleanup } = await sandbox(
         next,
         new Map([
@@ -108,7 +108,7 @@ describe('Error Overlay for server components', () => {
       await cleanup()
     })
 
-    test('should show error when external package createContext is called', async () => {
+    it('should show error when createContext is called in external package', async () => {
       const { session, browser, cleanup } = await sandbox(
         next,
         new Map([
