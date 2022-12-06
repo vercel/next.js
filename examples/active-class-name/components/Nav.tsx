@@ -13,23 +13,28 @@ const Nav = () => (
     `}</style>
     <ul className="nav">
       <li>
-        <ActiveLink activeClassName="active" href="/">
-          <a className="nav-link">Home</a>
+        <ActiveLink activeClassName="active" className="nav-link" href="/">
+          Home
         </ActiveLink>
       </li>
       <li>
-        <ActiveLink activeClassName="active" href="/about">
-          <a className="nav-link">About</a>
+        <ActiveLink activeClassName="active" className="nav-link" href="/about">
+          About
         </ActiveLink>
       </li>
       <li>
-        <ActiveLink activeClassName="active" href="/blog">
-          <a className="nav-link">Blog</a>
+        <ActiveLink activeClassName="active" className="nav-link" href="/blog">
+          Blog
         </ActiveLink>
       </li>
       <li>
-        <ActiveLink activeClassName="active" href="/[slug]" as="/dynamic-route">
-          <a className="nav-link">Dynamic Route</a>
+        <ActiveLink
+          activeClassName="active"
+          className="nav-link"
+          href="/[slug]"
+          as="/dynamic-route"
+        >
+          Dynamic Route
         </ActiveLink>
       </li>
     </ul>

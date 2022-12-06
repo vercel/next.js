@@ -115,8 +115,8 @@ const postcssFontLoaderPlugn = ({
       const isRange = (value: string) => value.trim().includes(' ')
       const formattedFontFamilies = [
         formatFamily(fontFamily),
-        ...fallbackFonts,
         ...(adjustFontFallbackFamily ? [adjustFontFallbackFamily] : []),
+        ...fallbackFonts,
       ].join(', ')
       // Add class with family, weight and style
       const classRule = new postcss.Rule({ selector: '.className' })

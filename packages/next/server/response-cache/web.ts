@@ -24,6 +24,7 @@ export default class WebResponseCache {
     context: {
       isManualRevalidate?: boolean
       isPrefetch?: boolean
+      incrementalCache: any
     }
   ): Promise<ResponseCacheEntry | null> {
     // ensure manual revalidate doesn't block normal requests

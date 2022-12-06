@@ -375,7 +375,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
+      // @ts-expect-error this is inlined as a literal boolean not a string
+      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
       ...restProps
     } = props
 
@@ -521,6 +522,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     // Prefetch the URL if we haven't already and it's visible.
     React.useEffect(() => {
+      // in dev, we only prefetch on hover to avoid wasting resources as the prefetch will trigger compiling the page.
+      if (process.env.NODE_ENV !== 'production') {
+        return
+      }
+
       if (!router) {
         return
       }
