@@ -88,7 +88,7 @@ export default function dynamic<P = {}>(
     // A loading component is not required, so we default it
     loading: ({ error, isLoading, pastDelay }) => {
       if (!pastDelay) return null
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV !== 'production') {
         if (isLoading) {
           return null
         }
@@ -122,6 +122,15 @@ export default function dynamic<P = {}>(
 
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
+
+  const loader = loadableOptions.loader as Loader<P>
+
+  // Normalize loader to return the module as form { default: Component } for `React.lazy`.
+  // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
+  loadableOptions.loader = () =>
+    loader().then((mod) => {
+      return { default: mod.default || mod }
+    })
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {

@@ -143,6 +143,7 @@ describe('app dir', () => {
         // should support `dynamic` in both server and client components
         expect(html).toContain('hello from dynamic on server')
         expect(html).toContain('hello from dynamic on client')
+        expect(html).toContain('hello from server import client')
       })
 
       it('should serve polyfills for browsers that do not support modules', async () => {
