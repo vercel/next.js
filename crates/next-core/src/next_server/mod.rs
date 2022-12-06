@@ -13,7 +13,9 @@ use turbopack_core::environment::{
 };
 use turbopack_ecmascript::EcmascriptInputTransform;
 
-use crate::next_import_map::get_next_server_import_map;
+use crate::{
+    next_client::context::add_next_font_transform, next_import_map::get_next_server_import_map,
+};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
@@ -78,7 +80,7 @@ pub fn get_server_environment(
 
 #[turbo_tasks::function]
 pub fn get_server_module_options_context(ty: Value<ServerContextType>) -> ModuleOptionsContextVc {
-    match ty.into_value() {
+    let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } => ModuleOptionsContext {
             enable_typescript_transform: true,
             enable_styled_jsx: true,
@@ -97,5 +99,7 @@ pub fn get_server_module_options_context(ty: Value<ServerContextType>) -> Module
             ..Default::default()
         },
     }
-    .cell()
+    .cell();
+
+    add_next_font_transform(module_options_context)
 }

@@ -16,6 +16,7 @@ easy-error = "1.0.0"
 fxhash = "0.2.1"
 indexmap = { workspace = true }
 lazy_static = "1.4.0"
+next-font = { path = "../next-font" }
 once_cell = "1.13.0"
 pin-project-lite = "0.2.9"
 rand = "0.8.5"

@@ -1,0 +1,15 @@
+[package]
+name = "next-font"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[dependencies]
+fxhash = "0.2.1"
+serde = "1.0.136"
+serde_json = "1.0.85"
+swc_core = { workspace = true }
