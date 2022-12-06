@@ -536,7 +536,7 @@ export default async function build(
         )
 
       let mappedAppPages: { [page: string]: string } | undefined
-      let mappedAppNormalizedPages: Record<string, string> | undefined
+      let mapAppPagesToNormalized: Record<string, string> | undefined
 
       if (appPaths && appDir) {
         mappedAppPages = nextBuildSpan
@@ -587,7 +587,7 @@ export default async function build(
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys: string[] = []
       if (mappedAppPages) {
-        mappedAppNormalizedPages = {}
+        mapAppPagesToNormalized = {}
         for (const appKey in mappedAppPages) {
           const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
           const pagePath = mappedPages[normalizedAppPageKey]
@@ -598,7 +598,7 @@ export default async function build(
               appPath.replace(/^private-next-app-dir/, 'app'),
             ])
           }
-          mappedAppNormalizedPages[appKey] = normalizedAppPageKey
+          mapAppPagesToNormalized[appKey] = normalizedAppPageKey
           appPageKeys.push(normalizedAppPageKey)
         }
       }
@@ -2070,7 +2070,7 @@ export default async function build(
               dir,
               distDir,
               pageKeys.pages,
-              mappedAppNormalizedPages,
+              mapAppPagesToNormalized,
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest
