@@ -2100,13 +2100,6 @@ describe('app dir', () => {
       })
 
       it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
-        // server
-        const html = await renderViaHTTP(
-          next.url,
-          '/error/global-error-boundary/server'
-        )
-
-        // client
         const browser = await webdriver(
           next.url,
           '/error/global-error-boundary/client'
@@ -2122,11 +2115,27 @@ describe('app dir', () => {
           ).toBe(
             'Application error: a client-side exception has occurred (see the browser console for more information).'
           )
+        }
+      })
+
+      it('should display error digest for error in server component with default error boundary', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/error/global-error-boundary/server'
+        )
+
+        if (isDev) {
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
+        } else {
+          expect(
+            await browser.waitForElementByCss('body').elementByCss('h2').text()
+          ).toBe(
+            'Application error: a client-side exception has occurred (see the browser console for more information).'
+          )
           expect(
             await browser.waitForElementByCss('body').elementByCss('p').text()
-          ).toBe('Digest: CUSTOM_DIGEST_CLIENT')
-
-          expect(html).toContain('Digest: CUSTOM_DIGEST_SERVER')
+          ).toMatch(/Digest: \w+/)
         }
       })
 

@@ -5,9 +5,7 @@ import { useState } from 'react'
 export default function Page() {
   const [clicked, setClicked] = useState(false)
   if (clicked) {
-    const e = new Error('this is a test')
-    e.digest = 'CUSTOM_DIGEST_CLIENT'
-    throw e
+    throw new Error('this is a test')
   }
   return (
     <button
