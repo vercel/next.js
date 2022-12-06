@@ -1,5 +1,12 @@
 import React from 'react'
 
 export default function Layout({ children }) {
-  return <div id="root-a">{children}</div>
+  return (
+    <html>
+      <head></head>
+      <body>
+        <div id="root-a">{children}</div>
+      </body>
+    </html>
+  )
 }

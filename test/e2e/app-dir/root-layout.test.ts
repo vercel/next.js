@@ -23,8 +23,8 @@ describe('app-dir root layout', () => {
         ),
       },
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -216,16 +216,15 @@ describe('app-dir root layout', () => {
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
 
-    it('should correctly handle navigation between multiple root layouts', async () => {
+    it.only('should correctly handle navigation between multiple root layouts', async () => {
       const browser = await webdriver(next.url, '/root-layout-a')
-      // browser.elementById('root-a')
-      //  expect(await browser.hasElementByCssSelector("#root-b")).toBeFalse()
+      browser.elementById('root-a')
+      expect(await browser.hasElementByCssSelector('#root-b')).toBeFalse()
 
-      //  browser.elementById("to-layout-b").click();
+      browser.elementById('to-layout-b').click()
 
-      //  browser.elementById('root-b')
-      //  expect(await browser.hasElementByCssSelector("#root-a")).toBeFalse()
-      await waitFor(100000)
+      browser.elementById('root-b')
+      expect(await browser.hasElementByCssSelector('#root-a')).toBeFalse()
     })
   })
 })
