@@ -2,7 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
-import { getRedboxSource, hasRedbox } from 'next-test-utils'
+import { getRedboxSource, hasRedbox, waitFor } from 'next-test-utils'
 
 describe('app-dir root layout', () => {
   const isDev = (global as any).isNextDev
@@ -214,6 +214,18 @@ describe('app-dir root layout', () => {
         'Basic route'
       )
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
+    })
+
+    it('should correctly handle navigation between multiple root layouts', async () => {
+      const browser = await webdriver(next.url, '/root-layout-a')
+      // browser.elementById('root-a')
+      //  expect(await browser.hasElementByCssSelector("#root-b")).toBeFalse()
+
+      //  browser.elementById("to-layout-b").click();
+
+      //  browser.elementById('root-b')
+      //  expect(await browser.hasElementByCssSelector("#root-a")).toBeFalse()
+      await waitFor(100000)
     })
   })
 })
