@@ -216,7 +216,7 @@ describe('app-dir root layout', () => {
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
 
-    it.only('should correctly handle navigation between multiple root layouts', async () => {
+    it('should correctly handle navigation between multiple root layouts', async () => {
       const browser = await webdriver(next.url, '/root-layout-a')
       browser.elementById('root-a')
       expect(await browser.hasElementByCssSelector('#root-b')).toBeFalse()
