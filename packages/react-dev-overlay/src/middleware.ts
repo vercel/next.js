@@ -218,7 +218,7 @@ export async function createOriginalStackFrame({
       // Resolve it back to `default` for the method name if the source position didn't have the method.
       frame.methodName
         ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
-        ?.replace('__webpack_exports__', 'exports'),
+        ?.replace('__webpack_exports__.', ''),
     arguments: [],
   }
 
