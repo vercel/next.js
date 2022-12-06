@@ -923,13 +923,6 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - name: Install
-        uses: actions-rs/toolchain@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-
       - name: Cache cargo registry
         uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -976,14 +969,20 @@ jobs:
           restore-keys: |
             next-swc-cargo-cache-dev-ubuntu-latest
 
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@${{ env.NAPI_CLI_VERSION }} turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
-      - name: Build
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        run: turbo run build-native --cache-dir=".turbo" -- --release
-        env:
-          MACOSX_DEPLOYMENT_TARGET: '10.13'
+      - name: Build in docker
+        uses: addnab/docker-run-action@v3
+        with:
+          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
+          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -e TURBO_TEAM=vercel -e TURBO_TOKEN=${{ secrets.TURBO_TOKEN }} -e TURBO_REMOTE_ONLY=true -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          run: |
+            set -e &&
+            rustup toolchain install "${RUST_TOOLCHAIN}" &&
+            rustup default "${RUST_TOOLCHAIN}" &&
+            rustup target add x86_64-unknown-linux-gnu &&
+            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+            unset CC_x86_64_unknown_linux_gnu && unset CC &&
+            turbo run build-native --cache-dir=".turbo" -- --release --target x86_64-unknown-linux-gnu &&
+            strip packages/next-swc/native/next-swc.*.node
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
