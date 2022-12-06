@@ -33,6 +33,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
+import { IncrementalCache } from '../server/lib/incremental-cache'
 
 loadRequireHook()
 

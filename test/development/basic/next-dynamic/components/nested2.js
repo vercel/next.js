@@ -1,4 +1,3 @@
-// import { lazy } from 'react'
 import dynamic from 'next/dynamic'
 
 const BrowserLoaded = dynamic(async () => () => <div>Browser hydrated</div>, {
