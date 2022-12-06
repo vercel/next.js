@@ -82,6 +82,27 @@ describe('app dir - rsc basics', () => {
     expect($('#return-null-layout').html()).toBeEmpty()
   })
 
+  it('should correctly render page returning undefined', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-undefined/page')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render component returning undefined', async () => {
+    const homeHTML = await renderViaHTTP(
+      next.url,
+      '/return-undefined/component'
+    )
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-undefined').html()).toBeNull()
+  })
+
+  it('should correctly render layout returning undefined', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-undefined/layout')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(next.url, '/', null, {
       headers: {
