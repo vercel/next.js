@@ -934,6 +934,7 @@ jobs:
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
           options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -e TURBO_TEAM=vercel -e TURBO_TOKEN=${{ secrets.TURBO_TOKEN }} -e TURBO_REMOTE_ONLY=true -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
@@ -949,6 +950,7 @@ jobs:
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
