@@ -9,7 +9,6 @@ edition = "2021"
 bench = false
 
 [dependencies]
-proc-macro-error = "1.0.4"
 proc-macro2 = "1.0.36"
 quote = "1.0"
 

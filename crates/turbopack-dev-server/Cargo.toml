@@ -12,11 +12,9 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 futures = "0.3.25"
-httparse = "1.6.0"
 hyper = { version = "0.14", features = ["full"] }
 hyper-tungstenite = "0.8.1"
 indexmap = { workspace = true, features = ["serde"] }
-lazy_static = "1.4.0"
 mime = "0.3.16"
 mime_guess = "2.0.4"
 parking_lot = "0.12.1"

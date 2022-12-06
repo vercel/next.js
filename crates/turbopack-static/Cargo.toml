@@ -11,7 +11,6 @@ bench = false
 
 [dependencies]
 anyhow = "1.0.47"
-async-trait = "0.1.56"
 
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
@@ -20,7 +19,6 @@ turbopack-core = { path = "../turbopack-core" }
 turbopack-css = { path = "../turbopack-css" }
 turbopack-ecmascript = { path = "../turbopack-ecmascript" }
 
-md4 = "0.10.1"
 serde = "1.0.136"
 
 [build-dependencies]

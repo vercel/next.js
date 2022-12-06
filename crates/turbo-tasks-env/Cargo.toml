@@ -13,8 +13,6 @@ anyhow = "1.0.47"
 dotenvy = "0.15.5"
 indexmap = { workspace = true, features = ["serde"] }
 serde = "1.0.136"
-serde_json = "1.0.85"
-tokio = "1.21.2"
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 

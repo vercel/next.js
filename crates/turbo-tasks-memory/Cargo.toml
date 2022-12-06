@@ -14,7 +14,6 @@ anyhow = "1.0.47"
 auto-hash-map = { path = "../auto-hash-map" }
 concurrent-queue = "1.2.2"
 dashmap = "5.4.0"
-lazy_static = "1.4.0"
 nohash-hasher = "0.2.0"
 num_cpus = "1.13.1"
 parking_lot = "0.12.1"
@@ -25,6 +24,7 @@ turbo-tasks-hash = { path = "../turbo-tasks-hash" }
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }
+lazy_static = "1.4.0"
 serde = "1.0.136"
 tokio = { version = "1.21.2", features = ["full"] }
 turbo-tasks-testing = { path = "../turbo-tasks-testing" }

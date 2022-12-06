@@ -13,7 +13,6 @@ bench = false
 anyhow = "1.0.47"
 async-trait = "0.1.56"
 indexmap = { workspace = true }
-once_cell = "1.13.0"
 serde = "1.0.136"
 
 turbo-tasks = { path = "../turbo-tasks" }

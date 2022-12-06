@@ -26,7 +26,6 @@ custom_allocator = ["turbo-malloc", "turbo-malloc/custom_allocator"]
 
 [dependencies]
 clap = { version = "4.0.18", optional = true, features = ["derive"] }
-owo-colors = "3"
 turbo-malloc = { path = "../turbo-malloc", optional = true, default-features = false }
 turbo-tasks = { path = "../turbo-tasks" }
 # turbo-tasks-memory = { path = "../turbo-tasks-memory", features = ["log_running_tasks", "log_scheduled_tasks", "log_activate_tasks", "log_connect_tasks"] }
