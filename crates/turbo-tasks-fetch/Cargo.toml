@@ -1,0 +1,27 @@
+[package]
+name = "turbo-tasks-fetch"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = "1.0.47"
+indexmap = { workspace = true }
+lazy_static = "1.4.0"
+reqwest = "0.11.13"
+serde = "1.0.136"
+tokio = "1.11.0"
+turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+
+[dev-dependencies]
+httpmock = "0.6.6"
+tokio = { version = "1.11.0", features = ["full"] }
+turbo-tasks-testing = { path = "../turbo-tasks-testing" }
+
+[build-dependencies]
+turbo-tasks-build = { path = "../turbo-tasks-build" }
