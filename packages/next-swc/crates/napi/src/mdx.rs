@@ -37,6 +37,7 @@ pub fn mdx_compile(
 #[napi]
 pub fn mdx_compile_sync(value: String, option: Buffer) -> napi::Result<String> {
     let option: Options = serde_json::from_slice(&option)?;
+    println!("test");
 
     compile(value.as_str(), &option)
         .map_err(|err| napi::Error::new(Status::GenericFailure, format!("{:?}", err)))
