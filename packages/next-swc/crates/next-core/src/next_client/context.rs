@@ -107,7 +107,7 @@ pub async fn get_client_module_options_context(
         ..Default::default()
     };
 
-    Ok(module_options_context.cell())
+    Ok(add_next_font_transform(module_options_context.cell()))
 }
 
 #[turbo_tasks::function]
@@ -128,10 +128,39 @@ pub async fn add_next_transforms_to_pages(
             ]),
         ]),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJs]),
+            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJsPageSsr]),
         )],
     ));
     Ok(module_options_context.cell())
+}
+
+#[turbo_tasks::function]
+pub async fn add_next_font_transform(
+    module_options_context: ModuleOptionsContextVc,
+) -> Result<ModuleOptionsContextVc> {
+    #[cfg(not(feature = "next-font"))]
+    return Ok(module_options_context);
+
+    #[cfg(feature = "next-font")]
+    {
+        use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
+        use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
+
+        let mut module_options_context = module_options_context.await?.clone_value();
+        module_options_context.custom_rules.push(ModuleRule::new(
+            // TODO: Only match in pages (not pages/api), app/, etc.
+            ModuleRuleCondition::any(vec![
+                ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+            ]),
+            vec![ModuleRuleEffect::AddEcmascriptTransforms(
+                EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJsFont]),
+            )],
+        ));
+        Ok(module_options_context.cell())
+    }
 }
 
 #[turbo_tasks::function]

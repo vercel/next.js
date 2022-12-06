@@ -29,3 +29,6 @@ turbopack-node = { path = "../turbopack-node" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
+
+[features]
+next-font = []
