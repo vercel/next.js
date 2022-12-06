@@ -19,7 +19,7 @@ import {
   SERVER_RUNTIME,
   WEBPACK_LAYERS,
 } from '../lib/constants'
-import { RSC_MODULE_TYPES } from '../shared/lib/constants'
+import { APP_CLIENT_INTERNALS, RSC_MODULE_TYPES } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -520,19 +520,17 @@ export function finalizeEntrypoint({
   const isAppLayer =
     hasAppDir &&
     (name === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
-      entry.import.includes('next-flight-client-entry-loader'))
+      name === APP_CLIENT_INTERNALS ||
+      name.startsWith('app/'))
 
   if (
     // Client special cases
-    ![
-      CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
-      CLIENT_STATIC_FILES_RUNTIME_MAIN,
-      CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-      CLIENT_STATIC_FILES_RUNTIME_AMP,
-      CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-    ].includes(name)
+    name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_MAIN_APP &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
+    name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
-    // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
     if (isAppLayer) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
