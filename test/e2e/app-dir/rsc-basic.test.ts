@@ -94,7 +94,7 @@ describe('app dir - rsc basics', () => {
       '/return-undefined/component'
     )
     const $ = cheerio.load(homeHTML)
-    expect($('#return-null-undefined').html()).toBeNull()
+    expect($('#return-undefined-layout').html()).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
