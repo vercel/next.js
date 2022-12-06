@@ -14,7 +14,7 @@ Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated
 
 ```typescript
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
 
 export default (req) => new Response('Hello world!')
@@ -26,7 +26,7 @@ export default (req) => new Response('Hello world!')
 import type { NextRequest } from 'next/server'
 
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
 
 export default async function handler(req: NextRequest) {
@@ -50,7 +50,7 @@ export default async function handler(req: NextRequest) {
 import type { NextRequest } from 'next/server'
 
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
 
 export default async function handler(req: NextRequest) {
@@ -75,7 +75,7 @@ export default async function handler(req: NextRequest) {
 import type { NextRequest } from 'next/server'
 
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
 
 export default async function handler(req: NextRequest) {
@@ -91,7 +91,7 @@ export default async function handler(req: NextRequest) {
 import { type NextRequest } from 'next/server'
 
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
 
 export default async function handler(req: NextRequest) {

@@ -63,7 +63,7 @@ For example, for API routes that rely on native Node.js APIs, they need to run w
 
 ```typescript
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
 
 export default (req) => new Response('Hello world!')
