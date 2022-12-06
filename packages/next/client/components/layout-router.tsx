@@ -24,6 +24,7 @@ import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { useRouter } from './navigation'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/no-ssr-error'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.

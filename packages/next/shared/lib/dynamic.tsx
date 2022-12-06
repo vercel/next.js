@@ -1,9 +1,11 @@
-import React, { Suspense } from 'react'
+import React, { lazy, Suspense } from 'react'
 import Loadable from './loadable'
+import NoSSR from './dynamic-no-ssr'
 
-import { NEXT_DYNAMIC_NO_SSR_CODE } from './no-ssr-error'
-
-export { NEXT_DYNAMIC_NO_SSR_CODE }
+// Normalize loader to return the module as form { default: Component } for `React.lazy`.
+// Also for backward compatible since next/dynamic allows to resolve a component directly with loader
+// Client component reference proxy need to be converted to a module.
+const convertModule = (mod: any) => ({ default: mod.default || mod })
 
 export type LoaderComponent<P = {}> = Promise<{
   default: React.ComponentType<P>
@@ -45,26 +47,15 @@ export type LoadableFn<P = {}> = (
 
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
-function DynamicThrownOnServer() {
-  const error = new Error(NEXT_DYNAMIC_NO_SSR_CODE)
-  ;(error as any).digest = NEXT_DYNAMIC_NO_SSR_CODE
-  throw error
-}
-
 export function noSSR<P = {}>(
-  _LoadableInitializer: LoadableFn<P>,
+  LoadableInitializer: Loader,
   loadableOptions: DynamicOptions<P>
 ): React.ComponentType<P> {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
   delete loadableOptions.modules
 
-  const loader =
-    typeof window === 'undefined'
-      ? async () => ({ default: DynamicThrownOnServer })
-      : loadableOptions.loader
-
-  const NoSSRComponent = React.lazy<React.ComponentType>(loader as Loader)
+  const NoSSRComponent = lazy(LoadableInitializer)
 
   const Loading = loadableOptions.loading!
   const fallback = (
@@ -73,7 +64,9 @@ export function noSSR<P = {}>(
 
   return () => (
     <Suspense fallback={fallback}>
-      <NoSSRComponent />
+      <NoSSR>
+        <NoSSRComponent />
+      </NoSSR>
     </Suspense>
   )
 }
@@ -125,12 +118,7 @@ export default function dynamic<P = {}>(
 
   const loader = loadableOptions.loader as Loader<P>
 
-  // Normalize loader to return the module as form { default: Component } for `React.lazy`.
-  // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
-  loadableOptions.loader = () =>
-    loader().then((mod) => {
-      return { default: mod.default || mod }
-    })
+  loadableOptions.loader = () => loader().then(convertModule)
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {
@@ -145,7 +133,7 @@ export default function dynamic<P = {}>(
   if (typeof loadableOptions.ssr === 'boolean') {
     if (!loadableOptions.ssr) {
       delete loadableOptions.ssr
-      return noSSR(loadableFn, loadableOptions)
+      return noSSR(loader as Loader, loadableOptions)
     }
     delete loadableOptions.ssr
   }
