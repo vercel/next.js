@@ -1004,11 +1004,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && node ./scripts/setup-wasm.mjs && npm i -g pnpm@${PNPM_VERSION} && TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js >> /proc/1/fd/1"
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      # test wasm parsing for runtime in page config
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && TEST_WASM=true xvfb-run node run-tests.js test/e2e/streaming-ssr/index.test.ts >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && node ./scripts/setup-wasm.mjs && npm i -g pnpm@${PNPM_VERSION} && TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js test/e2e/streaming-ssr/index.test.ts >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   # Build binaries for publishing
