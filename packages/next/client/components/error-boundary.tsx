@@ -109,7 +109,7 @@ export function GlobalErrorComponent({ error }: { error: any }) {
               browser console for more information).
             </h2>
             {error?.digest && (
-              <p style={styles.text}>{`Error digest: ${error.digest}`}</p>
+              <p style={styles.text}>{`Digest: ${error.digest}`}</p>
             )}
           </div>
         </div>

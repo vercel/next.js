@@ -2117,7 +2117,7 @@ describe('app dir', () => {
           )
           expect(
             await browser.waitForElementByCss('body').elementByCss('p').text()
-          ).toBe('Error digest: CUSTOM_DIGEST')
+          ).toBe('Digest: CUSTOM_DIGEST')
         }
       })
 
