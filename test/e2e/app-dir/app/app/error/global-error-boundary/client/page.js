@@ -6,7 +6,7 @@ export default function Page() {
   const [clicked, setClicked] = useState(false)
   if (clicked) {
     const e = new Error('this is a test')
-    e.digest = 'CUSTOM_DIGEST'
+    e.digest = 'CUSTOM_DIGEST_CLIENT'
     throw e
   }
   return (

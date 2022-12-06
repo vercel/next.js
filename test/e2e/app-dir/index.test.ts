@@ -2100,9 +2100,16 @@ describe('app dir', () => {
       })
 
       it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
+        // server
+        const html = await renderViaHTTP(
+          next.url,
+          '/error/global-error-boundary/server'
+        )
+
+        // client
         const browser = await webdriver(
           next.url,
-          '/error/global-error-boundary'
+          '/error/global-error-boundary/client'
         )
         await browser.elementByCss('#error-trigger-button').click()
 
@@ -2117,7 +2124,9 @@ describe('app dir', () => {
           )
           expect(
             await browser.waitForElementByCss('body').elementByCss('p').text()
-          ).toBe('Digest: CUSTOM_DIGEST')
+          ).toBe('Digest: CUSTOM_DIGEST_CLIENT')
+
+          expect(html).toContain('Digest: CUSTOM_DIGEST_SERVER')
         }
       })
 
