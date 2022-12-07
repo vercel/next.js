@@ -617,7 +617,7 @@ jobs:
 
   testFirefox:
     name: Test Firefox (production)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build, build-native-test]
     timeout-minutes: 10
     env:
@@ -642,7 +642,7 @@ jobs:
 
   testSafari:
     name: Test Safari (production)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build, build-native-test]
     timeout-minutes: 15
     env:
@@ -719,7 +719,7 @@ jobs:
 
   testFirefoxNode18:
     name: Test Firefox Node.js 18
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build, testFirefox, build-native-test]
     timeout-minutes: 10
     env:
@@ -970,7 +970,7 @@ jobs:
 
   test-wasm:
     name: Test the wasm build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 15
     needs: [build, build-native-test, build-wasm-dev]
 
