@@ -766,7 +766,7 @@ export default class HotReloader {
       (
         pageHashMap: Map<string, string>,
         changedItems: Set<string>,
-        serverComponentChangeCallback?: (key: string) => void
+        serverComponentChangedItems?: Set<string>
       ) =>
       (stats: webpack.Compilation) => {
         try {
@@ -849,12 +849,12 @@ export default class HotReloader {
                   }
                   pageHashMap.set(key, curHash)
 
-                  if (serverComponentChangeCallback) {
+                  if (serverComponentChangedItems) {
                     const serverKey = WEBPACK_LAYERS.server + ':' + key
                     const prevServerHash = pageHashMap.get(serverKey)
                     const curServerHash = chunksHashServerLayer.toString()
                     if (prevServerHash && prevServerHash !== curServerHash) {
-                      serverComponentChangeCallback(key)
+                      serverComponentChangedItems.add(key)
                     }
                     pageHashMap.set(serverKey, curServerHash)
                   }
@@ -877,8 +877,10 @@ export default class HotReloader {
     )
     this.multiCompiler.compilers[1].hooks.emit.tap(
       'NextjsHotReloaderForServer',
-      trackPageChanges(prevServerPageHashes, changedServerPages, (key) =>
-        changedServerComponentPages.add(key)
+      trackPageChanges(
+        prevServerPageHashes,
+        changedServerPages,
+        changedServerComponentPages
       )
     )
     this.multiCompiler.compilers[2].hooks.emit.tap(
@@ -886,7 +888,7 @@ export default class HotReloader {
       trackPageChanges(
         prevEdgeServerPageHashes,
         changedEdgeServerPages,
-        (key) => changedServerComponentPages.add(key)
+        changedServerComponentPages
       )
     )
 
