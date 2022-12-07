@@ -131,4 +131,6 @@ Edge API Routes use the [Edge Runtime](/docs/api-reference/edge-runtime.md), whe
 
 Edge API Routes can [stream responses](/docs/api-reference/edge-runtime.md#web-stream-apis) from the server and run _after_ cached files (e.g. HTML, CSS, JavaScript) have been accessed. Server-side streaming can help improve performance with faster [Time To First Byte (TTFB)](https://web.dev/ttfb/).
 
+> Note: Using [Edge Runtime](/docs/api-reference/edge-runtime.md) with `getServerSideProps` does not give you access to the response object. If you need access to `res`, you should use the [Node.js runtime](/docs/advanced-features/react-18/switchable-runtime.md) by setting `runtime: 'nodejs'`.
+
 View the [supported APIs](/docs/api-reference/edge-runtime.md) and [unsupported APIs](/docs/api-reference/edge-runtime.md#unsupported-apis) for the Edge Runtime.
