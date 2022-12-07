@@ -4,7 +4,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <head></head>
-      <body>
+      <body
+        style={{
+          margin: 0,
+        }}
+      >
         <div
           style={{
             background: 'pink',

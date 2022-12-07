@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import React from 'react'
 
 export default function Page() {
@@ -9,6 +10,10 @@ export default function Page() {
         height: 100,
         width: 100,
       }}
-    />
+    >
+      <Link id="link-small-page" href="/server/small-page">
+        Link to small-page
+      </Link>
+    </div>
   )
 }
