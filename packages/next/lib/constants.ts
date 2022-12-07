@@ -76,4 +76,5 @@ export const WEBPACK_LAYERS = {
   api: 'api',
   middleware: 'middleware',
   edgeAsset: 'edge-asset',
+  appClient: 'app-client',
 }
