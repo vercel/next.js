@@ -1707,26 +1707,8 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        // Alias `next/dynamic` to React.lazy implementation for RSC
         ...(hasServerComponents
           ? [
-              {
-                test: codeCondition.test,
-                issuerLayer(layer: string) {
-                  return (
-                    layer === WEBPACK_LAYERS.client ||
-                    layer === WEBPACK_LAYERS.server
-                  )
-                },
-                resolve: {
-                  alias: {
-                    // Alias `next/dynamic` to React.lazy implementation for RSC
-                    [require.resolve('next/dynamic')]: require.resolve(
-                      'next/dist/client/components/dynamic'
-                    ),
-                  },
-                },
-              },
               {
                 // Alias react-dom for ReactDOM.preload usage.
                 // Alias react for switching between default set and share subset.
