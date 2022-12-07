@@ -378,6 +378,27 @@ describe('app dir', () => {
       }
     )
     ;(isDev ? describe : describe.skip)('HMR', () => {
+      it('should HMR correctly for server component', async () => {
+        const filePath = 'app/dashboard/index/page.js'
+        const origContent = await next.readFile(filePath)
+
+        try {
+          const browser = await webdriver(next.url, '/dashboard/index')
+          expect(await browser.elementByCss('p').text()).toContain(
+            'hello from app/dashboard/index'
+          )
+
+          await next.patchFile(
+            filePath,
+            origContent.replace('hello from', 'swapped from')
+          )
+
+          await check(() => browser.elementByCss('p').text(), /swapped from/)
+        } finally {
+          await next.patchFile(filePath, origContent)
+        }
+      })
+
       it('should HMR correctly for client component', async () => {
         const filePath = 'app/client-component-route/page.js'
         const origContent = await next.readFile(filePath)
