@@ -2418,13 +2418,5 @@ export async function release(task) {
 
 // notification helper
 function notify(msg) {
-  try {
-    notifier.notify({
-      title: '▲ Next',
-      message: msg,
-      icon: false,
-    })
-  } catch (err) {
-    // notifier can fail on M1 machines
-  }
+  // We don't know how to easily emit notifications in M1 mac and using `notify-send` with Gnome fills notification centre.
 }
