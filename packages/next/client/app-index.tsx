@@ -114,10 +114,21 @@ if (document.readyState === 'loading') {
   DOMContentLoaded()
 }
 
-// Skip certain custom errors which are not expected to throw on client
 function onRecoverableError(err: any) {
+  // Using default react onRecoverableError
+  // x-ref: https://github.com/facebook/react/blob/d4bc16a7d69eb2ea38a88c8ac0b461d5f72cdcab/packages/react-dom/src/client/ReactDOMRoot.js#L83
+  const defaultOnRecoverableError =
+    typeof reportError === 'function'
+      ? // In modern browsers, reportError will dispatch an error event,
+        // emulating an uncaught JavaScript error.
+        reportError
+      : (error: any) => {
+          window.console.error(error)
+        }
+
+  // Skip certain custom errors which are not expected to be reported on client
   if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) return
-  throw err
+  defaultOnRecoverableError(err)
 }
 
 const nextServerDataLoadingGlobal = ((self as any).__next_f =

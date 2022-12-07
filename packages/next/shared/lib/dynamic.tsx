@@ -36,7 +36,7 @@ export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
   loadableGenerated?: LoadableGeneratedOptions
   ssr?: boolean
   /**
-   * @deprecated `suspense` prop is not required any more
+   * @deprecated `suspense` prop is not required anymore
    */
   suspense?: boolean
 }

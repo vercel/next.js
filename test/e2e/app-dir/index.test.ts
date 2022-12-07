@@ -152,6 +152,9 @@ describe('app dir', () => {
         expect(serverContent).toContain('next-dynamic dynamic on server')
         expect(serverContent).toContain('next-dynamic dynamic on client')
         expect(serverContent).toContain('next-dynamic server import client')
+        expect(serverContent).not.toContain(
+          'next-dynamic dynamic no ssr on client'
+        )
 
         expect(serverContent).not.toContain(
           'next-dynamic dynamic no ssr on server'
@@ -162,6 +165,11 @@ describe('app dir', () => {
         const clientContent = await browser.elementByCss(selector).text()
         expect(clientContent).toContain('next-dynamic dynamic no ssr on server')
         expect(clientContent).toContain('text client under sever')
+        await browser.waitForElementByCss('#css-text-dynamic-no-ssr-client')
+
+        expect(
+          await browser.elementByCss('#css-text-dynamic-no-ssr-client').text()
+        ).toBe('next-dynamic dynamic no ssr on client')
       })
 
       it('should serve polyfills for browsers that do not support modules', async () => {
