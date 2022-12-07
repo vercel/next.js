@@ -290,6 +290,7 @@ describe('Prerender Preview Mode', () => {
 
     it('should return cookies to be expired after dev server reboot', async () => {
       await killApp(app)
+      appPort = await findPort()
       app = await launchApp(appDir, appPort)
 
       const res = await fetchViaHTTP(

@@ -1,13 +1,16 @@
 // @ts-check
+// @ts-expect-error
 import * as github from '@actions/github'
+// @ts-expect-error
 import * as core from '@actions/core'
-import { gte as semverGte } from 'semver'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const verifyCanaryLabel = 'please verify canary'
-const bugReportLabel = 'template: bug'
 const addReproductionLabel = 'please add a complete reproduction'
-const debug = !!process.env.DEBUG
-const json = (o) => JSON.stringify(o, null, 2)
+// const bugLabel = 'template: bug'
+const __dirname =
+  '/home/runner/work/next.js/next.js/.github/actions/issue-validator'
 
 /**
  * @typedef {{
@@ -19,153 +22,120 @@ const json = (o) => JSON.stringify(o, null, 2)
  *  color :string
  *  default :boolean
  * }} Label
+ *
+ * @typedef {{
+ *  pull_request: any
+ *  issue?: {body: string, number: number, labels: Label[]}
+ *  label: Label
+ * }} Payload
+ *
+ * @typedef {{
+ *  payload: Payload
+ *  repo: any
+ * }} Context
  */
 
 async function run() {
   try {
+    /** @type {Context} */
     const { payload, repo } = github.context
-    const { issue, pull_request } = payload
+    const {
+      issue,
+      pull_request,
+      label: { name: newLabel },
+    } = payload
 
-    if (pull_request || !issue?.body) return
+    if (pull_request || !issue?.body || !process.env.GITHUB_TOKEN) return
 
-    /** @type {Label} */
-    const newLabel = payload.label
-    const { body, number: issueNumber } = issue
-    /** @type {Label[]} */
-    const labels = issue.labels
+    const labels = issue.labels.map((l) => l.name)
+    // const isBugReport =
+    //   labels.includes(bugLabel) || newLabel === bugLabel || !labels.length
 
-    if (debug) {
-      core.info(
-        `Validating issue ${issueNumber}:
-    Labels:
-      New: ${json(newLabel)}
-      All: ${json(labels)}
-    Body: ${body}`
+    if (
+      // !(isBugReport && issue.number > 43554) &&
+      ![verifyCanaryLabel, addReproductionLabel].includes(newLabel) &&
+      !(
+        labels.includes(verifyCanaryLabel) ||
+        labels.includes(addReproductionLabel)
       )
-    }
-
-    const isBugReport = newLabel.name === bugReportLabel
-
-    const isManuallyLabeled = labels.some(
-      (label) => label.name === verifyCanaryLabel
-    )
-
-    if (!isBugReport && !isManuallyLabeled) {
+    ) {
       return core.info(
-        'Issue is ignored, because it is not a bug report or is not manually labeled'
+        'Not a bug report or not manually labeled or already labeled.'
       )
     }
 
-    if (!process.env.GITHUB_TOKEN) {
-      throw new Error('GITHUB_TOKEN is not set')
-    }
+    // /** @param {string|null|undefined} link */
+    // async function hasRepro(link) {
+    //   if (!link) return false
+    //   try {
+    //     const url = new URL(link)
+    //     if (['example.com'].includes(url.hostname)) {
+    //       return false
+    //     }
+    //   } catch {
+    //     return false
+    //   }
+    //   const response = await fetch(link)
+    //   return response.ok
+    // }
+
+    // const hasValidRepro =
+    //   isBugReport &&
+    //   (await hasRepro(
+    //     issue.body.match(
+    //       /will be addressed faster\n\n(.*)\n\n### To Reproduce/i
+    //     )?.[1]
+    //   ))
 
     const client = github.getOctokit(process.env.GITHUB_TOKEN).rest
+    const issueCommon = { ...repo, issue_number: issue.number }
 
-    /**
-     * @param {string} label
-     * @param {string} comment
-     */
-    function notifyOnIssue(label, comment) {
-      const issueCommon = { ...repo, issue_number: issueNumber }
-
-      if (debug) {
-        core.info('Skipping comment/label because we are in DEBUG mode')
-        core.info(json({ label, comment }))
-        return
-      }
-
-      return Promise.all([
-        client.issues.addLabels({ ...issueCommon, labels: [label] }),
-        client.issues.createComment({ ...issueCommon, body: comment }),
+    if (
+      newLabel === addReproductionLabel
+      // || !hasValidRepro
+    ) {
+      await Promise.all([
+        client.issues.addLabels({
+          ...issueCommon,
+          labels: [addReproductionLabel],
+        }),
+        client.issues.createComment({
+          ...issueCommon,
+          body: readFileSync(join(__dirname, 'repro.md'), 'utf8'),
+        }),
       ])
-    }
-
-    const isVerifyCanaryChecked = body.includes(
-      '- [X] I verified that the issue exists in Next.js canary release'
-    )
-
-    if (!isVerifyCanaryChecked || isManuallyLabeled) {
-      await notifyOnIssue(
-        verifyCanaryLabel,
-        'Please verify your issue reproduces with `next@canary`. The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running `npm install next@canary`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.'
-      )
       return core.info(
-        `Commented on issue, because it was ${
-          isManuallyLabeled ? 'manually labeled' : 'not verified against canary'
-        }`
+        'Commented on issue, because it did not have a sufficient reproduction.'
       )
     }
 
-    const reproductionUrl = body
-      .match(/### Link to reproduction\n\n(?<url>.*)\n/)
-      ?.groups?.url.trim()
+    // const isVerifyCanaryChecked =
+    //   isBugReport &&
+    //   issue.body.match(
+    //     /- \[x\] I verified that the issue exists in the latest Next.js canary release/i
+    //   )
 
-    if (!reproductionUrl || !(await fetch(reproductionUrl)).ok) {
-      await notifyOnIssue(
-        addReproductionLabel,
-        'The link to the reproduction appears to be incorrect/unreachable. Please add a link to the reproduction of the issue. This is a required field. If your project is private, you can invite @balazsorban44 to the repository so the Next.js team can investigate further.'
-      )
+    if (
+      newLabel === verifyCanaryLabel
+      // || !isVerifyCanaryChecked
+    ) {
+      await Promise.all([
+        client.issues.addLabels({
+          ...issueCommon,
+          labels: [verifyCanaryLabel],
+        }),
+        client.issues.createComment({
+          ...issueCommon,
+          body: readFileSync(join(__dirname, 'canary.md'), 'utf8'),
+        }),
+      ])
       return core.info(
-        `Commented on issue, because the reproduction url (${reproductionUrl}) was not reachable`
+        'Commented on issue, because it was not verified against canary.'
       )
     }
-
-    const containsNextInfoOutput = [
-      'Operating System:',
-      'Binaries:',
-      'Relevant packages:',
-    ].every((i) => body.includes(i))
-
-    if (!containsNextInfoOutput) {
-      return core.info(
-        'Could not detect `next info` output, skipping as version detection might be unreliable'
-      )
-    }
-
-    const reported = body.match(
-      /Relevant packages:\n      next: (?<version>\d+\.\d+\.\d+)/
-    )?.groups?.version
-
-    core.info(`Reported Next.js version: ${reported}`)
-
-    // REVIEW: Should we add a label here?
-    if (!reported) return
-
-    const last = await getLastVersion()
-    core.info(`Last Next.js version, based on npm releases: ${last}`)
-
-    if (!last.includes('canary') || reported === last) return
-
-    await notifyOnIssue(
-      verifyCanaryLabel,
-      `The reported Next.js version did not match the latest \`next@canary\` version (${last}). The canary version of Next.js ships daily and includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta. Some issues may already be fixed in the canary version, so please verify that your issue reproduces by running \`npm install next@canary\`. If the issue does not reproduce with the canary version, then it has already been fixed and this issue can be closed.`
-    )
-    return core.info(
-      `Commented on issue, because it was not verified against canary`
-    )
   } catch (error) {
     core.setFailed(error.message)
   }
 }
 
 run()
-
-async function getLastVersion() {
-  try {
-    const res = await fetch('https://registry.npmjs.org/next', {
-      headers: {
-        accept:
-          'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*',
-      },
-    })
-    const value = (await res.body?.getReader().read())?.value
-    const string = new TextDecoder().decode(value?.slice(0, 100))
-    const re = /"latest":"(?<latest>.*)","canary":"(?<canary>.*)","/
-    const { latest, canary } = string.match(re)?.groups ?? {}
-    return semverGte(latest, canary) ? canary : latest
-  } catch (error) {
-    core.error(error)
-    return ''
-  }
-}

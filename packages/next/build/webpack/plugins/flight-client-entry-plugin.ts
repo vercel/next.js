@@ -3,6 +3,8 @@ import type {
   ClientComponentImports,
   NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
+import type { FlightCSSManifest } from './flight-manifest-plugin'
+
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringify } from 'querystring'
 import path from 'path'
@@ -19,7 +21,6 @@ import {
   EDGE_RUNTIME_WEBPACK,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
-import { FlightCSSManifest } from './flight-manifest-plugin'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
 import { traverseModules } from '../utils'
@@ -37,8 +38,8 @@ export const injectedClientEntries = new Map()
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
 
-// TODO-APP: move CSS manifest generation to the flight manifest plugin.
-const flightCSSManifest: FlightCSSManifest = {}
+let serverCSSManifest: FlightCSSManifest = {}
+let edgeServerCSSManifest: FlightCSSManifest = {}
 
 export class FlightClientEntryPlugin {
   dev: boolean
@@ -112,7 +113,7 @@ export class FlightClientEntryPlugin {
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
-        recordModule(modId + '', mod)
+        recordModule(String(modId), mod)
       })
     })
   }
@@ -234,6 +235,15 @@ export class FlightClientEntryPlugin {
     // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
       const cssImportsForChunk: Record<string, string[]> = {}
+      if (this.isEdgeServer) {
+        edgeServerCSSManifest = {}
+      } else {
+        serverCSSManifest = {}
+      }
+
+      let cssManifest = this.isEdgeServer
+        ? edgeServerCSSManifest
+        : serverCSSManifest
 
       function collectModule(entryName: string, mod: any) {
         const resource = mod.resource
@@ -272,10 +282,10 @@ export class FlightClientEntryPlugin {
           }
 
           const entryCSSInfo: Record<string, string[]> =
-            flightCSSManifest.__entry_css__ || {}
+            cssManifest.__entry_css__ || {}
           entryCSSInfo[entryName] = cssImportsForChunk[entryName]
 
-          Object.assign(flightCSSManifest, {
+          Object.assign(cssManifest, {
             __entry_css__: entryCSSInfo,
           })
         })
@@ -320,7 +330,7 @@ export class FlightClientEntryPlugin {
               clientEntryDependencyMap,
             })
 
-          Object.assign(flightCSSManifest, cssImports)
+          Object.assign(cssManifest, cssImports)
         }
       })
     })
@@ -333,7 +343,14 @@ export class FlightClientEntryPlugin {
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
-        const manifest = JSON.stringify(flightCSSManifest)
+        const manifest = JSON.stringify({
+          ...serverCSSManifest,
+          ...edgeServerCSSManifest,
+          __entry_css__: {
+            ...serverCSSManifest.__entry_css__,
+            ...edgeServerCSSManifest.__entry_css__,
+          },
+        })
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
           manifest
         ) as unknown as webpack.sources.RawSource
@@ -544,7 +561,6 @@ export class FlightClientEntryPlugin {
     return shouldInvalidate
   }
 
-  // TODO-APP: make sure dependsOn is added for layouts/pages
   addEntry(
     compilation: any,
     context: string,

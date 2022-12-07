@@ -157,7 +157,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           // To match Next.js behavior node_modules is not transformed, only `transpiledPackages`
           ...(transpiled
             ? [
-                `/node_modules/(?!(${transpiled}))/`,
+                `/node_modules/(?!.pnpm)(?!(${transpiled})/)`,
                 `/node_modules/.pnpm/(?!(${transpiled.replace(
                   /\//g,
                   '\\+'

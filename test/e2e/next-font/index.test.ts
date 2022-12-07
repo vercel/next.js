@@ -108,7 +108,7 @@ describe('@next/font/google', () => {
         className: expect.stringMatching(/__className_.{6}/),
         style: {
           fontFamily: expect.stringMatching(
-            /^'__myFont1_.{6}', system-ui, '__myFont1_Fallback_.{6}'$/
+            /^'__myFont1_.{6}', '__myFont1_Fallback_.{6}', system-ui$/
           ),
           fontStyle: 'italic',
           fontWeight: 100,
@@ -275,27 +275,21 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-classname")).fontFamily'
         )
-      ).toMatch(
-        /^__Open_Sans_.{6}, system-ui, Arial, __Open_Sans_Fallback_.{6}$/
-      )
+      ).toMatch(/^__Open_Sans_.{6}, system-ui, Arial$/)
 
       // .style
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-style")).fontFamily'
         )
-      ).toMatch(
-        /^__Open_Sans_.{6}, system-ui, Arial, __Open_Sans_Fallback_.{6}$/
-      )
+      ).toMatch(/^__Open_Sans_.{6}, system-ui, Arial$/)
 
       // .variable
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-variable")).fontFamily'
         )
-      ).toMatch(
-        /^__Open_Sans_.{6}, system-ui, Arial, __Open_Sans_Fallback_.{6}$/
-      )
+      ).toMatch(/^__Open_Sans_.{6}, system-ui, Arial$/)
     })
   })
 

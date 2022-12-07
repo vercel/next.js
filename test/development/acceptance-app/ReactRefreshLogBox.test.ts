@@ -326,6 +326,12 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
     expect(await session.hasRedbox(true)).toBe(true)
+
+    await check(async () => {
+      const source = await session.getRedboxSource()
+      return source?.length > 1 ? 'success' : source
+    }, 'success')
+
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
@@ -1053,6 +1059,29 @@ describe('ReactRefreshLogBox app', () => {
     expect(await session.getRedboxDescription()).toContain(
       `Error: A null error was thrown`
     )
+
+    await cleanup()
+  })
+
+  test('Should not show __webpack_exports__ when exporting anonymous arrow function', async () => {
+    const { session, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'index.js',
+      `
+       export default () => {
+        if (typeof window !== 'undefined') {
+          throw new Error('test')
+        }
+
+        return null
+       }
+
+      `
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
   })

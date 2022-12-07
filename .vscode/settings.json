@@ -6,6 +6,7 @@
     { "language": "typescriptreact", "autoFix": true }
   ],
   "debug.javascript.unmapMissingSources": true,
+  "jest.autoRun": "off",
   "files.exclude": {
     "**/node_modules": false,
     "node_modules": true,
