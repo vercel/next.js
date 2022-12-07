@@ -3,7 +3,6 @@ import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { waitFor } from 'next-test-utils'
-import browser from 'test/integration/export/test/browser'
 
 describe('router autoscrolling on navigation', () => {
   let next: NextInstance
@@ -71,5 +70,23 @@ describe('router autoscrolling on navigation', () => {
     // Scroll y
     expect(newRect.y).toBeGreaterThanOrEqual(0)
     expect(newRect.y).toBeLessThanOrEqual(height)
+  })
+
+  it('should scroll not scroll when running router.refresh()', async () => {
+    const browser = await webdriver(next.url, '/server')
+
+    await browser.eval('window.scrollTo(0, 0)')
+
+    const oldRect = await getRect(browser, 'page')
+    expect(oldRect.x).toBe(10000)
+    expect(oldRect.y).toBe(10000)
+
+    browser.elementById('refresh').click()
+    // Wait for scroll to happen (if it happens)
+    await waitFor(1000)
+
+    const newRect = await getRect(browser, 'page')
+    expect(newRect.x).toBe(10000)
+    expect(newRect.y).toBe(10000)
   })
 })
