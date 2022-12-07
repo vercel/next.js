@@ -1606,7 +1606,7 @@ export async function renderToHTMLOrFlight(
                 !prop.startsWith('_') &&
                 target[prop]
               ) {
-                // Attach TS query param to IDs to get rid of flight client's module cache on HMR.
+                // Attach TS (timestamp) query param to IDs to get rid of flight client's module cache on HMR.
                 const namedExports: any = {}
                 const ts = Date.now()
                 for (let key in target[prop]) {
