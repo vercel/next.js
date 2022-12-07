@@ -251,7 +251,7 @@ export const css = curry(async function css(
               ],
             })
           : null,
-        ctx.hasAppDir && !ctx.isServer
+        ctx.hasAppDir && !ctx.isServer && !ctx.isProduction
           ? markRemovable({
               sideEffects: false,
               test: regexCssModules,
@@ -293,7 +293,7 @@ export const css = curry(async function css(
               ],
             })
           : null,
-        ctx.hasAppDir && !ctx.isServer
+        ctx.hasAppDir && !ctx.isServer && !ctx.isProduction
           ? markRemovable({
               sideEffects: false,
               test: regexSassModules,
@@ -382,7 +382,7 @@ export const css = curry(async function css(
     fns.push(
       loader({
         oneOf: [
-          ctx.hasAppDir
+          ctx.hasAppDir && !ctx.isProduction
             ? markRemovable({
                 sideEffects: true,
                 test: regexCssGlobal,
@@ -394,7 +394,7 @@ export const css = curry(async function css(
                 ],
               })
             : null,
-          ctx.hasAppDir
+          ctx.hasAppDir && !ctx.isProduction
             ? markRemovable({
                 sideEffects: true,
                 test: regexSassGlobal,
