@@ -23,8 +23,8 @@ describe('app-dir root layout', () => {
         ),
       },
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: 'experimental',
+        'react-dom': 'experimental',
       },
     })
   })
