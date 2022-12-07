@@ -138,11 +138,38 @@ describe('app dir', () => {
       it('should serve /index as separate page', async () => {
         const html = await renderViaHTTP(next.url, '/dashboard/index')
         expect(html).toContain('hello from app/dashboard/index')
+      })
+
+      it('should handle next/dynamic correctly', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard/dynamic')
+        const $ = cheerio.load(html)
+        // filter out the script
+        const selector = 'body div'
+        const serverContent = $(selector).text()
         // should load chunks generated via async import correctly with React.lazy
-        expect(html).toContain('hello from lazy')
+        expect(serverContent).toContain('next-dynamic lazy')
         // should support `dynamic` in both server and client components
-        expect(html).toContain('hello from dynamic on server')
-        expect(html).toContain('hello from dynamic on client')
+        expect(serverContent).toContain('next-dynamic dynamic on server')
+        expect(serverContent).toContain('next-dynamic dynamic on client')
+        expect(serverContent).toContain('next-dynamic server import client')
+        expect(serverContent).not.toContain(
+          'next-dynamic dynamic no ssr on client'
+        )
+
+        expect(serverContent).not.toContain(
+          'next-dynamic dynamic no ssr on server'
+        )
+        expect(serverContent).not.toContain('text client under sever')
+
+        const browser = await webdriver(next.url, '/dashboard/dynamic')
+        const clientContent = await browser.elementByCss(selector).text()
+        expect(clientContent).toContain('next-dynamic dynamic no ssr on server')
+        expect(clientContent).toContain('text client under sever')
+        await browser.waitForElementByCss('#css-text-dynamic-no-ssr-client')
+
+        expect(
+          await browser.elementByCss('#css-text-dynamic-no-ssr-client').text()
+        ).toBe('next-dynamic dynamic no ssr on client')
       })
 
       it('should serve polyfills for browsers that do not support modules', async () => {
@@ -436,6 +463,77 @@ describe('app dir', () => {
           expect(
             await renderViaHTTP(next.url, '/client-component-route')
           ).toContain('hello from')
+        } finally {
+          await next.patchFile(filePath, origContent)
+        }
+      })
+
+      it('should HMR correctly when changing the component type', async () => {
+        const filePath = 'app/dashboard/page/page.jsx'
+        const origContent = await next.readFile(filePath)
+
+        try {
+          const browser = await webdriver(next.url, '/dashboard/page')
+
+          expect(await browser.elementByCss('p').text()).toContain(
+            'hello dashboard/page!'
+          )
+
+          // Test HMR with server component
+          await next.patchFile(
+            filePath,
+            origContent.replace(
+              'hello dashboard/page!',
+              'hello dashboard/page in server component!'
+            )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in server component/
+          )
+
+          // Change to client component
+          await next.patchFile(
+            filePath,
+            origContent
+              .replace("// 'use client'", "'use client'")
+              .replace(
+                'hello dashboard/page!',
+                'hello dashboard/page in client component!'
+              )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in client component/
+          )
+
+          // Change back to server component
+          await next.patchFile(
+            filePath,
+            origContent.replace(
+              'hello dashboard/page!',
+              'hello dashboard/page in server component2!'
+            )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in server component2/
+          )
+
+          // Change to client component again
+          await next.patchFile(
+            filePath,
+            origContent
+              .replace("// 'use client'", "'use client'")
+              .replace(
+                'hello dashboard/page!',
+                'hello dashboard/page in client component2!'
+              )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in client component2/
+          )
         } finally {
           await next.patchFile(filePath, origContent)
         }
@@ -2123,7 +2221,7 @@ describe('app dir', () => {
       it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
         const browser = await webdriver(
           next.url,
-          '/error/global-error-boundary'
+          '/error/global-error-boundary/client'
         )
         await browser.elementByCss('#error-trigger-button').click()
 
@@ -2132,13 +2230,31 @@ describe('app dir', () => {
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
-            await browser
-              .waitForElementByCss('body')
-              .elementByCss('body')
-              .text()
+            await browser.waitForElementByCss('body').elementByCss('h2').text()
           ).toBe(
             'Application error: a client-side exception has occurred (see the browser console for more information).'
           )
+        }
+      })
+
+      it('should display error digest for error in server component with default error boundary', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/error/global-error-boundary/server'
+        )
+
+        if (isDev) {
+          expect(await hasRedbox(browser)).toBe(true)
+          expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
+        } else {
+          expect(
+            await browser.waitForElementByCss('body').elementByCss('h2').text()
+          ).toBe(
+            'Application error: a client-side exception has occurred (see the browser console for more information).'
+          )
+          expect(
+            await browser.waitForElementByCss('body').elementByCss('p').text()
+          ).toMatch(/Digest: \w+/)
         }
       })
 

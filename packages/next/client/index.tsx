@@ -43,6 +43,7 @@ import {
   PathnameContextProviderAdapter,
 } from '../shared/lib/router/adapters'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -510,7 +511,13 @@ function renderReactElement(
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (!reactRoot) {
     // Unlike with createRoot, you don't need a separate root.render() call here
-    reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
+    reactRoot = ReactDOM.hydrateRoot(domEl, reactEl, {
+      onRecoverableError(err: any) {
+        // Skip certain custom errors which are not expected to throw on client
+        if (err.message === NEXT_DYNAMIC_NO_SSR_CODE) return
+        throw err
+      },
+    })
     // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
     shouldHydrate = false
   } else {
@@ -697,6 +704,10 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       const htmlElement = document.documentElement
       const existing = htmlElement.style.scrollBehavior
       htmlElement.style.scrollBehavior = 'auto'
+      // In Chrome-based browsers we need to force reflow before calling `scrollTo`.
+      // Otherwise it will not pickup the change in scrollBehavior
+      // More info here: https://github.com/vercel/next.js/issues/40719#issuecomment-1336248042
+      htmlElement.getClientRects()
       window.scrollTo(input.scroll.x, input.scroll.y)
       htmlElement.style.scrollBehavior = existing
     }
