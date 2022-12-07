@@ -1,0 +1,16 @@
+[package]
+name = "turbo-updater"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal wrapper around update-informer to provide npm registry support and consistent UI"
+license = "MPL-2.0"
+publish = false
+
+[dependencies]
+colored = "2.0"
+serde = { version = "1.0.126", features = ["derive"] }
+strip-ansi-escapes = "0.1.1"
+terminal_size = "0.2"
+thiserror = "1.0"
+update-informer = "0.5.0"
+ureq = { version = "2.3.0" }
