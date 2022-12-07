@@ -440,6 +440,65 @@ describe('app dir', () => {
           await next.patchFile(filePath, origContent)
         }
       })
+
+      it.skip('should HMR correctly when changing the component type', async () => {
+        const filePath = 'app/dashboard/page/page.jsx'
+        const origContent = await next.readFile(filePath)
+
+        try {
+          const browser = await webdriver(next.url, '/dashboard/page')
+
+          expect(await browser.elementByCss('p').text()).toContain(
+            'hello dashboard/page!'
+          )
+
+          // Test HMR with server component
+          await next.patchFile(
+            filePath,
+            origContent.replace(
+              'hello dashboard/page!',
+              'hello dashboard/page in server component!'
+            )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in server component/
+          )
+
+          // Change to client component
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          await next.patchFile(
+            filePath,
+            origContent
+              .replace("// 'use client'", "'use client'")
+              .replace(
+                'hello dashboard/page in server component!',
+                'hello dashboard/page in client component!'
+              )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in client component/
+          )
+
+          // Change back to server component
+          await next.patchFile(
+            filePath,
+            origContent
+              .replace("'use client'", "// 'use client'")
+              .replace(
+                'hello dashboard/page in client component!',
+                'hello dashboard/page in server component!'
+              )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in server component/
+          )
+        } finally {
+          await next.patchFile(filePath, origContent)
+        }
+      })
     })
 
     it('should handle hash in initial url', async () => {

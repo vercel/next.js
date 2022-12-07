@@ -1,6 +1,4 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-const notifier = require('node-notifier')
-// eslint-disable-next-line import/no-extraneous-dependencies
 const { relative, basename, resolve, join, dirname } = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const glob = require('glob')
@@ -2130,7 +2128,6 @@ export async function bin(task, opts) {
     .source(opts.src || 'bin/*')
     .swc('server', { stripExtension: true, dev: opts.dev })
     .target('dist/bin', { mode: '0755' })
-  notify('Compiled binaries')
 }
 
 export async function cli(task, opts) {
@@ -2138,7 +2135,6 @@ export async function cli(task, opts) {
     .source('cli/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/cli')
-  notify('Compiled cli files')
 }
 
 export async function lib(task, opts) {
@@ -2146,7 +2142,6 @@ export async function lib(task, opts) {
     .source(opts.src || 'lib/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
-  notify('Compiled lib files')
 }
 
 export async function lib_esm(task, opts) {
@@ -2154,7 +2149,6 @@ export async function lib_esm(task, opts) {
     .source(opts.src || 'lib/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
-  notify('Compiled lib files')
 }
 
 export async function server(task, opts) {
@@ -2167,8 +2161,6 @@ export async function server(task, opts) {
     join(__dirname, 'server/google-font-metrics.json'),
     join(__dirname, 'dist/server/google-font-metrics.json')
   )
-
-  notify('Compiled server files')
 }
 
 export async function server_esm(task, opts) {
@@ -2176,7 +2168,6 @@ export async function server_esm(task, opts) {
     .source(opts.src || 'server/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/server')
-  notify('Compiled server files to ESM')
 }
 
 export async function nextbuild(task, opts) {
@@ -2186,7 +2177,6 @@ export async function nextbuild(task, opts) {
     })
     .swc('server', { dev: opts.dev })
     .target('dist/build')
-  notify('Compiled build files')
 }
 
 export async function nextbuild_esm(task, opts) {
@@ -2196,7 +2186,6 @@ export async function nextbuild_esm(task, opts) {
     })
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/build')
-  notify('Compiled build files to ESM')
 }
 
 export async function nextbuildjest(task, opts) {
@@ -2206,7 +2195,6 @@ export async function nextbuildjest(task, opts) {
     })
     .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/build/jest')
-  notify('Compiled build/jest files')
 }
 
 export async function client(task, opts) {
@@ -2214,7 +2202,6 @@ export async function client(task, opts) {
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
-  notify('Compiled client files')
 }
 
 export async function client_esm(task, opts) {
@@ -2222,7 +2209,6 @@ export async function client_esm(task, opts) {
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/client')
-  notify('Compiled client files to ESM')
 }
 
 // export is a reserved keyword for functions
@@ -2231,7 +2217,6 @@ export async function nextbuildstatic(task, opts) {
     .source(opts.src || 'export/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/export')
-  notify('Compiled export files')
 }
 
 export async function pages_app(task, opts) {
@@ -2300,7 +2285,6 @@ export async function telemetry(task, opts) {
     .source(opts.src || 'telemetry/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/telemetry')
-  notify('Compiled telemetry files')
 }
 
 export async function trace(task, opts) {
@@ -2308,7 +2292,6 @@ export async function trace(task, opts) {
     .source(opts.src || 'trace/**/*.+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/trace')
-  notify('Compiled trace files')
 }
 
 export async function build(task, opts) {
@@ -2370,7 +2353,6 @@ export async function shared(task, opts) {
     )
     .swc('client', { dev: opts.dev })
     .target('dist/shared')
-  notify('Compiled shared files')
 }
 
 export async function shared_esm(task, opts) {
@@ -2380,7 +2362,6 @@ export async function shared_esm(task, opts) {
     )
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/shared')
-  notify('Compiled shared files to ESM')
 }
 
 export async function shared_re_exported(task, opts) {
@@ -2391,7 +2372,6 @@ export async function shared_re_exported(task, opts) {
     )
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
-  notify('Compiled shared re-exported files')
 }
 
 export async function shared_re_exported_esm(task, opts) {
@@ -2404,27 +2384,12 @@ export async function shared_re_exported_esm(task, opts) {
       esm: true,
     })
     .target('dist/esm/shared')
-  notify('Compiled shared re-exported files as ESM')
 }
 
 export async function server_wasm(task, opts) {
   await task.source(opts.src || 'server/**/*.+(wasm)').target('dist/server')
-  notify('Moved server wasm files')
 }
 
 export async function release(task) {
   await task.clear('dist').start('build')
-}
-
-// notification helper
-function notify(msg) {
-  try {
-    notifier.notify({
-      title: '▲ Next',
-      message: msg,
-      icon: false,
-    })
-  } catch (err) {
-    // notifier can fail on M1 machines
-  }
 }
