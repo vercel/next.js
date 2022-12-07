@@ -239,7 +239,6 @@ impl Fold for NextDynamicPatcher {
                         }
                     }
 
-
                     let second_arg = ExprOrSpread {
                         spread: None,
                         expr: Box::new(Expr::Object(ObjectLit {
