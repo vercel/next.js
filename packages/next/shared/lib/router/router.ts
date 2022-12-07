@@ -222,8 +222,18 @@ export function interpolateAs(
 export function resolveHref(
   router: NextRouter,
   href: Url,
+  resolveAs: true
+): [string, string] | [string]
+export function resolveHref(
+  router: NextRouter,
+  href: Url,
+  resolveAs?: false
+): string
+export function resolveHref(
+  router: NextRouter,
+  href: Url,
   resolveAs?: boolean
-): string {
+): [string, string] | [string] | string {
   // we use a dummy base url for relative urls
   let base: URL
   let urlAsString = typeof href === 'string' ? href : formatWithValidation(href)
@@ -293,11 +303,11 @@ export function resolveHref(
         ? finalUrl.href.slice(finalUrl.origin.length)
         : finalUrl.href
 
-    return (
-      resolveAs ? [resolvedHref, interpolatedAs || resolvedHref] : resolvedHref
-    ) as string
+    return resolveAs
+      ? [resolvedHref, interpolatedAs || resolvedHref]
+      : resolvedHref
   } catch (_) {
-    return (resolveAs ? [urlAsString] : urlAsString) as string
+    return resolveAs ? [urlAsString] : urlAsString
   }
 }
 
@@ -306,20 +316,20 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // we'll format them into the string version here.
   let [resolvedHref, resolvedAs] = resolveHref(router, url, true)
   const origin = getLocationOrigin()
-  const hrefHadOrigin = resolvedHref.startsWith(origin)
-  const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
+  const hrefWasAbsolute = resolvedHref.startsWith(origin)
+  const asWasAbsolute = resolvedAs && resolvedAs.startsWith(origin)
 
   resolvedHref = stripOrigin(resolvedHref)
   resolvedAs = resolvedAs ? stripOrigin(resolvedAs) : resolvedAs
 
-  const preparedUrl = hrefHadOrigin ? resolvedHref : addBasePath(resolvedHref)
+  const preparedUrl = hrefWasAbsolute ? resolvedHref : addBasePath(resolvedHref)
   const preparedAs = as
     ? stripOrigin(resolveHref(router, as))
     : resolvedAs || resolvedHref
 
   return {
     url: preparedUrl,
-    as: asHadOrigin ? preparedAs : addBasePath(preparedAs),
+    as: asWasAbsolute ? preparedAs : addBasePath(preparedAs),
   }
 }
 
@@ -1728,9 +1738,6 @@ export default class Router implements BaseRouter {
         }
       }
 
-      Router.events.emit('beforeHistoryChange', as, routeProps)
-      this.changeState(method, url, as, options)
-
       if (
         isQueryUpdating &&
         pathname === '/_error' &&
@@ -1749,6 +1756,32 @@ export default class Router implements BaseRouter {
       const shouldScroll =
         options.scroll ?? (!(options as any)._h && !isValidShallowRoute)
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
+      const upcomingScrollState = forcedScroll ?? resetScroll
+
+      // When the page being rendered is the 404 page, we should only update the
+      // query parameters. Route changes here might add the basePath when it
+      // wasn't originally present. This is also why this block is before the
+      // below `changeState` call which updates the browser's history (changing
+      // the URL).
+      if (isQueryUpdating && this.pathname === '/404') {
+        try {
+          await this.set(
+            { ...nextState, query },
+            routeInfo,
+            upcomingScrollState
+          )
+        } catch (err) {
+          if (isError(err) && err.cancelled) {
+            Router.events.emit('routeChangeError', err, cleanedAs, routeProps)
+          }
+          throw err
+        }
+
+        return true
+      }
+
+      Router.events.emit('beforeHistoryChange', as, routeProps)
+      this.changeState(method, url, as, options)
 
       // the new state that the router gonna set
       const upcomingRouterState = {
@@ -1759,7 +1792,6 @@ export default class Router implements BaseRouter {
         asPath: cleanedAs,
         isFallback: false,
       }
-      const upcomingScrollState = forcedScroll ?? resetScroll
 
       // for query updates we can skip it if the state is unchanged and we don't
       // need to scroll
