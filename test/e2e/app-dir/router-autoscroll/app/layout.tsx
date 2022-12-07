@@ -54,7 +54,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div
           style={{
             background: 'pink',
-            padding: 10000,
+            padding: 1000,
           }}
         >
           {children}
