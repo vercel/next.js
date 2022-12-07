@@ -288,18 +288,14 @@ export function createRootLayoutValidatorStream(
   getTree: () => FlightRouterState
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundHtml = false
-  let foundHead = false
   let foundBody = false
 
   return new TransformStream({
     async transform(chunk, controller) {
-      if (!foundHtml || !foundHead || !foundBody) {
+      if (!foundHtml || !foundBody) {
         const content = decodeText(chunk)
         if (!foundHtml && content.includes('<html')) {
           foundHtml = true
-        }
-        if (!foundHead && content.includes('<head')) {
-          foundHead = true
         }
         if (!foundBody && content.includes('<body')) {
           foundBody = true
@@ -310,7 +306,6 @@ export function createRootLayoutValidatorStream(
     flush(controller) {
       const missingTags = [
         foundHtml ? null : 'html',
-        foundHead ? null : 'head',
         foundBody ? null : 'body',
       ].filter(nonNullable)
 
