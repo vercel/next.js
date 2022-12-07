@@ -7,7 +7,7 @@ export default function Dynamic() {
   let [state] = useState('dynamic no ssr on client')
   return (
     <p id="css-text-dynamic-no-ssr-client" className={styles.dynamic}>
-      {`hello from ${state}`}
+      {`next-dynamic ${state}`}
     </p>
   )
 }

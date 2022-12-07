@@ -2,14 +2,9 @@ import React, { lazy, Suspense } from 'react'
 import Loadable from './loadable'
 import NoSSR from './dynamic-no-ssr'
 
-// Normalize loader to return the module as form { default: Component } for `React.lazy`.
-// Also for backward compatible since next/dynamic allows to resolve a component directly with loader
-// Client component reference proxy need to be converted to a module.
-const convertModule = (mod: any) => ({ default: mod.default || mod })
+type ComponentModule<P> = { default: React.ComponentType<P> }
 
-export type LoaderComponent<P = {}> = Promise<{
-  default: React.ComponentType<P>
-}>
+export type LoaderComponent<P = {}> = Promise<ComponentModule<P>>
 
 export type Loader<P = {}> = () => LoaderComponent<P>
 
@@ -26,6 +21,13 @@ export type DynamicOptionsLoadingProps = {
   pastDelay?: boolean
   retry?: () => void
   timedOut?: boolean
+}
+
+// Normalize loader to return the module as form { default: Component } for `React.lazy`.
+// Also for backward compatible since next/dynamic allows to resolve a component directly with loader
+// Client component reference proxy need to be converted to a module.
+function convertModule<T>(mod: ComponentModule<T>) {
+  return { default: mod.default || mod }
 }
 
 export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
@@ -116,15 +118,15 @@ export default function dynamic<P = {}>(
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
 
-  const loader = loadableOptions.loader as Loader<P>
-
-  loadableOptions.loader = () => loader().then(convertModule)
+  const loaderFn = loadableOptions.loader as Loader<P>
+  const loader = () => loaderFn().then(convertModule)
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {
     loadableOptions = {
       ...loadableOptions,
       ...loadableOptions.loadableGenerated,
+      loader,
     }
     delete loadableOptions.loadableGenerated
   }

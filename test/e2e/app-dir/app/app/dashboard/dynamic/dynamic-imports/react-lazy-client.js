@@ -9,7 +9,7 @@ export function LazyClientComponent() {
   return (
     <>
       <Lazy />
-      <p className="hi">hello from {state}</p>
+      <p className="hi">next-dynamic {state}</p>
     </>
   )
 }

@@ -138,12 +138,30 @@ describe('app dir', () => {
       it('should serve /index as separate page', async () => {
         const html = await renderViaHTTP(next.url, '/dashboard/index')
         expect(html).toContain('hello from app/dashboard/index')
+      })
+
+      it('should handle next/dynamic correctly', async () => {
+        const html = await renderViaHTTP(next.url, '/dashboard/dynamic')
+        const $ = cheerio.load(html)
+        // filter out the script
+        const selector = 'body div'
+        const serverContent = $(selector).text()
         // should load chunks generated via async import correctly with React.lazy
-        expect(html).toContain('hello from lazy')
+        expect(serverContent).toContain('next-dynamic lazy')
         // should support `dynamic` in both server and client components
-        expect(html).toContain('hello from dynamic on server')
-        expect(html).toContain('hello from dynamic on client')
-        expect(html).toContain('hello from server import client')
+        expect(serverContent).toContain('next-dynamic dynamic on server')
+        expect(serverContent).toContain('next-dynamic dynamic on client')
+        expect(serverContent).toContain('next-dynamic server import client')
+
+        expect(serverContent).not.toContain(
+          'next-dynamic dynamic no ssr on server'
+        )
+        expect(serverContent).not.toContain('text client under sever')
+
+        const browser = await webdriver(next.url, '/dashboard/dynamic')
+        const clientContent = await browser.elementByCss(selector).text()
+        expect(clientContent).toContain('next-dynamic dynamic no ssr on server')
+        expect(clientContent).toContain('text client under sever')
       })
 
       it('should serve polyfills for browsers that do not support modules', async () => {
