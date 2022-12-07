@@ -5,7 +5,7 @@ export default function Page() {
     <div
       id="page"
       style={{
-        background: 'green',
+        background: 'orange',
         height: 100,
         width: 100,
       }}

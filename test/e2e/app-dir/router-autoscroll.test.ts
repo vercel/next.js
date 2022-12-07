@@ -30,12 +30,13 @@ describe('router autoscrolling on navigation', () => {
   const getRect = async (
     browser: BrowserInterface,
     id: string
-  ): Promise<DOMRect> =>
-    JSON.parse(
+  ): Promise<DOMRect> => {
+    return JSON.parse(
       await browser.eval(
         'JSON.stringify(document.getElementById("page").getBoundingClientRect())'
       )
     )
+  }
 
   const getBrowserDims = async (browser: BrowserInterface) => ({
     width: await browser.eval<number>(
@@ -46,12 +47,20 @@ describe('router autoscrolling on navigation', () => {
     ),
   })
 
-  it('should scroll page into view on navigation', async () => {
-    const browser = await webdriver(next.url, '/server')
+  let browser: BrowserInterface
 
+  beforeEach(async () => {
+    browser = await webdriver(next.url, '/')
     await browser.eval('window.scrollTo(0, 0)')
+  })
 
+  afterEach(() => {
+    browser.quit()
+  })
+
+  it('should scroll page into view on navigation', async () => {
     const oldRect = await getRect(browser, 'page')
+
     expect(oldRect.x).toBe(10000)
     expect(oldRect.y).toBe(10000)
 
@@ -73,10 +82,6 @@ describe('router autoscrolling on navigation', () => {
   })
 
   it('should scroll not scroll when running router.refresh()', async () => {
-    const browser = await webdriver(next.url, '/client')
-
-    await browser.eval('window.scrollTo(0, 0)')
-
     const oldRect = await getRect(browser, 'page')
     expect(oldRect.x).toBe(10000)
     expect(oldRect.y).toBe(10000)
