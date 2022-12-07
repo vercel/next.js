@@ -282,7 +282,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type development --timings -g ${{ matrix.group }}/4 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type development --timings -g ${{ matrix.group }}/4 >> /proc/1/fd/1"
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
@@ -343,7 +343,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         env:
@@ -404,7 +404,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type production --timings -g ${{ matrix.group }}/3 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type production --timings -g ${{ matrix.group }}/3 >> /proc/1/fd/1"
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
@@ -455,7 +455,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         env:
@@ -533,7 +533,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/25 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/25 >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
         # RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testIntegration / Group ${{ matrix.group }}
@@ -852,7 +852,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
         name: Install pnpm
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.28.1 && npx playwright install-deps
         timeout-minutes: 10
         name: Install playwright dependencies
 
@@ -1057,7 +1057,7 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
+      - run: npm i -g playwright-chromium@1.28.1 && npx playwright install-deps
         timeout-minutes: 10
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
