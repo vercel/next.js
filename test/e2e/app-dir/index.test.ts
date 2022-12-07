@@ -378,6 +378,27 @@ describe('app dir', () => {
       }
     )
     ;(isDev ? describe : describe.skip)('HMR', () => {
+      it('should HMR correctly for server component', async () => {
+        const filePath = 'app/dashboard/index/page.js'
+        const origContent = await next.readFile(filePath)
+
+        try {
+          const browser = await webdriver(next.url, '/dashboard/index')
+          expect(await browser.elementByCss('p').text()).toContain(
+            'hello from app/dashboard/index'
+          )
+
+          await next.patchFile(
+            filePath,
+            origContent.replace('hello from', 'swapped from')
+          )
+
+          await check(() => browser.elementByCss('p').text(), /swapped from/)
+        } finally {
+          await next.patchFile(filePath, origContent)
+        }
+      })
+
       it('should HMR correctly for client component', async () => {
         const filePath = 'app/client-component-route/page.js'
         const origContent = await next.readFile(filePath)
@@ -415,6 +436,65 @@ describe('app dir', () => {
           expect(
             await renderViaHTTP(next.url, '/client-component-route')
           ).toContain('hello from')
+        } finally {
+          await next.patchFile(filePath, origContent)
+        }
+      })
+
+      it.skip('should HMR correctly when changing the component type', async () => {
+        const filePath = 'app/dashboard/page/page.jsx'
+        const origContent = await next.readFile(filePath)
+
+        try {
+          const browser = await webdriver(next.url, '/dashboard/page')
+
+          expect(await browser.elementByCss('p').text()).toContain(
+            'hello dashboard/page!'
+          )
+
+          // Test HMR with server component
+          await next.patchFile(
+            filePath,
+            origContent.replace(
+              'hello dashboard/page!',
+              'hello dashboard/page in server component!'
+            )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in server component/
+          )
+
+          // Change to client component
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          await next.patchFile(
+            filePath,
+            origContent
+              .replace("// 'use client'", "'use client'")
+              .replace(
+                'hello dashboard/page in server component!',
+                'hello dashboard/page in client component!'
+              )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in client component/
+          )
+
+          // Change back to server component
+          await next.patchFile(
+            filePath,
+            origContent
+              .replace("'use client'", "// 'use client'")
+              .replace(
+                'hello dashboard/page in client component!',
+                'hello dashboard/page in server component!'
+              )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in server component/
+          )
         } finally {
           await next.patchFile(filePath, origContent)
         }
