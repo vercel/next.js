@@ -441,7 +441,7 @@ describe('app dir', () => {
         }
       })
 
-      it.skip('should HMR correctly when changing the component type', async () => {
+      it('should HMR correctly when changing the component type', async () => {
         const filePath = 'app/dashboard/page/page.jsx'
         const origContent = await next.readFile(filePath)
 
@@ -466,13 +466,12 @@ describe('app dir', () => {
           )
 
           // Change to client component
-          await new Promise((resolve) => setTimeout(resolve, 1000))
           await next.patchFile(
             filePath,
             origContent
               .replace("// 'use client'", "'use client'")
               .replace(
-                'hello dashboard/page in server component!',
+                'hello dashboard/page!',
                 'hello dashboard/page in client component!'
               )
           )
@@ -484,16 +483,29 @@ describe('app dir', () => {
           // Change back to server component
           await next.patchFile(
             filePath,
+            origContent.replace(
+              'hello dashboard/page!',
+              'hello dashboard/page in server component2!'
+            )
+          )
+          await check(
+            () => browser.elementByCss('p').text(),
+            /in server component2/
+          )
+
+          // Change to client component again
+          await next.patchFile(
+            filePath,
             origContent
-              .replace("'use client'", "// 'use client'")
+              .replace("// 'use client'", "'use client'")
               .replace(
-                'hello dashboard/page in client component!',
-                'hello dashboard/page in server component!'
+                'hello dashboard/page!',
+                'hello dashboard/page in client component2!'
               )
           )
           await check(
             () => browser.elementByCss('p').text(),
-            /in server component/
+            /in client component2/
           )
         } finally {
           await next.patchFile(filePath, origContent)
