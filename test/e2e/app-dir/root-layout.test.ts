@@ -2,7 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
-import { getRedboxSource, hasRedbox, waitFor } from 'next-test-utils'
+import { getRedboxSource, hasRedbox } from 'next-test-utils'
 
 describe('app-dir root layout', () => {
   const isDev = (global as any).isNextDev
