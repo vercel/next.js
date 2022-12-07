@@ -73,7 +73,7 @@ describe('router autoscrolling on navigation', () => {
   })
 
   it('should scroll not scroll when running router.refresh()', async () => {
-    const browser = await webdriver(next.url, '/server')
+    const browser = await webdriver(next.url, '/client')
 
     await browser.eval('window.scrollTo(0, 0)')
 
