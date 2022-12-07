@@ -148,6 +148,10 @@ export default class DevServer extends Server {
   }
 
   constructor(options: Options) {
+    try {
+      // Increase the number of stack frames on the server
+      Error.stackTraceLimit = 50
+    } catch {}
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
