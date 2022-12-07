@@ -1,5 +1,17 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
+"index.js (4:16) @ default
+
+  2 | export default () => {
+  3 |  if (typeof window !== 'undefined') {
+> 4 |    throw new Error('test')
+    |         ^
+  5 |  }
+  6 | 
+  7 |  return null"
+`;
+
 exports[`ReactRefreshLogBox app boundaries 1`] = `
 "FunctionDefault.js (1:50) @ FunctionDefault
 
