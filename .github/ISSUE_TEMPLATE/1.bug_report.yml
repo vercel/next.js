@@ -48,7 +48,7 @@ body:
         - 'TypeScript'
   - type: input
     attributes:
-      label: Link to reproduction - Issues with a link to complete (but minimal) reproduction code will be addressed faster
+      label: Link to the code that reproduces this issue
       description: A link to a GitHub repository, a [StackBlitz](https://stackblitz.com/fork/github/vercel/next.js/tree/canary/examples/reproduction-template), or a [CodeSandbox](https://codesandbox.io/s/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue.
     validations:
       required: true
