@@ -25,7 +25,6 @@ describe('app dir imports', () => {
       })
     })
     afterAll(() => next.destroy())
-
     ;['js', 'jsx', 'ts', 'tsx'].forEach((ext) => {
       it(`we can import all components from .${ext}`, async () => {
         const html = await renderViaHTTP(next.url, `/${ext}`)
