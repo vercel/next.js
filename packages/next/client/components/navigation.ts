@@ -76,9 +76,9 @@ export function useSearchParams() {
     return new ReadonlyURLSearchParams(searchParams || new URLSearchParams())
   }, [searchParams])
 
-  if (bailoutToClientRendering('useSearchParams')) {
-    // dynamic = 'force-static', return empty search params
-    return new ReadonlyURLSearchParams(new URLSearchParams())
+  if (bailoutToClientRendering()) {
+    // TODO-APP: handle dynamic = 'force-static' here and on the client
+    return readonlySearchParams
   }
 
   if (!searchParams) {

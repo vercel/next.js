@@ -1,9 +1,7 @@
+import { suspense } from '../../shared/lib/dynamic-no-ssr'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage'
 
-export const BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE =
-  'BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE'
-
-export function bailoutToClientRendering(reason: string): boolean | never {
+export function bailoutToClientRendering(): boolean | never {
   const staticGenerationStore =
     staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
       ? staticGenerationAsyncStorage?.getStore()
@@ -14,9 +12,7 @@ export function bailoutToClientRendering(reason: string): boolean | never {
   }
 
   if (staticGenerationStore?.isStaticGeneration) {
-    const error = new Error(reason)
-    ;(error as any).digest = BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE
-    throw error
+    suspense()
   }
 
   return false
