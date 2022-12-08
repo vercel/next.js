@@ -46,7 +46,6 @@ fn next_dynamic_errors(input: PathBuf) {
             next_dynamic(
                 true,
                 false,
-                false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )

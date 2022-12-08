@@ -70,7 +70,7 @@ export function ErrorBoundary({
   return <>{children}</>
 }
 
-const styles: { [k: string]: React.CSSProperties } = {
+const styles = {
   error: {
     fontFamily:
       '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
@@ -81,7 +81,6 @@ const styles: { [k: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   desc: {
     display: 'inline-block',
     textAlign: 'left',
@@ -89,25 +88,29 @@ const styles: { [k: string]: React.CSSProperties } = {
     height: '49px',
     verticalAlign: 'middle',
   },
-  h2: {
+  text: {
     fontSize: '14px',
     fontWeight: 'normal',
     lineHeight: '49px',
     margin: 0,
     padding: 0,
   },
-}
+} as const
 
-export function GlobalErrorComponent() {
+export function GlobalErrorComponent({ error }: { error: any }) {
   return (
     <html>
+      <head></head>
       <body>
         <div style={styles.error}>
           <div style={styles.desc}>
-            <h2 style={styles.h2}>
+            <h2 style={styles.text}>
               Application error: a client-side exception has occurred (see the
               browser console for more information).
             </h2>
+            {error?.digest && (
+              <p style={styles.text}>{`Digest: ${error.digest}`}</p>
+            )}
           </div>
         </div>
       </body>
