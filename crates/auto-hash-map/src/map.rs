@@ -52,10 +52,12 @@ impl<K, V> AutoMap<K, V, RandomState> {
 }
 
 impl<K, V, H: BuildHasher> AutoMap<K, V, H> {
+    /// see [HashMap::with_hasher](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.with_hasher)
     pub fn with_hasher() -> Self {
         AutoMap::List(Vec::new())
     }
 
+    /// see [HashMap::with_capacity_and_hasher](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.with_capacity_and_hasher)
     pub fn with_capacity_and_hasher(capacity: usize, hasher: H) -> Self {
         if capacity <= MAX_LIST_SIZE {
             AutoMap::List(Vec::with_capacity(capacity))
@@ -63,6 +65,14 @@ impl<K, V, H: BuildHasher> AutoMap<K, V, H> {
             AutoMap::Map(Box::new(HashMap::with_capacity_and_hasher(
                 capacity, hasher,
             )))
+        }
+    }
+
+    /// see [HashMap::clear](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.clear)
+    pub fn clear(&mut self) {
+        match self {
+            AutoMap::List(list) => list.clear(),
+            AutoMap::Map(map) => map.clear(),
         }
     }
 }
@@ -184,7 +194,15 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default> AutoMap<K, V, H> {
     pub fn shrink_to_fit(&mut self) {
         match self {
             AutoMap::List(list) => list.shrink_to_fit(),
-            AutoMap::Map(map) => map.shrink_to_fit(),
+            AutoMap::Map(map) => {
+                if map.len() <= MAX_LIST_SIZE {
+                    let mut list = Vec::with_capacity(map.len());
+                    list.extend(map.drain());
+                    *self = AutoMap::List(list);
+                } else {
+                    map.shrink_to_fit();
+                }
+            }
         }
     }
 }
@@ -270,6 +288,14 @@ impl<K, V, H> AutoMap<K, V, H> {
         match self {
             AutoMap::List(list) => Values::List(list.iter()),
             AutoMap::Map(map) => Values::Map(map.values()),
+        }
+    }
+
+    /// see [HashMap::into_values](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.into_values)
+    pub fn into_values(self) -> IntoValues<K, V> {
+        match self {
+            AutoMap::List(list) => IntoValues::List(list.into_iter()),
+            AutoMap::Map(map) => IntoValues::Map(map.into_values()),
         }
     }
 }
@@ -371,6 +397,22 @@ impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
         match self {
             ValuesMut::List(iter) => iter.next().map(|(_, v)| v),
             ValuesMut::Map(iter) => iter.next(),
+        }
+    }
+}
+
+pub enum IntoValues<K, V> {
+    List(std::vec::IntoIter<(K, V)>),
+    Map(std::collections::hash_map::IntoValues<K, V>),
+}
+
+impl<K, V> Iterator for IntoValues<K, V> {
+    type Item = V;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            IntoValues::List(iter) => iter.next().map(|(_, v)| v),
+            IntoValues::Map(iter) => iter.next(),
         }
     }
 }

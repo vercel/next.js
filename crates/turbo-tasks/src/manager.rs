@@ -32,7 +32,7 @@ use crate::{
     timed_future::{self, TimedFuture},
     trace::TraceRawVcs,
     util::FormatDuration,
-    Nothing, NothingVc, TaskId, ValueTraitVc, ValueTypeId,
+    Completion, CompletionVc, TaskId, ValueTraitVc, ValueTypeId,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -307,12 +307,13 @@ impl<B: Backend> TurboTasks<B> {
             let result = future.await?;
             tx.send(result)
                 .map_err(|_| anyhow!("unable to send result"))?;
-            Ok(NothingVc::new().into())
+            Ok(CompletionVc::new().into())
         });
         // INVALIDATION: A Once task will never invalidate, therefore we don't need to
         // track a dependency
         let raw_result = read_task_output_untracked(self, task_id, false).await?;
-        raw_result.into_read_untracked::<Nothing>(self).await?;
+        raw_result.into_read_untracked::<Completion>(self).await?;
+
         Ok(rx.await?)
     }
 
@@ -670,7 +671,7 @@ impl<B: Backend> TurboTasksCallApi for TurboTasks<B> {
     ) -> TaskId {
         self.spawn_once_task(async move {
             future.await?;
-            Ok(NothingVc::new().into())
+            Ok(CompletionVc::new().into())
         })
     }
 
@@ -684,7 +685,7 @@ impl<B: Backend> TurboTasksCallApi for TurboTasks<B> {
             this.finish_primary_job();
             future.await?;
             this.begin_primary_job();
-            Ok(NothingVc::new().into())
+            Ok(CompletionVc::new().into())
         })
     }
 }
@@ -1008,7 +1009,7 @@ pub async fn run_once<T: Send + 'static>(
     // INVALIDATION: A Once task will never invalidate, therefore we don't need to
     // track a dependency
     let raw_result = read_task_output_untracked(&*tt, task_id, false).await?;
-    raw_result.into_read_untracked::<Nothing>(&*tt).await?;
+    raw_result.into_read_untracked::<Completion>(&*tt).await?;
 
     Ok(rx.await?)
 }

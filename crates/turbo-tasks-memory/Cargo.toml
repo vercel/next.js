@@ -16,9 +16,11 @@ concurrent-queue = "1.2.2"
 dashmap = "5.4.0"
 nohash-hasher = "0.2.0"
 num_cpus = "1.13.1"
+once_cell = "1.13.0"
 parking_lot = "0.12.1"
 rustc-hash = "1.1.0"
 tokio = "1.21.2"
+turbo-malloc = { path = "../turbo-malloc", default-features = false }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-hash = { path = "../turbo-tasks-hash" }
 

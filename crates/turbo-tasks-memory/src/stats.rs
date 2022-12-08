@@ -20,7 +20,7 @@ pub struct StatsReferences {
 }
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub enum TaskType {
+pub enum StatsTaskType {
     Root(TaskId),
     Once(TaskId),
     Native(FunctionId),
@@ -28,16 +28,16 @@ pub enum TaskType {
     ResolveTrait(TraitTypeId, String),
 }
 
-impl Display for TaskType {
+impl Display for StatsTaskType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TaskType::Root(_) => write!(f, "root"),
-            TaskType::Once(_) => write!(f, "once"),
-            TaskType::Native(nf) => write!(f, "{}", registry::get_function(*nf).name),
-            TaskType::ResolveNative(nf) => {
+            StatsTaskType::Root(_) => write!(f, "root"),
+            StatsTaskType::Once(_) => write!(f, "once"),
+            StatsTaskType::Native(nf) => write!(f, "{}", registry::get_function(*nf).name),
+            StatsTaskType::ResolveNative(nf) => {
                 write!(f, "resolve {}", registry::get_function(*nf).name)
             }
-            TaskType::ResolveTrait(t, n) => {
+            StatsTaskType::ResolveTrait(t, n) => {
                 write!(f, "resolve trait {}::{}", registry::get_trait(*t).name, n)
             }
         }
@@ -67,7 +67,7 @@ pub struct ExportedTaskStats {
     pub total_current_duration: Duration,
     pub total_update_duration: Duration,
     pub max_duration: Duration,
-    pub references: HashMap<(ReferenceType, TaskType), ReferenceStats>,
+    pub references: HashMap<(ReferenceType, StatsTaskType), ReferenceStats>,
 }
 
 impl Default for ExportedTaskStats {
@@ -88,7 +88,7 @@ impl Default for ExportedTaskStats {
 }
 
 pub struct Stats {
-    tasks: HashMap<TaskType, ExportedTaskStats>,
+    tasks: HashMap<StatsTaskType, ExportedTaskStats>,
 }
 
 impl Default for Stats {
@@ -116,7 +116,7 @@ impl Stats {
         &mut self,
         backend: &MemoryBackend,
         task: &Task,
-        condition: impl FnOnce(&TaskType, &TaskStatsInfo) -> bool,
+        condition: impl FnOnce(&StatsTaskType, &TaskStatsInfo) -> bool,
     ) {
         let info = task.get_stats_info(backend);
         let ty = task.get_stats_type();
@@ -173,7 +173,7 @@ impl Stats {
         &mut self,
         backend: &MemoryBackend,
         id: TaskId,
-        condition: impl FnOnce(&TaskType, &TaskStatsInfo) -> bool,
+        condition: impl FnOnce(&StatsTaskType, &TaskStatsInfo) -> bool,
     ) {
         backend.with_task(id, |task| {
             self.add_conditional(backend, task, condition);
@@ -182,12 +182,12 @@ impl Stats {
 
     pub fn merge_resolve(&mut self) {
         self.merge(|ty, _stats| match ty {
-            TaskType::Root(_) | TaskType::Once(_) | TaskType::Native(_) => false,
-            TaskType::ResolveNative(_) | TaskType::ResolveTrait(_, _) => true,
+            StatsTaskType::Root(_) | StatsTaskType::Once(_) | StatsTaskType::Native(_) => false,
+            StatsTaskType::ResolveNative(_) | StatsTaskType::ResolveTrait(_, _) => true,
         })
     }
 
-    pub fn merge(&mut self, mut select: impl FnMut(&TaskType, &ExportedTaskStats) -> bool) {
+    pub fn merge(&mut self, mut select: impl FnMut(&StatsTaskType, &ExportedTaskStats) -> bool) {
         let merged: HashMap<_, _> = self
             .tasks
             .drain_filter(|ty, stats| select(ty, stats))
@@ -195,9 +195,9 @@ impl Stats {
 
         for stats in self.tasks.values_mut() {
             fn merge_refs(
-                refs: HashMap<(ReferenceType, TaskType), ReferenceStats>,
-                merged: &HashMap<TaskType, ExportedTaskStats>,
-            ) -> HashMap<(ReferenceType, TaskType), ReferenceStats> {
+                refs: HashMap<(ReferenceType, StatsTaskType), ReferenceStats>,
+                merged: &HashMap<StatsTaskType, ExportedTaskStats>,
+            ) -> HashMap<(ReferenceType, StatsTaskType), ReferenceStats> {
                 refs.into_iter()
                     .flat_map(|((ref_ty, ty), stats)| {
                         if let Some(merged_stats) = merged.get(&ty) {
@@ -235,11 +235,11 @@ impl Stats {
         let mut root_queue = incoming_references_count.into_iter().collect::<Vec<_>>();
         root_queue.sort_by_key(|(_, c)| *c);
 
-        let mut task_placement: HashMap<&TaskType, Option<&TaskType>> = HashMap::new();
+        let mut task_placement: HashMap<&StatsTaskType, Option<&StatsTaskType>> = HashMap::new();
         fn get_path<'a>(
-            ty: Option<&'a TaskType>,
-            task_placement: &HashMap<&'a TaskType, Option<&'a TaskType>>,
-        ) -> Vec<&'a TaskType> {
+            ty: Option<&'a StatsTaskType>,
+            task_placement: &HashMap<&'a StatsTaskType, Option<&'a StatsTaskType>>,
+        ) -> Vec<&'a StatsTaskType> {
             if let Some(mut ty) = ty {
                 let mut path = vec![ty];
                 while let Some(parent) = task_placement[ty] {
@@ -252,7 +252,10 @@ impl Stats {
                 Vec::new()
             }
         }
-        fn find_common<'a>(p1: Vec<&'a TaskType>, p2: Vec<&'a TaskType>) -> Option<&'a TaskType> {
+        fn find_common<'a>(
+            p1: Vec<&'a StatsTaskType>,
+            p2: Vec<&'a StatsTaskType>,
+        ) -> Option<&'a StatsTaskType> {
             let mut i = cmp::min(p1.len(), p2.len());
             loop {
                 if i == 0 {
@@ -268,7 +271,7 @@ impl Stats {
             if task_placement.contains_key(root) {
                 continue;
             }
-            let mut queue: VecDeque<(&TaskType, Option<&TaskType>)> =
+            let mut queue: VecDeque<(&StatsTaskType, Option<&StatsTaskType>)> =
                 [(root, None)].into_iter().collect();
 
             while let Some((ty, placement)) = queue.pop_front() {
@@ -298,15 +301,15 @@ impl Stats {
             }
         }
 
-        let mut children: HashMap<Option<&TaskType>, Vec<&TaskType>> = HashMap::new();
+        let mut children: HashMap<Option<&StatsTaskType>, Vec<&StatsTaskType>> = HashMap::new();
         for (child, parent) in task_placement {
             children.entry(parent).or_default().push(child);
         }
 
         fn into_group<'a>(
-            tasks: &HashMap<TaskType, ExportedTaskStats>,
-            children: &HashMap<Option<&'a TaskType>, Vec<&'a TaskType>>,
-            ty: Option<&'a TaskType>,
+            tasks: &HashMap<StatsTaskType, ExportedTaskStats>,
+            children: &HashMap<Option<&'a StatsTaskType>, Vec<&'a StatsTaskType>>,
+            ty: Option<&'a StatsTaskType>,
         ) -> GroupTree {
             let inner = &children[&ty];
             let inner_with_children = inner.iter().filter(|c| children.contains_key(&Some(*c)));
@@ -335,7 +338,7 @@ impl Stats {
 
 #[derive(Debug)]
 pub struct GroupTree {
-    pub primary: Option<(TaskType, ExportedTaskStats)>,
+    pub primary: Option<(StatsTaskType, ExportedTaskStats)>,
     pub children: Vec<GroupTree>,
-    pub task_types: Vec<(TaskType, ExportedTaskStats)>,
+    pub task_types: Vec<(StatsTaskType, ExportedTaskStats)>,
 }

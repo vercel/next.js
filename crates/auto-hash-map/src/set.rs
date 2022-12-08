@@ -58,6 +58,11 @@ impl<K, H: BuildHasher> AutoSet<K, H> {
             map: AutoMap::with_capacity_and_hasher(capacity, hasher),
         }
     }
+
+    /// see [HashSet::clear](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.clear)
+    pub fn clear(&mut self) {
+        self.map.clear();
+    }
 }
 
 impl<K: Hash + Eq, H: BuildHasher + Default> AutoSet<K, H> {
@@ -208,6 +213,16 @@ where
         Self {
             map: AutoMap::from_iter(iter.into_iter().map(|item| (item, ()))),
         }
+    }
+}
+
+impl<K, H, const N: usize> From<[K; N]> for AutoSet<K, H>
+where
+    K: Hash + Eq,
+    H: BuildHasher + Default,
+{
+    fn from(array: [K; N]) -> Self {
+        Self::from_iter(array)
     }
 }
 

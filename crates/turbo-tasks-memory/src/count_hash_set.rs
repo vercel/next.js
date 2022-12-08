@@ -153,6 +153,10 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
     pub fn into_counts(self) -> IntoIter<T, isize> {
         self.inner.into_iter()
     }
+
+    pub fn counts(&self) -> Iter<'_, T, isize> {
+        self.inner.iter()
+    }
 }
 
 fn filter<'a, T>((k, v): (&'a T, &'a isize)) -> Option<&'a T> {

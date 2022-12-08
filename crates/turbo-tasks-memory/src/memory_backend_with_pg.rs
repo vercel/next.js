@@ -1272,23 +1272,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         Ok(Ok(mem_state.output.as_ref().unwrap().clone()?))
     }
 
-    fn track_read_task_output(
-        &self,
-        task: TaskId,
-        reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
-        let (mut state, _) = self.mem_state_mut(task, turbo_tasks);
-        let mem_state = state.memory.as_mut().unwrap();
-        let need_dependency = mem_state.output_dependent.insert(reader);
-        drop(state);
-        if need_dependency {
-            let (mut state, _) = self.mem_state_mut(reader, turbo_tasks);
-            let mem_state = state.memory.as_mut().unwrap();
-            mem_state.dependencies.insert(RawVc::TaskOutput(task));
-        }
-    }
-
     fn try_read_task_cell(
         &self,
         task: TaskId,
@@ -1408,26 +1391,6 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             }
         } else {
             Ok(CellContent(None))
-        }
-    }
-
-    fn track_read_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
-        let (mut state, _) = self.mem_state_mut(task, turbo_tasks);
-        let mem_state = state.memory.as_mut().unwrap();
-        if let Some((_, dependent)) = mem_state.cells.get_mut(&index) {
-            let need_dependency = dependent.insert(reader);
-            drop(state);
-            if need_dependency {
-                let (mut state, _) = self.mem_state_mut(reader, turbo_tasks);
-                let mem_state = state.memory.as_mut().unwrap();
-                mem_state.dependencies.insert(RawVc::TaskCell(task, index));
-            }
         }
     }
 

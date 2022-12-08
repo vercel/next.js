@@ -62,8 +62,8 @@ pub fn create_table(root: GroupTree, stats_type: StatsType) -> String {
         out: &mut String,
         max_values: &MaxValues,
         depth: u32,
-        parent: Option<&(TaskType, ExportedTaskStats)>,
-        (ty, stats): &(TaskType, ExportedTaskStats),
+        parent: Option<&(StatsTaskType, ExportedTaskStats)>,
+        (ty, stats): &(StatsTaskType, ExportedTaskStats),
     ) -> Result<(), std::fmt::Error> {
         *out += r#"<tr>"#;
         let name = ty.to_string();

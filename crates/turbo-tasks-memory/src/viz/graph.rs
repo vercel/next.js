@@ -29,14 +29,14 @@ pub fn wrap_html(graph: &str) -> String {
 }
 
 struct GlobalData<'a> {
-    ids: HashMap<&'a TaskType, usize>,
-    depths: HashMap<&'a TaskType, usize>,
+    ids: HashMap<&'a StatsTaskType, usize>,
+    depths: HashMap<&'a StatsTaskType, usize>,
     output: String,
     edges: String,
 }
 
 impl<'a> GlobalData<'a> {
-    fn get_id(&mut self, ty: &'a TaskType) -> usize {
+    fn get_id(&mut self, ty: &'a StatsTaskType) -> usize {
         get_id(ty, &mut self.ids)
     }
 }
@@ -138,7 +138,7 @@ fn visualize_stats_tree_internal<'a>(
 fn visualize_stats_references_internal<'a>(
     source_id: usize,
     source_count: usize,
-    references: &'a HashMap<(ReferenceType, TaskType), ReferenceStats>,
+    references: &'a HashMap<(ReferenceType, StatsTaskType), ReferenceStats>,
     depth: usize,
     tree_ref_type: ReferenceType,
     global_data: &mut GlobalData<'a>,
@@ -203,7 +203,7 @@ fn visualize_stats_references_internal<'a>(
 }
 
 fn get_task_label(
-    ty: &TaskType,
+    ty: &StatsTaskType,
     stats: &ExportedTaskStats,
     max_values: &MaxValues,
     stats_type: StatsType,

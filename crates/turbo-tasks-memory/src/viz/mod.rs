@@ -11,7 +11,7 @@ use std::{
 
 use turbo_tasks_hash::hash_xxh3_hash64;
 
-use crate::stats::{ExportedTaskStats, GroupTree, ReferenceStats, ReferenceType, TaskType};
+use crate::stats::{ExportedTaskStats, GroupTree, ReferenceStats, ReferenceType, StatsTaskType};
 
 fn escape_in_template_str(s: &str) -> String {
     s.replace('\\', "\\\\")
@@ -23,7 +23,7 @@ fn escape_html(s: &str) -> String {
     s.replace('>', "&gt;").replace('<', "&lt;")
 }
 
-fn get_id<'a>(ty: &'a TaskType, ids: &mut HashMap<&'a TaskType, usize>) -> usize {
+fn get_id<'a>(ty: &'a StatsTaskType, ids: &mut HashMap<&'a StatsTaskType, usize>) -> usize {
     let len = ids.len();
     *ids.entry(ty).or_insert(len)
 }
@@ -157,7 +157,7 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
 fn compute_depths<'a>(
     node: &'a GroupTree,
     depth: usize,
-    output: &mut HashMap<&'a TaskType, usize>,
+    output: &mut HashMap<&'a StatsTaskType, usize>,
 ) {
     if let Some((ty, _)) = &node.primary {
         output.insert(ty, depth);

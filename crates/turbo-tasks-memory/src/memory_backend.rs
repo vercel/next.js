@@ -25,6 +25,7 @@ use turbo_tasks::{
 };
 
 use crate::{
+    cell::RecomputingCell,
     output::Output,
     scope::{TaskScope, TaskScopeId},
     task::{
@@ -134,7 +135,7 @@ impl MemoryBackend {
                 scope.state.lock().increment_active(&mut queue)
             }) {
                 turbo_tasks.schedule_backend_foreground_job(
-                    self.create_backend_job(Job::ScheduleWhenDirty(tasks)),
+                    self.create_backend_job(Job::ScheduleWhenDirtyFromScope(tasks)),
                 );
             }
         }
@@ -158,9 +159,9 @@ impl MemoryBackend {
         if let Some(tasks) = self.with_scope(scope, |scope| {
             scope.state.lock().increment_active_by(count, &mut queue)
         }) {
-            for task in tasks.into_iter() {
-                turbo_tasks.schedule(task);
-            }
+            turbo_tasks.schedule_backend_foreground_job(
+                self.create_backend_job(Job::ScheduleWhenDirtyFromScope(tasks)),
+            );
         }
         self.increase_scope_active_queue(queue, turbo_tasks);
     }
@@ -283,65 +284,72 @@ impl Backend for MemoryBackend {
         )
     }
 
-    fn track_read_task_output(
+    fn try_read_task_cell(
         &self,
-        task: TaskId,
+        task_id: TaskId,
+        index: CellId,
         reader: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
-        if task != reader {
-            self.with_task(task, |t| {
-                t.with_output_mut(|output| {
-                    Task::add_dependency_to_current(TaskDependency::TaskOutput(task));
-                    output.track_read(reader);
-                })
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Result<Result<CellContent, EventListener>> {
+        if task_id == reader {
+            Ok(Ok(self.with_task(task_id, |task| {
+                task.with_cell(index, |cell| cell.read_own_content_untracked())
+            })))
+        } else {
+            Task::add_dependency_to_current(TaskDependency::TaskCell(task_id, index));
+            self.with_task(task_id, |task| {
+                match task.with_cell_mut(index, |cell| {
+                    cell.read_content(
+                        reader,
+                        move || format!("{task_id} {index}"),
+                        move || format!("reading {} {} from {}", task_id, index, reader),
+                    )
+                }) {
+                    Ok(content) => Ok(Ok(content)),
+                    Err(RecomputingCell { listener, schedule }) => {
+                        if schedule {
+                            task.invalidate(self, turbo_tasks);
+                        }
+                        Ok(Err(listener))
+                    }
+                }
             })
         }
     }
 
-    fn try_read_task_cell(
+    fn try_read_own_task_cell_untracked(
         &self,
-        task: TaskId,
+        current_task: TaskId,
         index: CellId,
-        reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<CellContent, EventListener>> {
-        if task == reader {
-            Ok(Ok(self.with_task(task, |task| {
-                task.with_cell_mut(index, |cell| cell.read_content_untracked())
-            })))
-        } else {
-            Task::add_dependency_to_current(TaskDependency::TaskCell(task, index));
-            Ok(Ok(self.with_task(task, |task| {
-                task.with_cell_mut(index, |cell| cell.read_content(reader))
-            })))
-        }
+    ) -> Result<CellContent> {
+        Ok(self.with_task(current_task, |task| {
+            task.with_cell(index, |cell| cell.read_own_content_untracked())
+        }))
     }
 
     fn try_read_task_cell_untracked(
         &self,
-        task: TaskId,
+        task_id: TaskId,
         index: CellId,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> Result<Result<CellContent, EventListener>> {
-        Ok(Ok(self.with_task(task, |task| {
-            task.with_cell(index, |cell| cell.read_content_untracked())
-        })))
-    }
-
-    fn track_read_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        reader: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
-    ) {
-        if task != reader {
-            Task::add_dependency_to_current(TaskDependency::TaskCell(task, index));
-            self.with_task(task, |task| {
-                task.with_cell_mut(index, |cell| cell.track_read(reader))
-            });
-        }
+        self.with_task(task_id, |task| {
+            match task.with_cell_mut(index, |cell| {
+                cell.read_content_untracked(
+                    move || format!("{task_id}"),
+                    move || format!("reading {} {} untracked", task_id, index),
+                )
+            }) {
+                Ok(content) => Ok(Ok(content)),
+                Err(RecomputingCell { listener, schedule }) => {
+                    if schedule {
+                        task.invalidate(self, turbo_tasks);
+                    }
+                    Ok(Err(listener))
+                }
+            }
+        })
     }
 
     fn try_read_task_collectibles(
@@ -487,7 +495,7 @@ impl Backend for MemoryBackend {
 pub(crate) enum Job {
     RemoveFromScopes(AutoSet<TaskId>, Vec<TaskScopeId>),
     RemoveFromScope(AutoSet<TaskId>, TaskScopeId),
-    ScheduleWhenDirty(Vec<TaskId>),
+    ScheduleWhenDirtyFromScope(AutoSet<TaskId>),
     /// Add tasks from a scope. Scheduled by `run_add_from_scope_queue` to
     /// split off work.
     AddToScopeQueue(VecDeque<(TaskId, usize)>, TaskScopeId, bool),
@@ -513,10 +521,10 @@ impl Job {
                     });
                 }
             }
-            Job::ScheduleWhenDirty(tasks) => {
+            Job::ScheduleWhenDirtyFromScope(tasks) => {
                 for task in tasks.into_iter() {
                     backend.with_task(task, |task| {
-                        task.schedule_when_dirty(turbo_tasks);
+                        task.schedule_when_dirty_from_scope(backend, turbo_tasks);
                     })
                 }
             }
