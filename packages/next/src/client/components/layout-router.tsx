@@ -24,6 +24,7 @@ import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { useRouter } from './navigation'
+import { handleSmoothScroll } from '../../shared/lib/router/router'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -133,15 +134,9 @@ class ScrollAndFocusHandler extends React.Component<{
       domNode.focus()
       // Only scroll into viewport when the layout is not visible currently.
       if (!topLeftOfElementInViewport(domNode)) {
-        const htmlElement = document.documentElement
-        const existing = htmlElement.style.scrollBehavior
-        htmlElement.style.scrollBehavior = 'auto'
-        // In Chrome-based browsers we need to force reflow before calling `scrollTo`.
-        // Otherwise it will not pickup the change in scrollBehavior
-        // More info here: https://github.com/vercel/next.js/issues/40719#issuecomment-1336248042
-        htmlElement.getClientRects()
-        domNode.scrollIntoView()
-        htmlElement.style.scrollBehavior = existing
+        handleSmoothScroll(() => {
+          domNode.scrollIntoView()
+        })
       }
     }
   }

@@ -672,7 +672,11 @@ interface FetchNextDataParams {
   unstable_skipClientCache?: boolean
 }
 
-function handleSmoothScroll(fn: () => void) {
+/**
+ * Run function with `scroll-behavior: auto` applied to `<html/>`.
+ * It will revert this automatically.
+ */
+export function handleSmoothScroll(fn: () => void) {
   const htmlElement = document.documentElement
   const existing = htmlElement.style.scrollBehavior
   htmlElement.style.scrollBehavior = 'auto'
