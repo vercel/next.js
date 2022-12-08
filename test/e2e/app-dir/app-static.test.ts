@@ -583,7 +583,7 @@ describe('app-dir static/dynamic handling', () => {
         )
       })
 
-      it('should have empty search params on force-static', async () => {
+      it.skip('should have empty search params on force-static', async () => {
         const browser = await webdriver(
           next.url,
           '/hooks/use-search-params/force-static?first=value&second=other&third'
@@ -643,7 +643,7 @@ describe('app-dir static/dynamic handling', () => {
           expect(html).toInclude('<p>search params suspense</p>')
         })
 
-        it('should have empty search params on force-static', async () => {
+        it.skip('should have empty search params on force-static', async () => {
           const res = await fetchViaHTTP(
             next.url,
             '/hooks/use-search-params/force-static?first=value&second=other&third'
