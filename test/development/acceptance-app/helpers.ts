@@ -112,6 +112,9 @@ export async function sandbox(
         }
         return source
       },
+      async waitForAndOpenRuntimeError() {
+        return browser.waitForElementByCss('[data-nextjs-toast]').click()
+      },
     },
     async cleanup() {
       await browser.close()
