@@ -159,12 +159,14 @@ describe('app dir', () => {
         expect(serverContent).not.toContain(
           'next-dynamic dynamic no ssr on server'
         )
-        expect(serverContent).not.toContain('text client under sever')
+
+        // client component under server component with ssr: false will not be rendered either in flight or SSR
+        expect(html).not.toContain('client component under sever no ssr')
 
         const browser = await webdriver(next.url, '/dashboard/dynamic')
         const clientContent = await browser.elementByCss(selector).text()
         expect(clientContent).toContain('next-dynamic dynamic no ssr on server')
-        expect(clientContent).toContain('text client under sever')
+        expect(clientContent).toContain('client component under sever no ssr')
         await browser.waitForElementByCss('#css-text-dynamic-no-ssr-client')
 
         expect(
@@ -404,141 +406,6 @@ describe('app dir', () => {
         }
       }
     )
-    ;(isDev ? describe : describe.skip)('HMR', () => {
-      it('should HMR correctly for server component', async () => {
-        const filePath = 'app/dashboard/index/page.js'
-        const origContent = await next.readFile(filePath)
-
-        try {
-          const browser = await webdriver(next.url, '/dashboard/index')
-          expect(await browser.elementByCss('p').text()).toContain(
-            'hello from app/dashboard/index'
-          )
-
-          await next.patchFile(
-            filePath,
-            origContent.replace('hello from', 'swapped from')
-          )
-
-          await check(() => browser.elementByCss('p').text(), /swapped from/)
-        } finally {
-          await next.patchFile(filePath, origContent)
-        }
-      })
-
-      it('should HMR correctly for client component', async () => {
-        const filePath = 'app/client-component-route/page.js'
-        const origContent = await next.readFile(filePath)
-
-        try {
-          const browser = await webdriver(next.url, '/client-component-route')
-
-          const ssrInitial = await renderViaHTTP(
-            next.url,
-            '/client-component-route'
-          )
-
-          expect(ssrInitial).toContain('hello from app/client-component-route')
-
-          expect(await browser.elementByCss('p').text()).toContain(
-            'hello from app/client-component-route'
-          )
-
-          await next.patchFile(
-            filePath,
-            origContent.replace('hello from', 'swapped from')
-          )
-
-          await check(() => browser.elementByCss('p').text(), /swapped from/)
-
-          const ssrUpdated = await renderViaHTTP(
-            next.url,
-            '/client-component-route'
-          )
-          expect(ssrUpdated).toContain('swapped from')
-
-          await next.patchFile(filePath, origContent)
-
-          await check(() => browser.elementByCss('p').text(), /hello from/)
-          expect(
-            await renderViaHTTP(next.url, '/client-component-route')
-          ).toContain('hello from')
-        } finally {
-          await next.patchFile(filePath, origContent)
-        }
-      })
-
-      it('should HMR correctly when changing the component type', async () => {
-        const filePath = 'app/dashboard/page/page.jsx'
-        const origContent = await next.readFile(filePath)
-
-        try {
-          const browser = await webdriver(next.url, '/dashboard/page')
-
-          expect(await browser.elementByCss('p').text()).toContain(
-            'hello dashboard/page!'
-          )
-
-          // Test HMR with server component
-          await next.patchFile(
-            filePath,
-            origContent.replace(
-              'hello dashboard/page!',
-              'hello dashboard/page in server component!'
-            )
-          )
-          await check(
-            () => browser.elementByCss('p').text(),
-            /in server component/
-          )
-
-          // Change to client component
-          await next.patchFile(
-            filePath,
-            origContent
-              .replace("// 'use client'", "'use client'")
-              .replace(
-                'hello dashboard/page!',
-                'hello dashboard/page in client component!'
-              )
-          )
-          await check(
-            () => browser.elementByCss('p').text(),
-            /in client component/
-          )
-
-          // Change back to server component
-          await next.patchFile(
-            filePath,
-            origContent.replace(
-              'hello dashboard/page!',
-              'hello dashboard/page in server component2!'
-            )
-          )
-          await check(
-            () => browser.elementByCss('p').text(),
-            /in server component2/
-          )
-
-          // Change to client component again
-          await next.patchFile(
-            filePath,
-            origContent
-              .replace("// 'use client'", "'use client'")
-              .replace(
-                'hello dashboard/page!',
-                'hello dashboard/page in client component2!'
-              )
-          )
-          await check(
-            () => browser.elementByCss('p').text(),
-            /in client component2/
-          )
-        } finally {
-          await next.patchFile(filePath, origContent)
-        }
-      })
-    })
 
     it('should handle hash in initial url', async () => {
       const browser = await webdriver(next.url, '/dashboard#abc')
@@ -1699,66 +1566,202 @@ describe('app dir', () => {
           ).toBe('50px')
         })
       })
-
-      if (isDev) {
-        describe('HMR', () => {
-          it('should support HMR for CSS imports in server components', async () => {
-            const filePath = 'app/css/css-page/style.css'
-            const origContent = await next.readFile(filePath)
-
-            // h1 should be red
-            const browser = await webdriver(next.url, '/css/css-page')
-            expect(
-              await browser.eval(
-                `window.getComputedStyle(document.querySelector('h1')).color`
-              )
-            ).toBe('rgb(255, 0, 0)')
-
-            try {
-              await next.patchFile(filePath, origContent.replace('red', 'blue'))
-
-              // Wait for HMR to trigger
-              await check(
-                () =>
-                  browser.eval(
-                    `window.getComputedStyle(document.querySelector('h1')).color`
-                  ),
-                'rgb(0, 0, 255)'
-              )
-            } finally {
-              await next.patchFile(filePath, origContent)
-            }
-          })
-
-          it('should support HMR for CSS imports in client components', async () => {
-            const filePath = 'app/css/css-client/client-page.css'
-            const origContent = await next.readFile(filePath)
-
-            // h1 should be red
-            const browser = await webdriver(next.url, '/css/css-client')
-            expect(
-              await browser.eval(
-                `window.getComputedStyle(document.querySelector('h1')).color`
-              )
-            ).toBe('rgb(255, 0, 0)')
-
-            try {
-              await next.patchFile(filePath, origContent.replace('red', 'blue'))
-
-              await check(
-                () =>
-                  browser.eval(
-                    `window.getComputedStyle(document.querySelector('h1')).color`
-                  ),
-                'rgb(0, 0, 255)'
-              )
-            } finally {
-              await next.patchFile(filePath, origContent)
-            }
-          })
-        })
-      }
     })
+
+    if (isDev) {
+      describe('HMR', () => {
+        it('should support HMR for CSS imports in server components', async () => {
+          const filePath = 'app/css/css-page/style.css'
+          const origContent = await next.readFile(filePath)
+
+          // h1 should be red
+          const browser = await webdriver(next.url, '/css/css-page')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+
+          try {
+            await next.patchFile(filePath, origContent.replace('red', 'blue'))
+
+            // Wait for HMR to trigger
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('h1')).color`
+                ),
+              'rgb(0, 0, 255)'
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
+        it('should support HMR for CSS imports in client components', async () => {
+          const filePath = 'app/css/css-client/client-page.css'
+          const origContent = await next.readFile(filePath)
+
+          // h1 should be red
+          const browser = await webdriver(next.url, '/css/css-client')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+
+          try {
+            await next.patchFile(filePath, origContent.replace('red', 'blue'))
+
+            await check(
+              () =>
+                browser.eval(
+                  `window.getComputedStyle(document.querySelector('h1')).color`
+                ),
+              'rgb(0, 0, 255)'
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
+        it('should HMR correctly for server component', async () => {
+          const filePath = 'app/dashboard/index/page.js'
+          const origContent = await next.readFile(filePath)
+
+          try {
+            const browser = await webdriver(next.url, '/dashboard/index')
+            expect(await browser.elementByCss('p').text()).toContain(
+              'hello from app/dashboard/index'
+            )
+
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello from', 'swapped from')
+            )
+
+            await check(() => browser.elementByCss('p').text(), /swapped from/)
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
+        it('should HMR correctly for client component', async () => {
+          const filePath = 'app/client-component-route/page.js'
+          const origContent = await next.readFile(filePath)
+
+          try {
+            const browser = await webdriver(next.url, '/client-component-route')
+
+            const ssrInitial = await renderViaHTTP(
+              next.url,
+              '/client-component-route'
+            )
+
+            expect(ssrInitial).toContain(
+              'hello from app/client-component-route'
+            )
+
+            expect(await browser.elementByCss('p').text()).toContain(
+              'hello from app/client-component-route'
+            )
+
+            await next.patchFile(
+              filePath,
+              origContent.replace('hello from', 'swapped from')
+            )
+
+            await check(() => browser.elementByCss('p').text(), /swapped from/)
+
+            const ssrUpdated = await renderViaHTTP(
+              next.url,
+              '/client-component-route'
+            )
+            expect(ssrUpdated).toContain('swapped from')
+
+            await next.patchFile(filePath, origContent)
+
+            await check(() => browser.elementByCss('p').text(), /hello from/)
+            expect(
+              await renderViaHTTP(next.url, '/client-component-route')
+            ).toContain('hello from')
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+
+        it('should HMR correctly when changing the component type', async () => {
+          const filePath = 'app/dashboard/page/page.jsx'
+          const origContent = await next.readFile(filePath)
+
+          try {
+            const browser = await webdriver(next.url, '/dashboard/page')
+
+            expect(await browser.elementByCss('p').text()).toContain(
+              'hello dashboard/page!'
+            )
+
+            // Test HMR with server component
+            await next.patchFile(
+              filePath,
+              origContent.replace(
+                'hello dashboard/page!',
+                'hello dashboard/page in server component!'
+              )
+            )
+            await check(
+              () => browser.elementByCss('p').text(),
+              /in server component/
+            )
+
+            // Change to client component
+            await next.patchFile(
+              filePath,
+              origContent
+                .replace("// 'use client'", "'use client'")
+                .replace(
+                  'hello dashboard/page!',
+                  'hello dashboard/page in client component!'
+                )
+            )
+            await check(
+              () => browser.elementByCss('p').text(),
+              /in client component/
+            )
+
+            // Change back to server component
+            await next.patchFile(
+              filePath,
+              origContent.replace(
+                'hello dashboard/page!',
+                'hello dashboard/page in server component2!'
+              )
+            )
+            await check(
+              () => browser.elementByCss('p').text(),
+              /in server component2/
+            )
+
+            // Change to client component again
+            await next.patchFile(
+              filePath,
+              origContent
+                .replace("// 'use client'", "'use client'")
+                .replace(
+                  'hello dashboard/page!',
+                  'hello dashboard/page in client component2!'
+                )
+            )
+            await check(
+              () => browser.elementByCss('p').text(),
+              /in client component2/
+            )
+          } finally {
+            await next.patchFile(filePath, origContent)
+          }
+        })
+      })
+    }
 
     describe('searchParams prop', () => {
       describe('client component', () => {
