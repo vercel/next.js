@@ -59,7 +59,10 @@ jobs:
 
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      # - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      #   id: swc-change
+
+      - run: echo "::set-output name=SWC_CHANGE::$(echo 'yup')"
         id: swc-change
 
       - run: echo "::set-output name=TURBO_TOKEN::$(echo ${TURBO_TOKEN:-empty})"
@@ -1280,8 +1283,7 @@ jobs:
           usesh: true
           mem: 6000
           prepare: |
-            pkg install -y curl node16
-            curl -qL https://www.npmjs.com/install.sh | sh
+            curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash
             npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}"
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
