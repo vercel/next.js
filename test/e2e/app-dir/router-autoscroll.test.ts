@@ -130,12 +130,8 @@ describe('router autoscrolling on navigation', () => {
     })
   })
 
-  /**
-   * scrollIntoView() has a bit different behavior when scrolling horizontally.
-   * It will scroll the least ammount to git the item into viewport, it will not try to allign it with start of the container.
-   */
   describe('horizontal scroll', () => {
-    it("shouldn't scroll to left of document when navigating between to pages and the page is visible", async () => {
+    it('should scroll to left of document when navigating between to pages and the page is visible', async () => {
       const browser = await webdriver(next.url, '/0/0/10000/100/page1')
 
       await scrollTo(browser, { x: 1000, y: 0 })
@@ -144,7 +140,7 @@ describe('router autoscrolling on navigation', () => {
       await browser.eval(`window.router.push("/0/0/10000/100/page2")`)
       await waitFor(100)
 
-      expect(await getLeftScroll(browser)).toBe(1000)
+      expect(await getLeftScroll(browser)).toBe(0)
 
       browser.quit()
     })
@@ -169,8 +165,7 @@ describe('router autoscrolling on navigation', () => {
       await browser.eval(`window.router.push("/10000/0/10000/100/page2")`)
       await waitFor(100)
 
-      // It will align right edge of page because it's closer
-      expect(await getLeftScroll(browser)).toBe(20000 - 1280)
+      expect(await getLeftScroll(browser)).toBe(10000)
 
       browser.quit()
     })

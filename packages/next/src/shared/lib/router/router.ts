@@ -674,7 +674,7 @@ interface FetchNextDataParams {
 
 /**
  * Run function with `scroll-behavior: auto` applied to `<html/>`.
- * It will revert this automatically.
+ * This css change will be reverted after the function finishes.
  */
 export function handleSmoothScroll(fn: () => void) {
   const htmlElement = document.documentElement

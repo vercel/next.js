@@ -130,14 +130,21 @@ class ScrollAndFocusHandler extends React.Component<{
     if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
+
+      // Try scrolling go the top of the document to be backward compatible with pages
+      if (!topLeftOfElementInViewport(domNode)) {
+        handleSmoothScroll(() => window.scrollTo(0, 0))
+      }
+
+      // Scroll to domNode if domNode is not in viewport when scrolled to top of document
+      if (!topLeftOfElementInViewport(domNode)) {
+        // Since we are scrolling to the top of the page earlier we are effectivelly using these options:
+        // { block: "start", inline: "start"}
+        handleSmoothScroll(() => domNode.scrollIntoView())
+      }
+
       // Set focus on the element
       domNode.focus()
-      // Only scroll into viewport when the layout is not visible currently.
-      if (!topLeftOfElementInViewport(domNode)) {
-        handleSmoothScroll(() => {
-          domNode.scrollIntoView()
-        })
-      }
     }
   }
 
