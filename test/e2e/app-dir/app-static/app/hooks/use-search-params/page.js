@@ -1,5 +1,10 @@
 import UseSearchParams from './search-params'
 
 export default function Page() {
-  return <UseSearchParams />
+  return (
+    <>
+      <p id="hooks-use-search-params" />
+      <UseSearchParams />
+    </>
+  )
 }

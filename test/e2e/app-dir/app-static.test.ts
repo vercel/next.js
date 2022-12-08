@@ -595,6 +595,17 @@ describe('app-dir static/dynamic handling', () => {
         expect(await browser.elementByCss('#params-not-real').text()).toBe(
           'N/A'
         )
+
+        await browser.elementById('to-use-search-params').click()
+        await browser.waitForElementByCss('#hooks-use-search-params')
+
+        // Should not be empty after navigating to another page with useSearchParams
+        expect(await browser.elementByCss('#params-first').text()).toBe('1')
+        expect(await browser.elementByCss('#params-second').text()).toBe('2')
+        expect(await browser.elementByCss('#params-third').text()).toBe('3')
+        expect(await browser.elementByCss('#params-not-real').text()).toBe(
+          'N/A'
+        )
       })
 
       // TODO-APP: re-enable after investigating rewrite params
