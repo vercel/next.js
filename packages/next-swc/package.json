@@ -6,7 +6,8 @@
     "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin --js false native",
     "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --js false native",
     "build-wasm": "wasm-pack build crates/wasm --scope=next",
-    "cache-build-native": "echo $(ls native)"
+    "cache-build-native": "echo $(ls native)",
+    "bump": "echo 1"
   },
   "napi": {
     "name": "next-swc",
