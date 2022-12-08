@@ -100,6 +100,20 @@ describe('router autoscrolling on navigation', () => {
 
       browser.quit()
     })
+
+    it('should not scroll to top of document if page in viewport', async () => {
+      const browser = await webdriver(next.url, '/10/100/100/1000/page1')
+
+      await scrollTo(browser, { x: 0, y: 50 })
+      expect(await getTopScroll(browser)).toBe(50)
+
+      await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
+      await waitFor(100)
+
+      expect(await getTopScroll(browser)).toBe(50)
+
+      browser.quit()
+    })
   })
 
   /**
