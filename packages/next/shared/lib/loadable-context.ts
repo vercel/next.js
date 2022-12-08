@@ -1,3 +1,5 @@
+'use client'
+
 import React from 'react'
 
 type CaptureFn = (moduleName: string) => void
