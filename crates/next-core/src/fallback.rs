@@ -15,7 +15,6 @@ use turbopack_core::{
 use turbopack_dev_server::html::DevHtmlAssetVc;
 
 use crate::{
-    embed_js::attached_next_js_package_path,
     next_client::context::{
         get_client_chunking_context, get_client_environment, get_client_module_options_context,
         get_client_resolve_options_context, get_client_runtime_entries, ContextType,
@@ -39,7 +38,7 @@ pub async fn get_fallback_page(
     let entries = get_client_runtime_entries(project_root, env, ty);
 
     let mut import_map = ImportMap::empty();
-    insert_next_shared_aliases(&mut import_map, attached_next_js_package_path(project_root));
+    insert_next_shared_aliases(&mut import_map, project_root);
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),

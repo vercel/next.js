@@ -1025,7 +1025,7 @@ async fn resolved(
         }
     }
     if let Some(resolved_map) = resolved_map {
-        let result = resolved_map.lookup(*path).await?;
+        let result = resolved_map.lookup(*path, original_request).await?;
         if !matches!(&*result, ImportMapResult::NoEntry) {
             return resolve_import_map_result(
                 &result,

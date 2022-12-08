@@ -92,6 +92,7 @@ pub enum ImportMapping {
     Ignore,
     Empty,
     Alternatives(Vec<ImportMappingVc>),
+    Dynamic(ImportMappingReplacementVc),
 }
 
 impl ImportMapping {
@@ -140,6 +141,9 @@ impl AliasTemplate for ImportMappingVc {
                         .try_join()
                         .await?,
                 ),
+                ImportMapping::Dynamic(replacement) => {
+                    (*replacement.replace(capture).await?).clone()
+                }
             }
             .cell())
         })
@@ -236,7 +240,10 @@ pub enum ImportMapResult {
     NoEntry,
 }
 
-async fn import_mapping_to_result(mapping: ImportMappingVc) -> Result<ImportMapResult> {
+async fn import_mapping_to_result(
+    mapping: ImportMappingVc,
+    request: RequestVc,
+) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
         ImportMapping::Direct(result) => ImportMapResult::Result(*result),
         ImportMapping::External(name) => ImportMapResult::Result(
@@ -262,10 +269,11 @@ async fn import_mapping_to_result(mapping: ImportMappingVc) -> Result<ImportMapR
         }
         ImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()
-                .map(|mapping| import_mapping_to_result_boxed(*mapping))
+                .map(|mapping| import_mapping_to_result_boxed(*mapping, request))
                 .try_join()
                 .await?,
         ),
+        ImportMapping::Dynamic(replacement) => (*replacement.result(request).await?).clone(),
     })
 }
 
@@ -275,8 +283,9 @@ async fn import_mapping_to_result(mapping: ImportMappingVc) -> Result<ImportMapR
 //     `resolve::options::import_mapping_to_result::{opaque#0}`
 fn import_mapping_to_result_boxed(
     mapping: ImportMappingVc,
+    request: RequestVc,
 ) -> Pin<Box<dyn Future<Output = Result<ImportMapResult>> + Send>> {
-    Box::pin(async move { import_mapping_to_result(mapping).await })
+    Box::pin(async move { import_mapping_to_result(mapping, request).await })
 }
 
 #[turbo_tasks::value_impl]
@@ -289,6 +298,7 @@ impl ImportMapVc {
             if let Some(result) = this.direct.lookup(&request_string).next() {
                 return Ok(import_mapping_to_result(
                     result.try_join_into_self().await?.into_owned(),
+                    request,
                 )
                 .await?
                 .into());
@@ -300,7 +310,7 @@ impl ImportMapVc {
             };
             for (glob, mapping) in this.by_glob.iter() {
                 if glob.execute(request_string_without_slash) {
-                    return Ok(import_mapping_to_result(*mapping).await?.into());
+                    return Ok(import_mapping_to_result(*mapping, request).await?.into());
                 }
             }
         }
@@ -311,14 +321,18 @@ impl ImportMapVc {
 #[turbo_tasks::value_impl]
 impl ResolvedMapVc {
     #[turbo_tasks::function]
-    pub async fn lookup(self, resolved: FileSystemPathVc) -> Result<ImportMapResultVc> {
+    pub async fn lookup(
+        self,
+        resolved: FileSystemPathVc,
+        request: RequestVc,
+    ) -> Result<ImportMapResultVc> {
         let this = self.await?;
         let resolved = resolved.await?;
         for (root, glob, mapping) in this.by_glob.iter() {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
                 if glob.await?.execute(path) {
-                    return Ok(import_mapping_to_result(*mapping).await?.into());
+                    return Ok(import_mapping_to_result(*mapping, request).await?.into());
                 }
             }
         }
@@ -395,4 +409,10 @@ pub async fn resolve_modules_options(options: ResolveOptionsVc) -> Result<Resolv
         modules: options.await?.modules.clone(),
     }
     .into())
+}
+
+#[turbo_tasks::value_trait]
+pub trait ImportMappingReplacement {
+    fn replace(&self, capture: &str) -> ImportMappingVc;
+    fn result(&self, request: RequestVc) -> ImportMapResultVc;
 }

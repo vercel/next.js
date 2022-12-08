@@ -1,13 +1,15 @@
 use anyhow::Result;
 use turbo_tasks::{primitives::StringsVc, Value};
 use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
-use turbopack_core::resolve::options::{
-    ImportMap, ImportMapVc, ImportMapping, ImportMappingVc, ResolvedMap, ResolvedMapVc,
+use turbopack_core::resolve::{
+    options::{ImportMap, ImportMapVc, ImportMapping, ImportMappingVc, ResolvedMap, ResolvedMapVc},
+    AliasPattern,
 };
 
 use crate::{
     embed_js::{attached_next_js_package_path, VIRTUAL_PACKAGE_NAME},
     next_client::context::ContextType,
+    next_font_google::{NextFontGoogleCssModuleReplacerVc, NextFontGoogleReplacerVc},
     next_server::ServerContextType,
 };
 
@@ -18,9 +20,8 @@ pub fn get_next_client_import_map(
     ty: Value<ContextType>,
 ) -> ImportMapVc {
     let mut import_map = ImportMap::empty();
-    let package_root = attached_next_js_package_path(project_path);
 
-    insert_next_shared_aliases(&mut import_map, package_root);
+    insert_next_shared_aliases(&mut import_map, project_path);
 
     match ty.into_value() {
         ContextType::Pages { pages_dir } => {
@@ -102,9 +103,8 @@ pub async fn get_next_server_import_map(
     externals: StringsVc,
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::empty();
-    let package_root = attached_next_js_package_path(project_path);
 
-    insert_next_shared_aliases(&mut import_map, package_root);
+    insert_next_shared_aliases(&mut import_map, project_path);
 
     match ty.into_value() {
         ServerContextType::Pages { pages_dir } => {
@@ -216,7 +216,9 @@ static NEXT_ALIASES: [(&str, &str); 23] = [
     ("setImmediate", "next/dist/compiled/setimmediate"),
 ];
 
-pub fn insert_next_shared_aliases(import_map: &mut ImportMap, package_root: FileSystemPathVc) {
+pub fn insert_next_shared_aliases(import_map: &mut ImportMap, project_path: FileSystemPathVc) {
+    let package_root = attached_next_js_package_path(project_path);
+
     // we use the next.js hydration code, so we replace the error overlay with our
     // own
     import_map.insert_exact_alias(
@@ -228,6 +230,17 @@ pub fn insert_next_shared_aliases(import_map: &mut ImportMap, package_root: File
         import_map,
         &format!("{VIRTUAL_PACKAGE_NAME}/"),
         package_root,
+    );
+
+    import_map.insert_alias(
+        // Request path from js via next-font swc transform
+        AliasPattern::exact("@next/font/google/target.css"),
+        ImportMapping::Dynamic(NextFontGoogleReplacerVc::new(project_path).into()).into(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/google/cssmodule.module.css"),
+        ImportMapping::Dynamic(NextFontGoogleCssModuleReplacerVc::new(project_path).into()).into(),
     );
 }
 
