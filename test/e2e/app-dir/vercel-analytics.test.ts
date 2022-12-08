@@ -20,8 +20,8 @@ describe('vercel analytics', () => {
         files: new FileRef(path.join(__dirname, 'app')),
         dependencies: {
           swr: '2.0.0-rc.0',
-          react: 'experimental',
-          'react-dom': 'experimental',
+          react: 'latest',
+          'react-dom': 'latest',
           sass: 'latest',
         },
         skipStart: true,

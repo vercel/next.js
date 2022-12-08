@@ -128,7 +128,7 @@ function getBaseSWCOptions({
       ? {
           isServer: !!isServerLayer,
         }
-      : false,
+      : undefined,
   }
 }
 

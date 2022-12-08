@@ -185,7 +185,6 @@ where
         next_dynamic::next_dynamic(
             opts.is_development,
             opts.is_server,
-            opts.server_components.is_some(),
             file.name.clone(),
             opts.pages_dir.clone()
         ),
