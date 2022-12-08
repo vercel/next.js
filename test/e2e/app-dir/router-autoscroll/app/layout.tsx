@@ -7,11 +7,12 @@ import { useRouter } from 'next/navigation'
 export default function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
+  // We export these so that we can access them from tests
   useEffect(() => {
     // @ts-ignore
-    window.navigate = (path: string) => {
-      router.push(path)
-    }
+    window.router = router
+    // @ts-ignore
+    window.React = React
   }, [router])
 
   return (

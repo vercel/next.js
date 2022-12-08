@@ -68,7 +68,7 @@ describe('router autoscrolling on navigation', () => {
 
       expect(await getTopScroll(browser)).toBe(1000)
 
-      await browser.eval(`window.navigate("/0/0/100/10000/page2")`)
+      await browser.eval(`window.router.push("/0/0/100/10000/page2")`)
       await waitFor(100)
 
       expect(await getTopScroll(browser)).toBe(0)
@@ -85,7 +85,7 @@ describe('router autoscrolling on navigation', () => {
 
       expect(await getTopScroll(browser)).toBe(1500)
 
-      await browser.eval(`window.navigate("/0/1000/100/1000/page2")`)
+      await browser.eval(`window.router.push("/0/1000/100/1000/page2")`)
       await waitFor(100)
 
       expect(await getTopScroll(browser)).toBe(1000)
@@ -97,7 +97,7 @@ describe('router autoscrolling on navigation', () => {
       const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
       expect(await getTopScroll(browser)).toBe(0)
 
-      await browser.eval(`window.navigate("/0/1000/100/1000/page2")`)
+      await browser.eval(`window.router.push("/0/1000/100/1000/page2")`)
       await waitFor(100)
 
       expect(await getTopScroll(browser)).toBe(1000)
@@ -114,7 +114,7 @@ describe('router autoscrolling on navigation', () => {
 
       expect(await getTopScroll(browser)).toBe(800)
 
-      await browser.eval(`window.navigate("/10/1000/100/1000/page2")`)
+      await browser.eval(`window.router.push("/10/1000/100/1000/page2")`)
       await waitFor(100)
 
       expect(await getTopScroll(browser)).toBe(800)
@@ -138,7 +138,7 @@ describe('router autoscrolling on navigation', () => {
 
       expect(await getLeftScroll(browser)).toBe(1000)
 
-      await browser.eval(`window.navigate("/0/0/10000/100/page2")`)
+      await browser.eval(`window.router.push("/0/0/10000/100/page2")`)
       await waitFor(100)
 
       expect(await getLeftScroll(browser)).toBe(1000)
@@ -150,7 +150,7 @@ describe('router autoscrolling on navigation', () => {
       const browser = await webdriver(next.url, '/10000/0/10000/100/page1')
       expect(await getLeftScroll(browser)).toBe(0)
 
-      await browser.eval(`window.navigate("/10000/0/10000/100/page2")`)
+      await browser.eval(`window.router.push("/10000/0/10000/100/page2")`)
       await waitFor(100)
 
       expect(await getLeftScroll(browser)).toBe(10000)
@@ -167,11 +167,55 @@ describe('router autoscrolling on navigation', () => {
 
       expect(await getLeftScroll(browser)).toBe(21000)
 
-      await browser.eval(`window.navigate("/10000/0/10000/100/page2")`)
+      await browser.eval(`window.router.push("/10000/0/10000/100/page2")`)
       await waitFor(100)
 
       // It will align right edge of page because it's closer
       expect(await getLeftScroll(browser)).toBe(20000 - 1280)
+
+      browser.quit()
+    })
+  })
+
+  describe('router.refresh()', () => {
+    it('should not scroll when called alone', async () => {
+      const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
+
+      expect(await getTopScroll(browser)).toBe(0)
+
+      await scrollTo(browser, { x: 0, y: 12000 })
+      await waitFor(100)
+
+      expect(await getTopScroll(browser)).toBe(12000)
+
+      await browser.eval(`window.router.refresh()`)
+      await waitFor(100)
+
+      expect(await getTopScroll(browser)).toBe(12000)
+
+      browser.quit()
+    })
+
+    // TODO fix next js to past this
+    it.skip('should not stop router.push() from scrolling', async () => {
+      const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
+
+      expect(await getTopScroll(browser)).toBe(0)
+
+      await scrollTo(browser, { x: 0, y: 12000 })
+      await waitFor(100)
+
+      expect(await getTopScroll(browser)).toBe(12000)
+
+      await browser.eval(`
+        window.React.startTransition(() => {
+          window.router.push('/10/10000/100/1000/page2')
+          window.router.refresh()
+        })
+      `)
+      await waitFor(100)
+
+      expect(await getTopScroll(browser)).toBe(10000)
 
       browser.quit()
     })
