@@ -1269,7 +1269,7 @@ jobs:
 
       - name: Build
         id: build
-        uses: vmactions/freebsd-vm@v0
+        uses: vmactions/freebsd-vm@v0.3
         if: ${{ steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
         env:
           DEBUG: napi:*
@@ -1278,8 +1278,9 @@ jobs:
           RUSTUP_IO_THREADS: 1
           # Disable LTO, or the lld may crash with OOM
           CARGO_PROFILE_RELEASE_LTO: false
+          VM_RELEASE: 13.0
         with:
-          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION RUST_TOOLCHAIN PNPM_VERSION
+          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION RUST_TOOLCHAIN PNPM_VERSION VM_RELEASE
           usesh: true
           mem: 6000
           prepare: |
