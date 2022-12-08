@@ -498,37 +498,43 @@ function getMiddlewareData<T extends FetchDataOutput>(
   return Promise.resolve({ type: 'next' as const })
 }
 
-function withMiddlewareEffects<T extends FetchDataOutput>(
-  options: MiddlewareEffectParams<T>
-) {
-  return matchesMiddleware(options).then((matches) => {
-    if (matches && options.fetchData) {
-      return options
-        .fetchData()
-        .then((data) =>
-          getMiddlewareData(data.dataHref, data.response, options).then(
-            (effect) => ({
-              dataHref: data.dataHref,
-              cacheKey: data.cacheKey,
-              json: data.json,
-              response: data.response,
-              text: data.text,
-              effect,
-            })
-          )
-        )
-        .catch((_err) => {
-          /**
-           * TODO: Revisit this in the future.
-           * For now we will not consider middleware data errors to be fatal.
-           * maybe we should revisit in the future.
-           */
-          return null
-        })
-    }
+interface WithMiddlewareEffectsOutput extends FetchDataOutput {
+  effect: Awaited<ReturnType<typeof getMiddlewareData>>
+}
 
+async function withMiddlewareEffects<T extends FetchDataOutput>(
+  options: MiddlewareEffectParams<T>
+): Promise<WithMiddlewareEffectsOutput | null> {
+  const matches = await matchesMiddleware(options)
+  if (!matches || !options.fetchData) {
     return null
-  })
+  }
+
+  try {
+    const data = await options.fetchData()
+
+    const effect = await getMiddlewareData(
+      data.dataHref,
+      data.response,
+      options
+    )
+
+    return {
+      dataHref: data.dataHref,
+      json: data.json,
+      response: data.response,
+      text: data.text,
+      cacheKey: data.cacheKey,
+      effect,
+    }
+  } catch {
+    /**
+     * TODO: Revisit this in the future.
+     * For now we will not consider middleware data errors to be fatal.
+     * maybe we should revisit in the future.
+     */
+    return null
+  }
 }
 
 type Url = UrlObject | string
@@ -1758,18 +1764,27 @@ export default class Router implements BaseRouter {
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
       const upcomingScrollState = forcedScroll ?? resetScroll
 
+      // the new state that the router gonna set
+      const upcomingRouterState = {
+        ...nextState,
+        route,
+        pathname,
+        query,
+        asPath: cleanedAs,
+        isFallback: false,
+      }
+
       // When the page being rendered is the 404 page, we should only update the
       // query parameters. Route changes here might add the basePath when it
       // wasn't originally present. This is also why this block is before the
       // below `changeState` call which updates the browser's history (changing
       // the URL).
-      if (isQueryUpdating && this.pathname === '/404') {
+      if (
+        isQueryUpdating &&
+        (this.pathname === '/404' || this.pathname === '/_error')
+      ) {
         try {
-          await this.set(
-            { ...nextState, query },
-            routeInfo,
-            upcomingScrollState
-          )
+          await this.set(upcomingRouterState, routeInfo, upcomingScrollState)
         } catch (err) {
           if (isError(err) && err.cancelled) {
             Router.events.emit('routeChangeError', err, cleanedAs, routeProps)
@@ -1782,16 +1797,6 @@ export default class Router implements BaseRouter {
 
       Router.events.emit('beforeHistoryChange', as, routeProps)
       this.changeState(method, url, as, options)
-
-      // the new state that the router gonna set
-      const upcomingRouterState = {
-        ...nextState,
-        route,
-        pathname,
-        query,
-        asPath: cleanedAs,
-        isFallback: false,
-      }
 
       // for query updates we can skip it if the state is unchanged and we don't
       // need to scroll
@@ -2029,9 +2034,13 @@ export default class Router implements BaseRouter {
         isBackground,
       }
 
-      const data =
+      let data:
+        | WithMiddlewareEffectsOutput
+        | (Pick<WithMiddlewareEffectsOutput, 'json'> &
+            Omit<Partial<WithMiddlewareEffectsOutput>, 'json'>)
+        | null =
         isQueryUpdating && !isMiddlewareRewrite
-          ? ({} as any)
+          ? null
           : await withMiddlewareEffects({
               fetchData: () => fetchNextData(fetchNextDataParams),
               asPath: resolvedAs,
@@ -2043,13 +2052,13 @@ export default class Router implements BaseRouter {
               // unless it is a fallback route and the props can't
               // be loaded
               if (isQueryUpdating) {
-                return {} as any
+                return null
               }
               throw err
             })
 
       if (isQueryUpdating) {
-        data.json = self.__NEXT_DATA__.props
+        data = { json: self.__NEXT_DATA__.props }
       }
       handleCancelled()
 
@@ -2123,40 +2132,42 @@ export default class Router implements BaseRouter {
 
       // For non-SSG prefetches that bailed before sending data
       // we clear the cache to fetch full response
-      if (wasBailedPrefetch) {
-        delete this.sdc[data?.dataHref]
+      if (wasBailedPrefetch && data?.dataHref) {
+        delete this.sdc[data.dataHref]
       }
 
       const { props, cacheKey } = await this._getData(async () => {
         if (shouldFetchData) {
-          const { json, cacheKey: _cacheKey } =
-            data?.json && !wasBailedPrefetch
-              ? data
-              : await fetchNextData({
-                  dataHref: data?.json
-                    ? data?.dataHref
-                    : this.pageLoader.getDataHref({
-                        href: formatWithValidation({ pathname, query }),
-                        asPath: resolvedAs,
-                        locale,
-                      }),
-                  isServerRender: this.isSsr,
-                  parseJSON: true,
-                  inflightCache: wasBailedPrefetch ? {} : this.sdc,
-                  persistCache: !isPreview,
-                  isPrefetch: false,
-                  unstable_skipClientCache,
-                })
+          if (data?.json && !wasBailedPrefetch) {
+            return { cacheKey: data.cacheKey, props: data.json }
+          }
+
+          const dataHref = data?.dataHref
+            ? data.dataHref
+            : this.pageLoader.getDataHref({
+                href: formatWithValidation({ pathname, query }),
+                asPath: resolvedAs,
+                locale,
+              })
+
+          const fetched = await fetchNextData({
+            dataHref,
+            isServerRender: this.isSsr,
+            parseJSON: true,
+            inflightCache: wasBailedPrefetch ? {} : this.sdc,
+            persistCache: !isPreview,
+            isPrefetch: false,
+            unstable_skipClientCache,
+          })
 
           return {
-            cacheKey: _cacheKey,
-            props: json || {},
+            cacheKey: fetched.cacheKey,
+            props: fetched.json || {},
           }
         }
 
         return {
           headers: {},
-          cacheKey: '',
           props: await this.getInitialProps(
             routeInfo.Component,
             // we provide AppTree later so this needs to be `any`
@@ -2175,7 +2186,7 @@ export default class Router implements BaseRouter {
       // Only bust the data cache for SSP routes although
       // middleware can skip cache per request with
       // x-middleware-cache: no-cache as well
-      if (routeInfo.__N_SSP && fetchNextDataParams.dataHref) {
+      if (routeInfo.__N_SSP && fetchNextDataParams.dataHref && cacheKey) {
         delete this.sdc[cacheKey]
       }
 
@@ -2524,7 +2535,7 @@ export default class Router implements BaseRouter {
   getInitialProps(
     Component: ComponentType,
     ctx: NextPageContext
-  ): Promise<any> {
+  ): Promise<Record<string, any>> {
     const { Component: App } = this.components['/_app']
     const AppTree = this._wrapApp(App as AppComponent)
     ctx.AppTree = AppTree

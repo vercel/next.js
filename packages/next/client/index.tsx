@@ -116,7 +116,6 @@ class Container extends React.Component<{
     // - if rewrites in next.config.js match (may have rewrite params)
     if (
       router.isSsr &&
-      initialData.page !== '/_error' &&
       (initialData.isFallback ||
         (initialData.nextExport &&
           (isDynamicRoute(router.pathname) ||
