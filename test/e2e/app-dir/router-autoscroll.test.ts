@@ -1,4 +1,5 @@
 import path from 'path'
+import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
@@ -7,9 +8,10 @@ import { waitFor } from 'next-test-utils'
 describe('router autoscrolling on navigation', () => {
   let next: NextInstance
 
+  const filesPath = path.join(__dirname, './router-autoscroll')
   beforeAll(async () => {
     next = await createNext({
-      files: new FileRef(path.join(__dirname, './router-autoscroll')),
+      files: new FileRef(filesPath),
       dependencies: {
         react: 'latest',
         'react-dom': 'latest',
@@ -50,6 +52,8 @@ describe('router autoscrolling on navigation', () => {
     options: { x: number; y: number }
   ) => {
     await browser.eval(`window.scrollTo(${options.x}, ${options.y})`)
+    // Scrolling is not instant
+    await waitFor(100)
   }
 
   const getBrowserDims = async (browser: BrowserInterface) => ({
@@ -61,11 +65,7 @@ describe('router autoscrolling on navigation', () => {
     it('should scroll to top of document when navigating between to pages without layout', async () => {
       const browser = await webdriver(next.url, '/0/0/100/10000/page1')
 
-      expect(await getTopScroll(browser)).toBe(0)
-
       await scrollTo(browser, { x: 0, y: 1000 })
-      await waitFor(100)
-
       expect(await getTopScroll(browser)).toBe(1000)
 
       await browser.eval(`window.router.push("/0/0/100/10000/page2")`)
@@ -78,11 +78,8 @@ describe('router autoscrolling on navigation', () => {
 
     it("should scroll to top of page when scrolling to phe top of the document wouldn't have the page in the viewport", async () => {
       const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
-      expect(await getTopScroll(browser)).toBe(0)
 
       await scrollTo(browser, { x: 0, y: 1500 })
-      await waitFor(100)
-
       expect(await getTopScroll(browser)).toBe(1500)
 
       await browser.eval(`window.router.push("/0/1000/100/1000/page2")`)
@@ -107,11 +104,8 @@ describe('router autoscrolling on navigation', () => {
 
     it('should not scroll when the top of the page is in the viewport', async () => {
       const browser = await webdriver(next.url, '/10/1000/100/1000/page1')
-      expect(await getTopScroll(browser)).toBe(0)
 
       await scrollTo(browser, { x: 0, y: 800 })
-      await waitFor(100)
-
       expect(await getTopScroll(browser)).toBe(800)
 
       await browser.eval(`window.router.push("/10/1000/100/1000/page2")`)
@@ -131,11 +125,7 @@ describe('router autoscrolling on navigation', () => {
     it("shouldn't scroll to left of document when navigating between to pages and the page is visible", async () => {
       const browser = await webdriver(next.url, '/0/0/10000/100/page1')
 
-      expect(await getLeftScroll(browser)).toBe(0)
-
       await scrollTo(browser, { x: 1000, y: 0 })
-      await waitFor(100)
-
       expect(await getLeftScroll(browser)).toBe(1000)
 
       await browser.eval(`window.router.push("/0/0/10000/100/page2")`)
@@ -160,11 +150,7 @@ describe('router autoscrolling on navigation', () => {
 
     it("should scroll to get the navigated page into viewport when it's to the left of viewort", async () => {
       const browser = await webdriver(next.url, '/10000/0/10000/100/page1')
-      expect(await getLeftScroll(browser)).toBe(0)
-
       await scrollTo(browser, { x: 21000, y: 0 })
-      await waitFor(100)
-
       expect(await getLeftScroll(browser)).toBe(21000)
 
       await browser.eval(`window.router.push("/10000/0/10000/100/page2")`)
@@ -181,11 +167,7 @@ describe('router autoscrolling on navigation', () => {
     it('should not scroll when called alone', async () => {
       const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
 
-      expect(await getTopScroll(browser)).toBe(0)
-
       await scrollTo(browser, { x: 0, y: 12000 })
-      await waitFor(100)
-
       expect(await getTopScroll(browser)).toBe(12000)
 
       await browser.eval(`window.router.refresh()`)
@@ -200,11 +182,7 @@ describe('router autoscrolling on navigation', () => {
     it.skip('should not stop router.push() from scrolling', async () => {
       const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
 
-      expect(await getTopScroll(browser)).toBe(0)
-
       await scrollTo(browser, { x: 0, y: 12000 })
-      await waitFor(100)
-
       expect(await getTopScroll(browser)).toBe(12000)
 
       await browser.eval(`
@@ -216,6 +194,30 @@ describe('router autoscrolling on navigation', () => {
       await waitFor(100)
 
       expect(await getTopScroll(browser)).toBe(10000)
+
+      browser.quit()
+    })
+
+    it('should not scroll the page when we hot reload', async () => {
+      const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
+
+      await scrollTo(browser, { x: 0, y: 12000 })
+      expect(await getTopScroll(browser)).toBe(12000)
+
+      const pagePath =
+        'app/[layoutPaddingWidth]/[layoutPaddingHeight]/[pageWidth]/[pageHeight]/[param]/page.tsx'
+
+      await browser.eval(`window.router.refresh()`)
+      await next.patchFile(
+        pagePath,
+        fs.readFileSync(path.join(filesPath, pagePath)).toString() +
+          `
+        \\\\ Add this meaningless comment to force refresh
+        `
+      )
+      await waitFor(1000)
+
+      expect(await getTopScroll(browser)).toBe(12000)
 
       browser.quit()
     })
