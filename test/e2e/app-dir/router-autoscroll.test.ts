@@ -30,16 +30,6 @@ describe('router autoscrolling on navigation', () => {
   }
 
   type BrowserInterface = Awaited<ReturnType<typeof webdriver>>
-  const getRect = async (
-    browser: BrowserInterface,
-    id: string
-  ): Promise<DOMRect> => {
-    return JSON.parse(
-      await browser.eval(
-        'JSON.stringify(document.getElementById("page").getBoundingClientRect())'
-      )
-    )
-  }
 
   const getTopScroll = async (browser: BrowserInterface) =>
     await browser.eval('document.documentElement.scrollTop')
@@ -55,11 +45,6 @@ describe('router autoscrolling on navigation', () => {
     // Scrolling is not instant
     await waitFor(100)
   }
-
-  const getBrowserDims = async (browser: BrowserInterface) => ({
-    width: await browser.eval<number>('document.documentElement.clientWidth'),
-    height: await browser.eval<number>('document.documentElement.clientHeight'),
-  })
 
   describe('vertical scroll', () => {
     it('should scroll to top of document when navigating between to pages without layout', async () => {
