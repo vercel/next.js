@@ -237,13 +237,18 @@ export function runNextCommand(argv, options = {}) {
         !options.stderr &&
         !options.stdout &&
         !options.ignoreFail &&
-        code !== 0
+        (code !== 0 || signal)
       ) {
         return reject(
-          new Error(`command failed with code ${code}\n${mergedStdio}`)
+          new Error(
+            `command failed with code ${code} signal ${signal}\n${mergedStdio}`
+          )
         )
       }
 
+      if (code || signal) {
+        console.error(`process exited with code ${code} and signal ${signal}`)
+      }
       resolve({
         code,
         signal,
