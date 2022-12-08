@@ -228,7 +228,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     // TODO-APP: re-enable when error recovery doesn't reload the page.
@@ -325,7 +325,13 @@ describe('ReactRefreshLogBox app', () => {
         export default ClassDefault;
       `
     )
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    await check(async () => {
+      const source = await session.getRedboxSource()
+      return source?.length > 1 ? 'success' : source
+    }, 'success')
+
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
@@ -370,7 +376,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     if (process.platform === 'win32') {
       expect(await session.getRedboxSource()).toMatchSnapshot()
     } else {
@@ -423,7 +429,7 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     // We get an error because Foo didn't import React. Fair.
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     // Let's add that to Foo.
@@ -664,7 +670,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello')
@@ -681,7 +687,7 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await session.patch(
@@ -764,7 +770,6 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
     await session.waitForAndOpenRuntimeError()
 
@@ -810,7 +815,6 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
     await session.waitForAndOpenRuntimeError()
 
@@ -856,7 +860,6 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
     await session.waitForAndOpenRuntimeError()
 
@@ -902,7 +905,6 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasErrorToast()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
     await session.waitForAndOpenRuntimeError()
 
@@ -1053,6 +1055,101 @@ describe('ReactRefreshLogBox app', () => {
     expect(await session.getRedboxDescription()).toContain(
       `Error: A null error was thrown`
     )
+
+    await cleanup()
+  })
+
+  test('Should not show __webpack_exports__ when exporting anonymous arrow function', async () => {
+    const { session, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'index.js',
+      `
+       export default () => {
+        if (typeof window !== 'undefined') {
+          throw new Error('test')
+        }
+
+        return null
+       }
+
+      `
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchSnapshot()
+
+    await cleanup()
+  })
+
+  test('Unhandled errors and rejections opens up in the minimized state', async () => {
+    const { session, browser, cleanup } = await sandbox(next)
+
+    const file = `
+    export default function Index() {
+      //
+      setTimeout(() => {
+        throw new Error('Unhandled error')
+      }, 0)
+      setTimeout(() => {
+        Promise.reject(new Error('Undhandled rejection'))
+      }, 0)
+      return (
+        <>
+          <button
+            id="unhandled-error"
+            onClick={() => {
+              throw new Error('Unhandled error')
+            }}
+          >
+            Unhandled error
+          </button>
+          <button
+            id="unhandled-rejection"
+            onClick={() => {
+              Promise.reject(new Error('Undhandled rejection'))
+            }}
+          >
+            Unhandled rejection
+          </button>
+        </>
+      )
+    }
+    `
+
+    await session.patch('index.js', file)
+
+    // Unhandled error and rejection in setTimeout
+    expect(
+      await browser.waitForElementByCss('.nextjs-toast-errors').text()
+    ).toBe('2 errors')
+
+    // Unhandled error in event handler
+    await browser.elementById('unhandled-error').click()
+    await check(
+      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      /3 errors/
+    )
+
+    // Unhandled rejection in event handler
+    await browser.elementById('unhandled-rejection').click()
+    await check(
+      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      /4 errors/
+    )
+    expect(await session.hasRedbox()).toBe(false)
+
+    // Add Component error
+    await session.patch(
+      'index.js',
+      file.replace(
+        '//',
+        "if (typeof window !== 'undefined') throw new Error('Component error')"
+      )
+    )
+
+    // Render error should "win" and show up in fullscreen
+    expect(await session.hasRedbox(true)).toBe(true)
 
     await cleanup()
   })

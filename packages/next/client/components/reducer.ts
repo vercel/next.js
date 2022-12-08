@@ -54,7 +54,6 @@ export function createHrefFromUrl(
 /**
  * Invalidate cache one level down from the router state.
  */
-// TODO-APP: Verify if this needs to be recursive.
 function invalidateCacheByRouterState(
   newCache: CacheNode,
   existingCache: CacheNode,
@@ -472,12 +471,6 @@ function createOptimisticTree(
     result[3] = 'refetch'
   }
 
-  // TODO-APP: Revisit
-  // Add url into the tree
-  // if (isFirstSegment) {
-  //   result[2] = href
-  // }
-
   return result
 }
 
@@ -495,10 +488,6 @@ function applyRouterStatePatchToTree(
   if (flightSegmentPath.length === 1) {
     const tree: FlightRouterState = [...treePatch]
 
-    // TODO-APP: revisit
-    // if (url) {
-    //   tree[2] = url
-    // }
     return tree
   }
 
@@ -538,11 +527,6 @@ function applyRouterStatePatchToTree(
   if (isRootLayout) {
     tree[4] = true
   }
-
-  // TODO-APP: Revisit
-  // if (url) {
-  //   tree[2] = url
-  // }
 
   return tree
 }
@@ -812,7 +796,6 @@ function clientReducer(
           canonicalUrl: mutable.canonicalUrlOverride
             ? mutable.canonicalUrlOverride
             : href,
-          // TODO-APP: verify mpaNavigation not being set is correct here.
           pushRef: {
             pendingPush,
             mpaNavigation: mutable.mpaNavigation,
@@ -834,7 +817,6 @@ function clientReducer(
           canonicalUrl: mutable.canonicalUrlOverride
             ? mutable.canonicalUrlOverride
             : href,
-          // TODO-APP: verify mpaNavigation not being set is correct here.
           pushRef: {
             pendingPush,
             mpaNavigation: false,
@@ -877,7 +859,6 @@ function clientReducer(
             )
 
           if (hardNavigate) {
-            // TODO-APP: segments.slice(1) strips '', we can get rid of '' altogether.
             // Copy subTreeData for the root node of the cache.
             cache.subTreeData = state.cache.subTreeData
 
@@ -1333,7 +1314,6 @@ function clientReducer(
       const { url, serverResponse } = action
       const [flightData, canonicalUrlOverride] = serverResponse
 
-      // TODO-APP: Implement prefetch for hard navigation
       if (typeof flightData === 'string') {
         return state
       }

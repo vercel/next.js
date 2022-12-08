@@ -233,13 +233,18 @@ export function runNextCommand(argv, options = {}) {
         !options.stderr &&
         !options.stdout &&
         !options.ignoreFail &&
-        code !== 0
+        (code !== 0 || signal)
       ) {
         return reject(
-          new Error(`command failed with code ${code}\n${mergedStdio}`)
+          new Error(
+            `command failed with code ${code} signal ${signal}\n${mergedStdio}`
+          )
         )
       }
 
+      if (code || signal) {
+        console.error(`process exited with code ${code} and signal ${signal}`)
+      }
       resolve({
         code,
         signal,
@@ -641,28 +646,6 @@ export async function hasRedbox(browser, expected = true) {
     await waitFor(1000)
   }
   return false
-}
-
-export async function hasErrorToast(browser, expected = true) {
-  for (let i = 0; i < 30; i++) {
-    const result = await evaluate(browser, () => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
-      )
-    })
-
-    if (result === expected) {
-      return result
-    }
-    await waitFor(1000)
-  }
-  return false
-}
-
-export async function waitForAndOpenRuntimeError(browser) {
-  return browser.waitForElementByCss('[data-nextjs-toast]').click()
 }
 
 export async function getRedboxHeader(browser) {

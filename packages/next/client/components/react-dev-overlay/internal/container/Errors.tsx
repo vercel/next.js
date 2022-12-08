@@ -24,9 +24,14 @@ export type SupportedErrorEvent = {
   id: number
   event: UnhandledErrorAction | UnhandledRejectionAction
 }
-export type ErrorsProps = { errors: SupportedErrorEvent[] }
+export type ErrorsProps = {
+  errors: SupportedErrorEvent[]
+  initialDisplayState: DisplayState
+}
 
 type ReadyErrorEvent = ReadyRuntimeError
+
+type DisplayState = 'minimized' | 'fullscreen' | 'hidden'
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
   const { event } = ev
@@ -73,7 +78,10 @@ const HotlinkedText: React.FC<{
   )
 }
 
-export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
+export const Errors: React.FC<ErrorsProps> = function Errors({
+  errors,
+  initialDisplayState,
+}) {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
   )
@@ -137,9 +145,8 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
     }
   }, [nextError])
 
-  const [displayState, setDisplayState] = React.useState<
-    'minimized' | 'fullscreen' | 'hidden'
-  >('minimized')
+  const [displayState, setDisplayState] =
+    React.useState<DisplayState>(initialDisplayState)
   const [activeIdx, setActiveIndex] = React.useState<number>(0)
   const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
     e?.preventDefault()

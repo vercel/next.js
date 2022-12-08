@@ -35,6 +35,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
@@ -80,6 +81,7 @@ function preloadComponent(Component: any, props: any) {
   return Component
 }
 
+const CACHE_ONE_YEAR = 31536000
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
@@ -176,6 +178,8 @@ export type RenderOptsPartial = {
   assetPrefix?: string
   fontLoaderManifest?: FontLoaderManifest
   isBot?: boolean
+  incrementalCache?: import('./lib/incremental-cache').IncrementalCache
+  isRevalidate?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -213,9 +217,11 @@ function createErrorHandler(
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
-      err.digest === DYNAMIC_ERROR_CODE ||
-      err.digest === NOT_FOUND_ERROR_CODE ||
-      err.digest?.startsWith(REDIRECT_ERROR_CODE)
+      err &&
+      (err.digest === DYNAMIC_ERROR_CODE ||
+        err.digest === NOT_FOUND_ERROR_CODE ||
+        err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
+        err.digest?.startsWith(REDIRECT_ERROR_CODE))
     ) {
       return err.digest
     }
@@ -245,12 +251,115 @@ function patchFetch(ComponentMod: any) {
   const originFetch = globalThis.fetch
   globalThis.fetch = async (input, init) => {
     const staticGenerationStore =
-      'getStore' in staticGenerationAsyncStorage
+      ('getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
-        : staticGenerationAsyncStorage
+        : staticGenerationAsyncStorage) || {}
 
-    const { isStaticGeneration, fetchRevalidate, pathname } =
-      staticGenerationStore || {}
+    const {
+      isStaticGeneration,
+      fetchRevalidate,
+      pathname,
+      incrementalCache,
+      isRevalidate,
+    } = (staticGenerationStore || {}) as StaticGenerationStore
+
+    let revalidate: number | undefined | boolean
+
+    if (typeof init?.next?.revalidate === 'number') {
+      revalidate = init.next.revalidate
+    }
+    if (init?.next?.revalidate === false) {
+      revalidate = CACHE_ONE_YEAR
+    }
+
+    if (
+      !staticGenerationStore.fetchRevalidate ||
+      (typeof revalidate === 'number' &&
+        revalidate < staticGenerationStore.fetchRevalidate)
+    ) {
+      staticGenerationStore.fetchRevalidate = revalidate
+    }
+
+    let cacheKey: string | undefined
+
+    const doOriginalFetch = async () => {
+      return originFetch(input, init).then(async (res) => {
+        if (
+          incrementalCache &&
+          cacheKey &&
+          typeof revalidate === 'number' &&
+          revalidate > 0
+        ) {
+          const clonedRes = res.clone()
+
+          let base64Body = ''
+
+          if (process.env.NEXT_RUNTIME === 'edge') {
+            let string = ''
+            new Uint8Array(await clonedRes.arrayBuffer()).forEach((byte) => {
+              string += String.fromCharCode(byte)
+            })
+            base64Body = btoa(string)
+          } else {
+            base64Body = Buffer.from(await clonedRes.arrayBuffer()).toString(
+              'base64'
+            )
+          }
+
+          await incrementalCache.set(
+            cacheKey,
+            {
+              kind: 'FETCH',
+              isStale: false,
+              age: 0,
+              data: {
+                headers: Object.fromEntries(clonedRes.headers.entries()),
+                body: base64Body,
+              },
+              revalidate,
+            },
+            revalidate,
+            true
+          )
+        }
+        return res
+      })
+    }
+
+    if (incrementalCache && typeof revalidate === 'number' && revalidate > 0) {
+      cacheKey = await incrementalCache?.fetchCacheKey(input.toString(), init)
+      const entry = await incrementalCache.get(cacheKey, true)
+
+      if (entry?.value && entry.value.kind === 'FETCH') {
+        // when stale and is revalidating we wait for fresh data
+        // so the revalidated entry has the updated data
+        if (!isRevalidate || !entry.isStale) {
+          if (entry.isStale) {
+            if (!staticGenerationStore.pendingRevalidates) {
+              staticGenerationStore.pendingRevalidates = []
+            }
+            staticGenerationStore.pendingRevalidates.push(
+              doOriginalFetch().catch(console.error)
+            )
+          }
+
+          const resData = entry.value.data
+          let decodedBody = ''
+
+          // TODO: handle non-text response bodies
+          if (process.env.NEXT_RUNTIME === 'edge') {
+            decodedBody = atob(resData.body)
+          } else {
+            decodedBody = Buffer.from(resData.body, 'base64').toString()
+          }
+
+          return new Response(decodedBody, {
+            headers: resData.headers,
+            status: resData.status,
+          })
+        }
+      }
+    }
 
     if (staticGenerationStore && isStaticGeneration) {
       if (init && typeof init === 'object') {
@@ -292,7 +401,7 @@ function patchFetch(ComponentMod: any) {
         if (hasNextConfig) delete init.next
       }
     }
-    return originFetch(input, init)
+    return doOriginalFetch()
   }
 }
 
@@ -771,9 +880,7 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
-  if (process.env.NODE_ENV === 'production') {
-    patchFetch(ComponentMod)
-  }
+  patchFetch(ComponentMod)
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
@@ -1111,7 +1218,7 @@ export async function renderToHTMLOrFlight(
         // otherwise
         if (layoutOrPageMod.dynamic === 'force-static') {
           staticGenerationStore.forceStatic = true
-        } else {
+        } else if (layoutOrPageMod.dynamic !== 'error') {
           staticGenerationStore.forceStatic = false
         }
       }
@@ -1482,7 +1589,6 @@ export async function renderToHTMLOrFlight(
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
-        // TODO-APP: change walk to output without ''
         (
           await walkTreeWithFlightRouterState({
             createSegmentPath: (child) => child,
@@ -1688,7 +1794,6 @@ export async function renderToHTMLOrFlight(
           res.statusCode = 404
         }
 
-        // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
           element: (
@@ -1726,6 +1831,10 @@ export async function renderToHTMLOrFlight(
     }
     const renderResult = new RenderResult(await bodyResult())
 
+    if (staticGenerationStore.pendingRevalidates) {
+      await Promise.all(staticGenerationStore.pendingRevalidates)
+    }
+
     if (isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
 
@@ -1744,6 +1853,9 @@ export async function renderToHTMLOrFlight(
         await generateFlight()
       )
 
+      if (staticGenerationStore?.forceStatic === false) {
+        staticGenerationStore.fetchRevalidate = 0
+      }
       ;(renderOpts as any).pageData = filteredFlightData
       ;(renderOpts as any).revalidate =
         typeof staticGenerationStore?.fetchRevalidate === 'undefined'
@@ -1760,6 +1872,8 @@ export async function renderToHTMLOrFlight(
     isStaticGeneration,
     inUse: true,
     pathname,
+    incrementalCache: renderOpts.incrementalCache,
+    isRevalidate: renderOpts.isRevalidate,
   }
 
   const tryGetPreviewData =

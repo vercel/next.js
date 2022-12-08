@@ -7,8 +7,17 @@ export interface ResponseCacheBase {
     context: {
       isManualRevalidate?: boolean
       isPrefetch?: boolean
+      incrementalCache: IncrementalCache
     }
   ): Promise<ResponseCacheEntry | null>
+}
+
+export interface CachedFetchValue {
+  kind: 'FETCH'
+  data: any
+  isStale: boolean
+  age: number
+  revalidate: number
 }
 
 export interface CachedRedirectValue {
@@ -53,6 +62,7 @@ export type IncrementalCacheValue =
   | CachedRedirectValue
   | IncrementalCachedPageValue
   | CachedImageValue
+  | CachedFetchValue
 
 export type ResponseCacheValue =
   | CachedRedirectValue

@@ -522,6 +522,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     // Prefetch the URL if we haven't already and it's visible.
     React.useEffect(() => {
+      // in dev, we only prefetch on hover to avoid wasting resources as the prefetch will trigger compiling the page.
+      if (process.env.NODE_ENV !== 'production') {
+        return
+      }
+
       if (!router) {
         return
       }
