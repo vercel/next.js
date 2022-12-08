@@ -106,7 +106,6 @@ type AppRouterProps = {
   initialCanonicalUrl: string
   children: ReactNode
   assetPrefix: string
-  forceStatic?: boolean
 }
 
 function findHeadInCache(
@@ -149,7 +148,6 @@ function Router({
   initialCanonicalUrl,
   children,
   assetPrefix,
-  forceStatic,
 }: AppRouterProps) {
   const initialState = useMemo(() => {
     return {
@@ -197,11 +195,10 @@ function Router({
 
     return {
       // This is turned into a readonly class in `useSearchParams`
-      // on `dynamic = 'force-static`, return empty search params
-      searchParams: forceStatic ? new URLSearchParams() : url.searchParams,
+      searchParams: url.searchParams,
       pathname: url.pathname,
     }
-  }, [canonicalUrl, forceStatic])
+  }, [canonicalUrl])
 
   /**
    * Server response that only patches the cache and tree.

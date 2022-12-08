@@ -36,7 +36,6 @@ import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
-import { BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE } from '../client/components/bailout-to-client-rendering'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
@@ -222,7 +221,6 @@ function createErrorHandler(
       (err.digest === DYNAMIC_ERROR_CODE ||
         err.digest === NOT_FOUND_ERROR_CODE ||
         err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-        err.digest === BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE ||
         err.digest?.startsWith(REDIRECT_ERROR_CODE))
     ) {
       return err.digest
@@ -1705,7 +1703,6 @@ export async function renderToHTMLOrFlight(
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
             initialHead={initialHead}
-            forceStatic={staticGenerationStore.forceStatic}
           >
             <ComponentTree />
           </AppRouter>
