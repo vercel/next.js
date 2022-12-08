@@ -1601,35 +1601,11 @@ export async function renderToHTMLOrFlight(
         ).slice(1),
       ]
 
-      const serverComponentManifestWithHMR = dev
-        ? new Proxy(serverComponentManifest, {
-            get: (target, prop) => {
-              if (
-                typeof prop === 'string' &&
-                !prop.startsWith('_') &&
-                target[prop]
-              ) {
-                // Attach TS (timestamp) query param to IDs to get rid of flight client's module cache on HMR.
-                const namedExports: any = {}
-                const ts = Date.now()
-                for (let key in target[prop]) {
-                  namedExports[key] = {
-                    ...target[prop][key],
-                    id: `${target[prop][key].id}?ts=${ts}`,
-                  }
-                }
-                return namedExports
-              }
-              return target[prop]
-            },
-          })
-        : serverComponentManifest
-
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
-        serverComponentManifestWithHMR,
+        serverComponentManifest,
         {
           context: serverContexts,
           onError: flightDataRendererErrorHandler,
