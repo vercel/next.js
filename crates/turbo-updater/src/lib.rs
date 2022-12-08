@@ -3,11 +3,13 @@ use std::time::Duration;
 use colored::*;
 use serde::Deserialize;
 use thiserror::Error as ThisError;
-use update_informer::{Check, Package, Registry, Result as UpdateResult};
+use update_informer::{Check, Package, Registry, Result as UpdateResult, Version};
 
 mod ui;
 
+// 800ms
 const DEFAULT_TIMEOUT: Duration = Duration::from_millis(800);
+// 1 day
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60 * 60 * 24);
 
 #[derive(ThisError, Debug)]
@@ -25,12 +27,24 @@ struct NPMRegistry;
 
 impl Registry for NPMRegistry {
     const NAME: &'static str = "npm_registry";
-    fn get_latest_version(pkg: &Package, _timeout: Duration) -> UpdateResult<Option<String>> {
+    fn get_latest_version(
+        pkg: &Package,
+        version: &Version,
+        timeout: Duration,
+    ) -> UpdateResult<Option<String>> {
+        // determine tag to request
+        let tag = match &version.get().pre {
+            t if t.contains("canary") => "canary",
+            t if t.contains("next") => "next",
+            _ => "latest",
+        };
+
         let url = format!(
-            "https://turbo.build/api/binaries/version?name={name}",
-            name = pkg
+            "https://turbo.build/api/binaries/version?name={name}&tag={tag}",
+            name = pkg,
+            tag = tag
         );
-        let resp = ureq::get(&url).timeout(_timeout).call()?;
+        let resp = ureq::get(&url).timeout(timeout).call()?;
         let result = resp.into_json::<NpmVersionData>().unwrap();
         Ok(Some(result.version))
     }
