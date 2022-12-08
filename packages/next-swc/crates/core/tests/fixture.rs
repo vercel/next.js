@@ -49,7 +49,6 @@ fn next_dynamic_fixture(input: PathBuf) {
             next_dynamic(
                 true,
                 false,
-                false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -62,7 +61,6 @@ fn next_dynamic_fixture(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_dynamic(
-                false,
                 false,
                 false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
@@ -79,7 +77,6 @@ fn next_dynamic_fixture(input: PathBuf) {
             next_dynamic(
                 false,
                 true,
-                false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )

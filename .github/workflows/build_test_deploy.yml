@@ -282,7 +282,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type development --timings -g ${{ matrix.group }}/4 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type development --timings -g ${{ matrix.group }}/4 >> /proc/1/fd/1"
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
@@ -343,7 +343,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         env:
@@ -404,7 +404,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type production --timings -g ${{ matrix.group }}/3 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type production --timings -g ${{ matrix.group }}/3 >> /proc/1/fd/1"
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
@@ -455,7 +455,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         env:
@@ -533,7 +533,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.22.2-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/25 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/25 >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
         # RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testIntegration / Group ${{ matrix.group }}
@@ -617,42 +617,32 @@ jobs:
 
   testFirefox:
     name: Test Firefox (production)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build, build-native-test]
     timeout-minutes: 10
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          node-version: 16
-          check-latest: true
-
       - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
+
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
-      - run: npx playwright install-deps && npx playwright install firefox
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - run: node run-tests.js test/integration/production/test/index.test.js
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-      # test rsc hydration on firefox due to limited support of TransformStream api
-      - run: npm i -g pnpm@${PNPM_VERSION}
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/production/test/index.test.js >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   testSafari:
     name: Test Safari (production)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build, build-native-test]
     timeout-minutes: 15
     env:
@@ -660,13 +650,6 @@ jobs:
       NEXT_TEST_MODE: 'start'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          node-version: 16
-          check-latest: true
-
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
@@ -684,16 +667,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g pnpm@${PNPM_VERSION}
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: npx playwright install-deps && npx playwright install webkit
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts  >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   testSafariOld:
@@ -745,35 +719,27 @@ jobs:
 
   testFirefoxNode18:
     name: Test Firefox Node.js 18
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [build, testFirefox, build-native-test]
     timeout-minutes: 10
     env:
       BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        with:
-          node-version: 18
-          check-latest: true
       - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
+
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
-      - run: npm i -g pnpm@${PNPM_VERSION}
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - run: npx playwright install-deps && npx playwright install firefox
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-      - run: node run-tests.js test/integration/production/test/index.test.js
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v18 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/production/test/index.test.js >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   publishRelease:
@@ -831,12 +797,6 @@ jobs:
       VERCEL_TEST_TEAM: 'vtest314-next-e2e-tests'
       NEXT_TEST_MODE: deploy
     steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          check-latest: true
-
       - uses: actions/cache@v3
         id: restore-build
         with:
@@ -849,17 +809,10 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: npm i -g pnpm@${PNPM_VERSION}
-        name: Install pnpm
-
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
-        timeout-minutes: 10
-        name: Install playwright dependencies
-
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: node run-tests.js --type e2e
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
         name: Run test/e2e (deploy)
 
       - name: Upload test trace
@@ -916,20 +869,6 @@ jobs:
       - run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
         id: docs-change
 
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          node-version: 16
-          check-latest: true
-
-      - name: Install
-        uses: actions-rs/toolchain@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          profile: minimal
-          toolchain: ${{ env.RUST_TOOLCHAIN }}
-
       - name: Cache cargo registry
         uses: actions/cache@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -976,17 +915,25 @@ jobs:
           restore-keys: |
             next-swc-cargo-cache-dev-ubuntu-latest
 
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@${{ env.NAPI_CLI_VERSION }} turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
-      - name: Build
+      - name: Build in docker
+        uses: addnab/docker-run-action@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        run: turbo run build-native --cache-dir=".turbo" -- --release
-        env:
-          MACOSX_DEPLOYMENT_TARGET: '10.13'
+        with:
+          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
+          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          run: |
+            set -e &&
+            rustup toolchain install "${RUST_TOOLCHAIN}" &&
+            rustup default "${RUST_TOOLCHAIN}" &&
+            rustup target add x86_64-unknown-linux-gnu &&
+            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+            unset CC_x86_64_unknown_linux_gnu && unset CC &&
+            turbo run build-native --cache-dir=".turbo" -- --target x86_64-unknown-linux-gnu &&
+            strip packages/next-swc/native/next-swc.*.node
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -1023,7 +970,7 @@ jobs:
 
   test-wasm:
     name: Test the wasm build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     timeout-minutes: 15
     needs: [build, build-native-test, build-wasm-dev]
 
@@ -1050,29 +997,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      # node version needs to be 16+ to use --no-addons option
-      - name: Setup node
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          check-latest: true
-
-      - run: npm i -g playwright-chromium@1.22.2 && npx playwright install-deps
-        timeout-minutes: 10
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: node ./scripts/setup-wasm.mjs
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: npm i -g pnpm@${PNPM_VERSION}
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      - run: TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
-
-      # test wasm parsing for runtime in page config
-      - run: TEST_WASM=true xvfb-run node run-tests.js test/e2e/streaming-ssr/index.test.ts
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && node ./scripts/setup-wasm.mjs && npm i -g pnpm@${PNPM_VERSION} && TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js test/e2e/streaming-ssr/index.test.ts >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   # Build binaries for publishing
