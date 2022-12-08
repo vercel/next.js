@@ -136,11 +136,10 @@ importers:
       nanoid: 3.1.30
       next: workspace:*
       node-fetch: 2.6.7
-      node-notifier: 8.0.1
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       pixrem: 5.0.0
-      playwright-chromium: 1.22.2
+      playwright-chromium: 1.28.1
       plop: 3.0.5
       postcss-nested: 4.2.1
       postcss-pseudoelements: 5.0.0
@@ -297,7 +296,7 @@ importers:
       image-size: 0.9.3
       is-animated: 2.0.2
       isomorphic-unfetch: 3.0.0
-      jest: 27.0.6_node-notifier@8.0.1
+      jest: 27.0.6
       jest-extended: 1.2.1
       json5: 2.2.1
       ky: 0.19.1
@@ -311,11 +310,10 @@ importers:
       nanoid: 3.1.30
       next: link:packages/next
       node-fetch: 2.6.7
-      node-notifier: 8.0.1
       npm-run-all: 4.1.5
       nprogress: 0.2.0
       pixrem: 5.0.0
-      playwright-chromium: 1.22.2
+      playwright-chromium: 1.28.1
       plop: 3.0.5
       postcss-nested: 4.2.1
       postcss-pseudoelements: 5.0.0
@@ -434,7 +432,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.0.7-canary.2
+      '@next/eslint-plugin-next': 13.0.7-canary.3
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint-import-resolver-node: ^0.3.6
@@ -502,12 +500,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.12.0
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.0.7-canary.2
-      '@next/polyfill-module': 13.0.7-canary.2
-      '@next/polyfill-nomodule': 13.0.7-canary.2
-      '@next/react-dev-overlay': 13.0.7-canary.2
-      '@next/react-refresh-utils': 13.0.7-canary.2
-      '@next/swc': 13.0.7-canary.2
+      '@next/env': 13.0.7-canary.3
+      '@next/polyfill-module': 13.0.7-canary.3
+      '@next/polyfill-nomodule': 13.0.7-canary.3
+      '@next/react-dev-overlay': 13.0.7-canary.3
+      '@next/react-refresh-utils': 13.0.7-canary.3
+      '@next/swc': 13.0.7-canary.3
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
@@ -4812,7 +4810,7 @@ packages:
       slash: 3.0.0
     dev: true
 
-  /@jest/core/27.0.6_node-notifier@8.0.1:
+  /@jest/core/27.0.6:
     resolution: {integrity: sha512-SsYBm3yhqOn5ZLJCtccaBcvD/ccTLCeuDv8U41WJH/V1MW5eKUkeMHT9U+Pw/v1m1AIWlnIW/eM2XzQr0rEmow==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
     peerDependencies:
@@ -4822,7 +4820,7 @@ packages:
         optional: true
     dependencies:
       '@jest/console': 27.0.6
-      '@jest/reporters': 27.0.6_node-notifier@8.0.1
+      '@jest/reporters': 27.0.6
       '@jest/test-result': 27.0.6
       '@jest/transform': 27.0.6
       '@jest/types': 27.5.1
@@ -4846,7 +4844,6 @@ packages:
       jest-validate: 27.0.6
       jest-watcher: 27.0.6
       micromatch: 4.0.4
-      node-notifier: 8.0.1
       p-each-series: 2.2.0
       rimraf: 3.0.2
       slash: 3.0.0
@@ -4912,7 +4909,7 @@ packages:
       expect: 27.5.1
     dev: true
 
-  /@jest/reporters/27.0.6_node-notifier@8.0.1:
+  /@jest/reporters/27.0.6:
     resolution: {integrity: sha512-TIkBt09Cb2gptji3yJXb3EE+eVltW6BjO7frO7NEfjI9vSIYoISi5R3aI3KpEDXlB1xwB+97NXIqz84qYeYsfA==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
     peerDependencies:
@@ -4940,7 +4937,6 @@ packages:
       jest-resolve: 27.5.1
       jest-util: 27.5.1
       jest-worker: 27.5.1
-      node-notifier: 8.0.1
       slash: 3.0.0
       source-map: 0.6.1
       string-length: 4.0.1
@@ -13430,10 +13426,6 @@ packages:
     engines: {node: '>=4.x'}
     dev: true
 
-  /growly/1.3.0:
-    resolution: {integrity: sha1-8QdIy+dq+WS3yWyTxrzCivEgwIE=}
-    dev: true
-
   /gzip-size/3.0.0:
     resolution: {integrity: sha512-6s8trQiK+OMzSaCSVXX+iqIcLV9tC+E73jrJrJTyS4h/AJhlxHvzFKqM1YLDJWRGgHX8uLkBeXkA0njNj39L4w==}
     engines: {node: '>=0.12.0'}
@@ -15006,7 +14998,7 @@ packages:
       - supports-color
     dev: true
 
-  /jest-cli/27.0.6_node-notifier@8.0.1:
+  /jest-cli/27.0.6:
     resolution: {integrity: sha512-qUUVlGb9fdKir3RDE+B10ULI+LQrz+MCflEH2UJyoUjoHHCbxDrMxSzjQAPUMsic4SncI62ofYCcAvW6+6rhhg==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
     hasBin: true
@@ -15016,7 +15008,7 @@ packages:
       node-notifier:
         optional: true
     dependencies:
-      '@jest/core': 27.0.6_node-notifier@8.0.1
+      '@jest/core': 27.0.6
       '@jest/test-result': 27.0.6
       '@jest/types': 27.5.1
       chalk: 4.1.2
@@ -15026,7 +15018,6 @@ packages:
       jest-config: 27.0.6
       jest-util: 27.5.1
       jest-validate: 27.0.6
-      node-notifier: 8.0.1
       prompts: 2.3.0
       yargs: 16.2.0
     transitivePeerDependencies:
@@ -15678,7 +15669,7 @@ packages:
       supports-color: 8.1.1
     dev: true
 
-  /jest/27.0.6_node-notifier@8.0.1:
+  /jest/27.0.6:
     resolution: {integrity: sha512-EjV8aETrsD0wHl7CKMibKwQNQc3gIRBXlTikBmmHUeVMKaPFxdcUIBfoDqTSXDoGJIivAYGqCWVlzCSaVjPQsA==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
     hasBin: true
@@ -15688,10 +15679,9 @@ packages:
       node-notifier:
         optional: true
     dependencies:
-      '@jest/core': 27.0.6_node-notifier@8.0.1
+      '@jest/core': 27.0.6
       import-local: 3.0.2
-      jest-cli: 27.0.6_node-notifier@8.0.1
-      node-notifier: 8.0.1
+      jest-cli: 27.0.6
     transitivePeerDependencies:
       - bufferutil
       - canvas
@@ -17616,17 +17606,6 @@ packages:
     resolution: {integrity: sha512-O5lz91xSOeoXP6DulyHfllpq+Eg00MWitZIbtPfoSEvqIHdl5gfcY6hYzDWnj0qD5tz52PI08u9qUvSVeUBeHw==}
     dev: true
 
-  /node-notifier/8.0.1:
-    resolution: {integrity: sha512-BvEXF+UmsnAfYfoapKM9nGxnP+Wn7P91YfXmrKnfcYCx6VBeoN5Ez5Ogck6I8Bi5k4RlpqRYaw75pAwzX9OphA==}
-    dependencies:
-      growly: 1.3.0
-      is-wsl: 2.2.0
-      semver: 7.3.7
-      shellwords: 0.1.1
-      uuid: 8.3.2
-      which: 2.0.2
-    dev: true
-
   /node-plop/0.30.0:
     resolution: {integrity: sha512-5w9+jWoy9OtMm3qRmHgL2z/3L5VL3RhEegKkKC4tA1IIjG3aXf8Ee/8wdgU9qXyt1yDfPWI9Tan1rHpXAp0ZnA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
@@ -18760,13 +18739,13 @@ packages:
   /platform/1.3.6:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
 
-  /playwright-chromium/1.22.2:
-    resolution: {integrity: sha512-msRcdCIJkdM2R6S+NMJZ02uyZHzJ7TIzkjzs3usDJ1Pwacp9HMhv9T/S4AxtpFXFmvMZq7UJYb0x+tCdHx9+0w==}
+  /playwright-chromium/1.28.1:
+    resolution: {integrity: sha512-+JVgyAOaLUVN8ppAATtURmb5hEl6kaJjK5j3qh05viZvgJi9QoWkb5K02iBy99ww3q86vSnPoMmtKa1Bv+P7LQ==}
     engines: {node: '>=14'}
     hasBin: true
     requiresBuild: true
     dependencies:
-      playwright-core: 1.22.2
+      playwright-core: 1.28.1
     dev: true
 
   /playwright-core/1.19.2:
@@ -18796,8 +18775,8 @@ packages:
       - utf-8-validate
     dev: true
 
-  /playwright-core/1.22.2:
-    resolution: {integrity: sha512-w/hc/Ld0RM4pmsNeE6aL/fPNWw8BWit2tg+TfqJ3+p59c6s3B6C8mXvXrIPmfQEobkcFDc+4KirNzOQ+uBSP1Q==}
+  /playwright-core/1.28.1:
+    resolution: {integrity: sha512-3PixLnGPno0E8rSBJjtwqTwJe3Yw72QwBBBxNoukIj3lEeBNXwbNiKrNuB1oyQgTBw5QHUhNO3SteEtHaMK6ag==}
     engines: {node: '>=14'}
     hasBin: true
     dev: true
@@ -21538,10 +21517,6 @@ packages:
       glob: 7.2.0
       interpret: 1.4.0
       rechoir: 0.6.2
-    dev: true
-
-  /shellwords/0.1.1:
-    resolution: {integrity: sha512-vFwSUfQvqybiICwZY5+DAWIPLKsWO31Q91JSKl3UYv+K5c2QRPzn0qzec6QPu1Qc9eHYItiP3NdJqNVqetYAww==}
     dev: true
 
   /side-channel/1.0.4:
