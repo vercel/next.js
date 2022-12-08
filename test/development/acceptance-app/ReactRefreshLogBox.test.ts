@@ -1085,4 +1085,76 @@ describe('ReactRefreshLogBox app', () => {
 
     await cleanup()
   })
+
+  test('Unhandled errors and rejections opens up in the minimized state', async () => {
+    const { session, browser, cleanup } = await sandbox(next)
+
+    const file = `
+    export default function Index() {
+      //
+      setTimeout(() => {
+        throw new Error('Unhandled error')
+      }, 0)
+      setTimeout(() => {
+        Promise.reject(new Error('Undhandled rejection'))
+      }, 0)
+      return (
+        <>
+          <button
+            id="unhandled-error"
+            onClick={() => {
+              throw new Error('Unhandled error')
+            }}
+          >
+            Unhandled error
+          </button>
+          <button
+            id="unhandled-rejection"
+            onClick={() => {
+              Promise.reject(new Error('Undhandled rejection'))
+            }}
+          >
+            Unhandled rejection
+          </button>
+        </>
+      )
+    }
+    `
+
+    await session.patch('index.js', file)
+
+    // Unhandled error and rejection in setTimeout and
+    expect(
+      await browser.waitForElementByCss('.nextjs-toast-errors').text()
+    ).toBe('2 errors')
+
+    // Unhandled error in event handler
+    await browser.elementById('unhandled-error').click()
+    await check(
+      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      /3 errors/
+    )
+
+    // Unhandled rejection in event handler
+    await browser.elementById('unhandled-rejection').click()
+    await check(
+      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      /4 errors/
+    )
+    expect(await session.hasRedbox()).toBe(false)
+
+    // Add Component error
+    await session.patch(
+      'index.js',
+      file.replace(
+        '//',
+        "if (typeof window !== 'undefined') throw new Error('Component error')"
+      )
+    )
+
+    // Render errors should show up in fullscreen
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    await cleanup()
+  })
 })
