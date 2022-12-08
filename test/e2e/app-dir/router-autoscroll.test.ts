@@ -54,38 +54,52 @@ describe('router autoscrolling on navigation', () => {
     height: await browser.eval<number>('document.documentElement.clientHeight'),
   })
 
-  it('should scroll to top when navigating between to pages without layout', async () => {
-    const browser = await webdriver(next.url, '/0/0/100/10000/page1')
+  describe('vertical scroll', () => {
+    it('should scroll to top when navigating between to pages without layout', async () => {
+      const browser = await webdriver(next.url, '/0/0/100/10000/page1')
 
-    expect(await getTopScroll(browser)).toBe(0)
+      expect(await getTopScroll(browser)).toBe(0)
 
-    await scrollTo(browser, { x: 0, y: 1000 })
-    await waitFor(100)
+      await scrollTo(browser, { x: 0, y: 1000 })
+      await waitFor(100)
 
-    expect(await getTopScroll(browser)).toBe(1000)
+      expect(await getTopScroll(browser)).toBe(1000)
 
-    await browser.eval(`window.navigate("/0/0/100/10000/page2")`)
-    await waitFor(100)
+      await browser.eval(`window.navigate("/0/0/100/10000/page2")`)
+      await waitFor(100)
 
-    expect(await getTopScroll(browser)).toBe(0)
+      expect(await getTopScroll(browser)).toBe(0)
 
-    browser.quit()
-  })
+      browser.quit()
+    })
 
-  it("should scroll to top of page when scrolling wouldn't have the page in the viewport", async () => {
-    const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
-    expect(await getTopScroll(browser)).toBe(0)
+    it("should scroll to top of page when scrolling wouldn't have the page in the viewport", async () => {
+      const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
+      expect(await getTopScroll(browser)).toBe(0)
 
-    await scrollTo(browser, { x: 0, y: 1500 })
-    await waitFor(100)
+      await scrollTo(browser, { x: 0, y: 1500 })
+      await waitFor(100)
 
-    expect(await getTopScroll(browser)).toBe(1500)
+      expect(await getTopScroll(browser)).toBe(1500)
 
-    await browser.eval(`window.navigate("/0/1000/100/1000/page2")`)
-    await waitFor(100)
+      await browser.eval(`window.navigate("/0/1000/100/1000/page2")`)
+      await waitFor(100)
 
-    expect(await getTopScroll(browser)).toBe(1000)
+      expect(await getTopScroll(browser)).toBe(1000)
 
-    browser.quit()
+      browser.quit()
+    })
+
+    it("should scroll down to the navigated page when it's below viewort", async () => {
+      const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
+      expect(await getTopScroll(browser)).toBe(0)
+
+      await browser.eval(`window.navigate("/0/1000/100/1000/page2")`)
+      await waitFor(100)
+
+      expect(await getTopScroll(browser)).toBe(1000)
+
+      browser.quit()
+    })
   })
 })
