@@ -1119,7 +1119,7 @@ describe('ReactRefreshLogBox app', () => {
 
     await session.patch('index.js', file)
 
-    // Unhandled error and rejection in setTimeout and
+    // Unhandled error and rejection in setTimeout
     expect(
       await browser.waitForElementByCss('.nextjs-toast-errors').text()
     ).toBe('2 errors')
@@ -1148,7 +1148,7 @@ describe('ReactRefreshLogBox app', () => {
       )
     )
 
-    // Render errors should show up in fullscreen
+    // Render error should "win" and show up in fullscreen
     expect(await session.hasRedbox(true)).toBe(true)
 
     await cleanup()
