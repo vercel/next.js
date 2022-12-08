@@ -26,6 +26,7 @@ describe('router autoscrolling on navigation', () => {
     it('should skip tests for react 17', () => {})
     return
   }
+
   type BrowserInterface = Awaited<ReturnType<typeof webdriver>>
   const getRect = async (
     browser: BrowserInterface,
@@ -38,60 +39,53 @@ describe('router autoscrolling on navigation', () => {
     )
   }
 
+  const getTopScroll = async (browser: BrowserInterface) =>
+    await browser.eval('document.documentElement.scrollTop')
+
+  const scrollTo = async (
+    browser: BrowserInterface,
+    options: { x: number; y: number }
+  ) => {
+    await browser.eval(`window.scrollTo(${options.x}, ${options.y})`)
+  }
+
   const getBrowserDims = async (browser: BrowserInterface) => ({
-    width: await browser.eval<number>(
-      'window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth'
-    ),
-    height: await browser.eval<number>(
-      'window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight'
-    ),
+    width: await browser.eval<number>('document.documentElement.clientWidth'),
+    height: await browser.eval<number>('document.documentElement.clientHeight'),
   })
 
-  let browser: BrowserInterface
+  it('should scroll to top when navigating between to pages without layout', async () => {
+    const browser = await webdriver(next.url, '/0/0/100/10000/page1')
 
-  beforeEach(async () => {
-    browser = await webdriver(next.url, '/')
-    await browser.eval('window.scrollTo(0, 0)')
-  })
+    expect(await getTopScroll(browser)).toBe(0)
 
-  afterEach(() => {
+    await scrollTo(browser, { x: 0, y: 1000 })
+    await waitFor(100)
+
+    expect(await getTopScroll(browser)).toBe(1000)
+
+    await browser.eval(`window.navigate("/0/0/100/10000/page2")`)
+    await waitFor(100)
+
+    expect(await getTopScroll(browser)).toBe(0)
+
     browser.quit()
   })
 
-  it('should scroll page into view on navigation', async () => {
-    const oldRect = await getRect(browser, 'page')
+  it("should scroll to top of page when scrolling wouldn't have the page in the viewport", async () => {
+    const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
+    expect(await getTopScroll(browser)).toBe(0)
 
-    expect(oldRect.x).toBe(10000)
-    expect(oldRect.y).toBe(10000)
-
-    browser.elementById('link-small-page').click()
-    // Wait for scroll to happen
+    await scrollTo(browser, { x: 0, y: 1500 })
     await waitFor(100)
 
-    const newRect = await getRect(browser, 'page')
+    expect(await getTopScroll(browser)).toBe(1500)
 
-    const { width, height } = await getBrowserDims(browser)
+    await browser.eval(`window.navigate("/0/1000/100/1000/page2")`)
+    await waitFor(100)
 
-    // Scroll x
-    expect(newRect.x).toBeGreaterThanOrEqual(0)
-    expect(newRect.x).toBeLessThanOrEqual(width)
+    expect(await getTopScroll(browser)).toBe(1000)
 
-    // Scroll y
-    expect(newRect.y).toBeGreaterThanOrEqual(0)
-    expect(newRect.y).toBeLessThanOrEqual(height)
-  })
-
-  it('should scroll not scroll when running router.refresh()', async () => {
-    const oldRect = await getRect(browser, 'page')
-    expect(oldRect.x).toBe(10000)
-    expect(oldRect.y).toBe(10000)
-
-    browser.elementById('refresh').click()
-    // Wait for scroll to happen (if it happens)
-    await waitFor(1000)
-
-    const newRect = await getRect(browser, 'page')
-    expect(newRect.x).toBe(10000)
-    expect(newRect.y).toBe(10000)
+    browser.quit()
   })
 })
