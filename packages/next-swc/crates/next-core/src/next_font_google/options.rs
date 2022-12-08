@@ -7,6 +7,8 @@ use super::request::{NextFontRequest, OneOrManyStrings};
 #[allow(dead_code)]
 const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "optional"];
 
+pub type FontData = IndexMap<String, FontDataEntry>;
+
 #[derive(Debug, PartialEq)]
 pub struct NextFontGoogleOptions {
     pub font_family: String,
