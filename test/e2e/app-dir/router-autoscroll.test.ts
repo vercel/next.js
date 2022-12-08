@@ -114,6 +114,20 @@ describe('router autoscrolling on navigation', () => {
 
       browser.quit()
     })
+
+    it('should scroll to top of document if possible while giving focus to page', async () => {
+      const browser = await webdriver(next.url, '/10/100/100/1000/page1')
+
+      await scrollTo(browser, { x: 0, y: 200 })
+      expect(await getTopScroll(browser)).toBe(200)
+
+      await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
+      await waitFor(100)
+
+      expect(await getTopScroll(browser)).toBe(0)
+
+      browser.quit()
+    })
   })
 
   /**
