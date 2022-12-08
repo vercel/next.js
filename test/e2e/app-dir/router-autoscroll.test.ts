@@ -42,6 +42,9 @@ describe('router autoscrolling on navigation', () => {
   const getTopScroll = async (browser: BrowserInterface) =>
     await browser.eval('document.documentElement.scrollTop')
 
+  const getLeftScroll = async (browser: BrowserInterface) =>
+    await browser.eval('document.documentElement.scrollLeft')
+
   const scrollTo = async (
     browser: BrowserInterface,
     options: { x: number; y: number }
@@ -55,7 +58,7 @@ describe('router autoscrolling on navigation', () => {
   })
 
   describe('vertical scroll', () => {
-    it('should scroll to top when navigating between to pages without layout', async () => {
+    it('should scroll to top of document when navigating between to pages without layout', async () => {
       const browser = await webdriver(next.url, '/0/0/100/10000/page1')
 
       expect(await getTopScroll(browser)).toBe(0)
@@ -73,7 +76,7 @@ describe('router autoscrolling on navigation', () => {
       browser.quit()
     })
 
-    it("should scroll to top of page when scrolling wouldn't have the page in the viewport", async () => {
+    it("should scroll to top of page when scrolling to phe top of the document wouldn't have the page in the viewport", async () => {
       const browser = await webdriver(next.url, '/0/1000/100/1000/page1')
       expect(await getTopScroll(browser)).toBe(0)
 
@@ -98,6 +101,55 @@ describe('router autoscrolling on navigation', () => {
       await waitFor(100)
 
       expect(await getTopScroll(browser)).toBe(1000)
+
+      browser.quit()
+    })
+  })
+
+  describe('horizontal scroll', () => {
+    it('should scroll to left of document when navigating between to pages without layout', async () => {
+      const browser = await webdriver(next.url, '/0/0/10000/100/page1')
+
+      expect(await getLeftScroll(browser)).toBe(0)
+
+      await scrollTo(browser, { x: 1000, y: 0 })
+      await waitFor(100)
+
+      expect(await getLeftScroll(browser)).toBe(1000)
+
+      await browser.eval(`window.navigate("/0/0/10000/100/page2")`)
+      await waitFor(100)
+
+      expect(await getLeftScroll(browser)).toBe(0)
+
+      browser.quit()
+    })
+
+    it("should scroll to left of page when scrolling to left size of document wouldn't have the page in the viewport", async () => {
+      const browser = await webdriver(next.url, '/1000/0/1000/100/page1')
+      expect(await getLeftScroll(browser)).toBe(0)
+
+      await scrollTo(browser, { x: 1500, y: 0 })
+      await waitFor(100)
+
+      expect(await getLeftScroll(browser)).toBe(1500)
+
+      await browser.eval(`window.navigate("/1000/0/1000/100/page2")`)
+      await waitFor(100)
+
+      expect(await getLeftScroll(browser)).toBe(1000)
+
+      browser.quit()
+    })
+
+    it("should scroll right to the navigated page when it's to the right of viewort", async () => {
+      const browser = await webdriver(next.url, '/1000/0/1000/100/page1')
+      expect(await getLeftScroll(browser)).toBe(0)
+
+      await browser.eval(`window.navigate("/1000/0/1000/100/page2")`)
+      await waitFor(100)
+
+      expect(await getLeftScroll(browser)).toBe(1000)
 
       browser.quit()
     })
