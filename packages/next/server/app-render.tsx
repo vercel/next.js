@@ -35,6 +35,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 import { BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE } from '../client/components/bailout-to-client-rendering'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
@@ -217,10 +218,12 @@ function createErrorHandler(
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
-      err.digest === DYNAMIC_ERROR_CODE ||
-      err.digest === NOT_FOUND_ERROR_CODE ||
-      err.digest?.startsWith(REDIRECT_ERROR_CODE) ||
-      err.digest === BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE
+      err &&
+      (err.digest === DYNAMIC_ERROR_CODE ||
+        err.digest === NOT_FOUND_ERROR_CODE ||
+        err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
+        err.digest === BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE ||
+        err.digest?.startsWith(REDIRECT_ERROR_CODE))
     ) {
       return err.digest
     }
@@ -1600,11 +1603,35 @@ export async function renderToHTMLOrFlight(
         ).slice(1),
       ]
 
+      const serverComponentManifestWithHMR = dev
+        ? new Proxy(serverComponentManifest, {
+            get: (target, prop) => {
+              if (
+                typeof prop === 'string' &&
+                !prop.startsWith('_') &&
+                target[prop]
+              ) {
+                // Attach TS (timestamp) query param to IDs to get rid of flight client's module cache on HMR.
+                const namedExports: any = {}
+                const ts = Date.now()
+                for (let key in target[prop]) {
+                  namedExports[key] = {
+                    ...target[prop][key],
+                    id: `${target[prop][key].id}?ts=${ts}`,
+                  }
+                }
+                return namedExports
+              }
+              return target[prop]
+            },
+          })
+        : serverComponentManifest
+
       // For app dir, use the bundled version of Fizz renderer (renderToReadableStream)
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
-        serverComponentManifest,
+        serverComponentManifestWithHMR,
         {
           context: serverContexts,
           onError: flightDataRendererErrorHandler,

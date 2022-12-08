@@ -33,6 +33,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE } from '../client/components/bailout-to-client-rendering'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 
 loadRequireHook()
@@ -371,8 +372,9 @@ export default async function exportPage({
           if (
             err.digest !== DYNAMIC_ERROR_CODE &&
             err.digest !== NOT_FOUND_ERROR_CODE &&
-            !err.digest?.startsWith(REDIRECT_ERROR_CODE) &&
-            err.digest !== BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE
+            err.digest !== NEXT_DYNAMIC_NO_SSR_CODE &&
+            err.digest !== BAILOUT_TO_CLIENT_RENDERING_ERROR_CODE &&
+            !err.digest?.startsWith(REDIRECT_ERROR_CODE)
           ) {
             throw err
           }
@@ -422,14 +424,20 @@ export default async function exportPage({
         if (optimizeCss) {
           process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
         }
-        renderResult = await renderMethod(
-          req,
-          res,
-          page,
-          query,
-          // @ts-ignore
-          curRenderOpts
-        )
+        try {
+          renderResult = await renderMethod(
+            req,
+            res,
+            page,
+            query,
+            // @ts-ignore
+            curRenderOpts
+          )
+        } catch (err: any) {
+          if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
+            throw err
+          }
+        }
       }
 
       results.ssgNotFound = (curRenderOpts as any).isNotFound
@@ -472,15 +480,22 @@ export default async function exportPage({
         try {
           await promises.access(ampHtmlFilepath)
         } catch (_) {
+          let ampRenderResult
           // make sure it doesn't exist from manual mapping
-          let ampRenderResult = await renderMethod(
-            req,
-            res,
-            page,
-            // @ts-ignore
-            { ...query, amp: '1' },
-            curRenderOpts as any
-          )
+          try {
+            ampRenderResult = await renderMethod(
+              req,
+              res,
+              page,
+              // @ts-ignore
+              { ...query, amp: '1' },
+              curRenderOpts as any
+            )
+          } catch (err: any) {
+            if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
+              throw err
+            }
+          }
 
           const ampHtml = ampRenderResult
             ? ampRenderResult.toUnchunkedString()
