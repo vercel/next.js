@@ -142,12 +142,9 @@ exports[`ReactRefreshLogBox syntax > runtime error 2`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
-   ,-[5:1]
- 5 |           i++
- 6 |           throw Error('no ' + i)
- 7 |         }, 1000)
- 8 |         export default function FunctionNamed() {
-   :                                                 ^
+   ,----
+ 8 | export default function FunctionNamed() {
+   :                                         ^
    \`----
 
 Caused by:
@@ -160,12 +157,9 @@ exports[`ReactRefreshLogBox syntax > runtime error 3`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
-   ,-[5:1]
- 5 |           i++
- 6 |           throw Error('no ' + i)
- 7 |         }, 1000)
- 8 |         export default function FunctionNamed() {
-   :                                                 ^
+   ,----
+ 8 | export default function FunctionNamed() {
+   :                                         ^
    \`----
 
 Caused by:
@@ -178,21 +172,15 @@ exports[`ReactRefreshLogBox unterminated JSX 1`] = `
 "./index.js
 Error: 
   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-   ,-[5:1]
- 5 |               <p>lol</p>
- 6 |             div
- 7 |           )
- 8 |         }
-   :         ^
- 9 |       
+   ,----
+ 8 | }
+   : ^
    \`----
 
   x Unexpected eof
-   ,-[6:1]
- 6 |             div
- 7 |           )
- 8 |         }
- 9 |       
+   ,----
+ 9 |  
+   : ^
    \`----
 
 Caused by:

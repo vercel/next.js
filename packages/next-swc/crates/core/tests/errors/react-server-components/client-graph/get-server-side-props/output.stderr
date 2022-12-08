@@ -3,5 +3,4 @@
    ,-[input.js:1:1]
  1 | export function getServerSideProps (){
    :                 ^^^^^^^^^^^^^^^^^^
- 2 | }
    `----
