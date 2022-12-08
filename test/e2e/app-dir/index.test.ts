@@ -159,12 +159,14 @@ describe('app dir', () => {
         expect(serverContent).not.toContain(
           'next-dynamic dynamic no ssr on server'
         )
-        expect(serverContent).not.toContain('text client under sever')
+
+        // client component under server component with ssr: false will not be rendered either in flight or SSR
+        expect(html).not.toContain('client component under sever no ssr')
 
         const browser = await webdriver(next.url, '/dashboard/dynamic')
         const clientContent = await browser.elementByCss(selector).text()
         expect(clientContent).toContain('next-dynamic dynamic no ssr on server')
-        expect(clientContent).toContain('text client under sever')
+        expect(clientContent).toContain('client component under sever no ssr')
         await browser.waitForElementByCss('#css-text-dynamic-no-ssr-client')
 
         expect(
