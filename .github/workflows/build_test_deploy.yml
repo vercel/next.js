@@ -1283,7 +1283,8 @@ jobs:
           usesh: true
           mem: 6000
           prepare: |
-            curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash
+            env
+            curl https://install-node.vercel.app/v16 | FORCE=1 bash
             npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}"
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
