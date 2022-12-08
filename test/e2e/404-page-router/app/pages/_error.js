@@ -1,5 +1,4 @@
 import DebugError from '../components/debug-error'
-import Debug from '../components/debug'
 
 function Error({ statusCode }) {
   return <DebugError />
