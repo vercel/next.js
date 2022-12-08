@@ -103,11 +103,18 @@ function findDOMNode(
 }
 
 /**
- * Check if the top of the HTMLElement is in the viewport.
+ * Check if the top-left corner of the HTMLElement is in the viewport.
  */
-function topOfElementInViewport(element: HTMLElement) {
+function topLeftOfElementInViewport(element: HTMLElement) {
   const rect = element.getBoundingClientRect()
-  return rect.top >= 0
+  const viewportHeight = document.documentElement.clientHeight
+  const viewportWidth = document.documentElement.clientWidth
+  return (
+    rect.top >= 0 &&
+    rect.top <= viewportHeight &&
+    rect.left >= 0 &&
+    rect.right <= viewportWidth
+  )
 }
 
 class ScrollAndFocusHandler extends React.Component<{
@@ -125,7 +132,7 @@ class ScrollAndFocusHandler extends React.Component<{
       // Set focus on the element
       domNode.focus()
       // Only scroll into viewport when the layout is not visible currently.
-      if (!topOfElementInViewport(domNode)) {
+      if (!topLeftOfElementInViewport(domNode)) {
         const htmlElement = document.documentElement
         const existing = htmlElement.style.scrollBehavior
         htmlElement.style.scrollBehavior = 'auto'
