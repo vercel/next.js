@@ -104,10 +104,31 @@ describe('router autoscrolling on navigation', () => {
 
       browser.quit()
     })
+
+    it('should not scroll when the top of the page is in the viewport', async () => {
+      const browser = await webdriver(next.url, '/10/1000/100/1000/page1')
+      expect(await getTopScroll(browser)).toBe(0)
+
+      await scrollTo(browser, { x: 0, y: 800 })
+      await waitFor(100)
+
+      expect(await getTopScroll(browser)).toBe(800)
+
+      await browser.eval(`window.navigate("/10/1000/100/1000/page2")`)
+      await waitFor(100)
+
+      expect(await getTopScroll(browser)).toBe(800)
+
+      browser.quit()
+    })
   })
 
+  /**
+   * scrollIntoView() has a bit different behavior when scrolling horizontally.
+   * It will scroll the least ammount to git the item into viewport, it will not try to allign it with start of the container.
+   */
   describe('horizontal scroll', () => {
-    it('should scroll to left of document when navigating between to pages without layout', async () => {
+    it("shouldn't scroll to left of document when navigating between to pages and the page is visible", async () => {
       const browser = await webdriver(next.url, '/0/0/10000/100/page1')
 
       expect(await getLeftScroll(browser)).toBe(0)
@@ -120,36 +141,37 @@ describe('router autoscrolling on navigation', () => {
       await browser.eval(`window.navigate("/0/0/10000/100/page2")`)
       await waitFor(100)
 
-      expect(await getLeftScroll(browser)).toBe(0)
-
-      browser.quit()
-    })
-
-    it("should scroll to left of page when scrolling to left size of document wouldn't have the page in the viewport", async () => {
-      const browser = await webdriver(next.url, '/1000/0/1000/100/page1')
-      expect(await getLeftScroll(browser)).toBe(0)
-
-      await scrollTo(browser, { x: 1500, y: 0 })
-      await waitFor(100)
-
-      expect(await getLeftScroll(browser)).toBe(1500)
-
-      await browser.eval(`window.navigate("/1000/0/1000/100/page2")`)
-      await waitFor(100)
-
       expect(await getLeftScroll(browser)).toBe(1000)
 
       browser.quit()
     })
 
     it("should scroll right to the navigated page when it's to the right of viewort", async () => {
-      const browser = await webdriver(next.url, '/1000/0/1000/100/page1')
+      const browser = await webdriver(next.url, '/10000/0/10000/100/page1')
       expect(await getLeftScroll(browser)).toBe(0)
 
-      await browser.eval(`window.navigate("/1000/0/1000/100/page2")`)
+      await browser.eval(`window.navigate("/10000/0/10000/100/page2")`)
       await waitFor(100)
 
-      expect(await getLeftScroll(browser)).toBe(1000)
+      expect(await getLeftScroll(browser)).toBe(10000)
+
+      browser.quit()
+    })
+
+    it("should scroll to get the navigated page into viewport when it's to the left of viewort", async () => {
+      const browser = await webdriver(next.url, '/10000/0/10000/100/page1')
+      expect(await getLeftScroll(browser)).toBe(0)
+
+      await scrollTo(browser, { x: 21000, y: 0 })
+      await waitFor(100)
+
+      expect(await getLeftScroll(browser)).toBe(21000)
+
+      await browser.eval(`window.navigate("/10000/0/10000/100/page2")`)
+      await waitFor(100)
+
+      // It will align right edge of page because it's closer
+      expect(await getLeftScroll(browser)).toBe(20000 - 1280)
 
       browser.quit()
     })

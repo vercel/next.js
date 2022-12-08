@@ -106,6 +106,7 @@ function findDOMNode(
  * Check if the top-left corner of the HTMLElement is in the viewport.
  */
 function topLeftOfElementInViewport(element: HTMLElement) {
+  return false
   const rect = element.getBoundingClientRect()
   const viewportHeight = document.documentElement.clientHeight
   const viewportWidth = document.documentElement.clientWidth
@@ -113,7 +114,7 @@ function topLeftOfElementInViewport(element: HTMLElement) {
     rect.top >= 0 &&
     rect.top <= viewportHeight &&
     rect.left >= 0 &&
-    rect.right <= viewportWidth
+    rect.left <= viewportWidth
   )
 }
 
