@@ -1,15 +1,15 @@
 use anyhow::{anyhow, Context, Result};
 use indexmap::{indexset, IndexMap, IndexSet};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use turbo_tasks::trace::TraceRawVcs;
 
 use super::request::{NextFontRequest, OneOrManyStrings};
 
-#[allow(dead_code)]
 const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "optional"];
 
 pub type FontData = IndexMap<String, FontDataEntry>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub struct NextFontGoogleOptions {
     pub font_family: String,
     pub weights: FontWeights,
@@ -23,8 +23,7 @@ pub struct NextFontGoogleOptions {
     pub subsets: Option<Vec<String>>,
 }
 
-#[derive(Debug, PartialEq)]
-#[allow(dead_code)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub enum FontWeights {
     Variable,
     Fixed(IndexSet<String>),
@@ -49,7 +48,6 @@ pub struct Axis {
 // Transforms the request fields to a struct suitable for making requests to
 // Google Fonts. Similar to @next/font/google's validateData:
 // https://github.com/vercel/next.js/blob/28454c6ddbc310419467e5415aee26e48d079b46/packages/font/src/google/utils.ts#L22
-#[allow(dead_code)]
 pub fn options_from_request(
     request: &NextFontRequest,
     data: &IndexMap<String, FontDataEntry>,

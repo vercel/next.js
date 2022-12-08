@@ -331,6 +331,11 @@ async fn source(
     .into();
     let static_source =
         StaticAssetsContentSourceVc::new(String::new(), project_path.join("public")).into();
+    let next_static_source = StaticAssetsContentSourceVc::new(
+        "_next/static/".to_owned(),
+        project_path.join(".next/static"),
+    )
+    .into();
     let manifest_source = DevManifestContentSource {
         page_roots: vec![app_source, rendered_source],
     }
@@ -338,6 +343,7 @@ async fn source(
     .into();
     let main_source = CombinedContentSourceVc::new(vec![
         manifest_source,
+        next_static_source,
         static_source,
         app_source,
         rendered_source,
