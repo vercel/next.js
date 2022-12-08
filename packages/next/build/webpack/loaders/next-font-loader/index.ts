@@ -4,7 +4,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import chalk from 'next/dist/compiled/chalk'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
-import postcssFontLoaderPlugn from './postcss-font-loader'
+import postcssNextFontPlugin from './postcss-next-font'
 import { promisify } from 'util'
 import { CONFIG_FILES } from '../../../../shared/lib/constants'
 
@@ -110,7 +110,7 @@ export default async function nextFontLoader(this: any) {
       )
       // Add CSS classes, exports and make the font-family localy scoped by turning it unguessable
       const result = await postcss(
-        postcssFontLoaderPlugn({
+        postcssNextFontPlugin({
           exports,
           fontFamilyHash,
           fallbackFonts,

@@ -3,7 +3,7 @@ import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
 
-export function getFontLoader(
+export function getNextFontLoader(
   ctx: ConfigurationContext,
   postcss: any,
   fontLoaderOptions: any
