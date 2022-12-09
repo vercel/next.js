@@ -1,7 +1,7 @@
 import type { AdjustFontFallback } from '../../../../font'
 import postcss, { Declaration } from 'postcss'
 
-const postcssFontLoaderPlugn = ({
+const postcssNextFontPlugin = ({
   exports,
   fontFamilyHash,
   fallbackFonts = [],
@@ -19,7 +19,7 @@ const postcssFontLoaderPlugn = ({
   style?: string
 }) => {
   return {
-    postcssPlugin: 'postcss-font-loader',
+    postcssPlugin: 'postcss-next-font',
     Once(root: any) {
       let fontFamily: string | undefined
 
@@ -32,7 +32,7 @@ const postcssFontLoaderPlugn = ({
         return `'__${family.replace(/ /g, '_')}_${fontFamilyHash}'`
       }
 
-      // Hash font-family name
+      // Hash font-family names
       for (const node of root.nodes) {
         if (node.type === 'atrule' && node.name === 'font-face') {
           const familyNode = node.nodes.find(
@@ -118,6 +118,7 @@ const postcssFontLoaderPlugn = ({
         ...(adjustFontFallbackFamily ? [adjustFontFallbackFamily] : []),
         ...fallbackFonts,
       ].join(', ')
+
       // Add class with family, weight and style
       const classRule = new postcss.Rule({ selector: '.className' })
       classRule.nodes = [
@@ -171,6 +172,6 @@ const postcssFontLoaderPlugn = ({
   }
 }
 
-postcssFontLoaderPlugn.postcss = true
+postcssNextFontPlugin.postcss = true
 
-export default postcssFontLoaderPlugn
+export default postcssNextFontPlugin
