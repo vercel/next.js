@@ -49,7 +49,7 @@ describe('ReactRefreshLogBox app', () => {
     )
     await session.evaluate(() => document.querySelector('a').click())
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
@@ -481,7 +481,7 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
     if (process.platform === 'win32') {
       expect(await session.getRedboxSource()).toMatchSnapshot()
     } else {
@@ -568,7 +568,7 @@ describe('ReactRefreshLogBox app', () => {
       `export default function FunctionDefault() { throw new Error('no'); }`
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
     expect(await session.getRedboxSource()).toMatchSnapshot()
     expect(
       await session.evaluate(() => document.querySelector('h2').textContent)
@@ -770,9 +770,8 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const header = await session.getRedboxDescription()
     expect(header).toMatchSnapshot()
@@ -816,9 +815,8 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const header2 = await session.getRedboxDescription()
     expect(header2).toMatchSnapshot()
@@ -862,9 +860,8 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const header3 = await session.getRedboxDescription()
     expect(header3).toMatchSnapshot()
@@ -908,9 +905,8 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toMatchInlineSnapshot(
@@ -1082,6 +1078,78 @@ describe('ReactRefreshLogBox app', () => {
 
     expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
+
+    await cleanup()
+  })
+
+  test('Unhandled errors and rejections opens up in the minimized state', async () => {
+    const { session, browser, cleanup } = await sandbox(next)
+
+    const file = `
+    export default function Index() {
+      //
+      setTimeout(() => {
+        throw new Error('Unhandled error')
+      }, 0)
+      setTimeout(() => {
+        Promise.reject(new Error('Undhandled rejection'))
+      }, 0)
+      return (
+        <>
+          <button
+            id="unhandled-error"
+            onClick={() => {
+              throw new Error('Unhandled error')
+            }}
+          >
+            Unhandled error
+          </button>
+          <button
+            id="unhandled-rejection"
+            onClick={() => {
+              Promise.reject(new Error('Undhandled rejection'))
+            }}
+          >
+            Unhandled rejection
+          </button>
+        </>
+      )
+    }
+    `
+
+    await session.patch('index.js', file)
+
+    // Unhandled error and rejection in setTimeout
+    expect(
+      await browser.waitForElementByCss('.nextjs-toast-errors').text()
+    ).toBe('2 errors')
+
+    // Unhandled error in event handler
+    await browser.elementById('unhandled-error').click()
+    await check(
+      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      /3 errors/
+    )
+
+    // Unhandled rejection in event handler
+    await browser.elementById('unhandled-rejection').click()
+    await check(
+      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      /4 errors/
+    )
+    expect(await session.hasRedbox()).toBe(false)
+
+    // Add Component error
+    await session.patch(
+      'index.js',
+      file.replace(
+        '//',
+        "if (typeof window !== 'undefined') throw new Error('Component error')"
+      )
+    )
+
+    // Render error should "win" and show up in fullscreen
+    expect(await session.hasRedbox(true)).toBe(true)
 
     await cleanup()
   })
