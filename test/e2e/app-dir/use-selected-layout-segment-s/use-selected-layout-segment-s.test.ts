@@ -34,6 +34,10 @@ describe('useSelectedLayoutSegment(s)', () => {
     ).toMatchInlineSnapshot(
       `"[\\"segment-name\\",\\"value1\\",\\"segment-name2\\",\\"value2\\",\\"value3/value4\\"]"`
     )
+
+    expect(
+      await browser.elementByCss('#root > .segment').text()
+    ).toMatchInlineSnapshot(`"\\"segment-name\\""`)
   })
 
   it('should return correct values in layout before static segment', async () => {
@@ -42,18 +46,30 @@ describe('useSelectedLayoutSegment(s)', () => {
     ).toMatchInlineSnapshot(
       `"[\\"segment-name2\\",\\"value2\\",\\"value3/value4\\"]"`
     )
+
+    expect(
+      await browser.elementByCss('#before-static > .segment').text()
+    ).toMatchInlineSnapshot(`"\\"segment-name2\\""`)
   })
 
   it('should return correct values in layout before param segment', async () => {
     expect(
       await browser.elementByCss('#before-param > .segments').text()
     ).toMatchInlineSnapshot(`"[\\"value2\\",\\"value3/value4\\"]"`)
+
+    expect(
+      await browser.elementByCss('#before-param > .segment').text()
+    ).toMatchInlineSnapshot(`"\\"value2\\""`)
   })
 
   it('should return correct values in layout after last segment', async () => {
     expect(
       await browser.elementByCss('#final > .segments').text()
     ).toMatchInlineSnapshot(`"[]"`)
+
+    expect(
+      await browser.elementByCss('#final > .segment').text()
+    ).toMatchInlineSnapshot(`"null"`)
   })
 
   it('should correctly update when changing static segment', async () => {
@@ -69,5 +85,9 @@ describe('useSelectedLayoutSegment(s)', () => {
     expect(
       await browser.elementByCss('#before-static > .segments').text()
     ).toMatchInlineSnapshot(`"[\\"different-segment\\"]"`)
+
+    expect(
+      await browser.elementByCss('#before-static > .segment').text()
+    ).toMatchInlineSnapshot(`"\\"different-segment\\""`)
   })
 })
