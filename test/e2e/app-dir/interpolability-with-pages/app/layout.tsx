@@ -1,0 +1,10 @@
+import React from 'react'
+
+export default function Layout({ children }) {
+  return (
+    <html>
+      <head />
+      <body>{children}</body>
+    </html>
+  )
+}
