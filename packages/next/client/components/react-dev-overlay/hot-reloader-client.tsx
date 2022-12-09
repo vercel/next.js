@@ -428,6 +428,9 @@ export default function HotReload({
       frames: parseStack(reason.stack!),
     })
   }, [])
+  const handleOnReactError = useCallback(() => {
+    RuntimeErrorHandler.hadRuntimeError = true
+  }, [])
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
 
   const webSocketRef = useWebsocket(assetPrefix)
@@ -461,12 +464,7 @@ export default function HotReload({
   }, [sendMessage, router, webSocketRef, dispatcher])
 
   return (
-    <ReactDevOverlay
-      onReactError={() => {
-        RuntimeErrorHandler.hadRuntimeError = true
-      }}
-      state={state}
-    >
+    <ReactDevOverlay onReactError={handleOnReactError} state={state}>
       {children}
     </ReactDevOverlay>
   )
