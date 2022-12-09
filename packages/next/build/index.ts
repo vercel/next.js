@@ -10,9 +10,10 @@ import devalue from 'next/dist/compiled/devalue'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
+import { buildCustomRoute } from '../lib/build-custom-routes'
+import type { BuildCustomRouteReturn } from '../lib/build-custom-routes'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
@@ -25,11 +26,8 @@ import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
   CustomRoutes,
   normalizeRouteRegex,
-  Redirect,
   Rewrite,
-  RouteType,
 } from '../lib/load-custom-routes'
-import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyAndLint } from '../lib/verifyAndLint'
@@ -147,6 +145,55 @@ export type PrerenderManifest = {
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   notFoundRoutes: string[]
   preview: __ApiPreviewProps
+}
+
+export type RoutesManifest = {
+  version: number
+  pages404: boolean
+  basePath: string
+  redirects: Array<BuildCustomRouteReturn>
+  rewrites?:
+    | Array<BuildCustomRouteReturn>
+    | {
+        beforeFiles: Array<BuildCustomRouteReturn>
+        afterFiles: Array<BuildCustomRouteReturn>
+        fallback: Array<BuildCustomRouteReturn>
+      }
+  headers: Array<BuildCustomRouteReturn>
+  staticRoutes: Array<{
+    page: string
+    regex: string
+    namedRegex?: string
+    routeKeys?: { [key: string]: string }
+  }>
+  dynamicRoutes: Array<{
+    page: string
+    regex: string
+    namedRegex?: string
+    routeKeys?: { [key: string]: string }
+  }>
+  dataRoutes: Array<{
+    page: string
+    routeKeys?: { [key: string]: string }
+    dataRouteRegex: string
+    namedDataRouteRegex?: string
+  }>
+  i18n?: {
+    domains?: Array<{
+      http?: true
+      domain: string
+      locales?: string[]
+      defaultLocale: string
+    }>
+    locales: string[]
+    defaultLocale: string
+    localeDetection?: false
+  }
+  rsc: {
+    header: typeof RSC
+    varyHeader: typeof RSC_VARY_HEADER
+  }
+  skipMiddlewareUrlNormalize?: boolean
 }
 
 type CompilerResult = {
@@ -676,145 +723,62 @@ export default async function build(
         )
       }
 
-      const restrictedRedirectPaths = ['/_next'].map((p) =>
-        config.basePath ? `${config.basePath}${p}` : p
-      )
-
-      const buildCustomRoute = (
-        r: {
-          source: string
-          locale?: false
-          basePath?: false
-          statusCode?: number
-          destination?: string
-        },
-        type: RouteType
-      ) => {
-        const keys: any[] = []
-
-        const routeRegex = pathToRegexp(r.source, keys, {
-          strict: true,
-          sensitive: false,
-          delimiter: '/', // default is `/#?`, but Next does not pass query info
-        })
-        let regexSource = routeRegex.source
-
-        if (!(r as any).internal) {
-          regexSource = modifyRouteRegex(
-            routeRegex.source,
-            type === 'redirect' ? restrictedRedirectPaths : undefined
-          )
-        }
-
-        return {
-          ...r,
-          ...(type === 'redirect'
-            ? {
-                statusCode: getRedirectStatus(r as Redirect),
-                permanent: undefined,
-              }
-            : {}),
-          regex: normalizeRouteRegex(regexSource),
-        }
-      }
-
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-      const routesManifest: {
-        version: number
-        pages404: boolean
-        basePath: string
-        redirects: Array<ReturnType<typeof buildCustomRoute>>
-        rewrites?:
-          | Array<ReturnType<typeof buildCustomRoute>>
-          | {
-              beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
-              afterFiles: Array<ReturnType<typeof buildCustomRoute>>
-              fallback: Array<ReturnType<typeof buildCustomRoute>>
+      const routesManifest: RoutesManifest = nextBuildSpan
+        .traceChild('generate-routes-manifest')
+        .traceFn(() => {
+          const sortedRoutes = getSortedRoutes([
+            ...pageKeys.pages,
+            ...(pageKeys.app ?? []),
+          ])
+          const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
+          const staticRoutes: typeof dynamicRoutes = []
+
+          for (const route of sortedRoutes) {
+            if (isDynamicRoute(route)) {
+              dynamicRoutes.push(pageToRoute(route))
+            } else if (!isReservedPage(route)) {
+              staticRoutes.push(pageToRoute(route))
             }
-        headers: Array<ReturnType<typeof buildCustomRoute>>
-        staticRoutes: Array<{
-          page: string
-          regex: string
-          namedRegex?: string
-          routeKeys?: { [key: string]: string }
-        }>
-        dynamicRoutes: Array<{
-          page: string
-          regex: string
-          namedRegex?: string
-          routeKeys?: { [key: string]: string }
-        }>
-        dataRoutes: Array<{
-          page: string
-          routeKeys?: { [key: string]: string }
-          dataRouteRegex: string
-          namedDataRouteRegex?: string
-        }>
-        i18n?: {
-          domains?: Array<{
-            http?: true
-            domain: string
-            locales?: string[]
-            defaultLocale: string
-          }>
-          locales: string[]
-          defaultLocale: string
-          localeDetection?: false
-        }
-        rsc: {
-          header: typeof RSC
-          varyHeader: typeof RSC_VARY_HEADER
-        }
-        skipMiddlewareUrlNormalize?: boolean
-      } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
-        const sortedRoutes = getSortedRoutes([
-          ...pageKeys.pages,
-          ...(pageKeys.app ?? []),
-        ])
-        const dynamicRoutes: Array<ReturnType<typeof pageToRoute>> = []
-        const staticRoutes: typeof dynamicRoutes = []
-
-        for (const route of sortedRoutes) {
-          if (isDynamicRoute(route)) {
-            dynamicRoutes.push(pageToRoute(route))
-          } else if (!isReservedPage(route)) {
-            staticRoutes.push(pageToRoute(route))
           }
-        }
 
-        return {
-          version: 3,
-          pages404: true,
-          basePath: config.basePath,
-          redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-          headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
-          dynamicRoutes,
-          staticRoutes,
-          dataRoutes: [],
-          i18n: config.i18n || undefined,
-          rsc: {
-            header: RSC,
-            varyHeader: RSC_VARY_HEADER,
-          },
-          skipMiddlewareUrlNormalize:
-            config.experimental.skipMiddlewareUrlNormalize,
-        }
-      })
+          return {
+            version: 3,
+            pages404: true,
+            basePath: config.basePath,
+            redirects: redirects.map((r: any) =>
+              buildCustomRoute(r, 'redirect', config.basePath)
+            ),
+            headers: headers.map((r: any) =>
+              buildCustomRoute(r, 'header', config.basePath)
+            ),
+            dynamicRoutes,
+            staticRoutes,
+            dataRoutes: [],
+            i18n: config.i18n || undefined,
+            rsc: {
+              header: RSC,
+              varyHeader: RSC_VARY_HEADER,
+            },
+            skipMiddlewareUrlNormalize:
+              config.experimental.skipMiddlewareUrlNormalize,
+          }
+        })
 
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
         routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
-          buildCustomRoute(r, 'rewrite')
+          buildCustomRoute(r, 'rewrite', config.basePath)
         )
       } else {
         routesManifest.rewrites = {
           beforeFiles: rewrites.beforeFiles.map((r: any) =>
-            buildCustomRoute(r, 'rewrite')
+            buildCustomRoute(r, 'rewrite', config.basePath)
           ),
           afterFiles: rewrites.afterFiles.map((r: any) =>
-            buildCustomRoute(r, 'rewrite')
+            buildCustomRoute(r, 'rewrite', config.basePath)
           ),
           fallback: rewrites.fallback.map((r: any) =>
-            buildCustomRoute(r, 'rewrite')
+            buildCustomRoute(r, 'rewrite', config.basePath)
           ),
         }
       }
