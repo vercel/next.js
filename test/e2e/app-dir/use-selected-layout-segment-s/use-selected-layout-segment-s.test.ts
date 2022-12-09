@@ -90,4 +90,23 @@ describe('useSelectedLayoutSegment(s)', () => {
       await browser.elementByCss('#before-static > .segment').text()
     ).toMatchInlineSnapshot(`"\\"different-segment\\""`)
   })
+
+  it('should correctly update when changing param segment', async () => {
+    browser.elementById('change-param').click()
+    await waitFor(100)
+
+    expect(
+      await browser.elementByCss('#root > .segments').text()
+    ).toMatchInlineSnapshot(
+      `"[\\"segment-name\\",\\"param1\\",\\"segment-name2\\",\\"different-value\\",\\"value3/value4'\\"]"`
+    )
+
+    expect(
+      await browser.elementByCss('#before-param > .segments').text()
+    ).toMatchInlineSnapshot(`"[\\"different-value\\",\\"value3/value4'\\"]"`)
+
+    expect(
+      await browser.elementByCss('#before-param > .segment').text()
+    ).toMatchInlineSnapshot(`"\\"different-value\\""`)
+  })
 })

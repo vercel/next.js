@@ -10,6 +10,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <Link id="change-static" href="/segment-name/param1/different-segment">
           Change static
         </Link>
+        <Link
+          id="change-param"
+          href="/segment-name/param1/segment-name2/different-value/value3/value4'"
+        >
+          Change param
+        </Link>
         {children}
       </body>
     </html>
