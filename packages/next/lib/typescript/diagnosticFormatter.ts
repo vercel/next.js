@@ -103,14 +103,24 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   }
                   break
                 case 2741:
-                  const incompatProp = item.messageText.match(
+                  const incompatPageProp = item.messageText.match(
                     /Property '(.+)' is missing in type 'PageProps'/
                   )
-                  if (incompatProp) {
+                  if (incompatPageProp) {
                     main += '\n' + ' '.repeat(indent * 2)
                     main += `Prop "${chalk.bold(
-                      incompatProp[1]
+                      incompatPageProp[1]
                     )}" will never be passed. Remove it from the component's props.`
+                  } else {
+                    const extraLayoutProp = item.messageText.match(
+                      /Property '(.+)' is missing in type 'LayoutProps' but required in type '(.+)'/
+                    )
+                    if (extraLayoutProp) {
+                      main += '\n' + ' '.repeat(indent * 2)
+                      main += `Prop "${chalk.bold(
+                        extraLayoutProp[1]
+                      )}" is not valid for this Layout, remove it to fix.`
+                    }
                   }
                   break
                 default:
