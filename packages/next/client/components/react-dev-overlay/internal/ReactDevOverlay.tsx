@@ -21,6 +21,7 @@ class ReactDevOverlay extends React.PureComponent<
   {
     state: OverlayState
     children: React.ReactNode
+    onReactError: (error: Error) => void
   },
   ReactDevOverlayState
 > {
@@ -38,6 +39,10 @@ class ReactDevOverlay extends React.PureComponent<
       event,
     }
     return { reactError: errorEvent }
+  }
+
+  componentDidCatch(componentErr: Error) {
+    this.props.onReactError(componentErr)
   }
 
   render() {

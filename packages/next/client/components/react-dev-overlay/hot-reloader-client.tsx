@@ -460,5 +460,14 @@ export default function HotReload({
     return () => websocket && websocket.removeEventListener('message', handler)
   }, [sendMessage, router, webSocketRef, dispatcher])
 
-  return <ReactDevOverlay state={state}>{children}</ReactDevOverlay>
+  return (
+    <ReactDevOverlay
+      onReactError={() => {
+        RuntimeErrorHandler.hadRuntimeError = true
+      }}
+      state={state}
+    >
+      {children}
+    </ReactDevOverlay>
+  )
 }

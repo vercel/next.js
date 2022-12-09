@@ -41,8 +41,6 @@ if (typeof window !== 'undefined') {
       return
     }
 
-    RuntimeErrorHandler.hadRuntimeError = true
-
     const error = ev?.error
     if (
       !error ||
@@ -66,8 +64,6 @@ if (typeof window !== 'undefined') {
   window.addEventListener(
     'unhandledrejection',
     (ev: WindowEventMap['unhandledrejection']): void => {
-      RuntimeErrorHandler.hadRuntimeError = true
-
       const reason = ev?.reason
       if (
         !reason ||
