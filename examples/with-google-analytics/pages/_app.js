@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
-import Script from 'next/script'
-import { useRouter } from 'next/router'
-import * as gtag from '../lib/gtag'
+import { useRouter } from 'next/router';
+import Script from 'next/script';
+import { useEffect } from 'react';
+import * as gtag from '../lib/gtag';
 
 const App = ({ Component, pageProps }) => {
   const router = useRouter()
@@ -25,7 +25,6 @@ const App = ({ Component, pageProps }) => {
         src={`https://www.googletagmanager.com/gtag/js?id=${gtag.GA_TRACKING_ID}`}
       />
       <Script
-        id="gtag-init"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
