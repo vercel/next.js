@@ -21,8 +21,8 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = __nccwpck_require__(522);
-var ReactDOM = __nccwpck_require__(255);
+var React = __nccwpck_require__(533);
+var ReactDOM = __nccwpck_require__(174);
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -2397,7 +2397,7 @@ exports.renderToReadableStream = renderToReadableStream;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var ea=__nccwpck_require__(522);var e="function"===typeof AsyncLocalStorage,fa=e?new AsyncLocalStorage:null,m=null,n=0;function p(a,b){if(0!==b.length)if(512<b.length)0<n&&(a.enqueue(new Uint8Array(m.buffer,0,n)),m=new Uint8Array(512),n=0),a.enqueue(b);else{var d=m.length-n;d<b.length&&(0===d?a.enqueue(m):(m.set(b.subarray(0,d),n),a.enqueue(m),b=b.subarray(d)),m=new Uint8Array(512),n=0);m.set(b,n);n+=b.length}return!0}var q=new TextEncoder;
+var ea=__nccwpck_require__(533);var e="function"===typeof AsyncLocalStorage,fa=e?new AsyncLocalStorage:null,m=null,n=0;function p(a,b){if(0!==b.length)if(512<b.length)0<n&&(a.enqueue(new Uint8Array(m.buffer,0,n)),m=new Uint8Array(512),n=0),a.enqueue(b);else{var d=m.length-n;d<b.length&&(0===d?a.enqueue(m):(m.set(b.subarray(0,d),n),a.enqueue(m),b=b.subarray(d)),m=new Uint8Array(512),n=0);m.set(b,n);n+=b.length}return!0}var q=new TextEncoder;
 function r(a){return q.encode(a)}function ha(a,b){"function"===typeof a.error?a.error(b):a.close()}var t=JSON.stringify,u=Symbol.for("react.module.reference"),v=Symbol.for("react.element"),ia=Symbol.for("react.fragment"),ja=Symbol.for("react.provider"),ka=Symbol.for("react.server_context"),la=Symbol.for("react.forward_ref"),ma=Symbol.for("react.suspense"),na=Symbol.for("react.suspense_list"),oa=Symbol.for("react.memo"),w=Symbol.for("react.lazy"),pa=Symbol.for("react.default_value"),qa=Symbol.for("react.memo_cache_sentinel");
 function x(a,b,d,c,f,g,h){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=c;this.attributeNamespace=f;this.mustUseProperty=d;this.propertyName=a;this.type=b;this.sanitizeURL=g;this.removeEmptyString=h}"children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ").forEach(function(a){new x(a,0,!1,a,null,!1,!1)});
 [["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){new x(a[0],1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){new x(a,2,!1,a.toLowerCase(),null,!1,!1)});["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){new x(a,2,!1,a,null,!1,!1)});
@@ -2464,17 +2464,17 @@ if (process.env.NODE_ENV === 'production') {
 
 /***/ }),
 
-/***/ 522:
+/***/ 533:
 /***/ ((module) => {
 
-module.exports = require("react");
+module.exports = require("next/dist/compiled/react");
 
 /***/ }),
 
-/***/ 255:
+/***/ 174:
 /***/ ((module) => {
 
-module.exports = require("react-dom");
+module.exports = require("next/dist/compiled/react-dom");
 
 /***/ })
 

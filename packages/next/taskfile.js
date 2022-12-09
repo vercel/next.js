@@ -1492,6 +1492,22 @@ export async function ncc_icss_utils(task, opts) {
     .target('compiled/icss-utils')
 }
 
+// We replace the module/chunk loading code with our own implementation in Next.js.
+function transformPrecompiledReactDependency(source) {
+  return source.replace(/require\(["']([a-z-]+)["']\)/g, (match, pkg) => {
+    if (pkg === 'react') {
+      return 'require("next/dist/compiled/react")'
+    }
+    if (pkg === 'react-dom') {
+      return 'require("next/dist/compiled/react-dom")'
+    }
+    if (pkg === 'scheduler') {
+      return 'require("next/dist/compiled/scheduler")'
+    }
+    return match
+  })
+}
+
 externals['scheduler'] = 'next/dist/compiled/scheduler'
 export async function ncc_react(task, opts) {
   await task
@@ -1509,10 +1525,22 @@ export async function ncc_react(task, opts) {
   // TODO-APP: remove unused fields from package.json and unused files
   await task.source(join(reactDir, '*.{json,js}')).target(`compiled/react`)
   await task.source(join(reactDir, 'LICENSE')).target(`compiled/react`)
-  await task.source(join(reactDir, 'cjs/**/*.js')).target(`compiled/react/cjs`)
+  await task
+    .source(join(reactDir, 'cjs/**/*.js'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      file.data = transformPrecompiledReactDependency(source)
+    })
+    .target(`compiled/react/cjs`)
 
   await task
     .source(join(reactDomDir, '*.{json,js}'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      file.data = transformPrecompiledReactDependency(source)
+    })
     .target(`compiled/react-dom`)
   await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react-dom`)
   await task
@@ -1520,11 +1548,7 @@ export async function ncc_react(task, opts) {
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
-      // We replace the module/chunk loading code with our own implementaion in Next.js.
-      file.data = source.replace(
-        /require\(["']scheduler["']\)/g,
-        'require("next/dist/compiled/scheduler")'
-      )
+      file.data = transformPrecompiledReactDependency(source)
     })
     .target(`compiled/react-dom/cjs`)
 
@@ -1559,8 +1583,8 @@ export async function ncc_react(task, opts) {
 export async function ncc_react_server_dom_webpack(task, opts) {
   // Use installed versions instead of bundled version
   const peerDeps = {
-    react: 'react',
-    'react-dom': 'react-dom',
+    react: 'next/dist/compiled/react',
+    'react-dom': 'next/dist/compiled/react-dom',
   }
   await fs.mkdir(join(__dirname, 'compiled/react-server-dom-webpack'), {
     recursive: true,
