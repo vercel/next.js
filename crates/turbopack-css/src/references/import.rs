@@ -3,7 +3,10 @@ use swc_core::{
     common::DUMMY_SP,
     css::{
         ast::*,
-        codegen::{writer::basic::BasicCssWriter, CodeGenerator, Emit},
+        codegen::{
+            writer::basic::{BasicCssWriter, BasicCssWriterConfig},
+            CodeGenerator, Emit,
+        },
     },
 };
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
@@ -157,7 +160,14 @@ impl ImportAttributes {
 
         let mut output = String::new();
         let mut code_gen = CodeGenerator::new(
-            BasicCssWriter::new(&mut output, None, Default::default()),
+            BasicCssWriter::new(
+                &mut output,
+                None,
+                BasicCssWriterConfig {
+                    indent_width: 0,
+                    ..Default::default()
+                },
+            ),
             Default::default(),
         );
         code_gen.emit(&rule)?;

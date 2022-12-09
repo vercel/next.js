@@ -1,7 +1,7 @@
 /* chunk [workspace]/crates/turbopack-tests/tests/snapshot/css/css/output/crates_turbopack-tests_tests_snapshot_css_css_input_style.css */
 /* import([project]/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css (css)) */
 @layer layer {
-  @media print {
+@media print {
 /* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css (css) */
 .imported {
   color: cyan;
