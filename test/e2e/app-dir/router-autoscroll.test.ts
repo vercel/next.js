@@ -206,28 +206,32 @@ describe('router autoscrolling on navigation', () => {
       browser.quit()
     })
 
-    it('should not scroll the page when we hot reload', async () => {
-      const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
+    // Test hot reloading only in development
+    ;((global as any).isDev ? it : it.skip)(
+      'should not scroll the page when we hot reload',
+      async () => {
+        const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
 
-      await scrollTo(browser, { x: 0, y: 12000 })
-      expect(await getTopScroll(browser)).toBe(12000)
+        await scrollTo(browser, { x: 0, y: 12000 })
+        expect(await getTopScroll(browser)).toBe(12000)
 
-      const pagePath =
-        'app/[layoutPaddingWidth]/[layoutPaddingHeight]/[pageWidth]/[pageHeight]/[param]/page.tsx'
+        const pagePath =
+          'app/[layoutPaddingWidth]/[layoutPaddingHeight]/[pageWidth]/[pageHeight]/[param]/page.tsx'
 
-      await browser.eval(`window.router.refresh()`)
-      await next.patchFile(
-        pagePath,
-        fs.readFileSync(path.join(filesPath, pagePath)).toString() +
-          `
+        await browser.eval(`window.router.refresh()`)
+        await next.patchFile(
+          pagePath,
+          fs.readFileSync(path.join(filesPath, pagePath)).toString() +
+            `
         \\\\ Add this meaningless comment to force refresh
         `
-      )
-      await waitFor(1000)
+        )
+        await waitFor(1000)
 
-      expect(await getTopScroll(browser)).toBe(12000)
+        expect(await getTopScroll(browser)).toBe(12000)
 
-      browser.quit()
-    })
+        browser.quit()
+      }
+    )
   })
 })
