@@ -1,6 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
+import { waitFor } from 'next-test-utils'
 
 describe('useSelectedLayoutSegment(s)', () => {
   let next: NextInstance
@@ -53,5 +54,20 @@ describe('useSelectedLayoutSegment(s)', () => {
     expect(
       await browser.elementByCss('#final > .segments').text()
     ).toMatchInlineSnapshot(`"[]"`)
+  })
+
+  it('should correctly update when changing static segment', async () => {
+    browser.elementById('change-static').click()
+    await waitFor(100)
+
+    expect(
+      await browser.elementByCss('#root > .segments').text()
+    ).toMatchInlineSnapshot(
+      `"[\\"segment-name\\",\\"param1\\",\\"different-segment\\"]"`
+    )
+
+    expect(
+      await browser.elementByCss('#before-static > .segments').text()
+    ).toMatchInlineSnapshot(`"[\\"different-segment\\"]"`)
   })
 })
