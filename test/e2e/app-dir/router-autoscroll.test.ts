@@ -186,7 +186,7 @@ describe('router autoscrolling on navigation', () => {
       browser.quit()
     })
 
-    // TODO fix next js to past this
+    // TODO fix next js to pass this
     it.skip('should not stop router.push() from scrolling', async () => {
       const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
 
