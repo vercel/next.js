@@ -1153,4 +1153,52 @@ describe('ReactRefreshLogBox app', () => {
 
     await cleanup()
   })
+
+  test('Server component errors should open up in fullscreen', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        // Start with error
+        [
+          'app/page.js',
+          `
+        export default function Page() {
+          throw new Error('Server component error')
+          return <p id="text">Hello world</p>
+        }
+        `,
+        ],
+      ])
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Remove error
+    await next.patchFile(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p id="text">Hello world</p>
+      }
+      `
+    )
+    expect(await browser.waitForElementByCss('#text').text()).toBe(
+      'Hello world'
+    )
+    expect(await session.hasRedbox()).toBe(false)
+
+    // Re-add error
+    await next.patchFile(
+      'app/page.js',
+      `
+      export default function Page() {
+        throw new Error('Server component error!')
+        return <p id="text">Hello world</p>
+      }
+      `
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    await cleanup()
+  })
 })
