@@ -115,8 +115,22 @@ describe('app dir head', () => {
     })
 
     it('should treat next/head as client components but not apply', async () => {
+      const errors = []
+      next.on('stderr', (args) => {
+        errors.push(args)
+      })
       const html = await renderViaHTTP(next.url, '/next-head')
       expect(html).not.toMatch(/<title>legacy-head<\/title>/)
+
+      if (globalThis.isNextDev) {
+        expect(
+          errors.some(
+            (output) =>
+              output ===
+              `You're using \`next/head\` inside app directory, please migrate to \`head.js\`. Checkout https://beta.nextjs.org/docs/api-reference/file-conventions/head for details.\n`
+          )
+        ).toBe(true)
+      }
     })
   }
 
