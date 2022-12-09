@@ -23,7 +23,7 @@ styled_jsx = "0.29.8"
 modularize_imports = "0.25.8"
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 
-next-binding = { git = "https://github.com/vercel/turbo.git", rev = "bcf3461d2e7d63f55f722287ab7d5f99d39f52e6", features = [
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "11aba102d4b0709003d42f04e15a2cbfed98df2a", features = [
   "__swc_core",
   "__swc_core_next_core",
   "__swc_transform_styled_jsx",
@@ -33,7 +33,7 @@ next-binding = { git = "https://github.com/vercel/turbo.git", rev = "bcf3461d2e7
 ] }
 
 [dev-dependencies]
-next-binding = { git = "https://github.com/vercel/turbo.git", rev = "bcf3461d2e7d63f55f722287ab7d5f99d39f52e6", features = [
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "11aba102d4b0709003d42f04e15a2cbfed98df2a", features = [
   "__swc_core_testing_transform",
   "__swc_testing",
 ] }

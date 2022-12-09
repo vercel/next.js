@@ -36,10 +36,10 @@ tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
-next-binding = { git = "https://github.com/vercel/turbo.git", rev = "bcf3461d2e7d63f55f722287ab7d5f99d39f52e6", features = [
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "11aba102d4b0709003d42f04e15a2cbfed98df2a", features = [
   "__swc_core_binding_napi",
-  "__feature_next_dev_server",
-  "__feature_node_file_trace",
+  "__turbo_next_dev_server",
+  "__turbo_node_file_trace",
   "__feature_mdx_rs",
 ] }
 
