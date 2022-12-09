@@ -1,5 +1,8 @@
 /* chunk [workspace]/crates/turbopack-tests/tests/snapshot/css/css/output/8697f_foo_style.module.css */
-/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css */
+/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css (css) */
 .foo-module-style◽\[project\]\/crates\/turbopack-tests\/tests\/snapshot\/css\/css\/input\/node_modules\/foo\/style\.module\.css {
   color: blue;
 }
+
+
+/*# sourceMappingURL=8697f_foo_style.module.css.map*/

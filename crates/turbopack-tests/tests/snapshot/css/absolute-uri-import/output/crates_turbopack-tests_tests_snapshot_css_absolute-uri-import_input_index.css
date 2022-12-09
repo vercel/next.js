@@ -4,19 +4,22 @@
 @import "https://example.com/stylesheet2.css";
 /* import([project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/other.css (css)) */
 
-/* [project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/other.css */
+/* [project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/other.css (css) */
 .foo {
   background-color: red;
 }
 
 /* import([project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css (css)) */
 
-/* [project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css */
+/* [project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css (css) */
 .bar {
   background-color: green;
 }
 
-/* [project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/index.css */
+/* [project]/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/index.css (css) */
 body {
   background-color: blue;
 }
+
+
+/*# sourceMappingURL=crates_turbopack-tests_tests_snapshot_css_absolute-uri-import_input_index.css.map*/

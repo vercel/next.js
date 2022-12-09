@@ -1,5 +1,8 @@
 /* chunk [workspace]/crates/turbopack-tests/tests/snapshot/css/css/output/8697f_foo_style.css */
-/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.css */
+/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.css (css) */
 .foo-style {
   color: green;
 }
+
+
+/*# sourceMappingURL=8697f_foo_style.css.map*/

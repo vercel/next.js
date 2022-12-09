@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 2, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css"],"sourcesContent":[".module-style {\n  color: magenta;\n  > h1,\n  + .inner {\n    background: purple;\n  }\n}\n"],"names":[],"mappings":"AAAA,CAAC,uGAAY,CAAC,CAAC;EACb,KAAK,EAAE,OAAO;AAKhB,CAAC;AAND,CAAC,uGAAY,CAEX,CAAC,CAAC,EAAE;AAFN,CAAC,uGAAY,CAGX,CAAC,CAAC,CAAC,gGAAK,CAAC,CAAC;EACR,UAAU,EAAE,MAAM;AACpB,CAAC"}},
+    {"offset": {"line": 8, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

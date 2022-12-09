@@ -3,7 +3,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use indexmap::IndexMap;
 use swc_core::{
-    common::{errors::Handler, FileName, SourceMap},
+    common::{
+        errors::Handler, source_map::SourceMapGenConfig, BytePos, FileName, LineCol, SourceMap,
+    },
     css::{
         ast::Stylesheet,
         modules::{CssClassName, TransformConfig},
@@ -13,7 +15,10 @@ use swc_core::{
 };
 use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
-use turbopack_core::asset::{AssetContent, AssetVc};
+use turbopack_core::{
+    asset::{AssetContent, AssetVc},
+    source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
+};
 use turbopack_swc_utils::emitter::IssueEmitter;
 
 use crate::{
@@ -43,6 +48,64 @@ impl PartialEq for ParseResult {
             (Self::Ok { .. }, Self::Ok { .. }) => false,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
+    }
+}
+
+#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+pub struct ParseResultSourceMap {
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    source_map: Arc<SourceMap>,
+
+    /// The position mappings that can generate a real source map given a (SWC)
+    /// SourceMap.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    mappings: Vec<(BytePos, LineCol)>,
+}
+
+impl PartialEq for ParseResultSourceMap {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.source_map, &other.source_map) && self.mappings == other.mappings
+    }
+}
+
+impl ParseResultSourceMap {
+    pub fn new(source_map: Arc<SourceMap>, mappings: Vec<(BytePos, LineCol)>) -> Self {
+        ParseResultSourceMap {
+            source_map,
+            mappings,
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl GenerateSourceMap for ParseResultSourceMap {
+    #[turbo_tasks::function]
+    fn generate_source_map(&self) -> SourceMapVc {
+        let map = self.source_map.build_source_map_with_config(
+            &self.mappings,
+            None,
+            InlineSourcesContentConfig {},
+        );
+        SourceMapVc::new_regular(map)
+    }
+}
+
+/// A config to generate a source map which includes the source content of every
+/// source file. SWC doesn't inline sources content by default when generating a
+/// sourcemap, so we need to provide a custom config to do it.
+struct InlineSourcesContentConfig {}
+
+impl SourceMapGenConfig for InlineSourcesContentConfig {
+    fn file_name_to_source(&self, f: &FileName) -> String {
+        match f {
+            // The Custom filename surrounds the name with <>.
+            FileName::Custom(s) => format!("/{}", s),
+            _ => f.to_string(),
+        }
+    }
+
+    fn inline_sources_content(&self, _f: &FileName) -> bool {
+        true
     }
 }
 
@@ -98,7 +161,7 @@ async fn parse_content(
         },
     );
 
-    let fm = source_map.new_source_file(FileName::Custom(fs_path_str.to_string()), string);
+    let fm = source_map.new_source_file(FileName::Custom(fs_path.path.clone()), string);
 
     let config = ParserConfig {
         css_modules: matches!(ty, CssModuleAssetType::Module),

@@ -2,13 +2,16 @@
 /* import([project]/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css (css)) */
 @layer layer {
   @media print {
-    /* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css */
-    .imported {
-      color: cyan;
-    }
+/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css (css) */
+.imported {
+  color: cyan;
 }
 }
-/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.css */
+}
+/* [project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.css (css) */
 .style {
   color: yellow;
 }
+
+
+/*# sourceMappingURL=crates_turbopack-tests_tests_snapshot_css_css_input_style.css.map*/

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/other.css"],"sourcesContent":[".foo {\n  background-color: red;\n}\n"],"names":[],"mappings":"AAAA,CAAC,GAAG,CAAC,CAAC;EACJ,gBAAgB,EAAE,GAAG;AACvB,CAAC"}},
+    {"offset": {"line": 9, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/withduplicateurl.css"],"sourcesContent":["/* This should not be duplicated */\n@import \"https://example.com/stylesheet1.css\";\n\n.bar {\n  background-color:green;\n}\n"],"names":[],"mappings":"AAGA,CAAC,GAAG,CAAC,CAAC;EACJ,gBAAgB,EAAC,KAAK;AACxB,CAAC"}},
+    {"offset": {"line": 16, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 19, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/index.css"],"sourcesContent":["@import \"https://example.com/stylesheet1.css\";\n@import \"https://example.com/withquote\\\".css\";\n@import \"./other.css\";\n@import \"./withduplicateurl.css\";\n@import url(\"https://example.com/stylesheet2.css\");\n\nbody {\n  background-color: blue;\n}\n"],"names":[],"mappings":"AAMA,IAAI,CAAC,CAAC;EACJ,gBAAgB,EAAE,IAAI;AACxB,CAAC"}},
+    {"offset": {"line": 21, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
