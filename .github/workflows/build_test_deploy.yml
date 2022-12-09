@@ -59,8 +59,8 @@ jobs:
 
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
-        id: swc-change
+      # - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      #   id: swc-change
 
       - run: echo "::set-output name=SWC_CHANGE::$(echo 'yup')"
         id: swc-change
