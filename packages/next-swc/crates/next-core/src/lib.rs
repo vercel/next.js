@@ -13,6 +13,7 @@ mod next_font_google;
 pub mod next_image;
 mod next_import_map;
 pub mod next_server;
+mod page_loader;
 pub mod react_refresh;
 mod runtime;
 mod server_rendered_source;
