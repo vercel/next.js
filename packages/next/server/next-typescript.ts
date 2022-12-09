@@ -441,21 +441,18 @@ export function createTSPlugin(modules: {
                   const nameNode = element.propertyName || element.name
 
                   if (isPositionInsideNode(position, nameNode)) {
-                    prior.entries = [
-                      ...prior.entries,
-                      ...validProps.map((name, index) => {
-                        return {
-                          name,
-                          insertText: name,
-                          sortText: index + '_' + name,
-                          kind: ts.ScriptElementKind.memberVariableElement,
-                          kindModifiers: ts.ScriptElementKindModifier.none,
-                          labelDetails: {
-                            description: `Next.js ${type} prop`,
-                          },
-                        } as ts.CompletionEntry
-                      }),
-                    ] as ts.CompletionEntry[]
+                    for (const name of validProps) {
+                      prior.entries.push({
+                        name,
+                        insertText: name,
+                        sortText: '_' + name,
+                        kind: ts.ScriptElementKind.memberVariableElement,
+                        kindModifiers: ts.ScriptElementKindModifier.none,
+                        labelDetails: {
+                          description: `Next.js ${type} prop`,
+                        },
+                      } as ts.CompletionEntry)
+                    }
                   }
 
                   break
@@ -466,21 +463,18 @@ export function createTSPlugin(modules: {
               if (paramNode.type && ts.isTypeLiteralNode(paramNode.type)) {
                 for (const member of paramNode.type.members) {
                   if (isPositionInsideNode(position, member)) {
-                    prior.entries = [
-                      ...prior.entries,
-                      ...validPropsWithType.map((name, index) => {
-                        return {
-                          name,
-                          insertText: name,
-                          sortText: index + '_' + name,
-                          kind: ts.ScriptElementKind.memberVariableElement,
-                          kindModifiers: ts.ScriptElementKindModifier.none,
-                          labelDetails: {
-                            description: `Next.js ${type} prop type`,
-                          },
-                        } as ts.CompletionEntry
-                      }),
-                    ] as ts.CompletionEntry[]
+                    for (const name of validPropsWithType) {
+                      prior.entries.push({
+                        name,
+                        insertText: name,
+                        sortText: '_' + name,
+                        kind: ts.ScriptElementKind.memberVariableElement,
+                        kindModifiers: ts.ScriptElementKindModifier.none,
+                        labelDetails: {
+                          description: `Next.js ${type} prop type`,
+                        },
+                      } as ts.CompletionEntry)
+                    }
 
                     break
                   }
