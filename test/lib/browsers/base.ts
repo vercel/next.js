@@ -58,9 +58,15 @@ export class BrowserInterface {
   waitForCondition(snippet: string, timeout?: number): BrowserInterface {
     return this
   }
+  /**
+   * Use browsers `go back` functionality.
+   */
   back(): BrowserInterface {
     return this
   }
+  /**
+   * Use browsers `go forward` functionality. Inverse of back.
+   */
   forward(): BrowserInterface {
     return this
   }
