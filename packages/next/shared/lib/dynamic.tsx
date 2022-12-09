@@ -64,10 +64,10 @@ export function noSSR<P = {}>(
     <Loading error={null} isLoading pastDelay={false} timedOut={false} />
   )
 
-  return () => (
+  return (props: any) => (
     <Suspense fallback={fallback}>
       <NoSSR>
-        <NoSSRComponent />
+        <NoSSRComponent {...props} />
       </NoSSR>
     </Suspense>
   )
