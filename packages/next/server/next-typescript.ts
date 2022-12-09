@@ -203,6 +203,10 @@ export function createTSPlugin(modules: {
       '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
     )
 
+    const isPositionInsideNode = (position: number, node: ts.Node) => {
+      const start = node.getFullStart()
+      return start <= position && position <= node.getFullWidth() + start
+    }
     const isAppEntryFile = (filePath: string) => {
       return (
         appDir.test(filePath) &&
@@ -386,6 +390,105 @@ export function createTSPlugin(modules: {
             return createAutoCompletionOptionValue(index, name, entryConfig)
           }),
         ] as ts.CompletionEntry[]
+      })
+
+      const program = info.languageService.getProgram()
+      const source = program?.getSourceFile(fileName)
+      if (!source || !program) return prior
+
+      ts.forEachChild(source!, (node) => {
+        // Auto completion for default export function's props.
+        if (
+          isDefaultFunctionExport(node) &&
+          isPositionInsideNode(position, node)
+        ) {
+          const paramNode = (node as ts.FunctionDeclaration).parameters?.[0]
+          if (isPositionInsideNode(position, paramNode)) {
+            const props = paramNode?.name
+            if (props && ts.isObjectBindingPattern(props)) {
+              let validProps = []
+              let validPropsWithType = []
+              let type: string
+
+              if (isPageFile(fileName)) {
+                // For page entries (page.js), it can only have `params` and `searchParams`
+                // as the prop names.
+                validProps = ALLOWED_PAGE_PROPS
+                validPropsWithType = ALLOWED_PAGE_PROPS
+                type = 'page'
+              } else {
+                // For layout entires, check if it has any named slots.
+                const currentDir = path.dirname(fileName)
+                const items = fs.readdirSync(currentDir, {
+                  withFileTypes: true,
+                })
+                const slots = []
+                for (const item of items) {
+                  if (item.isDirectory() && item.name.startsWith('@')) {
+                    slots.push(item.name.slice(1))
+                  }
+                }
+                validProps = ALLOWED_LAYOUT_PROPS.concat(slots)
+                validPropsWithType = ALLOWED_LAYOUT_PROPS.concat(
+                  slots.map((s) => `${s}: React.ReactNode`)
+                )
+                type = 'layout'
+              }
+
+              // Auto completion for props
+              for (const element of props.elements) {
+                if (isPositionInsideNode(position, element)) {
+                  const nameNode = element.propertyName || element.name
+
+                  if (isPositionInsideNode(position, nameNode)) {
+                    prior.entries = [
+                      ...prior.entries,
+                      ...validProps.map((name, index) => {
+                        return {
+                          name,
+                          insertText: name,
+                          sortText: index + '_' + name,
+                          kind: ts.ScriptElementKind.memberVariableElement,
+                          kindModifiers: ts.ScriptElementKindModifier.none,
+                          labelDetails: {
+                            description: `Next.js ${type} prop`,
+                          },
+                        } as ts.CompletionEntry
+                      }),
+                    ] as ts.CompletionEntry[]
+                  }
+
+                  break
+                }
+              }
+
+              // Auto completion for types
+              if (paramNode.type && ts.isTypeLiteralNode(paramNode.type)) {
+                for (const member of paramNode.type.members) {
+                  if (isPositionInsideNode(position, member)) {
+                    prior.entries = [
+                      ...prior.entries,
+                      ...validPropsWithType.map((name, index) => {
+                        return {
+                          name,
+                          insertText: name,
+                          sortText: index + '_' + name,
+                          kind: ts.ScriptElementKind.memberVariableElement,
+                          kindModifiers: ts.ScriptElementKindModifier.none,
+                          labelDetails: {
+                            description: `Next.js ${type} prop type`,
+                          },
+                        } as ts.CompletionEntry
+                      }),
+                    ] as ts.CompletionEntry[]
+
+                    break
+                  }
+                }
+              }
+            }
+          }
+        }
       })
 
       return prior
@@ -732,7 +835,7 @@ export function createTSPlugin(modules: {
           const props = (node as ts.FunctionDeclaration).parameters?.[0]?.name
           if (props && ts.isObjectBindingPattern(props)) {
             for (const prop of (props as ts.ObjectBindingPattern).elements) {
-              const propName = prop.name.getText()
+              const propName = (prop.propertyName || prop.name).getText()
               if (!validProps.includes(propName)) {
                 prior.push({
                   file: source,
