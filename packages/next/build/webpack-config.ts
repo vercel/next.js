@@ -98,6 +98,14 @@ const BABEL_CONFIG_FILES = [
   'babel.config.cjs',
 ]
 
+function appDirIssuerLayer(layer: string) {
+  return (
+    layer === WEBPACK_LAYERS.client ||
+    layer === WEBPACK_LAYERS.server ||
+    layer === WEBPACK_LAYERS.appClient
+  )
+}
+
 export const getBabelConfigFile = async (dir: string) => {
   const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
     async (memo: Promise<string | undefined>, filename) => {
@@ -1709,6 +1717,19 @@ export default async function getBaseWebpackConfig(
           : []),
         ...(hasServerComponents
           ? [
+              // Alias next/head component to noop for RSC
+              {
+                test: codeCondition.test,
+                issuerLayer: appDirIssuerLayer,
+                resolve: {
+                  alias: {
+                    // Alias `next/dynamic` to React.lazy implementation for RSC
+                    [require.resolve('next/head')]: require.resolve(
+                      'next/dist/client/components/noop-head'
+                    ),
+                  },
+                },
+              },
               {
                 // Alias react-dom for ReactDOM.preload usage.
                 // Alias react for switching between default set and share subset.
