@@ -1,7 +1,11 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
 import Mux from '@mux/mux-node'
 const { Video } = new Mux()
 
-export default async function uploadHandler(req, res) {
+export default async function uploadHandler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { method } = req
 
   switch (method) {
