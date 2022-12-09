@@ -1,7 +1,6 @@
 import type {
   ClientMessage,
   EcmascriptChunkUpdate,
-  Issue,
   ResourceIdentifier,
   ServerMessage,
 } from "@vercel/turbopack-runtime/types/protocol";
@@ -68,6 +67,7 @@ function sendJSON(message: ClientMessage) {
 }
 
 type ResourceKey = string;
+
 function resourceKey(resource: ResourceIdentifier): ResourceKey {
   return JSON.stringify({
     path: resource.path,
@@ -301,30 +301,40 @@ function triggerUpdate(msg: ServerMessage) {
 function subscribeToInitialCssChunksUpdates(assetPrefix: string) {
   const initialCssChunkLinks: NodeListOf<HTMLLinkElement> =
     document.head.querySelectorAll(`link[rel="stylesheet"]`);
-  const cssChunkPrefix = `${assetPrefix}/`;
-  initialCssChunkLinks.forEach((link) => {
-    const href = link.href;
-    if (href == null) {
-      return;
-    }
-    const { pathname, origin } = new URL(href);
-    if (origin !== location.origin || !pathname.startsWith(cssChunkPrefix)) {
-      return;
-    }
 
-    const chunkPath = pathname.slice(cssChunkPrefix.length);
-    onChunkUpdate(chunkPath, (update) => {
-      switch (update.type) {
-        case "restart": {
-          console.info(`Reloading CSS chunk \`${chunkPath}\``);
-          link.replaceWith(link);
-          break;
-        }
-        case "partial":
-          throw new Error(`partial CSS chunk updates are not supported`);
-        default:
-          throw new Error(`unknown update type \`${update}\``);
+  initialCssChunkLinks.forEach((link) => {
+    subscribeToCssChunkUpdates(assetPrefix, link);
+  });
+}
+
+export function subscribeToCssChunkUpdates(
+  assetPrefix: string,
+  link: HTMLLinkElement
+) {
+  const cssChunkPrefix = `${assetPrefix}/`;
+
+  const href = link.href;
+  if (href == null) {
+    return;
+  }
+
+  const { pathname, origin } = new URL(href);
+  if (origin !== location.origin || !pathname.startsWith(cssChunkPrefix)) {
+    return;
+  }
+
+  const chunkPath = pathname.slice(cssChunkPrefix.length);
+  onChunkUpdate(chunkPath, (update) => {
+    switch (update.type) {
+      case "restart": {
+        console.info(`Reloading CSS chunk \`${chunkPath}\``);
+        link.replaceWith(link);
+        break;
       }
-    });
+      case "partial":
+        throw new Error(`partial CSS chunk updates are not supported`);
+      default:
+        throw new Error(`unknown update type \`${update}\``);
+    }
   });
 }

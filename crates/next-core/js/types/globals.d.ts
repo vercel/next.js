@@ -15,6 +15,11 @@ declare global {
     version: string;
     appDir: boolean;
   };
+
+  function __turbopack_load_page_chunks__(
+    page: string,
+    paths: string[]
+  ): unknown;
 }
 
 export {};

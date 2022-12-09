@@ -51,6 +51,7 @@ use crate::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
+    page_loader::create_page_loader,
     util::{pathname_for_path, regular_expression_for_path},
 };
 
@@ -86,6 +87,13 @@ pub async fn create_server_rendered_source(
     let client_module_options_context =
         add_next_transforms_to_pages(client_module_options_context, pages_dir);
     let client_resolve_options_context = get_client_resolve_options_context(project_path, ty);
+    let client_context: AssetContextVc = ModuleAssetContextVc::new(
+        TransitionsByNameVc::cell(HashMap::new()),
+        client_environment,
+        client_module_options_context,
+        client_resolve_options_context,
+    )
+    .into();
 
     let client_runtime_entries = get_client_runtime_entries(project_path, env, ty);
 
@@ -119,6 +127,7 @@ pub async fn create_server_rendered_source(
     let server_rendered_source = create_server_rendered_source_for_directory(
         project_path,
         context,
+        client_context,
         pages_dir,
         SpecificityVc::exact(),
         0,
@@ -145,6 +154,7 @@ pub async fn create_server_rendered_source(
 async fn create_server_rendered_source_for_file(
     context_path: FileSystemPathVc,
     context: AssetContextVc,
+    client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
     specificity: SpecificityVc,
     page_file: FileSystemPathVc,
@@ -165,6 +175,12 @@ async fn create_server_rendered_source_for_file(
         get_client_assets_path(server_root, Value::new(ContextType::Pages { pages_dir })),
     )
     .build();
+
+    let client_chunking_context = get_client_chunking_context(
+        context_path,
+        server_root,
+        Value::new(ContextType::Pages { pages_dir }),
+    );
 
     let pathname = pathname_for_path(server_root, server_path, true);
     let path_regex = regular_expression_for_path(server_root, server_path, true);
@@ -187,23 +203,33 @@ async fn create_server_rendered_source_for_file(
             runtime_entries,
         )
     } else {
-        create_node_rendered_source(
-            specificity,
-            server_root,
-            pathname,
-            path_regex,
-            SsrEntry {
-                context,
+        CombinedContentSourceVc::new(vec![
+            create_node_rendered_source(
+                specificity,
+                server_root,
+                pathname,
+                path_regex,
+                SsrEntry {
+                    context,
+                    entry_asset,
+                    is_api_path,
+                    chunking_context,
+                    intermediate_output_path,
+                }
+                .cell()
+                .into(),
+                runtime_entries,
+                fallback_page,
+            ),
+            create_page_loader(
+                server_root,
+                client_context,
+                client_chunking_context,
                 entry_asset,
-                is_api_path,
-                chunking_context,
-                intermediate_output_path,
-            }
-            .cell()
-            .into(),
-            runtime_entries,
-            fallback_page,
-        )
+                pathname,
+            ),
+        ])
+        .into()
     })
 }
 
@@ -214,6 +240,7 @@ async fn create_server_rendered_source_for_file(
 async fn create_server_rendered_source_for_directory(
     context_path: FileSystemPathVc,
     context: AssetContextVc,
+    client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
     specificity: SpecificityVc,
     position: u32,
@@ -268,6 +295,7 @@ async fn create_server_rendered_source_for_directory(
                                     create_server_rendered_source_for_file(
                                         context_path,
                                         context,
+                                        client_context,
                                         pages_dir,
                                         specificity,
                                         *file,
@@ -290,6 +318,7 @@ async fn create_server_rendered_source_for_directory(
                         create_server_rendered_source_for_directory(
                             context_path,
                             context,
+                            client_context,
                             pages_dir,
                             specificity,
                             position + 1,

@@ -34,10 +34,9 @@ impl Asset for DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self_vc: DevHtmlAssetVc) -> Result<AssetReferencesVc> {
-        let this = self_vc.await?;
+    async fn references(&self) -> Result<AssetReferencesVc> {
         let mut references = Vec::new();
-        for chunk_group in &this.chunk_groups {
+        for chunk_group in &self.chunk_groups {
             let chunks = chunk_group.chunks().await?;
             for chunk in chunks.iter() {
                 references.push(ChunkReferenceVc::new(*chunk).into());
