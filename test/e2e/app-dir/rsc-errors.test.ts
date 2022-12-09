@@ -21,8 +21,8 @@ describe('app dir - rsc errors', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-errors')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
