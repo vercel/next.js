@@ -24,8 +24,17 @@ describe('navigation between pages and app dir', () => {
     const browser = await webdriver(next.url, '/app')
     expect(await browser.elementById('app-page').text()).toBe('App Page')
     browser.elementById('link-to-pages').click()
-    await waitFor(100)
+    await waitFor(200)
     expect(await browser.hasElementByCssSelector('#app-page')).toBeFalse()
     expect(await browser.elementById('pages-page').text()).toBe('Pages Page')
+  })
+
+  it('It should be able to navigate pages -> app', async () => {
+    const browser = await webdriver(next.url, '/pages')
+    expect(await browser.elementById('pages-page').text()).toBe('Pages Page')
+    browser.elementById('link-to-app').click()
+    await waitFor(200)
+    expect(await browser.hasElementByCssSelector('#pages-page')).toBeFalse()
+    expect(await browser.elementById('app-page').text()).toBe('App Page')
   })
 })
