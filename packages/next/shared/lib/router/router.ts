@@ -2267,6 +2267,11 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
+    // Prefetch is not supported in development mode because it would trigger on-demand-entries
+    if (process.env.NODE_ENV !== 'production') {
+      return
+    }
+
     if (typeof window !== 'undefined' && isBot(window.navigator.userAgent)) {
       // No prefetches for bots that render the link since they are typically navigating
       // links via the equivalent of a hard navigation and hence never utilize these
@@ -2359,11 +2364,6 @@ export default class Router implements BaseRouter {
       if (!isMiddlewareMatch) {
         url = formatWithValidation(parsed)
       }
-    }
-
-    // Prefetch is not supported in development mode because it would trigger on-demand-entries
-    if (process.env.NODE_ENV !== 'production') {
-      return
     }
 
     const data =
