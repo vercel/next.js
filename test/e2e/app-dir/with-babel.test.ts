@@ -16,8 +16,8 @@ describe('with babel', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'with-babel')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })

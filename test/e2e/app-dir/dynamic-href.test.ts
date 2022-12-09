@@ -17,8 +17,8 @@ describe('dynamic-href', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'dynamic-href')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })

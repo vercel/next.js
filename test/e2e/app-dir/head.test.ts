@@ -22,8 +22,8 @@ describe('app dir head', () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'head')),
         dependencies: {
-          react: 'experimental',
-          'react-dom': 'experimental',
+          react: 'latest',
+          'react-dom': 'latest',
         },
         skipStart: true,
       })
