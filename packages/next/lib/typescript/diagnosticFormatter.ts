@@ -80,6 +80,17 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   main += '\n' + ' '.repeat(indent * 2)
                   main += `Invalid configuration:`
                   break
+                case 2741:
+                  const extraLayoutProp = item.messageText.match(
+                    /Property '(.+)' is missing in type 'LayoutProps' but required in type '(.+)'/
+                  )
+                  if (extraLayoutProp) {
+                    main += '\n' + ' '.repeat(indent * 2)
+                    main += `Prop "${chalk.bold(
+                      extraLayoutProp[1]
+                    )}" is not valid for this Layout, remove it to fix.`
+                  }
+                  break
                 case 2559:
                   const invalid = item.messageText.match(/Type '(.+)' has/)
                   if (invalid) {
