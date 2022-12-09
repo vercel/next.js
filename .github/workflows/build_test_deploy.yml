@@ -59,8 +59,8 @@ jobs:
 
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
 
-      # - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
-      #   id: swc-change
+      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+        id: swc-change
 
       - run: echo "::set-output name=SWC_CHANGE::$(echo 'yup')"
         id: swc-change
@@ -1269,7 +1269,7 @@ jobs:
 
       - name: Build
         id: build
-        uses: vmactions/freebsd-vm@v0.3.0
+        uses: vmactions/freebsd-vm@v0
         if: ${{ steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
         env:
           DEBUG: napi:*
@@ -1278,14 +1278,13 @@ jobs:
           RUSTUP_IO_THREADS: 1
           # Disable LTO, or the lld may crash with OOM
           CARGO_PROFILE_RELEASE_LTO: false
-          VM_RELEASE: '13.0'
         with:
           envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION RUST_TOOLCHAIN PNPM_VERSION VM_RELEASE
           usesh: true
           mem: 6000
           prepare: |
-            env
-            curl https://install-node.vercel.app/v16 | FORCE=1 bash
+            pkg install -y -f curl node libnghttp2
+            curl -qL https://www.npmjs.com/install.sh | sh
             npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}"
             curl https://sh.rustup.rs -sSf --output rustup.sh
             sh rustup.sh -y --profile minimal --default-toolchain stable
