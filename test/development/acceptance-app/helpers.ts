@@ -100,6 +100,15 @@ export async function sandbox(
       async hasRedbox(expected = false) {
         return hasRedbox(browser, expected)
       },
+      async hasErrorToast() {
+        return browser.eval(() => {
+          return Boolean(
+            Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-toast]')
+            )
+          )
+        })
+      },
       async getRedboxDescription() {
         return getRedboxDescription(browser)
       },
