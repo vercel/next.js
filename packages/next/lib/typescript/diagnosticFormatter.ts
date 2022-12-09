@@ -62,10 +62,11 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   if (types) {
                     main += '\n' + ' '.repeat(indent * 2)
 
-                    if (types[2] === 'PageComponent') {
-                      main += `The exported page component isn't correctly typed.`
-                    } else if (types[2] === 'LayoutComponent') {
-                      main += `The exported layout component isn't correctly typed.`
+                    if (
+                      types[2] === 'PageComponent' ||
+                      types[2] === 'LayoutComponent'
+                    ) {
+                      main += `The exported ${type} component isn't correctly typed.`
                     } else {
                       main += `Expected "${chalk.bold(
                         types[2].replace(
@@ -79,6 +80,20 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                 case 2326:
                   main += '\n' + ' '.repeat(indent * 2)
                   main += `Invalid configuration:`
+                  break
+                case 2739:
+                  const invalidProp = item.messageText.match(
+                    /Type '(.+)' is missing the following properties from type '(.+)'/
+                  )
+                  if (invalidProp) {
+                    if (
+                      invalidProp[1] === 'LayoutProps' ||
+                      invalidProp[1] === 'PageProps'
+                    ) {
+                      main += '\n' + ' '.repeat(indent * 2)
+                      main += `Prop "${invalidProp[2]}" is incompatible with the ${type}.`
+                    }
+                  }
                   break
                 case 2741:
                   const extraLayoutProp = item.messageText.match(
