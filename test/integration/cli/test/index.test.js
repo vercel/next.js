@@ -508,37 +508,6 @@ describe('CLI Usage', () => {
         'Invalid project directory provided, no such directory'
       )
     })
-
-    // test('no space left on disk - unique', async () => {
-    //   // const output = await runNextCommand(['export', 'non-existent'], {
-    //   //   stderr: true,
-    //   // })
-    //   const killEnospc = (instance) =>
-    //     setTimeout(() => instance.exec('echo ENOSPC', (_) => {
-    //       throw new Error('ENOSPC')
-    //     }), 1000)
-    //   await nextBuild(dir)
-    //   const output = await runNextCommand(
-    //     ['export', dir],
-    //     {
-    //       ignoreFail: true,
-    //       stderr: true,
-    //       instance: killEnospc,
-    //     }
-    //   )
-    //   const { code, signal, stderr } = output
-
-    //   console.log('stderr: ', output)
-
-    //   const expectedExitCode = process.platform === `win32` ? null : 0
-    //   const expectedExitSignal = process.platform === `win32` ? 'SIGTERM' : null
-    //   expect(code).toBe(expectedExitCode)
-    //   expect(signal).toBe(expectedExitSignal)
-
-    //   expect(stderr).toContain(
-    //     'There is not enough disk space to complete the export'
-    //   )
-    // })
   })
 
   describe('telemetry', () => {
