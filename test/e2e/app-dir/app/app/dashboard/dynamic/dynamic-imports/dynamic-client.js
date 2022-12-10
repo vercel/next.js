@@ -11,7 +11,7 @@ export function NextDynamicClientComponent() {
   return (
     <>
       <Dynamic />
-      <DynamicNoSSR />
+      <DynamicNoSSR name=":suffix" />
     </>
   )
 }
