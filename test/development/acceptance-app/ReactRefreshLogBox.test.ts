@@ -1173,7 +1173,7 @@ describe('ReactRefreshLogBox app', () => {
     expect(await session.hasRedbox(true)).toBe(true)
 
     // Remove error
-    await next.patchFile(
+    await session.patch(
       'app/page.js',
       `
       export default function Page() {
@@ -1187,7 +1187,7 @@ describe('ReactRefreshLogBox app', () => {
     expect(await session.hasRedbox()).toBe(false)
 
     // Re-add error
-    await next.patchFile(
+    await session.patch(
       'app/page.js',
       `
       export default function Page() {
