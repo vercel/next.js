@@ -469,6 +469,34 @@ describe('Switchable runtime', () => {
           /Hello from page without errors/
         )
       })
+
+      it('should give proper errors for invalid runtime in app dir', async () => {
+        // Invalid runtime
+        await next.patchFile(
+          'app/app-invalid-runtime/page.js',
+          `
+          export default function Page() {
+            return <p>Hello from app</p>
+          }
+          export const runtime = 'invalid-runtime'
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/app-invalid-runtime'),
+          /Hello from app/
+        )
+        expect(next.cliOutput).toInclude(
+          'error - Provided runtime "invalid-runtime" is not supported. Please leave it empty or choose one of:'
+        )
+
+        await next.patchFile(
+          'app/app-invalid-runtime/page.js',
+          `
+          export default function Page() {
+            return <p>Hello from app</p>
+          }`
+        )
+      })
     })
   } else {
     describe('Switchable runtime (prod)', () => {

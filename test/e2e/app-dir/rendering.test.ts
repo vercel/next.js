@@ -17,8 +17,8 @@ describe('app dir rendering', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-rendering')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })

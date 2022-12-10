@@ -30,8 +30,8 @@ describe('app-dir create root layout', () => {
               ),
             },
             dependencies: {
-              react: 'experimental',
-              'react-dom': 'experimental',
+              react: 'latest',
+              'react-dom': 'latest',
             },
           })
         })
@@ -92,8 +92,8 @@ describe('app-dir create root layout', () => {
               ),
             },
             dependencies: {
-              react: 'experimental',
-              'react-dom': 'experimental',
+              react: 'latest',
+              'react-dom': 'latest',
             },
           })
         })
@@ -159,8 +159,8 @@ describe('app-dir create root layout', () => {
               ),
             },
             dependencies: {
-              react: 'experimental',
-              'react-dom': 'experimental',
+              react: 'latest',
+              'react-dom': 'latest',
             },
           })
         })
@@ -224,8 +224,8 @@ describe('app-dir create root layout', () => {
             ),
           },
           dependencies: {
-            react: 'experimental',
-            'react-dom': 'experimental',
+            react: 'latest',
+            'react-dom': 'latest',
             typescript: 'latest',
             '@types/react': 'latest',
             '@types/node': 'latest',
@@ -294,8 +294,8 @@ describe('app-dir create root layout', () => {
             ),
           },
           dependencies: {
-            react: 'experimental',
-            'react-dom': 'experimental',
+            react: 'latest',
+            'react-dom': 'latest',
           },
         })
 
