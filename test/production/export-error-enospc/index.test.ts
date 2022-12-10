@@ -5,42 +5,6 @@ import { createNext, FileRef } from 'e2e-utils'
 
 jest.mock('fs/promises')
 
-// // Allows setting mocked behavior on any prototype field of the native fs module
-// const fsMock = jest.mock('fs', () => {
-//   const originalFS = jest.requireActual('fs')
-
-//   return {
-//     __esModule: true,
-//     ...originalFS,
-//     promises: originalFS.promises,
-//     __setMockImplementation: (prototypeMethod, cb, isAsync = true) => {
-//       if (isAsync) {
-//         this.fs.promises[prototypeMethod] = cb
-//       } else {
-//         this.fs[prototypeMethod] = cb
-//       }
-//     }
-//   }
-// })
-
-// module.exports = fsMock
-
-// jest.mock('fs', () => {
-//   const originalFS = jest.requireActual('fs')
-
-//   return {
-//     __esModule: true,
-//     ...originalFS,
-//     promises: {
-//       ...originalFS.promises,
-//       writeFile: jest.fn().mockImplementation(() => {
-//         console.log('gets in here')
-//         throw new Error('ENOSPC')
-//       })
-//     },
-//   }
-// })
-
 /**
  * The ENOSPC error is caused by hitting a limit on the
  *  number of "file event watchers" the native system watcher can store in memory.
