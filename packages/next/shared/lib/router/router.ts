@@ -1440,15 +1440,13 @@ export default class Router implements BaseRouter {
 
     // we don't attempt resolve asPath when we need to execute
     // middleware as the resolving will occur server-side
-    const isMiddlewareMatch = await matchesMiddleware({
-      asPath: as,
-      locale: nextState.locale,
-      router: this,
-    })
-
-    if (options.shallow && isMiddlewareMatch) {
-      pathname = this.pathname
-    }
+    const isMiddlewareMatch =
+      !options.shallow &&
+      (await matchesMiddleware({
+        asPath: as,
+        locale: nextState.locale,
+        router: this,
+      }))
 
     if (isQueryUpdating && isMiddlewareMatch) {
       shouldResolveHref = false
