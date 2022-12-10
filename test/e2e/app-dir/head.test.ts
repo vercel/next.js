@@ -1,9 +1,11 @@
+import fs from 'fs-extra'
 import path from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import escapeStringRegexp from 'escape-string-regexp'
 
 describe('app dir head', () => {
   if ((global as any).isNextDeploy) {
@@ -22,8 +24,8 @@ describe('app dir head', () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'head')),
         dependencies: {
-          react: 'experimental',
-          'react-dom': 'experimental',
+          react: 'latest',
+          'react-dom': 'latest',
         },
         skipStart: true,
       })
@@ -112,6 +114,41 @@ describe('app dir head', () => {
         .click()
         .waitForElementByCss('#layout', 2000)
       expect(await getTitle()).toBe('hello from dynamic blog page post-1')
+    })
+
+    it('should treat next/head as client components but not apply', async () => {
+      const errors = []
+      next.on('stderr', (args) => {
+        errors.push(args)
+      })
+      const html = await renderViaHTTP(next.url, '/next-head')
+      expect(html).not.toMatch(/<title>legacy-head<\/title>/)
+
+      if (globalThis.isNextDev) {
+        expect(
+          errors.some(
+            (output) =>
+              output ===
+              `You're using \`next/head\` inside app directory, please migrate to \`head.js\`. Checkout https://beta.nextjs.org/docs/api-reference/file-conventions/head for details.\n`
+          )
+        ).toBe(true)
+
+        const dynamicChunkPath = path.join(
+          next.testDir,
+          '.next',
+          'static/chunks/_app-client_app_next-head_client-head_js.js'
+        )
+        const content = await fs.readFile(dynamicChunkPath, 'utf-8')
+        expect(content).not.toMatch(
+          new RegExp(escapeStringRegexp(`next/dist/shared/lib/head.js`), 'm')
+        )
+        expect(content).toMatch(
+          new RegExp(
+            escapeStringRegexp(`next/dist/client/components/noop-head.js`),
+            'm'
+          )
+        )
+      }
     })
   }
 

@@ -54,4 +54,17 @@ describe('app-dir edge SSR', () => {
       }, /Edge!/)
     })
   }
+
+  if (!(globalThis as any).isNextDev) {
+    it('should generate matchers correctly in middleware manifest', async () => {
+      const manifest = JSON.parse(
+        await next.readFile('.next/server/middleware-manifest.json')
+      )
+      expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
+        {
+          regexp: '^/group$',
+        },
+      ])
+    })
+  }
 })

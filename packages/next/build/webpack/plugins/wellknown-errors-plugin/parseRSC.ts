@@ -16,6 +16,7 @@ function formatRSCErrorMessage(message: string): null | [string, string] {
     const NEXT_RSC_ERR_CLIENT_DIRECTIVE = /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE\n/s
     const NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN =
       /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN\n/s
+    const NEXT_RSC_ERR_INVALID_API = /.+NEXT_RSC_ERR_INVALID_API: (.*?)\n/s
 
     if (NEXT_RSC_ERR_REACT_API.test(message)) {
       formattedMessage = message.replace(
@@ -62,6 +63,12 @@ function formatRSCErrorMessage(message: string): null | [string, string] {
         `\n\n"use client" must be a directive, and placed before other expressions. Remove the parentheses and move it to the top of the file to resolve this issue.\n\n`
       )
       formattedVerboseMessage = '\n\nImport path:\n'
+    } else if (NEXT_RSC_ERR_INVALID_API.test(message)) {
+      formattedMessage = message.replace(
+        NEXT_RSC_ERR_INVALID_API,
+        `\n\n"$1" is not supported in app/. Read more: https://beta.nextjs.org/docs/data-fetching/fundamentals\n\n`
+      )
+      formattedVerboseMessage = '\n\nFile path:\n'
     }
 
     return [formattedMessage, formattedVerboseMessage]

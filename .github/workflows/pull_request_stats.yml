@@ -27,20 +27,6 @@ jobs:
         run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
         id: docs-change
 
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          node-version: 16
-          check-latest: true
-
-      - name: Install
-        uses: actions-rs/toolchain@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          profile: minimal
-          toolchain: nightly-2022-11-04
-
       - name: Cache cargo registry
         uses: actions/cache@v1
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
@@ -82,19 +68,21 @@ jobs:
           restore-keys: |
             next-swc-cargo-cache-ubuntu-latest
 
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@${NAPI_CLI_VERSION}
-      - run: npm i -g turbo@${TURBO_VERSION} pnpm@${PNPM_VERSION}
-
-      - name: Build
+      - name: Build in docker
+        uses: addnab/docker-run-action@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        run: turbo run build-native --cache-dir=".turbo"
-        env:
-          MACOSX_DEPLOYMENT_TARGET: '10.13'
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
+        with:
+          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
+          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          run: |
+            set -e &&
+            rustup toolchain install "${RUST_TOOLCHAIN}" &&
+            rustup default "${RUST_TOOLCHAIN}" &&
+            rustup target add x86_64-unknown-linux-gnu &&
+            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+            unset CC_x86_64_unknown_linux_gnu && unset CC &&
+            turbo run build-native --cache-dir=".turbo" -- --target x86_64-unknown-linux-gnu &&
+            strip packages/next-swc/native/next-swc.*.node
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3

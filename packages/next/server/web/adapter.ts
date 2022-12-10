@@ -11,6 +11,7 @@ import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscPath } from '../../shared/lib/router/utils/app-paths'
 import {
+  FETCH_CACHE_HEADER,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
@@ -45,6 +46,7 @@ const FLIGHT_PARAMETERS = [
   [RSC],
   [NEXT_ROUTER_STATE_TREE],
   [NEXT_ROUTER_PREFETCH],
+  [FETCH_CACHE_HEADER],
 ] as const
 
 export async function adapter(params: {

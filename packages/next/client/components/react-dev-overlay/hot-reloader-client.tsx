@@ -106,6 +106,7 @@ function performFullReload(err: any, sendMessage: any) {
     JSON.stringify({
       event: 'client-full-reload',
       stackTrace,
+      hadRuntimeError: !!RuntimeErrorHandler.hadRuntimeError,
     })
   )
 

@@ -33,6 +33,13 @@ When the test runs it will open the browser that is in the background by default
 pnpm testonly test/integration/production/ -t "should allow etag header support"
 ```
 
+**End-to-end (e2e)** tests are run in complete isolation from the repository.
+When you run an e2e test, a local version of next will be created inside your system's temp folder (eg. /tmp),
+which is then linked to the app, also created inside a temp folder. A server is started on a random port, against which the tests will run.
+After all tests have finished, the server is destroyed and all remaining files are deleted from the temp folder.
+
+You will need `yarn` for running e2e tests. Installing it `corepack` won't work because `next.js` is `pnpm` workspace.
+
 ## Writing tests for Next.js
 
 ### Getting Started

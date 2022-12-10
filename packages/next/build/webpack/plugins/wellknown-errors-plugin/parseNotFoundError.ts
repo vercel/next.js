@@ -65,6 +65,7 @@ export async function getNotFoundError(
       column: loc.start.column,
       source: originalSource,
       rootDirectory: compilation.options.context!,
+      modulePath: fileName,
       frame: {},
     })
 
