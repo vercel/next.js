@@ -642,6 +642,12 @@ export default async function exportApp(
           renderError = renderError || !!result.error
           if (!!result.error) {
             const { page } = pathMap
+            const { fatal, message } = result.error
+
+            if (fatal) {
+              throw new Error(message)
+            }
+            console.error(message)
             errorPaths.push(page !== path ? `${page}: ${path}` : path)
           }
 

@@ -74,10 +74,15 @@ interface ExportPageInput {
   enableUndici: NextConfigComplete['experimental']['enableUndici']
 }
 
+interface RenderError {
+  message: string
+  fatal: boolean
+}
+
 interface ExportPageResults {
   ampValidations: AmpValidation[]
   fromBuildExportRevalidate?: number
-  error?: boolean
+  error?: RenderError
   ssgNotFound?: boolean
   duration: number
 }
@@ -133,6 +138,7 @@ export default async function exportPage({
     let results: Omit<ExportPageResults, 'duration'> = {
       ampValidations: [],
     }
+    let renderError: RenderError | undefined = undefined
 
     try {
       const { query: originalQuery = {} } = pathMap
@@ -492,12 +498,20 @@ export default async function exportPage({
         await promises.writeFile(htmlFilepath, html, 'utf8')
       }
     } catch (error) {
-      console.error(
-        `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          (isError(error) && error.stack ? error.stack : error)
-      )
-      results.error = true
+      if (error.code === 'ENOSPC') {
+        renderError = {
+          message: 'There is not enough disk space to complete the export',
+          fatal: true,
+        }
+      } else {
+        renderError = {
+          message:
+            `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
+            (isError(error) && error.stack ? error.stack : error),
+          fatal: false,
+        }
+      }
     }
-    return { ...results, duration: Date.now() - start }
+    return { ...results, duration: Date.now() - start, error: renderError }
   })
 }

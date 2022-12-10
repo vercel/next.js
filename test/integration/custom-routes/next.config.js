@@ -1,6 +1,6 @@
 module.exports = {
   async rewrites() {
-    // no-rewrites comment
+    return []
     return {
       afterFiles: [
         ...(process.env.ADD_NOOP_REWRITE === 'true'
@@ -13,8 +13,7 @@ module.exports = {
           : []),
         {
           source: '/to-websocket',
-          destination:
-            'http://localhost:__EXTERNAL_PORT__/_next/webpack-hmr?page=/about',
+          destination: 'http://localhost:52564/_next/webpack-hmr?page=/about',
         },
         {
           source: '/to-nowhere',
@@ -86,7 +85,7 @@ module.exports = {
         },
         {
           source: '/proxy-me/:path*',
-          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+          destination: 'http://localhost:52564/:path*',
         },
         {
           source: '/api-hello',
