@@ -68,6 +68,8 @@ export interface WebpackConfigContext {
   webpack: any
   /** The current server runtime */
   nextRuntime?: 'nodejs' | 'edge'
+  /** Is appDir enabled */
+  hasAppDir?: boolean
 }
 
 export interface NextJsWebpackConfig {

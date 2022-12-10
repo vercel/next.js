@@ -2418,6 +2418,7 @@ export default async function getBaseWebpackConfig(
       defaultLoaders,
       totalPages: Object.keys(entrypoints).length,
       webpack,
+      hasAppDir,
       ...(isNodeServer || isEdgeServer
         ? {
             nextRuntime: isEdgeServer ? 'edge' : 'nodejs',
