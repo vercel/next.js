@@ -2,11 +2,19 @@ import React, { lazy, Suspense } from 'react'
 import Loadable from './loadable'
 import NoSSR from './dynamic-no-ssr'
 
-type ComponentModule<P> = { default: React.ComponentType<P> }
+type ComponentModule<P = {}> = { default: React.ComponentType<P> }
 
-export type LoaderComponent<P = {}> = Promise<ComponentModule<P>>
+export declare type LoaderComponent<P = {}> = Promise<
+  React.ComponentType<P> | ComponentModule<P>
+>
 
-export type Loader<P = {}> = () => LoaderComponent<P>
+type NormalizedLoader<P = {}> = () => Promise<{
+  default: React.ComponentType<P>
+}>
+
+export declare type Loader<P = {}> =
+  | (() => LoaderComponent<P>)
+  | LoaderComponent<P>
 
 export type LoaderMap = { [module: string]: () => Loader<any> }
 
@@ -26,8 +34,8 @@ export type DynamicOptionsLoadingProps = {
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
 // Client component reference proxy need to be converted to a module.
-function convertModule<T>(mod: ComponentModule<T>) {
-  return { default: mod.default || mod }
+function convertModule<P>(mod: React.ComponentType<P> | ComponentModule<P>) {
+  return { default: (mod as ComponentModule<P>).default || mod }
 }
 
 export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
@@ -50,7 +58,7 @@ export type LoadableFn<P = {}> = (
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
 export function noSSR<P = {}>(
-  LoadableInitializer: Loader,
+  LoadableInitializer: NormalizedLoader<P>,
   loadableOptions: DynamicOptions<P>
 ): React.ComponentType<P> {
   // Removing webpack and modules means react-loadable won't try preloading
@@ -118,7 +126,7 @@ export default function dynamic<P = {}>(
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
 
-  const loaderFn = loadableOptions.loader as Loader<P>
+  const loaderFn = loadableOptions.loader as () => LoaderComponent<P>
   const loader = () => loaderFn().then(convertModule)
 
   // coming from build/babel/plugins/react-loadable-plugin.js
@@ -135,7 +143,7 @@ export default function dynamic<P = {}>(
   if (typeof loadableOptions.ssr === 'boolean') {
     if (!loadableOptions.ssr) {
       delete loadableOptions.ssr
-      return noSSR(loader as Loader, loadableOptions)
+      return noSSR(loader, loadableOptions)
     }
     delete loadableOptions.ssr
   }
