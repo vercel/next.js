@@ -13,10 +13,7 @@ import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
 import { parseStack } from './helpers/parseStack'
 import { RootLayoutError } from './container/RootLayoutError'
-
-function isServerComponentError(error: Error): boolean {
-  return !!error.stack?.includes('webpack-internal:///(sc_server)/')
-}
+import { isServerComponentError } from './helpers/is-server-component-error'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
