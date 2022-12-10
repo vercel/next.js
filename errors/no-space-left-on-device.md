@@ -24,6 +24,7 @@ Error: Export encountered errors on following paths:
 #### Possible Ways to Fix It
 
 If using VS Code for development, files unessential for on-change rebuilding can be excluded in settings: `files.watcherExclude`. Example below:
+
 ```
 "files.watcherExclude": {
     "**/.git/objects/**": true,
@@ -34,7 +35,8 @@ If using VS Code for development, files unessential for on-change rebuilding can
 
 Check the documentation for your respective editor/IDE for their equivalent file watcher settings, if applicable.
 
-The default watcher limit is set to `8192`. This can be increased manually by editing `/etc/sysctl.conf` to include the following line (except for Arch Linux):
+The default watcher limit is set to `8192`. This can be increased manually on most distros (except Arch-based distros; see the VS Code docs link below for applicable instructions) by editing `/etc/sysctl.conf` to include the following line:
+
 ```
 fs.inotify.max_user_watches=524288
 ```
@@ -42,10 +44,10 @@ fs.inotify.max_user_watches=524288
 The new value can then be loaded in by running `sudo sysctl -p`. Be advised that each watch utilized consumes `540` bytes of kernel memory, so with the example of `524288` watchers, we'd consume at most roughly 256MB/512MB of 32-bit/64-bit kernel memory.
 
 Check your current limit with:
+
 ```
 cat /proc/sys/fs/inotify/max_user_watches
 ```
-
 
 ### Useful Links
 
@@ -54,4 +56,3 @@ cat /proc/sys/fs/inotify/max_user_watches
 [VS Code ENOSPC Error on Large Workspaces ](https://code.visualstudio.com/docs/setup/linux#_visual-studio-code-is-unable-to-watch-for-file-changes-in-this-large-workspace-error-enospc)
 
 [Linux Man Page for inotify](https://linux.die.net/man/7/inotify)
-
