@@ -359,7 +359,7 @@ async fn create_app_source_for_directory(
         layouts = LayoutSegmentsVc::cell(list);
         if let Some(page_path) = page {
             let pathname = pathname_for_path(server_root, target, false);
-            let path_regex = regular_expression_for_path(server_root, target, false);
+            let path_regex = regular_expression_for_path(pathname);
 
             sources.push(create_node_rendered_source(
                 specificity,
