@@ -45,7 +45,7 @@ const packages = [
   },
   {
     name: "strip-ansi",
-    type: "cjs",
+    type: "module-default",
   },
 ];
 const externals = Object.fromEntries(

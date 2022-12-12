@@ -24,5 +24,5 @@ declare module "@vercel/turbopack-next/compiled/stacktrace-parser" {
 
 declare module "@vercel/turbopack-next/compiled/strip-ansi" {
   import m from "strip-ansi";
-  export = m;
+  export default m;
 }

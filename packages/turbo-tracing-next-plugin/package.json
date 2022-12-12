@@ -17,6 +17,6 @@
     "next": ">= 12"
   },
   "devDependencies": {
-    "next": "^12.2.5"
+    "next": "^13.0.6"
   }
 }

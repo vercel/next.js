@@ -8,9 +8,9 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@next/react-refresh-utils": "^12.2.5"
+    "@next/react-refresh-utils": "^13.0.6"
   },
   "devDependencies": {
-    "@types/node": "^18.8.4"
+    "@types/node": "^18.11.11"
   }
 }
