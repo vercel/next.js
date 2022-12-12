@@ -1671,8 +1671,6 @@ export default class Router implements BaseRouter {
         }
       }
 
-      // let { error, props, __N_SSG, __N_SSP } = routeInfo
-
       const component: any = routeInfo.Component
       if (component && component.unstable_scriptLoader) {
         const scripts = [].concat(component.unstable_scriptLoader())
