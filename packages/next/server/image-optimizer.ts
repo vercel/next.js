@@ -405,10 +405,6 @@ export async function optimizeImage({
   height?: number
   nextConfigOutput?: 'standalone'
 }): Promise<Buffer> {
-  if (isAnimated(buffer)) {
-    return buffer
-  }
-
   let optimizedBuffer = buffer
   if (sharp) {
     // Begin sharp transformation logic

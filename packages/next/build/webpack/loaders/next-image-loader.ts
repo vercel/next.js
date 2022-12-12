@@ -1,3 +1,4 @@
+import isAnimated from 'next/dist/compiled/is-animated'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { optimizeImage, getImageSize } from '../../../server/image-optimizer'
 
@@ -73,15 +74,18 @@ function nextImageLoader(this: any, content: Buffer) {
         blurDataURL = url.href.slice(prefix.length)
       } else {
         const resizeImageSpan = imageLoaderSpan.traceChild('image-resize')
-        const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
-          optimizeImage({
+        const resizedImage = await resizeImageSpan.traceAsyncFn(() => {
+          if (isAnimated(content)) {
+            return content
+          }
+          return optimizeImage({
             buffer: content,
             width: blurWidth,
             height: blurHeight,
             contentType: 'image/' + extension,
             quality: BLUR_QUALITY,
           })
-        )
+        })
         const blurDataURLSpan = imageLoaderSpan.traceChild(
           'image-base64-tostring'
         )
