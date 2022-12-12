@@ -1,14 +1,23 @@
+import isAnimated from 'next/dist/compiled/is-animated'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
-import { resizeImage, getImageSize } from '../../../server/image-optimizer'
+import { optimizeImage, getImageSize } from '../../../server/image-optimizer'
 
 const BLUR_IMG_SIZE = 8
 const BLUR_QUALITY = 70
 const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next/client/image.tsx
 
-function nextImageLoader(content) {
+interface Options {
+  isServer: boolean
+  isDev: boolean
+  assetPrefix: string
+  basePath: string
+}
+
+function nextImageLoader(this: any, content: Buffer) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
-    const { isServer, isDev, assetPrefix, basePath } = this.getOptions()
+    const options: Options = this.getOptions()
+    const { isServer, isDev, assetPrefix, basePath } = options
     const context = this.rootContext
     const opts = { context, content }
     const interpolatedName = loaderUtils.interpolateName(
@@ -33,9 +42,9 @@ function nextImageLoader(content) {
       throw err
     }
 
-    let blurDataURL
-    let blurWidth
-    let blurHeight
+    let blurDataURL: string
+    let blurWidth: number
+    let blurHeight: number
 
     if (VALID_BLUR_EXT.includes(extension)) {
       // Shrink the image's largest dimension
@@ -60,14 +69,23 @@ function nextImageLoader(content) {
         const prefix = 'http://localhost'
         const url = new URL(`${basePath || ''}/_next/image`, prefix)
         url.searchParams.set('url', outputPath)
-        url.searchParams.set('w', blurWidth)
-        url.searchParams.set('q', BLUR_QUALITY)
+        url.searchParams.set('w', String(blurWidth))
+        url.searchParams.set('q', String(BLUR_QUALITY))
         blurDataURL = url.href.slice(prefix.length)
       } else {
         const resizeImageSpan = imageLoaderSpan.traceChild('image-resize')
-        const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
-          resizeImage(content, blurWidth, blurHeight, extension, BLUR_QUALITY)
-        )
+        const resizedImage = await resizeImageSpan.traceAsyncFn(() => {
+          if (isAnimated(content)) {
+            return content
+          }
+          return optimizeImage({
+            buffer: content,
+            width: blurWidth,
+            height: blurHeight,
+            contentType: `image/${extension}`,
+            quality: BLUR_QUALITY,
+          })
+        })
         const blurDataURLSpan = imageLoaderSpan.traceChild(
           'image-base64-tostring'
         )
