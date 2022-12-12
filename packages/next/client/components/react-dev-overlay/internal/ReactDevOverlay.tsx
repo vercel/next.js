@@ -76,9 +76,9 @@ class ReactDevOverlay extends React.PureComponent<
             ) : hasBuildError ? (
               <BuildError message={state.buildError!} />
             ) : hasRuntimeErrors ? (
-              <Errors errors={state.errors} />
+              <Errors initialDisplayState="minimized" errors={state.errors} />
             ) : reactError ? (
-              <Errors errors={[reactError]} />
+              <Errors initialDisplayState="fullscreen" errors={[reactError]} />
             ) : undefined}
           </ShadowPortal>
         ) : undefined}
