@@ -76,6 +76,10 @@ describe('app-dir static/dynamic handling', () => {
         'ssr-auto/cache-no-store/page.js',
         'ssr-auto/fetch-revalidate-zero/page.js',
         'ssr-forced/page.js',
+        'variable-revalidate/no-store/page.js',
+        'variable-revalidate/revalidate-3.html',
+        'variable-revalidate/revalidate-3.rsc',
+        'variable-revalidate/revalidate-3/page.js',
       ])
     })
 
@@ -166,6 +170,11 @@ describe('app-dir static/dynamic handling', () => {
           dataRoute: '/ssg-preview/test-2.rsc',
           initialRevalidateSeconds: false,
           srcRoute: '/ssg-preview/[[...route]]',
+        },
+        '/variable-revalidate/revalidate-3': {
+          dataRoute: '/variable-revalidate/revalidate-3.rsc',
+          initialRevalidateSeconds: 3,
+          srcRoute: '/variable-revalidate/revalidate-3',
         },
       })
       expect(manifest.dynamicRoutes).toEqual({

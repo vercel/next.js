@@ -9,6 +9,7 @@
  */
 
 import path from 'path'
+import fs from 'fs'
 
 const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'useState',
@@ -30,6 +31,7 @@ const DISALLOWED_SERVER_REACT_APIS: string[] = [
 const ALLOWED_EXPORTS = ['config', 'generateStaticParams']
 
 const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
+const ALLOWED_LAYOUT_PROPS = ['params', 'children']
 
 const NEXT_TS_ERRORS = {
   INVALID_SERVER_API: 71001,
@@ -201,6 +203,10 @@ export function createTSPlugin(modules: {
       '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
     )
 
+    const isPositionInsideNode = (position: number, node: ts.Node) => {
+      const start = node.getFullStart()
+      return start <= position && position <= node.getFullWidth() + start
+    }
     const isAppEntryFile = (filePath: string) => {
       return (
         appDir.test(filePath) &&
@@ -212,6 +218,28 @@ export function createTSPlugin(modules: {
         appDir.test(filePath) &&
         /^page\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
       )
+    }
+    const isDefaultFunctionExport = (node: ts.Node) => {
+      if (ts.isFunctionDeclaration(node)) {
+        let hasExportKeyword = false
+        let hasDefaultKeyword = false
+
+        if (node.modifiers) {
+          for (const modifier of node.modifiers) {
+            if (modifier.kind === ts.SyntaxKind.ExportKeyword) {
+              hasExportKeyword = true
+            } else if (modifier.kind === ts.SyntaxKind.DefaultKeyword) {
+              hasDefaultKeyword = true
+            }
+          }
+        }
+
+        // `export default function`
+        if (hasExportKeyword && hasDefaultKeyword) {
+          return true
+        }
+      }
+      return false
     }
 
     function getIsClientEntry(
@@ -362,6 +390,99 @@ export function createTSPlugin(modules: {
             return createAutoCompletionOptionValue(index, name, entryConfig)
           }),
         ] as ts.CompletionEntry[]
+      })
+
+      const program = info.languageService.getProgram()
+      const source = program?.getSourceFile(fileName)
+      if (!source || !program) return prior
+
+      ts.forEachChild(source!, (node) => {
+        // Auto completion for default export function's props.
+        if (
+          isDefaultFunctionExport(node) &&
+          isPositionInsideNode(position, node)
+        ) {
+          const paramNode = (node as ts.FunctionDeclaration).parameters?.[0]
+          if (isPositionInsideNode(position, paramNode)) {
+            const props = paramNode?.name
+            if (props && ts.isObjectBindingPattern(props)) {
+              let validProps = []
+              let validPropsWithType = []
+              let type: string
+
+              if (isPageFile(fileName)) {
+                // For page entries (page.js), it can only have `params` and `searchParams`
+                // as the prop names.
+                validProps = ALLOWED_PAGE_PROPS
+                validPropsWithType = ALLOWED_PAGE_PROPS
+                type = 'page'
+              } else {
+                // For layout entires, check if it has any named slots.
+                const currentDir = path.dirname(fileName)
+                const items = fs.readdirSync(currentDir, {
+                  withFileTypes: true,
+                })
+                const slots = []
+                for (const item of items) {
+                  if (item.isDirectory() && item.name.startsWith('@')) {
+                    slots.push(item.name.slice(1))
+                  }
+                }
+                validProps = ALLOWED_LAYOUT_PROPS.concat(slots)
+                validPropsWithType = ALLOWED_LAYOUT_PROPS.concat(
+                  slots.map((s) => `${s}: React.ReactNode`)
+                )
+                type = 'layout'
+              }
+
+              // Auto completion for props
+              for (const element of props.elements) {
+                if (isPositionInsideNode(position, element)) {
+                  const nameNode = element.propertyName || element.name
+
+                  if (isPositionInsideNode(position, nameNode)) {
+                    for (const name of validProps) {
+                      prior.entries.push({
+                        name,
+                        insertText: name,
+                        sortText: '_' + name,
+                        kind: ts.ScriptElementKind.memberVariableElement,
+                        kindModifiers: ts.ScriptElementKindModifier.none,
+                        labelDetails: {
+                          description: `Next.js ${type} prop`,
+                        },
+                      } as ts.CompletionEntry)
+                    }
+                  }
+
+                  break
+                }
+              }
+
+              // Auto completion for types
+              if (paramNode.type && ts.isTypeLiteralNode(paramNode.type)) {
+                for (const member of paramNode.type.members) {
+                  if (isPositionInsideNode(position, member)) {
+                    for (const name of validPropsWithType) {
+                      prior.entries.push({
+                        name,
+                        insertText: name,
+                        sortText: '_' + name,
+                        kind: ts.ScriptElementKind.memberVariableElement,
+                        kindModifiers: ts.ScriptElementKindModifier.none,
+                        labelDetails: {
+                          description: `Next.js ${type} prop type`,
+                        },
+                      } as ts.CompletionEntry)
+                    }
+
+                    break
+                  }
+                }
+              }
+            }
+          }
+        }
       })
 
       return prior
@@ -532,185 +653,45 @@ export function createTSPlugin(modules: {
       const prior = info.languageService.getSemanticDiagnostics(fileName)
       if (!isAppEntryFile(fileName)) return prior
 
-      const source = info.languageService.getProgram()?.getSourceFile(fileName)
-      if (source) {
-        let isClientEntry = false
+      const program = info.languageService.getProgram()
+      const source = program?.getSourceFile(fileName)
+      if (!source || !program) return prior
 
-        try {
-          isClientEntry = getIsClientEntry(fileName, true)
-        } catch (e: any) {
-          prior.push({
-            file: source,
-            category: ts.DiagnosticCategory.Error,
-            code: NEXT_TS_ERRORS.MISPLACED_CLIENT_ENTRY,
-            ...e,
-          })
-          isClientEntry = false
-        }
+      let isClientEntry = false
 
-        ts.forEachChild(source!, (node) => {
-          if (ts.isImportDeclaration(node)) {
-            if (!isClientEntry) {
-              const importPath = node.moduleSpecifier.getText(source!)
-              if (importPath === "'react'" || importPath === '"react"') {
-                // Check if it imports "useState"
-                const importClause = node.importClause
-                if (importClause) {
-                  const namedBindings = importClause.namedBindings
-                  if (namedBindings && ts.isNamedImports(namedBindings)) {
-                    const elements = namedBindings.elements
-                    for (const element of elements) {
-                      const name = element.name.getText(source!)
-                      if (DISALLOWED_SERVER_REACT_APIS.includes(name)) {
-                        prior.push({
-                          file: source,
-                          category: ts.DiagnosticCategory.Error,
-                          code: NEXT_TS_ERRORS.INVALID_SERVER_API,
-                          messageText: `"${name}" is not allowed in Server Components.`,
-                          start: element.name.getStart(),
-                          length: element.name.getWidth(),
-                        })
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          } else if (
-            ts.isVariableStatement(node) &&
-            node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
-          ) {
-            if (ts.isVariableDeclarationList(node.declarationList)) {
-              for (const declarartion of node.declarationList.declarations) {
-                const name = declarartion.name
-                if (ts.isIdentifier(name)) {
-                  if (
-                    !ALLOWED_EXPORTS.includes(name.text) &&
-                    !API_DOCS[name.text]
-                  ) {
-                    prior.push({
-                      file: source,
-                      category: ts.DiagnosticCategory.Error,
-                      code: NEXT_TS_ERRORS.INVALID_ENTRY_EXPORT,
-                      messageText: `"${name.text}" is not a valid Next.js entry export value.`,
-                      start: name.getStart(),
-                      length: name.getWidth(),
-                    })
-                  } else if (API_DOCS[name.text]) {
-                    // Check if the value is valid
-                    const value = declarartion.initializer
+      try {
+        isClientEntry = getIsClientEntry(fileName, true)
+      } catch (e: any) {
+        prior.push({
+          file: source,
+          category: ts.DiagnosticCategory.Error,
+          code: NEXT_TS_ERRORS.MISPLACED_CLIENT_ENTRY,
+          ...e,
+        })
+        isClientEntry = false
+      }
 
-                    if (value) {
-                      let displayedValue = ''
-                      let errorMessage = ''
-                      let isInvalid = false
-
-                      if (
-                        ts.isStringLiteral(value) ||
-                        ts.isNoSubstitutionTemplateLiteral(value)
-                      ) {
-                        const text = removeStringQuotes(value.getText())
-                        const allowedValues = Object.keys(
-                          API_DOCS[name.text].options
-                        )
-                          .filter((v) => /^['"]/.test(v))
-                          .map(removeStringQuotes)
-
-                        if (!allowedValues.includes(text)) {
-                          isInvalid = true
-                          displayedValue = `'${text}'`
-                        }
-                      } else if (
-                        ts.isNumericLiteral(value) ||
-                        (ts.isPrefixUnaryExpression(value) &&
-                          ts.isMinusToken((value as any).operator) &&
-                          (ts.isNumericLiteral((value as any).operand.kind) ||
-                            (ts.isIdentifier((value as any).operand.kind) &&
-                              (value as any).operand.kind.getText() ===
-                                'Infinity'))) ||
-                        (ts.isIdentifier(value) &&
-                          value.getText() === 'Infinity')
-                      ) {
-                        const v = value.getText()
-                        if (API_DOCS[name.text].isValid?.(v) === false) {
-                          isInvalid = true
-                          displayedValue = v
-                        }
-                      } else if (
-                        value.kind === ts.SyntaxKind.TrueKeyword ||
-                        value.kind === ts.SyntaxKind.FalseKeyword
-                      ) {
-                        const v = value.getText()
-                        if (API_DOCS[name.text].isValid?.(v) === false) {
-                          isInvalid = true
-                          displayedValue = v
-                        }
-                      } else if (
-                        // Other literals
-                        ts.isBigIntLiteral(value) ||
-                        ts.isArrayLiteralExpression(value) ||
-                        ts.isObjectLiteralExpression(value) ||
-                        ts.isRegularExpressionLiteral(value) ||
-                        ts.isPrefixUnaryExpression(value)
-                      ) {
-                        isInvalid = true
-                        displayedValue = value.getText()
-                      } else {
-                        // Not a literal, error because it's not statically analyzable
-                        isInvalid = true
-                        displayedValue = value.getText()
-                        errorMessage = `"${displayedValue}" is not a valid value for the "${name.text}" option. The configuration must be statically analyzable.`
-                      }
-
-                      if (isInvalid) {
-                        prior.push({
-                          file: source,
-                          category: ts.DiagnosticCategory.Error,
-                          code: NEXT_TS_ERRORS.INVALID_OPTION_VALUE,
-                          messageText:
-                            errorMessage ||
-                            `"${displayedValue}" is not a valid value for the "${name.text}" option.`,
-                          start: value.getStart(),
-                          length: value.getWidth(),
-                        })
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          } else if (ts.isFunctionDeclaration(node)) {
-            let hasExportKeyword = false
-            let hasDefaultKeyword = false
-
-            if (node.modifiers) {
-              for (const modifier of node.modifiers) {
-                if (modifier.kind === ts.SyntaxKind.ExportKeyword) {
-                  hasExportKeyword = true
-                } else if (modifier.kind === ts.SyntaxKind.DefaultKeyword) {
-                  hasDefaultKeyword = true
-                }
-              }
-            }
-
-            // `export default function`
-            if (hasExportKeyword && hasDefaultKeyword) {
-              if (isPageFile(fileName)) {
-                const props = node.parameters?.[0]?.name
-                // For page entries (page.js), it can only have `params` and `searchParams`
-                // as the prop names.
-                if (props && ts.isObjectBindingPattern(props)) {
-                  for (const prop of (props as ts.ObjectBindingPattern)
-                    .elements) {
-                    const propName = prop.name.getText()
-                    if (!ALLOWED_PAGE_PROPS.includes(propName)) {
+      ts.forEachChild(source!, (node) => {
+        if (ts.isImportDeclaration(node)) {
+          if (!isClientEntry) {
+            const importPath = node.moduleSpecifier.getText(source!)
+            if (importPath === "'react'" || importPath === '"react"') {
+              // Check if it imports "useState"
+              const importClause = node.importClause
+              if (importClause) {
+                const namedBindings = importClause.namedBindings
+                if (namedBindings && ts.isNamedImports(namedBindings)) {
+                  const elements = namedBindings.elements
+                  for (const element of elements) {
+                    const name = element.name.getText(source!)
+                    if (DISALLOWED_SERVER_REACT_APIS.includes(name)) {
                       prior.push({
                         file: source,
                         category: ts.DiagnosticCategory.Error,
-                        code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
-                        messageText: `"${propName}" is not a valid page property.`,
-                        start: prop.getStart(),
-                        length: prop.getWidth(),
+                        code: NEXT_TS_ERRORS.INVALID_SERVER_API,
+                        messageText: `"${name}" is not allowed in Server Components.`,
+                        start: element.name.getStart(),
+                        length: element.name.getWidth(),
                       })
                     }
                   }
@@ -718,8 +699,151 @@ export function createTSPlugin(modules: {
               }
             }
           }
-        })
-      }
+        } else if (
+          ts.isVariableStatement(node) &&
+          node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+        ) {
+          // Check if it has correct option exports
+          if (ts.isVariableDeclarationList(node.declarationList)) {
+            for (const declarartion of node.declarationList.declarations) {
+              const name = declarartion.name
+              if (ts.isIdentifier(name)) {
+                if (
+                  !ALLOWED_EXPORTS.includes(name.text) &&
+                  !API_DOCS[name.text]
+                ) {
+                  prior.push({
+                    file: source,
+                    category: ts.DiagnosticCategory.Error,
+                    code: NEXT_TS_ERRORS.INVALID_ENTRY_EXPORT,
+                    messageText: `"${name.text}" is not a valid Next.js entry export value.`,
+                    start: name.getStart(),
+                    length: name.getWidth(),
+                  })
+                } else if (API_DOCS[name.text]) {
+                  // Check if the value is valid
+                  const value = declarartion.initializer
+
+                  if (value) {
+                    let displayedValue = ''
+                    let errorMessage = ''
+                    let isInvalid = false
+
+                    if (
+                      ts.isStringLiteral(value) ||
+                      ts.isNoSubstitutionTemplateLiteral(value)
+                    ) {
+                      const text = removeStringQuotes(value.getText())
+                      const allowedValues = Object.keys(
+                        API_DOCS[name.text].options
+                      )
+                        .filter((v) => /^['"]/.test(v))
+                        .map(removeStringQuotes)
+
+                      if (!allowedValues.includes(text)) {
+                        isInvalid = true
+                        displayedValue = `'${text}'`
+                      }
+                    } else if (
+                      ts.isNumericLiteral(value) ||
+                      (ts.isPrefixUnaryExpression(value) &&
+                        ts.isMinusToken((value as any).operator) &&
+                        (ts.isNumericLiteral((value as any).operand.kind) ||
+                          (ts.isIdentifier((value as any).operand.kind) &&
+                            (value as any).operand.kind.getText() ===
+                              'Infinity'))) ||
+                      (ts.isIdentifier(value) && value.getText() === 'Infinity')
+                    ) {
+                      const v = value.getText()
+                      if (API_DOCS[name.text].isValid?.(v) === false) {
+                        isInvalid = true
+                        displayedValue = v
+                      }
+                    } else if (
+                      value.kind === ts.SyntaxKind.TrueKeyword ||
+                      value.kind === ts.SyntaxKind.FalseKeyword
+                    ) {
+                      const v = value.getText()
+                      if (API_DOCS[name.text].isValid?.(v) === false) {
+                        isInvalid = true
+                        displayedValue = v
+                      }
+                    } else if (
+                      // Other literals
+                      ts.isBigIntLiteral(value) ||
+                      ts.isArrayLiteralExpression(value) ||
+                      ts.isObjectLiteralExpression(value) ||
+                      ts.isRegularExpressionLiteral(value) ||
+                      ts.isPrefixUnaryExpression(value)
+                    ) {
+                      isInvalid = true
+                      displayedValue = value.getText()
+                    } else {
+                      // Not a literal, error because it's not statically analyzable
+                      isInvalid = true
+                      displayedValue = value.getText()
+                      errorMessage = `"${displayedValue}" is not a valid value for the "${name.text}" option. The configuration must be statically analyzable.`
+                    }
+
+                    if (isInvalid) {
+                      prior.push({
+                        file: source,
+                        category: ts.DiagnosticCategory.Error,
+                        code: NEXT_TS_ERRORS.INVALID_OPTION_VALUE,
+                        messageText:
+                          errorMessage ||
+                          `"${displayedValue}" is not a valid value for the "${name.text}" option.`,
+                        start: value.getStart(),
+                        length: value.getWidth(),
+                      })
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } else if (isDefaultFunctionExport(node)) {
+          // `export default function`
+          let validProps = []
+          let type: string
+
+          if (isPageFile(fileName)) {
+            // For page entries (page.js), it can only have `params` and `searchParams`
+            // as the prop names.
+            validProps = ALLOWED_PAGE_PROPS
+            type = 'page'
+          } else {
+            // For layout entires, check if it has any named slots.
+            const currentDir = path.dirname(fileName)
+            const items = fs.readdirSync(currentDir, { withFileTypes: true })
+            const slots = []
+            for (const item of items) {
+              if (item.isDirectory() && item.name.startsWith('@')) {
+                slots.push(item.name.slice(1))
+              }
+            }
+            validProps = ALLOWED_LAYOUT_PROPS.concat(slots)
+            type = 'layout'
+          }
+
+          const props = (node as ts.FunctionDeclaration).parameters?.[0]?.name
+          if (props && ts.isObjectBindingPattern(props)) {
+            for (const prop of (props as ts.ObjectBindingPattern).elements) {
+              const propName = (prop.propertyName || prop.name).getText()
+              if (!validProps.includes(propName)) {
+                prior.push({
+                  file: source,
+                  category: ts.DiagnosticCategory.Error,
+                  code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
+                  messageText: `"${propName}" is not a valid ${type} prop.`,
+                  start: prop.getStart(),
+                  length: prop.getWidth(),
+                })
+              }
+            }
+          }
+        }
+      })
 
       return prior
     }
