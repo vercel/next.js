@@ -3,7 +3,7 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
 import { waitFor } from 'next-test-utils'
 
-describe('redirects and rewrites in middleware', () => {
+describe('redirects and rewrites', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -21,7 +21,7 @@ describe('redirects and rewrites in middleware', () => {
   afterAll(() => next.destroy())
 
   describe.each(['link', 'button'])('navigation using %s', (testType) => {
-    it('should rewrite correctly', async () => {
+    it('should rewrite from middleware correctly', async () => {
       const browser = await webdriver(next.url, '/')
       browser.elementById(`${testType}-middleware-rewrite`).click()
       await waitFor(200)
@@ -33,7 +33,7 @@ describe('redirects and rewrites in middleware', () => {
       expect(url.pathname).toEndWith('-before')
     })
 
-    it('should redirect correctly', async () => {
+    it('should redirect from middleware correctly', async () => {
       const browser = await webdriver(next.url, '/')
       browser.elementById(`${testType}-middleware-redirect`).click()
       await waitFor(200)
