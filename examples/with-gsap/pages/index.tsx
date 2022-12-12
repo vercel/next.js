@@ -2,8 +2,8 @@ import { CSSTransition } from 'react-transition-group'
 import { gsap } from 'gsap'
 import Home from '../components/Home'
 
-function App() {
-  const onEnter = (node) => {
+export default function HomePage() {
+  const onEnter = (node: any) => {
     gsap.from(
       [node.children[0].firstElementChild, node.children[0].lastElementChild],
       0.6,
@@ -18,7 +18,7 @@ function App() {
       }
     )
   }
-  const onExit = (node) => {
+  const onExit = (node: any) => {
     gsap.to(
       [node.children[0].firstElementChild, node.children[0].lastElementChild],
       0.6,
@@ -51,5 +51,3 @@ function App() {
     </>
   )
 }
-
-export default App
