@@ -6,7 +6,7 @@ export = defineRule({
   meta: {
     docs: {
       description:
-        'Prevent usage of `<img>` element to prevent layout shift favor optimized images.',
+        'Prevent usage of `<img>` element due to slower LCP and higher bandwidth.',
       category: 'HTML',
       recommended: true,
       url,

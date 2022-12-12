@@ -1,4 +1,4 @@
-# No Img Element
+# No img element
 
 > Prevent usage of `<img>` element to prevent layout shift and favor [optimized images](https://nextjs.org/docs/basic-features/image-optimization).
 
@@ -28,6 +28,8 @@ function Home() {
 
 export default Home
 ```
+
+If you would like to use `next/image` featrues such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized).
 
 <br />
 
