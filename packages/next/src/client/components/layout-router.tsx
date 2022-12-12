@@ -104,18 +104,12 @@ function findDOMNode(
 }
 
 /**
- * Check if the top-left corner of the HTMLElement is in the viewport.
+ * Check if the top corner of the HTMLElement is in the viewport.
  */
-function topLeftOfElementInViewport(element: HTMLElement) {
+function topOfElementInViewport(element: HTMLElement) {
   const rect = element.getBoundingClientRect()
   const viewportHeight = document.documentElement.clientHeight
-  const viewportWidth = document.documentElement.clientWidth
-  return (
-    rect.top >= 0 &&
-    rect.top <= viewportHeight &&
-    rect.left >= 0 &&
-    rect.left <= viewportWidth
-  )
+  return rect.top >= 0 && rect.top <= viewportHeight
 }
 
 class ScrollAndFocusHandler extends React.Component<{
@@ -132,14 +126,18 @@ class ScrollAndFocusHandler extends React.Component<{
       focusAndScrollRef.apply = false
 
       // Try scrolling go the top of the document to be backward compatible with pages
-      if (!topLeftOfElementInViewport(domNode)) {
-        handleSmoothScroll(() => window.scrollTo(0, 0))
+      if (!topOfElementInViewport(domNode)) {
+        // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
+        // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
+        // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
+        handleSmoothScroll(() => {
+          document.documentElement.scrollTop = 0
+        })
       }
 
       // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-      if (!topLeftOfElementInViewport(domNode)) {
-        // Since we are scrolling to the top of the page earlier we are effectivelly using these options:
-        // { block: "start", inline: "start"}
+      if (!topOfElementInViewport(domNode)) {
+        // Scroll into view doesn't scroll horizontally by default when not needed
         handleSmoothScroll(() => domNode.scrollIntoView())
       }
 
