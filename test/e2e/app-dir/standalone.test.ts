@@ -41,25 +41,30 @@ describe('output: standalone with app dir', () => {
   })
 
   if ((global as any).isNextStart) {
-    it('should copy files correctly', async () => {
+    it('should handle trace files correctly for route groups (nodejs only)', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
-
       const serverDirPath = path.join(
         next.testDir,
         '.next/standalone/.next/server'
       )
+      for (const page of [
+        '(newroot)/dashboard/another',
+        '(newroot)/dashboard/project/[projectId]',
+        '(rootonly)/dashboard/changelog',
+      ]) {
+        const pagePath = path.join(serverDirPath, 'app', page)
 
-      const nftPath = path.join(
-        serverDirPath,
-        'app/(newroot)/dashboard/another/page.js.nft.json'
-      )
+        expect(
+          await fs.pathExists(path.join(pagePath, 'page.js.nft.json'))
+        ).toBe(true)
 
-      expect(await fs.pathExists(nftPath)).toBe(true)
+        const files = (
+          await fs.readJSON(path.join(pagePath, 'page.js.nft.json'))
+        ).files as string[]
 
-      const files = (await fs.readJSON(nftPath)).files as string[]
-
-      for (const file of files) {
-        expect(await fs.pathExists(path.join(nftPath, file))).toBe(true)
+        for (const file of files) {
+          expect(await fs.pathExists(path.join(pagePath, file))).toBe(true)
+        }
       }
     })
   }

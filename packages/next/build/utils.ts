@@ -1597,8 +1597,8 @@ export function detectConflictingPaths(
 export async function copyTracedFiles(
   dir: string,
   distDir: string,
-  pageKeys: ReadonlyArray<string>,
-  appPageKeys: Record<string, string> | undefined,
+  pageKeys: readonly string[],
+  appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest
@@ -1708,8 +1708,8 @@ export async function copyTracedFiles(
     })
   }
   if (appPageKeys) {
-    for (const page in appPageKeys) {
-      if (middlewareManifest.functions.hasOwnProperty(appPageKeys[page])) {
+    for (const page of appPageKeys) {
+      if (middlewareManifest.functions.hasOwnProperty(page)) {
         continue
       }
       const pageFile = path.join(distDir, 'server', 'app', `${page}.js`)
