@@ -13,7 +13,6 @@ import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
 import { parseStack } from './helpers/parseStack'
 import { RootLayoutError } from './container/RootLayoutError'
-import { isServerComponentError } from './helpers/is-server-component-error'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
@@ -76,20 +75,10 @@ class ReactDevOverlay extends React.PureComponent<
               />
             ) : hasBuildError ? (
               <BuildError message={state.buildError!} />
-            ) : hasRuntimeErrors ? (
-              <Errors
-                initialDisplayState={
-                  // If the error occured in a server component render, open up the overlay in fullscreen mode
-                  state.errors.some((err) =>
-                    isServerComponentError(err.event.reason)
-                  )
-                    ? 'fullscreen'
-                    : 'minimized'
-                }
-                errors={state.errors}
-              />
             ) : reactError ? (
               <Errors initialDisplayState="fullscreen" errors={[reactError]} />
+            ) : hasRuntimeErrors ? (
+              <Errors initialDisplayState="minimized" errors={state.errors} />
             ) : undefined}
           </ShadowPortal>
         ) : undefined}
