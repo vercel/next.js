@@ -773,6 +773,10 @@
         {
           "title": "fast-refresh-reload",
           "path": "/errors/fast-refresh-reload.md"
+        },
+        {
+          "title": "context-in-server-component",
+          "path": "/errors/context-in-server-component.md"
         }
       ]
     }
