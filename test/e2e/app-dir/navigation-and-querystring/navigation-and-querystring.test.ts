@@ -20,7 +20,7 @@ describe('app-dir navigation and querystring', () => {
   })
   afterAll(() => next.destroy())
 
-  it('shoul set query correctly', async () => {
+  it('should set query correctly', async () => {
     const browser = await webdriver(next.url, '/')
     expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
       `""`
