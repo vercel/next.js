@@ -1224,7 +1224,7 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
-    const isQueryUpdating = (options as any)._h
+    const isQueryUpdating = (options as any)._h === 1
     let shouldResolveHref =
       isQueryUpdating ||
       (options as any)._shouldResolveHref ||
@@ -1746,7 +1746,7 @@ export default class Router implements BaseRouter {
 
       if (
         isQueryUpdating &&
-        pathname === '/_error' &&
+        this.pathname === '/_error' &&
         self.__NEXT_DATA__.props?.pageProps?.statusCode === 500 &&
         props?.pageProps
       ) {
@@ -1754,13 +1754,12 @@ export default class Router implements BaseRouter {
         // when updating query information
         props.pageProps.statusCode = 500
       }
-
       // shallow routing is only allowed for same page URL changes.
       const isValidShallowRoute =
         options.shallow && nextState.route === (routeInfo.route ?? route)
 
       const shouldScroll =
-        options.scroll ?? (!(options as any)._h && !isValidShallowRoute)
+        options.scroll ?? (!isQueryUpdating && !isValidShallowRoute)
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
       const upcomingScrollState = forcedScroll ?? resetScroll
 
@@ -1783,6 +1782,21 @@ export default class Router implements BaseRouter {
         isQueryUpdating &&
         (this.pathname === '/404' || this.pathname === '/_error')
       ) {
+        routeInfo = await this.getRouteInfo({
+          route: this.pathname,
+          pathname: this.pathname,
+          query,
+          as,
+          resolvedAs,
+          routeProps: { shallow: false },
+          locale: nextState.locale,
+          isPreview: nextState.isPreview,
+        })
+
+        if ('type' in routeInfo) {
+          throw new Error(`Unexpected middleware effect on ${this.pathname}`)
+        }
+
         try {
           await this.set(upcomingRouterState, routeInfo, upcomingScrollState)
         } catch (err) {
@@ -1802,7 +1816,7 @@ export default class Router implements BaseRouter {
       // need to scroll
       // https://github.com/vercel/next.js/issues/37139
       const canSkipUpdating =
-        (options as any)._h &&
+        isQueryUpdating &&
         !upcomingScrollState &&
         !readyStateChange &&
         !localeChange &&
@@ -2058,8 +2072,13 @@ export default class Router implements BaseRouter {
             })
 
       if (isQueryUpdating) {
-        data = { json: self.__NEXT_DATA__.props }
+        if (!data) {
+          data = { json: self.__NEXT_DATA__.props }
+        } else {
+          data.json = self.__NEXT_DATA__.props
+        }
       }
+
       handleCancelled()
 
       if (
@@ -2411,7 +2430,7 @@ export default class Router implements BaseRouter {
 
     const data =
       process.env.__NEXT_MIDDLEWARE_PREFETCH === 'strict'
-        ? ({} as any)
+        ? null
         : await withMiddlewareEffects({
             fetchData: () =>
               fetchNextData({
