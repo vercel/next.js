@@ -742,7 +742,7 @@ describe('ESLint', () => {
         'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
       )
       expect(fileOutput).toContain(
-        "Using `<img>` could result in slower LCP and higher bandwidth because it doesn't utilize Image Optimization. Use `<Image />` from `next/image` instead. See: https://nextjs.org/docs/messages/no-img-element"
+        "Using `<img>` could result in slower LCP and higher bandwidth because it doesn't utilize Image Optimization. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element"
       )
 
       expect(fileOutput).toContain('file-linting/pages/index.js')
