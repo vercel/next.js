@@ -19,7 +19,6 @@ const App = ({ Component, pageProps }) => {
   return (
     <>
     <Head>
-      {/* Global Site Tag (gtag.js) - Google Analytics */}
       <script
         dangerouslySetInnerHTML={{
           __html: `
@@ -37,6 +36,7 @@ const App = ({ Component, pageProps }) => {
         }}
       />
     </Head>
+    {/* Global Site Tag (gtag.js) - Google Analytics */}
     <Script
       strategy="afterInteractive"
       src={`https://www.googletagmanager.com/gtag/js?id=${gtag.GA_TRACKING_ID}`}
