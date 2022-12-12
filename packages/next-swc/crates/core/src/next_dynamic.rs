@@ -5,23 +5,26 @@ use pathdiff::diff_paths;
 use swc_core::{
     common::{errors::HANDLER, FileName, DUMMY_SP},
     ecma::ast::{
-        ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, CallExpr, Callee, Expr,
+        ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
         ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr,
-        MemberProp, ObjectLit, Prop, PropName, PropOrSpread, Str, Tpl,
+        MemberProp, Null, ObjectLit, Prop, PropName, PropOrSpread, Str, Tpl,
     },
     ecma::atoms::js_word,
+    ecma::utils::ExprFactory,
     ecma::visit::{Fold, FoldWith},
 };
 
 pub fn next_dynamic(
     is_development: bool,
     is_server: bool,
+    is_server_components: bool,
     filename: FileName,
     pages_dir: Option<PathBuf>,
 ) -> impl Fold {
     NextDynamicPatcher {
         is_development,
         is_server,
+        is_server_components,
         pages_dir,
         filename,
         dynamic_bindings: vec![],
@@ -34,6 +37,7 @@ pub fn next_dynamic(
 struct NextDynamicPatcher {
     is_development: bool,
     is_server: bool,
+    is_server_components: bool,
     pages_dir: Option<PathBuf>,
     filename: FileName,
     dynamic_bindings: Vec<Id>,
@@ -229,14 +233,48 @@ impl Fold for NextDynamicPatcher {
                             value: generated,
                         })))];
 
+                    let mut has_ssr_false = false;
+
                     if expr.args.len() == 2 {
                         if let Expr::Object(ObjectLit {
                             props: options_props,
                             ..
                         }) = &*expr.args[1].expr
                         {
+                            for prop in options_props.iter() {
+                                if let Some(KeyValueProp { key, value }) = match prop {
+                                    PropOrSpread::Prop(prop) => match &**prop {
+                                        Prop::KeyValue(key_value_prop) => Some(key_value_prop),
+                                        _ => None,
+                                    },
+                                    _ => None,
+                                } {
+                                    if let Some(Ident {
+                                        sym,
+                                        span: _,
+                                        optional: _,
+                                    }) = match key {
+                                        PropName::Ident(ident) => Some(ident),
+                                        _ => None,
+                                    } {
+                                        if sym == "ssr" {
+                                            if let Some(Lit::Bool(Bool {
+                                                value: false,
+                                                span: _,
+                                            })) = value.as_lit()
+                                            {
+                                                has_ssr_false = true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                             props.extend(options_props.iter().cloned());
                         }
+                    }
+
+                    if has_ssr_false && self.is_server && !self.is_server_components {
+                        expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
 
                     let second_arg = ExprOrSpread {
