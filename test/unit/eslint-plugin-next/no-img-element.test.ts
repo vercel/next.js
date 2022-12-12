@@ -81,7 +81,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'The `<img>` element does not benefit from Image Optimization. Use `<Image />` from `next/image` instead. ' +
+            'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. ' +
             'See: https://nextjs.org/docs/messages/no-img-element',
           type: 'JSXOpeningElement',
         },
@@ -104,7 +104,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'The `<img>` element does not benefit from Image Optimization. Use `<Image />` from `next/image` instead. ' +
+            'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. ' +
             'See: https://nextjs.org/docs/messages/no-img-element',
           type: 'JSXOpeningElement',
         },

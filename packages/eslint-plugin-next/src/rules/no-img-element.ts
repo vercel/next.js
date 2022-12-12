@@ -31,7 +31,7 @@ export = defineRule({
 
         context.report({
           node,
-          message: `The \`<img>\` element does not benefit from Image Optimization. Use \`<Image />\` from \`next/image\` instead. See: ${url}`,
+          message: `Using \`<img>\` could result in slower LCP and higher bandwidth. Use \`<Image />\` from \`next/image\` instead to utilize Image Optimization. See: ${url}`,
         })
       },
     }
