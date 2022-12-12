@@ -131,7 +131,13 @@ module.exports = (actionInfo) => {
       // to the correct versions
       for (const pkgName of pkgDatas.keys()) {
         const { pkg, pkgPath } = pkgDatas.get(pkgName)
-        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`, true)
+        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`, true, {
+          env: {
+            // Yarn installed through corepack will not run in pnpm project without this env var set
+            // This var works for corepack >=0.15.0
+            COREPACK_ENABLE_STRICT: '0',
+          },
+        })
       }
       return pkgPaths
     },

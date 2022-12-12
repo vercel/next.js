@@ -17,8 +17,8 @@ describe('app dir prefetching', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-prefetch')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       skipStart: true,
     })

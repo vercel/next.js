@@ -390,6 +390,119 @@ export function getMaxAge(str: string | null): number {
   return 0
 }
 
+export async function optimizeImage({
+  buffer,
+  contentType,
+  quality,
+  width,
+  height,
+  nextConfigOutput,
+}: {
+  buffer: Buffer
+  contentType: string
+  quality: number
+  width: number
+  height?: number
+  nextConfigOutput?: 'standalone'
+}): Promise<Buffer> {
+  let optimizedBuffer = buffer
+  if (sharp) {
+    // Begin sharp transformation logic
+    const transformer = sharp(buffer)
+
+    transformer.rotate()
+
+    if (height) {
+      transformer.resize(width, height)
+    } else {
+      const { width: metaWidth } = await transformer.metadata()
+
+      if (metaWidth && metaWidth > width) {
+        transformer.resize(width)
+      }
+    }
+
+    if (contentType === AVIF) {
+      if (transformer.avif) {
+        const avifQuality = quality - 15
+        transformer.avif({
+          quality: Math.max(avifQuality, 0),
+          chromaSubsampling: '4:2:0', // same as webp
+        })
+      } else {
+        console.warn(
+          chalk.yellow.bold('Warning: ') +
+            `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
+            'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
+        )
+        transformer.webp({ quality })
+      }
+    } else if (contentType === WEBP) {
+      transformer.webp({ quality })
+    } else if (contentType === PNG) {
+      transformer.png({ quality })
+    } else if (contentType === JPEG) {
+      transformer.jpeg({ quality })
+    }
+
+    optimizedBuffer = await transformer.toBuffer()
+    // End sharp transformation logic
+  } else {
+    if (showSharpMissingWarning && nextConfigOutput) {
+      // TODO: should we ensure squoosh also works even though we don't
+      // recommend it be used in production and this is a production feature
+      console.error(
+        `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
+      )
+      throw new ImageError(500, 'internal server error')
+    }
+    // Show sharp warning in production once
+    if (showSharpMissingWarning) {
+      console.warn(
+        chalk.yellow.bold('Warning: ') +
+          `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` +
+          'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
+      )
+      showSharpMissingWarning = false
+    }
+
+    // Begin Squoosh transformation logic
+    const orientation = await getOrientation(buffer)
+
+    const operations: Operation[] = []
+
+    if (orientation === Orientation.RIGHT_TOP) {
+      operations.push({ type: 'rotate', numRotations: 1 })
+    } else if (orientation === Orientation.BOTTOM_RIGHT) {
+      operations.push({ type: 'rotate', numRotations: 2 })
+    } else if (orientation === Orientation.LEFT_BOTTOM) {
+      operations.push({ type: 'rotate', numRotations: 3 })
+    } else {
+      // TODO: support more orientations
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // const _: never = orientation
+    }
+
+    if (height) {
+      operations.push({ type: 'resize', width, height })
+    } else {
+      operations.push({ type: 'resize', width })
+    }
+
+    if (contentType === AVIF) {
+      optimizedBuffer = await processBuffer(buffer, operations, 'avif', quality)
+    } else if (contentType === WEBP) {
+      optimizedBuffer = await processBuffer(buffer, operations, 'webp', quality)
+    } else if (contentType === PNG) {
+      optimizedBuffer = await processBuffer(buffer, operations, 'png', quality)
+    } else if (contentType === JPEG) {
+      optimizedBuffer = await processBuffer(buffer, operations, 'jpeg', quality)
+    }
+  }
+
+  return optimizedBuffer
+}
+
 export async function imageOptimizer(
   _req: IncomingMessage,
   _res: ServerResponse,
@@ -504,114 +617,13 @@ export async function imageOptimizer(
     contentType = JPEG
   }
   try {
-    let optimizedBuffer: Buffer | undefined
-    if (sharp) {
-      // Begin sharp transformation logic
-      const transformer = sharp(upstreamBuffer)
-
-      transformer.rotate()
-
-      const { width: metaWidth } = await transformer.metadata()
-
-      if (metaWidth && metaWidth > width) {
-        transformer.resize(width)
-      }
-
-      if (contentType === AVIF) {
-        if (transformer.avif) {
-          const avifQuality = quality - 15
-          transformer.avif({
-            quality: Math.max(avifQuality, 0),
-            chromaSubsampling: '4:2:0', // same as webp
-          })
-        } else {
-          console.warn(
-            chalk.yellow.bold('Warning: ') +
-              `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
-              'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
-          )
-          transformer.webp({ quality })
-        }
-      } else if (contentType === WEBP) {
-        transformer.webp({ quality })
-      } else if (contentType === PNG) {
-        transformer.png({ quality })
-      } else if (contentType === JPEG) {
-        transformer.jpeg({ quality })
-      }
-
-      optimizedBuffer = await transformer.toBuffer()
-      // End sharp transformation logic
-    } else {
-      if (showSharpMissingWarning && nextConfig.output === 'standalone') {
-        // TODO: should we ensure squoosh also works even though we don't
-        // recommend it be used in production and this is a production feature
-        console.error(
-          `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
-        )
-        throw new ImageError(500, 'internal server error')
-      }
-      // Show sharp warning in production once
-      if (showSharpMissingWarning) {
-        console.warn(
-          chalk.yellow.bold('Warning: ') +
-            `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'yarn add sharp', and Next.js will use it automatically for Image Optimization.\n` +
-            'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
-        )
-        showSharpMissingWarning = false
-      }
-
-      // Begin Squoosh transformation logic
-      const orientation = await getOrientation(upstreamBuffer)
-
-      const operations: Operation[] = []
-
-      if (orientation === Orientation.RIGHT_TOP) {
-        operations.push({ type: 'rotate', numRotations: 1 })
-      } else if (orientation === Orientation.BOTTOM_RIGHT) {
-        operations.push({ type: 'rotate', numRotations: 2 })
-      } else if (orientation === Orientation.LEFT_BOTTOM) {
-        operations.push({ type: 'rotate', numRotations: 3 })
-      } else {
-        // TODO: support more orientations
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        // const _: never = orientation
-      }
-
-      operations.push({ type: 'resize', width })
-
-      if (contentType === AVIF) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'avif',
-          quality
-        )
-      } else if (contentType === WEBP) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'webp',
-          quality
-        )
-      } else if (contentType === PNG) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'png',
-          quality
-        )
-      } else if (contentType === JPEG) {
-        optimizedBuffer = await processBuffer(
-          upstreamBuffer,
-          operations,
-          'jpeg',
-          quality
-        )
-      }
-
-      // End Squoosh transformation logic
-    }
+    let optimizedBuffer = await optimizeImage({
+      buffer: upstreamBuffer,
+      contentType,
+      quality,
+      width,
+      nextConfigOutput: nextConfig.output,
+    })
     if (optimizedBuffer) {
       if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
         // During `next dev`, we don't want to generate blur placeholders with webpack
@@ -740,52 +752,6 @@ export function sendResponse(
   if (!result.finished) {
     res.setHeader('Content-Length', Buffer.byteLength(buffer))
     res.end(buffer)
-  }
-}
-
-export async function resizeImage(
-  content: Buffer,
-  width: number,
-  height: number,
-  // Should match VALID_BLUR_EXT
-  extension: 'avif' | 'webp' | 'png' | 'jpeg',
-  quality: number
-): Promise<Buffer> {
-  if (isAnimated(content)) {
-    return content
-  } else if (sharp) {
-    const transformer = sharp(content)
-
-    if (extension === 'avif') {
-      if (transformer.avif) {
-        transformer.avif({ quality })
-      } else {
-        console.warn(
-          chalk.yellow.bold('Warning: ') +
-            `Your installed version of the 'sharp' package does not support AVIF images. Run 'yarn add sharp@latest' to upgrade to the latest version.\n` +
-            'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
-        )
-        transformer.webp({ quality })
-      }
-    } else if (extension === 'webp') {
-      transformer.webp({ quality })
-    } else if (extension === 'png') {
-      transformer.png({ quality })
-    } else if (extension === 'jpeg') {
-      transformer.jpeg({ quality })
-    }
-    transformer.resize(width, height)
-    const buf = await transformer.toBuffer()
-    return buf
-  } else {
-    const resizeOperationOpts: Operation = { type: 'resize', width, height }
-    const buf = await processBuffer(
-      content,
-      [resizeOperationOpts],
-      extension,
-      quality
-    )
-    return buf
   }
 }
 
