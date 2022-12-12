@@ -3251,6 +3251,32 @@
       }
     ]
   },
+  "Chivo Mono": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal",
+      "italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Chonburi": {
     "weights": [
       "400"
@@ -5072,11 +5098,22 @@
       "300",
       "400",
       "500",
+      "600",
       "700",
-      "900"
+      "800",
+      "900",
+      "variable"
     ],
     "styles": [
       "normal"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
     ]
   },
   "Fraunces": {
@@ -5980,6 +6017,32 @@
     ],
     "styles": [
       "normal"
+    ]
+  },
+  "Hanken Grotesk": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal",
+      "italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
     ]
   },
   "Hanuman": {
@@ -8770,6 +8833,36 @@
     ],
     "styles": [
       "normal"
+    ]
+  },
+  "Martian Mono": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 112.5,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 800,
+        "defaultValue": 400
+      }
     ]
   },
   "Marvel": {
@@ -12461,6 +12554,26 @@
       "normal"
     ]
   },
+  "Noto Serif NP Hmong": {
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Noto Serif Nyiakeng Puachue Hmong": {
     "weights": [
       "400",
@@ -14830,6 +14943,14 @@
       }
     ]
   },
+  "Rubik 80s Fade": {
+    "weights": [
+      "400"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
   "Rubik Beastly": {
     "weights": [
       "400"
@@ -14863,6 +14984,14 @@
     ]
   },
   "Rubik Distressed": {
+    "weights": [
+      "400"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
+  "Rubik Gemstones": {
     "weights": [
       "400"
     ],
@@ -14927,6 +15056,30 @@
     ]
   },
   "Rubik Puddles": {
+    "weights": [
+      "400"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
+  "Rubik Spray Paint": {
+    "weights": [
+      "400"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
+  "Rubik Storm": {
+    "weights": [
+      "400"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
+  "Rubik Vinyl": {
     "weights": [
       "400"
     ],
@@ -16964,6 +17117,30 @@
     ],
     "styles": [
       "normal"
+    ]
+  },
+  "Unbounded": {
+    "weights": [
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 900,
+        "defaultValue": 400
+      }
     ]
   },
   "Uncial Antiqua": {
