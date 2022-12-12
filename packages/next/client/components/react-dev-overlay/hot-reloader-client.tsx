@@ -348,6 +348,13 @@ function processMessage(
         dispatcher.onRefresh()
       })
 
+      if (process.env.__NEXT_TEST_MODE) {
+        if (self.__NEXT_HMR_CB) {
+          self.__NEXT_HMR_CB()
+          self.__NEXT_HMR_CB = null
+        }
+      }
+
       return
     }
     case 'reloadPage': {
