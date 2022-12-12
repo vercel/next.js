@@ -25,6 +25,7 @@ export default function Page() {
     <>
       <Test page="middleware-rewrite" />
       <Test page="middleware-redirect" />
+      <Test page="config-rewrite" />
     </>
   )
 }

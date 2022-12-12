@@ -44,5 +44,17 @@ describe('redirects and rewrites', () => {
       const url = new URL(await browser.url())
       expect(url.pathname).toEndWith('-after')
     })
+
+    it('should rewrite from next.config.js correctly', async () => {
+      const browser = await webdriver(next.url, '/')
+      browser.elementById(`${testType}-config-rewrite`).click()
+      await waitFor(200)
+
+      expect(await browser.elementById('page').text()).toBe(
+        'config-rewrite-after'
+      )
+      const url = new URL(await browser.url())
+      expect(url.pathname).toEndWith('-before')
+    })
   })
 })
