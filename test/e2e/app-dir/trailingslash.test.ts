@@ -17,8 +17,8 @@ describe('app-dir trailingSlash handling', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'trailingslash')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       skipStart: true,
     })

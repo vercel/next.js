@@ -10,7 +10,6 @@ import RenderResult from '../render-result'
 export * from './types'
 
 export default class ResponseCache {
-  incrementalCache: IncrementalCache
   pendingResponses: Map<string, Promise<ResponseCacheEntry | null>>
   previousCacheItem?: {
     key: string
@@ -19,8 +18,7 @@ export default class ResponseCache {
   }
   minimalMode?: boolean
 
-  constructor(incrementalCache: IncrementalCache, minimalMode: boolean) {
-    this.incrementalCache = incrementalCache
+  constructor(minimalMode: boolean) {
     this.pendingResponses = new Map()
     this.minimalMode = minimalMode
   }
@@ -31,8 +29,10 @@ export default class ResponseCache {
     context: {
       isManualRevalidate?: boolean
       isPrefetch?: boolean
+      incrementalCache: IncrementalCache
     }
   ): Promise<ResponseCacheEntry | null> {
+    const { incrementalCache } = context
     // ensure manual revalidate doesn't block normal requests
     const pendingResponseKey = key
       ? `${key}-${context.isManualRevalidate ? '1' : '0'}`
@@ -41,6 +41,7 @@ export default class ResponseCache {
     const pendingResponse = pendingResponseKey
       ? this.pendingResponses.get(pendingResponseKey)
       : null
+
     if (pendingResponse) {
       return pendingResponse
     }
@@ -92,9 +93,15 @@ export default class ResponseCache {
       let cachedResponse: IncrementalCacheItem = null
       try {
         cachedResponse =
-          key && !this.minimalMode ? await this.incrementalCache.get(key) : null
+          key && !this.minimalMode ? await incrementalCache.get(key) : null
 
         if (cachedResponse && !context.isManualRevalidate) {
+          if (cachedResponse.value?.kind === 'FETCH') {
+            throw new Error(
+              `invariant: unexpected cachedResponse of kind fetch in response cache`
+            )
+          }
+
           resolve({
             isStale: cachedResponse.isStale,
             revalidate: cachedResponse.curRevalidate,
@@ -136,7 +143,7 @@ export default class ResponseCache {
               expiresAt: Date.now() + 1000,
             }
           } else {
-            await this.incrementalCache.set(
+            await incrementalCache.set(
               key,
               cacheEntry.value?.kind === 'PAGE'
                 ? {
@@ -159,7 +166,7 @@ export default class ResponseCache {
         // when a getStaticProps path is erroring we automatically re-set the
         // existing cache under a new expiration to prevent non-stop retrying
         if (cachedResponse && key) {
-          await this.incrementalCache.set(
+          await incrementalCache.set(
             key,
             cachedResponse.value,
             Math.min(Math.max(cachedResponse.revalidate || 3, 3), 30)

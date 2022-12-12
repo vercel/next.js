@@ -18,7 +18,7 @@ import {
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig from '../../build/webpack-config'
-import { APP_DIR_ALIAS } from '../../lib/constants'
+import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
@@ -753,6 +753,8 @@ export default class HotReloader {
     const changedClientPages = new Set<string>()
     const changedServerPages = new Set<string>()
     const changedEdgeServerPages = new Set<string>()
+
+    const changedServerComponentPages = new Set<string>()
     const changedCSSImportPages = new Set<string>()
 
     const prevClientPageHashes = new Map<string, string>()
@@ -761,7 +763,11 @@ export default class HotReloader {
     const prevCSSImportModuleHashes = new Map<string, string>()
 
     const trackPageChanges =
-      (pageHashMap: Map<string, string>, changedItems: Set<string>) =>
+      (
+        pageHashMap: Map<string, string>,
+        changedItems: Set<string>,
+        serverComponentChangedItems?: Set<string>
+      ) =>
       (stats: webpack.Compilation) => {
         try {
           stats.entrypoints.forEach((entry, key) => {
@@ -778,6 +784,7 @@ export default class HotReloader {
 
                   let hasCSSModuleChanges = false
                   let chunksHash = new StringXor()
+                  let chunksHashServerLayer = new StringXor()
 
                   modsIterable.forEach((mod: any) => {
                     if (
@@ -794,6 +801,13 @@ export default class HotReloader {
                         .digest()
                         .toString('hex')
 
+                      if (
+                        mod.layer === WEBPACK_LAYERS.server &&
+                        mod?.buildInfo?.rsc?.type !== 'client'
+                      ) {
+                        chunksHashServerLayer.add(hash)
+                      }
+
                       chunksHash.add(hash)
                     } else {
                       // for non-pages we can use the module hash directly
@@ -801,6 +815,14 @@ export default class HotReloader {
                         mod,
                         chunk.runtime
                       )
+
+                      if (
+                        mod.layer === WEBPACK_LAYERS.server &&
+                        mod?.buildInfo?.rsc?.type !== 'client'
+                      ) {
+                        chunksHashServerLayer.add(hash)
+                      }
+
                       chunksHash.add(hash)
 
                       // Both CSS import changes from server and client
@@ -819,13 +841,23 @@ export default class HotReloader {
                       }
                     }
                   })
+
                   const prevHash = pageHashMap.get(key)
                   const curHash = chunksHash.toString()
-
                   if (prevHash && prevHash !== curHash) {
                     changedItems.add(key)
                   }
                   pageHashMap.set(key, curHash)
+
+                  if (serverComponentChangedItems) {
+                    const serverKey = WEBPACK_LAYERS.server + ':' + key
+                    const prevServerHash = pageHashMap.get(serverKey)
+                    const curServerHash = chunksHashServerLayer.toString()
+                    if (prevServerHash && prevServerHash !== curServerHash) {
+                      serverComponentChangedItems.add(key)
+                    }
+                    pageHashMap.set(serverKey, curServerHash)
+                  }
 
                   if (hasCSSModuleChanges) {
                     changedCSSImportPages.add(key)
@@ -845,11 +877,19 @@ export default class HotReloader {
     )
     this.multiCompiler.compilers[1].hooks.emit.tap(
       'NextjsHotReloaderForServer',
-      trackPageChanges(prevServerPageHashes, changedServerPages)
+      trackPageChanges(
+        prevServerPageHashes,
+        changedServerPages,
+        changedServerComponentPages
+      )
     )
     this.multiCompiler.compilers[2].hooks.emit.tap(
       'NextjsHotReloaderForServer',
-      trackPageChanges(prevEdgeServerPageHashes, changedEdgeServerPages)
+      trackPageChanges(
+        prevEdgeServerPageHashes,
+        changedEdgeServerPages,
+        changedServerComponentPages
+      )
     )
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
@@ -915,21 +955,13 @@ export default class HotReloader {
         changedEdgeServerPages,
         changedClientPages
       )
-      const serverComponentChanges = serverOnlyChanges
+
+      const pageChanges = serverOnlyChanges
         .concat(edgeServerOnlyChanges)
-        .filter((key) => key.startsWith('app/'))
-        .concat(Array.from(changedCSSImportPages))
-      const pageChanges = serverOnlyChanges.filter((key) =>
-        key.startsWith('pages/')
-      )
+        .filter((key) => key.startsWith('pages/'))
       const middlewareChanges = Array.from(changedEdgeServerPages).filter(
         (name) => isMiddlewareFilename(name)
       )
-
-      changedClientPages.clear()
-      changedServerPages.clear()
-      changedEdgeServerPages.clear()
-      changedCSSImportPages.clear()
 
       if (middlewareChanges.length > 0) {
         this.send({
@@ -946,13 +978,19 @@ export default class HotReloader {
         })
       }
 
-      if (serverComponentChanges.length > 0) {
+      if (changedServerComponentPages.size || changedCSSImportPages.size) {
         this.send({
           action: 'serverComponentChanges',
           // TODO: granular reloading of changes
           // entrypoints: serverComponentChanges,
         })
       }
+
+      changedClientPages.clear()
+      changedServerPages.clear()
+      changedEdgeServerPages.clear()
+      changedServerComponentPages.clear()
+      changedCSSImportPages.clear()
     })
 
     this.multiCompiler.compilers[0].hooks.failed.tap(

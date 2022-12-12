@@ -14,7 +14,7 @@ export type RootLayoutErrorProps = { missingTags: string[] }
 export const RootLayoutError: React.FC<RootLayoutErrorProps> =
   function BuildError({ missingTags }) {
     const message =
-      'Please make sure to include the following tags in your root layout: <html>, <head>, <body>.\n\n' +
+      'Please make sure to include the following tags in your root layout: <html>, <body>.\n\n' +
       `Missing required root layout tag${
         missingTags.length === 1 ? '' : 's'
       }: ` +
