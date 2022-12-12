@@ -31,4 +31,16 @@ describe('redirects and rewrites in middleware', () => {
     const url = new URL(await browser.url())
     expect(url.pathname).toEndWith('-before')
   })
+
+  it('should redirect correctly', async () => {
+    const browser = await webdriver(next.url, '/')
+    browser.elementById('link-middleware-redirect').click()
+    await waitFor(200)
+
+    expect(await browser.elementById('page').text()).toBe(
+      'middleware-redirect-after'
+    )
+    const url = new URL(await browser.url())
+    expect(url.pathname).toEndWith('-after')
+  })
 })

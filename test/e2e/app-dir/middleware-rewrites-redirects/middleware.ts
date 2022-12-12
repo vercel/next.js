@@ -7,4 +7,10 @@ export function middleware(request: NextRequest) {
       new URL('/middleware-rewrite-after', request.url)
     )
   }
+
+  if (request.nextUrl.pathname.startsWith('/middleware-redirect-before')) {
+    return NextResponse.redirect(
+      new URL('/middleware-redirect-after', request.url)
+    )
+  }
 }
