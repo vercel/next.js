@@ -40,10 +40,34 @@ describe('output: standalone with app dir', () => {
     await next.destroy()
   })
 
+  if ((global as any).isNextStart) {
+    it('should copy files correctly', async () => {
+      expect(next.cliOutput).not.toContain('Failed to copy traced files')
+
+      const serverDirPath = path.join(
+        next.testDir,
+        '.next/standalone/.next/server'
+      )
+
+      const nftPath = path.join(
+        serverDirPath,
+        'app/(newroot)/dashboard/another/page.js.nft.json'
+      )
+
+      expect(await fs.pathExists(nftPath)).toBe(true)
+
+      const files = (await fs.readJSON(nftPath)).files as string[]
+
+      for (const file of files) {
+        expect(await fs.pathExists(path.join(nftPath, file))).toBe(true)
+      }
+    })
+  }
+
   it('should work correctly with output standalone', async () => {
     const tmpFolder = path.join(os.tmpdir(), 'next-standalone-' + Date.now())
     await fs.move(path.join(next.testDir, '.next/standalone'), tmpFolder)
-    let server
+    let server: any
 
     try {
       const testServer = path.join(tmpFolder, 'server.js')
@@ -66,7 +90,12 @@ describe('output: standalone with app dir', () => {
         '/api/hello',
         '/blog/first',
         '/dashboard',
+        '/dashboard/another',
+        '/dashboard/changelog',
+        '/dashboard/deployments/breakdown',
         '/dashboard/deployments/123',
+        '/dashboard/hello',
+        '/dashboard/project/123',
         '/catch-all/first',
       ]) {
         const res = await fetchViaHTTP(appPort, testPath)
