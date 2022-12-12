@@ -270,8 +270,7 @@ impl Fold for NextDynamicPatcher {
                         }
                     }
 
-                    if has_ssr_false && self.is_server
-                    {
+                    if has_ssr_false && self.is_server {
                         expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
 
