@@ -23,12 +23,16 @@ describe('app-dir navigation and querystring', () => {
   it('shoul set query correctly', async () => {
     const browser = await webdriver(next.url, '/')
     expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
-      `"{}"`
+      `""`
     )
 
     browser.elementById('set-query').click()
     await waitFor(200)
 
-    expect(await browser.elementById('query').text()).toMatchInlineSnapshot()
+    expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
+      `"a=b&c=d"`
+    )
+    const url = new URL(await browser.url())
+    expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b&c=d"`)
   })
 })

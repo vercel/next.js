@@ -10,7 +10,7 @@ export default function Page() {
       <Link id="set-query" href="/?a=b&c=d">
         set Query
       </Link>
-      <div id="query">{JSON.stringify(params)}</div>
+      <div id="query">{params.toString()}</div>
     </>
   )
 }
