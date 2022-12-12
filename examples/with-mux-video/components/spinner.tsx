@@ -1,4 +1,9 @@
-export default function Spinner({ size = 6, color = '#999' }) {
+interface SpinnerProps {
+  size?: Number
+  color?: string
+}
+
+export default function Spinner({ size = 6, color = '#999' }: SpinnerProps) {
   return (
     <>
       <div className="spinner" />

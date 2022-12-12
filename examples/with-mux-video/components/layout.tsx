@@ -1,6 +1,16 @@
 import Head from 'next/head'
 import { MUX_HOME_PAGE_URL } from '../constants'
 
+interface LayoutProps {
+  title?: string
+  description?: string
+  metaTitle?: string
+  metaDescription?: string
+  image?: string
+  children: React.ReactNode
+  loadTwitterWidget?: boolean
+}
+
 export default function Layout({
   title,
   description,
@@ -9,7 +19,7 @@ export default function Layout({
   image = 'https://with-mux-video.vercel.app/mux-nextjs-og-image.png',
   children,
   loadTwitterWidget,
-}) {
+}: LayoutProps) {
   return (
     <div className="container">
       <Head>
