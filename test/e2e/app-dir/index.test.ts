@@ -328,6 +328,18 @@ describe('app dir', () => {
       expect(html).toContain('hello from app/partial-match-[id]. ID is: 123')
     })
 
+    it('should use cache busting when loading css (dev only)', async () => {
+      const html = await renderViaHTTP(next.url, '/')
+      const $ = cheerio.load(html)
+      const links = $('link[rel=stylesheet]')
+      links.each((_, link) => {
+        const href = $(link).attr('href')
+        isDev
+          ? expect(href).toMatch(/\?ts=/)
+          : expect(href).not.toMatch(/\?ts=/)
+      })
+    })
+
     describe('rewrites', () => {
       // TODO-APP: rewrite url is broken
       it('should support rewrites on initial load', async () => {
@@ -1506,7 +1518,7 @@ describe('app dir', () => {
           const html = await renderViaHTTP(next.url, '/loading-bug/hi')
           // The link tag should be included together with loading
           expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css"\/><h2>Loading...<\/h2>/
+            /<link rel="stylesheet" href="(.+)\.css(\?ts=\d+)?"\/><h2>Loading...<\/h2>/
           )
         })
 
