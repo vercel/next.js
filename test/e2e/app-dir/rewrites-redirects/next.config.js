@@ -11,4 +11,13 @@ module.exports = {
       },
     ]
   },
+  async redirects() {
+    return [
+      {
+        source: '/config-redirect-before',
+        destination: '/config-redirect-after',
+        permanent: true,
+      },
+    ]
+  },
 }

@@ -20,6 +20,9 @@ describe('redirects and rewrites', () => {
   })
   afterAll(() => next.destroy())
 
+  /**
+   * All test will use a link/button to navigate to '/*-before' which should be redirected by correct redirect/rewrite to '/*-after'
+   */
   describe.each(['link', 'button'])('navigation using %s', (testType) => {
     it('should rewrite from middleware correctly', async () => {
       const browser = await webdriver(next.url, '/')
@@ -55,6 +58,18 @@ describe('redirects and rewrites', () => {
       )
       const url = new URL(await browser.url())
       expect(url.pathname).toEndWith('-before')
+    })
+
+    it('should redirect from next.config.js correctly', async () => {
+      const browser = await webdriver(next.url, '/')
+      browser.elementById(`${testType}-config-redirect`).click()
+      await waitFor(200)
+
+      expect(await browser.elementById('page').text()).toBe(
+        'config-redirect-after'
+      )
+      const url = new URL(await browser.url())
+      expect(url.pathname).toEndWith('-after')
     })
   })
 })
