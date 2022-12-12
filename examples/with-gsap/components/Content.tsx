@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 
-const Content = () => {
+export default function Content() {
   let line1 = useRef(null)
+
   useEffect(() => {
-    gsap.from([line1], 0.6, {
+    gsap.from([line1.current], 0.6, {
       delay: 0.9,
       ease: 'power3.out',
       y: 24,
@@ -15,7 +16,7 @@ const Content = () => {
   }, [line1])
 
   return (
-    <p ref={(el) => (line1 = el)} className="line">
+    <p ref={line1} className="line">
       A Simple example using{' '}
       <a
         href="https://greensock.com/gsap/"
@@ -33,5 +34,3 @@ const Content = () => {
     </p>
   )
 }
-
-export default Content

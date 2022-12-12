@@ -1,7 +1,11 @@
 import Layout from './layout'
 import { MUX_HOME_PAGE_URL } from '../constants'
 
-export default function UploadPage({ children }) {
+interface UploadPageProps {
+  children: React.ReactNode
+}
+
+export default function UploadPage({ children }: UploadPageProps) {
   return (
     <Layout
       title="Welcome to Mux + Next.js"
