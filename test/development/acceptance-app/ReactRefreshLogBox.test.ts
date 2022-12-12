@@ -1154,6 +1154,74 @@ describe('ReactRefreshLogBox app', () => {
     await cleanup()
   })
 
+  test('Call stack count is correct for server error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          `
+          export default function Page() {
+            throw new Error('Server error')
+          }
+`,
+        ],
+      ])
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Open full Call Stack
+    await browser
+      .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
+      .click()
+    const callStackCount = (
+      await browser.elementsByCss('[data-nextjs-call-stack-frame]')
+    ).length
+
+    // Expect more than the default amount of frames
+    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+    expect(callStackCount).toBeGreaterThan(9)
+
+    await cleanup()
+  })
+
+  test('Call stack count is correct for client error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          `
+          'use client'
+          export default function Page() {
+            if (typeof window !== 'undefined') {
+              throw new Error('Client error')
+            }
+            return null
+          }
+`,
+        ],
+      ])
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Open full Call Stack
+    await browser
+      .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
+      .click()
+    const callStackCount = (
+      await browser.elementsByCss('[data-nextjs-call-stack-frame]')
+    ).length
+
+    // Expect more than the default amount of frames
+    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+    expect(callStackCount).toBeGreaterThan(9)
+
+    await cleanup()
+  })
+
   test('Server component errors should open up in fullscreen', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,

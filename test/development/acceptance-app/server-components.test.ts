@@ -3,6 +3,7 @@ import { sandbox } from './helpers'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import path from 'path'
+import { check } from 'next-test-utils'
 
 describe('Error Overlay for server components', () => {
   if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
@@ -51,7 +52,12 @@ describe('Error Overlay for server components', () => {
       await browser.refresh()
 
       expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource(true)).toMatchSnapshot()
+      await check(async () => {
+        expect(await session.getRedboxSource(true)).toContain(
+          `TypeError: createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component`
+        )
+        return 'success'
+      }, 'success')
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components'
       )
@@ -100,7 +106,14 @@ describe('Error Overlay for server components', () => {
       await browser.refresh()
 
       expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource(true)).toMatchSnapshot()
+
+      await check(async () => {
+        expect(await session.getRedboxSource(true)).toContain(
+          `TypeError: createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component`
+        )
+        return 'success'
+      }, 'success')
+
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components'
       )
@@ -149,11 +162,17 @@ describe('Error Overlay for server components', () => {
       await browser.refresh()
 
       expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource(true)).toMatchSnapshot()
+
+      await check(async () => {
+        expect(await session.getRedboxSource(true)).toContain(
+          `TypeError: createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component`
+        )
+        return 'success'
+      }, 'success')
+
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components'
       )
-
       await cleanup()
     })
   })
