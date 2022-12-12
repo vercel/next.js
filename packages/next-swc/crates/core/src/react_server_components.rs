@@ -58,7 +58,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
 
         if self.is_server {
             if !is_client_entry {
-                self.assert_server_graph(&imports);
+                self.assert_server_graph(&imports, module);
             } else {
                 self.to_module_ref(module);
                 return;
@@ -111,7 +111,7 @@ impl<C: Comments> ReactServerComponents<C> {
                                         return false;
                                     }
                                 }
-                                // Match `ParenthesisExpression` which is some formartting tools
+                                // Match `ParenthesisExpression` which is some formatting tools
                                 // usually do: ('use client'). In these case we need to throw
                                 // an exception because they are not valid directives.
                                 Expr::Paren(ParenExpr { expr, .. }) => {
@@ -246,7 +246,7 @@ impl<C: Comments> ReactServerComponents<C> {
         );
     }
 
-    fn assert_server_graph(&self, imports: &Vec<ModuleImports>) {
+    fn assert_server_graph(&self, imports: &Vec<ModuleImports>, module: &Module) {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -288,6 +288,8 @@ impl<C: Comments> ReactServerComponents<C> {
                 }
             }
         }
+
+        self.assert_invalid_api(module);
     }
 
     fn assert_client_graph(&self, imports: &Vec<ModuleImports>, module: &Module) {
@@ -305,10 +307,15 @@ impl<C: Comments> ReactServerComponents<C> {
             }
         }
 
+        self.assert_invalid_api(module);
+    }
+
+    fn assert_invalid_api(&self, module: &Module) {
         // Assert `getServerSideProps` and `getStaticProps` exports.
         let is_layout_or_page = Regex::new(r"/(page|layout)\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
+
         if is_layout_or_page {
             let mut span = DUMMY_SP;
             let mut has_get_server_side_props = false;
@@ -389,7 +396,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         .struct_span_err(
                             span,
                             format!(
-                                "`{}` is not allowed in Client Components.",
+                                "NEXT_RSC_ERR_INVALID_API: {}",
                                 if has_get_server_side_props {
                                     "getServerSideProps"
                                 } else {

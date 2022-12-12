@@ -127,7 +127,7 @@ exports[`ReactRefreshLogBox stuck error 1`] = `
 `;
 
 exports[`ReactRefreshLogBox syntax > runtime error 1`] = `
-"index.js (6:16) @ eval
+"index.js (6:16) @ Error
 
   4 | setInterval(() => {
   5 |   i++
@@ -142,9 +142,12 @@ exports[`ReactRefreshLogBox syntax > runtime error 2`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
-   ,----
- 8 | export default function FunctionNamed() {
-   :                                         ^
+   ,-[5:1]
+ 5 |           i++
+ 6 |           throw Error('no ' + i)
+ 7 |         }, 1000)
+ 8 |         export default function FunctionNamed() {
+   :                                                 ^
    \`----
 
 Caused by:
@@ -157,9 +160,12 @@ exports[`ReactRefreshLogBox syntax > runtime error 3`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
-   ,----
- 8 | export default function FunctionNamed() {
-   :                                         ^
+   ,-[5:1]
+ 5 |           i++
+ 6 |           throw Error('no ' + i)
+ 7 |         }, 1000)
+ 8 |         export default function FunctionNamed() {
+   :                                                 ^
    \`----
 
 Caused by:
@@ -172,15 +178,21 @@ exports[`ReactRefreshLogBox unterminated JSX 1`] = `
 "./index.js
 Error: 
   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-   ,----
- 8 | }
-   : ^
+   ,-[5:1]
+ 5 |               <p>lol</p>
+ 6 |             div
+ 7 |           )
+ 8 |         }
+   :         ^
+ 9 |       
    \`----
 
   x Unexpected eof
-   ,----
- 9 |  
-   : ^
+   ,-[6:1]
+ 6 |             div
+ 7 |           )
+ 8 |         }
+ 9 |       
    \`----
 
 Caused by:

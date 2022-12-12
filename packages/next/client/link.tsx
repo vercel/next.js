@@ -375,7 +375,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onClick,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      legacyBehavior = Boolean(process.env.__NEXT_NEW_LINK_BEHAVIOR) !== true,
+      // @ts-expect-error this is inlined as a literal boolean not a string
+      legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
       ...restProps
     } = props
 
@@ -396,6 +397,32 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     // We're in the app directory if there is no pages router.
     const isAppRouter = !pagesRouter
+
+    if (process.env.NODE_ENV !== 'production') {
+      if (isAppRouter && !asProp) {
+        let href: string | undefined
+        if (typeof hrefProp === 'string') {
+          href = hrefProp
+        } else if (
+          typeof hrefProp === 'object' &&
+          typeof hrefProp.pathname === 'string'
+        ) {
+          href = hrefProp.pathname
+        }
+
+        if (href) {
+          const hasDynamicSegment = href
+            .split('/')
+            .some((segment) => segment.startsWith('[') && segment.endsWith(']'))
+
+          if (hasDynamicSegment) {
+            throw new Error(
+              `Dynamic href \`${href}\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href`
+            )
+          }
+        }
+      }
+    }
 
     const { href, as } = React.useMemo(() => {
       if (!pagesRouter) {
@@ -495,6 +522,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     // Prefetch the URL if we haven't already and it's visible.
     React.useEffect(() => {
+      // in dev, we only prefetch on hover to avoid wasting resources as the prefetch will trigger compiling the page.
+      if (process.env.NODE_ENV !== 'production') {
+        return
+      }
+
       if (!router) {
         return
       }

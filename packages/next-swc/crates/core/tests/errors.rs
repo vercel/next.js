@@ -46,7 +46,6 @@ fn next_dynamic_errors(input: PathBuf) {
             next_dynamic(
                 true,
                 false,
-                false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -82,7 +81,7 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
+                FileName::Real(PathBuf::from("/some-project/src/layout.js")),
                 next_swc::react_server_components::Config::WithOptions(
                     next_swc::react_server_components::Options { is_server: true },
                 ),

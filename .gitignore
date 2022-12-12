@@ -10,6 +10,7 @@ package-lock.json
 yarn.lock
 !/yarn.lock
 test/node_modules
+.pnpm-store/
 
 # logs & pids
 *.log
@@ -23,6 +24,7 @@ coverage
 # test output
 test/**/out*
 test/**/next-env.d.ts
+test/**/tsconfig.json
 .DS_Store
 /e2e-tests
 test/tmp/**

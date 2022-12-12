@@ -233,13 +233,18 @@ export function runNextCommand(argv, options = {}) {
         !options.stderr &&
         !options.stdout &&
         !options.ignoreFail &&
-        code !== 0
+        (code !== 0 || signal)
       ) {
         return reject(
-          new Error(`command failed with code ${code}\n${mergedStdio}`)
+          new Error(
+            `command failed with code ${code} signal ${signal}\n${mergedStdio}`
+          )
         )
       }
 
+      if (code || signal) {
+        console.error(`process exited with code ${code} and signal ${signal}`)
+      }
       resolve({
         code,
         signal,
@@ -649,13 +654,13 @@ export async function getRedboxHeader(browser) {
       evaluate(browser, () => {
         const portal = [].slice
           .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-dialog-header]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('[data-nextjs-dialog-header]').innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxHeader'
   )
@@ -673,11 +678,11 @@ export async function getRedboxSource(browser) {
             )
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector(
+          '[data-nextjs-codeframe], [data-nextjs-terminal]'
+        ).innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxSource'
   )
@@ -693,9 +698,7 @@ export async function getRedboxDescription(browser) {
             p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('#nextjs__container_errors_desc')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('#nextjs__container_errors_desc').innerText
       }),
     3000,
     500,

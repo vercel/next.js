@@ -39,6 +39,7 @@ export function getOriginalStackFrame(
     const params = new URLSearchParams()
     params.append('isServer', String(type === 'server'))
     params.append('isEdgeServer', String(type === 'edge-server'))
+    params.append('isAppDirectory', 'true')
     params.append('errorMessage', errorMessage)
     for (const key in source) {
       params.append(key, ((source as any)[key] ?? '').toString())

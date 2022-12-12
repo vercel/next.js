@@ -22,6 +22,7 @@ export async function sandbox(
   await next.start()
   const browser = await webdriver(next.appPort, '/')
   return {
+    browser,
     session: {
       async write(filename, content) {
         // Update the file on filesystem
@@ -110,6 +111,9 @@ export async function sandbox(
           return `${header}\n\n${source}`
         }
         return source
+      },
+      async waitForAndOpenRuntimeError() {
+        return browser.waitForElementByCss('[data-nextjs-toast]').click()
       },
     },
     async cleanup() {

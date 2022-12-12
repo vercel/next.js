@@ -146,6 +146,29 @@
     "weights": ["400"],
     "styles": ["normal"]
   },
+  "Alexandria": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Alfa Slab One": {
     "weights": ["400"],
     "styles": ["normal"]
@@ -764,19 +787,36 @@
     "styles": ["normal"]
   },
   "Asap": {
-    "weights": ["400", "500", "600", "700", "variable"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal", "italic"],
     "axes": [
       {
+        "tag": "wdth",
+        "min": 75,
+        "max": 125,
+        "defaultValue": 100
+      },
+      {
         "tag": "wght",
-        "min": 400,
-        "max": 700,
+        "min": 100,
+        "max": 900,
         "defaultValue": 400
       }
     ]
   },
   "Asap Condensed": {
-    "weights": ["400", "500", "600", "700"],
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "900"],
     "styles": ["normal", "italic"]
   },
   "Asar": {
@@ -1821,8 +1861,27 @@
     "styles": ["normal"]
   },
   "Chivo": {
-    "weights": ["300", "400", "700", "900"],
-    "styles": ["normal", "italic"]
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
   },
   "Chonburi": {
     "weights": ["400"],
@@ -2668,7 +2727,7 @@
   },
   "Figtree": {
     "weights": ["300", "400", "500", "600", "700", "800", "900", "variable"],
-    "styles": ["normal"],
+    "styles": ["normal", "italic"],
     "axes": [
       {
         "tag": "wght",
@@ -7164,6 +7223,18 @@
         "tag": "wght",
         "min": 100,
         "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Noto Serif Khojki": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
         "defaultValue": 400
       }
     ]

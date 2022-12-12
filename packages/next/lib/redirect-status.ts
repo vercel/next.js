@@ -1,5 +1,7 @@
-import { PERMANENT_REDIRECT_STATUS } from '../shared/lib/constants'
-import { TEMPORARY_REDIRECT_STATUS } from '../shared/lib/constants'
+import {
+  PERMANENT_REDIRECT_STATUS,
+  TEMPORARY_REDIRECT_STATUS,
+} from '../shared/lib/constants'
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 

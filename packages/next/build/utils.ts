@@ -1669,7 +1669,33 @@ export async function copyTracedFiles(
     }
   }
 
+  for (const page of Object.values(middlewareManifest.functions)) {
+    for (const file of page.files) {
+      const originalPath = path.join(distDir, file)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+    for (const file of [...(page.wasm ?? []), ...(page.assets ?? [])]) {
+      const originalPath = path.join(distDir, file.filePath)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file.filePath
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+  }
+
   for (const page of pageKeys) {
+    if (middlewareManifest.functions.hasOwnProperty(page)) {
+      continue
+    }
     const pageFile = path.join(
       distDir,
       'server',
@@ -1683,6 +1709,9 @@ export async function copyTracedFiles(
   }
   if (appPageKeys) {
     for (const page of appPageKeys) {
+      if (middlewareManifest.functions.hasOwnProperty(page)) {
+        continue
+      }
       const pageFile = path.join(distDir, 'server', 'app', `${page}`, 'page.js')
       const pageTraceFile = `${pageFile}.nft.json`
       await handleTraceFiles(pageTraceFile).catch((err) => {
@@ -1760,6 +1789,7 @@ server.listen(currentPort, (err) => {
 })`
   )
 }
+
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }

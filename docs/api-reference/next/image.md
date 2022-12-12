@@ -16,6 +16,7 @@ description: Display optimized images with no layout shift using the built-in `n
 
 | Version   | Changes                                                                                                                                                                                                                                                              |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.0.6` | `ref` prop added.                                                                                                                                                                                                                                                    |
 | `v13.0.0` | The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`. A [codemod is available](/docs/advanced-features/codemods.md#rename-instances-of-nextimage) to safely and automatically rename your imports. |
 | `v13.0.0` | `<span>` wrapper removed. `layout`, `objectFit`, `objectPosition`, `lazyBoundary`, `lazyRoot` props removed. `alt` is required. `onLoadingComplete` receives reference to `img` element. Built-in loader config removed.                                             |
 | `v12.3.0` | `remotePatterns` and `unoptimized` configuration is stable.                                                                                                                                                                                                          |
@@ -37,6 +38,7 @@ This API reference will help you understand how to use [props](#props) and [conf
 ```jsx
 import Image from 'next/image'
 
+<<<<<<< HEAD
 export default function Page() {
   return (
     <Image
@@ -48,6 +50,15 @@ export default function Page() {
   )
 }
 ```
+
+## Known Browser Bugs
+
+- [Safari 15+](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
+  - Use CSS `@supports (font: -apple-system-body) and (-webkit-appearance: none) { img[loading="lazy"] { clip-path: inset(0.6px) } }`
+  - Use [`priority`](#priority) if the image is above the fold
+- [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
+  - Enable [AVIF `formats`](#acceptable-formats)
+  - Use [`placeholder="blur"`](#placeholder)
 
 ## Props
 
