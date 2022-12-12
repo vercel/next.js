@@ -152,7 +152,11 @@ export class Telemetry {
   }
 
   get isEnabled(): boolean {
-    return !this.NEXT_TELEMETRY_DISABLED && !!this.conf && this.conf.get(TELEMETRY_KEY_ENABLED, true) !== false
+    return (
+      !this.NEXT_TELEMETRY_DISABLED &&
+      !!this.conf &&
+      this.conf.get(TELEMETRY_KEY_ENABLED, true) !== false
+    )
   }
 
   oneWayHash = (payload: BinaryLike): string => {
