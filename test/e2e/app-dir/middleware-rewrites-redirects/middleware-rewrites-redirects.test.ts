@@ -20,27 +20,29 @@ describe('redirects and rewrites in middleware', () => {
   })
   afterAll(() => next.destroy())
 
-  it('should rewrite correctly', async () => {
-    const browser = await webdriver(next.url, '/')
-    browser.elementById('link-middleware-rewrite').click()
-    await waitFor(200)
+  describe.each(['link', 'button'])('navigation using %s', (testType) => {
+    it('should rewrite correctly', async () => {
+      const browser = await webdriver(next.url, '/')
+      browser.elementById(`${testType}-middleware-rewrite`).click()
+      await waitFor(200)
 
-    expect(await browser.elementById('page').text()).toBe(
-      'middleware-rewrite-after'
-    )
-    const url = new URL(await browser.url())
-    expect(url.pathname).toEndWith('-before')
-  })
+      expect(await browser.elementById('page').text()).toBe(
+        'middleware-rewrite-after'
+      )
+      const url = new URL(await browser.url())
+      expect(url.pathname).toEndWith('-before')
+    })
 
-  it('should redirect correctly', async () => {
-    const browser = await webdriver(next.url, '/')
-    browser.elementById('link-middleware-redirect').click()
-    await waitFor(200)
+    it('should redirect correctly', async () => {
+      const browser = await webdriver(next.url, '/')
+      browser.elementById(`${testType}-middleware-redirect`).click()
+      await waitFor(200)
 
-    expect(await browser.elementById('page').text()).toBe(
-      'middleware-redirect-after'
-    )
-    const url = new URL(await browser.url())
-    expect(url.pathname).toEndWith('-after')
+      expect(await browser.elementById('page').text()).toBe(
+        'middleware-redirect-after'
+      )
+      const url = new URL(await browser.url())
+      expect(url.pathname).toEndWith('-after')
+    })
   })
 })
