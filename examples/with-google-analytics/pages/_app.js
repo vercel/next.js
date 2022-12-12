@@ -26,9 +26,6 @@ const App = ({ Component, pageProps }) => {
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
 
-            // Disable any default-enabled advertising features (turn them on later when we get consent)
-            gtag('set', 'allow_google_signals', false);
-
             gtag('config', '${gtag.GA_TRACKING_ID}', {
               page_path: window.location.pathname,
             });
