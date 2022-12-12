@@ -38,7 +38,6 @@ This API reference will help you understand how to use [props](#props) and [conf
 ```jsx
 import Image from 'next/image'
 
-<<<<<<< HEAD
 export default function Page() {
   return (
     <Image
