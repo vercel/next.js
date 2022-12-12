@@ -46,17 +46,9 @@ import {
   FLIGHT_PARAMETERS,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
+import { DefaultHead } from '../client/components/head'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
-
-function DefaultHead() {
-  return (
-    <>
-      <meta charSet="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-    </>
-  )
-}
 
 function preloadComponent(Component: any, props: any) {
   const prev = console.error
