@@ -82,7 +82,7 @@ function nextImageLoader(this: any, content: Buffer) {
             buffer: content,
             width: blurWidth,
             height: blurHeight,
-            contentType: 'image/' + extension,
+            contentType: `image/${extension}`,
             quality: BLUR_QUALITY,
           })
         })
