@@ -1,7 +1,7 @@
-import { DynamicServerError } from './hooks-server-context'
+import { suspense } from '../../shared/lib/dynamic-no-ssr'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage'
 
-export function staticGenerationBailout(reason: string): boolean | never {
+export function bailoutToClientRendering(): boolean | never {
   const staticGenerationStore =
     staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
       ? staticGenerationAsyncStorage?.getStore()
@@ -12,10 +12,7 @@ export function staticGenerationBailout(reason: string): boolean | never {
   }
 
   if (staticGenerationStore?.isStaticGeneration) {
-    if (staticGenerationStore) {
-      staticGenerationStore.fetchRevalidate = 0
-    }
-    throw new DynamicServerError(reason)
+    suspense()
   }
 
   return false
