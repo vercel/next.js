@@ -5,7 +5,8 @@ const url = 'https://nextjs.org/docs/messages/no-img-element'
 export = defineRule({
   meta: {
     docs: {
-      description: 'Prevent usage of `<img>` element to prevent layout shift.',
+      description:
+        'Prevent usage of `<img>` element to prevent layout shift favor optimized images.',
       category: 'HTML',
       recommended: true,
       url,
@@ -30,7 +31,7 @@ export = defineRule({
 
         context.report({
           node,
-          message: `Do not use \`<img>\` element. Use \`<Image />\` from \`next/image\` instead. See: ${url}`,
+          message: `The \`<img>\` element does not benefit from Image Optimization. Use \`<Image />\` from \`next/image\` instead. See: ${url}`,
         })
       },
     }

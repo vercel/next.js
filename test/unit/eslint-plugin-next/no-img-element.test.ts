@@ -81,7 +81,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'Do not use `<img>` element. Use `<Image />` from `next/image` instead. ' +
+            'The `<img>` element does not benefit from Image Optimization. Use `<Image />` from `next/image` instead. ' +
             'See: https://nextjs.org/docs/messages/no-img-element',
           type: 'JSXOpeningElement',
         },
@@ -104,7 +104,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'Do not use `<img>` element. Use `<Image />` from `next/image` instead. ' +
+            'The `<img>` element does not benefit from Image Optimization. Use `<Image />` from `next/image` instead. ' +
             'See: https://nextjs.org/docs/messages/no-img-element',
           type: 'JSXOpeningElement',
         },
