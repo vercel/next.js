@@ -6,7 +6,7 @@ import Button from './button'
 import Spinner from './spinner'
 import ErrorMessage from './error-message'
 
-const fetcher = (url) => {
+const fetcher = (url: string) => {
   return fetch(url).then((res) => res.json())
 }
 
@@ -14,9 +14,9 @@ const UploadForm = () => {
   const [isUploading, setIsUploading] = useState(false)
   const [isPreparing, setIsPreparing] = useState(false)
   const [uploadId, setUploadId] = useState(null)
-  const [progress, setProgress] = useState(null)
+  const [progress, setProgress] = useState<Number | null>(null)
   const [errorMessage, setErrorMessage] = useState('')
-  const inputRef = useRef(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const { data, error } = useSwr(
     () => (isPreparing ? `/api/upload/${uploadId}` : null),
@@ -30,7 +30,6 @@ const UploadForm = () => {
     if (upload && upload.asset_id) {
       Router.push({
         pathname: `/asset/${upload.asset_id}`,
-        scroll: false,
       })
     }
   }, [upload])
@@ -54,18 +53,25 @@ const UploadForm = () => {
     }
   }
 
-  const startUpload = (evt) => {
+  const startUpload = () => {
     setIsUploading(true)
+
+    const files = inputRef.current?.files
+    if (!files) {
+      setErrorMessage('An unexpected issue occurred')
+      return
+    }
+
     const upload = UpChunk.createUpload({
       endpoint: createUpload,
-      file: inputRef.current.files[0],
+      file: files[0],
     })
 
-    upload.on('error', (err) => {
+    upload.on('error', (err: any) => {
       setErrorMessage(err.detail.message)
     })
 
-    upload.on('progress', (progress) => {
+    upload.on('progress', (progress: any) => {
       setProgress(Math.floor(progress.detail))
     })
 
@@ -90,7 +96,7 @@ const UploadForm = () => {
           </>
         ) : (
           <label>
-            <Button type="button" onClick={() => inputRef.current.click()}>
+            <Button type="button" onClick={() => inputRef.current?.click()}>
               Select a video file
             </Button>
             <input type="file" onChange={startUpload} ref={inputRef} />

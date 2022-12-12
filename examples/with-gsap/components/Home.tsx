@@ -1,7 +1,7 @@
 import Title from './Title'
 import Content from './Content'
 
-const Home = () => {
+export default function Home() {
   return (
     <div className="inner">
       <Title lineContent="With-GSAP" lineContent2="Using NEXT" />
@@ -15,5 +15,3 @@ const Home = () => {
     </div>
   )
 }
-
-export default Home

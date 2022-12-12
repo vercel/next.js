@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react'
+import type { MqttClient } from 'mqtt'
 import useMqtt from '../lib/useMqtt'
 
 export default function Home() {
-  const [incommingMessages, setIncommingMessages] = useState([])
-  const addMessage = (message) => {
+  const [incommingMessages, setIncommingMessages] = useState<any[]>([])
+  const addMessage = (message: any) => {
     setIncommingMessages((incommingMessages) => [...incommingMessages, message])
   }
   const clearMessages = () => {
@@ -13,14 +14,14 @@ export default function Home() {
   const incommingMessageHandlers = useRef([
     {
       topic: 'topic1',
-      handler: (msg) => {
+      handler: (msg: string) => {
         addMessage(msg)
       },
     },
   ])
 
-  const mqttClientRef = useRef(null)
-  const setMqttClient = (client) => {
+  const mqttClientRef = useRef<MqttClient | null>(null)
+  const setMqttClient = (client: MqttClient) => {
     mqttClientRef.current = client
   }
   useMqtt({
@@ -34,7 +35,7 @@ export default function Home() {
     onConnectedHandler: (client) => setMqttClient(client),
   })
 
-  const publishMessages = (client) => {
+  const publishMessages = (client: any) => {
     if (!client) {
       console.log('(publishMessages) Cannot publish, mqttClient: ', client)
       return

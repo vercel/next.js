@@ -1276,11 +1276,11 @@ jobs:
           # Disable LTO, or the lld may crash with OOM
           CARGO_PROFILE_RELEASE_LTO: false
         with:
-          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION RUST_TOOLCHAIN PNPM_VERSION
+          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS CARGO_PROFILE_RELEASE_LTO NAPI_CLI_VERSION RUST_TOOLCHAIN PNPM_VERSION VM_RELEASE
           usesh: true
           mem: 6000
           prepare: |
-            pkg install -y curl node16
+            pkg install -y -f curl node libnghttp2
             curl -qL https://www.npmjs.com/install.sh | sh
             npm i -g pnpm@${PNPM_VERSION} "@napi-rs/cli@${NAPI_CLI_VERSION}"
             curl https://sh.rustup.rs -sSf --output rustup.sh
