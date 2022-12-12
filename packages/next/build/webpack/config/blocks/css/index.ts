@@ -4,7 +4,7 @@ import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
 import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
-import { getFontLoader } from './loaders/font-loader'
+import { getNextFontLoader } from './loaders/next-font'
 import {
   getCustomDocumentError,
   getGlobalImportError,
@@ -188,7 +188,6 @@ export const css = curry(async function css(
       ])
     : undefined
 
-  // Font loaders cannot be imported in _document.
   fontLoaders?.forEach(([fontLoaderPath, fontLoaderOptions]) => {
     // Matches the resolved font loaders noop files to run next-font-loader
     fns.push(
@@ -197,7 +196,11 @@ export const css = curry(async function css(
           markRemovable({
             sideEffects: false,
             test: fontLoaderPath,
-            use: getFontLoader(ctx, lazyPostCSSInitializer, fontLoaderOptions),
+            use: getNextFontLoader(
+              ctx,
+              lazyPostCSSInitializer,
+              fontLoaderOptions
+            ),
           }),
         ],
       })

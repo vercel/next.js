@@ -77,7 +77,7 @@ module.exports = {
 
 ### Jest
 
-Jest support not only includes the transformation previously provided by Babel, but also simplifies configuring Jest together with Next.js including:
+The Next.js Compiler transpiles your tests and simplifies configuring Jest together with Next.js including:
 
 - Auto mocking of `.css`, `.module.css` (and their `.scss` variants), and image imports
 - Automatically sets up `transform` using SWC

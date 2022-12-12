@@ -16,8 +16,8 @@ describe('app dir imports', () => {
       next = await createNext({
         files: new FileRef(path.join(__dirname, 'import')),
         dependencies: {
-          react: 'experimental',
-          'react-dom': 'experimental',
+          react: 'latest',
+          'react-dom': 'latest',
           typescript: 'latest',
           '@types/react': 'latest',
           '@types/node': 'latest',
