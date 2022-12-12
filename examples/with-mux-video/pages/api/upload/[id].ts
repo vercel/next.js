@@ -1,19 +1,22 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
 import Mux from '@mux/mux-node'
 const { Video } = new Mux()
 
-export default async function assetHandler(req, res) {
+export default async function uploadHandler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { method } = req
 
   switch (method) {
     case 'GET':
       try {
-        const asset = await Video.Assets.get(req.query.id)
+        const upload = await Video.Uploads.get(req.query.id as string)
         res.json({
-          asset: {
-            id: asset.id,
-            status: asset.status,
-            errors: asset.errors,
-            playback_id: asset.playback_ids[0].id,
+          upload: {
+            status: upload.status,
+            url: upload.url,
+            asset_id: upload.asset_id,
           },
         })
       } catch (e) {

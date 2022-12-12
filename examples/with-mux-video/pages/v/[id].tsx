@@ -1,3 +1,8 @@
+import type {
+  InferGetStaticPropsType,
+  GetStaticProps,
+  GetStaticPaths,
+} from 'next'
 import MuxPlayer from '@mux/mux-player-react'
 import Link from 'next/link'
 import Layout from '../../components/layout'
@@ -5,20 +10,29 @@ import Spinner from '../../components/spinner'
 import { MUX_HOME_PAGE_URL } from '../../constants'
 import { useRouter } from 'next/router'
 
-export function getStaticProps({ params: { id: playbackId } }) {
+type Params = {
+  id?: string
+}
+
+export const getStaticProps: GetStaticProps = async ({ params }) => {
+  const { id: playbackId } = params as Params
   const poster = `https://image.mux.com/${playbackId}/thumbnail.png`
 
   return { props: { playbackId, poster } }
 }
 
-export function getStaticPaths() {
+export const getStaticPaths: GetStaticPaths = () => {
   return {
     paths: [],
     fallback: true,
   }
 }
 
-const Code = ({ children }) => (
+type CodeProps = {
+  children: React.ReactNode
+}
+
+const Code = ({ children }: CodeProps) => (
   <>
     <span className="code">{children}</span>
     <style jsx>{`
@@ -32,7 +46,10 @@ const Code = ({ children }) => (
   </>
 )
 
-export default function Playback({ playbackId, poster }) {
+export default function Playback({
+  playbackId,
+  poster,
+}: InferGetStaticPropsType<typeof getStaticProps>) {
   const router = useRouter()
 
   if (router.isFallback) {

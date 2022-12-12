@@ -76,6 +76,7 @@ import {
 } from '../../build/utils'
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
+import { formatServerError } from '../../lib/format-server-error'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -1031,6 +1032,7 @@ export default class DevServer extends Server {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
       const err = getProperError(error)
+      formatServerError(err)
       this.logErrorWithOriginalStack(err).catch(() => {})
       if (!res.sent) {
         res.statusCode = 500
