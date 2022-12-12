@@ -277,6 +277,16 @@ describe('CLI Usage', () => {
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
+    test('should format IPv6 addresses correctly', async () => {
+      const port = await findPort()
+      const output = await runNextCommandDev(
+        [dir, '-H', '::', '--port', port],
+        true
+      )
+      expect(output).toMatch(new RegExp(`on \\[::\\]:${port}`))
+      expect(output).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
+    })
+
     test('should warn when unknown argument provided', async () => {
       const { stderr } = await runNextCommand(['dev', '--random'], {
         stderr: true,
