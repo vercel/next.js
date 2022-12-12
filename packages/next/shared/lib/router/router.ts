@@ -1671,7 +1671,7 @@ export default class Router implements BaseRouter {
         }
       }
 
-      let { error, props, __N_SSG, __N_SSP } = routeInfo
+      // let { error, props, __N_SSG, __N_SSP } = routeInfo
 
       const component: any = routeInfo.Component
       if (component && component.unstable_scriptLoader) {
@@ -1683,19 +1683,22 @@ export default class Router implements BaseRouter {
       }
 
       // handle redirect on client-transition
-      if ((__N_SSG || __N_SSP) && props) {
-        if (props.pageProps && props.pageProps.__N_REDIRECT) {
+      if ((routeInfo.__N_SSG || routeInfo.__N_SSP) && routeInfo.props) {
+        if (
+          routeInfo.props.pageProps &&
+          routeInfo.props.pageProps.__N_REDIRECT
+        ) {
           // Use the destination from redirect without adding locale
           options.locale = false
 
-          const destination = props.pageProps.__N_REDIRECT
+          const destination = routeInfo.props.pageProps.__N_REDIRECT
 
           // check if destination is internal (resolves to a page) and attempt
           // client-navigation if it is falling back to hard navigation if
           // it's not
           if (
             destination.startsWith('/') &&
-            props.pageProps.__N_REDIRECT_BASE_PATH !== false
+            routeInfo.props.pageProps.__N_REDIRECT_BASE_PATH !== false
           ) {
             const parsedHref = parseRelativeUrl(destination)
             parsedHref.pathname = resolveDynamicRoute(
@@ -1714,10 +1717,10 @@ export default class Router implements BaseRouter {
           return new Promise(() => {})
         }
 
-        nextState.isPreview = !!props.__N_PREVIEW
+        nextState.isPreview = !!routeInfo.props.__N_PREVIEW
 
         // handle SSG data 404
-        if (props.notFound === SSG_DATA_NOT_FOUND) {
+        if (routeInfo.props.notFound === SSG_DATA_NOT_FOUND) {
           let notFoundRoute
 
           try {
@@ -1748,12 +1751,13 @@ export default class Router implements BaseRouter {
         isQueryUpdating &&
         this.pathname === '/_error' &&
         self.__NEXT_DATA__.props?.pageProps?.statusCode === 500 &&
-        props?.pageProps
+        routeInfo.props?.pageProps
       ) {
         // ensure statusCode is still correct for static 500 page
         // when updating query information
-        props.pageProps.statusCode = 500
+        routeInfo.props.pageProps.statusCode = 500
       }
+
       // shallow routing is only allowed for same page URL changes.
       const isValidShallowRoute =
         options.shallow && nextState.route === (routeInfo.route ?? route)
@@ -1797,6 +1801,16 @@ export default class Router implements BaseRouter {
           throw new Error(`Unexpected middleware effect on ${this.pathname}`)
         }
 
+        if (
+          this.pathname === '/_error' &&
+          self.__NEXT_DATA__.props?.pageProps?.statusCode === 500 &&
+          routeInfo.props?.pageProps
+        ) {
+          // ensure statusCode is still correct for static 500 page
+          // when updating query information
+          routeInfo.props.pageProps.statusCode = 500
+        }
+
         try {
           await this.set(upcomingRouterState, routeInfo, upcomingScrollState)
         } catch (err) {
@@ -1823,20 +1837,24 @@ export default class Router implements BaseRouter {
         compareRouterStates(upcomingRouterState, this.state)
 
       if (!canSkipUpdating) {
-        await this.set(
-          upcomingRouterState,
-          routeInfo,
-          upcomingScrollState
-        ).catch((e) => {
-          if (e.cancelled) error = error || e
+        try {
+          await this.set(upcomingRouterState, routeInfo, upcomingScrollState)
+        } catch (e: any) {
+          if (e.cancelled) routeInfo.error = routeInfo.error || e
           else throw e
-        })
+        }
 
-        if (error) {
+        if (routeInfo.error) {
           if (!isQueryUpdating) {
-            Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+            Router.events.emit(
+              'routeChangeError',
+              routeInfo.error,
+              cleanedAs,
+              routeProps
+            )
           }
-          throw error
+
+          throw routeInfo.error
         }
 
         if (process.env.__NEXT_I18N_SUPPORT) {
