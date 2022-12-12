@@ -171,7 +171,7 @@ describe('app dir', () => {
 
         expect(
           await browser.elementByCss('#css-text-dynamic-no-ssr-client').text()
-        ).toBe('next-dynamic dynamic no ssr on client')
+        ).toBe('next-dynamic dynamic no ssr on client:suffix')
       })
 
       it('should serve polyfills for browsers that do not support modules', async () => {

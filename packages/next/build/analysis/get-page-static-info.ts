@@ -316,7 +316,7 @@ export async function getPageStaticInfo(params: {
         )
       } else {
         Log.error(
-          `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
+          `Provided runtime "${resolvedRuntime}" is not supported. Please leave it empty or choose one of: ${options}`
         )
       }
       if (!isDev) {

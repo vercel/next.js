@@ -6,7 +6,7 @@ import Spinner from '../../components/spinner'
 import ErrorMessage from '../../components/error-message'
 import UploadPage from '../../components/upload-page'
 
-const fetcher = (url) => {
+const fetcher = (url: string) => {
   return fetch(url).then((res) => res.json())
 }
 
@@ -27,7 +27,7 @@ export default function Asset() {
     }
   }, [asset])
 
-  let errorMessage
+  let errorMessage: string = ''
 
   if (error) {
     errorMessage = 'Error fetching api'

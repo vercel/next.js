@@ -22,9 +22,12 @@ function isHydrationError(error: Error): boolean {
   )
 }
 
-try {
-  Error.stackTraceLimit = 50
-} catch {}
+if (typeof window !== 'undefined') {
+  try {
+    // Increase the number of stack frames on the client
+    Error.stackTraceLimit = 50
+  } catch {}
+}
 
 const errorQueue: Array<Error> = []
 const rejectionQueue: Array<Error> = []
