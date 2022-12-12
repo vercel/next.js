@@ -16,6 +16,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         >
           Change param
         </Link>
+        <Link
+          id="change-catchall"
+          href="/segment-name/param1/segment-name2/value2/different/random/paths'"
+        >
+          Change param
+        </Link>
         {children}
       </body>
     </html>

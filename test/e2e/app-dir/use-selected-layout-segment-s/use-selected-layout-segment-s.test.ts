@@ -62,6 +62,16 @@ describe('useSelectedLayoutSegment(s)', () => {
     ).toMatchInlineSnapshot(`"\\"value2\\""`)
   })
 
+  it('should return correct values in layout before catchall segment', async () => {
+    expect(
+      await browser.elementByCss('#before-catchall > .segments').text()
+    ).toMatchInlineSnapshot(`"[\\"value3/value4\\"]"`)
+
+    expect(
+      await browser.elementByCss('#before-catchall > .segment').text()
+    ).toMatchInlineSnapshot(`"\\"value3/value4\\""`)
+  })
+
   it('should return correct values in layout after last segment', async () => {
     expect(
       await browser.elementByCss('#final > .segments').text()
@@ -108,5 +118,24 @@ describe('useSelectedLayoutSegment(s)', () => {
     expect(
       await browser.elementByCss('#before-param > .segment').text()
     ).toMatchInlineSnapshot(`"\\"different-value\\""`)
+  })
+
+  it('should correctly update when changing catchall segment', async () => {
+    browser.elementById('change-catchall').click()
+    await waitFor(100)
+
+    expect(
+      await browser.elementByCss('#root > .segments').text()
+    ).toMatchInlineSnapshot(
+      `"[\\"segment-name\\",\\"param1\\",\\"segment-name2\\",\\"value2\\",\\"different/random/paths'\\"]"`
+    )
+
+    expect(
+      await browser.elementByCss('#before-catchall > .segments').text()
+    ).toMatchInlineSnapshot(`"[\\"different/random/paths'\\"]"`)
+
+    expect(
+      await browser.elementByCss('#before-catchall > .segment').text()
+    ).toMatchInlineSnapshot(`"\\"different/random/paths'\\""`)
   })
 })
