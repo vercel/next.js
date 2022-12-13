@@ -2,17 +2,28 @@ import type { NextServerOptions, NextServer, RequestHandler } from '../next'
 import { warn } from '../../build/output/log'
 import http from 'http'
 import next from '../next'
-
+import cluster from 'cluster'
+import v8 from 'v8'
 interface StartServerOptions extends NextServerOptions {
   allowRetry?: boolean
   keepAliveTimeout?: number
 }
 
+const MAXIMUM_HEAP_SIZE_ALLOWED =
+  (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
+
 export function startServer(opts: StartServerOptions) {
   let requestHandler: RequestHandler
 
   const server = http.createServer((req, res) => {
-    return requestHandler(req, res)
+    return requestHandler(req, res).finally(() => {
+      if (
+        cluster.worker &&
+        process.memoryUsage().heapUsed / 1024 / 1024 > MAXIMUM_HEAP_SIZE_ALLOWED
+      ) {
+        cluster.worker.kill()
+      }
+    })
   })
 
   if (opts.keepAliveTimeout) {

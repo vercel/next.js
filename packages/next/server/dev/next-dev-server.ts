@@ -76,6 +76,7 @@ import {
 } from '../../build/utils'
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
+import { formatServerError } from '../../lib/format-server-error'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -149,6 +150,10 @@ export default class DevServer extends Server {
   }
 
   constructor(options: Options) {
+    try {
+      // Increase the number of stack frames on the server
+      Error.stackTraceLimit = 50
+    } catch {}
     super({ ...options, dev: true })
     this.persistPatchedGlobals()
     this.renderOpts.dev = true
@@ -1027,6 +1032,7 @@ export default class DevServer extends Server {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
       const err = getProperError(error)
+      formatServerError(err)
       this.logErrorWithOriginalStack(err).catch(() => {})
       if (!res.sent) {
         res.statusCode = 500
