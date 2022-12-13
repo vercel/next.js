@@ -1597,7 +1597,7 @@ export function detectConflictingPaths(
 export async function copyTracedFiles(
   dir: string,
   distDir: string,
-  pageKeys: ReadonlyArray<string>,
+  pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
@@ -1712,7 +1712,7 @@ export async function copyTracedFiles(
       if (middlewareManifest.functions.hasOwnProperty(page)) {
         continue
       }
-      const pageFile = path.join(distDir, 'server', 'app', `${page}`, 'page.js')
+      const pageFile = path.join(distDir, 'server', 'app', `${page}.js`)
       const pageTraceFile = `${pageFile}.nft.json`
       await handleTraceFiles(pageTraceFile).catch((err) => {
         Log.warn(`Failed to copy traced files for ${pageFile}`, err)
