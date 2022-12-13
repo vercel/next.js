@@ -34,4 +34,4 @@ turbopack-node = { path = "../turbopack-node" }
 turbo-tasks-build = { path = "../turbo-tasks-build" }
 
 [features]
-next-font = []
+next-font-local = []
