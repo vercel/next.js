@@ -12,6 +12,8 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_millis(800);
 // 1 day
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60 * 60 * 24);
 
+const NO_UPDATE_NOTIFIER: &str = "NO_UPDATE_NOTIFIER";
+
 #[derive(ThisError, Debug)]
 pub enum UpdateNotifierError {
     #[error("Failed to write to terminal")]
@@ -58,6 +60,11 @@ pub fn check_for_updates(
     timeout: Option<Duration>,
     interval: Option<Duration>,
 ) -> Result<(), UpdateNotifierError> {
+    // bail early if the user has disabled update notifications
+    if std::env::var(NO_UPDATE_NOTIFIER).is_ok() {
+        return Ok(());
+    }
+
     let timeout = timeout.unwrap_or(DEFAULT_TIMEOUT);
     let interval = interval.unwrap_or(DEFAULT_INTERVAL);
     let informer = update_informer::new(NPMRegistry, package_name, current_version)
