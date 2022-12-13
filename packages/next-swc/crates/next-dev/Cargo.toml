@@ -54,7 +54,7 @@ webbrowser = "0.7.1"
 chromiumoxide = { version = "0.4.0", features = [
   "tokio-runtime",
 ], default-features = false }
-criterion = { version = "0.3.5", features = ["async_tokio"] }
+criterion = { version = "0.4.0", features = ["async_tokio"] }
 fs_extra = "1.2.0"
 lazy_static = "1.4.0"
 once_cell = "1.13.0"
