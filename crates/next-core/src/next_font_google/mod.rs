@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
 use once_cell::sync::Lazy;
-use turbo_tasks::primitives::{OptionStringVc, StringVc};
+use turbo_tasks::primitives::{OptionStringVc, OptionU16Vc, StringVc};
 use turbo_tasks_fetch::fetch;
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbopack_core::{
@@ -12,16 +12,17 @@ use turbopack_core::{
             ImportMappingReplacementVc, ImportMappingVc,
         },
         parse::{Request, RequestVc},
+        pattern::QueryMapVc,
         ResolveResult,
     },
     virtual_asset::VirtualAssetVc,
 };
 
+use self::options::FontWeights;
 use crate::{
     embed_js::attached_next_js_package_path,
     next_font_google::{
         options::FontDataEntry,
-        request::NextFontRequest,
         util::{get_font_axes, get_stylesheet_url},
     },
 };
@@ -62,12 +63,14 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
         let Request::Module {
             module: _,
             path: _,
-            query,
+            query: query_vc
         } = request else {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
-        let query = &*query.await?;
+        let query = &*query_vc.await?;
+        let options = font_options_from_query_map(*query_vc);
+        let properties = get_font_css_properties(options).await?;
         let js_asset = VirtualAssetVc::new(
                 attached_next_js_package_path(self.project_path)
                     .join("internal/font/google/inter.js"),
@@ -76,11 +79,27 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
                         r#"
                             import cssModule from "@vercel/turbopack-next/internal/font/google/cssmodule.module.css?{}";
                             export default {{
-                                className: cssModule.className
+                                className: cssModule.className,
+                                style: {{
+                                    fontFamily: "{}",
+                                    {}{}
+                                }}
                             }};
                         "#,
                         // Pass along whichever options we received to the css handler
-                        qstring::QString::new(query.as_ref().unwrap().iter().collect())
+                        qstring::QString::new(query.as_ref().unwrap().iter().collect()),
+                        properties.font_family.await?,
+                        properties
+                            .weight
+                            .await?
+                            .map(|w| format!("fontWeight: {},\n", w))
+                            .unwrap_or_else(|| "".to_owned()),
+                        properties
+                            .style
+                            .await?
+                            .as_ref()
+                            .map(|s| format!("fontStyle: \"{}\",\n", s))
+                            .unwrap_or_else(|| "".to_owned()),
                     )
                     .into(),
                 )
@@ -122,23 +141,8 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             return Ok(ImportMapResult::NoEntry.into());
         };
 
-        let query_map = &*query.await?;
-        // These are invariants from the next/font swc transform. Regular errors instead
-        // of Issues should be okay.
-        let query_map = query_map
-            .as_ref()
-            .context("@next/font/google queries must exist")?;
-
-        if query_map.len() != 1 {
-            bail!("@next/font/google queries must only have one entry");
-        }
-
-        let Some((json, _)) = query_map.iter().next() else {
-            bail!("Expected one entry");
-        };
-
-        let request: StringVc = StringVc::cell(json.to_owned());
-        let stylesheet_url = get_stylesheet_url_from_request(request);
+        let options = font_options_from_query_map(*query);
+        let stylesheet_url = get_stylesheet_url_from_options(options);
 
         // TODO(WEB-274): Handle this failing (e.g. connection issues). This should be
         // an Issue.
@@ -158,7 +162,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         }
 
         let stylesheet = &*stylesheet_res.body.to_string().await?;
-        let options = options_from_request(request).await?;
+        let properties = get_font_css_properties(options).await?;
 
         let css_asset = VirtualAssetVc::new(
             attached_next_js_package_path(self.project_path)
@@ -169,11 +173,23 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
                         {}
 
                         .className {{
-                            font-family: "{}";
+                            font-family: {};
+                            {}{}
                         }}
                         "#,
                     stylesheet,
-                    options.font_family
+                    properties.font_family.await?,
+                    properties
+                        .weight
+                        .await?
+                        .map(|w| format!("font-weight: {};\n", w))
+                        .unwrap_or_else(|| "".to_owned()),
+                    properties
+                        .style
+                        .await?
+                        .as_ref()
+                        .map(|s| format!("font-style: {};\n", s))
+                        .unwrap_or_else(|| "".to_owned()),
                 )
                 .into(),
             )
@@ -185,8 +201,8 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
 }
 
 #[turbo_tasks::function]
-async fn get_stylesheet_url_from_request(request_json: StringVc) -> Result<StringVc> {
-    let options = options_from_request(request_json).await?;
+async fn get_stylesheet_url_from_options(options: NextFontGoogleOptionsVc) -> Result<StringVc> {
+    let options = options.await?;
 
     Ok(StringVc::cell(get_stylesheet_url(
         GOOGLE_FONTS_STYLESHEET_URL,
@@ -205,9 +221,55 @@ async fn get_stylesheet_url_from_request(request_json: StringVc) -> Result<Strin
 #[turbo_tasks::value(transparent)]
 struct NextFontGoogleOptions(self::options::NextFontGoogleOptions);
 
-#[turbo_tasks::function]
-async fn options_from_request(request: StringVc) -> Result<NextFontGoogleOptionsVc> {
-    let request: NextFontRequest = serde_json::from_str(&request.await?)?;
+#[turbo_tasks::value(transparent)]
+struct FontCssProperties {
+    font_family: StringVc,
+    weight: OptionU16Vc,
+    style: OptionStringVc,
+}
 
-    self::options::options_from_request(&request, &FONT_DATA).map(NextFontGoogleOptionsVc::cell)
+#[turbo_tasks::function]
+async fn get_font_css_properties(options: NextFontGoogleOptionsVc) -> Result<FontCssPropertiesVc> {
+    let options = &*options.await?;
+
+    let mut font_families = vec![options.font_family.clone()];
+    if let Some(fallback) = &options.fallback {
+        font_families.extend_from_slice(fallback);
+    }
+
+    Ok(FontCssPropertiesVc::cell(FontCssProperties {
+        font_family: StringVc::cell(
+            font_families
+                .iter()
+                .map(|f| format!("'{}'", f))
+                .collect::<Vec<String>>()
+                .join(", "),
+        ),
+        weight: OptionU16Vc::cell(match &options.weights {
+            FontWeights::Variable => None,
+            FontWeights::Fixed(weights) => weights.first().cloned(),
+        }),
+        style: OptionStringVc::cell(options.styles.first().cloned()),
+    }))
+}
+
+#[turbo_tasks::function]
+async fn font_options_from_query_map(query: QueryMapVc) -> Result<NextFontGoogleOptionsVc> {
+    let query_map = &*query.await?;
+    // These are invariants from the next/font swc transform. Regular errors instead
+    // of Issues should be okay.
+    let query_map = query_map
+        .as_ref()
+        .context("@next/font/google queries must exist")?;
+
+    if query_map.len() != 1 {
+        bail!("@next/font/google queries must only have one entry");
+    }
+
+    let Some((json, _)) = query_map.iter().next() else {
+            bail!("Expected one entry");
+        };
+
+    self::options::options_from_request(&serde_json::from_str(json)?, &FONT_DATA)
+        .map(NextFontGoogleOptionsVc::cell)
 }
