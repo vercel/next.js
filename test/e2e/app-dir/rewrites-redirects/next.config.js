@@ -18,6 +18,11 @@ module.exports = {
         destination: '/config-redirect-after',
         permanent: true,
       },
+      {
+        source: '/config-redirect-catchall-before/:path*',
+        destination: '/config-redirect-catchall-after/:path*',
+        permanent: true,
+      },
     ]
   },
 }
