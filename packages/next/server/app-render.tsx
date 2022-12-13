@@ -52,7 +52,7 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 function preloadComponent(Component: any, props: any) {
   const prev = console.error
   // Hide invalid hook call warning when calling component
-  console.error = (msg) => {
+  console.error = function (msg) {
     if (msg.startsWith('Invalid hook call..')) {
       // ignore
     } else {
