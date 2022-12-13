@@ -49,7 +49,7 @@ export default function MyApp({ Component, pageProps }) {
 
 ### Per-Page Layouts
 
-If you need multiple layouts, you can add a property `getLayout` to your page, allowing you to return a React component for the layout. This allows you to define the layout on a _per-page basis_. Since we're returning a function, we can have complex nested layouts if desired.
+If you need multiple layouts, you can add a property `Layout` to your page, allowing you to return a React component for the layout. This allows you to define the layout on a _per-page basis_. Since we're returning a function, we can have complex nested layouts if desired.
 
 ```jsx
 // pages/index.js
@@ -63,7 +63,8 @@ export default function Page() {
   )
 }
 
-Page.getLayout = function getLayout(page) {
+// Use the function name for the layout name (useful for debugging)
+Page.Layout = function PageLayout(page) {
   return (
     <Layout>
       <NestedLayout>{page}</NestedLayout>
@@ -75,11 +76,18 @@ Page.getLayout = function getLayout(page) {
 ```jsx
 // pages/_app.js
 
+import { Fragment } from 'react'
+
 export default function MyApp({ Component, pageProps }) {
   // Use the layout defined at the page level, if available
-  const getLayout = Component.getLayout || ((page) => page)
+  // Otherwise, use a fragment (or replace it with a default layout)
+  const Layout = Component.Layout || Fragment
 
-  return getLayout(<Component {...pageProps} />)
+  return (
+    <Layout>
+      <Component {...pageProps} />
+    </Layout>
+  )
 }
 ```
 
@@ -91,7 +99,7 @@ This layout pattern enables state persistence because the React component tree i
 
 ### With TypeScript
 
-When using TypeScript, you must first create a new type for your pages which includes a `getLayout` function. Then, you must create a new type for your `AppProps` which overrides the `Component` property to use the previously created type.
+When using TypeScript, you must first create a new type for your pages which includes a `Layout` function. Then, you must create a new type for your `AppProps` which overrides the `Component` property to use the previously created type.
 
 ```tsx
 // pages/index.tsx
@@ -105,10 +113,11 @@ const Page: NextPageWithLayout = () => {
   return <p>hello world</p>
 }
 
-Page.getLayout = function getLayout(page: ReactElement) {
+// Use the function name for the layout name (useful for debugging)
+Page.Layout = function PageLayout({ children }: { children: ReactElement }) {
   return (
     <Layout>
-      <NestedLayout>{page}</NestedLayout>
+      <NestedLayout>{children}</NestedLayout>
     </Layout>
   )
 }
@@ -119,12 +128,13 @@ export default Page
 ```tsx
 // pages/_app.tsx
 
+import { Fragment } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 import type { NextPage } from 'next'
 import type { AppProps } from 'next/app'
 
 export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
-  getLayout?: (page: ReactElement) => ReactNode
+  Layout?: React.FC
 }
 
 type AppPropsWithLayout = AppProps & {
@@ -133,9 +143,14 @@ type AppPropsWithLayout = AppProps & {
 
 export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   // Use the layout defined at the page level, if available
-  const getLayout = Component.getLayout ?? ((page) => page)
+  // Otherwise, use a fragment (or replace it with a default layout)
+  const Layout = Component.Layout ?? Fragment
 
-  return getLayout(<Component {...pageProps} />)
+  return (
+    <Layout>
+      <Component {...pageProps} />
+    </Layout>
+  )
 }
 ```
 
