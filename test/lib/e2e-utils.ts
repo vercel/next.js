@@ -1,6 +1,7 @@
 import path from 'path'
 import assert from 'assert'
-import { trace } from 'next/trace'
+import { flushAllTraces, setGlobal, trace } from 'next/trace'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
@@ -106,6 +107,11 @@ if (typeof afterAll === 'function') {
   })
 }
 
+const setupTracing = () => {
+  setGlobal('distDir', './test/.trace')
+  setGlobal('phase', PHASE_DEVELOPMENT_SERVER) // We want to make it run with 50mb limit
+}
+
 /**
  * Sets up and manages a Next.js instance in the configured
  * test mode. The next instance will be isolated from the monorepo
@@ -114,14 +120,13 @@ if (typeof afterAll === 'function') {
 export async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean }
 ): Promise<NextInstance> {
-  return await trace('createNext').traceAsyncFn(async (rootTrace) => {
-    try {
-      if (nextInstance) {
-        throw new Error(
-          `createNext called without destroying previous instance`
-        )
-      }
+  try {
+    if (nextInstance) {
+      throw new Error(`createNext called without destroying previous instance`)
+    }
 
+    setupTracing()
+    return await trace('createNext').traceAsyncFn(async (rootTrace) => {
       const useTurbo = !!process.env.TEST_WASM
         ? false
         : opts?.turbo ?? shouldRunTurboDevTest()
@@ -169,13 +174,16 @@ export async function createNext(
             await nextInstance.start()
           })
       }
+
       return nextInstance!
-    } catch (err) {
-      require('console').error('Failed to create next instance', err)
-      try {
-        nextInstance.destroy()
-      } catch (_) {}
-      process.exit(1)
-    }
-  })
+    })
+  } catch (err) {
+    require('console').error('Failed to create next instance', err)
+    try {
+      nextInstance.destroy()
+    } catch (_) {}
+    process.exit(1)
+  } finally {
+    flushAllTraces()
+  }
 }
