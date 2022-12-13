@@ -1,11 +1,11 @@
 import path from 'path'
 import assert from 'assert'
+import { trace } from 'next/trace'
 import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
 import { shouldRunTurboDevTest } from './next-test-utils'
-import { trace } from 'packages/next/trace'
 
 // increase timeout to account for yarn install time
 jest.setTimeout(240 * 1000)
