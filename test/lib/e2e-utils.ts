@@ -126,14 +126,14 @@ export async function createNext(
     }
 
     setupTracing()
-    return await trace('createNext').traceAsyncFn(async (rootTrace) => {
+    return await trace('createNext').traceAsyncFn(async (rootSpan) => {
       const useTurbo = !!process.env.TEST_WASM
         ? false
         : opts?.turbo ?? shouldRunTurboDevTest()
 
       if (testMode === 'dev') {
         // next dev
-        rootTrace.traceChild('init next dev instance').traceFn(() => {
+        rootSpan.traceChild('init next dev instance').traceFn(() => {
           nextInstance = new NextDevInstance({
             ...opts,
             turbo: useTurbo,
@@ -141,7 +141,7 @@ export async function createNext(
         })
       } else if (testMode === 'deploy') {
         // Vercel
-        rootTrace.traceChild('init next deploy instance').traceFn(() => {
+        rootSpan.traceChild('init next deploy instance').traceFn(() => {
           nextInstance = new NextDeployInstance({
             ...opts,
             turbo: false,
@@ -149,7 +149,7 @@ export async function createNext(
         })
       } else {
         // next build + next start
-        rootTrace.traceChild('init next prod instance').traceFn(() => {
+        rootSpan.traceChild('init next prod instance').traceFn(() => {
           nextInstance = new NextStartInstance({
             ...opts,
             turbo: false,
@@ -161,14 +161,14 @@ export async function createNext(
         nextInstance = undefined
       })
 
-      await rootTrace
+      await rootSpan
         .traceChild('seput next instance')
         .traceAsyncFn(async () => {
           await nextInstance.setup()
         })
 
       if (!opts.skipStart) {
-        await rootTrace
+        await rootSpan
           .traceChild('start next instance')
           .traceAsyncFn(async () => {
             await nextInstance.start()
