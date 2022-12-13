@@ -24,15 +24,15 @@ describe('browser-shallow-navigation', () => {
 
     /// do shallow push
     await browser.elementByCss('[data-next-shallow-push]').click()
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await browser.waitForElementByCss('[data-next-page]')
 
     // go to another page
     await browser.elementByCss('[data-next-page]').click()
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await browser.waitForElementByCss('[data-next-shallow-replace]')
 
     // do shadow replace
     await browser.elementByCss('[data-next-shallow-replace]').click()
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await browser.waitForElementByCss('[data-go-back]')
 
     // go back using history api
     await browser.elementByCss('[data-go-back]').click()
