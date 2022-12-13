@@ -94,8 +94,9 @@ pub(crate) fn get_font_axes(
                 variable_axes: Some(variable_axes),
             })
         }
+
         FontWeights::Fixed(weights) => Ok(FontAxes {
-            wght: weights.clone(),
+            wght: IndexSet::from_iter(weights.iter().map(|w| w.to_string())),
             ital,
             variable_axes: None,
         }),

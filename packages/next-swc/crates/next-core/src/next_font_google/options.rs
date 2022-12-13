@@ -26,7 +26,7 @@ pub struct NextFontGoogleOptions {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub enum FontWeights {
     Variable,
-    Fixed(IndexSet<String>),
+    Fixed(IndexSet<u16>),
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,7 +64,7 @@ pub fn options_from_request(
     let font_family = request.import.replace('_', " ");
     let font_data = data.get(&font_family).context("Unknown font")?;
 
-    let requested_weights = argument
+    let requested_weights: IndexSet<String> = argument
         .and_then(|argument| {
             argument.weight.as_ref().map(|w| match w {
                 OneOrManyStrings::One(one) => indexset! {one.to_owned()},
@@ -114,7 +114,12 @@ pub fn options_from_request(
             }
         }
 
-        FontWeights::Fixed(requested_weights)
+        let mut weights = indexset! {};
+        for weight in requested_weights {
+            weights.insert(weight.parse()?);
+        }
+
+        FontWeights::Fixed(weights)
     };
 
     if styles.is_empty() {
