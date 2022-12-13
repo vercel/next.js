@@ -6,6 +6,7 @@ use turbo_tasks::primitives::{OptionStringVc, OptionU16Vc, StringVc};
 use turbo_tasks_fetch::fetch;
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbopack_core::{
+    issue::IssueSeverity,
     resolve::{
         options::{
             ImportMapResult, ImportMapResultVc, ImportMapping, ImportMappingReplacement,
@@ -143,9 +144,9 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
 
         let options = font_options_from_query_map(*query);
         let stylesheet_url = get_stylesheet_url_from_options(options);
+        let css_virtual_path = attached_next_js_package_path(self.project_path)
+            .join("internal/font/google/cssmodule.module.css");
 
-        // TODO(WEB-274): Handle this failing (e.g. connection issues). This should be
-        // an Issue.
         let stylesheet_res = fetch(
             stylesheet_url,
             OptionStringVc::cell(Some(
@@ -156,17 +157,28 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         )
         .await?;
 
-        // TODO(WEB-274): Emit an issue instead
-        if stylesheet_res.status >= 400 {
-            bail!("Expected a successful response for Google fonts stylesheet");
-        }
+        let stylesheet = match &*stylesheet_res {
+            Ok(r) => Some(r.await?.body.to_string().await?.clone()),
+            Err(err) => {
+                // Inform the user of the failure to retreive the stylesheet, but don't
+                // propagate this error. We don't want e.g. offline connections to prevent page
+                // renders during development. During production builds, however, this error
+                // should propagate.
+                //
+                // TODO(WEB-283): Use fallback in dev in this case
+                // TODO(WEB-293): Fail production builds (not dev) in this case
+                err.to_issue(IssueSeverity::Warning.into(), css_virtual_path)
+                    .as_issue()
+                    .emit();
 
-        let stylesheet = &*stylesheet_res.body.to_string().await?;
+                None
+            }
+        };
+
         let properties = get_font_css_properties(options).await?;
 
         let css_asset = VirtualAssetVc::new(
-            attached_next_js_package_path(self.project_path)
-                .join("internal/font/google/cssmodule.module.css"),
+            css_virtual_path,
             FileContent::Content(
                 formatdoc!(
                     r#"
@@ -177,7 +189,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
                             {}{}
                         }}
                         "#,
-                    stylesheet,
+                    stylesheet.unwrap_or_else(|| "".to_owned()),
                     properties.font_family.await?,
                     properties
                         .weight

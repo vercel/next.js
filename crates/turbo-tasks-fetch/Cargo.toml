@@ -16,7 +16,9 @@ reqwest = "0.11.13"
 serde = "1.0.136"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
+turbo-tasks-fs = { path = "../turbo-tasks-fs" }
 turbo-tasks-memory = { path = "../turbo-tasks-memory" }
+turbopack-core = { path = "../turbopack-core" }
 
 [dev-dependencies]
 httpmock = "0.6.6"
