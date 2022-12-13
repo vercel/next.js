@@ -5,7 +5,6 @@ import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
 import * as Log from 'next/dist/build/output/log'
 // @ts-ignore
 import chalk from 'next/dist/compiled/chalk'
-// @ts-ignore
 import {
   fetchCSSFromGoogleFonts,
   fetchFontFile,
@@ -94,6 +93,17 @@ const downloadGoogleFonts: FontLoader = async ({
     }
   }
 
+  const result = {
+    fallbackFonts: fallback,
+    weight:
+      weights.length === 1 && weights[0] !== 'variable'
+        ? weights[0]
+        : undefined,
+    style: styles.length === 1 ? styles[0] : undefined,
+    variable,
+    adjustFontFallback: adjustFontFallbackMetrics,
+  }
+
   try {
     const hasCachedCSS = cssCache.has(url)
     let fontFaceDeclarations = hasCachedCSS
@@ -156,7 +166,7 @@ const downloadGoogleFonts: FontLoader = async ({
         }
 
         const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]
-        // Emit font file to .next/static/fonts
+        // Emit font file to .next/static/media
         const selfHostedFileUrl = emitFontFile(
           fontFileBuffer,
           ext,
@@ -180,15 +190,8 @@ const downloadGoogleFonts: FontLoader = async ({
     }
 
     return {
+      ...result,
       css: updatedCssResponse,
-      fallbackFonts: fallback,
-      weight:
-        weights.length === 1 && weights[0] !== 'variable'
-          ? weights[0]
-          : undefined,
-      style: styles.length === 1 ? styles[0] : undefined,
-      variable,
-      adjustFontFallback: adjustFontFallbackMetrics,
     }
   } catch (err) {
     loaderContext.cacheable(false)
@@ -213,14 +216,8 @@ const downloadGoogleFonts: FontLoader = async ({
       css += '\n}'
 
       return {
+        ...result,
         css,
-        fallbackFonts: fallback,
-        weight:
-          weights.length === 1 && weights[0] !== 'variable'
-            ? weights[0]
-            : undefined,
-        style: styles.length === 1 ? styles[0] : undefined,
-        variable,
       }
     } else {
       throw err

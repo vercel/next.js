@@ -116,11 +116,6 @@ class Container extends React.Component<{
     // - if rewrites in next.config.js match (may have rewrite params)
     if (
       router.isSsr &&
-      // We don't update for 404 requests as this can modify
-      // the asPath unexpectedly e.g. adding basePath when
-      // it wasn't originally present
-      initialData.page !== '/404' &&
-      initialData.page !== '/_error' &&
       (initialData.isFallback ||
         (initialData.nextExport &&
           (isDynamicRoute(router.pathname) ||

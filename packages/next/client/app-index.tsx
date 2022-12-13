@@ -30,10 +30,23 @@ __webpack_require__.u = (chunkId: any) => {
 // Ignore the module ID transform in client.
 // eslint-disable-next-line no-undef
 // @ts-expect-error TODO: fix type
-self.__next_require__ = (id: string) => {
-  const modId = id.replace(/\?.+$/, '')
-  return __webpack_require__(modId)
-}
+self.__next_require__ =
+  process.env.NODE_ENV !== 'production'
+    ? (id: string) => {
+        const mod = __webpack_require__(id)
+        if (typeof mod === 'object') {
+          // Return a proxy to flight client to make sure it's always getting
+          // the latest module, instead of being cached.
+          return new Proxy(mod, {
+            get(_target, prop) {
+              return __webpack_require__(id)[prop]
+            },
+          })
+        }
+
+        return mod
+      }
+    : __webpack_require__
 
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {

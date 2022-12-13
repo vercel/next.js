@@ -10,6 +10,8 @@ type WebpackPluginInstance = webpack.WebpackPluginInstance
 const originModules = [
   require.resolve('../../../server/require'),
   require.resolve('../../../server/load-components'),
+  require.resolve('../../../server/next-server'),
+  require.resolve('../../../compiled/react-server-dom-webpack/client'),
 ]
 
 const RUNTIME_NAMES = ['webpack-runtime', 'webpack-api-runtime']
