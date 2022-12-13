@@ -35,6 +35,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
@@ -45,13 +46,14 @@ import {
   FLIGHT_PARAMETERS,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
+import { DefaultHead } from '../client/components/head'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 function preloadComponent(Component: any, props: any) {
   const prev = console.error
   // Hide invalid hook call warning when calling component
-  console.error = (msg) => {
+  console.error = function (msg) {
     if (msg.startsWith('Invalid hook call..')) {
       // ignore
     } else {
@@ -216,9 +218,11 @@ function createErrorHandler(
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
-      err.digest === DYNAMIC_ERROR_CODE ||
-      err.digest === NOT_FOUND_ERROR_CODE ||
-      err.digest?.startsWith(REDIRECT_ERROR_CODE)
+      err &&
+      (err.digest === DYNAMIC_ERROR_CODE ||
+        err.digest === NOT_FOUND_ERROR_CODE ||
+        err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
+        err.digest?.startsWith(REDIRECT_ERROR_CODE))
     ) {
       return err.digest
     }
@@ -1008,7 +1012,8 @@ export async function renderToHTMLOrFlight(
 
     async function resolveHead(
       [segment, parallelRoutes, { head }]: LoaderTree,
-      parentParams: { [key: string]: any }
+      parentParams: { [key: string]: any },
+      isRootHead: boolean
     ): Promise<React.ReactNode> {
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
@@ -1026,7 +1031,7 @@ export async function renderToHTMLOrFlight(
             parentParams
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const returnedHead = await resolveHead(childTree, currentParams)
+        const returnedHead = await resolveHead(childTree, currentParams, false)
         if (returnedHead) {
           return returnedHead
         }
@@ -1035,6 +1040,8 @@ export async function renderToHTMLOrFlight(
       if (head) {
         const Head = await interopDefault(await head[0]())
         return <Head params={currentParams} />
+      } else if (isRootHead) {
+        return <DefaultHead />
       }
 
       return null
@@ -1448,7 +1455,6 @@ export async function renderToHTMLOrFlight(
                   ))
                 : null}
               <Component {...props} />
-              {/* {HeadTags ? <HeadTags /> : null} */}
             </>
           )
         },
@@ -1582,7 +1588,7 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const rscPayloadHead = await resolveHead(loaderTree, {})
+      const rscPayloadHead = await resolveHead(loaderTree, {}, true)
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1653,7 +1659,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const initialHead = await resolveHead(loaderTree, {})
+    const initialHead = await resolveHead(loaderTree, {}, true)
 
     /**
      * A new React Component that renders the provided React Component

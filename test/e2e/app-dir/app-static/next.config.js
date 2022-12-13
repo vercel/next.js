@@ -14,8 +14,7 @@ module.exports = {
         },
         {
           source: '/rewritten-use-search-params',
-          destination:
-            '/hooks/use-search-params/slug?first=value&second=other%20value&third',
+          destination: '/hooks/use-search-params',
         },
         {
           source: '/rewritten-use-pathname',

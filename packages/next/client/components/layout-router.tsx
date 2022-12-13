@@ -127,6 +127,10 @@ class ScrollAndFocusHandler extends React.Component<{
         const htmlElement = document.documentElement
         const existing = htmlElement.style.scrollBehavior
         htmlElement.style.scrollBehavior = 'auto'
+        // In Chrome-based browsers we need to force reflow before calling `scrollTo`.
+        // Otherwise it will not pickup the change in scrollBehavior
+        // More info here: https://github.com/vercel/next.js/issues/40719#issuecomment-1336248042
+        htmlElement.getClientRects()
         domNode.scrollIntoView()
         htmlElement.style.scrollBehavior = existing
       }
@@ -355,7 +359,7 @@ class RedirectErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error.digest?.startsWith('NEXT_REDIRECT')) {
+    if (error?.digest?.startsWith('NEXT_REDIRECT')) {
       const url = error.digest.split(';')[1]
       return { redirect: url }
     }
@@ -396,7 +400,7 @@ class NotFoundErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error.digest === 'NEXT_NOT_FOUND') {
+    if (error?.digest === 'NEXT_NOT_FOUND') {
       return { notFoundTriggered: true }
     }
     // Re-throw if error is not for 404

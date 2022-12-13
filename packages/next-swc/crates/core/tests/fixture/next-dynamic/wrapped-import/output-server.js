@@ -5,7 +5,6 @@ const DynamicComponent = dynamic(null, {
             "some-file.js -> " + "./components/hello"
         ]
     },
-    loading: ()=>null
-    ,
+    loading: ()=>null,
     ssr: false
 });
