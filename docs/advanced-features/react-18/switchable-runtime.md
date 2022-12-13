@@ -36,7 +36,7 @@ export const config = {
 | Scalability                                                                                                                                         | /             | High              | Highest                                                  |
 | Security                                                                                                                                            | Normal        | High              | High                                                     |
 | Latency                                                                                                                                             | Normal        | Low               | Lowest                                                   |
-| Code Size                                                                                                                                           | /             | 50MB              | 1MB                                                      |
+| Code Size                                                                                                                                           | /             | 50 MB             | 4 MB                                                     |
 | NPM Packages                                                                                                                                        | All           | All               | A smaller subset                                         |
 
 Next.js' default runtime configuration is good for most use cases, but there are still many reasons to change to one runtime over the other one.
