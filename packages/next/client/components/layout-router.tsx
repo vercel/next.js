@@ -82,6 +82,8 @@ function walkAddRefetch(
 function findDOMNode(
   instance: Parameters<typeof ReactDOM.findDOMNode>[0]
 ): ReturnType<typeof ReactDOM.findDOMNode> {
+  // Tree-shake for server bundle
+  if (typeof window === undefined) return null
   // Only apply strict mode warning when not in production
   if (process.env.NODE_ENV !== 'production') {
     const originalConsoleError = console.error
