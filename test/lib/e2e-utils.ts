@@ -5,6 +5,7 @@ import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
 import { shouldRunTurboDevTest } from './next-test-utils'
+import { trace } from 'packages/next/trace'
 
 // increase timeout to account for yarn install time
 jest.setTimeout(240 * 1000)
@@ -113,50 +114,68 @@ if (typeof afterAll === 'function') {
 export async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean }
 ): Promise<NextInstance> {
-  try {
-    if (nextInstance) {
-      throw new Error(`createNext called without destroying previous instance`)
-    }
-
-    const useTurbo = !!process.env.TEST_WASM
-      ? false
-      : opts?.turbo ?? shouldRunTurboDevTest()
-
-    if (testMode === 'dev') {
-      // next dev
-      nextInstance = new NextDevInstance({
-        ...opts,
-        turbo: useTurbo,
-      })
-    } else if (testMode === 'deploy') {
-      // Vercel
-      nextInstance = new NextDeployInstance({
-        ...opts,
-        turbo: false,
-      })
-    } else {
-      // next build + next start
-      nextInstance = new NextStartInstance({
-        ...opts,
-        turbo: false,
-      })
-    }
-
-    nextInstance.on('destroy', () => {
-      nextInstance = undefined
-    })
-
-    await nextInstance.setup()
-
-    if (!opts.skipStart) {
-      await nextInstance.start()
-    }
-    return nextInstance!
-  } catch (err) {
-    require('console').error('Failed to create next instance', err)
+  return await trace('createNext').traceAsyncFn(async (rootTrace) => {
     try {
-      nextInstance.destroy()
-    } catch (_) {}
-    process.exit(1)
-  }
+      if (nextInstance) {
+        throw new Error(
+          `createNext called without destroying previous instance`
+        )
+      }
+
+      const useTurbo = !!process.env.TEST_WASM
+        ? false
+        : opts?.turbo ?? shouldRunTurboDevTest()
+
+      if (testMode === 'dev') {
+        // next dev
+        rootTrace.traceChild('init next dev instance').traceFn(() => {
+          nextInstance = new NextDevInstance({
+            ...opts,
+            turbo: useTurbo,
+          })
+        })
+      } else if (testMode === 'deploy') {
+        // Vercel
+        rootTrace.traceChild('init next deploy instance').traceFn(() => {
+          nextInstance = new NextDeployInstance({
+            ...opts,
+            turbo: false,
+          })
+        })
+      } else {
+        // next build + next start
+        rootTrace.traceChild('init next prod instance').traceFn(() => {
+          nextInstance = new NextStartInstance({
+            ...opts,
+            turbo: false,
+          })
+        })
+      }
+
+      nextInstance.on('destroy', () => {
+        nextInstance = undefined
+      })
+
+      await rootTrace
+        .traceChild('seput next instance')
+        .traceAsyncFn(async () => {
+          await nextInstance.setup()
+        })
+
+      if (!opts.skipStart) {
+        await rootTrace
+          .traceChild('start next instance')
+          .traceAsyncFn(async () => {
+            await nextInstance.start()
+          })
+      }
+      return nextInstance!
+    } catch (err) {
+      require('console').error('Failed to create next instance', err)
+      try {
+        nextInstance.destroy()
+      } catch (_) {}
+      process.exit(1)
+    }
+  })
 }
