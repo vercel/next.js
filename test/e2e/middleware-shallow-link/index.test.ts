@@ -1,8 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import { BrowserInterface } from 'test/lib/browsers/base'
 import { join } from 'path'
 
 describe('browser-shallow-navigation', () => {
