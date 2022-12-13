@@ -186,7 +186,7 @@ module.exports = {
 
 ## Header, Cookie, and Query Matching
 
-To only match a rewrite when header, cookie, or query values also match the `has` field or don't match the `missing` field can be used. Both the `source` and all `has` items must match and all `missing` items must not match for the rewrite to be applied.
+To only apply a header when header, cookie, or query values also match the `has` field or don't match the `missing` field can be used. Both the `source` and all `has` items must match and all `missing` items must not match for the header to be applied.
 
 `has` and `missing` items can have the following fields:
 
