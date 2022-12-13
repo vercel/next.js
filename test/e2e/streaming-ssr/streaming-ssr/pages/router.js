@@ -6,6 +6,4 @@ export default () => {
   return <Link href="/">link</Link>
 }
 
-export const config = {
-  runtime: 'experimental-edge',
-}
+export const config = { runtime: 'experimental-edge' }
