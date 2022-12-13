@@ -9,7 +9,6 @@ import type {
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './reducer'
-import type { findDOMNode as TFindDOMNode } from 'react-dom'
 import type { ChildProp } from '../../server/app-render'
 
 import React, { useContext, useEffect, use } from 'react'
@@ -81,8 +80,8 @@ function walkAddRefetch(
  * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
  */
 function findDOMNode(
-  instance: Parameters<typeof TFindDOMNode>[0]
-): ReturnType<typeof TFindDOMNode> {
+  instance: Parameters<typeof ReactDOM.findDOMNode>[0]
+): ReturnType<typeof ReactDOM.findDOMNode> {
   // Only apply strict mode warning when not in production
   if (process.env.NODE_ENV !== 'production') {
     const originalConsoleError = console.error
