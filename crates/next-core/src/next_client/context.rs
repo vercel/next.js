@@ -2,7 +2,7 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::{primitives::StringsVc, Value};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
@@ -138,29 +138,27 @@ pub async fn add_next_transforms_to_pages(
 pub async fn add_next_font_transform(
     module_options_context: ModuleOptionsContextVc,
 ) -> Result<ModuleOptionsContextVc> {
-    #[cfg(not(feature = "next-font"))]
-    return Ok(module_options_context);
+    #[allow(unused_mut)] // This is mutated when next-font-local is enabled
+    let mut font_loaders = vec!["@next/font/google".to_owned()];
+    #[cfg(feature = "next-font-local")]
+    font_loaders.push("@next/font/local".to_owned());
 
-    #[cfg(feature = "next-font")]
-    {
-        use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
-        use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
-
-        let mut module_options_context = module_options_context.await?.clone_value();
-        module_options_context.custom_rules.push(ModuleRule::new(
-            // TODO: Only match in pages (not pages/api), app/, etc.
-            ModuleRuleCondition::any(vec![
-                ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-            ]),
-            vec![ModuleRuleEffect::AddEcmascriptTransforms(
-                EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJsFont]),
-            )],
-        ));
-        Ok(module_options_context.cell())
-    }
+    let mut module_options_context = module_options_context.await?.clone_value();
+    module_options_context.custom_rules.push(ModuleRule::new(
+        // TODO: Only match in pages (not pages/api), app/, etc.
+        ModuleRuleCondition::any(vec![
+            ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+        ]),
+        vec![ModuleRuleEffect::AddEcmascriptTransforms(
+            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJsFont(
+                StringsVc::cell(font_loaders),
+            )]),
+        )],
+    ));
+    Ok(module_options_context.cell())
 }
 
 #[turbo_tasks::function]

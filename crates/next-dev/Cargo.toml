@@ -29,7 +29,7 @@ tokio_console = [
 ]
 profile = []
 custom_allocator = ["turbo-malloc/custom_allocator"]
-next-font = ["next-core/next-font"]
+next-font-local = ["next-core/next-font-local"]
 
 [dependencies]
 anyhow = "1.0.47"
