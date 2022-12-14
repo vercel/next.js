@@ -75,7 +75,7 @@ module.exports = (actionInfo) => {
         }
 
         await rootSpan
-          .traceChild('getting package data')
+          .traceChild('prepare packages for packing')
           .traceAsyncFn(async () => {
             for (const pkg of pkgs) {
               const pkgPath = path.join(repoDir, 'packages', pkg)
@@ -87,8 +87,9 @@ module.exports = (actionInfo) => {
                 continue
               }
               const pkgData = require(pkgDataPath)
-              const { name } = pkgData
+              const { name, version } = pkgData
               pkgDatas.set(name, {
+                version,
                 pkgDataPath,
                 pkg,
                 pkgPath,
@@ -97,20 +98,18 @@ module.exports = (actionInfo) => {
               })
               pkgPaths.set(name, packedPkgPath)
             }
-          })
 
-        await rootSpan
-          .traceChild('writing package data')
-          .traceAsyncFn(async () => {
             for (const pkg of pkgDatas.keys()) {
               const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
 
+              // Correctly link other packages
               for (const pkg of pkgDatas.keys()) {
                 const { packedPkgPath } = pkgDatas.get(pkg)
                 if (!pkgData.dependencies || !pkgData.dependencies[pkg])
                   continue
                 pkgData.dependencies[pkg] = packedPkgPath
               }
+
               // make sure native binaries are included in local linking
               if (pkg === '@next/swc') {
                 if (!pkgData.files) {
@@ -124,6 +123,7 @@ module.exports = (actionInfo) => {
                   )
                 )
               }
+
               if (pkg === 'next') {
                 if (nextSwcPkg) {
                   Object.assign(pkgData.dependencies, nextSwcPkg)
@@ -136,6 +136,14 @@ module.exports = (actionInfo) => {
                   }
                 }
               }
+
+              if (pkgData?.scripts?.prepublishOnly) {
+                // There's a bug in `pnpm pack` where it will run
+                // the prepublishOnly script and that will fail.
+                // See https://github.com/pnpm/pnpm/issues/2941
+                delete pkgData.scripts.prepublishOnly
+              }
+
               await fs.writeFile(
                 pkgDataPath,
                 JSON.stringify(pkgData, null, 2),
@@ -155,17 +163,10 @@ module.exports = (actionInfo) => {
                 packingSpan
                   .traceChild(`pack ${pkgName}`)
                   .traceAsyncFn(async () => {
-                    const { pkg, pkgPath } = pkgDatas.get(pkgName)
+                    const { pkg, pkgPath, version } = pkgDatas.get(pkgName)
+                    await exec(`cd ${pkgPath} && pnpm pack`, true)
                     await exec(
-                      `cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`,
-                      true,
-                      {
-                        env: {
-                          // Yarn installed through corepack will not run in pnpm project without this env var set
-                          // This var works for corepack >=0.15.0
-                          COREPACK_ENABLE_STRICT: '0',
-                        },
-                      }
+                      `cd ${pkgPath} && mv *${pkg}-${version}.tgz ${pkg}-packed.tgz`
                     )
                   })
               )
