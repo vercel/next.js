@@ -153,7 +153,7 @@ export async function createNext(
         })
       } else {
         // next build + next start
-        rootSpan.traceChild('init next prod instance').traceFn(() => {
+        rootSpan.traceChild('init next start instance').traceFn(() => {
           nextInstance = new NextStartInstance({
             ...opts,
             turbo: false,
