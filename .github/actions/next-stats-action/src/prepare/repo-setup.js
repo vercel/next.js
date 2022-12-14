@@ -4,7 +4,11 @@ const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
 const semver = require('semver')
-const { trace } = require('next/trace')
+
+const mockTrace = () => ({
+  traceAsyncFn: (fn) => fn(mockTrace()),
+  tracechild: () => mockTrace(),
+})
 
 module.exports = (actionInfo) => {
   return {
@@ -57,7 +61,7 @@ module.exports = (actionInfo) => {
     async linkPackages({ repoDir = '', nextSwcPkg, parentSpan }) {
       const rootSpan = parentSpan
         ? parentSpan.traceChild('linkPackages')
-        : trace('linkPachages')
+        : mockTrace()
 
       return await rootSpan.traceAsyncFn(async () => {
         const pkgPaths = new Map()
