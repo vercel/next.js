@@ -77,4 +77,4 @@ When tests are run in CI and a test failure occurs we attempt to capture traces 
 
 ### Profiling tests
 
-Add `NEXT_TEST_TRACE=1` to enable test profiling. It's usefull for improving our testing infrastructure.
+Add `NEXT_TEST_TRACE=1` to enable test profiling. It's useful for improving our testing infrastructure.
