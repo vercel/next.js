@@ -76,3 +76,7 @@ Some test-specific environment variables can be used to help debug isolated test
 ### Debugging
 
 When tests are run in CI and a test failure occurs we attempt to capture traces of the playwright run to make debugging the failure easier. A test-trace artifact should be uploaded after the workflow completes which can be downloaded, unzipped, and then inspected with `pnpm playwright show-trace ./path/to/trace`
+
+### Profiling tests
+
+Add `NEXT_TEST_TRACE=1` to enable test profiling. It's usefull for improving our testing infrastructure.

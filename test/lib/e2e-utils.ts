@@ -108,6 +108,8 @@ if (typeof afterAll === 'function') {
 }
 
 const setupTracing = () => {
+  if (!process.env.NEXT_TEST_TRACE) return
+
   setGlobal('distDir', './test/.trace')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER) // We want to make it run with 50mb limit
 }
