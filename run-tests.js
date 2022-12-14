@@ -31,7 +31,7 @@ const testFilters = {
 
 const mockTrace = () => ({
   traceAsyncFn: (fn) => fn(mockTrace()),
-  tracechild: () => mockTrace(),
+  traceChild: () => mockTrace(),
 })
 
 // which types we have configured to run separate

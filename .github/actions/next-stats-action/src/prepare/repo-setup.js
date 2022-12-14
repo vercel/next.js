@@ -7,7 +7,7 @@ const semver = require('semver')
 
 const mockTrace = () => ({
   traceAsyncFn: (fn) => fn(mockTrace()),
-  tracechild: () => mockTrace(),
+  traceChild: () => mockTrace(),
 })
 
 module.exports = (actionInfo) => {
