@@ -509,7 +509,10 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
-      const pageKey = COMPILER_NAMES.client + bundlePath
+      const pageKey = (COMPILER_NAMES.client + bundlePath).replace(
+        /\\/g,
+        path.posix.sep
+      )
       if (!entries[pageKey]) {
         entries[pageKey] = {
           type: EntryTypes.CHILD_ENTRY,
