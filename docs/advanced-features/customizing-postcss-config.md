@@ -76,7 +76,7 @@ To customize browserslist, create a `browserslist` key in your `package.json` li
 
 ```json
 {
-  "browserslist": [">0.3%", "not ie 11", "not dead", "not op_mini all"]
+  "browserslist": [">0.3%", "not dead", "not op_mini all"]
 }
 ```
 

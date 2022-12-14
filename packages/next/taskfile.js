@@ -2302,44 +2302,29 @@ export default async function (task) {
   const opts = { dev: true }
   await task.clear('dist')
   await task.start('build', opts)
-  await task.watch('bin/*', 'bin', opts)
-  await task.watch('pages/**/*.+(js|ts|tsx)', 'pages', opts)
-  await task.watch('server/**/*.+(js|ts|tsx)', 'server', opts)
-  await task.watch('server/**/*.+(js|ts|tsx)', 'server_esm', opts)
-  await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
-  await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild_esm', opts)
-  await task.watch('build/jest/**/*.+(js|ts|tsx)', 'nextbuildjest', opts)
-  await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
-  await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
-  await task.watch('client/**/*.+(js|ts|tsx)', 'client_esm', opts)
-  await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
-  await task.watch('lib/**/*.+(js|ts|tsx)', 'lib_esm', opts)
-  await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
-  await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
-  await task.watch('trace/**/*.+(js|ts|tsx)', 'trace', opts)
+  await task.watch('bin', 'bin', opts)
+  await task.watch('pages', 'pages', opts)
+  await task.watch('server', ['server', 'server_esm', 'server_wasm'], opts)
   await task.watch(
-    'shared/lib/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)',
-    'shared_re_exported',
+    'build',
+    ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
+  await task.watch('export', 'nextbuildstatic', opts)
+  await task.watch('client', 'client', opts)
+  await task.watch('client', 'client_esm', opts)
+  await task.watch('lib', 'lib', opts)
+  await task.watch('lib', 'lib_esm', opts)
+  await task.watch('cli', 'cli', opts)
+  await task.watch('telemetry', 'telemetry', opts)
+  await task.watch('trace', 'trace', opts)
   await task.watch(
-    'shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)',
     'shared',
+    ['shared_re_exported', 'shared_re_exported_esm', 'shared', 'shared_esm'],
     opts
   )
   await task.watch(
-    'shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)',
-    'shared_esm',
-    opts
-  )
-  await task.watch(
-    'shared/lib/{amp,config,constants,dynamic,head}.+(js|ts|tsx)',
-    'shared_re_exported_esm',
-    opts
-  )
-  await task.watch('server/**/*.+(wasm)', 'server_wasm', opts)
-  await task.watch(
-    '../react-dev-overlay/dist/**/*.js',
+    '../react-dev-overlay/dist',
     'ncc_next__react_dev_overlay',
     opts
   )
