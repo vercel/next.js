@@ -59,7 +59,7 @@ module.exports = (actionInfo) => {
         ? parentSpan.traceChild('linkPackages')
         : trace('linkPachages')
 
-      return await rootSpan.traceAsyncFn(async (rootSpan) => {
+      return await rootSpan.traceAsyncFn(async () => {
         const pkgPaths = new Map()
         const pkgDatas = new Map()
         let pkgs
