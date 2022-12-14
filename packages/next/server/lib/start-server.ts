@@ -50,14 +50,13 @@ export function startServer(opts: StartServerOptions) {
 
     server.on('listening', () => {
       const addr = server.address()
-      const hostname =
+      let hostname =
         !opts.hostname || opts.hostname === '0.0.0.0'
           ? 'localhost'
-          : isIPv6(opts.hostname)
-          ? opts.hostname === '::'
-            ? `[${opts.hostname}1]`
-            : `[${opts.hostname}]`
           : opts.hostname
+      if (isIPv6(hostname)) {
+        hostname = hostname === '::' ? `[${hostname}1]` : `[${hostname}]`
+      }
 
       const app = next({
         ...opts,

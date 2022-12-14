@@ -280,7 +280,7 @@ describe('CLI Usage', () => {
     test('should format IPv6 addresses correctly', async () => {
       const port = await findPort()
       const output = await runNextCommandDev(
-        [dir, '-H', '::', '--port', port],
+        [dir, '--hostname', '::', '--port', port],
         true
       )
       expect(output).toMatch(new RegExp(`on \\[::\\]:${port}`))
@@ -354,6 +354,18 @@ describe('CLI Usage', () => {
         stdout: true,
       })
       expect(help.stdout).toMatch(/Starts the application in production mode/)
+    })
+
+    test('should format IPv6 addresses correctly', async () => {
+      const port = await findPort()
+      const output = await runNextCommand(
+        ['start', '--hostname', '::', '--port', port],
+        {
+          stdout: true,
+        }
+      )
+      expect(output.stdout).toMatch(new RegExp(`on \\[::\\]:${port}`))
+      expect(output.stdout).toMatch(new RegExp(`http://\\[::1\\]:${port}`))
     })
 
     test('should warn when unknown argument provided', async () => {
