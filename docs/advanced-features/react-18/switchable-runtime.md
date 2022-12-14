@@ -8,21 +8,6 @@ Next.js has two **server runtimes** where you can render parts of your applicati
 
 By default, Next.js uses the Node.js runtime. [Middleware](https://nextjs.org/docs/advanced-features/middleware) and [Edge API Routes](https://nextjs.org/docs/api-routes/edge-api-routes) use the Edge runtime.
 
-## Global Runtime Option
-
-To configure the runtime for your whole application, you can set the experimental option `runtime` in your `next.config.js` file:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    runtime: 'experimental-edge', // 'node.js' (default) | experimental-edge
-  },
-}
-```
-
-You can detect which runtime you're using by looking at the `process.env.NEXT_RUNTIME` Environment Variable during runtime, and examining the `options.nextRuntime` variable during compilation.
-
 ## Page Runtime Option
 
 On each page, you can optionally export a `runtime` config set to either `'nodejs'` or `'experimental-edge'`:
@@ -38,22 +23,21 @@ export const config = {
 }
 ```
 
-When both the per-page runtime and global runtime are set, the per-page runtime overrides the global runtime. If the per-page runtime is _not_ set, the global runtime option will be used.
-
 ## Runtime Differences
 
-|                                                                                                                                                     | Node (Server) | Node (Serverless) | Edge             |
-| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------- | ---------------- |
-| [Cold Boot](https://vercel.com/docs/concepts/get-started/compute#cold-and-hot-boots?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) | /             | ~250ms            | Instant          |
-| HTTP Streaming                                                                                                                                      | Yes           | Yes               | Yes              |
-| IO                                                                                                                                                  | All           | All               | `fetch`          |
-| Scalability                                                                                                                                         | /             | High              | Highest          |
-| Security                                                                                                                                            | Normal        | High              | High             |
-| Latency                                                                                                                                             | Normal        | Low               | Lowest           |
-| Code Size                                                                                                                                           | /             | 50MB              | 1MB              |
-| NPM Packages                                                                                                                                        | All           | All               | A smaller subset |
+|                                                                                                                                                     | Node (Server) | Node (Serverless) | Edge                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------- | -------------------------------------------------------- |
+| Name                                                                                                                                                | `nodejs`      | `nodejs`          | `edge` or `experimental-edge` if using Next.js Rendering |
+| [Cold Boot](https://vercel.com/docs/concepts/get-started/compute#cold-and-hot-boots?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) | /             | ~250ms            | Instant                                                  |
+| HTTP Streaming                                                                                                                                      | Yes           | Yes               | Yes                                                      |
+| IO                                                                                                                                                  | All           | All               | `fetch`                                                  |
+| Scalability                                                                                                                                         | /             | High              | Highest                                                  |
+| Security                                                                                                                                            | Normal        | High              | High                                                     |
+| Latency                                                                                                                                             | Normal        | Low               | Lowest                                                   |
+| Code Size                                                                                                                                           | /             | 50 MB             | 4 MB                                                     |
+| NPM Packages                                                                                                                                        | All           | All               | A smaller subset                                         |
 
-Next.js' default runtime configuration is good for most use cases, but there’re still many reasons to change to one runtime over the other one.
+Next.js' default runtime configuration is good for most use cases, but there are still many reasons to change to one runtime over the other one.
 
 For example, for API routes that rely on native Node.js APIs, they need to run with the Node.js Runtime. However, if an API only uses something like cookie-based authentication, using Middleware and the Edge Runtime will be a better choice due to its lower latency as well as better scalability.
 
