@@ -1,5 +1,6 @@
 // A list of popular packages that cannot be bundled on the server.
 export const EXTERNAL_PACKAGES = [
+  'lodash',
   '@prisma/client',
   '@sentry/nextjs',
   '@sentry/node',
