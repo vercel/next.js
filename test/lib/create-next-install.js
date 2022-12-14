@@ -126,8 +126,8 @@ async function createNextInstall({
             ? installCommand({ dependencies: combinedDependencies })
             : installCommand
 
-        console.log('running custom install command', installString)
-        rootSpan.traceChild('run install').traceFn(() => {
+        console.log('running install command', installString)
+        rootSpan.traceChild('run custom install').traceFn(() => {
           childProcess.execSync(installString, {
             cwd: installDir,
             stdio: ['ignore', 'inherit', 'inherit'],
