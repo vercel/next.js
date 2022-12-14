@@ -5,6 +5,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
     chunk::{ChunkGroupVc, ChunkableAssetVc},
+    reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
 };
 use turbopack_dev_server::{
@@ -42,8 +43,9 @@ pub async fn create_web_entry_source(
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
+            let ty = Value::new(ReferenceType::Entry(EntryReferenceSubType::Web));
             Ok(origin
-                .resolve_asset(request, origin.resolve_options())
+                .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
                 .primary_assets()
                 .await?
                 .first()

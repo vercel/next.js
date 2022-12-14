@@ -18,6 +18,7 @@ use turbopack_core::{
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
+    reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{parse::RequestVc, pattern::Pattern},
 };
 use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
@@ -120,6 +121,9 @@ pub async fn add_next_transforms_to_pages(
     module_options_context.custom_rules.push(ModuleRule::new(
         ModuleRuleCondition::all(vec![
             ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
+            ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(ReferenceType::Url(
+                UrlReferenceSubType::Undefined,
+            ))),
             ModuleRuleCondition::any(vec![
                 ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
                 ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
@@ -146,11 +150,16 @@ pub async fn add_next_font_transform(
     let mut module_options_context = module_options_context.await?.clone_value();
     module_options_context.custom_rules.push(ModuleRule::new(
         // TODO: Only match in pages (not pages/api), app/, etc.
-        ModuleRuleCondition::any(vec![
-            ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-            ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-            ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-            ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+        ModuleRuleCondition::all(vec![
+            ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(ReferenceType::Url(
+                UrlReferenceSubType::Undefined,
+            ))),
+            ModuleRuleCondition::any(vec![
+                ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+            ]),
         ]),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(
             EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJsFont(
