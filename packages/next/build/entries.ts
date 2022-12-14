@@ -521,7 +521,8 @@ export function finalizeEntrypoint({
     hasAppDir &&
     (name === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
       name === APP_CLIENT_INTERNALS ||
-      name.startsWith('app/'))
+      name.startsWith('app/') ||
+      name.startsWith('app\\'))
 
   if (
     // Client special cases
