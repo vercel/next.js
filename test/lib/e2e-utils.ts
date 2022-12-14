@@ -111,7 +111,9 @@ const setupTracing = () => {
   if (!process.env.NEXT_TEST_TRACE) return
 
   setGlobal('distDir', './test/.trace')
-  setGlobal('phase', PHASE_DEVELOPMENT_SERVER) // We want to make it run with 50mb limit
+  // This is a hacky way to use tracing utils even for tracing test utils.
+  // We want the same treatment as DEVELOPMENT_SERVER - adds a reasonable treshold for logs size.
+  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 }
 
 /**
