@@ -572,7 +572,6 @@ const configSchema = {
                 type: 'string',
               },
               port: {
-                minLength: 1,
                 type: 'string',
               },
               protocol: {
