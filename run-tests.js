@@ -9,6 +9,7 @@ const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
+const { trace } = require('next/trace')
 const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
@@ -223,6 +224,7 @@ async function main() {
     console.log('Creating Next.js install for isolated tests')
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const testStarter = await createNextInstall({
+      parentSpan: trace('run-tests.js'),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
