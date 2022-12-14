@@ -135,9 +135,15 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         result = result.replace('</head>', `${fallBackLinkTag}</head>`)
       } else {
         const nonceStr = nonce ? ` nonce="${nonce}"` : ''
+        let dataAttr = ''
+
+        if (fontContent.includes('ascent-override')) {
+          dataAttr = ' data-size-adjust="true"'
+        }
+
         result = result.replace(
           '</head>',
-          `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
+          `<style data-href="${url}"${nonceStr}${dataAttr}>${fontContent}</style></head>`
         )
 
         // Remove inert font tag
