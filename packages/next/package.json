@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "13.0.7-canary.5",
+  "version": "13.0.7-canary.6",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -71,11 +71,12 @@
   "taskr": {
     "requires": [
       "./taskfile-ncc.js",
-      "./taskfile-swc.js"
+      "./taskfile-swc.js",
+      "./taskfile-watch.js"
     ]
   },
   "dependencies": {
-    "@next/env": "13.0.7-canary.5",
+    "@next/env": "13.0.7-canary.6",
     "@swc/helpers": "0.4.14",
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
@@ -125,15 +126,14 @@
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "2.12.0",
     "@napi-rs/triples": "1.1.0",
-    "@next/polyfill-module": "13.0.7-canary.5",
-    "@next/polyfill-nomodule": "13.0.7-canary.5",
-    "@next/react-dev-overlay": "13.0.7-canary.5",
-    "@next/react-refresh-utils": "13.0.7-canary.5",
-    "@next/swc": "13.0.7-canary.5",
+    "@next/polyfill-module": "13.0.7-canary.6",
+    "@next/polyfill-nomodule": "13.0.7-canary.6",
+    "@next/react-dev-overlay": "13.0.7-canary.6",
+    "@next/react-refresh-utils": "13.0.7-canary.6",
+    "@next/swc": "13.0.7-canary.6",
     "@segment/ajv-human-errors": "2.1.2",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
-    "@taskr/watch": "1.1.0",
     "@types/amphtml-validator": "1.0.0",
     "@types/babel__code-frame": "7.0.2",
     "@types/babel__core": "7.1.12",

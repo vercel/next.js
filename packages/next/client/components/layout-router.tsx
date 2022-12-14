@@ -9,10 +9,10 @@ import type {
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './reducer'
+import type { ChildProp } from '../../server/app-render'
 
 import React, { useContext, useEffect, use } from 'react'
-import { findDOMNode as ReactDOMfindDOMNode } from 'react-dom'
-import type { ChildProp } from '../../server/app-render'
+import ReactDOM from 'react-dom'
 import {
   CacheStates,
   LayoutRouterContext,
@@ -80,8 +80,10 @@ function walkAddRefetch(
  * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
  */
 function findDOMNode(
-  instance: Parameters<typeof ReactDOMfindDOMNode>[0]
-): ReturnType<typeof ReactDOMfindDOMNode> {
+  instance: Parameters<typeof ReactDOM.findDOMNode>[0]
+): ReturnType<typeof ReactDOM.findDOMNode> {
+  // Tree-shake for server bundle
+  if (typeof window === undefined) return null
   // Only apply strict mode warning when not in production
   if (process.env.NODE_ENV !== 'production') {
     const originalConsoleError = console.error
@@ -92,12 +94,12 @@ function findDOMNode(
           originalConsoleError(...messages)
         }
       }
-      return ReactDOMfindDOMNode(instance)
+      return ReactDOM.findDOMNode(instance)
     } finally {
       console.error = originalConsoleError!
     }
   }
-  return ReactDOMfindDOMNode(instance)
+  return ReactDOM.findDOMNode(instance)
 }
 
 /**

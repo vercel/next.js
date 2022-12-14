@@ -66,6 +66,18 @@ exports[`ReactRefreshLogBox app logbox: can recover from a component error 1`] =
   6 | "
 `;
 
+exports[`ReactRefreshLogBox app logbox: can recover from a event handler error 1`] = `
+"index.js (8:18) @ eval
+
+   6 | const increment = useCallback(() => {
+   7 |   setCount(c => c + 1)
+>  8 |   throw new Error('oops')
+     |        ^
+   9 | }, [setCount])
+  10 | return (
+  11 |   <main>"
+`;
+
 exports[`ReactRefreshLogBox app logbox: can recover from a syntax error without losing state 1`] = `
 "./index.js
 Error: 
