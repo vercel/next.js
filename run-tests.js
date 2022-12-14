@@ -223,8 +223,10 @@ async function main() {
     console.log('Creating Next.js install for isolated tests')
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const testStarter = await createNextInstall({
-      react: reactVersion,
-      'react-dom': reactVersion,
+      dependencies: {
+        react: reactVersion,
+        'react-dom': reactVersion,
+      },
     })
     process.env.NEXT_TEST_STARTER = testStarter
   }

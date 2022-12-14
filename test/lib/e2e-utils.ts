@@ -161,11 +161,7 @@ export async function createNext(
         nextInstance = undefined
       })
 
-      await rootSpan
-        .traceChild('seput next instance')
-        .traceAsyncFn(async () => {
-          await nextInstance.setup()
-        })
+      await nextInstance.setup(rootSpan)
 
       if (!opts.skipStart) {
         await rootSpan

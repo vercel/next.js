@@ -54,8 +54,12 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages(repoDir = '', nextSwcPkg) {
-      return await trace('linkPachages').traceAsyncFn(async (rootSpan) => {
+    async linkPackages({ repoDir = '', nextSwcPkg, parentSpan }) {
+      const rootSpan = parentSpan
+        ? parentSpan.traceChild('linkPackages')
+        : trace('linkPachages')
+
+      return await rootSpan.traceAsyncFn(async (rootSpan) => {
         const pkgPaths = new Map()
         const pkgDatas = new Map()
         let pkgs

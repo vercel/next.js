@@ -6,7 +6,7 @@ import { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
-import { trace } from 'next/trace'
+import { Span, trace } from 'next/trace'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -85,162 +85,170 @@ export class NextInstance {
 
   protected async createTestDir({
     skipInstall = false,
-  }: { skipInstall?: boolean } = {}) {
+    parentSpan,
+  }: {
+    skipInstall?: boolean
+    parentSpan: Span
+  }) {
     if (this.isDestroyed) {
       throw new Error('next instance already destroyed')
     }
     require('console').log(`Creating test directory with isolated next...`)
 
-    await trace('createTestDir').traceAsyncFn(async (rootSpan) => {
-      const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
-      const tmpDir = skipIsolatedNext
-        ? path.join(__dirname, '../../tmp')
-        : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
-      this.testDir = path.join(
-        tmpDir,
-        `next-test-${Date.now()}-${(Math.random() * 1000) | 0}${this.dirSuffix}`
-      )
-
-      const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
-      const finalDependencies = {
-        react: reactVersion,
-        'react-dom': reactVersion,
-        ...this.dependencies,
-        ...this.packageJson?.dependencies,
-      }
-
-      if (skipInstall) {
-        const pkgScripts = (this.packageJson['scripts'] as {}) || {}
-        await fs.ensureDir(this.testDir)
-        await fs.writeFile(
-          path.join(this.testDir, 'package.json'),
-          JSON.stringify(
-            {
-              ...this.packageJson,
-              dependencies: {
-                ...finalDependencies,
-                next:
-                  process.env.NEXT_TEST_VERSION ||
-                  require('next/package.json').version,
-              },
-              scripts: {
-                ...pkgScripts,
-                build:
-                  (pkgScripts['build'] || this.buildCommand || 'next build') +
-                  ' && yarn post-build',
-                // since we can't get the build id as a build artifact, make it
-                // available under the static files
-                'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
-              },
-            },
-            null,
-            2
-          )
+    await parentSpan
+      .traceChild('createTestDir')
+      .traceAsyncFn(async (rootSpan) => {
+        const skipIsolatedNext = !!process.env.NEXT_SKIP_ISOLATE
+        const tmpDir = skipIsolatedNext
+          ? path.join(__dirname, '../../tmp')
+          : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
+        this.testDir = path.join(
+          tmpDir,
+          `next-test-${Date.now()}-${(Math.random() * 1000) | 0}${
+            this.dirSuffix
+          }`
         )
-      } else {
-        if (
-          process.env.NEXT_TEST_STARTER &&
-          !this.dependencies &&
-          !this.installCommand &&
-          !this.packageJson &&
-          !(global as any).isNextDeploy
-        ) {
-          await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
-        } else if (!skipIsolatedNext) {
-          await rootSpan
-            .traceChild('createNextInstall')
-            .traceAsyncFn(async () => {
-              this.testDir = await createNextInstall(
-                finalDependencies,
-                this.installCommand,
-                this.packageJson,
-                this.packageLockPath,
-                this.dirSuffix
-              )
-            })
+
+        const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
+        const finalDependencies = {
+          react: reactVersion,
+          'react-dom': reactVersion,
+          ...this.dependencies,
+          ...this.packageJson?.dependencies,
         }
-        require('console').log('created next.js install, writing test files')
-      }
 
-      await rootSpan.traceChild('writeInitialFiles').traceAsyncFn(async () => {
-        await this.writeInitialFiles()
-      })
-
-      let nextConfigFile = Object.keys(this.files).find((file) =>
-        file.startsWith('next.config.')
-      )
-
-      if (await fs.pathExists(path.join(this.testDir, 'next.config.js'))) {
-        nextConfigFile = 'next.config.js'
-      }
-
-      if (nextConfigFile && this.nextConfig) {
-        throw new Error(
-          `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
-        )
-      }
-
-      if (
-        this.nextConfig ||
-        ((global as any).isNextDeploy && !nextConfigFile)
-      ) {
-        const functions = []
-
-        await fs.writeFile(
-          path.join(this.testDir, 'next.config.js'),
-          `
-        module.exports = ` +
+        if (skipInstall) {
+          const pkgScripts = (this.packageJson['scripts'] as {}) || {}
+          await fs.ensureDir(this.testDir)
+          await fs.writeFile(
+            path.join(this.testDir, 'package.json'),
             JSON.stringify(
               {
-                ...this.nextConfig,
-              } as NextConfig,
-              (key, val) => {
-                if (typeof val === 'function') {
-                  functions.push(
-                    val
-                      .toString()
-                      .replace(
-                        new RegExp(`${val.name}[\\s]{0,}\\(`),
-                        'function('
-                      )
-                  )
-                  return `__func_${functions.length - 1}`
-                }
-                return val
+                ...this.packageJson,
+                dependencies: {
+                  ...finalDependencies,
+                  next:
+                    process.env.NEXT_TEST_VERSION ||
+                    require('next/package.json').version,
+                },
+                scripts: {
+                  ...pkgScripts,
+                  build:
+                    (pkgScripts['build'] || this.buildCommand || 'next build') +
+                    ' && yarn post-build',
+                  // since we can't get the build id as a build artifact, make it
+                  // available under the static files
+                  'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
+                },
               },
+              null,
               2
-            ).replace(/"__func_[\d]{1,}"/g, function (str) {
-              return functions.shift()
+            )
+          )
+        } else {
+          if (
+            process.env.NEXT_TEST_STARTER &&
+            !this.dependencies &&
+            !this.installCommand &&
+            !this.packageJson &&
+            !(global as any).isNextDeploy
+          ) {
+            await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
+          } else if (!skipIsolatedNext) {
+            this.testDir = await createNextInstall({
+              parentSpan: rootSpan,
+              dependencies: finalDependencies,
+              installCommand: this.installCommand,
+              packageJson: this.packageJson,
+              packageLockPath: this.packageLockPath,
+              dirSuffix: this.dirSuffix,
             })
-        )
-      }
-
-      if ((global as any).isNextDeploy) {
-        const fileName = path.join(
-          this.testDir,
-          nextConfigFile || 'next.config.js'
-        )
-        const content = await fs.readFile(fileName, 'utf8')
-
-        if (content.includes('basePath')) {
-          this.basePath =
-            content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] || ''
+          }
+          require('console').log('created next.js install, writing test files')
         }
 
-        await fs.writeFile(
-          fileName,
-          `${content}\n` +
+        await rootSpan
+          .traceChild('writeInitialFiles')
+          .traceAsyncFn(async () => {
+            await this.writeInitialFiles()
+          })
+
+        let nextConfigFile = Object.keys(this.files).find((file) =>
+          file.startsWith('next.config.')
+        )
+
+        if (await fs.pathExists(path.join(this.testDir, 'next.config.js'))) {
+          nextConfigFile = 'next.config.js'
+        }
+
+        if (nextConfigFile && this.nextConfig) {
+          throw new Error(
+            `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
+          )
+        }
+
+        if (
+          this.nextConfig ||
+          ((global as any).isNextDeploy && !nextConfigFile)
+        ) {
+          const functions = []
+
+          await fs.writeFile(
+            path.join(this.testDir, 'next.config.js'),
             `
+        module.exports = ` +
+              JSON.stringify(
+                {
+                  ...this.nextConfig,
+                } as NextConfig,
+                (key, val) => {
+                  if (typeof val === 'function') {
+                    functions.push(
+                      val
+                        .toString()
+                        .replace(
+                          new RegExp(`${val.name}[\\s]{0,}\\(`),
+                          'function('
+                        )
+                    )
+                    return `__func_${functions.length - 1}`
+                  }
+                  return val
+                },
+                2
+              ).replace(/"__func_[\d]{1,}"/g, function (str) {
+                return functions.shift()
+              })
+          )
+        }
+
+        if ((global as any).isNextDeploy) {
+          const fileName = path.join(
+            this.testDir,
+            nextConfigFile || 'next.config.js'
+          )
+          const content = await fs.readFile(fileName, 'utf8')
+
+          if (content.includes('basePath')) {
+            this.basePath =
+              content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] ||
+              ''
+          }
+
+          await fs.writeFile(
+            fileName,
+            `${content}\n` +
+              `
           // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
           }
         `
-        )
-      }
-      require('console').log(`Test directory created at ${this.testDir}`)
-    })
+          )
+        }
+        require('console').log(`Test directory created at ${this.testDir}`)
+      })
   }
 
   public async clean() {
@@ -260,7 +268,7 @@ export class NextInstance {
   public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
     return {}
   }
-  public async setup(): Promise<void> {}
+  public async setup(parentSpan: Span): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}
   public async stop(): Promise<void> {
     this.isStopping = true
