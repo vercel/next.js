@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use colored::*;
+use is_terminal::IsTerminal;
 use serde::Deserialize;
 use thiserror::Error as ThisError;
 use update_informer::{Check, Package, Registry, Result as UpdateResult, Version};
@@ -12,7 +13,8 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_millis(800);
 // 1 day
 const DEFAULT_INTERVAL: Duration = Duration::from_secs(60 * 60 * 24);
 
-const NO_UPDATE_NOTIFIER: &str = "NO_UPDATE_NOTIFIER";
+const NOTIFIER_DISABLE_VARS: [&str; 2] = ["NO_UPDATE_NOTIFIER", "TURBO_NO_UPDATE_NOTIFIER"];
+const ENVIRONMENTAL_DISABLE_VARS: [&str; 1] = ["CI"];
 
 #[derive(ThisError, Debug)]
 pub enum UpdateNotifierError {
@@ -52,6 +54,28 @@ impl Registry for NPMRegistry {
     }
 }
 
+fn should_skip_notification() -> bool {
+    if NOTIFIER_DISABLE_VARS
+        .iter()
+        .any(|var| std::env::var(var).is_ok())
+    {
+        return true;
+    }
+
+    if ENVIRONMENTAL_DISABLE_VARS
+        .iter()
+        .any(|var| std::env::var(var).is_ok())
+    {
+        return true;
+    }
+
+    if !std::io::stdout().is_terminal() {
+        return true;
+    }
+
+    false
+}
+
 pub fn check_for_updates(
     package_name: &str,
     github_repo: &str,
@@ -61,7 +85,7 @@ pub fn check_for_updates(
     interval: Option<Duration>,
 ) -> Result<(), UpdateNotifierError> {
     // bail early if the user has disabled update notifications
-    if std::env::var(NO_UPDATE_NOTIFIER).is_ok() {
+    if should_skip_notification() {
         return Ok(());
     }
 
