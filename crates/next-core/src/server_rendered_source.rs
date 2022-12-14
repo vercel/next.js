@@ -12,6 +12,7 @@ use turbopack_core::{
     asset::AssetVc,
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
     context::AssetContextVc,
+    reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
 };
@@ -166,7 +167,10 @@ async fn create_server_rendered_source_for_file(
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {
     let source_asset = SourceAssetVc::new(page_file).into();
-    let entry_asset = context.process(source_asset);
+    let entry_asset = context.process(
+        source_asset,
+        Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+    );
 
     let chunking_context = DevChunkingContextVc::builder(
         context_path,

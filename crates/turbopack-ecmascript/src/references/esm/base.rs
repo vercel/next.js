@@ -52,6 +52,36 @@ impl ReferencedAsset {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl ReferencedAssetVc {
+    #[turbo_tasks::function]
+    pub async fn from_resolve_result(
+        resolve_result: ResolveResultVc,
+        request: RequestVc,
+    ) -> Result<Self> {
+        match &*resolve_result.await? {
+            ResolveResult::Special(SpecialType::OriginalReferenceExternal, _) => {
+                if let Some(request) = request.await?.request() {
+                    return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request).cell());
+                } else {
+                    return Ok(ReferencedAssetVc::cell(ReferencedAsset::None));
+                }
+            }
+            ResolveResult::Special(SpecialType::OriginalReferenceTypeExternal(request), _) => {
+                return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request.clone()).cell());
+            }
+            _ => {}
+        }
+        let assets = resolve_result.primary_assets();
+        for asset in assets.await?.iter() {
+            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
+                return Ok(ReferencedAssetVc::cell(ReferencedAsset::Some(placeable)));
+            }
+        }
+        Ok(ReferencedAssetVc::cell(ReferencedAsset::None))
+    }
+}
+
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
@@ -75,27 +105,10 @@ impl EsmAssetReferenceVc {
     #[turbo_tasks::function]
     pub(super) async fn get_referenced_asset(self) -> Result<ReferencedAssetVc> {
         let this = self.await?;
-        let resolve_result = esm_resolve(this.get_origin(), this.request);
-        match &*resolve_result.await? {
-            ResolveResult::Special(SpecialType::OriginalReferenceExternal, _) => {
-                if let Some(request) = this.request.await?.request() {
-                    return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request).cell());
-                } else {
-                    return Ok(ReferencedAssetVc::cell(ReferencedAsset::None));
-                }
-            }
-            ResolveResult::Special(SpecialType::OriginalReferenceTypeExternal(request), _) => {
-                return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request.clone()).cell());
-            }
-            _ => {}
-        }
-        let assets = resolve_result.primary_assets();
-        for asset in assets.await?.iter() {
-            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-                return Ok(ReferencedAssetVc::cell(ReferencedAsset::Some(placeable)));
-            }
-        }
-        Ok(ReferencedAssetVc::cell(ReferencedAsset::None))
+        Ok(ReferencedAssetVc::from_resolve_result(
+            esm_resolve(this.get_origin(), this.request),
+            this.request,
+        ))
     }
 
     #[turbo_tasks::function]

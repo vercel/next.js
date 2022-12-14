@@ -289,13 +289,13 @@ describeExpectation = (...) => {
 describeExpected = (...) => (???*0* | `${???*2*} or ${???*4*}` | ???*6*)
 - *0* ???*1*[0]
   ⚠️  property on unknown
-- *1* new expression are not supported
+- *1* unknown new expression
 - *2* ???*3*[0]
   ⚠️  property on unknown
-- *3* new expression are not supported
+- *3* unknown new expression
 - *4* ???*5*[1]
   ⚠️  property on unknown
-- *5* new expression are not supported
+- *5* unknown new expression
 - *6* unsupported expression
 
 describeFound = (...) => (
@@ -311,7 +311,7 @@ description#75 = arguments[0]
 description#79 = arguments[0]
 
 descriptions = ???*0*
-- *0* new expression are not supported
+- *0* unknown new expression
 
 details = (
   | [{"line": 1, "column": 1}][arguments[0]]
@@ -569,10 +569,10 @@ peg$SyntaxError = (...) => ???*0*
 peg$anyExpectation = (...) => {"type": "any"}
 
 peg$buildSimpleError = (...) => ???*0*
-- *0* new expression are not supported
+- *0* unknown new expression
 
 peg$buildStructuredError = (...) => ???*0*
-- *0* new expression are not supported
+- *0* unknown new expression
 
 peg$c0 = (...) => {"type": "sql", "body": arguments[0]}
 

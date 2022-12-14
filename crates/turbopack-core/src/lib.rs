@@ -13,6 +13,7 @@ pub mod environment;
 pub mod introspect;
 pub mod issue;
 pub mod reference;
+pub mod reference_type;
 pub mod resolve;
 pub mod source_asset;
 pub mod source_map;

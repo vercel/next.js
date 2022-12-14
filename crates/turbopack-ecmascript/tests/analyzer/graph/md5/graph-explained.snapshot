@@ -87,7 +87,7 @@ bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
 
 bytes = (arguments[0] | ???*0*)
-- *0* new expression are not supported
+- *0* unknown new expression
 
 bytesToWords = (...) => output
 

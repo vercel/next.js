@@ -13,6 +13,7 @@ use turbopack::{
 use turbopack_core::{
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+    reference_type::ReferenceType,
     source_asset::SourceAssetVc,
 };
 
@@ -93,7 +94,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                     }
                     .cell(),
                 );
-                let module = context.process(source.into());
+                let module = context.process(source.into(), Value::new(ReferenceType::Undefined));
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
                 emit_with_completion(rebased.into(), output_dir).await?;

@@ -3,19 +3,21 @@ use swc_core::{
     common::DUMMY_SP,
     css::ast::{Str, UrlValue},
 };
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     asset::AssetVc,
     chunk::ChunkingContextVc,
     reference::{AssetReference, AssetReferenceVc},
+    reference_type::UrlReferenceSubType,
     resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
 };
+use turbopack_ecmascript::resolve::url_resolve;
 
 use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     embed::CssEmbeddableVc,
-    references::{css_resolve, AstPathVc},
+    references::AstPathVc,
 };
 
 #[turbo_tasks::value(into = "new")]
@@ -62,7 +64,11 @@ impl UrlAssetReferenceVc {
 impl AssetReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        css_resolve(self.origin, self.request)
+        url_resolve(
+            self.origin,
+            self.request,
+            Value::new(UrlReferenceSubType::CssUrl),
+        )
     }
 }
 

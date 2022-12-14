@@ -9,10 +9,11 @@ use swc_core::{
         },
     },
 };
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc},
     reference::{AssetReference, AssetReferenceVc},
+    reference_type::CssReferenceSubType,
     resolve::{
         origin::ResolveOriginVc,
         parse::{Request, RequestVc},
@@ -213,7 +214,11 @@ impl ImportAssetReferenceVc {
 impl AssetReference for ImportAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        css_resolve(self.origin, self.request)
+        css_resolve(
+            self.origin,
+            self.request,
+            Value::new(CssReferenceSubType::AtImport),
+        )
     }
 }
 

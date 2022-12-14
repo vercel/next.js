@@ -8,6 +8,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         origin::ResolveOriginVc, parse::RequestVc, pattern::QueryMapVc, ResolveResult,
         ResolveResultVc,
@@ -50,7 +51,9 @@ impl Asset for TsConfigModuleAsset {
         let configs = read_tsconfigs(
             self.source.content().parse_json_with_comments(),
             self.source,
-            apply_cjs_specific_options(self.origin.resolve_options()),
+            apply_cjs_specific_options(self.origin.resolve_options(Value::new(
+                ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+            ))),
         )
         .await?;
         for (_, config_asset) in configs[1..].iter() {

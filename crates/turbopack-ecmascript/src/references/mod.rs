@@ -36,6 +36,7 @@ use turbopack_core::{
     asset::AssetVc,
     environment::EnvironmentVc,
     reference::{AssetReferenceVc, AssetReferencesVc, SourceMapVc},
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         find_context_file, origin::ResolveOriginVc, parse::RequestVc, pattern::Pattern, resolve,
         FindContextFileResult, ResolveResult,
@@ -51,7 +52,7 @@ use self::{
     cjs::CjsAssetReferenceVc,
     esm::{
         export::EsmExport, EsmAssetReferenceVc, EsmAsyncAssetReferenceVc, EsmExports,
-        EsmModuleItemVc, ImportMetaBindingVc, ImportMetaRefVc,
+        EsmModuleItemVc, ImportMetaBindingVc, ImportMetaRefVc, UrlAssetReferenceVc,
     },
     node::{DirAssetReferenceVc, PackageJsonReferenceVc},
     raw::SourceAssetReferenceVc,
@@ -1172,13 +1173,36 @@ pub(crate) async fn analyze_ecmascript_module(
                             }
                         }
                     }
-                    Effect::ImportMeta { span: _, ast_path } => {
+                    Effect::ImportMeta { ast_path, span: _ } => {
                         if first_import_meta {
                             first_import_meta = false;
                             analysis.add_code_gen(ImportMetaBindingVc::new(source.path()));
                         }
 
                         analysis.add_code_gen(ImportMetaRefVc::new(AstPathVc::cell(ast_path)));
+                    }
+                    Effect::Url {
+                        input,
+                        ast_path,
+                        span,
+                    } => {
+                        let pat = js_value_to_pattern(&input);
+                        if !pat.has_constant_parts() {
+                            handler.span_warn_with_code(
+                                span,
+                                &format!("new URL({input}, import.meta.url) is very dynamic"),
+                                DiagnosticId::Lint(
+                                    errors::failed_to_analyse::ecmascript::NEW_URL_IMPORT_META
+                                        .to_string(),
+                                ),
+                            )
+                        }
+                        analysis.add_reference(UrlAssetReferenceVc::new(
+                            origin,
+                            RequestVc::parse(Value::new(pat)),
+                            environment.is_rendering(),
+                            AstPathVc::cell(ast_path),
+                        ));
                     }
                 }
             }
@@ -1888,7 +1912,8 @@ async fn resolve_as_webpack_runtime(
     request: RequestVc,
     transforms: EcmascriptInputTransformsVc,
 ) -> Result<WebpackRuntimeVc> {
-    let options = origin.resolve_options();
+    let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+    let options = origin.resolve_options(ty.clone());
 
     let options = apply_cjs_specific_options(options);
 

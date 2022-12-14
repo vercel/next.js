@@ -36,6 +36,7 @@ use turbopack_core::{
     environment::EnvironmentVc,
     issue::{unsupported_module::UnsupportedModuleIssue, Issue, IssueVc},
     reference::all_referenced_assets,
+    reference_type::ReferenceType,
     resolve::{
         options::ResolveOptionsVc,
         origin::PlainResolveOriginVc,
@@ -99,10 +100,15 @@ impl Issue for ModuleIssue {
 }
 
 #[turbo_tasks::function]
-async fn get_module_type(path: FileSystemPathVc, options: ModuleOptionsVc) -> Result<ModuleTypeVc> {
+async fn get_module_type(
+    path: FileSystemPathVc,
+    options: ModuleOptionsVc,
+    reference_type: Value<ReferenceType>,
+) -> Result<ModuleTypeVc> {
+    let reference_type = reference_type.into_value();
     let mut current_module_type = None;
     for rule in options.await?.rules.iter() {
-        if rule.matches(&path.await?) {
+        if rule.matches(&path.await?, &reference_type) {
             for (_, effect) in rule.effects() {
                 match effect {
                     ModuleRuleEffect::ModuleType(module) => {
@@ -160,11 +166,15 @@ async fn get_module_type(path: FileSystemPathVc, options: ModuleOptionsVc) -> Re
 }
 
 #[turbo_tasks::function]
-async fn module(source: AssetVc, context: ModuleAssetContextVc) -> Result<AssetVc> {
+async fn module(
+    source: AssetVc,
+    context: ModuleAssetContextVc,
+    reference_type: Value<ReferenceType>,
+) -> Result<AssetVc> {
     let path = source.path();
     let options = ModuleOptionsVc::new(path.parent(), context.module_options_context());
 
-    let current_module_type = get_module_type(path, options).await?;
+    let current_module_type = get_module_type(path, options, reference_type).await?;
 
     Ok(match &*current_module_type {
         ModuleType::Ecmascript(transforms) => EcmascriptModuleAssetVc::new(
@@ -288,7 +298,12 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    async fn resolve_options(&self, origin_path: FileSystemPathVc) -> Result<ResolveOptionsVc> {
+    async fn resolve_options(
+        &self,
+        origin_path: FileSystemPathVc,
+        _reference_type: Value<ReferenceType>,
+    ) -> Result<ResolveOptionsVc> {
+        // TODO move `apply_commonjs/esm_resolve_options` etc. to here
         Ok(resolve_options(
             origin_path.parent().resolve().await?,
             self.resolve_options_context,
@@ -301,13 +316,14 @@ impl AssetContext for ModuleAssetContext {
         origin_path: FileSystemPathVc,
         request: RequestVc,
         resolve_options: ResolveOptionsVc,
+        reference_type: Value<ReferenceType>,
     ) -> Result<ResolveResultVc> {
         warn_on_unsupported_modules(request, origin_path).await?;
 
         let context_path = origin_path.parent().resolve().await?;
 
         let result = resolve(context_path, request, resolve_options);
-        let result = self_vc.process_resolve_result(result);
+        let result = self_vc.process_resolve_result(result, reference_type);
 
         if *self_vc.is_typescript_resolving_enabled().await? {
             let types_reference = TypescriptTypesAssetReferenceVc::new(
@@ -325,16 +341,24 @@ impl AssetContext for ModuleAssetContext {
     async fn process_resolve_result(
         self_vc: ModuleAssetContextVc,
         result: ResolveResultVc,
+        reference_type: Value<ReferenceType>,
     ) -> Result<ResolveResultVc> {
         Ok(result
             .await?
-            .map(|a| self_vc.process(a).resolve(), |i| async move { Ok(i) })
+            .map(
+                |a| self_vc.process(a, reference_type.clone()).resolve(),
+                |i| async move { Ok(i) },
+            )
             .await?
             .into())
     }
 
     #[turbo_tasks::function]
-    async fn process(self_vc: ModuleAssetContextVc, asset: AssetVc) -> Result<AssetVc> {
+    async fn process(
+        self_vc: ModuleAssetContextVc,
+        asset: AssetVc,
+        reference_type: Value<ReferenceType>,
+    ) -> Result<AssetVc> {
         let this = self_vc.await?;
         if let Some(transition) = this.transition {
             let asset = transition.process_source(asset);
@@ -349,7 +373,7 @@ impl AssetContext for ModuleAssetContext {
                 module_options_context,
                 resolve_options_context,
             );
-            let m = module(asset, context);
+            let m = module(asset, context, reference_type);
             Ok(transition.process_module(m, context))
         } else {
             let context = ModuleAssetContextVc::new(
@@ -358,7 +382,7 @@ impl AssetContext for ModuleAssetContext {
                 this.module_options_context,
                 this.resolve_options_context,
             );
-            Ok(module(asset, context))
+            Ok(module(asset, context, reference_type))
         }
     }
 

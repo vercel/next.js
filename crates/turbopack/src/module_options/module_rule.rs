@@ -4,6 +4,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{primitives::Regex, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPathReadRef;
+use turbopack_core::reference_type::ReferenceType;
 use turbopack_css::CssInputTransformsVc;
 use turbopack_ecmascript::EcmascriptInputTransformsVc;
 
@@ -29,8 +30,8 @@ impl ModuleRule {
 }
 
 impl ModuleRule {
-    pub fn matches(&self, path: &FileSystemPathReadRef) -> bool {
-        self.condition.matches(path)
+    pub fn matches(&self, path: &FileSystemPathReadRef, reference_type: &ReferenceType) -> bool {
+        self.condition.matches(path, reference_type)
     }
 }
 
@@ -38,6 +39,8 @@ impl ModuleRule {
 pub enum ModuleRuleCondition {
     All(Vec<ModuleRuleCondition>),
     Any(Vec<ModuleRuleCondition>),
+    Not(Box<ModuleRuleCondition>),
+    ReferenceType(ReferenceType),
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
     ResourcePathInDirectory(String),
@@ -53,13 +56,23 @@ impl ModuleRuleCondition {
     pub fn any(conditions: Vec<ModuleRuleCondition>) -> ModuleRuleCondition {
         ModuleRuleCondition::Any(conditions)
     }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn not(condition: ModuleRuleCondition) -> ModuleRuleCondition {
+        ModuleRuleCondition::Not(Box::new(condition))
+    }
 }
 
 impl ModuleRuleCondition {
-    pub fn matches(&self, path: &FileSystemPathReadRef) -> bool {
+    pub fn matches(&self, path: &FileSystemPathReadRef, reference_type: &ReferenceType) -> bool {
         match self {
-            ModuleRuleCondition::All(conditions) => conditions.iter().all(|c| c.matches(path)),
-            ModuleRuleCondition::Any(conditions) => conditions.iter().any(|c| c.matches(path)),
+            ModuleRuleCondition::All(conditions) => {
+                conditions.iter().all(|c| c.matches(path, reference_type))
+            }
+            ModuleRuleCondition::Any(conditions) => {
+                conditions.iter().any(|c| c.matches(path, reference_type))
+            }
+            ModuleRuleCondition::Not(condition) => !condition.matches(path, reference_type),
             ModuleRuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
             ModuleRuleCondition::ResourcePathHasNoExtension => {
                 if let Some(i) = path.path.rfind('.') {
@@ -77,6 +90,9 @@ impl ModuleRuleCondition {
             }
             ModuleRuleCondition::ResourcePathInExactDirectory(parent_path) => {
                 path.is_inside(parent_path)
+            }
+            ModuleRuleCondition::ReferenceType(condition_ty) => {
+                condition_ty.includes(reference_type)
             }
             _ => todo!("not implemented yet"),
         }

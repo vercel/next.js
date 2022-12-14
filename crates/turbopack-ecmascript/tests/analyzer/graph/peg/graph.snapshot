@@ -3132,7 +3132,7 @@
         "descriptions",
         Unknown(
             None,
-            "new expression are not supported",
+            "unknown new expression",
         ),
     ),
     (
@@ -4256,7 +4256,7 @@
             2,
             Unknown(
                 None,
-                "new expression are not supported",
+                "unknown new expression",
             ),
         ),
     ),
@@ -4266,7 +4266,7 @@
             2,
             Unknown(
                 None,
-                "new expression are not supported",
+                "unknown new expression",
             ),
         ),
     ),

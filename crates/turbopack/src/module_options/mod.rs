@@ -1,5 +1,6 @@
 use anyhow::Result;
 use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
 use turbopack_css::{CssInputTransform, CssInputTransformsVc};
 use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 
@@ -186,6 +187,12 @@ impl ModuleOptionsVc {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(
                     vendor_transforms,
                 ))],
+            ),
+            ModuleRule::new(
+                ModuleRuleCondition::ReferenceType(ReferenceType::Url(
+                    UrlReferenceSubType::Undefined,
+                )),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
             ),
         ];
 

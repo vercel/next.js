@@ -33,6 +33,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     issue::IssueVc,
     reference::all_referenced_assets,
+    reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
 };
 use turbopack_env::ProcessEnvAssetVc;
@@ -187,10 +188,12 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
         .copied()
         .collect();
 
-    let modules = entry_paths
-        .into_iter()
-        .map(SourceAssetVc::new)
-        .map(|p| context.process(p.into()));
+    let modules = entry_paths.into_iter().map(SourceAssetVc::new).map(|p| {
+        context.process(
+            p.into(),
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+        )
+    });
 
     let chunks = modules
         .map(|module| async move {

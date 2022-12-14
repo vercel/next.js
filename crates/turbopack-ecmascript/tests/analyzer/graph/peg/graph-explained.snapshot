@@ -253,7 +253,7 @@ description#75 = arguments[0]
 description#79 = arguments[0]
 
 descriptions = ???*0*
-- *0* new expression are not supported
+- *0* unknown new expression
 
 details = (
   | peg$posDetailsCache[pos]
@@ -457,10 +457,10 @@ peg$SyntaxError = (...) => FreeVar(undefined)
 peg$anyExpectation = (...) => {"type": "any"}
 
 peg$buildSimpleError = (...) => ???*0*
-- *0* new expression are not supported
+- *0* unknown new expression
 
 peg$buildStructuredError = (...) => ???*0*
-- *0* new expression are not supported
+- *0* unknown new expression
 
 peg$c0 = *anonymous function 3852*
 

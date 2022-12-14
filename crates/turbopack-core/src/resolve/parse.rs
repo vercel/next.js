@@ -224,6 +224,48 @@ impl RequestVc {
             query,
         })
     }
+
+    #[turbo_tasks::function]
+    pub async fn as_relative(self) -> Result<Self> {
+        let this = self.await?;
+        Ok(match &*this {
+            Request::Empty
+            | Request::Raw { .. }
+            | Request::ServerRelative { .. }
+            | Request::Windows { .. }
+            | Request::Relative { .. }
+            | Request::Uri { .. }
+            | Request::Dynamic => self,
+            Request::Module {
+                module,
+                path,
+                query: _,
+            } => {
+                let mut pat = Pattern::Constant(format!("./{module}"));
+                pat.push(path.clone());
+                // TODO add query
+                Self::parse(Value::new(pat))
+            }
+            Request::PackageInternal { path } => {
+                let mut pat = Pattern::Constant("./".to_string());
+                pat.push(path.clone());
+                Self::parse(Value::new(pat))
+            }
+            Request::Unknown { path } => {
+                let mut pat = Pattern::Constant("./".to_string());
+                pat.push(path.clone());
+                Self::parse(Value::new(pat))
+            }
+            Request::Alternatives { requests } => {
+                let requests = requests
+                    .iter()
+                    .copied()
+                    .map(RequestVc::as_relative)
+                    .collect();
+                Request::Alternatives { requests }.cell()
+            }
+        })
+    }
 }
 
 #[turbo_tasks::value_impl]

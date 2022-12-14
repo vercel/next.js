@@ -36,6 +36,7 @@ use crate::{
         resolve::{ResolvingIssue, ResolvingIssueVc},
     },
     reference::{AssetReference, AssetReferenceVc},
+    reference_type::ReferenceType,
     resolve::{
         options::{ConditionValue, ResolveOptions},
         pattern::{read_matches, Pattern, PatternMatch, PatternVc},
@@ -94,7 +95,7 @@ impl ResolveResult {
         }
     }
 
-    fn get_references(&self) -> &Vec<AssetReferenceVc> {
+    pub fn get_references(&self) -> &Vec<AssetReferenceVc> {
         match self {
             ResolveResult::Single(_, list)
             | ResolveResult::Keyed(_, list)
@@ -1124,7 +1125,7 @@ impl ValueToString for AffectingResolvingAssetReference {
 
 pub async fn handle_resolve_error(
     result: ResolveResultVc,
-    request_type: &str,
+    reference_type: Value<ReferenceType>,
     origin: ResolveOriginVc,
     request: RequestVc,
     resolve_options: ResolveOptionsVc,
@@ -1134,7 +1135,7 @@ pub async fn handle_resolve_error(
             if *unresolveable {
                 let issue: ResolvingIssueVc = ResolvingIssue {
                     context: origin.origin_path(),
-                    request_type: request_type.to_string(),
+                    request_type: format!("{} request", reference_type.into_value()),
                     request,
                     resolve_options,
                     error_message: None,
@@ -1147,7 +1148,7 @@ pub async fn handle_resolve_error(
         Err(err) => {
             let issue: ResolvingIssueVc = ResolvingIssue {
                 context: origin.origin_path(),
-                request_type: request_type.to_string(),
+                request_type: format!("{} request", reference_type.into_value()),
                 request,
                 resolve_options,
                 error_message: Some(err.to_string()),

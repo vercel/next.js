@@ -1,10 +1,11 @@
 use anyhow::Result;
 use swc_core::ecma::ast::Lit;
-use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOriginVc, parse::RequestVc, resolve, ResolveResult, ResolveResultVc},
     source_asset::SourceAssetVc,
 };
@@ -150,7 +151,8 @@ pub struct WebpackRuntimeAssetReference {
 impl AssetReference for WebpackRuntimeAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<ResolveResultVc> {
-        let options = self.origin.resolve_options();
+        let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+        let options = self.origin.resolve_options(ty.clone());
 
         let options = apply_cjs_specific_options(options);
 

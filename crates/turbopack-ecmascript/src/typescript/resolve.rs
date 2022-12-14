@@ -8,6 +8,7 @@ use turbopack_core::{
     asset::AssetVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     reference::{AssetReference, AssetReferenceVc},
+    reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
         handle_resolve_error,
         options::{
@@ -233,8 +234,11 @@ pub async fn apply_tsconfig_resolve_options(
 
 #[turbo_tasks::function]
 pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result<ResolveResultVc> {
+    let ty = Value::new(ReferenceType::TypeScript(
+        TypeScriptReferenceSubType::Undefined,
+    ));
     let context_path = origin.origin_path().parent();
-    let options = origin.resolve_options();
+    let options = origin.resolve_options(ty.clone());
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -265,8 +269,8 @@ pub async fn type_resolve(origin: ResolveOriginVc, request: RequestVc) -> Result
     } else {
         resolve(context_path, request, options)
     };
-    let result = origin.context().process_resolve_result(result);
-    handle_resolve_error(result, "type request", origin, request, options).await
+    let result = origin.context().process_resolve_result(result, ty.clone());
+    handle_resolve_error(result, ty, origin, request, options).await
 }
 
 #[turbo_tasks::value]

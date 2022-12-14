@@ -1,7 +1,8 @@
+use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc};
-use crate::context::AssetContextVc;
+use crate::{context::AssetContextVc, reference_type::ReferenceType};
 
 /// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.
@@ -27,15 +28,21 @@ impl ResolveOriginVc {
     /// Resolve to an asset from that origin. Custom resolve options can be
     /// passed. Otherwise provide `origin.resolve_options()` unmodified.
     #[turbo_tasks::function]
-    pub fn resolve_asset(self, request: RequestVc, options: ResolveOptionsVc) -> ResolveResultVc {
+    pub fn resolve_asset(
+        self,
+        request: RequestVc,
+        options: ResolveOptionsVc,
+        reference_type: Value<ReferenceType>,
+    ) -> ResolveResultVc {
         self.context()
-            .resolve_asset(self.origin_path(), request, options)
+            .resolve_asset(self.origin_path(), request, options, reference_type)
     }
 
     /// Get the resolve options that apply for this origin.
     #[turbo_tasks::function]
-    pub fn resolve_options(self) -> ResolveOptionsVc {
-        self.context().resolve_options(self.origin_path())
+    pub fn resolve_options(self, reference_type: Value<ReferenceType>) -> ResolveOptionsVc {
+        self.context()
+            .resolve_options(self.origin_path(), reference_type)
     }
 
     /// Adds a transition that is used for resolved assets.

@@ -2482,7 +2482,7 @@
                 ),
                 Unknown(
                     None,
-                    "new expression are not supported",
+                    "unknown new expression",
                 ),
             ],
         ),

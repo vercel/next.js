@@ -36,6 +36,7 @@ use turbopack_core::asset::Asset;
 use turbopack_core::{
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
+    reference_type::ReferenceType,
     source_asset::SourceAssetVc,
 };
 
@@ -411,7 +412,7 @@ fn node_file_trace<B: Backend + 'static>(
                     }
                     .cell(),
                 );
-                let module = context.process(source.into());
+                let module = context.process(source.into(), Value::new(ReferenceType::Undefined));
                 let rebased = RebasedAssetVc::new(module, input_dir, output_dir);
 
                 #[cfg(not(feature = "bench_against_node_nft"))]

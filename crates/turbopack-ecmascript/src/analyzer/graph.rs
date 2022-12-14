@@ -43,8 +43,13 @@ pub enum Effect {
         span: Span,
     },
     ImportMeta {
-        span: Span,
         ast_path: Vec<AstParentKind>,
+        span: Span,
+    },
+    Url {
+        input: JsValue,
+        ast_path: Vec<AstParentKind>,
+        span: Span,
     },
 }
 
@@ -91,9 +96,16 @@ impl Effect {
                 span: _,
             } => {}
             Effect::ImportMeta {
-                span: _,
                 ast_path: _,
+                span: _,
             } => {}
+            Effect::Url {
+                input,
+                ast_path: _,
+                span: _,
+            } => {
+                input.normalize();
+            }
         }
     }
 }
@@ -293,7 +305,8 @@ impl EvalContext {
                 format!("*arrow function {}*", expr.span.lo.0).into(),
                 SyntaxContext::empty(),
             )),
-            Expr::New(..) => JsValue::Unknown(None, "new expression are not supported"),
+
+            Expr::New(..) => JsValue::Unknown(None, "unknown new expression"),
 
             Expr::Seq(e) => {
                 if let Some(e) = e.exprs.last() {
@@ -805,6 +818,41 @@ impl VisitAstPath for Analyzer<'_> {
             self.check_call_expr_for_effects(n, ast_path);
             n.visit_children_with_path(self, ast_path);
         }
+    }
+
+    fn visit_new_expr<'ast: 'r, 'r>(
+        &mut self,
+        new_expr: &'ast NewExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        // new URL("path", import.meta.url)
+        if let box Expr::Ident(ref callee) = &new_expr.callee {
+            if &*callee.sym == "URL" && is_unresolved(callee, self.eval_context.unresolved_mark) {
+                if let Some(args) = &new_expr.args {
+                    if args.len() == 2 {
+                        if let Expr::Member(MemberExpr {
+                            obj:
+                                box Expr::MetaProp(MetaPropExpr {
+                                    kind: MetaPropKind::ImportMeta,
+                                    ..
+                                }),
+                            prop: MemberProp::Ident(prop),
+                            ..
+                        }) = &*args[1].expr
+                        {
+                            if &*prop.sym == "url" {
+                                self.data.effects.push(Effect::Url {
+                                    input: self.eval_context.eval(&args[0].expr),
+                                    ast_path: as_parent_path(ast_path),
+                                    span: new_expr.span(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        new_expr.visit_children_with_path(self, ast_path);
     }
 
     fn visit_member_expr<'ast: 'r, 'r>(

@@ -28,7 +28,7 @@ bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
 
 bytes = (arguments[0] | ???*0*)
-- *0* new expression are not supported
+- *0* unknown new expression
 
 bytesToWords = (...) => []
 
@@ -135,7 +135,7 @@ msg = ???*0*
   ⚠️  call of unknown function
 - *3* FreeVar(encodeURIComponent)
   ⚠️  unknown global
-- *4* new expression are not supported
+- *4* unknown new expression
 
 msw = (???*0* + ???*1* + ???*2*)
 - *0* unsupported expression
