@@ -47,7 +47,7 @@ impl ImportAttributes {
                 assert_eq!(f.value.len(), 1);
                 assert!(matches!(&f.value[0], ComponentValue::LayerName(_)));
                 if let ComponentValue::LayerName(layer_name) = &f.value[0] {
-                    layer_name.clone()
+                    *layer_name.clone()
                 } else {
                     unreachable!()
                 }
@@ -68,12 +68,12 @@ impl ImportAttributes {
 
                     if let Some(supports) = v {
                         match &supports {
-                            ComponentValue::SupportsCondition(s) => Some(s.clone()),
+                            ComponentValue::SupportsCondition(s) => Some(*s.clone()),
                             ComponentValue::Declaration(d) => Some(SupportsCondition {
                                 span: DUMMY_SP,
                                 conditions: vec![SupportsConditionType::SupportsInParens(
                                     SupportsInParens::Feature(SupportsFeature::Declaration(
-                                        Box::new(d.clone()),
+                                        d.clone(),
                                     )),
                                 )],
                             }),
@@ -110,10 +110,12 @@ impl ImportAttributes {
         // something random that's never gonna be in real css
         let mut rule = Rule::ListOfComponentValues(box ListOfComponentValues {
             span: DUMMY_SP,
-            children: vec![ComponentValue::PreservedToken(token(Token::String {
-                value: Default::default(),
-                raw: r#""""__turbopack_placeholder__""""#.into(),
-            }))],
+            children: vec![ComponentValue::PreservedToken(Box::new(token(
+                Token::String {
+                    value: Default::default(),
+                    raw: r#""""__turbopack_placeholder__""""#.into(),
+                },
+            )))],
         });
 
         fn at_rule(name: &str, prelude: AtRulePrelude, inner_rule: Rule) -> Rule {
@@ -128,7 +130,7 @@ impl ImportAttributes {
                 block: Some(SimpleBlock {
                     span: DUMMY_SP,
                     name: token(Token::LBrace),
-                    value: vec![ComponentValue::Rule(inner_rule)],
+                    value: vec![ComponentValue::from(inner_rule)],
                 }),
             })
         }

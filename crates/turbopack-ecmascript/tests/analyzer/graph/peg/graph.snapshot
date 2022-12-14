@@ -689,12 +689,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('alternate' type=dynamic),
+                                Atom('alternate' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('alternate' type=dynamic),
+                                Atom('alternate' type=static),
                                 #63,
                             ),
                         ),
@@ -816,12 +816,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('begin' type=inline),
+                                Atom('begin' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('begin' type=inline),
+                                Atom('begin' type=static),
                                 #66,
                             ),
                         ),
@@ -1844,12 +1844,12 @@
                     KeyValue(
                         Constant(
                             StrWord(
-                                Atom('order' type=inline),
+                                Atom('order' type=static),
                             ),
                         ),
                         Variable(
                             (
-                                Atom('order' type=inline),
+                                Atom('order' type=static),
                                 #39,
                             ),
                         ),
@@ -6901,7 +6901,7 @@
         "peg$c75",
         Constant(
             StrWord(
-                Atom('order' type=inline),
+                Atom('order' type=static),
             ),
         ),
     ),

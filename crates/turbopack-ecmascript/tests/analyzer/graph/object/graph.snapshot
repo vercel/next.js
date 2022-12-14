@@ -317,7 +317,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('d' type=inline),
+                    Atom('d' type=static),
                 ),
             ),
         ),
@@ -334,7 +334,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('d' type=inline),
+                    Atom('d' type=static),
                 ),
             ),
         ),
@@ -351,7 +351,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('d' type=inline),
+                    Atom('d' type=static),
                 ),
             ),
         ),
@@ -368,7 +368,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('d' type=inline),
+                    Atom('d' type=static),
                 ),
             ),
         ),
@@ -385,7 +385,7 @@
             ),
             Constant(
                 StrWord(
-                    Atom('d' type=inline),
+                    Atom('d' type=static),
                 ),
             ),
         ),
