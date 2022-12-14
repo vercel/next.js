@@ -22,9 +22,12 @@ function isHydrationError(error: Error): boolean {
   )
 }
 
-try {
-  Error.stackTraceLimit = 50
-} catch {}
+if (typeof window !== 'undefined') {
+  try {
+    // Increase the number of stack frames on the client
+    Error.stackTraceLimit = 50
+  } catch {}
+}
 
 const errorQueue: Array<Error> = []
 const rejectionQueue: Array<Error> = []
@@ -40,8 +43,6 @@ if (typeof window !== 'undefined') {
       ev.preventDefault()
       return
     }
-
-    RuntimeErrorHandler.hadRuntimeError = true
 
     const error = ev?.error
     if (
@@ -66,8 +67,6 @@ if (typeof window !== 'undefined') {
   window.addEventListener(
     'unhandledrejection',
     (ev: WindowEventMap['unhandledrejection']): void => {
-      RuntimeErrorHandler.hadRuntimeError = true
-
       const reason = ev?.reason
       if (
         !reason ||

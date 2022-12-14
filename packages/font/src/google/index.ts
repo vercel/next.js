@@ -3440,7 +3440,7 @@ export declare function Cambo<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Candal<
   T extends CssVariable | undefined = undefined
@@ -3929,6 +3929,31 @@ export declare function Chilanka<
   subsets?: Array<'latin' | 'malayalam'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Chivo<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'vietnamese'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Chivo_Mono<
   T extends CssVariable | undefined = undefined
 >(options?: {
   weight?:
@@ -6267,14 +6292,17 @@ export declare function Francois_One<
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Frank_Ruhl_Libre<
   T extends CssVariable | undefined = undefined
->(options: {
-  weight:
+>(options?: {
+  weight?:
     | '300'
     | '400'
     | '500'
+    | '600'
     | '700'
+    | '800'
     | '900'
-    | Array<'300' | '400' | '500' | '700' | '900'>
+    | 'variable'
+    | Array<'300' | '400' | '500' | '600' | '700' | '800' | '900'>
   style?: 'normal' | Array<'normal'>
   display?: Display
   variable?: T
@@ -7410,6 +7438,31 @@ export declare function Handlee<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Hanken_Grotesk<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hanuman<
   T extends CssVariable | undefined = undefined
@@ -10935,7 +10988,9 @@ export declare function Marmelad<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Martel<
   T extends CssVariable | undefined = undefined
@@ -10976,6 +11031,29 @@ export declare function Martel_Sans<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Martian_Mono<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
+  axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Marvel<
   T extends CssVariable | undefined = undefined
@@ -12412,7 +12490,7 @@ export declare function Noto_Naskh_Arabic<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'arabic'>
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Nastaliq_Urdu<
   T extends CssVariable | undefined = undefined
@@ -13196,7 +13274,7 @@ export declare function Noto_Sans_Hanifi_Rohingya<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'hanifi-rohingya'>
+  subsets?: Array<'hanifi-rohingya' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Hanunoo<
   T extends CssVariable | undefined = undefined
@@ -13869,7 +13947,7 @@ export declare function Noto_Sans_Mro<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'mro'>
+  subsets?: Array<'latin' | 'latin-ext' | 'mro'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Multani<
   T extends CssVariable | undefined = undefined
@@ -14457,7 +14535,7 @@ export declare function Noto_Sans_Symbols_2<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'symbols'>
+  subsets?: Array<'latin' | 'latin-ext' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Syriac<
   T extends CssVariable | undefined = undefined
@@ -14717,7 +14795,7 @@ export declare function Noto_Sans_Tifinagh<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'tifinagh'>
+  subsets?: Array<'latin' | 'latin-ext' | 'tifinagh'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Tirhuta<
   T extends CssVariable | undefined = undefined
@@ -15318,6 +15396,24 @@ export declare function Noto_Serif_Myanmar<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'myanmar'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Noto_Serif_NP_Hmong<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'nyiakeng-puachue-hmong'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Nyiakeng_Puachue_Hmong<
   T extends CssVariable | undefined = undefined
@@ -17631,7 +17727,7 @@ export declare function Reem_Kufi<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'arabic' | 'latin'>
+  subsets?: Array<'arabic' | 'latin' | 'latin-ext' | 'vietnamese'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Reem_Kufi_Fun<
   T extends CssVariable | undefined = undefined
@@ -18125,6 +18221,20 @@ export declare function Rubik<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_80s_Fade<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rubik_Beastly<
   T extends CssVariable | undefined = undefined
 >(options: {
@@ -18182,6 +18292,20 @@ export declare function Rubik_Dirt<
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rubik_Distressed<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Gemstones<
   T extends CssVariable | undefined = undefined
 >(options: {
   weight: '400' | Array<'400'>
@@ -18292,6 +18416,48 @@ export declare function Rubik_Moonrocks<
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rubik_Puddles<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Spray_Paint<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Storm<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Vinyl<
   T extends CssVariable | undefined = undefined
 >(options: {
   weight: '400' | Array<'400'>
@@ -20942,6 +21108,30 @@ export declare function Ultra<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Unbounded<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<'200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Uncial_Antiqua<
   T extends CssVariable | undefined = undefined

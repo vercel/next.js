@@ -39,6 +39,10 @@ describe('app dir head', () => {
       const $ = cheerio.load(html)
       const headTags = $('head').children().toArray()
 
+      // should not include default tags in page with head.js provided
+      expect(html).not.toContain(
+        '<meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>'
+      )
       expect(headTags.find((el) => el.attribs.src === '/hello.js')).toBeTruthy()
       expect(
         headTags.find((el) => el.attribs.src === '/another.js')
