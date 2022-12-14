@@ -1,6 +1,6 @@
 # Returning response body in Middleware
 
-> Note: In Next.js v13.0.0 you can now respond to middleware directly by returning a `NextResponse`. For more information, see [Producing a Response](https://nextjs.org/docs/advanced-features/middleware#producing-a-response).
+> Note: In Next.js v13.0.0 you can now respond to Middleware directly by returning a `NextResponse`. For more information, see [Producing a Response](https://nextjs.org/docs/advanced-features/middleware#producing-a-response).
 
 #### Why This Error Occurred
 
