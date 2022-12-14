@@ -226,7 +226,7 @@ impl Cell {
             } => {
                 if content != *old_content {
                     if !dependent_tasks.is_empty() {
-                        turbo_tasks.schedule_notify_tasks_set(&dependent_tasks);
+                        turbo_tasks.schedule_notify_tasks_set(dependent_tasks);
                         dependent_tasks.clear();
                     }
                     *self = Cell::Full(box FullCell::UpdatedValue {
@@ -243,7 +243,7 @@ impl Cell {
             }) => {
                 if content != *cell_content {
                     if !dependent_tasks.is_empty() {
-                        turbo_tasks.schedule_notify_tasks_set(&dependent_tasks);
+                        turbo_tasks.schedule_notify_tasks_set(dependent_tasks);
                         dependent_tasks.clear();
                     }
                     *updates += 1;

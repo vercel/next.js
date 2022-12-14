@@ -39,8 +39,8 @@ impl TaskStats {
     pub fn register_execution(&mut self, duration: Duration, duration_since_start: Duration) {
         match self {
             Self::Full(stats) => {
-                stats.total_duration += duration.into();
-                stats.last_duration = duration.into();
+                stats.total_duration += duration;
+                stats.last_duration = duration;
             }
             Self::Essential(stats) => {
                 stats.last_duration = duration.into();

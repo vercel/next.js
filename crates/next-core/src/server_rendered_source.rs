@@ -205,7 +205,7 @@ async fn create_server_rendered_source_for_file(
     } else {
         let data_pathname = format!(
             "_next/data/development/{}",
-            get_asset_path_from_route(&*pathname.await?, ".json")
+            get_asset_path_from_route(&pathname.await?, ".json")
         );
         let data_path_regex = regular_expression_for_path(StringVc::cell(data_pathname));
 

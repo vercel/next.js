@@ -745,7 +745,7 @@ impl Task {
             }
         }
         // No scope is active. Task has been added as dirty task to all scopes
-        return false;
+        false
     }
 
     fn make_dirty(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
@@ -1348,7 +1348,7 @@ impl Task {
         self.state_mut()
             .as_full_mut()
             .and_then(|state| state.cells.get_mut(&index.type_id))
-            .and_then(|list| list.get_mut(index.index as usize).map(|cell| func(cell)))
+            .and_then(|list| list.get_mut(index.index as usize).map(func))
     }
 
     /// Access to a cell.

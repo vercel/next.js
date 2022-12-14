@@ -242,7 +242,7 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
             }
             TaskMetaStateWriteGuard::Partial(state) => {
                 let PartialTaskState { ref mut scopes, .. } = **state;
-                static EMPTY: Lazy<AutoSet<TaskId>> = Lazy::new(|| AutoSet::new());
+                static EMPTY: Lazy<AutoSet<TaskId>> = Lazy::new(AutoSet::new);
                 (scopes, &*EMPTY)
             }
             TaskMetaStateWriteGuard::Unloaded(_) => unreachable!(

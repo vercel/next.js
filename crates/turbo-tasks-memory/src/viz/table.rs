@@ -146,8 +146,8 @@ pub fn create_table(root: GroupTree, stats_type: StatsType) -> String {
                 .zip(max_values.avg_duration)
             {
                 (
-                    format!("{}", (total_duration / (executions as u32)).as_micros()),
-                    FormatDuration(total_duration / (executions as u32)).to_string(),
+                    format!("{}", (total_duration / executions).as_micros()),
+                    FormatDuration(total_duration / executions).to_string(),
                     as_frac_color(
                         total_duration.as_micros() / (executions as u128),
                         max_avg_duration.as_micros(),
