@@ -35,7 +35,7 @@ variables:
   PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
   PNPM_VERSION: 7.3.0
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^14.19.0
+  node_version: ^16.8.0
 
 stages:
   - stage: Test
