@@ -24,6 +24,7 @@ import {
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
 import { traverseModules } from '../utils'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
 interface Options {
   dev: boolean
@@ -96,9 +97,10 @@ export class FlightClientEntryPlugin {
           // additional queries to make sure there's no conflict even using the `named`
           // module ID strategy.
           let ssrNamedModuleId = path.relative(compiler.context, modResource)
+
           if (!ssrNamedModuleId.startsWith('.')) {
             // TODO use getModuleId instead
-            ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
+            ssrNamedModuleId = `./${normalizePathSep(ssrNamedModuleId)}`
           }
 
           if (this.isEdgeServer) {
@@ -204,9 +206,9 @@ export class FlightClientEntryPlugin {
           : entryRequest
 
         // Replace file suffix as `.js` will be added.
-        const bundlePath = relativeRequest
-          .replace(/\.(js|ts)x?$/, '')
-          .replace(/^src[\\/]/, '')
+        const bundlePath = normalizePathSep(
+          relativeRequest.replace(/\.(js|ts)x?$/, '').replace(/^src[\\/]/, '')
+        )
 
         promises.push(
           this.injectClientEntryAndSSRModules({
@@ -509,10 +511,7 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
-      const pageKey = (COMPILER_NAMES.client + bundlePath).replace(
-        /\\/g,
-        path.posix.sep
-      )
+      const pageKey = COMPILER_NAMES.client + bundlePath
       if (!entries[pageKey]) {
         entries[pageKey] = {
           type: EntryTypes.CHILD_ENTRY,
