@@ -129,19 +129,16 @@ module.exports = (actionInfo) => {
 
       // wait to pack packages until after dependency paths have been updated
       // to the correct versions
-      await Promise.all(
-        Array.from(pkgDatas.keys()).map(async (pkgName) => {
-          const { pkg, pkgPath } = pkgDatas.get(pkgName)
-          await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`, true, {
-            env: {
-              // Yarn installed through corepack will not run in pnpm project without this env var set
-              // This var works for corepack >=0.15.0
-              COREPACK_ENABLE_STRICT: '0',
-            },
-          })
+      for (const pkgName of pkgDatas.keys()) {
+        const { pkg, pkgPath } = pkgDatas.get(pkgName)
+        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`, true, {
+          env: {
+            // Yarn installed through corepack will not run in pnpm project without this env var set
+            // This var works for corepack >=0.15.0
+            COREPACK_ENABLE_STRICT: '0',
+          },
         })
-      )
-
+      }
       return pkgPaths
     },
   }
