@@ -136,8 +136,15 @@ describe('app dir', () => {
 
     if (!(global as any).isNextDeploy) {
       it('should serve /index as separate page', async () => {
+        const stderr = []
+        next.on('stderr', (err) => {
+          stderr.push(err)
+        })
         const html = await renderViaHTTP(next.url, '/dashboard/index')
         expect(html).toContain('hello from app/dashboard/index')
+        expect(stderr.every((err) => err.includes('Invalid hook call.'))).toBe(
+          false
+        )
       })
 
       it('should handle next/dynamic correctly', async () => {

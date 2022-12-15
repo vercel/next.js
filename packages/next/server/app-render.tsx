@@ -54,7 +54,7 @@ function preloadComponent(Component: any, props: any) {
   const prev = console.error
   // Hide invalid hook call warning when calling component
   console.error = function (msg) {
-    if (msg.startsWith('Invalid hook call..')) {
+    if (msg.startsWith('Warning: Invalid hook call.')) {
       // ignore
     } else {
       // @ts-expect-error argument is defined
