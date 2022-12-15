@@ -35,3 +35,5 @@ turbo-tasks-build = { path = "../turbo-tasks-build" }
 
 [features]
 next-font-local = []
+native-tls = ["turbo-tasks-fetch/native-tls"]
+rustls-tls = ["turbo-tasks-fetch/rustls-tls"]
