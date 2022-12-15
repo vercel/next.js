@@ -163,6 +163,7 @@ importers:
       release: 6.3.1
       request-promise-core: 1.1.2
       resolve-from: 5.0.0
+      rimraf: 3.0.2
       sass: 1.54.0
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
@@ -337,6 +338,7 @@ importers:
       release: 6.3.1
       request-promise-core: 1.1.2_request@2.88.2
       resolve-from: 5.0.0
+      rimraf: 3.0.2
       sass: 1.54.0
       seedrandom: 3.0.5
       selenium-webdriver: 4.0.0-beta.4
@@ -403,7 +405,6 @@ importers:
       cross-spawn: 6.0.5
       got: 10.7.0
       prompts: 2.1.0
-      rimraf: 3.0.2
       tar: 4.4.10
       update-check: 1.5.4
       validate-npm-package-name: 3.0.0
@@ -425,7 +426,6 @@ importers:
       cross-spawn: 6.0.5
       got: 10.7.0
       prompts: 2.1.0
-      rimraf: 3.0.2
       tar: 4.4.10
       update-check: 1.5.4
       validate-npm-package-name: 3.0.0
@@ -9805,7 +9805,7 @@ packages:
     dev: true
 
   /concat-map/0.0.1:
-    resolution: {integrity: sha1-2Klr13/Wjfd5OnMDajug1UBdR3s=}
+    resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
   /concat-stream/1.6.2:
     resolution: {integrity: sha512-27HBghJxjiZtIk3Ycvn/4kbJk/1uZuJFfuPEns6LaEvpvG1f0hTea8lilrouyo9mVc2GWdcEZ8OLoGmSADlrCw==}
@@ -14291,6 +14291,7 @@ packages:
   /is-docker/2.0.0:
     resolution: {integrity: sha512-pJEdRugimx4fBMra5z2/5iRdZ63OhYV0vr0Dwm5+xtW4D1FvRkB8hamMIhnWfyJeDdyr/aa7BDyNbtG38VxgoQ==}
     engines: {node: '>=8'}
+    dev: true
 
   /is-docker/2.2.1:
     resolution: {integrity: sha512-F+i2BKsFrH66iaUFc0woD8sLy8getkwTwtOBjvs56Cx4CgJDeKQeqfz8wAYiSb8JOprWhHH5p77PbmYCvvUuXQ==}
@@ -14642,7 +14643,7 @@ packages:
     resolution: {integrity: sha512-fKzAra0rGJUUBwGBgNkHZuToZcn+TtXHpeCgmkMJMMYx1sQDYaCSyjJBSCa2nH1DGm7s3n1oBnohoVTBaN7Lww==}
     engines: {node: '>=8'}
     dependencies:
-      is-docker: 2.0.0
+      is-docker: 2.2.1
 
   /is-yarn-global/0.3.0:
     resolution: {integrity: sha512-VjSeb/lHmkoyd8ryPVIKvOCn4D1koMqY+vqyjjUfc3xyKtP4dYOxM44sZrnqQSzSds3xyOrUTLTC9LVCVgLngw==}
