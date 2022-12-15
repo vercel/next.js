@@ -12,13 +12,13 @@ import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import {
-  API_ROUTE,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
-  SERVER_RUNTIME,
   WEBPACK_LAYERS,
 } from '../lib/constants'
+import { isAPIRoute } from '../lib/is-api-route'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { APP_CLIENT_INTERNALS, RSC_MODULE_TYPES } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -175,7 +175,7 @@ export function getEdgeServerEntry(opts: {
     return `next-middleware-loader?${stringify(loaderParams)}!`
   }
 
-  if (opts.page.startsWith('/api/') || opts.page === '/api') {
+  if (isAPIRoute(opts.page)) {
     const loaderParams: EdgeFunctionLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
@@ -257,8 +257,8 @@ export async function runDependingOnPageType<T>(params: {
     await params.onEdgeServer()
     return
   }
-  if (params.page.match(API_ROUTE)) {
-    if (params.pageRuntime === SERVER_RUNTIME.edge) {
+  if (isAPIRoute(params.page)) {
+    if (isEdgeRuntime(params.pageRuntime)) {
       await params.onEdgeServer()
       return
     }
@@ -279,7 +279,7 @@ export async function runDependingOnPageType<T>(params: {
     await Promise.all([params.onClient(), params.onServer()])
     return
   }
-  if (params.pageRuntime === SERVER_RUNTIME.edge) {
+  if (isEdgeRuntime(params.pageRuntime)) {
     await Promise.all([params.onClient(), params.onEdgeServer()])
     return
   }

@@ -132,6 +132,7 @@ const API_DOCS: Record<
       'The `runtime` option controls the preferred runtime to render this route.',
     options: {
       '"nodejs"': 'Prefer the Node.js runtime.',
+      '"edge"': 'Prefer the Edge runtime.',
       '"experimental-edge"': 'Prefer the experimental Edge runtime.',
     },
     link: 'https://beta.nextjs.org/docs/api-reference/segment-config#runtime',

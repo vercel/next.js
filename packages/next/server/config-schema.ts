@@ -1,6 +1,7 @@
 import { NextConfig } from './config'
 import type { JSONSchemaType } from 'ajv'
 import { VALID_LOADERS } from '../shared/lib/image-config'
+import { SERVER_RUNTIME } from '../lib/constants'
 
 const configSchema = {
   type: 'object',
@@ -353,7 +354,7 @@ const configSchema = {
         },
         runtime: {
           // automatic typing doesn't like enum
-          enum: ['experimental-edge', 'nodejs'] as any,
+          enum: Object.values(SERVER_RUNTIME) as any,
           type: 'string',
         },
         serverComponentsExternalPackages: {

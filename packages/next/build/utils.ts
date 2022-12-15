@@ -20,7 +20,6 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
-  SERVER_RUNTIME,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -33,6 +32,7 @@ import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
 import { BuildManifest } from '../server/get-page-files'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import {
@@ -423,7 +423,7 @@ export async function printTreeView(
           ? '○'
           : pageInfo?.isSsg
           ? '●'
-          : pageInfo?.runtime === SERVER_RUNTIME.edge
+          : isEdgeRuntime(pageInfo?.runtime)
           ? 'ℇ'
           : 'λ'
 
@@ -1267,7 +1267,7 @@ export async function isPageStatic({
       let prerenderFallback: boolean | 'blocking' | undefined
       let appConfig: AppConfig = {}
 
-      if (pageRuntime === SERVER_RUNTIME.edge) {
+      if (isEdgeRuntime(pageRuntime)) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           env: edgeInfo.env,

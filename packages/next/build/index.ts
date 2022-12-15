@@ -19,7 +19,6 @@ import {
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
-  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -107,6 +106,7 @@ import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
@@ -1392,7 +1392,7 @@ export default async function build(
                   try {
                     let edgeInfo: any
 
-                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                    if (isEdgeRuntime(pageRuntime)) {
                       if (pageType === 'app') {
                         edgeRuntimeAppCount++
                       } else {
@@ -1431,7 +1431,7 @@ export default async function build(
                     if (pageType === 'app' && originalAppPath) {
                       appNormalizedPaths.set(originalAppPath, page)
                       // TODO-APP: handle prerendering with edge
-                      if (pageRuntime === 'experimental-edge') {
+                      if (isEdgeRuntime(pageRuntime)) {
                         isStatic = false
                         isSsg = false
                       } else {
@@ -1469,7 +1469,7 @@ export default async function build(
                         )
                       }
                     } else {
-                      if (pageRuntime === SERVER_RUNTIME.edge) {
+                      if (isEdgeRuntime(pageRuntime)) {
                         if (workerResult.hasStaticProps) {
                           console.warn(
                             `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
