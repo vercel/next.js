@@ -156,7 +156,7 @@ module.exports = (actionInfo) => {
               await packingSpan
                 .traceChild(`pack ${pkgName}`)
                 .traceAsyncFn(async () => {
-                  const { pkg, pkgPath, version } = pkgDatas.get(pkgName)
+                  const { pkg, pkgPath } = pkgDatas.get(pkgName)
                   await exec(
                     `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
                     true
