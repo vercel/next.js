@@ -78,8 +78,9 @@ module.exports = (actionInfo) => {
           continue
         }
         const pkgData = require(pkgDataPath)
-        const { name } = pkgData
+        const { name, version } = pkgData
         pkgDatas.set(name, {
+          version,
           pkgDataPath,
           pkg,
           pkgPath,
@@ -120,6 +121,14 @@ module.exports = (actionInfo) => {
             }
           }
         }
+
+        if (pkgData?.scripts?.prepublishOnly) {
+          // There's a bug in `pnpm pack` where it will run
+          // the prepublishOnly script and that will fail.
+          // See https://github.com/pnpm/pnpm/issues/2941
+          delete pkgData.scripts.prepublishOnly
+        }
+
         await fs.writeFile(
           pkgDataPath,
           JSON.stringify(pkgData, null, 2),
@@ -130,14 +139,12 @@ module.exports = (actionInfo) => {
       // wait to pack packages until after dependency paths have been updated
       // to the correct versions
       for (const pkgName of pkgDatas.keys()) {
-        const { pkg, pkgPath } = pkgDatas.get(pkgName)
-        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`, true, {
-          env: {
-            // Yarn installed through corepack will not run in pnpm project without this env var set
-            // This var works for corepack >=0.15.0
-            COREPACK_ENABLE_STRICT: '0',
-          },
-        })
+        const { pkg, pkgPath, version } = pkgDatas.get(pkgName)
+        await exec(`cd ${pkgPath} && pnpm pack`, true)
+        await exec(
+          `cd ${pkgPath} && mv *${pkg}-${version}.tgz ${pkg}-packed.tgz `,
+          true
+        )
       }
       return pkgPaths
     },
