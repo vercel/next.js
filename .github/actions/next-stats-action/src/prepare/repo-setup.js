@@ -168,13 +168,12 @@ module.exports = (actionInfo) => {
                   .traceChild(`pack ${pkgName}`)
                   .traceAsyncFn(async () => {
                     const { pkg, pkgPath, version } = pkgDatas.get(pkgName)
-                    await exec(`cd ${pkgPath} && pnpm pack`, true)
                     await exec(
-                      `cd ${pkgPath} && mv *${pkg}-${version}.tgz ${pkg}-packed.tgz`
+                      `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
+                      true
                     )
                   })
               )
-              await Promise.all(promises)
             }
 
             await Promise.all(promises)
