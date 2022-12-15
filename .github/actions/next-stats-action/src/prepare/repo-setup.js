@@ -174,6 +174,7 @@ module.exports = (actionInfo) => {
                     )
                   })
               )
+              await Promise.all(promises)
             }
 
             await Promise.all(promises)
