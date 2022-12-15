@@ -49,13 +49,11 @@ use turbopack_core::{
     resolve::origin::{ResolveOrigin, ResolveOriginVc},
 };
 
-use self::{
-    chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions,
-        EcmascriptExportsVc,
-    },
-    references::AnalyzeEcmascriptModuleResultVc,
+use self::chunk::{
+    EcmascriptChunkItemContent, EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions,
+    EcmascriptExportsVc,
 };
+pub use self::references::AnalyzeEcmascriptModuleResultVc;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
     references::analyze_ecmascript_module,

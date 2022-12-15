@@ -27,6 +27,7 @@ turbopack-css = { path = "../turbopack-css" }
 turbopack-ecmascript = { path = "../turbopack-ecmascript" }
 turbopack-env = { path = "../turbopack-env" }
 turbopack-json = { path = "../turbopack-json" }
+turbopack-mdx = { path = "../turbopack-mdx" }
 turbopack-static = { path = "../turbopack-static" }
 # turbo-tasks-rocksdb could be a dev dependencies, but optional dev dependencies are not allowed
 # turbo-tasks-rocksdb = { path = "../turbo-tasks-rocksdb", optional = true }

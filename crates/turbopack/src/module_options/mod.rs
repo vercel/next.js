@@ -77,11 +77,24 @@ impl ModuleOptionsVc {
         };
 
         let css_transforms = CssInputTransformsVc::cell(vec![CssInputTransform::Nested]);
+        let mdx_transforms = EcmascriptInputTransformsVc::cell(
+            vec![EcmascriptInputTransform::TypeScript]
+                .iter()
+                .chain(app_transforms.await?.iter())
+                .cloned()
+                .collect(),
+        );
 
         let mut rules = vec![
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".json".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
+            ),
+            ModuleRule::new(
+                ModuleRuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Mdx(
+                    mdx_transforms,
+                ))],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),

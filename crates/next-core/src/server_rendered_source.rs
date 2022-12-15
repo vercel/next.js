@@ -290,7 +290,7 @@ async fn create_server_rendered_source_for_directory(
                         match extension {
                             // pageExtensions option from next.js
                             // defaults: https://github.com/vercel/next.js/blob/611e13f5159457fedf96d850845650616a1f75dd/packages/next/server/config-shared.ts#L499
-                            "js" | "ts" | "jsx" | "tsx" => {
+                            "js" | "ts" | "jsx" | "tsx" | "mdx" => {
                                 let (dev_server_path, intermediate_output_path, specificity) =
                                     if basename == "index" {
                                         (
