@@ -91,13 +91,14 @@ module.exports = (actionInfo) => {
                 continue
               }
               const pkgData = require(pkgDataPath)
-              const { name } = pkgData
+              const { name, version } = pkgData
               pkgDatas.set(name, {
-                pkgDataPath,
-                pkg,
-                pkgPath,
-                pkgData,
                 packedPkgPath,
+                pkg,
+                pkgData,
+                pkgDataPath,
+                pkgPath,
+                version,
               })
               pkgPaths.set(name, packedPkgPath)
             }
@@ -139,6 +140,13 @@ module.exports = (actionInfo) => {
                 }
               }
 
+              if (pkgData?.scripts?.prepublishOnly) {
+                // There's a bug in `pnpm pack` where it will run
+                // the prepublishOnly script and that will fail.
+                // See https://github.com/pnpm/pnpm/issues/2941
+                delete pkgData.scripts.prepublishOnly
+              }
+
               await fs.writeFile(
                 pkgDataPath,
                 JSON.stringify(pkgData, null, 2),
@@ -157,9 +165,10 @@ module.exports = (actionInfo) => {
                 await packingSpan
                   .traceChild(`pack ${pkgName}`)
                   .traceAsyncFn(async () => {
-                    const { pkg, pkgPath } = pkgDatas.get(pkgName)
+                    const { pkg, pkgPath, version } = pkgDatas.get(pkgName)
+                    await exec(`cd ${pkgPath} && pnpm pack`, true)
                     await exec(
-                      `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
+                      `cd ${pkgPath} && mv *${pkg}-${version}.tgz ${pkg}-packed.tgz `,
                       true
                     )
                   })
