@@ -96,12 +96,11 @@ export class FlightClientEntryPlugin {
           // Note that this isn't that reliable as webpack is still possible to assign
           // additional queries to make sure there's no conflict even using the `named`
           // module ID strategy.
-          let ssrNamedModuleId = normalizePathSep(
-            path.relative(compiler.context, modResource)
-          )
+          let ssrNamedModuleId = path.relative(compiler.context, modResource)
+
           if (!ssrNamedModuleId.startsWith('.')) {
             // TODO use getModuleId instead
-            ssrNamedModuleId = `./${ssrNamedModuleId}`
+            ssrNamedModuleId = `./${normalizePathSep(ssrNamedModuleId)}`
           }
 
           if (this.isEdgeServer) {
