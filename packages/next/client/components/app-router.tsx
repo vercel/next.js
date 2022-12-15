@@ -14,6 +14,7 @@ import type {
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
+import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
@@ -31,7 +32,6 @@ import {
 } from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
-import type { ErrorComponent } from './error-boundary'
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
