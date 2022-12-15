@@ -17,7 +17,7 @@ export async function useTempDir(
   await fs.mkdirp(folder)
 
   if (mode) {
-    fs.chmod(folder, mode)
+    await fs.chmod(folder, mode)
   }
 
   try {

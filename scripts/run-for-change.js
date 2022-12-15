@@ -14,6 +14,9 @@ const CHANGE_ITEM_GROUPS = {
     'contributing',
     'CODE_OF_CONDUCT.md',
     'readme.md',
+    '.github/ISSUE_TEMPLATE',
+    '.github/labeler.json',
+    '.github/pull_request_template.md',
   ],
   'next-swc': ['packages/next-swc', 'scripts/normalize-version-bump.js'],
 }

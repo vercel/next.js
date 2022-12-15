@@ -51,6 +51,9 @@ describe('app-dir static/dynamic handling', () => {
         'blog/tim.rsc',
         'blog/tim/first-post.html',
         'blog/tim/first-post.rsc',
+        'dynamic-error.html',
+        'dynamic-error.rsc',
+        'dynamic-error/page.js',
         'dynamic-no-gen-params-ssr/[slug]/page.js',
         'dynamic-no-gen-params/[slug]/page.js',
         'force-static/[slug]/page.js',
@@ -62,10 +65,29 @@ describe('app-dir static/dynamic handling', () => {
         'hooks/use-pathname/[slug]/page.js',
         'hooks/use-pathname/slug.html',
         'hooks/use-pathname/slug.rsc',
-        'hooks/use-search-params/[slug]/page.js',
+        'hooks/use-search-params.html',
+        'hooks/use-search-params.rsc',
+        'hooks/use-search-params/force-static.html',
+        'hooks/use-search-params/force-static.rsc',
+        'hooks/use-search-params/force-static/page.js',
+        'hooks/use-search-params/page.js',
+        'hooks/use-search-params/with-suspense.html',
+        'hooks/use-search-params/with-suspense.rsc',
+        'hooks/use-search-params/with-suspense/page.js',
+        'ssg-preview.html',
+        'ssg-preview.rsc',
+        'ssg-preview/[[...route]]/page.js',
+        'ssg-preview/test-2.html',
+        'ssg-preview/test-2.rsc',
+        'ssg-preview/test.html',
+        'ssg-preview/test.rsc',
         'ssr-auto/cache-no-store/page.js',
         'ssr-auto/fetch-revalidate-zero/page.js',
         'ssr-forced/page.js',
+        'variable-revalidate/no-store/page.js',
+        'variable-revalidate/revalidate-3.html',
+        'variable-revalidate/revalidate-3.rsc',
+        'variable-revalidate/revalidate-3/page.js',
       ])
     })
 
@@ -107,6 +129,11 @@ describe('app-dir static/dynamic handling', () => {
           srcRoute: '/blog/[author]/[slug]',
           dataRoute: '/blog/tim/first-post.rsc',
         },
+        '/dynamic-error': {
+          dataRoute: '/dynamic-error.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/dynamic-error',
+        },
         '/blog/seb/second-post': {
           initialRevalidateSeconds: false,
           srcRoute: '/blog/[author]/[slug]',
@@ -127,6 +154,21 @@ describe('app-dir static/dynamic handling', () => {
           initialRevalidateSeconds: false,
           srcRoute: '/hooks/use-pathname/[slug]',
         },
+        '/hooks/use-search-params': {
+          dataRoute: '/hooks/use-search-params.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/hooks/use-search-params',
+        },
+        '/hooks/use-search-params/force-static': {
+          dataRoute: '/hooks/use-search-params/force-static.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/hooks/use-search-params/force-static',
+        },
+        '/hooks/use-search-params/with-suspense': {
+          dataRoute: '/hooks/use-search-params/with-suspense.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/hooks/use-search-params/with-suspense',
+        },
         '/force-static/first': {
           dataRoute: '/force-static/first.rsc',
           initialRevalidateSeconds: false,
@@ -136,6 +178,26 @@ describe('app-dir static/dynamic handling', () => {
           dataRoute: '/force-static/second.rsc',
           initialRevalidateSeconds: false,
           srcRoute: '/force-static/[slug]',
+        },
+        '/ssg-preview': {
+          dataRoute: '/ssg-preview.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/ssg-preview/[[...route]]',
+        },
+        '/ssg-preview/test': {
+          dataRoute: '/ssg-preview/test.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/ssg-preview/[[...route]]',
+        },
+        '/ssg-preview/test-2': {
+          dataRoute: '/ssg-preview/test-2.rsc',
+          initialRevalidateSeconds: false,
+          srcRoute: '/ssg-preview/[[...route]]',
+        },
+        '/variable-revalidate/revalidate-3': {
+          dataRoute: '/variable-revalidate/revalidate-3.rsc',
+          initialRevalidateSeconds: 3,
+          srcRoute: '/variable-revalidate/revalidate-3',
         },
       })
       expect(manifest.dynamicRoutes).toEqual({
@@ -163,9 +225,25 @@ describe('app-dir static/dynamic handling', () => {
           fallback: null,
           routeRegex: '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$',
         },
+        '/ssg-preview/[[...route]]': {
+          dataRoute: '/ssg-preview/[[...route]].rsc',
+          dataRouteRegex: '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$',
+          fallback: null,
+          routeRegex: '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$',
+        },
       })
     })
   }
+
+  it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
+    const browserOnIndexPage = await webdriver(next.url, '/ssg-preview')
+
+    const content = await browserOnIndexPage
+      .elementByCss('#preview-data')
+      .text()
+
+    expect(content).toContain('previewData')
+  })
 
   it('should force SSR correctly for headers usage', async () => {
     const res = await fetchViaHTTP(next.url, '/force-static', undefined, {
@@ -471,23 +549,12 @@ describe('app-dir static/dynamic handling', () => {
     expect(secondDate).not.toBe(initialDate)
   })
 
-  describe('hooks', () => {
-    describe('useSearchParams', () => {
-      if (isDev) {
-        it('should bail out to client rendering during SSG', async () => {
-          const res = await fetchViaHTTP(
-            next.url,
-            '/hooks/use-search-params/slug'
-          )
-          const html = await res.text()
-          expect(html).toInclude('<html id="__next_error__">')
-        })
-      }
-
-      it('should have the correct values', async () => {
+  describe('useSearchParams', () => {
+    describe('client', () => {
+      it('should bailout to client rendering - without suspense boundary', async () => {
         const browser = await webdriver(
           next.url,
-          '/hooks/use-search-params/slug?first=value&second=other&third'
+          '/hooks/use-search-params?first=value&second=other&third'
         )
 
         expect(await browser.elementByCss('#params-first').text()).toBe('value')
@@ -495,6 +562,47 @@ describe('app-dir static/dynamic handling', () => {
           'other'
         )
         expect(await browser.elementByCss('#params-third').text()).toBe('')
+        expect(await browser.elementByCss('#params-not-real').text()).toBe(
+          'N/A'
+        )
+      })
+
+      it('should bailout to client rendering - with suspense boundary', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/hooks/use-search-params/with-suspense?first=value&second=other&third'
+        )
+
+        expect(await browser.elementByCss('#params-first').text()).toBe('value')
+        expect(await browser.elementByCss('#params-second').text()).toBe(
+          'other'
+        )
+        expect(await browser.elementByCss('#params-third').text()).toBe('')
+        expect(await browser.elementByCss('#params-not-real').text()).toBe(
+          'N/A'
+        )
+      })
+
+      it.skip('should have empty search params on force-static', async () => {
+        const browser = await webdriver(
+          next.url,
+          '/hooks/use-search-params/force-static?first=value&second=other&third'
+        )
+
+        expect(await browser.elementByCss('#params-first').text()).toBe('N/A')
+        expect(await browser.elementByCss('#params-second').text()).toBe('N/A')
+        expect(await browser.elementByCss('#params-third').text()).toBe('N/A')
+        expect(await browser.elementByCss('#params-not-real').text()).toBe(
+          'N/A'
+        )
+
+        await browser.elementById('to-use-search-params').click()
+        await browser.waitForElementByCss('#hooks-use-search-params')
+
+        // Should not be empty after navigating to another page with useSearchParams
+        expect(await browser.elementByCss('#params-first').text()).toBe('1')
+        expect(await browser.elementByCss('#params-second').text()).toBe('2')
+        expect(await browser.elementByCss('#params-third').text()).toBe('3')
         expect(await browser.elementByCss('#params-not-real').text()).toBe(
           'N/A'
         )
@@ -517,52 +625,89 @@ describe('app-dir static/dynamic handling', () => {
         })
       }
     })
-
-    // TODO: needs updating as usePathname should not bail
-    describe.skip('usePathname', () => {
-      if (isDev) {
-        it('should bail out to client rendering during SSG', async () => {
-          const res = await fetchViaHTTP(next.url, '/hooks/use-pathname/slug')
+    // Don't run these tests in dev mode since they won't be statically generated
+    if (!isDev) {
+      describe('server response', () => {
+        it('should bailout to client rendering - without suspense boundary', async () => {
+          const res = await fetchViaHTTP(next.url, '/hooks/use-search-params')
           const html = await res.text()
           expect(html).toInclude('<html id="__next_error__">')
         })
-      }
 
-      it('should have the correct values', async () => {
-        const browser = await webdriver(next.url, '/hooks/use-pathname/slug')
+        it('should bailout to client rendering - with suspense boundary', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-search-params/with-suspense'
+          )
+          const html = await res.text()
+          expect(html).toInclude('<p>search params suspense</p>')
+        })
 
-        expect(await browser.elementByCss('#pathname').text()).toBe(
-          '/hooks/use-pathname/slug'
-        )
+        it.skip('should have empty search params on force-static', async () => {
+          const res = await fetchViaHTTP(
+            next.url,
+            '/hooks/use-search-params/force-static?first=value&second=other&third'
+          )
+          const html = await res.text()
+
+          // Shouild not bail out to client rendering
+          expect(html).not.toInclude('<p>search params suspense</p>')
+
+          // Use empty search params instead
+          const $ = cheerio.load(html)
+          expect($('#params-first').text()).toBe('N/A')
+          expect($('#params-second').text()).toBe('N/A')
+          expect($('#params-third').text()).toBe('N/A')
+          expect($('#params-not-real').text()).toBe('N/A')
+        })
       })
+    }
+  })
 
-      it('should have values from canonical url on rewrite', async () => {
-        const browser = await webdriver(next.url, '/rewritten-use-pathname')
-
-        expect(await browser.elementByCss('#pathname').text()).toBe(
-          '/rewritten-use-pathname'
-        )
-      })
-    })
-
-    if (!(global as any).isNextDeploy) {
-      it('should show a message to leave feedback for `appDir`', async () => {
-        expect(next.cliOutput).toContain(
-          `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
-        )
+  // TODO: needs updating as usePathname should not bail
+  describe.skip('usePathname', () => {
+    if (isDev) {
+      it('should bail out to client rendering during SSG', async () => {
+        const res = await fetchViaHTTP(next.url, '/hooks/use-pathname/slug')
+        const html = await res.text()
+        expect(html).toInclude('<html id="__next_error__">')
       })
     }
 
-    it('should keep querystring on static page', async () => {
-      const browser = await webdriver(next.url, '/blog/tim?message=hello-world')
-      const checkUrl = async () =>
-        expect(await browser.url()).toBe(
-          next.url + '/blog/tim?message=hello-world'
-        )
+    it('should have the correct values', async () => {
+      const browser = await webdriver(next.url, '/hooks/use-pathname/slug')
 
-      checkUrl()
-      await waitFor(1000)
-      checkUrl()
+      expect(await browser.elementByCss('#pathname').text()).toBe(
+        '/hooks/use-pathname/slug'
+      )
     })
+
+    it('should have values from canonical url on rewrite', async () => {
+      const browser = await webdriver(next.url, '/rewritten-use-pathname')
+
+      expect(await browser.elementByCss('#pathname').text()).toBe(
+        '/rewritten-use-pathname'
+      )
+    })
+  })
+
+  if (!(global as any).isNextDeploy) {
+    it('should show a message to leave feedback for `appDir`', async () => {
+      expect(next.cliOutput).toContain(
+        `Thank you for testing \`appDir\` please leave your feedback at https://nextjs.link/app-feedback`
+      )
+    })
+  }
+
+  it('should keep querystring on static page', async () => {
+    const browser = await webdriver(next.url, '/blog/tim?message=hello-world')
+    const checkUrl = async () =>
+      expect(await browser.url()).toBe(
+        next.url + '/blog/tim?message=hello-world'
+      )
+
+    checkUrl()
+    await waitFor(1000)
+    checkUrl()
   })
 })

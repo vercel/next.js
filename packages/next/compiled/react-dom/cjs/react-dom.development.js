@@ -5264,91 +5264,91 @@ var NoLanes =
 var NoLane =
 /*                          */
 0;
+var SyncHydrationLane =
+/*               */
+1;
 var SyncLane =
 /*                        */
-1;
+2;
 var InputContinuousHydrationLane =
 /*    */
-2;
+4;
 var InputContinuousLane =
 /*             */
-4;
+8;
 var DefaultHydrationLane =
 /*            */
-8;
+16;
 var DefaultLane =
 /*                     */
-16;
+32;
 var TransitionHydrationLane =
 /*                */
-32;
+64;
 var TransitionLanes =
 /*                       */
-4194240;
+8388480;
 var TransitionLane1 =
 /*                        */
-64;
+128;
 var TransitionLane2 =
 /*                        */
-128;
+256;
 var TransitionLane3 =
 /*                        */
-256;
+512;
 var TransitionLane4 =
 /*                        */
-512;
+1024;
 var TransitionLane5 =
 /*                        */
-1024;
+2048;
 var TransitionLane6 =
 /*                        */
-2048;
+4096;
 var TransitionLane7 =
 /*                        */
-4096;
+8192;
 var TransitionLane8 =
 /*                        */
-8192;
+16384;
 var TransitionLane9 =
 /*                        */
-16384;
+32768;
 var TransitionLane10 =
 /*                       */
-32768;
+65536;
 var TransitionLane11 =
 /*                       */
-65536;
+131072;
 var TransitionLane12 =
 /*                       */
-131072;
+262144;
 var TransitionLane13 =
 /*                       */
-262144;
+524288;
 var TransitionLane14 =
 /*                       */
-524288;
+1048576;
 var TransitionLane15 =
 /*                       */
-1048576;
+2097152;
 var TransitionLane16 =
 /*                       */
-2097152;
+4194304;
 var RetryLanes =
 /*                            */
-130023424;
+125829120;
 var RetryLane1 =
 /*                             */
-4194304;
+8388608;
 var RetryLane2 =
 /*                             */
-8388608;
+16777216;
 var RetryLane3 =
 /*                             */
-16777216;
-var RetryLane4 =
-/*                             */
 33554432;
-var RetryLane5 =
+var RetryLane4 =
 /*                             */
 67108864;
 var SomeRetryLane = RetryLane1;
@@ -5371,6 +5371,10 @@ var OffscreenLane =
 
 function getLabelForLane(lane) {
   {
+    if (lane & SyncHydrationLane) {
+      return 'SyncHydrationLane';
+    }
+
     if (lane & SyncLane) {
       return 'Sync';
     }
@@ -5426,6 +5430,9 @@ var nextRetryLane = RetryLane1;
 
 function getHighestPriorityLanes(lanes) {
   switch (getHighestPriorityLane(lanes)) {
+    case SyncHydrationLane:
+      return SyncHydrationLane;
+
     case SyncLane:
       return SyncLane;
 
@@ -5466,7 +5473,6 @@ function getHighestPriorityLanes(lanes) {
     case RetryLane2:
     case RetryLane3:
     case RetryLane4:
-    case RetryLane5:
       return lanes & RetryLanes;
 
     case SelectiveHydrationLane:
@@ -5624,6 +5630,7 @@ function getMostRecentEventTime(root, lanes) {
 
 function computeExpirationTime(lane, currentTime) {
   switch (lane) {
+    case SyncHydrationLane:
     case SyncLane:
     case InputContinuousHydrationLane:
     case InputContinuousLane:
@@ -5663,7 +5670,6 @@ function computeExpirationTime(lane, currentTime) {
     case RetryLane2:
     case RetryLane3:
     case RetryLane4:
-    case RetryLane5:
       // TODO: Retries should be allowed to expire if they are CPU bound for
       // too long, but when I made this change it caused a spike in browser
       // crashes. There must be some other underlying bug; not super urgent but
@@ -5748,6 +5754,9 @@ function getLanesToRetrySynchronouslyOnError(root, originallyAttemptedLanes) {
 
   return NoLanes;
 }
+function includesSyncLane(lanes) {
+  return (lanes & (SyncLane | SyncHydrationLane)) !== NoLanes;
+}
 function includesNonIdleWork(lanes) {
   return (lanes & NonIdleLanes) !== NoLanes;
 }
@@ -5755,6 +5764,8 @@ function includesOnlyRetries(lanes) {
   return (lanes & RetryLanes) === lanes;
 }
 function includesOnlyNonUrgentLanes(lanes) {
+  // TODO: Should hydration lanes be included here? This function is only
+  // used in `updateDeferredValueImpl`.
   var UrgentLanes = SyncLane | InputContinuousLane | DefaultLane;
   return (lanes & UrgentLanes) === NoLanes;
 }
@@ -5983,6 +5994,10 @@ function getBumpedLaneForHydration(root, renderLanes) {
   var lane;
 
   switch (renderLane) {
+    case SyncLane:
+      lane = SyncHydrationLane;
+      break;
+
     case InputContinuousLane:
       lane = InputContinuousHydrationLane;
       break;
@@ -6011,7 +6026,6 @@ function getBumpedLaneForHydration(root, renderLanes) {
     case RetryLane2:
     case RetryLane3:
     case RetryLane4:
-    case RetryLane5:
       lane = TransitionHydrationLane;
       break;
 
@@ -18183,7 +18197,6 @@ function renderWithHooksAgain(workInProgress, Component, props, secondArg) {
 
   do {
     didScheduleRenderPhaseUpdateDuringThisPass = false;
-    localIdCounter = 0;
     thenableIndexCounter = 0;
 
     if (numberOfReRenders >= RE_RENDER_LIMIT) {
@@ -26300,9 +26313,33 @@ function safelyAttachRef(current, nearestMountedAncestor) {
 
 function safelyDetachRef(current, nearestMountedAncestor) {
   var ref = current.ref;
+  var refCleanup = current.refCleanup;
 
   if (ref !== null) {
-    if (typeof ref === 'function') {
+    if (typeof refCleanup === 'function') {
+      try {
+        if (shouldProfile(current)) {
+          try {
+            startLayoutEffectTimer();
+            refCleanup();
+          } finally {
+            recordLayoutEffectDuration(current);
+          }
+        } else {
+          refCleanup();
+        }
+      } catch (error) {
+        captureCommitPhaseError(current, nearestMountedAncestor, error);
+      } finally {
+        // `refCleanup` has been called. Nullify all references to it to prevent double invocation.
+        current.refCleanup = null;
+        var finishedWork = current.alternate;
+
+        if (finishedWork != null) {
+          finishedWork.refCleanup = null;
+        }
+      }
+    } else if (typeof ref === 'function') {
       var retVal;
 
       try {
@@ -27140,23 +27177,15 @@ function commitAttachRef(finishedWork) {
     } // Moved outside to ensure DCE works with this flag
 
     if (typeof ref === 'function') {
-      var retVal;
-
       if (shouldProfile(finishedWork)) {
         try {
           startLayoutEffectTimer();
-          retVal = ref(instanceToUse);
+          finishedWork.refCleanup = ref(instanceToUse);
         } finally {
           recordLayoutEffectDuration(finishedWork);
         }
       } else {
-        retVal = ref(instanceToUse);
-      }
-
-      {
-        if (typeof retVal === 'function') {
-          error('Unexpected return value from a callback ref in %s. ' + 'A callback ref should not return a function.', getComponentNameFromFiber(finishedWork));
-        }
+        finishedWork.refCleanup = ref(instanceToUse);
       }
     } else {
       {
@@ -29818,7 +29847,7 @@ function ensureRootIsScheduled(root, currentTime) {
       // If we're going to re-use an existing task, it needs to exist.
       // Assume that discrete update microtasks are non-cancellable and null.
       // TODO: Temporary until we confirm this warning is not fired.
-      if (existingCallbackNode == null && existingCallbackPriority !== SyncLane) {
+      if (existingCallbackNode == null && !includesSyncLane(existingCallbackPriority)) {
         error('Expected scheduled callback to exist. This error is likely caused by a bug in React. Please file an issue.');
       }
     } // The priority hasn't changed. We can reuse the existing task. Exit.
@@ -29835,7 +29864,7 @@ function ensureRootIsScheduled(root, currentTime) {
 
   var newCallbackNode;
 
-  if (newCallbackPriority === SyncLane) {
+  if (includesSyncLane(newCallbackPriority)) {
     // Special case: Sync React callbacks are scheduled on a special
     // internal queue
     if (root.tag === LegacyRoot) {
@@ -30330,7 +30359,7 @@ function performSyncWorkOnRoot(root) {
   flushPassiveEffects();
   var lanes = getNextLanes(root, NoLanes);
 
-  if (!includesSomeLane(lanes, SyncLane)) {
+  if (!includesSyncLane(lanes)) {
     // There's no remaining sync work left.
     ensureRootIsScheduled(root, now());
     return null;
@@ -31554,14 +31583,14 @@ function commitRootImpl(root, recoverableErrors, transitions, renderPriorityLeve
   // are consolidated.
 
 
-  if (includesSomeLane(pendingPassiveEffectsLanes, SyncLane) && root.tag !== LegacyRoot) {
+  if (includesSyncLane(pendingPassiveEffectsLanes) && root.tag !== LegacyRoot) {
     flushPassiveEffects();
   } // Read this again, since a passive effect might have updated it
 
 
   remainingLanes = root.pendingLanes;
 
-  if (includesSomeLane(remainingLanes, SyncLane)) {
+  if (includesSyncLane(remainingLanes)) {
     {
       markNestedUpdateScheduled();
     } // Count the number of times the root synchronously re-renders without
@@ -32772,6 +32801,7 @@ function FiberNode(tag, pendingProps, key, mode) {
   this.sibling = null;
   this.index = 0;
   this.ref = null;
+  this.refCleanup = null;
   this.pendingProps = pendingProps;
   this.memoizedProps = null;
   this.updateQueue = null;
@@ -32933,6 +32963,7 @@ function createWorkInProgress(current, pendingProps) {
   workInProgress.sibling = current.sibling;
   workInProgress.index = current.index;
   workInProgress.ref = current.ref;
+  workInProgress.refCleanup = current.refCleanup;
 
   {
     workInProgress.selfBaseDuration = current.selfBaseDuration;
@@ -33313,6 +33344,7 @@ function assignFiberPropertiesInDEV(target, source) {
   target.sibling = source.sibling;
   target.index = source.index;
   target.ref = source.ref;
+  target.refCleanup = source.refCleanup;
   target.pendingProps = source.pendingProps;
   target.memoizedProps = source.memoizedProps;
   target.updateQueue = source.updateQueue;
@@ -33443,7 +33475,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks) {
   return root;
 }
 
-var ReactVersion = '18.3.0-next-2655c9354-20221121';
+var ReactVersion = '18.3.0-next-3ba7add60-20221201';
 
 function createPortal(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {

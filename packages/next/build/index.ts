@@ -536,6 +536,7 @@ export default async function build(
         )
 
       let mappedAppPages: { [page: string]: string } | undefined
+      let denormalizedAppPages: string[] | undefined
 
       if (appPaths && appDir) {
         mappedAppPages = nextBuildSpan
@@ -586,7 +587,8 @@ export default async function build(
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys: string[] = []
       if (mappedAppPages) {
-        for (const appKey in mappedAppPages) {
+        denormalizedAppPages = Object.keys(mappedAppPages)
+        for (const appKey of denormalizedAppPages) {
           const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
           const pagePath = mappedPages[normalizedAppPageKey]
           if (pagePath) {
@@ -596,7 +598,6 @@ export default async function build(
               appPath.replace(/^private-next-app-dir/, 'app'),
             ])
           }
-
           appPageKeys.push(normalizedAppPageKey)
         }
       }
@@ -868,11 +869,6 @@ export default async function build(
         )
 
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
-      const appManifestPath = path.join(
-        distDir,
-        SERVER_DIRECTORY,
-        APP_PATHS_MANIFEST
-      )
 
       const requiredServerFiles = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -912,7 +908,8 @@ export default async function build(
                         ),
                       ]
                     : []),
-                  path.relative(distDir, appManifestPath),
+                  path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                  APP_BUILD_MANIFEST,
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                   path.join(
@@ -2072,7 +2069,7 @@ export default async function build(
               dir,
               distDir,
               pageKeys.pages,
-              pageKeys.app,
+              denormalizedAppPages,
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest
@@ -2777,19 +2774,17 @@ export default async function build(
           })
           await promises.copyFile(filePath, outputPath)
         }
-        if (pagesDir) {
-          await recursiveCopy(
-            path.join(distDir, SERVER_DIRECTORY, 'pages'),
-            path.join(
-              distDir,
-              'standalone',
-              path.relative(outputFileTracingRoot, distDir),
-              SERVER_DIRECTORY,
-              'pages'
-            ),
-            { overwrite: true }
-          )
-        }
+        await recursiveCopy(
+          path.join(distDir, SERVER_DIRECTORY, 'pages'),
+          path.join(
+            distDir,
+            'standalone',
+            path.relative(outputFileTracingRoot, distDir),
+            SERVER_DIRECTORY,
+            'pages'
+          ),
+          { overwrite: true }
+        )
         if (appDir) {
           await recursiveCopy(
             path.join(distDir, SERVER_DIRECTORY, 'app'),

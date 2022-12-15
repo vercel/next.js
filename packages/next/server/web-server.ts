@@ -54,6 +54,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
+  protected getIncrementalCache() {
+    return {} as any
+  }
   protected getResponseCache() {
     return new WebResponseCache(this.minimalMode)
   }

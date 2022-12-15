@@ -765,6 +765,18 @@
         {
           "title": "experimental-app-dir-config",
           "path": "/errors/experimental-app-dir-config.md"
+        },
+        {
+          "title": "app-dir-dynamic-href",
+          "path": "/errors/app-dir-dynamic-href.md"
+        },
+        {
+          "title": "fast-refresh-reload",
+          "path": "/errors/fast-refresh-reload.md"
+        },
+        {
+          "title": "context-in-server-component",
+          "path": "/errors/context-in-server-component.md"
         }
       ]
     }

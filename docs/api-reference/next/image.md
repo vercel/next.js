@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                                                                                                                                                                                                  |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `v13.0.6` | `ref` prop added.                                                                                                                                                                                                        |
 | `v13.0.0` | `<span>` wrapper removed. `layout`, `objectFit`, `objectPosition`, `lazyBoundary`, `lazyRoot` props removed. `alt` is required. `onLoadingComplete` receives reference to `img` element. Built-in loader config removed. |
 | `v12.3.0` | `remotePatterns` and `unoptimized` configuration is stable.                                                                                                                                                              |
 | `v12.2.0` | Experimental `remotePatterns` and experimental `unoptimized` configuration added. `layout="raw"` removed.                                                                                                                |
@@ -39,8 +40,8 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 ## Known Browser Bugs
 
-- [Safari 15](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
-  - Use CSS `@media not all and (min-resolution:.001dpcm) { img[loading="lazy"] { clip-path: inset(0.5px) } }`
+- [Safari 15+](https://bugs.webkit.org/show_bug.cgi?id=243601) displays a gray border while loading. Possible solutions:
+  - Use CSS `@supports (font: -apple-system-body) and (-webkit-appearance: none) { img[loading="lazy"] { clip-path: inset(0.6px) } }`
   - Use [`priority`](#priority) if the image is above the fold
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
   - Enable [AVIF `formats`](#acceptable-formats)
@@ -284,7 +285,6 @@ Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
 - `srcSet`. Use [Device Sizes](#device-sizes) instead.
-- `ref`. Use [`onLoadingComplete`](#onloadingcomplete) instead.
 - `decoding`. It is always `"async"`.
 
 ## Configuration Options

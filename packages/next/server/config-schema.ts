@@ -277,6 +277,9 @@ const configSchema = {
         fallbackNodePolyfills: {
           type: 'boolean',
         },
+        fetchCache: {
+          type: 'boolean',
+        },
         forceSwcTransforms: {
           type: 'boolean',
         },
@@ -569,7 +572,6 @@ const configSchema = {
                 type: 'string',
               },
               port: {
-                minLength: 1,
                 type: 'string',
               },
               protocol: {
