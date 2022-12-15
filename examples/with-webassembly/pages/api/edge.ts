@@ -13,4 +13,4 @@ export default async function handler() {
   return new Response(`got: ${number}`)
 }
 
-export const config = { runtime: 'experimental-edge' }
+export const config = { runtime: 'edge' }
