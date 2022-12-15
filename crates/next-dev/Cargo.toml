@@ -19,7 +19,12 @@ name = "mod"
 harness = false
 
 [features]
-default = ["cli", "custom_allocator"]
+# By default, we enable native-tls for reqwest downstream trasntive features.
+# This is for the convinience for all of daily dev workflow i.e running
+# `cargo xxx` without explicitly specifying features, not that we want to
+# promote this as default backend. Actual configuration is done when build next-swc,
+# and also turbopack standalone when we have it.
+default = ["cli", "custom_allocator", "native-tls"]
 cli = []
 serializable = []
 tokio_console = [
@@ -30,6 +35,8 @@ tokio_console = [
 profile = []
 custom_allocator = ["turbo-malloc/custom_allocator"]
 next-font-local = ["next-core/next-font-local"]
+native-tls = ["next-core/native-tls"]
+rustls-tls = ["next-core/rustls-tls"]
 
 [dependencies]
 anyhow = "1.0.47"

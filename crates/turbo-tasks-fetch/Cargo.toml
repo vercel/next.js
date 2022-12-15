@@ -8,11 +8,17 @@ edition = "2021"
 [lib]
 bench = false
 
+[features]
+# Allow to configure specific tls backend for reqwest.
+# See top level Cargo.toml for more details.
+native-tls = ["reqwest/native-tls"]
+rustls-tls = ["reqwest/rustls-tls"]
+
 [dependencies]
 anyhow = "1.0.47"
 indexmap = { workspace = true }
 lazy_static = "1.4.0"
-reqwest = "0.11.13"
+reqwest = { workspace = true }
 serde = "1.0.136"
 tokio = "1.11.0"
 turbo-tasks = { path = "../turbo-tasks" }
