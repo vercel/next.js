@@ -147,11 +147,11 @@ module.exports = (actionInfo) => {
             }
           })
 
+        // wait to pack packages until after dependency paths have been updated
+        // to the correct versions
         await rootSpan
           .traceChild('packing packages')
           .traceAsyncFn(async (packingSpan) => {
-            // wait to pack packages until after dependency paths have been updated
-            // to the correct versions
             for (const pkgName of pkgDatas.keys()) {
               await packingSpan
                 .traceChild(`pack ${pkgName}`)
