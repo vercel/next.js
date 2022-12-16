@@ -67,7 +67,7 @@ export function startServer(opts: StartServerOptions) {
           ? 'localhost'
           : opts.hostname
       if (isIPv6(hostname)) {
-        hostname = hostname === '::' ? `[${hostname}1]` : `[${hostname}]`
+        hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
       }
 
       const app = next({
