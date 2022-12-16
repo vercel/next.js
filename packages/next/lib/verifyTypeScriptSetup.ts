@@ -125,7 +125,7 @@ export async function verifyTypeScriptSetup({
     // Next.js' types:
     await writeAppTypeDeclarations(dir, !disableStaticImages)
 
-    if (isAppDirEnabled) {
+    if (isAppDirEnabled && !isCI) {
       await writeVscodeConfigurations(dir, tsPath)
     }
 

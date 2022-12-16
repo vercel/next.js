@@ -775,6 +775,10 @@
           "path": "/errors/fast-refresh-reload.md"
         },
         {
+          "title": "context-in-server-component",
+          "path": "/errors/context-in-server-component.md"
+        },
+        {
           "title": "no-space-left-on-device",
           "path": "/errors/no-space-left-on-device.md"
         }

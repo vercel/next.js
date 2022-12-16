@@ -33,6 +33,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   NEXT_BUILTIN_DOCUMENT,
   STATIC_STATUS_PAGES,
@@ -1080,7 +1081,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         // strip header so we generate HTML still
         if (
-          opts.runtime !== 'experimental-edge' ||
+          !isEdgeRuntime(opts.runtime) ||
           (this.serverOptions as any).webServerConfig
         ) {
           for (const param of FLIGHT_PARAMETERS) {
@@ -1293,7 +1294,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     })
     if (
       this.nextConfig.experimental.fetchCache &&
-      (opts.runtime !== 'experimental-edge' ||
+      (!isEdgeRuntime(opts.runtime) ||
         (this.serverOptions as any).webServerConfig)
     ) {
       delete req.headers[FETCH_CACHE_HEADER]
