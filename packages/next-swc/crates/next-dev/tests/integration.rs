@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
+use anyhow::{anyhow, Context, Result};
 use chromiumoxide::{
     browser::{Browser, BrowserConfig},
     error::CdpError::Ws,
@@ -48,10 +48,16 @@ lazy_static! {
 #[test_resources("crates/next-dev/tests/integration/*/*/*")]
 #[tokio::main(flavor = "current_thread")]
 async fn test(resource: &str) {
-    if resource.ends_with("__skipped__") {
+    if resource.ends_with("__skipped__") || resource.ends_with("__flakey__") {
         // "Skip" directories named `__skipped__`, which include test directories to
         // skip. These tests are not considered truly skipped by `cargo test`, but they
         // are not run.
+        //
+        // All current `__flakey__` tests need longer timeouts, but the current
+        // build of `jest-circus-browser` does not support configuring this.
+        //
+        // TODO(WEB-319): Update the version of `jest-circus` in `jest-circus-browser`,
+        // which supports configuring this. Or explore an alternative.
         return;
     }
 
@@ -156,9 +162,7 @@ async fn run_test(resource: &str) -> JestRunResult {
     }
 }
 
-async fn create_browser(
-    is_debugging: bool,
-) -> Result<(Browser, JoinHandle<()>), Box<dyn std::error::Error>> {
+async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinHandle<()>)> {
     let mut config_builder = BrowserConfig::builder();
     if is_debugging {
         config_builder = config_builder
@@ -167,7 +171,7 @@ async fn create_browser(
     }
 
     let (browser, mut handler) = retry_async(
-        config_builder.build()?,
+        config_builder.build().map_err(|s| anyhow!(s))?,
         |c| {
             let c = c.clone();
             Browser::launch(c)
@@ -190,7 +194,7 @@ async fn create_browser(
     Ok((browser, thread_handle))
 }
 
-async fn run_browser(addr: SocketAddr) -> Result<JestRunResult, Box<dyn std::error::Error>> {
+async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
     if *DEBUG_BROWSER {
         run_debug_browser(addr).await?;
     }
@@ -198,7 +202,7 @@ async fn run_browser(addr: SocketAddr) -> Result<JestRunResult, Box<dyn std::err
     run_test_browser(addr).await
 }
 
-async fn run_debug_browser(addr: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
+async fn run_debug_browser(addr: SocketAddr) -> Result<()> {
     let (browser, handle) = create_browser(true).await?;
     let page = browser.new_page(format!("http://{}", addr)).await?;
 
@@ -217,10 +221,20 @@ async fn run_debug_browser(addr: SocketAddr) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-async fn run_test_browser(addr: SocketAddr) -> Result<JestRunResult, Box<dyn std::error::Error>> {
+async fn run_test_browser(addr: SocketAddr) -> Result<JestRunResult> {
     let (browser, _) = create_browser(false).await?;
-    let page = browser.new_page(format!("http://{}", addr)).await?;
-    page.wait_for_navigation().await?;
+
+    // `browser.new_page()` opens a tab, navigates to the destination, and waits for
+    // the page to load. chromiumoxide/Chrome DevTools Protocol has been flakey,
+    // returning `ChannelSendError`s (WEB-259). Retry if necessary.
+    let page = retry_async(
+        (),
+        |_| browser.new_page(format!("http://{}", addr)),
+        5,
+        Duration::from_millis(100),
+    )
+    .await
+    .context("Failed to create new browser page")?;
 
     let value = page.evaluate("globalThis.waitForTests?.() ?? __jest__.run()");
     Ok(value.await?.into_value()?)
