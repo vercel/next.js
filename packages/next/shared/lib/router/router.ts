@@ -44,6 +44,7 @@ import { removeLocale } from '../../../client/remove-locale'
 import { removeBasePath } from '../../../client/remove-base-path'
 import { addBasePath } from '../../../client/add-base-path'
 import { hasBasePath } from '../../../client/has-base-path'
+import { isAPIRoute } from '../../../lib/is-api-route'
 import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
 import { compareRouterStates } from './utils/compare-states'
@@ -2135,7 +2136,7 @@ export default class Router implements BaseRouter {
         }
       }
 
-      if (route === '/api' || route.startsWith('/api/')) {
+      if (isAPIRoute(route)) {
         handleHardNavigation({ url: as, router: this })
         return new Promise<never>(() => {})
       }

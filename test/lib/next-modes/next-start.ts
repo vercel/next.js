@@ -2,6 +2,7 @@ import path from 'path'
 import fs from 'fs-extra'
 import { NextInstance } from './base'
 import { spawn, SpawnOptions } from 'child_process'
+import { Span } from 'next/trace'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -16,8 +17,8 @@ export class NextStartInstance extends NextInstance {
     return this._cliOutput
   }
 
-  public async setup() {
-    await super.createTestDir()
+  public async setup(parentSpan: Span) {
+    await super.createTestDir({ parentSpan })
   }
 
   private handleStdio = (childProcess) => {

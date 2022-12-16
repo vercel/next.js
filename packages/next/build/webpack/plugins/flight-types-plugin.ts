@@ -58,7 +58,11 @@ interface IEntry {
   dynamicParams?: boolean
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
   preferredRegion?: 'auto' | 'home' | 'edge'
-  ${options.type === 'page' ? "runtime?: 'nodejs' | 'experimental-edge'" : ''}
+  ${
+    options.type === 'page'
+      ? "runtime?: 'nodejs' | 'experimental-edge' | 'edge'"
+      : ''
+  }
 }
 
 // =============
