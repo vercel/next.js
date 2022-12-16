@@ -16,6 +16,7 @@ const turboCacheLocation = path.join(
   nextjsRepoRoot,
   'node_modules/.cache/turbo'
 )
+const packedPkgsDir = path.join(nextjsRepoRoot, 'test/tmp/packedPkgs')
 
 module.exports = (actionInfo) => {
   return {
@@ -88,14 +89,13 @@ module.exports = (actionInfo) => {
         await rootSpan
           .traceChild('prepare packages for packing')
           .traceAsyncFn(async () => {
+            await fs.ensureDir(packedPkgsDir)
             const repoData = require(path.join(repoDir, 'package.json'))
 
             for (const pkg of pkgs) {
               const pkgPath = path.join(repoDir, 'packages', pkg)
               const packedPkgPath = path.join(
-                nextjsRepoRoot,
-                'packages',
-                pkg,
+                packedPkgsDir,
                 `${pkg}-packed.tgz`
               )
 

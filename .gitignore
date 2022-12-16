@@ -30,9 +30,6 @@ test/**/tsconfig.json
 test/tmp/**
 test/.trace
 
-# Packing packages during tests
-packages/*/*-packed.tgz
-
 # Editors
 **/.idea
 **/.#*
