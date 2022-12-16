@@ -7,7 +7,7 @@ const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hell
     },
     loading: ()=><p >...</p>
 });
-const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello'), {
+const DynamicClientOnlyComponent = dynamic(null, {
     loadableGenerated: {
         modules: [
             "some-file.js -> " + "../components/hello"
@@ -15,7 +15,7 @@ const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello'), {
     },
     ssr: false
 });
-const DynamicClientOnlyComponentWithSuspense = dynamic(()=>import('../components/hello'), {
+const DynamicClientOnlyComponentWithSuspense = dynamic(null, {
     loadableGenerated: {
         modules: [
             "some-file.js -> " + "../components/hello"

@@ -198,6 +198,7 @@
     "release": "6.3.1",
     "request-promise-core": "1.1.2",
     "resolve-from": "5.0.0",
+    "rimraf": "3.0.2",
     "sass": "1.54.0",
     "seedrandom": "3.0.5",
     "selenium-webdriver": "4.0.0-beta.4",

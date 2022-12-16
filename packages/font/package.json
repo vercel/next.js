@@ -1,6 +1,6 @@
 {
   "name": "@next/font",
-  "version": "13.0.7-canary.3",
+  "version": "13.0.8-canary.0",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"
@@ -12,7 +12,7 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "rm -rf dist && pnpm ncc-fontkit && tsc -d -p tsconfig.json",
+    "build": "rimraf dist && pnpm ncc-fontkit && tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm ncc-fontkit && tsc -d -w -p tsconfig.json",
     "typescript": "tsec --noEmit -p tsconfig.json",

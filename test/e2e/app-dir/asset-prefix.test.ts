@@ -17,8 +17,8 @@ describe('app-dir assetPrefix handling', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'asset-prefix')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
       skipStart: true,
     })

@@ -17,6 +17,8 @@ const FILE_TYPES = {
   'not-found': 'not-found',
 } as const
 
+const GLOBAL_ERROR_FILE_TYPE = 'global-error'
+
 const PAGE_SEGMENT = 'page$'
 
 // TODO-APP: check if this can be narrowed.
@@ -43,6 +45,7 @@ async function createTreeCodeFromPath({
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
   let rootLayout: string | undefined
+  let globalError: string | undefined
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
@@ -96,6 +99,12 @@ async function createTreeCodeFromPath({
         )?.[1]
       }
 
+      if (!globalError) {
+        globalError = await resolve(
+          `${appDirPrefix}${parallelSegmentPath}/${GLOBAL_ERROR_FILE_TYPE}`
+        )
+      }
+
       props[parallelKey] = `[
         '${parallelSegment}',
         ${subtree},
@@ -123,7 +132,7 @@ async function createTreeCodeFromPath({
   }
 
   const tree = await createSubtreePropsFromSegmentPath([])
-  return [`const tree = ${tree}.children;`, pages, rootLayout]
+  return [`const tree = ${tree}.children;`, pages, rootLayout, globalError]
 }
 
 function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
@@ -211,11 +220,12 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  const [treeCode, pages, rootLayout] = await createTreeCodeFromPath({
-    pagePath,
-    resolve: resolver,
-    resolveParallelSegments,
-  })
+  const [treeCode, pages, rootLayout, globalError] =
+    await createTreeCodeFromPath({
+      pagePath,
+      resolve: resolver,
+      resolveParallelSegments,
+    })
 
   if (!rootLayout) {
     const errorMessage = `${chalk.bold(
@@ -248,6 +258,9 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     export { default as AppRouter } from 'next/dist/client/components/app-router'
     export { default as LayoutRouter } from 'next/dist/client/components/layout-router'
     export { default as RenderFromTemplateContext } from 'next/dist/client/components/render-from-template-context'
+    export { default as GlobalError } from ${JSON.stringify(
+      globalError || 'next/dist/client/components/error-boundary'
+    )}
 
     export { staticGenerationAsyncStorage } from 'next/dist/client/components/static-generation-async-storage'
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
