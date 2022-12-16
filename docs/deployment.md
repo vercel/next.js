@@ -105,7 +105,7 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 
 > **Note:** There are also managed platforms that allow you to use a Dockerfile as shown in the [example above](/docs/deployment.md#docker-image).
 
-### Static Only
+### Static
 
 The following services support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
 
@@ -117,12 +117,17 @@ You can also manually deploy the [`next export`](/docs/advanced-features/static-
 
 ### Serverless
 
+- [AWS Amplify](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-Amplify-support.html)
 - [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
 - [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/nextjs)
 - [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
 - [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
 
 > **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
+
+### Edge
+
+- [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
 
 ## Automatic Updates
 
