@@ -29,6 +29,10 @@ async function createNextInstall({
         `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
       )
 
+      require('console').log('Creting temporary test directories:')
+      require('console').log(installDir)
+      require('console').log(tmpRepoDir)
+
       await rootSpan.traceChild(' enruse swc binary').traceAsyncFn(async () => {
         // ensure swc binary is present in the native folder if
         // not already built
@@ -147,6 +151,7 @@ async function createNextInstall({
               }
             )
           })
+        await new Promise(() => {})
       }
 
       await fs.remove(tmpRepoDir)
