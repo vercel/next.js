@@ -114,8 +114,7 @@ describe('ReactRefreshLogBox app', () => {
     await cleanup()
   })
 
-  // TODO-APP: re-enable when error recovery doesn't reload the page.
-  test.skip('logbox: can recover from a event handler error', async () => {
+  test('logbox: can recover from a event handler error', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -147,7 +146,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
     if (process.platform === 'win32') {
       expect(await session.getRedboxSource()).toMatchSnapshot()
     } else {
@@ -173,6 +172,7 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasErrorToast()).toBe(false)
 
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
@@ -183,6 +183,7 @@ describe('ReactRefreshLogBox app', () => {
     ).toBe('Count: 2')
 
     expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasErrorToast()).toBe(false)
 
     await cleanup()
   })

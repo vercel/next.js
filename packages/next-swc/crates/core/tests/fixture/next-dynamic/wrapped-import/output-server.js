@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-const DynamicComponent = dynamic(()=>handleImport(import('./components/hello')), {
+const DynamicComponent = dynamic(null, {
     loadableGenerated: {
         modules: [
             "some-file.js -> " + "./components/hello"
