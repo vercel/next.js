@@ -10,13 +10,13 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
-  SERVER_RUNTIME,
   WEBPACK_LAYERS,
   RSC_MOD_REF_PROXY_ALIAS,
 } from '../lib/constants'
 import { EXTERNAL_PACKAGES } from '../lib/server-external-packages'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -97,6 +97,14 @@ const BABEL_CONFIG_FILES = [
   'babel.config.mjs',
   'babel.config.cjs',
 ]
+
+function appDirIssuerLayer(layer: string) {
+  return (
+    layer === WEBPACK_LAYERS.client ||
+    layer === WEBPACK_LAYERS.server ||
+    layer === WEBPACK_LAYERS.appClient
+  )
+}
 
 export const getBabelConfigFile = async (dir: string) => {
   const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
@@ -620,7 +628,7 @@ export default async function getBaseWebpackConfig(
   const disableOptimizedLoading = true
 
   if (isClient) {
-    if (config.experimental.runtime === SERVER_RUNTIME.edge) {
+    if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
         'You are using the experimental Edge Runtime with `experimental.runtime`.'
       )
@@ -1709,6 +1717,19 @@ export default async function getBaseWebpackConfig(
           : []),
         ...(hasServerComponents
           ? [
+              // Alias next/head component to noop for RSC
+              {
+                test: codeCondition.test,
+                issuerLayer: appDirIssuerLayer,
+                resolve: {
+                  alias: {
+                    // Alias `next/dynamic` to React.lazy implementation for RSC
+                    [require.resolve('next/head')]: require.resolve(
+                      'next/dist/client/components/noop-head'
+                    ),
+                  },
+                },
+              },
               {
                 // Alias react-dom for ReactDOM.preload usage.
                 // Alias react for switching between default set and share subset.

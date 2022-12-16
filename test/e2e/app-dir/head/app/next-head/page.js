@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import DynamicHead from './dynamic-head'
 
 export default function page() {
   return (
@@ -6,6 +7,7 @@ export default function page() {
       <Head>
         <title>legacy-head</title>
       </Head>
+      <DynamicHead />
       <p>page</p>
     </>
   )

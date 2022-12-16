@@ -29,6 +29,11 @@ const testFilters = {
   development: 'development/',
 }
 
+const mockTrace = () => ({
+  traceAsyncFn: (fn) => fn(mockTrace()),
+  traceChild: () => mockTrace(),
+})
+
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
 
@@ -223,8 +228,11 @@ async function main() {
     console.log('Creating Next.js install for isolated tests')
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const testStarter = await createNextInstall({
-      react: reactVersion,
-      'react-dom': reactVersion,
+      parentSpan: mockTrace(),
+      dependencies: {
+        react: reactVersion,
+        'react-dom': reactVersion,
+      },
     })
     process.env.NEXT_TEST_STARTER = testStarter
   }
