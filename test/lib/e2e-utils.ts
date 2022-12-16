@@ -220,8 +220,7 @@ export function createNextDescribe(
     })
 
     const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
-      get: function (target, property) {
-        console.log(`Reading property ${property}`)
+      get: function (_target, property) {
         return next[property]
       },
     })
