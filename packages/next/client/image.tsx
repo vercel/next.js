@@ -463,7 +463,6 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
               }
               if (!img) {
                 return
- canary
               }
               if (onError) {
                 // If the image has an error before react hydrates, then the error is lost.
