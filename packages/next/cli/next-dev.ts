@@ -14,6 +14,7 @@ import type { NextConfig } from '../types'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { isIPv6 } from 'net'
+import cluster from 'cluster'
 
 let isTurboSession = false
 let sessionStopHandled = false
@@ -319,7 +320,6 @@ const nextDev: cliCommand = async (argv) => {
           'Error:'
         )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
 If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
-
   ${chalk.bold.cyan(
     `${
       pkgManager === 'npm'
@@ -417,43 +417,57 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     await telemetry.flush()
     return server
   } else {
-    startServer(devServerOptions)
-      .then(async (app) => {
-        const appUrl = `http://${app.hostname}:${app.port}`
-        const hostname = host || '0.0.0.0'
-        startedDevelopmentServer(
-          appUrl,
-          `${isIPv6(hostname) ? `[${hostname}]` : hostname}:${app.port}`
-        )
-        // Start preflight after server is listening and ignore errors:
-        preflight().catch(() => {})
-        // Finalize server bootup:
-        await app.prepare()
-      })
-      .catch((err) => {
-        if (err.code === 'EADDRINUSE') {
-          let errorMessage = `Port ${port} is already in use.`
-          const pkgAppPath = require('next/dist/compiled/find-up').sync(
-            'package.json',
-            {
-              cwd: dir,
-            }
-          )
-          const appPackage = require(pkgAppPath)
-          if (appPackage.scripts) {
-            const nextScript = Object.entries(appPackage.scripts).find(
-              (scriptLine) => scriptLine[1] === 'next'
-            )
-            if (nextScript) {
-              errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
-            }
-          }
-          console.error(errorMessage)
+    // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
+    // this is a temporary solution until we can fix the memory leaks.
+    // the logic for the worker killing itself is in `packages/next/server/lib/start-server.ts`
+    if (!process.env.__NEXT_DISABLE_MEMORY_WATCHER && cluster.isMaster) {
+      cluster.fork()
+      cluster.on('exit', (worker) => {
+        if (worker.exitedAfterDisconnect) {
+          cluster.fork()
         } else {
-          console.error(err)
+          process.exit(1)
         }
-        process.nextTick(() => process.exit(1))
       })
+    } else {
+      startServer(devServerOptions)
+        .then(async (app) => {
+          const appUrl = `http://${app.hostname}:${app.port}`
+          const hostname = host || '0.0.0.0'
+          startedDevelopmentServer(
+            appUrl,
+            `${isIPv6(hostname) ? `[${hostname}]` : hostname}:${app.port}`
+          )
+          // Start preflight after server is listening and ignore errors:
+          preflight().catch(() => {})
+          // Finalize server bootup:
+          await app.prepare()
+        })
+        .catch((err) => {
+          if (err.code === 'EADDRINUSE') {
+            let errorMessage = `Port ${port} is already in use.`
+            const pkgAppPath = require('next/dist/compiled/find-up').sync(
+              'package.json',
+              {
+                cwd: dir,
+              }
+            )
+            const appPackage = require(pkgAppPath)
+            if (appPackage.scripts) {
+              const nextScript = Object.entries(appPackage.scripts).find(
+                (scriptLine) => scriptLine[1] === 'next'
+              )
+              if (nextScript) {
+                errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+              }
+            }
+            console.error(errorMessage)
+          } else {
+            console.error(err)
+          }
+          process.nextTick(() => process.exit(1))
+        })
+    }
   }
 
   for (const CONFIG_FILE of CONFIG_FILES) {

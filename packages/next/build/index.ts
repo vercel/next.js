@@ -18,7 +18,6 @@ import {
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
-  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -109,6 +108,7 @@ import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
@@ -536,6 +536,7 @@ export default async function build(
         )
 
       let mappedAppPages: { [page: string]: string } | undefined
+      let denormalizedAppPages: string[] | undefined
 
       if (appPaths && appDir) {
         mappedAppPages = nextBuildSpan
@@ -586,7 +587,8 @@ export default async function build(
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys: string[] = []
       if (mappedAppPages) {
-        for (const appKey in mappedAppPages) {
+        denormalizedAppPages = Object.keys(mappedAppPages)
+        for (const appKey of denormalizedAppPages) {
           const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
           const pagePath = mappedPages[normalizedAppPageKey]
           if (pagePath) {
@@ -596,7 +598,6 @@ export default async function build(
               appPath.replace(/^private-next-app-dir/, 'app'),
             ])
           }
-
           appPageKeys.push(normalizedAppPageKey)
         }
       }
@@ -868,11 +869,6 @@ export default async function build(
         )
 
       const manifestPath = path.join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
-      const appManifestPath = path.join(
-        distDir,
-        SERVER_DIRECTORY,
-        APP_PATHS_MANIFEST
-      )
 
       const requiredServerFiles = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -912,7 +908,8 @@ export default async function build(
                         ),
                       ]
                     : []),
-                  path.relative(distDir, appManifestPath),
+                  path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                  APP_BUILD_MANIFEST,
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                   path.join(
@@ -1431,7 +1428,7 @@ export default async function build(
                   try {
                     let edgeInfo: any
 
-                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                    if (isEdgeRuntime(pageRuntime)) {
                       if (pageType === 'app') {
                         edgeRuntimeAppCount++
                       } else {
@@ -1470,7 +1467,7 @@ export default async function build(
                     if (pageType === 'app' && originalAppPath) {
                       appNormalizedPaths.set(originalAppPath, page)
                       // TODO-APP: handle prerendering with edge
-                      if (pageRuntime === 'experimental-edge') {
+                      if (isEdgeRuntime(pageRuntime)) {
                         isStatic = false
                         isSsg = false
                       } else {
@@ -1508,7 +1505,7 @@ export default async function build(
                         )
                       }
                     } else {
-                      if (pageRuntime === SERVER_RUNTIME.edge) {
+                      if (isEdgeRuntime(pageRuntime)) {
                         if (workerResult.hasStaticProps) {
                           console.warn(
                             `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
@@ -2072,7 +2069,7 @@ export default async function build(
               dir,
               distDir,
               pageKeys.pages,
-              pageKeys.app,
+              denormalizedAppPages,
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest

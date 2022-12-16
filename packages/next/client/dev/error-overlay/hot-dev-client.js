@@ -337,7 +337,7 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
       return
     }
 
-    const hasUpdates = Boolean(updatedModules?.length)
+    const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
       onHotUpdateSuccess(hasUpdates)
@@ -367,8 +367,12 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
   module.hot
     .check(/* autoApply */ false)
     .then((updatedModules) => {
+      if (!updatedModules) {
+        return null
+      }
+
       if (typeof onBeforeHotUpdate === 'function') {
-        const hasUpdates = Boolean(updatedModules?.length)
+        const hasUpdates = Boolean(updatedModules.length)
         onBeforeHotUpdate(hasUpdates)
       }
       return module.hot.apply()
@@ -394,6 +398,7 @@ function performFullReload(err) {
     JSON.stringify({
       event: 'client-full-reload',
       stackTrace,
+      hadRuntimeError: !!hadRuntimeError,
     })
   )
 
