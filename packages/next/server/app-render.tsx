@@ -1629,6 +1629,7 @@ export async function renderToHTMLOrFlight(
       ComponentMod.AppRouter as typeof import('../client/components/app-router').default
 
     const GlobalError = interopDefault(
+      /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
       ComponentMod.GlobalError as typeof import('../client/components/error-boundary').default
     )
 
