@@ -135,10 +135,10 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
       logger(`Linking packages in ${dir}`)
       const isMainRepo = dir === mainRepoDir
-      const pkgPaths = await linkPackages(
-        dir,
-        isMainRepo ? mainNextSwcVersion : undefined
-      )
+      const pkgPaths = await linkPackages({
+        repoDir: dir,
+        nextSwcPkg: isMainRepo ? mainNextSwcVersion : undefined,
+      })
 
       if (isMainRepo) mainRepoPkgPaths = pkgPaths
       else diffRepoPkgPaths = pkgPaths

@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import { Span } from 'next/trace'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {
@@ -8,8 +9,8 @@ export class NextDevInstance extends NextInstance {
     return 'development'
   }
 
-  public async setup() {
-    await super.createTestDir()
+  public async setup(parentSpan: Span) {
+    await super.createTestDir({ parentSpan })
   }
 
   public get cliOutput() {
