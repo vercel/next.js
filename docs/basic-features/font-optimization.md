@@ -22,6 +22,12 @@ To get started, install `@next/font`:
 npm install @next/font
 ```
 
+### Choosing font-display
+
+[`font-display`](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display) lets you to control how your font is displayed while it's loading. `@next/font` uses `font-display: optional` by default. When the primary font used by `@next/font` does not load within 100ms, the auto generated fallback font will be displayed in the browser. While it is automatically generated to be as visually similar to the primary font as possible to reduce layout shift, it does come with the tradeoff that your intended font might not be shown on slower networks unless it's cached.
+
+If you want guarantees around your intended font always showing, and accept the tradeoff of minimal layout shift from swapping your fallback font for the primary font, you can [use `font-display: swap`](/docs/api-reference/next/font.md#display).
+
 ### Google Fonts
 
 Automatically self-host any Google Font. Fonts are included in the deployment and served from the same domain as your deployment. **No requests are sent to Google by the browser.**
