@@ -142,7 +142,7 @@ describe('app dir', () => {
         })
         const html = await renderViaHTTP(next.url, '/dashboard/index')
         expect(html).toContain('hello from app/dashboard/index')
-        expect(stderr.every((err) => err.includes('Invalid hook call.'))).toBe(
+        expect(stderr.some((err) => err.includes('Invalid hook call'))).toBe(
           false
         )
       })
