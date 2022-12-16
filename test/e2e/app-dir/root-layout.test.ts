@@ -218,12 +218,13 @@ describe('app-dir root layout', () => {
 
     it('should correctly handle navigation between multiple root layouts', async () => {
       const browser = await webdriver(next.url, '/root-layout-a')
-      browser.elementById('root-a')
+
+      await browser.waitForElementByCss('#root-a')
       expect(await browser.hasElementByCssSelector('#root-b')).toBeFalse()
-
-      browser.elementById('to-layout-b').click()
-
-      browser.elementById('root-b')
+      await browser
+        .elementById('to-layout-b')
+        .click()
+        .waitForElementByCss('#root-b')
       expect(await browser.hasElementByCssSelector('#root-a')).toBeFalse()
     })
   })
