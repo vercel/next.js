@@ -52,9 +52,7 @@ export class BrowserInterface {
   moveTo(): BrowserInterface {
     return this
   }
-  waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
-    return this
-  }
+  async waitForElementByCss(selector: string, timeout?: number) {}
   waitForCondition(snippet: string, timeout?: number): BrowserInterface {
     return this
   }
