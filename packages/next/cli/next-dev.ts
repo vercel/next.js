@@ -420,8 +420,11 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     startServer(devServerOptions)
       .then(async (app) => {
         const appUrl = `http://${app.hostname}:${app.port}`
-        const hostname = host ? (isIPv6(host) ? `[${host}]` : host) : '0.0.0.0'
-        startedDevelopmentServer(appUrl, `${hostname}:${app.port}`)
+        const hostname = host || '0.0.0.0'
+        startedDevelopmentServer(
+          appUrl,
+          `${isIPv6(hostname) ? `[${hostname}]` : hostname}:${app.port}`
+        )
         // Start preflight after server is listening and ignore errors:
         preflight().catch(() => {})
         // Finalize server bootup:
