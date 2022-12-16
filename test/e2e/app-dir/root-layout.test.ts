@@ -223,7 +223,7 @@ describe('app-dir root layout', () => {
     await browser.waitForElementByCss('#root-a')
     expect(await browser.hasElementByCssSelector('#root-b')).toBeFalse()
     await browser
-      .elementById('to-layout-b')
+      .elementById('link-to-b')
       .click()
       .waitForElementByCss('#root-b')
     expect(await browser.hasElementByCssSelector('#root-a')).toBeFalse()
