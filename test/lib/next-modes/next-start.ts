@@ -80,16 +80,19 @@ export class NextStartInstance extends NextInstance {
       })
     })
 
-    this._buildId = (
-      await fs.readFile(
-        path.join(
-          this.testDir,
-          this.nextConfig?.distDir || '.next',
-          'BUILD_ID'
-        ),
-        'utf8'
-      )
-    ).trim()
+    // There isn't a single buildId for monorepos so for the moment none is used.
+    this._buildId = this.apps?.length
+      ? ''
+      : (
+          await fs.readFile(
+            path.join(
+              this.testDir,
+              this.nextConfig?.distDir || '.next',
+              'BUILD_ID'
+            ),
+            'utf8'
+          )
+        ).trim()
 
     console.log('running', startArgs.join(' '))
 
@@ -110,12 +113,18 @@ export class NextStartInstance extends NextInstance {
         }
       })
 
+      let readyCount = this.apps?.length || 1
+
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
           this._url = msg.split('url: ').pop().trim()
           this._parsedUrl = new URL(this._url)
-          this.off('stdout', readyCb)
-          resolve()
+          // For monorepos, wait for all apps to emit the ready message
+          readyCount--
+          if (readyCount === 0) {
+            this.off('stdout', readyCb)
+            resolve()
+          }
         }
       }
       this.on('stdout', readyCb)

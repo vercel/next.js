@@ -1,11 +1,19 @@
 import os from 'os'
 import path from 'path'
 import fs from 'fs-extra'
+import execa from 'execa'
 import treeKill from 'tree-kill'
 import { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
-import { ChildProcess } from 'child_process'
-import { createNextInstall } from '../create-next-install'
+import childProcess, { ChildProcess } from 'child_process'
+import {
+  writeInitialFiles,
+  initTemporalDirs,
+  FilterFn,
+} from '../create-test-dir-utils'
+
+const { linkPackages } =
+  require('../../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -14,9 +22,12 @@ export type InstallCommand =
 
 export type PackageJson = {
   dependencies?: { [key: string]: string }
+  devDependencies?: { [key: string]: string }
+  workspaces?: string[]
   [key: string]: unknown
 }
-export interface NextInstanceOpts {
+
+interface NextInstanceOptsBase {
   files: FileRef | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
   packageJson?: PackageJson
@@ -29,6 +40,15 @@ export interface NextInstanceOpts {
   dirSuffix?: string
   turbo?: boolean
 }
+
+export type NextInstanceOpts = NextInstanceOptsBase &
+  (
+    | {
+        apps: string[]
+        packages?: string[]
+      }
+    | { packages?: never }
+  )
 
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
@@ -48,6 +68,11 @@ export class NextInstance {
   protected packageLockPath?: string
   protected basePath?: string
   protected env?: Record<string, string>
+
+  // Monorepos
+  protected apps?: string[]
+  protected packages?: string[]
+
   public forcedPort?: string
   public dirSuffix: string = ''
 
@@ -55,31 +80,130 @@ export class NextInstance {
     Object.assign(this, opts)
   }
 
-  protected async writeInitialFiles() {
-    if (this.files instanceof FileRef) {
-      // if a FileRef is passed directly to `files` we copy the
-      // entire folder to the test directory
-      const stats = await fs.stat(this.files.fsPath)
+  protected async writeInitialFiles(
+    skipPackageJsons = false,
+    onPackageJson?: FilterFn
+  ) {
+    if (skipPackageJsons) {
+      // Skip the root `package.json` and the ones in `this.apps` and `this.packages`
+      const skipPaths = ['', ...this.apps, ...this.packages].map((p) =>
+        path.join(this.testDir, p, 'package.json')
+      )
 
-      if (!stats.isDirectory()) {
+      return writeInitialFiles(
+        this.files,
+        this.testDir,
+        async (src, dest, content) => {
+          if (skipPaths.includes(dest)) {
+            return onPackageJson ? onPackageJson(src, dest, content) : false
+          }
+          return true
+        }
+      )
+    }
+
+    return writeInitialFiles(this.files, this.testDir)
+  }
+
+  protected async setupTestDir(dependencies: PackageJson['dependencies']) {
+    const { installDir, tmpRepoDir } = await initTemporalDirs(this.dirSuffix)
+    const packageJsons: [string, PackageJson][] = [
+      [path.join(installDir, 'package.json'), this.packageJson],
+    ]
+
+    this.testDir = installDir
+
+    let combinedDependencies = dependencies
+
+    const skipLocalDeps = (pkgJson: PackageJson) =>
+      !!(pkgJson && pkgJson.nextPrivateSkipLocalDeps)
+
+    if (this.isMonorepo) {
+      if (!this.packageJson?.devDependencies.turbo) {
         throw new Error(
-          `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
+          `"turbo" needs to be a dev dependency of the root package.json when testing monorepos`
         )
       }
-      await fs.copy(this.files.fsPath, this.testDir)
-    } else {
-      for (const filename of Object.keys(this.files)) {
-        const item = this.files[filename]
-        const outputFilename = path.join(this.testDir, filename)
 
-        if (typeof item === 'string') {
-          await fs.ensureDir(path.dirname(outputFilename))
-          await fs.writeFile(outputFilename, item)
-        } else {
-          await fs.copy(item.fsPath, outputFilename)
-        }
+      // For monorepos we need to write all the package.json's before installing deps, which
+      // requires iterating over the files, so the files are written to the tmp directory earlier
+      // and we'll find the package.json's in the process.
+      await this.writeInitialFiles(true, async (src, dest, content) => {
+        const packageJson = JSON.parse(
+          content || (await fs.readFile(src, 'utf8'))
+        )
+
+        packageJsons.push([dest, packageJson])
+        return false
+      })
+    }
+
+    if (packageJsons.some(([, packageJson]) => !skipLocalDeps(packageJson))) {
+      const pkgPaths = await linkPackages(tmpRepoDir)
+
+      combinedDependencies = {
+        next: pkgPaths.get('next'),
+        ...Object.keys(dependencies).reduce((prev, pkg) => {
+          const pkgPath = pkgPaths.get(pkg)
+          prev[pkg] = pkgPath || dependencies[pkg]
+          return prev
+        }, {}),
       }
     }
+
+    for (const [dest, packageJson] of packageJsons) {
+      await fs.ensureDir(path.dirname(dest))
+      await fs.writeFile(
+        dest,
+        JSON.stringify(
+          packageJson?.devDependencies?.turbo
+            ? // Don't modify the dependencies in the monorepo's package.json,
+              // since it won't include next or react
+              packageJson
+            : {
+                ...packageJson,
+                dependencies: {
+                  ...packageJson?.dependencies,
+                  ...(skipLocalDeps(packageJson)
+                    ? dependencies
+                    : combinedDependencies),
+                },
+                private: true,
+              },
+          null,
+          2
+        )
+      )
+    }
+
+    if (this.packageLockPath) {
+      await fs.copy(
+        this.packageLockPath,
+        path.join(installDir, path.basename(this.packageLockPath))
+      )
+    }
+
+    if (this.installCommand) {
+      const installString =
+        typeof this.installCommand === 'function'
+          ? this.installCommand({ dependencies: combinedDependencies })
+          : this.installCommand
+
+      require('console').log('running install command', installString)
+
+      childProcess.execSync(installString, {
+        cwd: installDir,
+        stdio: ['ignore', 'inherit', 'inherit'],
+      })
+    } else {
+      await execa('pnpm', ['install', '--strict-peer-dependencies=false'], {
+        cwd: installDir,
+        stdio: ['ignore', 'inherit', 'inherit'],
+        env: process.env,
+      })
+    }
+
+    await fs.remove(tmpRepoDir)
   }
 
   protected async createTestDir({
@@ -141,89 +265,97 @@ export class NextInstance {
         !this.dependencies &&
         !this.installCommand &&
         !this.packageJson &&
+        !this.isMonorepo &&
         !(global as any).isNextDeploy
       ) {
         await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
       } else if (!skipIsolatedNext) {
-        this.testDir = await createNextInstall(
-          finalDependencies,
-          this.installCommand,
-          this.packageJson,
-          this.packageLockPath,
-          this.dirSuffix
+        await this.setupTestDir(finalDependencies)
+        require('console').log('created next.js install, writing test files')
+      }
+    }
+
+    if (!this.isMonorepo) {
+      await this.writeInitialFiles()
+    }
+
+    const apps = this.apps || ['']
+
+    for (const app of apps) {
+      let nextConfigFile = Object.keys(this.files).find((file) =>
+        file.startsWith(path.join(app, 'next.config.'))
+      )
+
+      if (await fs.pathExists(path.join(this.testDir, app, 'next.config.js'))) {
+        nextConfigFile = 'next.config.js'
+      }
+
+      if (nextConfigFile && this.nextConfig) {
+        throw new Error(
+          `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
         )
       }
-      require('console').log('created next.js install, writing test files')
-    }
 
-    await this.writeInitialFiles()
+      if (
+        this.nextConfig ||
+        ((global as any).isNextDeploy && !nextConfigFile)
+      ) {
+        const functions = []
 
-    let nextConfigFile = Object.keys(this.files).find((file) =>
-      file.startsWith('next.config.')
-    )
-
-    if (await fs.pathExists(path.join(this.testDir, 'next.config.js'))) {
-      nextConfigFile = 'next.config.js'
-    }
-
-    if (nextConfigFile && this.nextConfig) {
-      throw new Error(
-        `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
-      )
-    }
-
-    if (this.nextConfig || ((global as any).isNextDeploy && !nextConfigFile)) {
-      const functions = []
-
-      await fs.writeFile(
-        path.join(this.testDir, 'next.config.js'),
-        `
+        await fs.writeFile(
+          path.join(this.testDir, app, 'next.config.js'),
+          `
         module.exports = ` +
-          JSON.stringify(
-            {
-              ...this.nextConfig,
-            } as NextConfig,
-            (key, val) => {
-              if (typeof val === 'function') {
-                functions.push(
-                  val
-                    .toString()
-                    .replace(new RegExp(`${val.name}[\\s]{0,}\\(`), 'function(')
-                )
-                return `__func_${functions.length - 1}`
-              }
-              return val
-            },
-            2
-          ).replace(/"__func_[\d]{1,}"/g, function (str) {
-            return functions.shift()
-          })
-      )
-    }
-
-    if ((global as any).isNextDeploy) {
-      const fileName = path.join(
-        this.testDir,
-        nextConfigFile || 'next.config.js'
-      )
-      const content = await fs.readFile(fileName, 'utf8')
-
-      if (content.includes('basePath')) {
-        this.basePath =
-          content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] || ''
+            JSON.stringify(
+              {
+                ...this.nextConfig,
+              } as NextConfig,
+              (key, val) => {
+                if (typeof val === 'function') {
+                  functions.push(
+                    val
+                      .toString()
+                      .replace(
+                        new RegExp(`${val.name}[\\s]{0,}\\(`),
+                        'function('
+                      )
+                  )
+                  return `__func_${functions.length - 1}`
+                }
+                return val
+              },
+              2
+            ).replace(/"__func_[\d]{1,}"/g, function (str) {
+              return functions.shift()
+            })
+        )
       }
 
-      await fs.writeFile(
-        fileName,
-        `${content}\n` +
-          `
+      if ((global as any).isNextDeploy) {
+        const fileName = path.join(
+          this.testDir,
+          app,
+          nextConfigFile || 'next.config.js'
+        )
+        const content = await fs.readFile(fileName, 'utf8')
+
+        if (content.includes('basePath')) {
+          this.basePath =
+            content.match(/['"`]?basePath['"`]?:.*?['"`](.*?)['"`]/)?.[1] || ''
+        }
+
+        await fs.writeFile(
+          fileName,
+          `${content}\n` +
+            `
           // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
           }
         `
-      )
+        )
+      }
     }
     require('console').log(`Test directory created at ${this.testDir}`)
   }
@@ -233,13 +365,27 @@ export class NextInstance {
       throw new Error(`stop() must be called before cleaning`)
     }
 
-    const keptFiles = ['node_modules', 'package.json', 'yarn.lock']
-    for (const file of await fs.readdir(this.testDir)) {
-      if (!keptFiles.includes(file)) {
-        await fs.remove(path.join(this.testDir, file))
+    const keptFiles = [
+      'node_modules',
+      'package.json',
+      'yarn.lock',
+      'pnpnm-workspace.yaml',
+    ]
+    const clean = async (dir: string) => {
+      for (const file of await fs.readdir(dir)) {
+        if (
+          this.apps?.some((app) => app.startsWith(file)) ||
+          this.packages?.some((pkg) => pkg.startsWith(file))
+        ) {
+          await clean(path.join(dir, file))
+        } else if (!keptFiles.includes(file)) {
+          await fs.remove(path.join(this.testDir, file))
+        }
       }
     }
-    await this.writeInitialFiles()
+
+    await clean(this.testDir)
+    await this.writeInitialFiles(this.isMonorepo)
   }
 
   public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
@@ -303,6 +449,10 @@ export class NextInstance {
       await fs.remove(this.testDir)
     }
     require('console').log(`destroyed next instance`)
+  }
+
+  protected get isMonorepo() {
+    return !!(this.apps?.length || this.packages?.length)
   }
 
   public get url() {

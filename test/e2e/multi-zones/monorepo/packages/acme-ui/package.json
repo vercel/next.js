@@ -1,0 +1,17 @@
+{
+  "name": "@acme/ui",
+  "version": "0.0.1",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    "./link": "./src/link.js"
+  },
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "next": "*",
+    "react": "^17.0.0 || ^18.0.0-0",
+    "react-dom": "^17.0.0 || ^18.0.0-0"
+  }
+}

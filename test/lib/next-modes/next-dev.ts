@@ -72,6 +72,9 @@ export class NextDevInstance extends NextInstance {
           )
         }
       })
+
+      let readyCount = this.apps?.length || 1
+
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
           // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
@@ -89,8 +92,12 @@ export class NextDevInstance extends NextInstance {
               msg,
             })
           }
-          this.off('stdout', readyCb)
-          resolve()
+          // For monorepos, wait for all apps to emit the ready message
+          readyCount--
+          if (readyCount === 0) {
+            this.off('stdout', readyCb)
+            resolve()
+          }
         }
       }
       this.on('stdout', readyCb)
