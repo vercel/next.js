@@ -320,6 +320,7 @@ const nextDev: cliCommand = async (argv) => {
           'Error:'
         )} You are using configuration and/or tools that are not yet\nsupported by Next.js v13 with Turbopack:\n${unsupportedParts}\n
 If you cannot make the changes above, but still want to try out\nNext.js v13 with Turbopack, create the Next.js v13 playground app\nby running the following commands:
+
   ${chalk.bold.cyan(
     `${
       pkgManager === 'npm'
