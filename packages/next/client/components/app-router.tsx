@@ -14,6 +14,7 @@ import type {
   AppRouterInstance,
 } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
+import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
@@ -30,7 +31,7 @@ import {
   // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
-import { ErrorBoundary, GlobalErrorComponent } from './error-boundary'
+import { ErrorBoundary } from './error-boundary'
 import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
@@ -426,10 +427,14 @@ function Router({
   )
 }
 
-export default function AppRouter(props: AppRouterProps) {
+export default function AppRouter(
+  props: AppRouterProps & { globalErrorComponent: ErrorComponent }
+) {
+  const { globalErrorComponent, ...rest } = props
+
   return (
-    <ErrorBoundary errorComponent={GlobalErrorComponent}>
-      <Router {...props} />
+    <ErrorBoundary errorComponent={globalErrorComponent}>
+      <Router {...rest} />
     </ErrorBoundary>
   )
 }

@@ -184,17 +184,19 @@ module.exports = (actionInfo) => {
         await rootSpan
           .traceChild('packing packages')
           .traceAsyncFn(async (packingSpan) => {
-            for (const pkgName of pkgDatas.keys()) {
-              await packingSpan
-                .traceChild(`pack ${pkgName}`)
-                .traceAsyncFn(async () => {
-                  const { pkgPath } = pkgDatas.get(pkgName)
-                  await exec(
-                    `cd ${pkgPath} && turbo run test-pack --cache-dir="${turboCacheLocation}"`,
-                    true
-                  )
-                })
-            }
+            await Promise.all(
+              Array.from(pkgDatas.keys()).map(async (pkgName) => {
+                await packingSpan
+                  .traceChild(`pack ${pkgName}`)
+                  .traceAsyncFn(async () => {
+                    const { pkgPath } = pkgDatas.get(pkgName)
+                    await exec(
+                      `cd ${pkgPath} && turbo run test-pack --cache-dir="${turboCacheLocation}"`,
+                      true
+                    )
+                  })
+              })
+            )
           })
 
         return pkgPaths
