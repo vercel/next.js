@@ -5,7 +5,7 @@ import type { AdjustFontFallback, FontLoader } from 'next/font'
 
 import { promisify } from 'util'
 import { validateData } from './utils'
-import { calculateFallbackFontValues } from '../utils'
+import { calculateFallbackFontValues, nextFontError } from '../utils'
 
 const NORMAL_WEIGHT = 400
 const BOLD_WEIGHT = 700
@@ -27,7 +27,7 @@ function getDistanceFromNormalWeight(weight?: string) {
     .map(getWeightNumber)
 
   if (Number.isNaN(firstWeight) || Number.isNaN(secondWeight)) {
-    throw new Error(
+    nextFontError(
       `Invalid weight value in src array: \`${weight}\`.\nExpected \`normal\`, \`bold\` or a number.`
     )
   }

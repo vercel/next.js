@@ -7,8 +7,7 @@ describe('app dir - rsc errors', () => {
   let next: NextInstance
 
   const { isNextDeploy, isNextDev } = global as any
-  const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
-  if (isNextDeploy || isReact17) {
+  if (isNextDeploy) {
     it('should skip tests for next-deploy and react 17', () => {})
     return
   }
@@ -21,8 +20,8 @@ describe('app dir - rsc errors', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-errors')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -52,7 +51,7 @@ describe('app dir - rsc errors', () => {
 
     expect(res.status).toBe(500)
     expect(await res.text()).toContain(
-      '`getServerSideProps` is not allowed in Client Components'
+      '"getServerSideProps\\" is not supported in app/'
     )
   })
 
@@ -79,7 +78,7 @@ describe('app dir - rsc errors', () => {
 
     expect(res.status).toBe(500)
     expect(await res.text()).toContain(
-      '`getStaticProps` is not allowed in Client Components'
+      '"getStaticProps\\" is not supported in app/'
     )
   })
 
@@ -90,14 +89,6 @@ describe('app dir - rsc errors', () => {
     )
   })
 
-  it('should not transform css-in-js such as styled-jsx in server components', async () => {
-    const html = await renderViaHTTP(next.url, '/not-transform/styled-jsx')
-
-    expect(html).toMatch(
-      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
-    )
-  })
-
   it('should error when page component export is not valid', async () => {
     const html = await renderViaHTTP(
       next.url,
@@ -105,6 +96,25 @@ describe('app dir - rsc errors', () => {
     )
     expect(html).toContain(
       'The default export is not a React Component in page:'
+    )
+  })
+
+  it('should throw an error when "use client" is on the top level but after other expressions', async () => {
+    const pageFile = 'app/swc/use-client/page.js'
+    const content = await next.readFile(pageFile)
+    const uncomment = content.replace("// 'use client'", "'use client'")
+    await next.patchFile(pageFile, uncomment)
+    const res = await fetchViaHTTP(next.url, '/swc/use-client')
+    await next.patchFile(pageFile, content)
+
+    await check(async () => {
+      const { status } = await fetchViaHTTP(next.url, '/swc/use-client')
+      return status
+    }, /200/)
+
+    expect(res.status).toBe(500)
+    expect(await res.text()).toContain(
+      'directive must be placed before other expressions'
     )
   })
 })

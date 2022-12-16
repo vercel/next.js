@@ -12,7 +12,7 @@ import {
   PathnameContext,
   // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
-import { staticGenerationBailout } from './static-generation-bailout'
+import { bailoutToClientRendering } from './bailout-to-client-rendering'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -76,7 +76,8 @@ export function useSearchParams() {
     return new ReadonlyURLSearchParams(searchParams || new URLSearchParams())
   }, [searchParams])
 
-  if (staticGenerationBailout('useSearchParams')) {
+  if (bailoutToClientRendering()) {
+    // TODO-APP: handle dynamic = 'force-static' here and on the client
     return readonlySearchParams
   }
 
@@ -109,7 +110,6 @@ export {
   useServerInsertedHTML,
 } from '../../shared/lib/server-inserted-html'
 
-// TODO-APP: Move the other router context over to this one
 /**
  * Get the router methods. For example router.push('/dashboard')
  */

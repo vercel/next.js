@@ -76,6 +76,7 @@ import {
 } from '../../build/utils'
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
+import { formatServerError } from '../../lib/format-server-error'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -109,6 +110,7 @@ export default class DevServer extends Server {
   private edgeFunctions?: RoutingItem[]
   private verifyingTypeScript?: boolean
   private usingTypeScript?: boolean
+  private originalFetch?: typeof fetch
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -148,7 +150,12 @@ export default class DevServer extends Server {
   }
 
   constructor(options: Options) {
+    try {
+      // Increase the number of stack frames on the server
+      Error.stackTraceLimit = 50
+    } catch {}
     super({ ...options, dev: true })
+    this.persistPatchedGlobals()
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise((resolve) => {
@@ -713,7 +720,7 @@ export default class DevServer extends Server {
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
-    await this.hotReloader.start(true)
+    await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady!()
 
@@ -1025,6 +1032,7 @@ export default class DevServer extends Server {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
       const err = getProperError(error)
+      formatServerError(err)
       this.logErrorWithOriginalStack(err).catch(() => {})
       if (!res.sent) {
         res.statusCode = 500
@@ -1053,7 +1061,8 @@ export default class DevServer extends Server {
           ({ file }) =>
             !file?.startsWith('eval') &&
             !file?.includes('web/adapter') &&
-            !file?.includes('sandbox/context')
+            !file?.includes('sandbox/context') &&
+            !file?.includes('<anonymous>')
         )!
 
         if (frame.lineNumber && frame?.file) {
@@ -1061,10 +1070,15 @@ export default class DevServer extends Server {
             /^(webpack-internal:\/\/\/|file:\/\/)/,
             ''
           )
+          const modulePath = frame.file.replace(
+            /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+            ''
+          )
 
           const src = getErrorSource(err as Error)
+          const isEdgeCompiler = src === COMPILER_NAMES.edgeServer
           const compilation = (
-            src === COMPILER_NAMES.edgeServer
+            isEdgeCompiler
               ? this.hotReloader?.edgeServerStats?.compilation
               : this.hotReloader?.serverStats?.compilation
           )!
@@ -1080,10 +1094,16 @@ export default class DevServer extends Server {
             column: frame.column,
             source,
             frame,
-            modulePath: moduleId,
+            moduleId,
+            modulePath,
             rootDirectory: this.dir,
             errorMessage: err.message,
-            compilation,
+            serverCompilation: isEdgeCompiler
+              ? undefined
+              : this.hotReloader?.serverStats?.compilation,
+            edgeCompilation: isEdgeCompiler
+              ? this.hotReloader?.edgeServerStats?.compilation
+              : undefined,
           })
 
           if (originalFrame) {
@@ -1093,7 +1113,7 @@ export default class DevServer extends Server {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            if (src === COMPILER_NAMES.edgeServer) {
+            if (isEdgeCompiler) {
               err = err.message
             }
             if (type === 'warning') {
@@ -1373,6 +1393,14 @@ export default class DevServer extends Server {
     return this.hotReloader!.ensurePage({ page: pathname, clientOnly: false })
   }
 
+  private persistPatchedGlobals(): void {
+    this.originalFetch = global.fetch
+  }
+
+  private restorePatchedGlobals(): void {
+    global.fetch = this.originalFetch!
+  }
+
   protected async findPageComponents({
     pathname,
     query,
@@ -1406,6 +1434,11 @@ export default class DevServer extends Server {
         this.serverCSSManifest = super.getServerCSSManifest()
       }
       this.fontLoaderManifest = super.getFontLoaderManifest()
+      // before we re-evaluate a route module, we want to restore globals that might
+      // have been patched previously to their original state so that we don't
+      // patch on top of the previous patch, which would keep the context of the previous
+      // patched global in memory, creating a memory leak.
+      this.restorePatchedGlobals()
 
       return super.findPageComponents({ pathname, query, params, isAppPath })
     } catch (err) {

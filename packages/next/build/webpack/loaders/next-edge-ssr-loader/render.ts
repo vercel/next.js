@@ -72,7 +72,7 @@ export function getRender({
       pagesType,
       extendRenderOpts: {
         buildId,
-        runtime: SERVER_RUNTIME.edge,
+        runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         serverComponentManifest,

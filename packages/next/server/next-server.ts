@@ -31,6 +31,7 @@ import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
+import { isAPIRoute } from '../lib/is-api-route'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   PAGES_MANIFEST,
@@ -228,15 +229,7 @@ export default class NextNodeServer extends BaseServer {
     }
 
     if (!this.minimalMode) {
-      const { ImageOptimizerCache } =
-        require('./image-optimizer') as typeof import('./image-optimizer')
-      this.imageResponseCache = new ResponseCache(
-        new ImageOptimizerCache({
-          distDir: this.distDir,
-          nextConfig: this.nextConfig,
-        }),
-        this.minimalMode
-      )
+      this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
     if (!options.dev) {
@@ -278,12 +271,23 @@ export default class NextNodeServer extends BaseServer {
     loadEnvConfig(this.dir, dev, Log, forceReload)
   }
 
-  protected getResponseCache({ dev }: { dev: boolean }) {
-    const incrementalCache = new IncrementalCache({
+  protected getIncrementalCache({
+    requestHeaders,
+  }: {
+    requestHeaders: IncrementalCache['requestHeaders']
+  }) {
+    const dev = !!this.renderOpts.dev
+    // incremental-cache is request specific with a shared
+    // although can have shared caches in module scope
+    // per-cache handler
+    return new IncrementalCache({
       fs: this.getCacheFilesystem(),
       dev,
-      serverDistDir: this.serverDistDir,
+      requestHeaders,
       appDir: this.hasAppDir,
+      minimalMode: this.minimalMode,
+      serverDistDir: this.serverDistDir,
+      fetchCache: this.nextConfig.experimental.fetchCache,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -303,8 +307,10 @@ export default class NextNodeServer extends BaseServer {
         }
       },
     })
+  }
 
-    return new ResponseCache(incrementalCache, this.minimalMode)
+  protected getResponseCache() {
+    return new ResponseCache(this.minimalMode)
   }
 
   protected getPublicDir(): string {
@@ -383,7 +389,15 @@ export default class NextNodeServer extends BaseServer {
               finished: true,
             }
           }
-          const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
+          const { ImageOptimizerCache } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+
+          const imageOptimizerCache = new ImageOptimizerCache({
+            distDir: this.distDir,
+            nextConfig: this.nextConfig,
+          })
+
+          const { getHash, sendResponse, ImageError } =
             require('./image-optimizer') as typeof import('./image-optimizer')
 
           if (!this.imageResponseCache) {
@@ -391,7 +405,6 @@ export default class NextNodeServer extends BaseServer {
               'invariant image optimizer cache was not initialized'
             )
           }
-
           const imagesConfig = this.nextConfig.images
 
           if (imagesConfig.loader !== 'default') {
@@ -434,7 +447,9 @@ export default class NextNodeServer extends BaseServer {
                   revalidate: maxAge,
                 }
               },
-              {}
+              {
+                incrementalCache: imageOptimizerCache,
+              }
             )
 
             if (cacheEntry?.value?.kind !== 'IMAGE') {
@@ -1185,7 +1200,7 @@ export default class NextNodeServer extends BaseServer {
         }
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
-        if (pathname === '/api' || pathname.startsWith('/api/')) {
+        if (isAPIRoute(pathname)) {
           delete query._nextBubbleNoFallback
 
           const handled = await this.handleApiRequest(req, res, pathname, query)
@@ -1254,7 +1269,7 @@ export default class NextNodeServer extends BaseServer {
     if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
         params = dynamicRoute.match(pathname) || undefined
-        if (dynamicRoute.page.startsWith('/api') && params) {
+        if (isAPIRoute(dynamicRoute.page) && params) {
           page = dynamicRoute.page
           pageFound = true
           break

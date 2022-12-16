@@ -2,16 +2,37 @@ import type { FontLoader } from '../../../../font'
 
 import { promises as fs } from 'fs'
 import path from 'path'
-import loaderUtils from 'next/dist/compiled/loader-utils3'
-import postcssFontLoaderPlugn from './postcss-font-loader'
-import { promisify } from 'util'
 import chalk from 'next/dist/compiled/chalk'
+import loaderUtils from 'next/dist/compiled/loader-utils3'
+import postcssNextFontPlugin from './postcss-next-font'
+import { promisify } from 'util'
 import { CONFIG_FILES } from '../../../../shared/lib/constants'
 
 export default async function nextFontLoader(this: any) {
   const fontLoaderSpan = this.currentTraceSpan.traceChild('next-font-loader')
   return fontLoaderSpan.traceAsyncFn(async () => {
     const callback = this.async()
+
+    // next-swc next_font_loaders turns each font loader call into JSON
+    const {
+      path: relativeFilePathFromRoot,
+      import: functionName,
+      arguments: data,
+      variableName,
+    } = JSON.parse(this.resourceQuery.slice(1))
+
+    // Throw error if @next/font is used in _document.js
+    if (/pages[\\/]_document\./.test(relativeFilePathFromRoot)) {
+      const err = new Error(
+        `${chalk.bold('Cannot')} be used within ${chalk.cyan(
+          'pages/_document.js'
+        )}.`
+      )
+      err.name = 'NextFontError'
+      callback(err)
+      return
+    }
+
     const {
       isDev,
       isServer,
@@ -53,14 +74,6 @@ export default async function nextFontLoader(this: any) {
       return outputPath
     }
 
-    // next-swc next_font_loaders turns each font loader call into JSON
-    const {
-      path: relativeFilePathFromRoot,
-      import: functionName,
-      arguments: data,
-      variableName,
-    } = JSON.parse(this.resourceQuery.slice(1))
-
     try {
       const fontLoader: FontLoader = require(path.join(
         this.resourcePath,
@@ -97,7 +110,7 @@ export default async function nextFontLoader(this: any) {
       )
       // Add CSS classes, exports and make the font-family localy scoped by turning it unguessable
       const result = await postcss(
-        postcssFontLoaderPlugn({
+        postcssNextFontPlugin({
           exports,
           fontFamilyHash,
           fallbackFonts,
@@ -122,11 +135,6 @@ export default async function nextFontLoader(this: any) {
         fontFamilyHash,
       })
     } catch (err: any) {
-      err.stack = false
-      err.message = `Font loader error:\n${err.message}`
-      err.message += `
-
-${chalk.cyan(`Location: ${relativeFilePathFromRoot}`)}`
       callback(err)
     }
   })

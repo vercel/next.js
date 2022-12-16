@@ -62,7 +62,7 @@ export const installTemplate = async ({
   /**
    * Default dependencies.
    */
-  const dependencies = ['react', 'react-dom', 'next']
+  const dependencies = ['react', 'react-dom', 'next', '@next/font']
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */

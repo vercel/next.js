@@ -64,6 +64,45 @@ describe('app dir - rsc basics', () => {
     return
   }
 
+  it('should correctly render page returning null', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-null/page')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render component returning null', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-null/component')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render layout returning null', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-null/layout')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render page returning undefined', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-undefined/page')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render component returning undefined', async () => {
+    const homeHTML = await renderViaHTTP(
+      next.url,
+      '/return-undefined/component'
+    )
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render layout returning undefined', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-undefined/layout')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(next.url, '/', null, {
       headers: {
@@ -73,6 +112,10 @@ describe('app dir - rsc basics', () => {
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
+    // should have default head when there's no head.js provided
+    expect(homeHTML).toContain(
+      '<meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>'
+    )
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('header:test-util')
 
@@ -273,8 +316,20 @@ describe('app dir - rsc basics', () => {
     expect(content).toContain('bar.server.js:')
   })
 
-  it('should render initial styles of css-in-js in SSR correctly', async () => {
+  it('should render initial styles of css-in-js in nodejs SSR correctly', async () => {
     const html = await renderViaHTTP(next.url, '/css-in-js')
+    const head = getNodeBySelector(html, 'head').html()
+
+    // from styled-jsx
+    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
+    expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+
+    // from styled-components
+    expect(head).toMatch(/{color:(\s*)blue;?}/)
+  })
+
+  it('should render initial styles of css-in-js in edge SSR correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/css-in-js/edge')
     const head = getNodeBySelector(html, 'head').html()
 
     // from styled-jsx

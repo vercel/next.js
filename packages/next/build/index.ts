@@ -18,7 +18,6 @@ import {
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
-  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -61,6 +60,9 @@ import {
   FONT_LOADER_MANIFEST,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
+  MIDDLEWARE_BUILD_MANIFEST,
+  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -106,6 +108,7 @@ import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
@@ -533,6 +536,7 @@ export default async function build(
         )
 
       let mappedAppPages: { [page: string]: string } | undefined
+      let denormalizedAppPages: string[] | undefined
 
       if (appPaths && appDir) {
         mappedAppPages = nextBuildSpan
@@ -583,7 +587,8 @@ export default async function build(
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys: string[] = []
       if (mappedAppPages) {
-        for (const appKey in mappedAppPages) {
+        denormalizedAppPages = Object.keys(mappedAppPages)
+        for (const appKey of denormalizedAppPages) {
           const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
           const pagePath = mappedPages[normalizedAppPageKey]
           if (pagePath) {
@@ -593,7 +598,6 @@ export default async function build(
               appPath.replace(/^private-next-app-dir/, 'app'),
             ])
           }
-
           appPageKeys.push(normalizedAppPageKey)
         }
       }
@@ -885,8 +889,27 @@ export default async function build(
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+            path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+            path.join(
+              SERVER_DIRECTORY,
+              MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+            ),
             ...(appDir
               ? [
+                  ...(config.experimental.sri
+                    ? [
+                        path.join(
+                          SERVER_DIRECTORY,
+                          SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                        ),
+                        path.join(
+                          SERVER_DIRECTORY,
+                          SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                        ),
+                      ]
+                    : []),
+                  path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                  APP_BUILD_MANIFEST,
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                   path.join(
@@ -1405,7 +1428,7 @@ export default async function build(
                   try {
                     let edgeInfo: any
 
-                    if (pageRuntime === SERVER_RUNTIME.edge) {
+                    if (isEdgeRuntime(pageRuntime)) {
                       if (pageType === 'app') {
                         edgeRuntimeAppCount++
                       } else {
@@ -1444,7 +1467,7 @@ export default async function build(
                     if (pageType === 'app' && originalAppPath) {
                       appNormalizedPaths.set(originalAppPath, page)
                       // TODO-APP: handle prerendering with edge
-                      if (pageRuntime === 'experimental-edge') {
+                      if (isEdgeRuntime(pageRuntime)) {
                         isStatic = false
                         isSsg = false
                       } else {
@@ -1482,7 +1505,7 @@ export default async function build(
                         )
                       }
                     } else {
-                      if (pageRuntime === SERVER_RUNTIME.edge) {
+                      if (isEdgeRuntime(pageRuntime)) {
                         if (workerResult.hasStaticProps) {
                           console.warn(
                             `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
@@ -2046,6 +2069,7 @@ export default async function build(
               dir,
               distDir,
               pageKeys.pages,
+              denormalizedAppPages,
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest
@@ -2761,6 +2785,19 @@ export default async function build(
           ),
           { overwrite: true }
         )
+        if (appDir) {
+          await recursiveCopy(
+            path.join(distDir, SERVER_DIRECTORY, 'app'),
+            path.join(
+              distDir,
+              'standalone',
+              path.relative(outputFileTracingRoot, distDir),
+              SERVER_DIRECTORY,
+              'app'
+            ),
+            { overwrite: true }
+          )
+        }
       }
 
       staticPages.forEach((pg) => allStaticPages.add(pg))

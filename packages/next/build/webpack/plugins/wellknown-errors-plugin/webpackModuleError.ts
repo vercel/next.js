@@ -9,6 +9,7 @@ import { getNotFoundError, getImageError } from './parseNotFoundError'
 import { SimpleWebpackError } from './simpleWebpackError'
 import isError from '../../../../lib/is-error'
 import { getRscError } from './parseRSC'
+import { getNextFontError } from './parseNextFontError'
 
 function getFileData(
   compilation: webpack.Compilation,
@@ -100,6 +101,11 @@ export async function getModuleBuildError(
   )
   if (rsc !== false) {
     return rsc
+  }
+
+  const nextFont = getNextFontError(err, input.module)
+  if (nextFont !== false) {
+    return nextFont
   }
 
   return false

@@ -11,10 +11,6 @@ export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
   consoleStore.setState({ appUrl, bindAddr })
 }
 
-let previousClient: webpack.Compiler | null = null
-let previousServer: webpack.Compiler | null = null
-let previousEdgeServer: webpack.Compiler | null = null
-
 type CompilerDiagnostics = {
   modules: number
   errors: string[] | null
@@ -223,14 +219,6 @@ export function watchCompilers(
   server: webpack.Compiler,
   edgeServer: webpack.Compiler
 ) {
-  if (
-    previousClient === client &&
-    previousServer === server &&
-    previousEdgeServer === edgeServer
-  ) {
-    return
-  }
-
   buildStore.setState({
     client: { loading: true },
     server: { loading: true },
@@ -317,10 +305,6 @@ export function watchCompilers(
       })
     }
   })
-
-  previousClient = client
-  previousServer = server
-  previousEdgeServer = edgeServer
 }
 
 export function reportTrigger(trigger: string) {

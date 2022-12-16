@@ -34,6 +34,17 @@ describe('app-dir edge SSR', () => {
   })
 
   if ((globalThis as any).isNextDev) {
+    it('should resolve module without error in edge runtime', async () => {
+      const logs = []
+      next.on('stderr', (log) => {
+        logs.push(log)
+      })
+      await renderViaHTTP(next.url, 'app-edge')
+      expect(logs.some((log) => log.includes(`Attempted import error:`))).toBe(
+        false
+      )
+    })
+
     it('should handle edge rsc hmr', async () => {
       const pageFile = 'app/app-edge/page.tsx'
       const content = await next.readFile(pageFile)
@@ -52,6 +63,18 @@ describe('app-dir edge SSR', () => {
         const html = await renderViaHTTP(next.url, '/app-edge')
         return html
       }, /Edge!/)
+    })
+  } else {
+    // Production tests
+    it('should generate matchers correctly in middleware manifest', async () => {
+      const manifest = JSON.parse(
+        await next.readFile('.next/server/middleware-manifest.json')
+      )
+      expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
+        {
+          regexp: '^/group$',
+        },
+      ])
     })
   }
 })

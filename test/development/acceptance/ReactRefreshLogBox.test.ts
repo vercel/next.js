@@ -358,11 +358,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    if (process.platform === 'win32') {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-    } else {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-    }
+    expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
   })

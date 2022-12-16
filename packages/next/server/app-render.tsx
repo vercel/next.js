@@ -35,6 +35,7 @@ import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
@@ -45,14 +46,15 @@ import {
   FLIGHT_PARAMETERS,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
+import { DefaultHead } from '../client/components/head'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 function preloadComponent(Component: any, props: any) {
   const prev = console.error
   // Hide invalid hook call warning when calling component
-  console.error = (msg) => {
-    if (msg.startsWith('Invalid hook call..')) {
+  console.error = function (msg) {
+    if (msg.startsWith('Warning: Invalid hook call.')) {
       // ignore
     } else {
       // @ts-expect-error argument is defined
@@ -80,6 +82,7 @@ function preloadComponent(Component: any, props: any) {
   return Component
 }
 
+const CACHE_ONE_YEAR = 31536000
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
@@ -176,6 +179,8 @@ export type RenderOptsPartial = {
   assetPrefix?: string
   fontLoaderManifest?: FontLoaderManifest
   isBot?: boolean
+  incrementalCache?: import('./lib/incremental-cache').IncrementalCache
+  isRevalidate?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -213,9 +218,11 @@ function createErrorHandler(
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
-      err.digest === DYNAMIC_ERROR_CODE ||
-      err.digest === NOT_FOUND_ERROR_CODE ||
-      err.digest?.startsWith(REDIRECT_ERROR_CODE)
+      err &&
+      (err.digest === DYNAMIC_ERROR_CODE ||
+        err.digest === NOT_FOUND_ERROR_CODE ||
+        err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
+        err.digest?.startsWith(REDIRECT_ERROR_CODE))
     ) {
       return err.digest
     }
@@ -245,12 +252,115 @@ function patchFetch(ComponentMod: any) {
   const originFetch = globalThis.fetch
   globalThis.fetch = async (input, init) => {
     const staticGenerationStore =
-      'getStore' in staticGenerationAsyncStorage
+      ('getStore' in staticGenerationAsyncStorage
         ? staticGenerationAsyncStorage.getStore()
-        : staticGenerationAsyncStorage
+        : staticGenerationAsyncStorage) || {}
 
-    const { isStaticGeneration, fetchRevalidate, pathname } =
-      staticGenerationStore || {}
+    const {
+      isStaticGeneration,
+      fetchRevalidate,
+      pathname,
+      incrementalCache,
+      isRevalidate,
+    } = (staticGenerationStore || {}) as StaticGenerationStore
+
+    let revalidate: number | undefined | boolean
+
+    if (typeof init?.next?.revalidate === 'number') {
+      revalidate = init.next.revalidate
+    }
+    if (init?.next?.revalidate === false) {
+      revalidate = CACHE_ONE_YEAR
+    }
+
+    if (
+      !staticGenerationStore.fetchRevalidate ||
+      (typeof revalidate === 'number' &&
+        revalidate < staticGenerationStore.fetchRevalidate)
+    ) {
+      staticGenerationStore.fetchRevalidate = revalidate
+    }
+
+    let cacheKey: string | undefined
+
+    const doOriginalFetch = async () => {
+      return originFetch(input, init).then(async (res) => {
+        if (
+          incrementalCache &&
+          cacheKey &&
+          typeof revalidate === 'number' &&
+          revalidate > 0
+        ) {
+          const clonedRes = res.clone()
+
+          let base64Body = ''
+
+          if (process.env.NEXT_RUNTIME === 'edge') {
+            let string = ''
+            new Uint8Array(await clonedRes.arrayBuffer()).forEach((byte) => {
+              string += String.fromCharCode(byte)
+            })
+            base64Body = btoa(string)
+          } else {
+            base64Body = Buffer.from(await clonedRes.arrayBuffer()).toString(
+              'base64'
+            )
+          }
+
+          await incrementalCache.set(
+            cacheKey,
+            {
+              kind: 'FETCH',
+              isStale: false,
+              age: 0,
+              data: {
+                headers: Object.fromEntries(clonedRes.headers.entries()),
+                body: base64Body,
+              },
+              revalidate,
+            },
+            revalidate,
+            true
+          )
+        }
+        return res
+      })
+    }
+
+    if (incrementalCache && typeof revalidate === 'number' && revalidate > 0) {
+      cacheKey = await incrementalCache?.fetchCacheKey(input.toString(), init)
+      const entry = await incrementalCache.get(cacheKey, true)
+
+      if (entry?.value && entry.value.kind === 'FETCH') {
+        // when stale and is revalidating we wait for fresh data
+        // so the revalidated entry has the updated data
+        if (!isRevalidate || !entry.isStale) {
+          if (entry.isStale) {
+            if (!staticGenerationStore.pendingRevalidates) {
+              staticGenerationStore.pendingRevalidates = []
+            }
+            staticGenerationStore.pendingRevalidates.push(
+              doOriginalFetch().catch(console.error)
+            )
+          }
+
+          const resData = entry.value.data
+          let decodedBody = ''
+
+          // TODO: handle non-text response bodies
+          if (process.env.NEXT_RUNTIME === 'edge') {
+            decodedBody = atob(resData.body)
+          } else {
+            decodedBody = Buffer.from(resData.body, 'base64').toString()
+          }
+
+          return new Response(decodedBody, {
+            headers: resData.headers,
+            status: resData.status,
+          })
+        }
+      }
+    }
 
     if (staticGenerationStore && isStaticGeneration) {
       if (init && typeof init === 'object') {
@@ -292,7 +402,7 @@ function patchFetch(ComponentMod: any) {
         if (hasNextConfig) delete init.next
       }
     }
-    return originFetch(input, init)
+    return doOriginalFetch()
   }
 }
 
@@ -771,9 +881,7 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
-  if (process.env.NODE_ENV === 'production') {
-    patchFetch(ComponentMod)
-  }
+  patchFetch(ComponentMod)
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
@@ -904,7 +1012,8 @@ export async function renderToHTMLOrFlight(
 
     async function resolveHead(
       [segment, parallelRoutes, { head }]: LoaderTree,
-      parentParams: { [key: string]: any }
+      parentParams: { [key: string]: any },
+      isRootHead: boolean
     ): Promise<React.ReactNode> {
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
@@ -922,7 +1031,7 @@ export async function renderToHTMLOrFlight(
             parentParams
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const returnedHead = await resolveHead(childTree, currentParams)
+        const returnedHead = await resolveHead(childTree, currentParams, false)
         if (returnedHead) {
           return returnedHead
         }
@@ -931,6 +1040,8 @@ export async function renderToHTMLOrFlight(
       if (head) {
         const Head = await interopDefault(await head[0]())
         return <Head params={currentParams} />
+      } else if (isRootHead) {
+        return <DefaultHead />
       }
 
       return null
@@ -1111,7 +1222,7 @@ export async function renderToHTMLOrFlight(
         // otherwise
         if (layoutOrPageMod.dynamic === 'force-static') {
           staticGenerationStore.forceStatic = true
-        } else {
+        } else if (layoutOrPageMod.dynamic !== 'error') {
           staticGenerationStore.forceStatic = false
         }
       }
@@ -1125,20 +1236,6 @@ export async function renderToHTMLOrFlight(
 
           throw new DynamicServerError(`revalidate: 0 configured ${segment}`)
         }
-      }
-
-      // TODO-APP: move these errors to the loader instead?
-      // we will also need a migration doc here to link to
-      if (typeof layoutOrPageMod?.getServerSideProps === 'function') {
-        throw new Error(
-          `getServerSideProps is not supported in app/, detected in ${segment}`
-        )
-      }
-
-      if (typeof layoutOrPageMod?.getStaticProps === 'function') {
-        throw new Error(
-          `getStaticProps is not supported in app/, detected in ${segment}`
-        )
       }
 
       /**
@@ -1358,7 +1455,6 @@ export async function renderToHTMLOrFlight(
                   ))
                 : null}
               <Component {...props} />
-              {/* {HeadTags ? <HeadTags /> : null} */}
             </>
           )
         },
@@ -1492,11 +1588,10 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const rscPayloadHead = await resolveHead(loaderTree, {})
+      const rscPayloadHead = await resolveHead(loaderTree, {}, true)
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
-        // TODO-APP: change walk to output without ''
         (
           await walkTreeWithFlightRouterState({
             createSegmentPath: (child) => child,
@@ -1533,6 +1628,11 @@ export async function renderToHTMLOrFlight(
     const AppRouter =
       ComponentMod.AppRouter as typeof import('../client/components/app-router').default
 
+    const GlobalError = interopDefault(
+      /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
+      ComponentMod.GlobalError as typeof import('../client/components/error-boundary').default
+    )
+
     let serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
@@ -1541,7 +1641,7 @@ export async function renderToHTMLOrFlight(
     // TODO-APP: validate req.url as it gets passed to render.
     const initialCanonicalUrl = req.url!
 
-    // Get the nonce from the incomming request if it has one.
+    // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
     let nonce: string | undefined
     if (csp && typeof csp === 'string') {
@@ -1564,7 +1664,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const initialHead = await resolveHead(loaderTree, {})
+    const initialHead = await resolveHead(loaderTree, {}, true)
 
     /**
      * A new React Component that renders the provided React Component
@@ -1587,6 +1687,7 @@ export async function renderToHTMLOrFlight(
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
             initialHead={initialHead}
+            globalErrorComponent={GlobalError}
           >
             <ComponentTree />
           </AppRouter>
@@ -1702,7 +1803,6 @@ export async function renderToHTMLOrFlight(
           res.statusCode = 404
         }
 
-        // TODO-APP: show error overlay in development. `element` should probably be wrapped in AppRouter for this case.
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
           element: (
@@ -1740,6 +1840,10 @@ export async function renderToHTMLOrFlight(
     }
     const renderResult = new RenderResult(await bodyResult())
 
+    if (staticGenerationStore.pendingRevalidates) {
+      await Promise.all(staticGenerationStore.pendingRevalidates)
+    }
+
     if (isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
 
@@ -1758,6 +1862,9 @@ export async function renderToHTMLOrFlight(
         await generateFlight()
       )
 
+      if (staticGenerationStore?.forceStatic === false) {
+        staticGenerationStore.fetchRevalidate = 0
+      }
       ;(renderOpts as any).pageData = filteredFlightData
       ;(renderOpts as any).revalidate =
         typeof staticGenerationStore?.fetchRevalidate === 'undefined'
@@ -1774,6 +1881,8 @@ export async function renderToHTMLOrFlight(
     isStaticGeneration,
     inUse: true,
     pathname,
+    incrementalCache: renderOpts.incrementalCache,
+    isRevalidate: renderOpts.isRevalidate,
   }
 
   const tryGetPreviewData =

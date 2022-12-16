@@ -20,7 +20,6 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
-  SERVER_RUNTIME,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -33,6 +32,7 @@ import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
 import { BuildManifest } from '../server/get-page-files'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import {
@@ -423,7 +423,7 @@ export async function printTreeView(
           ? '○'
           : pageInfo?.isSsg
           ? '●'
-          : pageInfo?.runtime === SERVER_RUNTIME.edge
+          : isEdgeRuntime(pageInfo?.runtime)
           ? 'ℇ'
           : 'λ'
 
@@ -1267,7 +1267,7 @@ export async function isPageStatic({
       let prerenderFallback: boolean | 'blocking' | undefined
       let appConfig: AppConfig = {}
 
-      if (pageRuntime === SERVER_RUNTIME.edge) {
+      if (isEdgeRuntime(pageRuntime)) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           env: edgeInfo.env,
@@ -1597,7 +1597,8 @@ export function detectConflictingPaths(
 export async function copyTracedFiles(
   dir: string,
   distDir: string,
-  pageKeys: ReadonlyArray<string>,
+  pageKeys: readonly string[],
+  appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest
@@ -1668,7 +1669,33 @@ export async function copyTracedFiles(
     }
   }
 
+  for (const page of Object.values(middlewareManifest.functions)) {
+    for (const file of page.files) {
+      const originalPath = path.join(distDir, file)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+    for (const file of [...(page.wasm ?? []), ...(page.assets ?? [])]) {
+      const originalPath = path.join(distDir, file.filePath)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file.filePath
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+  }
+
   for (const page of pageKeys) {
+    if (middlewareManifest.functions.hasOwnProperty(page)) {
+      continue
+    }
     const pageFile = path.join(
       distDir,
       'server',
@@ -1679,6 +1706,18 @@ export async function copyTracedFiles(
     await handleTraceFiles(pageTraceFile).catch((err) => {
       Log.warn(`Failed to copy traced files for ${pageFile}`, err)
     })
+  }
+  if (appPageKeys) {
+    for (const page of appPageKeys) {
+      if (middlewareManifest.functions.hasOwnProperty(page)) {
+        continue
+      }
+      const pageFile = path.join(distDir, 'server', 'app', `${page}.js`)
+      const pageTraceFile = `${pageFile}.nft.json`
+      await handleTraceFiles(pageTraceFile).catch((err) => {
+        Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      })
+    }
   }
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
@@ -1750,6 +1789,7 @@ server.listen(currentPort, (err) => {
 })`
   )
 }
+
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }

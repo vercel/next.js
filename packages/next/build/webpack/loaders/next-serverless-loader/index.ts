@@ -2,7 +2,7 @@ import devalue from 'next/dist/compiled/devalue'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { API_ROUTE } from '../../../../lib/constants'
+import { isAPIRoute } from '../../../../lib/is-api-route'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../../shared/lib/escape-regexp'
 import { __ApiPreviewProps } from '../../../../server/api-utils'
@@ -88,7 +88,7 @@ const nextServerlessLoader: webpack.LoaderDefinitionFunction = function () {
       `
     : 'const runtimeConfig = {}'
 
-  if (page.match(API_ROUTE)) {
+  if (isAPIRoute(page)) {
     return `
         ${envLoading}
         ${runtimeConfigImports}

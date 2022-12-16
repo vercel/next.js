@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  fetchCache?: boolean
   allowMiddlewareResponseBody?: boolean
   skipMiddlewareUrlNormalize?: boolean
   skipTrailingSlashRedirect?: boolean
@@ -565,6 +566,7 @@ export const defaultConfig: NextConfig = {
   swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   experimental: {
+    fetchCache: false,
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     runtime: undefined,
@@ -619,12 +621,6 @@ export async function normalizeConfig(phase: string, config: any) {
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
-}
-
-export function isServerRuntime(value?: string): value is ServerRuntime {
-  return (
-    value === undefined || value === 'nodejs' || value === 'experimental-edge'
-  )
 }
 
 export function validateConfig(userConfig: NextConfig): {

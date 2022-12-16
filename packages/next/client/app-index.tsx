@@ -7,6 +7,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -29,7 +30,23 @@ __webpack_require__.u = (chunkId: any) => {
 // Ignore the module ID transform in client.
 // eslint-disable-next-line no-undef
 // @ts-expect-error TODO: fix type
-self.__next_require__ = __webpack_require__
+self.__next_require__ =
+  process.env.NODE_ENV !== 'production'
+    ? (id: string) => {
+        const mod = __webpack_require__(id)
+        if (typeof mod === 'object') {
+          // Return a proxy to flight client to make sure it's always getting
+          // the latest module, instead of being cached.
+          return new Proxy(mod, {
+            get(_target, prop) {
+              return __webpack_require__(id)[prop]
+            },
+          })
+        }
+
+        return mod
+      }
+    : __webpack_require__
 
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
@@ -113,6 +130,23 @@ if (document.readyState === 'loading') {
   DOMContentLoaded()
 }
 
+function onRecoverableError(err: any) {
+  // Using default react onRecoverableError
+  // x-ref: https://github.com/facebook/react/blob/d4bc16a7d69eb2ea38a88c8ac0b461d5f72cdcab/packages/react-dom/src/client/ReactDOMRoot.js#L83
+  const defaultOnRecoverableError =
+    typeof reportError === 'function'
+      ? // In modern browsers, reportError will dispatch an error event,
+        // emulating an uncaught JavaScript error.
+        reportError
+      : (error: any) => {
+          window.console.error(error)
+        }
+
+  // Skip certain custom errors which are not expected to be reported on client
+  if (err.digest === NEXT_DYNAMIC_NO_SSR_CODE) return
+  defaultOnRecoverableError(err)
+}
+
 const nextServerDataLoadingGlobal = ((self as any).__next_f =
   (self as any).__next_f || [])
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
@@ -190,7 +224,9 @@ export function hydrate() {
     if (rootLayoutMissingTagsError) {
       const reactRootElement = document.createElement('div')
       document.body.appendChild(reactRootElement)
-      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement)
+      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement, {
+        onRecoverableError,
+      })
 
       reactRoot.render(
         <GlobalLayoutRouterContext.Provider
@@ -231,11 +267,14 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
+  const options = {
+    onRecoverableError,
+  }
   const isError = document.documentElement.id === '__next_error__'
   const reactRoot = isError
-    ? (ReactDOMClient as any).createRoot(appElement)
+    ? (ReactDOMClient as any).createRoot(appElement, options)
     : (React as any).startTransition(() =>
-        (ReactDOMClient as any).hydrateRoot(appElement, reactEl)
+        (ReactDOMClient as any).hydrateRoot(appElement, reactEl, options)
       )
   if (isError) {
     reactRoot.render(reactEl)

@@ -133,6 +133,15 @@ describe('basic next/dynamic usage', () => {
           }
         }
       })
+
+      if (!(global as any).isNextDev) {
+        it('should not include ssr:false imports to server trace', async () => {
+          const trace = JSON.parse(
+            await next.readFile('.next/server/pages/dynamic/no-ssr.js.nft.json')
+          ) as { files: string[] }
+          expect(trace).not.toContain('hello1')
+        })
+      }
     })
 
     describe('ssr:true option', () => {
