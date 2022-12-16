@@ -335,7 +335,7 @@ export class Playwright extends BrowserInterface {
           await page.waitForLoadState()
           return this.wrapElement(el, selector)
         })
-    }) as unknown as Promise<void>
+    })
   }
 
   waitForCondition(condition, timeout) {

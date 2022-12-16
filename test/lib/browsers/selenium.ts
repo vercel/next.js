@@ -323,7 +323,7 @@ export class Selenium extends BrowserInterface {
   waitForElementByCss(sel, timeout) {
     return this.chain(() =>
       browser.wait(until.elementLocated(By.css(sel)), timeout)
-    ) as unknown as Promise<void>
+    )
   }
 
   waitForCondition(condition, timeout) {

@@ -52,7 +52,10 @@ export class BrowserInterface {
   moveTo(): BrowserInterface {
     return this
   }
-  async waitForElementByCss(selector: string, timeout?: number) {}
+  // TODO(NEXT-290): type this correctly as awaitable
+  waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
+    return this
+  }
   waitForCondition(snippet: string, timeout?: number): BrowserInterface {
     return this
   }
