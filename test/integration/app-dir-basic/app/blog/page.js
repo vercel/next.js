@@ -1,3 +1,3 @@
 export default function page() {
-  return <>blog</>
+  return <div id="blog">this is blog</div>
 }
