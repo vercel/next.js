@@ -7,9 +7,7 @@ export default function NavigationPage() {
         Navigating between pages will trigger a pageview event in Facebook
         Pixel, but will not reinitialize the pixel.
       </p>
-      <Link href="/">
-        <a>Return to home</a>
-      </Link>
+      <Link href="/">Return to home</Link>
     </div>
   )
 }

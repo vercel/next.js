@@ -8,7 +8,7 @@ export default function Page() {
   return (
     <>
       <h1 id="pathname" data-pathname={pathname}>
-        hello from /hooks/use-pathname
+        hello from {pathname}
       </h1>
     </>
   )

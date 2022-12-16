@@ -17,8 +17,8 @@ describe('app dir rendering', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, 'app-rendering')),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
   })
@@ -37,14 +37,14 @@ describe('app dir rendering', () => {
       expect($('#page-message').text()).toBe('hello from page')
     })
 
-    it('should run data in parallel', async () => {
-      // const startTime = Date.now()
+    it('should run data fetch in parallel', async () => {
+      const startTime = Date.now()
       const html = await renderViaHTTP(next.url, '/ssr-only/slow')
-      // const endTime = Date.now()
-      // const duration = endTime - startTime
+      const endTime = Date.now()
+      const duration = endTime - startTime
       // Each part takes 5 seconds so it should be below 10 seconds
       // Using 7 seconds to ensure external factors causing slight slowness don't fail the tests
-      // expect(duration < 7000).toBe(true)
+      expect(duration < 7000).toBe(true)
       const $ = cheerio.load(html)
       expect($('#slow-layout-message').text()).toBe('hello from slow layout')
       expect($('#slow-page-message').text()).toBe('hello from slow page')

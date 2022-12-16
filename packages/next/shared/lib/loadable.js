@@ -24,10 +24,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 import React from 'react'
 import { LoadableContext } from './loadable-context'
 
-const { useSyncExternalStore } = process.env.__NEXT_REACT_ROOT
-  ? require('react')
-  : require('use-sync-external-store/shim')
-
 const ALL_INITIALIZERS = []
 const READY_INITIALIZERS = []
 let initialized = false
@@ -56,10 +52,6 @@ function load(loader) {
   return state
 }
 
-function resolve(obj) {
-  return obj && obj.__esModule ? obj.default : obj
-}
-
 function createLoadableComponent(loadFn, options) {
   let opts = Object.assign(
     {
@@ -69,14 +61,11 @@ function createLoadableComponent(loadFn, options) {
       timeout: null,
       webpack: null,
       modules: null,
-      suspense: false,
     },
     options
   )
 
-  if (opts.suspense) {
-    opts.lazy = React.lazy(opts.loader)
-  }
+  opts.lazy = React.lazy(opts.loader)
 
   /** @type LoadableSubscription */
   let subscription = null
@@ -126,52 +115,28 @@ function createLoadableComponent(loadFn, options) {
       })
     }
   }
-
-  function LoadableImpl(props, ref) {
+  function LoadableComponent(props) {
     useLoadableModule()
 
-    const state = useSyncExternalStore(
-      subscription.subscribe,
-      subscription.getCurrentValue,
-      subscription.getCurrentValue
-    )
+    const fallbackElement = React.createElement(opts.loading, {
+      isLoading: true,
+      pastDelay: true,
+      error: null,
+    })
 
-    React.useImperativeHandle(
-      ref,
-      () => ({
-        retry: subscription.retry,
-      }),
-      []
+    return React.createElement(
+      React.Suspense,
+      {
+        fallback: fallbackElement,
+      },
+      React.createElement(opts.lazy, props)
     )
-
-    return React.useMemo(() => {
-      if (state.loading || state.error) {
-        return React.createElement(opts.loading, {
-          isLoading: state.loading,
-          pastDelay: state.pastDelay,
-          timedOut: state.timedOut,
-          error: state.error,
-          retry: subscription.retry,
-        })
-      } else if (state.loaded) {
-        return React.createElement(resolve(state.loaded), props)
-      } else {
-        return null
-      }
-    }, [props, state])
   }
 
-  function LazyImpl(props, ref) {
-    useLoadableModule()
-
-    return React.createElement(opts.lazy, { ...props, ref })
-  }
-
-  const LoadableComponent = opts.suspense ? LazyImpl : LoadableImpl
   LoadableComponent.preload = () => init()
   LoadableComponent.displayName = 'LoadableComponent'
 
-  return React.forwardRef(LoadableComponent)
+  return LoadableComponent
 }
 
 class LoadableSubscription {

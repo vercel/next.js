@@ -5,6 +5,10 @@ module.exports = {
         source: '/rewrite-me',
         destination: '/another',
       },
+      {
+        source: '/blog/:slugs*',
+        destination: '/news/:slugs*',
+      },
     ]
   },
 }

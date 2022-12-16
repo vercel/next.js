@@ -11,17 +11,17 @@ const Header = ({ user, loading }: HeaderProps) => {
       <nav>
         <ul>
           <li>
-            <Link href="/">
+            <Link href="/" legacyBehavior>
               <a>Home</a>
             </Link>
           </li>
           <li>
-            <Link href="/about">
+            <Link href="/about" legacyBehavior>
               <a>About</a>
             </Link>
           </li>
           <li>
-            <Link href="/advanced/api-profile">
+            <Link href="/advanced/api-profile" legacyBehavior>
               <a>API rendered profile (advanced)</a>
             </Link>
           </li>
@@ -29,12 +29,12 @@ const Header = ({ user, loading }: HeaderProps) => {
             (user ? (
               <>
                 <li>
-                  <Link href="/profile">
+                  <Link href="/profile" legacyBehavior>
                     <a>Client rendered profile</a>
                   </Link>
                 </li>
                 <li>
-                  <Link href="/advanced/ssr-profile">
+                  <Link href="/advanced/ssr-profile" legacyBehavior>
                     <a>Server rendered profile (advanced)</a>
                   </Link>
                 </li>

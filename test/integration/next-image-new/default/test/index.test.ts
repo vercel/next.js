@@ -599,8 +599,8 @@ function runTests(mode) {
       'lazy'
     )
     expect(await browser.elementById('blur1').getAttribute('sizes')).toBeNull()
-    expect(await browser.elementById('blur1').getAttribute('style')).toBe(
-      'color: transparent;'
+    expect(await browser.elementById('blur1').getAttribute('style')).toMatch(
+      'color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;'
     )
     expect(await browser.elementById('blur1').getAttribute('height')).toBe(
       '400'
@@ -646,8 +646,8 @@ function runTests(mode) {
     expect(await browser.elementById('blur2').getAttribute('loading')).toBe(
       'lazy'
     )
-    expect(await browser.elementById('blur2').getAttribute('style')).toBe(
-      'color: transparent;'
+    expect(await browser.elementById('blur2').getAttribute('style')).toMatch(
+      'color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat'
     )
     expect(await browser.elementById('blur2').getAttribute('height')).toBe(
       '400'
@@ -667,6 +667,64 @@ function runTests(mode) {
     expect(
       await browser.elementById('without-styles').getAttribute('style')
     ).toBe('color:transparent')
+  })
+
+  it('should warn when legacy prop layout=fill', async () => {
+    let browser = await webdriver(appPort, '/legacy-layout-fill')
+    const img = await browser.elementById('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('data-nimg')).toBe('fill')
+    expect(await img.getAttribute('sizes')).toBe('200px')
+    expect(await img.getAttribute('src')).toBe(
+      '/_next/image?url=%2Ftest.jpg&w=3840&q=50'
+    )
+    expect(await img.getAttribute('srcset')).toContain(
+      '/_next/image?url=%2Ftest.jpg&w=640&q=50 640w,'
+    )
+    expect(await img.getAttribute('style')).toBe(
+      'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
+    )
+    if (mode === 'dev') {
+      expect(await hasRedbox(browser)).toBe(false)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "layout". Did you forget to run the codemod?'
+      )
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "objectFit". Did you forget to run the codemod?'
+      )
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "objectPosition". Did you forget to run the codemod?'
+      )
+    }
+  })
+
+  it('should warn when legacy prop layout=responsive', async () => {
+    let browser = await webdriver(appPort, '/legacy-layout-responsive')
+    const img = await browser.elementById('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('sizes')).toBe('100vw')
+    expect(await img.getAttribute('data-nimg')).toBe('1')
+    expect(await img.getAttribute('src')).toBe(
+      '/_next/image?url=%2Ftest.png&w=3840&q=75'
+    )
+    expect(await img.getAttribute('srcset')).toContain(
+      '/_next/image?url=%2Ftest.png&w=640&q=75 640w,'
+    )
+    expect(await img.getAttribute('style')).toBe(
+      'color:transparent;width:100%;height:auto'
+    )
+    if (mode === 'dev') {
+      expect(await hasRedbox(browser)).toBe(false)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toContain(
+        'Image with src "/test.png" has legacy prop "layout". Did you forget to run the codemod?'
+      )
+    }
   })
 
   if (mode === 'dev') {
@@ -861,6 +919,17 @@ function runTests(mode) {
       )
     })
 
+    it('should not warn when data url image with fill and sizes props', async () => {
+      const browser = await webdriver(appPort, '/data-url-with-fill-and-sizes')
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).not.toMatch(
+        /Image with src (.*) has "fill" but is missing "sizes" prop. Please add it to improve page performance/gm
+      )
+    })
+
     it('should not warn when svg, even if with loader prop or without', async () => {
       const browser = await webdriver(appPort, '/loader-svg')
       await browser.eval(`document.querySelector("footer").scrollIntoView()`)
@@ -911,20 +980,6 @@ function runTests(mode) {
         'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
       )
       expect(warnings.length).toBe(1)
-    })
-
-    it('should show console error for objectFit and objectPosition', async () => {
-      const browser = await webdriver(appPort, '/invalid-objectfit')
-
-      expect(await hasRedbox(browser)).toBe(false)
-
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image has unknown prop "objectFit"/gm)
-
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image has unknown prop "objectPosition"/gm)
     })
   } else {
     //server-only tests
@@ -1029,15 +1084,6 @@ function runTests(mode) {
     expect(await getComputedStyle(browser, 'img-blur', 'filter')).toBe(
       'opacity(0.5)'
     )
-    expect(await getComputedStyle(browser, 'img-blur', 'background-size')).toBe(
-      '30%'
-    )
-    expect(
-      await getComputedStyle(browser, 'img-blur', 'background-image')
-    ).toMatch('iVBORw0KGgo=')
-    expect(
-      await getComputedStyle(browser, 'img-blur', 'background-position')
-    ).toBe('1px 2px')
   })
   describe('Fill-mode tests', () => {
     let browser
@@ -1131,55 +1177,6 @@ function runTests(mode) {
       expect(getRatio(computedHeight, computedWidth)).toBeCloseTo(0.75, 1)
     })
   }
-
-  it('should have blurry placeholder when enabled', async () => {
-    const html = await renderViaHTTP(appPort, '/blurry-placeholder')
-    const $html = cheerio.load(html)
-
-    $html('noscript > img').attr('id', 'unused')
-
-    expect($html('#blurry-placeholder-raw')[0].attribs.style).toContain(
-      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage preserveAspectRatio='none' filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8P4nhDwAGuAKPn6cicwAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
-    )
-
-    expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
-      `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage preserveAspectRatio='none' filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
-    )
-  })
-
-  it('should remove blurry placeholder after image loads', async () => {
-    const browser = await webdriver(appPort, '/blurry-placeholder')
-    await check(
-      async () =>
-        await getComputedStyle(
-          browser,
-          'blurry-placeholder-raw',
-          'background-image'
-        ),
-      'none'
-    )
-    expect(
-      await getComputedStyle(
-        browser,
-        'blurry-placeholder-with-lazy',
-        'background-image'
-      )
-    ).toBe(
-      `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage preserveAspectRatio='none' filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO0/8/wBwAE/wI85bEJ6gAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
-    )
-
-    await browser.eval('document.getElementById("spacer").remove()')
-
-    await check(
-      async () =>
-        await getComputedStyle(
-          browser,
-          'blurry-placeholder-with-lazy',
-          'background-image'
-        ),
-      'none'
-    )
-  })
 
   it('should be valid HTML', async () => {
     let browser

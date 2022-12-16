@@ -11,7 +11,11 @@ pub struct FontImportsGenerator<'a> {
 }
 
 impl<'a> FontImportsGenerator<'a> {
-    fn check_call_expr(&mut self, call_expr: &CallExpr) -> Option<ImportDecl> {
+    fn check_call_expr(
+        &mut self,
+        call_expr: &CallExpr,
+        variable_name: &Result<Ident, &Pat>,
+    ) -> Option<ImportDecl> {
         if let Callee::Expr(callee_expr) = &call_expr.callee {
             if let Expr::Ident(ident) = &**callee_expr {
                 if let Some(font_function) = self.state.font_functions.get(&ident.to_id()) {
@@ -48,6 +52,12 @@ impl<'a> FontImportsGenerator<'a> {
                         query_json_values
                             .insert(String::from("import"), Value::String(function_name));
                         query_json_values.insert(String::from("arguments"), Value::Array(json));
+                        if let Ok(ident) = variable_name {
+                            query_json_values.insert(
+                                String::from("variableName"),
+                                Value::String(ident.sym.to_string()),
+                            );
+                        }
 
                         let query_json = Value::Object(query_json_values);
 
@@ -81,7 +91,7 @@ impl<'a> FontImportsGenerator<'a> {
             };
             if let Some(expr) = &decl.init {
                 if let Expr::Call(call_expr) = &**expr {
-                    let import_decl = self.check_call_expr(call_expr);
+                    let import_decl = self.check_call_expr(call_expr, &ident);
 
                     if let Some(mut import_decl) = import_decl {
                         match var_decl.kind {
@@ -248,7 +258,10 @@ fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
         }
         lit => HANDLER.with(|handler| {
             handler
-                .struct_span_err(lit.span(), "Unexpected value")
+                .struct_span_err(
+                    lit.span(),
+                    "Font loader values must be explicitly written literals.",
+                )
                 .emit();
             Err(())
         }),

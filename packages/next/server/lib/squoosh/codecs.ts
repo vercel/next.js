@@ -85,7 +85,7 @@ const rotateWasm = path.resolve(__dirname, './rotate/rotate.wasm')
 
 // Our decoders currently rely on a `ImageData` global.
 import ImageData from './image_data'
-;(global as any).ImageData = ImageData
+;(globalThis as any).ImageData = ImageData
 
 function resizeNameToIndex(
   name: 'triangle' | 'catrom' | 'mitchell' | 'lanczos3'

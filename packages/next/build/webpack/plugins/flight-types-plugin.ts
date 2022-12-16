@@ -1,4 +1,5 @@
 import path from 'path'
+import { promises as fs } from 'fs'
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
@@ -17,6 +18,7 @@ function createTypeGuardFile(
   relativePath: string,
   options: {
     type: 'layout' | 'page'
+    slots?: string[]
   }
 ) {
   return `// File: ${fullPath}
@@ -27,16 +29,21 @@ check<IEntry, TEntry>(entry)
 
 type PageParams = Record<string, string>
 interface PageProps {
-  params?: PageParams
-  searchParams?: Record<string, string | string[]>
+  params: any
+  searchParams?: any
 }
 interface LayoutProps {
   children: React.ReactNode
-  params?: PageParams
+${
+  options.slots
+    ? options.slots.map((slot) => `  ${slot}: React.ReactNode`).join('\n')
+    : ''
+}
+  params: any
 }
 
-type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
-type LayoutComponent = (props: LayoutProps) => React.ReactNode | Promise<React.ReactNode>
+export type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
+export type LayoutComponent = (props: LayoutProps) => React.ReactNode | Promise<React.ReactNode>
 
 interface IEntry {
   ${
@@ -45,14 +52,17 @@ interface IEntry {
       : `default: PageComponent`
   }
   config?: {}
-  Head?: any
-  generateStaticParams?: (params?: PageParams) => Promise<any[]>
+  generateStaticParams?: (params?: PageParams) => any[] | Promise<any[]>
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
   preferredRegion?: 'auto' | 'home' | 'edge'
-  ${options.type === 'page' ? "runtime?: 'nodejs' | 'experimental-edge'" : ''}
+  ${
+    options.type === 'page'
+      ? "runtime?: 'nodejs' | 'experimental-edge' | 'edge'"
+      : ''
+  }
 }
 
 // =============
@@ -67,6 +77,18 @@ type Zero = 0 | 0n
 type Negative<T extends Numeric> = T extends Zero ? never : \`\${T}\` extends \`-\${string}\` ? T : never
 type NonNegative<T extends Numeric> = T extends Zero ? T : Negative<T> extends never ? T : '__invalid_negative_number__'
 `
+}
+
+async function collectNamedSlots(layoutPath: string) {
+  const layoutDir = path.dirname(layoutPath)
+  const items = await fs.readdir(layoutDir, { withFileTypes: true })
+  const slots = []
+  for (const item of items) {
+    if (item.isDirectory() && item.name.startsWith('@')) {
+      slots.push(item.name.slice(1))
+    }
+  }
+  return slots
 }
 
 export class FlightTypesPlugin {
@@ -85,7 +107,7 @@ export class FlightTypesPlugin {
   apply(compiler: webpack.Compiler) {
     const assetPrefix = this.dev ? '..' : this.isEdgeServer ? '..' : '../..'
 
-    const handleModule = (_mod: webpack.Module, assets: any) => {
+    const handleModule = async (_mod: webpack.Module, assets: any) => {
       if (_mod.layer !== WEBPACK_LAYERS.server) return
       const mod: webpack.NormalModule = _mod as any
 
@@ -112,9 +134,11 @@ export class FlightTypesPlugin {
       const assetPath = assetPrefix + '/' + typePath.replace(/\\/g, '/')
 
       if (IS_LAYOUT) {
+        const slots = await collectNamedSlots(mod.resource)
         assets[assetPath] = new sources.RawSource(
           createTypeGuardFile(mod.resource, relativeImportPath, {
             type: 'layout',
+            slots,
           })
         ) as unknown as webpack.sources.RawSource
       } else if (IS_PAGE) {
@@ -127,19 +151,22 @@ export class FlightTypesPlugin {
     }
 
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-      compilation.hooks.processAssets.tap(
+      compilation.hooks.processAssets.tapAsync(
         {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => {
+        async (assets, callback) => {
+          const promises: Promise<any>[] = []
           for (const entrypoint of compilation.entrypoints.values()) {
             for (const chunk of entrypoint.chunks) {
               compilation.chunkGraph.getChunkModules(chunk).forEach((mod) => {
-                handleModule(mod, assets)
+                promises.push(handleModule(mod, assets))
               })
             }
           }
+          await Promise.all(promises)
+          callback()
         }
       )
     })

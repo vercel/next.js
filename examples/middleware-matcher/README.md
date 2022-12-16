@@ -2,9 +2,9 @@
 
 This example shows how to configure your [Next.js Middleware](https://nextjs.org/docs/advanced-features/middleware) to only match specific pages.
 
-The index page ([`pages/index.js`](pages/index.js)) has a list of links to dynamic pages, which will tell whether they were matched or not.
+The index page ([`pages/index.ts`](pages/index.ts)) has a list of links to dynamic pages, which will tell whether they were matched or not.
 
-The Middleware file ([`middleware.js`](middleware.js)) has a special `matcher` configuration key, allowing you to fine-grained control [matched pages](https://nextjs.org/docs/advanced-features/middleware#matcher).
+The Middleware file ([`middleware.ts`](middleware.ts)) has a special `matcher` configuration key, allowing you to fine-grained control [matched pages](https://nextjs.org/docs/advanced-features/middleware#matcher).
 
 Please keep in mind that:
 

@@ -76,6 +76,7 @@ import {
 } from '../../build/utils'
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
+import { formatServerError } from '../../lib/format-server-error'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -109,6 +110,7 @@ export default class DevServer extends Server {
   private edgeFunctions?: RoutingItem[]
   private verifyingTypeScript?: boolean
   private usingTypeScript?: boolean
+  private originalFetch?: typeof fetch
 
   protected staticPathsWorker?: { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
@@ -148,7 +150,12 @@ export default class DevServer extends Server {
   }
 
   constructor(options: Options) {
+    try {
+      // Increase the number of stack frames on the server
+      Error.stackTraceLimit = 50
+    } catch {}
     super({ ...options, dev: true })
+    this.persistPatchedGlobals()
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise((resolve) => {
@@ -277,12 +284,11 @@ export default class DevServer extends Server {
       const app = this.appDir ? [this.appDir] : []
       const directories = [...pages, ...app]
 
-      const files = this.pagesDir
-        ? getPossibleMiddlewareFilenames(
-            pathJoin(this.pagesDir, '..'),
-            this.nextConfig.pageExtensions
-          )
-        : []
+      const rootDir = this.pagesDir || this.appDir
+      const files = getPossibleMiddlewareFilenames(
+        pathJoin(rootDir!, '..'),
+        this.nextConfig.pageExtensions
+      )
       let nestedMiddleware: string[] = []
 
       const envFiles = [
@@ -294,7 +300,7 @@ export default class DevServer extends Server {
 
       files.push(...envFiles)
 
-      // tsconfig/jsonfig paths hot-reloading
+      // tsconfig/jsconfig paths hot-reloading
       const tsconfigPaths = [
         pathJoin(this.dir, 'tsconfig.json'),
         pathJoin(this.dir, 'jsconfig.json'),
@@ -323,7 +329,9 @@ export default class DevServer extends Server {
         const appPaths: Record<string, string[]> = {}
         const edgeRoutesSet = new Set<string>()
         const pageNameSet = new Set<string>()
-        const conflictingAppPagePaths: string[] = []
+        const conflictingAppPagePaths = new Set<string>()
+        const appPageFilePaths = new Map<string, string>()
+        const pagesPageFilePaths = new Map<string, string>()
 
         let envChange = false
         let tsconfigChange = false
@@ -381,6 +389,7 @@ export default class DevServer extends Server {
             nextConfig: this.nextConfig,
             page: rootFile,
             isDev: true,
+            pageType: isAppPath ? 'app' : 'pages',
           })
 
           if (isMiddlewareFile(rootFile)) {
@@ -402,7 +411,7 @@ export default class DevServer extends Server {
           })
 
           if (isAppPath) {
-            if (!isLayoutsLeafPage(fileName)) {
+            if (!isLayoutsLeafPage(fileName, this.nextConfig.pageExtensions)) {
               continue
             }
 
@@ -421,8 +430,13 @@ export default class DevServer extends Server {
             pageName = pageName.replace(/\/index$/, '') || '/'
           }
 
-          if (pageNameSet.has(pageName)) {
-            conflictingAppPagePaths.push(pageName)
+          ;(isAppPath ? appPageFilePaths : pagesPageFilePaths).set(
+            pageName,
+            fileName
+          )
+
+          if (this.appDir && pageNameSet.has(pageName)) {
+            conflictingAppPagePaths.add(pageName)
           } else {
             pageNameSet.add(pageName)
           }
@@ -450,7 +464,7 @@ export default class DevServer extends Server {
           })
         }
 
-        const numConflicting = conflictingAppPagePaths.length
+        const numConflicting = conflictingAppPagePaths.size
         if (numConflicting > 0) {
           Log.error(
             `Conflicting app and page file${
@@ -458,9 +472,10 @@ export default class DevServer extends Server {
             } found, please remove the conflicting files to continue:`
           )
           for (const p of conflictingAppPagePaths) {
-            Log.error(`  "pages${p}" - "app${p}"`)
+            const appPath = relative(this.dir, appPageFilePaths.get(p)!)
+            const pagesPath = relative(this.dir, pagesPageFilePaths.get(p)!)
+            Log.error(`  "${pagesPath}" - "${appPath}"`)
           }
-          //process.exit(1)
         }
 
         if (!this.usingTypeScript && enabledTypeScript) {
@@ -546,7 +561,6 @@ export default class DevServer extends Server {
                     distDir: this.distDir,
                     isClient,
                     hasRewrites,
-                    hasReactRoot: this.hotReloader?.hasReactRoot,
                     isNodeServer,
                     isEdgeServer,
                   })
@@ -569,7 +583,7 @@ export default class DevServer extends Server {
             new NestedMiddlewareError(
               nestedMiddleware,
               this.dir,
-              this.pagesDir!
+              (this.pagesDir || this.appDir)!
             ).message
           )
           nestedMiddleware = []
@@ -706,7 +720,7 @@ export default class DevServer extends Server {
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
-    await this.hotReloader.start(true)
+    await this.hotReloader.start()
     await this.startWatcher()
     this.setDevReady!()
 
@@ -718,19 +732,25 @@ export default class DevServer extends Server {
     }
 
     const telemetry = new Telemetry({ distDir: this.distDir })
+    const isSrcDir = relative(
+      this.dir,
+      this.pagesDir || this.appDir || ''
+    ).startsWith('src')
     telemetry.record(
       eventCliSession(this.distDir, this.nextConfig, {
         webpackVersion: 5,
         cliCommand: 'dev',
-        isSrcDir:
-          (!!this.pagesDir &&
-            relative(this.dir, this.pagesDir).startsWith('src')) ||
-          (!!this.appDir && relative(this.dir, this.appDir).startsWith('src')),
+        isSrcDir,
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
         isCustomServer: this.isCustomServer,
+        turboFlag: false,
+        pagesDir: !!this.pagesDir,
+        appDir: !!this.appDir,
       })
     )
     // This is required by the tracing subsystem.
+    setGlobal('appDir', this.appDir)
+    setGlobal('pagesDir', this.pagesDir)
     setGlobal('telemetry', telemetry)
 
     process.on('unhandledRejection', (reason) => {
@@ -1012,6 +1032,7 @@ export default class DevServer extends Server {
       return await super.run(req, res, parsedUrl)
     } catch (error) {
       const err = getProperError(error)
+      formatServerError(err)
       this.logErrorWithOriginalStack(err).catch(() => {})
       if (!res.sent) {
         res.statusCode = 500
@@ -1040,7 +1061,8 @@ export default class DevServer extends Server {
           ({ file }) =>
             !file?.startsWith('eval') &&
             !file?.includes('web/adapter') &&
-            !file?.includes('sandbox/context')
+            !file?.includes('sandbox/context') &&
+            !file?.includes('<anonymous>')
         )!
 
         if (frame.lineNumber && frame?.file) {
@@ -1048,10 +1070,15 @@ export default class DevServer extends Server {
             /^(webpack-internal:\/\/\/|file:\/\/)/,
             ''
           )
+          const modulePath = frame.file.replace(
+            /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+            ''
+          )
 
           const src = getErrorSource(err as Error)
+          const isEdgeCompiler = src === COMPILER_NAMES.edgeServer
           const compilation = (
-            src === COMPILER_NAMES.edgeServer
+            isEdgeCompiler
               ? this.hotReloader?.edgeServerStats?.compilation
               : this.hotReloader?.serverStats?.compilation
           )!
@@ -1067,10 +1094,16 @@ export default class DevServer extends Server {
             column: frame.column,
             source,
             frame,
-            modulePath: moduleId,
+            moduleId,
+            modulePath,
             rootDirectory: this.dir,
             errorMessage: err.message,
-            compilation,
+            serverCompilation: isEdgeCompiler
+              ? undefined
+              : this.hotReloader?.serverStats?.compilation,
+            edgeCompilation: isEdgeCompiler
+              ? this.hotReloader?.edgeServerStats?.compilation
+              : undefined,
           })
 
           if (originalFrame) {
@@ -1080,7 +1113,7 @@ export default class DevServer extends Server {
             Log[type === 'warning' ? 'warn' : 'error'](
               `${file} (${lineNumber}:${column}) @ ${methodName}`
             )
-            if (src === COMPILER_NAMES.edgeServer) {
+            if (isEdgeCompiler) {
               err = err.message
             }
             if (type === 'warning') {
@@ -1213,7 +1246,9 @@ export default class DevServer extends Server {
         res
           .body(
             JSON.stringify({
-              pages: this.sortedRoutes,
+              pages: this.sortedRoutes?.filter(
+                (route) => !this.appPathRoutes![route]
+              ),
             })
           )
           .send()
@@ -1358,6 +1393,14 @@ export default class DevServer extends Server {
     return this.hotReloader!.ensurePage({ page: pathname, clientOnly: false })
   }
 
+  private persistPatchedGlobals(): void {
+    this.originalFetch = global.fetch
+  }
+
+  private restorePatchedGlobals(): void {
+    global.fetch = this.originalFetch!
+  }
+
   protected async findPageComponents({
     pathname,
     query,
@@ -1391,6 +1434,11 @@ export default class DevServer extends Server {
         this.serverCSSManifest = super.getServerCSSManifest()
       }
       this.fontLoaderManifest = super.getFontLoaderManifest()
+      // before we re-evaluate a route module, we want to restore globals that might
+      // have been patched previously to their original state so that we don't
+      // patch on top of the previous patch, which would keep the context of the previous
+      // patched global in memory, creating a memory leak.
+      this.restorePatchedGlobals()
 
       return super.findPageComponents({ pathname, query, params, isAppPath })
     } catch (err) {

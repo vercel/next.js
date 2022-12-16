@@ -270,19 +270,15 @@ describe('ReactRefreshRegression app', () => {
 
   // https://github.com/vercel/next.js/issues/11504
   // TODO-APP: fix case where error is not resolved to source correctly.
-  test.skip('shows an overlay for a server-side error', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test('shows an overlay for anonymous function server-side error', async () => {
+    const { session, browser, cleanup } = await sandbox(next)
 
     await session.patch(
       'app/page.js',
-      `export default function () { throw new Error('pre boom'); }`
-    )
-
-    const didNotReload = await session.patch(
-      'app/page.js',
       `export default function () { throw new Error('boom'); }`
     )
-    expect(didNotReload).toBe(false)
+
+    await browser.refresh()
 
     expect(await session.hasRedbox(true)).toBe(true)
 
@@ -290,6 +286,50 @@ describe('ReactRefreshRegression app', () => {
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
       "> 1 | export default function () { throw new Error('boom'); }
           |                                   ^"
+    `)
+
+    await cleanup()
+  })
+
+  test('shows an overlay for server-side error in server component', async () => {
+    const { session, browser, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'app/page.js',
+      `export default function Page() { throw new Error('boom'); }`
+    )
+
+    await browser.refresh()
+
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    const source = await session.getRedboxSource()
+    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+      "> 1 | export default function Page() { throw new Error('boom'); }
+          |                                       ^"
+    `)
+
+    await cleanup()
+  })
+
+  test('shows an overlay for server-side error in client component', async () => {
+    const { session, browser, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'app/page.js',
+      `'use client'
+      export default function Page() { throw new Error('boom'); }`
+    )
+
+    await browser.refresh()
+
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    const source = await session.getRedboxSource()
+    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+      "  1 | 'use client'
+      > 2 | export default function Page() { throw new Error('boom'); }
+          |                                       ^"
     `)
 
     await cleanup()

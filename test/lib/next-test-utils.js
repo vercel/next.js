@@ -233,13 +233,18 @@ export function runNextCommand(argv, options = {}) {
         !options.stderr &&
         !options.stdout &&
         !options.ignoreFail &&
-        code !== 0
+        (code !== 0 || signal)
       ) {
         return reject(
-          new Error(`command failed with code ${code}\n${mergedStdio}`)
+          new Error(
+            `command failed with code ${code} signal ${signal}\n${mergedStdio}`
+          )
         )
       }
 
+      if (code || signal) {
+        console.error(`process exited with code ${code} and signal ${signal}`)
+      }
       resolve({
         code,
         signal,
@@ -290,11 +295,14 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /compiled .*successfully/i,
+        turbo: /initial compilation/i,
         start: /started server/i,
       }
       if (
         (opts.bootupMarker && opts.bootupMarker.test(message)) ||
-        bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
+        bootupMarkers[
+          opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
+        ].test(message)
       ) {
         if (!didResolve) {
           didResolve = true
@@ -342,7 +350,19 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
 // Launch the app in dev mode.
 export function launchApp(dir, port, opts) {
-  return runNextCommandDev([dir, '-p', port], undefined, opts)
+  const options = opts ?? {}
+  const useTurbo = !!process.env.TEST_WASM
+    ? false
+    : options?.turbo ?? shouldRunTurboDevTest()
+
+  return runNextCommandDev(
+    [useTurbo ? '--turbo' : undefined, dir, '-p', port].filter(Boolean),
+    undefined,
+    {
+      ...options,
+      turbo: useTurbo,
+    }
+  )
 }
 
 export function nextBuild(dir, args = [], opts = {}) {
@@ -634,13 +654,13 @@ export async function getRedboxHeader(browser) {
       evaluate(browser, () => {
         const portal = [].slice
           .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-dialog-header]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('[data-nextjs-dialog-header]').innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxHeader'
   )
@@ -658,11 +678,11 @@ export async function getRedboxSource(browser) {
             )
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector(
+          '[data-nextjs-codeframe], [data-nextjs-terminal]'
+        ).innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxSource'
   )
@@ -678,9 +698,7 @@ export async function getRedboxDescription(browser) {
             p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('#nextjs__container_errors_desc')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('#nextjs__container_errors_desc').innerText
       }),
     3000,
     500,
@@ -838,4 +856,67 @@ export function runDevSuite(suiteName, appDir, options) {
  */
 export function runProdSuite(suiteName, appDir, options) {
   return runSuite(suiteName, { appDir, env: 'prod' }, options)
+}
+
+/**
+ * Parse the output and return all entries that match the provided `eventName`
+ * @param {string} output output of the console
+ * @param {string} eventName
+ * @returns {Array<{}>}
+ */
+export function findAllTelemetryEvents(output, eventName) {
+  const regex = /\[telemetry\] ({.+?^})/gms
+  // Pop the last element of each entry to retrieve contents of the capturing group
+  const events = [...output.matchAll(regex)].map((entry) =>
+    JSON.parse(entry.pop())
+  )
+  return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
+}
+
+/**
+ * Utility function to determine if a given test case needs to run with --turbo.
+ *
+ * This is primarily for the gradual test enablement with latest turbopack upstream changes.
+ *
+ * Note: it could be possible to dynamically create test cases itself (createDevTest(): it.each([...])), but
+ * it makes hard to conform with existing lint rules. Instead, starting off from manual fixture setup and
+ * update test cases accordingly as turbopack changes enable more test cases.
+ */
+export function shouldRunTurboDevTest() {
+  if (!!process.env.TEST_WASM) {
+    return false
+  }
+
+  const shouldRunTurboDev = !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_DEV
+  // short-circuit to run all the test with --turbo enabled skips glob matching costs
+  if (shouldRunTurboDev) {
+    console.log(
+      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_DEV`
+    )
+    return true
+  }
+
+  const shouldRunTurboDevWithMatches =
+    !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
+
+  // By default, we do not run any tests with `--turbo` flag.
+  if (!shouldRunTurboDevWithMatches) {
+    return false
+  }
+
+  const glob = require('glob')
+  const matches = glob.sync(
+    process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
+  )
+  const testPath = expect.getState().testPath
+  const isMatch = matches.some((match) => testPath.includes(match))
+
+  if (isMatch) {
+    console.log(
+      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH`
+    )
+  }
+
+  // If the test path matches the glob pattern, add additional case to run the test with `--turbo` flag.
+  return isMatch
 }

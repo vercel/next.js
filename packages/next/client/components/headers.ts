@@ -1,24 +1,12 @@
-import { DynamicServerError } from './hooks-server-context'
+import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { requestAsyncStorage } from './request-async-storage'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage'
-
-function staticGenerationBailout(reason: string) {
-  const staticGenerationStore =
-    staticGenerationAsyncStorage && 'getStore' in staticGenerationAsyncStorage
-      ? staticGenerationAsyncStorage?.getStore()
-      : staticGenerationAsyncStorage
-
-  if (staticGenerationStore?.isStaticGeneration) {
-    // TODO: honor the dynamic: 'force-static'
-    if (staticGenerationStore) {
-      staticGenerationStore.revalidate = 0
-    }
-    throw new DynamicServerError(reason)
-  }
-}
+import { staticGenerationBailout } from './static-generation-bailout'
 
 export function headers() {
-  staticGenerationBailout('headers')
+  if (staticGenerationBailout('headers')) {
+    return new Headers({})
+  }
+
   const requestStore =
     requestAsyncStorage && 'getStore' in requestAsyncStorage
       ? requestAsyncStorage.getStore()!
@@ -28,7 +16,6 @@ export function headers() {
 }
 
 export function previewData() {
-  staticGenerationBailout('previewData')
   const requestStore =
     requestAsyncStorage && 'getStore' in requestAsyncStorage
       ? requestAsyncStorage.getStore()!
@@ -37,7 +24,9 @@ export function previewData() {
 }
 
 export function cookies() {
-  staticGenerationBailout('cookies')
+  if (staticGenerationBailout('cookies')) {
+    return new RequestCookies(new Headers({}))
+  }
   const requestStore =
     requestAsyncStorage && 'getStore' in requestAsyncStorage
       ? requestAsyncStorage.getStore()!

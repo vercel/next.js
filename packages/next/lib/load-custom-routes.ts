@@ -24,6 +24,7 @@ export type Rewrite = {
   basePath?: false
   locale?: false
   has?: RouteHas[]
+  missing?: RouteHas[]
 }
 
 export type Header = {
@@ -32,6 +33,7 @@ export type Header = {
   locale?: false
   headers: Array<{ key: string; value: string }>
   has?: RouteHas[]
+  missing?: RouteHas[]
 }
 
 // internal type used for validation (not user facing)
@@ -41,6 +43,7 @@ export type Redirect = {
   basePath?: false
   locale?: false
   has?: RouteHas[]
+  missing?: RouteHas[]
 } & (
   | {
       statusCode?: never
@@ -56,6 +59,7 @@ export type Middleware = {
   source: string
   locale?: false
   has?: RouteHas[]
+  missing?: RouteHas[]
 }
 
 const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
@@ -132,8 +136,9 @@ export function checkCustomRoutes(
   let numInvalidRoutes = 0
   let hadInvalidStatus = false
   let hadInvalidHas = false
+  let hadInvalidMissing = false
 
-  const allowedKeys = new Set<string>(['source', 'locale', 'has'])
+  const allowedKeys = new Set<string>(['source', 'locale', 'has', 'missing'])
 
   if (type === 'rewrite') {
     allowedKeys.add('basePath')
@@ -198,48 +203,65 @@ export function checkCustomRoutes(
       invalidParts.push('`locale` must be undefined or false')
     }
 
-    if (typeof route.has !== 'undefined' && !Array.isArray(route.has)) {
-      invalidParts.push('`has` must be undefined or valid has object')
-      hadInvalidHas = true
-    } else if (route.has) {
-      const invalidHasItems = []
+    const checkInvalidHasMissing = (
+      items: any,
+      fieldName: 'has' | 'missing'
+    ) => {
+      let hadInvalidItem = false
 
-      for (const hasItem of route.has) {
-        let invalidHasParts = []
-
-        if (!allowedHasTypes.has(hasItem.type)) {
-          invalidHasParts.push(`invalid type "${hasItem.type}"`)
-        }
-        if (typeof hasItem.key !== 'string' && hasItem.type !== 'host') {
-          invalidHasParts.push(`invalid key "${hasItem.key}"`)
-        }
-        if (
-          typeof hasItem.value !== 'undefined' &&
-          typeof hasItem.value !== 'string'
-        ) {
-          invalidHasParts.push(`invalid value "${hasItem.value}"`)
-        }
-        if (typeof hasItem.value === 'undefined' && hasItem.type === 'host') {
-          invalidHasParts.push(`value is required for "host" type`)
-        }
-
-        if (invalidHasParts.length > 0) {
-          invalidHasItems.push(
-            `${invalidHasParts.join(', ')} for ${JSON.stringify(hasItem)}`
-          )
-        }
-      }
-
-      if (invalidHasItems.length > 0) {
-        hadInvalidHas = true
-        const itemStr = `item${invalidHasItems.length === 1 ? '' : 's'}`
-
-        console.error(
-          `Invalid \`has\` ${itemStr}:\n` + invalidHasItems.join('\n')
+      if (typeof items !== 'undefined' && !Array.isArray(items)) {
+        invalidParts.push(
+          `\`${fieldName}\` must be undefined or valid has object`
         )
-        console.error()
-        invalidParts.push(`invalid \`has\` ${itemStr} found`)
+        hadInvalidItem = true
+      } else if (items) {
+        const invalidHasItems = []
+
+        for (const hasItem of items) {
+          let invalidHasParts = []
+
+          if (!allowedHasTypes.has(hasItem.type)) {
+            invalidHasParts.push(`invalid type "${hasItem.type}"`)
+          }
+          if (typeof hasItem.key !== 'string' && hasItem.type !== 'host') {
+            invalidHasParts.push(`invalid key "${hasItem.key}"`)
+          }
+          if (
+            typeof hasItem.value !== 'undefined' &&
+            typeof hasItem.value !== 'string'
+          ) {
+            invalidHasParts.push(`invalid value "${hasItem.value}"`)
+          }
+          if (typeof hasItem.value === 'undefined' && hasItem.type === 'host') {
+            invalidHasParts.push(`value is required for "host" type`)
+          }
+
+          if (invalidHasParts.length > 0) {
+            invalidHasItems.push(
+              `${invalidHasParts.join(', ')} for ${JSON.stringify(hasItem)}`
+            )
+          }
+        }
+
+        if (invalidHasItems.length > 0) {
+          hadInvalidItem = true
+          const itemStr = `item${invalidHasItems.length === 1 ? '' : 's'}`
+
+          console.error(
+            `Invalid \`${fieldName}\` ${itemStr}:\n` +
+              invalidHasItems.join('\n')
+          )
+          console.error()
+          invalidParts.push(`invalid \`${fieldName}\` ${itemStr} found`)
+        }
       }
+      return hadInvalidItem
+    }
+    if (checkInvalidHasMissing(route.has, 'has')) {
+      hadInvalidHas = true
+    }
+    if (checkInvalidHasMissing(route.missing, 'missing')) {
+      hadInvalidMissing = true
     }
 
     if (!route.source) {
@@ -411,6 +433,19 @@ export function checkCustomRoutes(
     if (hadInvalidHas) {
       console.error(
         `\nValid \`has\` object shape is ${JSON.stringify(
+          {
+            type: [...allowedHasTypes].join(', '),
+            key: 'the key to check for',
+            value: 'undefined or a value string to match against',
+          },
+          null,
+          2
+        )}`
+      )
+    }
+    if (hadInvalidMissing) {
+      console.error(
+        `\nValid \`missing\` object shape is ${JSON.stringify(
           {
             type: [...allowedHasTypes].join(', '),
             key: 'the key to check for',

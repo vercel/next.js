@@ -1,4 +1,3 @@
-import React from 'react'
 import { BLOCKED_PAGES } from '../shared/lib/constants'
 
 export function isBlockedPage(pathname: string): boolean {
@@ -15,6 +14,3 @@ export function cleanAmpPath(pathname: string): string {
   pathname = pathname.replace(/\?$/, '')
   return pathname
 }
-
-// When react version is >= 18 opt-in using reactRoot
-export const shouldUseReactRoot = parseInt(React.version) >= 18

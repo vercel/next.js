@@ -11,14 +11,13 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import path, { join } from 'path'
+import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
-  SERVER_RUNTIME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -59,6 +58,11 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
   FONT_LOADER_MANIFEST,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+  APP_CLIENT_INTERNALS,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
+  MIDDLEWARE_BUILD_MANIFEST,
+  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -104,6 +108,7 @@ import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
@@ -112,6 +117,7 @@ import {
   lockfilePatchPromise,
   teardownTraceSubscriber,
   teardownCrashReporter,
+  loadBindings,
 } from './swc'
 import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -120,6 +126,7 @@ import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -250,7 +257,8 @@ export default async function build(
   conf = null,
   reactProductionProfiling = false,
   debugOutput = false,
-  runLint = true
+  runLint = true,
+  noMangling = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -270,8 +278,6 @@ export default async function build(
       const distDir = path.join(dir, config.distDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
-
-      const hasReactRoot = !!process.env.__NEXT_REACT_ROOT
 
       const { target } = config
       const buildId: string = await nextBuildSpan
@@ -328,17 +334,21 @@ export default async function build(
         })
 
       const { pagesDir, appDir } = findPagesDir(dir, isAppDirEnabled)
+      const isSrcDir = path
+        .relative(dir, pagesDir || appDir || '')
+        .startsWith('src')
       const hasPublicDir = await fileExists(publicDir)
 
       telemetry.record(
         eventCliSession(dir, config, {
           webpackVersion: 5,
           cliCommand: 'build',
-          isSrcDir:
-            (!!pagesDir && path.relative(dir, pagesDir).startsWith('src')) ||
-            (!!appDir && path.relative(dir, appDir).startsWith('src')),
+          isSrcDir,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
+          turboFlag: false,
+          pagesDir: !!pagesDir,
+          appDir: !!appDir,
         })
       )
 
@@ -487,7 +497,7 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveReadDir(
               appDir,
-              new RegExp(`page\\.(?:${config.pageExtensions.join('|')})$`)
+              new RegExp(`^page\\.(?:${config.pageExtensions.join('|')})$`)
             )
           )
       }
@@ -496,11 +506,10 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
-      const rootPaths = pagesDir
-        ? (
-            await flatReaddir(join(pagesDir, '..'), middlewareDetectionRegExp)
-          ).map((absoluteFile) => absoluteFile.replace(dir, ''))
-        : []
+      const rootDir = path.join((pagesDir || appDir)!, '..')
+      const rootPaths = (
+        await flatReaddir(rootDir, middlewareDetectionRegExp)
+      ).map((absoluteFile) => absoluteFile.replace(dir, ''))
 
       // needed for static exporting since we want to replace with HTML
       // files
@@ -527,6 +536,7 @@ export default async function build(
         )
 
       let mappedAppPages: { [page: string]: string } | undefined
+      let denormalizedAppPages: string[] | undefined
 
       if (appPaths && appDir) {
         mappedAppPages = nextBuildSpan
@@ -572,36 +582,43 @@ export default async function build(
           })
         )
 
+      const pagesPageKeys = Object.keys(mappedPages)
+
+      const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
+      const appPageKeys: string[] = []
+      if (mappedAppPages) {
+        denormalizedAppPages = Object.keys(mappedAppPages)
+        for (const appKey of denormalizedAppPages) {
+          const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
+          const pagePath = mappedPages[normalizedAppPageKey]
+          if (pagePath) {
+            const appPath = mappedAppPages[appKey]
+            conflictingAppPagePaths.push([
+              pagePath.replace(/^private-next-pages/, 'pages'),
+              appPath.replace(/^private-next-app-dir/, 'app'),
+            ])
+          }
+          appPageKeys.push(normalizedAppPageKey)
+        }
+      }
+      const totalAppPagesCount = appPageKeys.length
+
       const pageKeys = {
-        pages: Object.keys(mappedPages),
-        app: mappedAppPages
-          ? Object.keys(mappedAppPages).map(
-              (key) => normalizeAppPath(key) || '/'
-            )
-          : undefined,
+        pages: pagesPageKeys,
+        app: appPageKeys.length > 0 ? appPageKeys : undefined,
       }
 
-      if (pageKeys.app) {
-        const conflictingAppPagePaths = []
-
-        for (const appPath of pageKeys.app) {
-          if (pageKeys.pages.includes(appPath)) {
-            conflictingAppPagePaths.push(appPath)
-          }
+      const numConflictingAppPaths = conflictingAppPagePaths.length
+      if (mappedAppPages && numConflictingAppPaths > 0) {
+        Log.error(
+          `Conflicting app and page file${
+            numConflictingAppPaths === 1 ? ' was' : 's were'
+          } found, please remove the conflicting files to continue:`
+        )
+        for (const [pagePath, appPath] of conflictingAppPagePaths) {
+          Log.error(`  "${pagePath}" - "${appPath}"`)
         }
-        const numConflicting = conflictingAppPagePaths.length
-
-        if (numConflicting > 0) {
-          Log.error(
-            `Conflicting app and page file${
-              numConflicting === 1 ? ' was' : 's were'
-            } found, please remove the conflicting files to continue:`
-          )
-          for (const p of conflictingAppPagePaths) {
-            Log.error(`  "pages${p}" - "app${p}"`)
-          }
-          process.exit(1)
-        }
+        process.exit(1)
       }
 
       const conflictingPublicFiles: string[] = []
@@ -745,6 +762,11 @@ export default async function build(
           defaultLocale: string
           localeDetection?: false
         }
+        rsc: {
+          header: typeof RSC
+          varyHeader: typeof RSC_VARY_HEADER
+        }
+        skipMiddlewareUrlNormalize?: boolean
       } = nextBuildSpan.traceChild('generate-routes-manifest').traceFn(() => {
         const sortedRoutes = getSortedRoutes([
           ...pageKeys.pages,
@@ -771,6 +793,12 @@ export default async function build(
           staticRoutes,
           dataRoutes: [],
           i18n: config.i18n || undefined,
+          rsc: {
+            header: RSC,
+            varyHeader: RSC_VARY_HEADER,
+          },
+          skipMiddlewareUrlNormalize:
+            config.experimental.skipMiddlewareUrlNormalize,
         }
       })
 
@@ -861,8 +889,27 @@ export default async function build(
             BUILD_MANIFEST,
             PRERENDER_MANIFEST,
             path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
+            path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+            path.join(
+              SERVER_DIRECTORY,
+              MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+            ),
             ...(appDir
               ? [
+                  ...(config.experimental.sri
+                    ? [
+                        path.join(
+                          SERVER_DIRECTORY,
+                          SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                        ),
+                        path.join(
+                          SERVER_DIRECTORY,
+                          SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                        ),
+                      ]
+                    : []),
+                  path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                  APP_BUILD_MANIFEST,
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
                   path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
                   path.join(
@@ -907,13 +954,13 @@ export default async function build(
         const commonWebpackOptions = {
           buildId,
           config,
-          hasReactRoot,
           pagesDir,
           reactProductionProfiling,
           rewrites,
           runWebpackSpan,
           target,
           appDir,
+          noMangling,
           middlewareMatchers: entrypoints.middlewareMatchers,
         }
 
@@ -974,7 +1021,20 @@ export default async function build(
           // Only continue if there were no errors
           if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
             injectedClientEntries.forEach((value, key) => {
-              ;(clientConfig.entry as webpack.EntryObject)[key] = value
+              const clientEntry = clientConfig.entry as webpack.EntryObject
+              if (key === APP_CLIENT_INTERNALS) {
+                clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = [
+                  // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
+                  // @ts-expect-error clientEntry['main-app'] is type EntryDescription { import: ... }
+                  ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
+                  value,
+                ]
+              } else {
+                clientEntry[key] = {
+                  dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
+                  import: value,
+                }
+              }
             })
 
             clientResult = await runCompiler(clientConfig, {
@@ -1061,6 +1121,7 @@ export default async function build(
         telemetry.record(
           eventBuildCompleted(pagesPaths, {
             durationInSeconds: webpackBuildEnd[0],
+            totalAppPagesCount,
           })
         )
 
@@ -1085,6 +1146,10 @@ export default async function build(
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
 
+      let staticAppPagesCount = 0
+      let serverAppPagesCount = 0
+      let edgeRuntimeAppCount = 0
+      let edgeRuntimePagesCount = 0
       const ssgPages = new Set<string>()
       const ssgStaticFallbackPages = new Set<string>()
       const ssgBlockingFallbackPages = new Set<string>()
@@ -1264,6 +1329,18 @@ export default async function build(
           config.experimental.gzipSize
         )
 
+        const middlewareManifest: MiddlewareManifest = require(path.join(
+          distDir,
+          SERVER_DIRECTORY,
+          MIDDLEWARE_MANIFEST
+        ))
+
+        for (const key of Object.keys(middlewareManifest?.functions)) {
+          if (key.startsWith('/api')) {
+            edgeRuntimePagesCount++
+          }
+        }
+
         await Promise.all(
           Object.entries(pageKeys)
             .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
@@ -1333,11 +1410,12 @@ export default async function build(
 
                 const staticInfo = pagePath
                   ? await getPageStaticInfo({
-                      pageFilePath: join(
+                      pageFilePath: path.join(
                         (pageType === 'pages' ? pagesDir : appDir) || '',
                         pagePath
                       ),
                       nextConfig: config,
+                      pageType,
                     })
                   : undefined
 
@@ -1350,16 +1428,17 @@ export default async function build(
                   try {
                     let edgeInfo: any
 
-                    if (pageRuntime === SERVER_RUNTIME.edge) {
-                      const manifest = require(join(
-                        distDir,
-                        SERVER_DIRECTORY,
-                        MIDDLEWARE_MANIFEST
-                      ))
+                    if (isEdgeRuntime(pageRuntime)) {
+                      if (pageType === 'app') {
+                        edgeRuntimeAppCount++
+                      } else {
+                        edgeRuntimePagesCount++
+                      }
+
                       const manifestKey =
                         pageType === 'pages' ? page : originalAppPath || ''
 
-                      edgeInfo = manifest.functions[manifestKey]
+                      edgeInfo = middlewareManifest.functions[manifestKey]
                     }
 
                     let isPageStaticSpan =
@@ -1388,7 +1467,7 @@ export default async function build(
                     if (pageType === 'app' && originalAppPath) {
                       appNormalizedPaths.set(originalAppPath, page)
                       // TODO-APP: handle prerendering with edge
-                      if (pageRuntime === 'experimental-edge') {
+                      if (isEdgeRuntime(pageRuntime)) {
                         isStatic = false
                         isSsg = false
                       } else {
@@ -1426,7 +1505,7 @@ export default async function build(
                         )
                       }
                     } else {
-                      if (pageRuntime === SERVER_RUNTIME.edge) {
+                      if (isEdgeRuntime(pageRuntime)) {
                         if (workerResult.hasStaticProps) {
                           console.warn(
                             `"getStaticProps" is not yet supported fully with "experimental-edge", detected on ${page}`
@@ -1544,6 +1623,14 @@ export default async function build(
                   }
                 }
 
+                if (pageType === 'app') {
+                  if (isSsg || isStatic) {
+                    staticAppPagesCount++
+                  } else {
+                    serverAppPagesCount++
+                  }
+                }
+
                 pageInfos.set(page, {
                   size: selfSize,
                   totalSize: allSize,
@@ -1606,8 +1693,18 @@ export default async function build(
       }
 
       if (config.outputFileTracing) {
-        const { nodeFileTrace } =
-          require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+        let nodeFileTrace: any
+        if (config.experimental.turbotrace) {
+          let binding = (await loadBindings()) as any
+          if (!binding?.isWasm) {
+            nodeFileTrace = binding.turbo?.startTrace
+          }
+        }
+
+        if (!nodeFileTrace) {
+          nodeFileTrace =
+            require('next/dist/compiled/@vercel/nft').nodeFileTrace
+        }
 
         const includeExcludeSpan = nextBuildSpan.traceChild(
           'apply-include-excludes'
@@ -1740,7 +1837,10 @@ export default async function build(
               } catch (_) {}
             }
 
-            const root = config.experimental.outputFileTracingRoot || dir
+            const root =
+              config.experimental?.turbotrace?.contextDirectory ??
+              config.experimental?.outputFileTracingRoot ??
+              dir
             const toTrace = [require.resolve('next/dist/server/next-server')]
 
             // ensure we trace any dependencies needed for custom
@@ -1751,10 +1851,20 @@ export default async function build(
               )
             }
 
-            const serverResult = await nodeFileTrace(toTrace, {
-              base: root,
-              processCwd: dir,
-              ignore: [
+            let serverResult: import('next/dist/compiled/@vercel/nft').NodeFileTraceResult
+            if (config.experimental.turbotrace) {
+              // handle the cache in the turbo-tracing side in the future
+              await nodeFileTrace({
+                action: 'annotate',
+                input: toTrace,
+                contextDirectory: root,
+                logLevel: config.experimental.turbotrace.logLevel,
+                processCwd: config.experimental.turbotrace.processCwd,
+                logDetail: config.experimental.turbotrace.logDetail,
+                showAll: config.experimental.turbotrace.logAll,
+              })
+            } else {
+              const ignores = [
                 '**/next/dist/pages/**/*',
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
                 '**/node_modules/webpack5/**/*',
@@ -1770,34 +1880,42 @@ export default async function build(
                 ...(!hasSsrAmpPages
                   ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
                   : []),
-              ],
-            })
-
-            const tracedFiles = new Set()
-
-            serverResult.fileList.forEach((file) => {
-              tracedFiles.add(
-                path
-                  .relative(distDir, path.join(root, file))
-                  .replace(/\\/g, '/')
-              )
-            })
-
-            await promises.writeFile(
-              nextServerTraceOutput,
-              JSON.stringify({
-                version: 1,
-                cacheKey,
-                files: [...tracedFiles],
-              } as {
-                version: number
-                files: string[]
+                ...(config.experimental.outputFileTracingIgnores || []),
+              ]
+              const ignoreFn = (pathname: string) => {
+                return isMatch(pathname, ignores, { contains: true, dot: true })
+              }
+              serverResult = await nodeFileTrace(toTrace, {
+                base: root,
+                processCwd: dir,
+                ignore: ignoreFn,
               })
-            )
-            await promises.unlink(cachedTracePath).catch(() => {})
-            await promises
-              .copyFile(nextServerTraceOutput, cachedTracePath)
-              .catch(() => {})
+              const tracedFiles = new Set()
+
+              serverResult.fileList.forEach((file) => {
+                tracedFiles.add(
+                  path
+                    .relative(distDir, path.join(root, file))
+                    .replace(/\\/g, '/')
+                )
+              })
+
+              await promises.writeFile(
+                nextServerTraceOutput,
+                JSON.stringify({
+                  version: 1,
+                  cacheKey,
+                  files: [...tracedFiles],
+                } as {
+                  version: number
+                  files: string[]
+                })
+              )
+              await promises.unlink(cachedTracePath).catch(() => {})
+              await promises
+                .copyFile(nextServerTraceOutput, cachedTracePath)
+                .catch(() => {})
+            }
           })
       }
 
@@ -1887,7 +2005,7 @@ export default async function build(
         const cssFilePaths = await new Promise<string[]>((resolve, reject) => {
           globOrig(
             '**/*.css',
-            { cwd: join(distDir, 'static') },
+            { cwd: path.join(distDir, 'static') },
             (err, files) => {
               if (err) {
                 return reject(err)
@@ -1951,6 +2069,7 @@ export default async function build(
               dir,
               distDir,
               pageKeys.pages,
+              denormalizedAppPages,
               outputFileTracingRoot,
               requiredServerFiles.config,
               middlewareManifest
@@ -2169,6 +2288,15 @@ export default async function build(
                     ? appConfig.revalidate
                     : false
               }
+
+              // ensure revalidate is normalized correctly
+              if (
+                typeof revalidate !== 'number' &&
+                typeof revalidate !== 'boolean'
+              ) {
+                revalidate = false
+              }
+
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
                 const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
@@ -2513,6 +2641,11 @@ export default async function build(
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
           middlewareCount: Object.keys(rootPaths).length > 0 ? 1 : 0,
+          totalAppPagesCount,
+          staticAppPagesCount,
+          serverAppPagesCount,
+          edgeRuntimeAppCount,
+          edgeRuntimePagesCount,
         })
       )
 
@@ -2652,6 +2785,19 @@ export default async function build(
           ),
           { overwrite: true }
         )
+        if (appDir) {
+          await recursiveCopy(
+            path.join(distDir, SERVER_DIRECTORY, 'app'),
+            path.join(
+              distDir,
+              'standalone',
+              path.relative(outputFileTracingRoot, distDir),
+              SERVER_DIRECTORY,
+              'app'
+            ),
+            { overwrite: true }
+          )
+        }
       }
 
       staticPages.forEach((pg) => allStaticPages.add(pg))
@@ -2694,7 +2840,7 @@ export default async function build(
           .traceAsyncFn(async () => {
             await verifyPartytownSetup(
               dir,
-              join(distDir, CLIENT_STATIC_FILES_PATH)
+              path.join(distDir, CLIENT_STATIC_FILES_PATH)
             )
           })
       }

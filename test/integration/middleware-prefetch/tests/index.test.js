@@ -61,7 +61,7 @@ describe('Middleware Production Prefetch', () => {
     }, 'yes')
   })
 
-  it(`prefetches provided path even if it will be rewritten`, async () => {
+  it(`does not prefetch provided path if it will be rewritten`, async () => {
     const browser = await webdriver(context.appPort, `/`)
     await browser.elementByCss('#ssg-page-2').moveTo()
     await check(async () => {
@@ -69,7 +69,7 @@ describe('Middleware Production Prefetch', () => {
       const attrs = await Promise.all(
         scripts.map((script) => script.getAttribute('src'))
       )
-      return attrs.find((src) => src.includes('/ssg-page-2')) ? 'yes' : 'nope'
+      return attrs.find((src) => src.includes('/ssg-page-2')) ? 'nope' : 'yes'
     }, 'yes')
   })
 })

@@ -103,8 +103,9 @@ export async function verifyTypeScriptSetup({
     }
 
     // Load TypeScript after we're sure it exists:
+    const tsPath = deps.resolved.get('typescript')!
     const ts = (await Promise.resolve(
-      require(deps.resolved.get('typescript')!)
+      require(tsPath)
     )) as typeof import('typescript')
 
     if (semver.lt(ts.version, '4.3.2')) {
@@ -124,8 +125,8 @@ export async function verifyTypeScriptSetup({
     // Next.js' types:
     await writeAppTypeDeclarations(dir, !disableStaticImages)
 
-    if (isAppDirEnabled) {
-      await writeVscodeConfigurations(dir)
+    if (isAppDirEnabled && !isCI) {
+      await writeVscodeConfigurations(dir, tsPath)
     }
 
     let result

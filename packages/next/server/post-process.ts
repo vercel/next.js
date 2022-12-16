@@ -22,6 +22,10 @@ type middlewareSignature = {
   condition: ((options: postProcessOptions) => boolean) | null
 }
 
+type PostProcessorFunction =
+  | ((html: string) => Promise<string>)
+  | ((html: string) => string)
+
 const middlewareRegistry: Array<middlewareSignature> = []
 
 function registerPostProcessor(
@@ -131,9 +135,15 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         result = result.replace('</head>', `${fallBackLinkTag}</head>`)
       } else {
         const nonceStr = nonce ? ` nonce="${nonce}"` : ''
+        let dataAttr = ''
+
+        if (fontContent.includes('ascent-override')) {
+          dataAttr = ' data-size-adjust="true"'
+        }
+
         result = result.replace(
           '</head>',
-          `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
+          `<style data-href="${url}"${nonceStr}${dataAttr}>${fontContent}</style></head>`
         )
 
         // Remove inert font tag
@@ -175,7 +185,7 @@ async function postProcessHTML(
   renderOpts: RenderOpts,
   { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
 ) {
-  const postProcessors: Array<(html: string) => Promise<string>> = [
+  const postProcessors: Array<PostProcessorFunction> = [
     process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
       ? async (html: string) => {
           const optimizeAmp = require('./optimize-amp')
@@ -226,7 +236,7 @@ async function postProcessHTML(
         }
       : null,
     inAmpMode || hybridAmp
-      ? async (html: string) => {
+      ? (html: string) => {
           return html.replace(/&amp;amp=1/g, '&amp=1')
         }
       : null,

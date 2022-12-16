@@ -5,11 +5,6 @@ const INTERNAL_QUERY_NAMES = [
   '__nextLocale',
   '__nextDefaultLocale',
   '__nextIsNotFound',
-  // RSC
-  '__rsc__',
-  // Routing
-  '__next_router_state_tree__',
-  '__next_router_prefetch__',
 ] as const
 
 const EXTENDED_INTERNAL_QUERY_NAMES = ['__nextDataReq'] as const

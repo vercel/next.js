@@ -30,6 +30,7 @@ import {
   register,
   onBuildError,
   onBuildOk,
+  onBeforeRefresh,
   onRefresh,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -98,11 +99,7 @@ function handleSuccess() {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
-      // Only dismiss it when we're sure it's a hot update.
-      // Otherwise it would flicker right before the reload.
-      onFastRefresh(hasUpdates)
-    })
+    tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
   }
 }
 
@@ -122,7 +119,7 @@ function handleWarnings(warnings) {
     })
 
     if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-      for (let i = 0; i < formatted.warnings.length; i++) {
+      for (let i = 0; i < formatted.warnings?.length; i++) {
         if (i === 5) {
           console.warn(
             'There were more warnings in other files.\n' +
@@ -139,11 +136,7 @@ function handleWarnings(warnings) {
 
   // Attempt to apply hot updates or reload.
   if (isHotUpdate) {
-    tryApplyUpdates(function onSuccessfulHotUpdate(hasUpdates) {
-      // Only dismiss it when we're sure it's a hot update.
-      // Otherwise it would flicker right before the reload.
-      onFastRefresh(hasUpdates)
-    })
+    tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
   }
 }
 
@@ -182,9 +175,19 @@ function handleErrors(errors) {
 
 let startLatency = undefined
 
+function onBeforeFastRefresh(hasUpdates) {
+  if (hasUpdates) {
+    // Only trigger a pending state if we have updates to apply
+    // (cf. onFastRefresh)
+    onBeforeRefresh()
+  }
+}
+
 function onFastRefresh(hasUpdates) {
   onBuildOk()
   if (hasUpdates) {
+    // Only complete a pending state if we applied updates
+    // (cf. onBeforeFastRefresh)
     onRefresh()
   }
 
@@ -301,7 +304,7 @@ function afterApplyUpdates(fn) {
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(onHotUpdateSuccess) {
+function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
     console.error('HotModuleReplacementPlugin is not in Webpack configuration.')
@@ -342,7 +345,11 @@ function tryApplyUpdates(onHotUpdateSuccess) {
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdates(hasUpdates ? onBuildOk : onHotUpdateSuccess)
+      // However, this time, don't trigger a pending refresh state.
+      tryApplyUpdates(
+        hasUpdates ? undefined : onBeforeHotUpdate,
+        hasUpdates ? onBuildOk : onHotUpdateSuccess
+      )
     } else {
       onBuildOk()
       if (process.env.__NEXT_TEST_MODE) {
@@ -357,14 +364,27 @@ function tryApplyUpdates(onHotUpdateSuccess) {
   }
 
   // https://webpack.js.org/api/hot-module-replacement/#check
-  module.hot.check(/* autoApply */ true).then(
-    (updatedModules) => {
-      handleApplyUpdates(null, updatedModules)
-    },
-    (err) => {
-      handleApplyUpdates(err, null)
-    }
-  )
+  module.hot
+    .check(/* autoApply */ false)
+    .then((updatedModules) => {
+      if (!updatedModules) {
+        return null
+      }
+
+      if (typeof onBeforeHotUpdate === 'function') {
+        const hasUpdates = Boolean(updatedModules.length)
+        onBeforeHotUpdate(hasUpdates)
+      }
+      return module.hot.apply()
+    })
+    .then(
+      (updatedModules) => {
+        handleApplyUpdates(null, updatedModules)
+      },
+      (err) => {
+        handleApplyUpdates(err, null)
+      }
+    )
 }
 
 function performFullReload(err) {
@@ -378,6 +398,7 @@ function performFullReload(err) {
     JSON.stringify({
       event: 'client-full-reload',
       stackTrace,
+      hadRuntimeError: !!hadRuntimeError,
     })
   )
 

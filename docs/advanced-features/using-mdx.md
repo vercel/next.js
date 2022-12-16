@@ -207,6 +207,19 @@ export default function Post(props) {
 
 If you use it across the site you may want to add the provider to `_app.js` so all MDX pages pick up the custom element config.
 
+## Using rust based MDX compiler (experimental)
+
+Next.js supports a new MDX compiler written in Rust. This compiler is still experimental and is not recommended for production use. To use the new compiler, you need to configure `next.config.js` when you pass it to `withMDX`:
+
+```js
+// next.config.js
+module.exports = withMDX({
+  experimental: {
+    mdxRs: true,
+  },
+})
+```
+
 ## Helpful Links
 
 - [MDX](https://mdxjs.com)

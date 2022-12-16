@@ -1,10 +1,12 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
+import type Router from '../shared/lib/router/router'
 import React from 'react'
+// @ts-expect-error upgrade react types to react 18
+import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
-import type Router from '../shared/lib/router/router'
 import {
   AppComponent,
   AppProps,
@@ -34,10 +36,14 @@ import { ImageConfigContext } from '../shared/lib/image-config-context'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
-
-const ReactDOM = process.env.__NEXT_REACT_ROOT
-  ? require('react-dom/client')
-  : require('react-dom')
+import { AppRouterContext } from '../shared/lib/app-router-context'
+import {
+  adaptForAppRouterInstance,
+  adaptForSearchParams,
+  PathnameContextProviderAdapter,
+} from '../shared/lib/router/adapters'
+import { SearchParamsContext } from '../shared/lib/hooks-client-context'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -110,11 +116,6 @@ class Container extends React.Component<{
     // - if rewrites in next.config.js match (may have rewrite params)
     if (
       router.isSsr &&
-      // We don't update for 404 requests as this can modify
-      // the asPath unexpectedly e.g. adding basePath when
-      // it wasn't originally present
-      initialData.page !== '/404' &&
-      initialData.page !== '/_error' &&
       (initialData.isFallback ||
         (initialData.nextExport &&
           (isDynamicRoute(router.pathname) ||
@@ -306,15 +307,26 @@ function AppContainer({
         )
       }
     >
-      <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <HeadManagerContext.Provider value={headManager}>
-          <ImageConfigContext.Provider
-            value={process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete}
+      <AppRouterContext.Provider value={adaptForAppRouterInstance(router)}>
+        <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+          <PathnameContextProviderAdapter
+            router={router}
+            isAutoExport={self.__NEXT_DATA__.autoExport ?? false}
           >
-            {children}
-          </ImageConfigContext.Provider>
-        </HeadManagerContext.Provider>
-      </RouterContext.Provider>
+            <RouterContext.Provider value={makePublicRouterInstance(router)}>
+              <HeadManagerContext.Provider value={headManager}>
+                <ImageConfigContext.Provider
+                  value={
+                    process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+                  }
+                >
+                  {children}
+                </ImageConfigContext.Provider>
+              </HeadManagerContext.Provider>
+            </RouterContext.Provider>
+          </PathnameContextProviderAdapter>
+        </SearchParamsContext.Provider>
+      </AppRouterContext.Provider>
     </Container>
   )
 }
@@ -492,26 +504,22 @@ function renderReactElement(
   }
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
-  if (process.env.__NEXT_REACT_ROOT) {
-    if (!reactRoot) {
-      // Unlike with createRoot, you don't need a separate root.render() call here
-      reactRoot = ReactDOM.hydrateRoot(domEl, reactEl)
-      // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
-      shouldHydrate = false
-    } else {
-      const startTransition = (React as any).startTransition
-      startTransition(() => {
-        reactRoot.render(reactEl)
-      })
-    }
+  if (!reactRoot) {
+    // Unlike with createRoot, you don't need a separate root.render() call here
+    reactRoot = ReactDOM.hydrateRoot(domEl, reactEl, {
+      onRecoverableError(err: any) {
+        // Skip certain custom errors which are not expected to throw on client
+        if (err.message === NEXT_DYNAMIC_NO_SSR_CODE) return
+        throw err
+      },
+    })
+    // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
+    shouldHydrate = false
   } else {
-    // The check for `.hydrate` is there to support React alternatives like preact
-    if (shouldHydrate) {
-      ReactDOM.hydrate(reactEl, domEl)
-      shouldHydrate = false
-    } else {
-      ReactDOM.render(reactEl, domEl)
-    }
+    const startTransition = (React as any).startTransition
+    startTransition(() => {
+      reactRoot.render(reactEl)
+    })
   }
 }
 
@@ -691,6 +699,10 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       const htmlElement = document.documentElement
       const existing = htmlElement.style.scrollBehavior
       htmlElement.style.scrollBehavior = 'auto'
+      // In Chrome-based browsers we need to force reflow before calling `scrollTo`.
+      // Otherwise it will not pickup the change in scrollBehavior
+      // More info here: https://github.com/vercel/next.js/issues/40719#issuecomment-1336248042
+      htmlElement.getClientRects()
       window.scrollTo(input.scroll.x, input.scroll.y)
       htmlElement.style.scrollBehavior = existing
     }

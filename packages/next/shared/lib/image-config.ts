@@ -8,6 +8,16 @@ export const VALID_LOADERS = [
 
 export type LoaderValue = typeof VALID_LOADERS[number]
 
+export type ImageLoaderProps = {
+  src: string
+  width: number
+  quality?: number
+}
+
+export type ImageLoaderPropsWithConfig = ImageLoaderProps & {
+  config: Readonly<ImageConfig>
+}
+
 export type RemotePattern = {
   /**
    * Must be `http` or `https`.

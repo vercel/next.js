@@ -6,6 +6,10 @@ description: Create Next.js apps in one command with create-next-app.
 
 The easiest way to get started with Next.js is by using `create-next-app`. This CLI tool enables you to quickly start building a new Next.js application, with everything set up for you. You can create a new app using the default Next.js template, or by using one of the [official Next.js examples](https://github.com/vercel/next.js/tree/canary/examples). To get started, use the following command:
 
+### Interactive
+
+You can create a new project interactively by running:
+
 ```bash
 npx create-next-app@latest
 # or
@@ -14,27 +18,66 @@ yarn create next-app
 pnpm create next-app
 ```
 
-You can create a [TypeScript project](https://github.com/vercel/next.js/blob/canary/docs/basic-features/typescript.md) with the `--ts, --typescript` flag:
+You will be asked for the name of your project, and then whether you want to
+create a TypeScript project:
 
 ```bash
-npx create-next-app@latest --ts
-# or
-yarn create next-app --typescript
-# or
-pnpm create next-app --ts
+✔ Would you like to use TypeScript with this project? … No / Yes
 ```
 
-### Options
+Select **Yes** to install the necessary types/dependencies and create a new TS project.
 
-`create-next-app` comes with the following options:
+### Non-interactive
 
-- **--ts, --typescript** - Initialize as a TypeScript project.
-- **-e, --example [name]|[github-url]** - An example to bootstrap the app with. You can use an example name from the [Next.js repo](https://github.com/vercel/next.js/tree/canary/examples) or a GitHub URL. The URL can use any branch and/or subdirectory.
-- **--example-path [path-to-example]** - In a rare case, your GitHub URL might contain a branch name with a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar). In this case, you must specify the path to the example separately: `--example-path foo/bar`
-- **--use-npm** - Explicitly tell the CLI to bootstrap the app using npm
-- **--use-pnpm** - Explicitly tell the CLI to bootstrap the app using pnpm
+You can also pass command line arguments to set up a new project
+non-interactively. See `create-next-app --help`:
 
-Note: To bootstrap using `yarn` we recommend running `yarn create next-app`
+```bash
+create-next-app <project-directory> [options]
+
+Options:
+  -V, --version                      output the version number
+  --ts, --typescript
+
+    Initialize as a TypeScript project. (default)
+
+  --js, --javascript
+
+    Initialize as a JavaScript project.
+
+  --eslint
+
+    Initialize with eslint config.
+
+  --no-eslint
+
+    Initialize without eslint config.
+
+  --experimental-app
+
+    Initialize as a `app/` directory project.
+
+  --use-npm
+
+    Explicitly tell the CLI to bootstrap the app using npm
+
+  --use-pnpm
+
+    Explicitly tell the CLI to bootstrap the app using pnpm
+
+  -e, --example [name]|[github-url]
+
+    An example to bootstrap the app with. You can use an example name
+    from the official Next.js repo or a GitHub URL. The URL can use
+    any branch and/or subdirectory
+
+  --example-path <path-to-example>
+
+    In a rare case, your GitHub URL might contain a branch name with
+    a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
+    In this case, you must specify the path to the example separately:
+    --example-path foo/bar
+```
 
 ### Why use Create Next App?
 

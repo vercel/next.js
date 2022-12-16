@@ -77,7 +77,7 @@ module.exports = {
 
 ### Jest
 
-Jest support not only includes the transformation previously provided by Babel, but also simplifies configuring Jest together with Next.js including:
+The Next.js Compiler transpiles your tests and simplifies configuring Jest together with Next.js including:
 
 - Auto mocking of `.css`, `.module.css` (and their `.scss` variants), and image imports
 - Automatically sets up `transform` using SWC
@@ -198,14 +198,14 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 
 ### importSource
 
-Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like Theme UI.
+Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like [Theme UI](https://theme-ui.com).
 
 First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
 
 ```js
 {
   "compilerOptions": {
-    "jsxImportSource": 'preact'
+    "jsxImportSource": "theme-ui"
   }
 }
 ```
@@ -233,12 +233,22 @@ module.exports = {
       // The format is defined via string where variable parts are enclosed in square brackets [].
       // For example labelFormat: "my-classname--[local]", where [local] will be replaced with the name of the variable the result is assigned to.
       labelFormat?: string,
+      // default is undefined.
+      // This option allows you to tell the compiler what imports it should
+      // look at to determine what it should transform so if you re-export
+      // Emotion's exports, you can still use transforms.
+      importMap?: {
+        [packageName: string]: {
+          [exportName: string]: {
+            canonicalImport?: [string, string],
+            styledBaseImport?: [string, string],
+          }
+        }
+      },
     },
   },
 }
 ```
-
-Only `importMap` in `@emotion/babel-plugin` is not supported for now.
 
 ### Minification
 

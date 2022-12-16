@@ -12,14 +12,14 @@ import chalk from 'next/dist/compiled/chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import {
-  API_ROUTE,
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
-  SERVER_RUNTIME,
   WEBPACK_LAYERS,
 } from '../lib/constants'
-import { RSC_MODULE_TYPES } from '../shared/lib/constants'
+import { isAPIRoute } from '../lib/is-api-route'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
+import { APP_CLIENT_INTERNALS, RSC_MODULE_TYPES } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -175,7 +175,7 @@ export function getEdgeServerEntry(opts: {
     return `next-middleware-loader?${stringify(loaderParams)}!`
   }
 
-  if (opts.page.startsWith('/api/') || opts.page === '/api') {
+  if (isAPIRoute(opts.page)) {
     const loaderParams: EdgeFunctionLoaderOptions = {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
@@ -207,7 +207,7 @@ export function getEdgeServerEntry(opts: {
     // The Edge bundle includes the server in its entrypoint, so it has to
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
-    layer: WEBPACK_LAYERS.client,
+    layer: opts.appDirLoader ? WEBPACK_LAYERS.client : undefined,
   }
 }
 
@@ -257,8 +257,8 @@ export async function runDependingOnPageType<T>(params: {
     await params.onEdgeServer()
     return
   }
-  if (params.page.match(API_ROUTE)) {
-    if (params.pageRuntime === SERVER_RUNTIME.edge) {
+  if (isAPIRoute(params.page)) {
+    if (isEdgeRuntime(params.pageRuntime)) {
       await params.onEdgeServer()
       return
     }
@@ -279,7 +279,7 @@ export async function runDependingOnPageType<T>(params: {
     await Promise.all([params.onClient(), params.onServer()])
     return
   }
-  if (params.pageRuntime === SERVER_RUNTIME.edge) {
+  if (isEdgeRuntime(params.pageRuntime)) {
     await Promise.all([params.onClient(), params.onEdgeServer()])
     return
   }
@@ -374,6 +374,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         pageFilePath,
         isDev,
         page,
+        pageType: isInsideAppDir ? 'app' : 'pages',
       })
 
       const isServerComponent =
@@ -456,7 +457,11 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   await Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
 
   if (nestedMiddleware.length > 0) {
-    throw new NestedMiddlewareError(nestedMiddleware, rootDir, pagesDir!)
+    throw new NestedMiddlewareError(
+      nestedMiddleware,
+      rootDir,
+      (appDir || pagesDir)!
+    )
   }
 
   return {
@@ -512,6 +517,12 @@ export function finalizeEntrypoint({
     }
   }
 
+  const isAppLayer =
+    hasAppDir &&
+    (name === CLIENT_STATIC_FILES_RUNTIME_MAIN_APP ||
+      name === APP_CLIENT_INTERNALS ||
+      name.startsWith('app/'))
+
   if (
     // Client special cases
     name !== CLIENT_STATIC_FILES_RUNTIME_POLYFILLS &&
@@ -520,10 +531,10 @@ export function finalizeEntrypoint({
     name !== CLIENT_STATIC_FILES_RUNTIME_AMP &&
     name !== CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
   ) {
-    // TODO-APP: this is a temporary fix. @shuding is going to change the handling of server components
-    if (hasAppDir && entry.import.includes('flight')) {
+    if (isAppLayer) {
       return {
         dependOn: CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+        layer: WEBPACK_LAYERS.appClient,
         ...entry,
       }
     }
@@ -533,6 +544,13 @@ export function finalizeEntrypoint({
         name.startsWith('pages/') && name !== 'pages/_app'
           ? 'pages/_app'
           : CLIENT_STATIC_FILES_RUNTIME_MAIN,
+      ...entry,
+    }
+  }
+
+  if (isAppLayer) {
+    return {
+      layer: WEBPACK_LAYERS.appClient,
       ...entry,
     }
   }

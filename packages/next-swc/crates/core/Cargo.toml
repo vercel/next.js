@@ -19,11 +19,11 @@ pathdiff = "0.2.0"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
-swc_emotion = "0.28.1"
-styled_components = "0.52.1"
-styled_jsx = "0.29.1"
-modularize_imports = "0.25.1"
-tracing = { version = "0.1.32", features = ["release_max_level_info"] }
+swc_emotion = "0.28.4"
+styled_components = "0.52.8"
+styled_jsx = "0.29.8"
+modularize_imports = "0.25.8"
+tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 
 swc_core = { features = [
   "common_concurrent",
@@ -42,9 +42,9 @@ swc_core = { features = [
   "ecma_parser_typescript",
   "cached",
   "base"
-], version = "0.40.16" }
+], version = "0.45.4" }
 
 [dev-dependencies]
-swc_core = { features = ["testing_transform"], version = "0.40.16" }
-testing = "0.31.10"
+swc_core = { features = ["testing_transform"], version = "0.45.4" }
+testing = "0.31.14"
 walkdir = "2.3.2"

@@ -29,6 +29,11 @@ const testFilters = {
   development: 'development/',
 }
 
+const mockTrace = () => ({
+  traceAsyncFn: (fn) => fn(mockTrace()),
+  traceChild: () => mockTrace(),
+})
+
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
 
@@ -223,8 +228,11 @@ async function main() {
     console.log('Creating Next.js install for isolated tests')
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const testStarter = await createNextInstall({
-      react: reactVersion,
-      'react-dom': reactVersion,
+      parentSpan: mockTrace(),
+      dependencies: {
+        react: reactVersion,
+        'react-dom': reactVersion,
+      },
     })
     process.env.NEXT_TEST_STARTER = testStarter
   }
@@ -356,7 +364,13 @@ async function main() {
         } catch (err) {
           if (i < numRetries) {
             try {
-              const testDir = path.dirname(path.join(__dirname, test))
+              let testDir = path.dirname(path.join(__dirname, test))
+
+              // if test is nested in a test folder traverse up a dir to ensure
+              // we clean up relevant test files
+              if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
+                testDir = path.join(testDir, '../')
+              }
               console.log('Cleaning test files at', testDir)
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)

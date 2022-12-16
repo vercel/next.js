@@ -4,11 +4,15 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP } from 'next-test-utils'
 
-describe('styled-components SWC transform', () => {
+describe.each([
+  ['dev', false],
+  ['turbo', true],
+])('styled-components SWC transform', (_name, turbo) => {
   let next: NextInstance
 
   beforeAll(async () => {
     next = await createNext({
+      turbo: !!turbo,
       files: {
         'next.config.js': new FileRef(
           join(__dirname, 'styled-components-disabled/next.config.js')

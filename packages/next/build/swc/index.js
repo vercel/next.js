@@ -13,6 +13,30 @@ const ArchName = arch()
 const PlatformName = platform()
 const triples = platformArchTriples[PlatformName][ArchName] || []
 
+// Allow to specify an absolute path to the custom turbopack binary to load.
+// If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
+// binary instead. This will not affect existing swc's transform, or other interfaces. This is thin,
+// naive interface - `loadBindings` will not validate neither path nor the binary.
+//
+// Note these are internal flag: there's no stability, feature gaurentee.
+const __INTERNAL_CUSTOM_TURBOPACK_BINARY =
+  process.env.__INTERNAL_CUSTOM_TURBOPACK_BINARY
+const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
+  process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+export const __isCustomTurbopackBinary = async () => {
+  if (
+    !!__INTERNAL_CUSTOM_TURBOPACK_BINARY &&
+    !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+  ) {
+    throw new Error('Cannot use TURBOPACK_BINARY and TURBOPACK_BINDINGS both')
+  }
+
+  return (
+    !!__INTERNAL_CUSTOM_TURBOPACK_BINARY ||
+    !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+  )
+}
+
 // These are the platforms we'll try to load wasm bindings first,
 // only try to load native bindings if loading wasm binding somehow fails.
 // Fallback to native binding is for migration period only,
@@ -39,6 +63,7 @@ export async function loadBindings() {
   if (pendingBindings) {
     return pendingBindings
   }
+  const isCustomTurbopack = await __isCustomTurbopackBinary()
   pendingBindings = new Promise(async (resolve, reject) => {
     if (!lockfilePatchPromise.cur) {
       // always run lockfile check once so that it gets patched
@@ -62,7 +87,7 @@ export async function loadBindings() {
     }
 
     try {
-      return resolve(loadNative())
+      return resolve(loadNative(isCustomTurbopack))
     } catch (a) {
       attempts = attempts.concat(a)
     }
@@ -207,10 +232,17 @@ async function loadWasm(importPath = '') {
         getTargetTriple() {
           return undefined
         },
-        diagnostics: {
-          startDiagnostics: () => {
-            Log.error('Wasm binding does not support --diagnostics yet')
+        turbo: {
+          startDev: () => {
+            Log.error('Wasm binding does not support --turbo yet')
           },
+          startTrace: () => {
+            Log.error('Wasm binding does not support trace yet')
+          },
+        },
+        mdx: {
+          compile: (src, options) => bindings.mdxCompile(src, options),
+          compileSync: (src, options) => bindings.mdxCompileSync(src, options),
         },
       }
       return wasmBindings
@@ -231,7 +263,7 @@ async function loadWasm(importPath = '') {
   throw attempts
 }
 
-function loadNative() {
+function loadNative(isCustomTurbopack = false) {
   if (nativeBindings) {
     return nativeBindings
   }
@@ -338,9 +370,78 @@ function loadNative() {
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       teardownCrashReporter: bindings.teardownCrashReporter,
-      diagnostics: {
-        startDiagnostics: (options) =>
-          bindings.startDiagnostics(toBuffer(options)),
+      turbo: {
+        startDev: (options) => {
+          const devOptions = {
+            ...options,
+            noOpen: options.noOpen ?? true,
+          }
+
+          if (!isCustomTurbopack) {
+            bindings.startTurboDev(toBuffer(devOptions))
+          } else if (!!__INTERNAL_CUSTOM_TURBOPACK_BINARY) {
+            console.warn(
+              `Loading custom turbopack binary from ${__INTERNAL_CUSTOM_TURBOPACK_BINARY}`
+            )
+
+            return new Promise((resolve, reject) => {
+              const spawn = require('next/dist/compiled/cross-spawn')
+              const args = []
+
+              Object.entries(devOptions).forEach(([key, value]) => {
+                let cli_key = `--${key.replace(
+                  /[A-Z]/g,
+                  (m) => '-' + m.toLowerCase()
+                )}`
+                if (key === 'dir') {
+                  args.push(value)
+                } else if (typeof value === 'boolean' && value === true) {
+                  args.push(cli_key)
+                } else if (typeof value !== 'boolean' && !!value) {
+                  args.push(cli_key, value)
+                }
+              })
+
+              console.warn(`Running turbopack with args: [${args.join(' ')}]`)
+
+              const child = spawn(__INTERNAL_CUSTOM_TURBOPACK_BINARY, args, {
+                stdio: 'inherit',
+                env: {
+                  ...process.env,
+                },
+              })
+              child.on('message', (message) => {
+                console.log(message)
+              })
+              child.on('close', (code) => {
+                if (code !== 0) {
+                  reject({
+                    command: `${__INTERNAL_CUSTOM_TURBOPACK_BINARY} ${args.join(
+                      ' '
+                    )}`,
+                  })
+                  return
+                }
+                resolve(0)
+              })
+            })
+          } else if (!!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS) {
+            console.warn(
+              `Loading custom turbopack bindings from ${__INTERNAL_CUSTOM_TURBOPACK_BINARY}`
+            )
+            console.warn(`Running turbopack with args: `, devOptions)
+
+            require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startDev(devOptions)
+          }
+        },
+        startTrace: (options = {}) =>
+          bindings.runTurboTracing(toBuffer({ exact: true, ...options })),
+      },
+      mdx: {
+        compile: (src, options) =>
+          bindings.mdxCompile(src, toBuffer(options ?? {})),
+        compileSync: (src, options) =>
+          bindings.mdxCompileSync(src, toBuffer(options ?? {})),
       },
     }
     return nativeBindings

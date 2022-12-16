@@ -20,7 +20,6 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
-  SERVER_RUNTIME,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -33,6 +32,7 @@ import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
 import { BuildManifest } from '../server/get-page-files'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
 import {
@@ -52,11 +52,16 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
+import { AssetBinding } from './webpack/loaders/get-module-build-info'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
   overrideBuiltInReactPackages()
 }
+
+// expose AsyncLocalStorage on global for react usage
+const { AsyncLocalStorage } = require('async_hooks')
+;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -418,7 +423,7 @@ export async function printTreeView(
           ? '○'
           : pageInfo?.isSsg
           ? '●'
-          : pageInfo?.runtime === SERVER_RUNTIME.edge
+          : isEdgeRuntime(pageInfo?.runtime)
           ? 'ℇ'
           : 'λ'
 
@@ -827,6 +832,7 @@ export async function buildStaticPaths({
   configFileName,
   locales,
   defaultLocale,
+  appDir,
 }: {
   page: string
   getStaticPaths?: GetStaticPaths
@@ -834,6 +840,7 @@ export async function buildStaticPaths({
   configFileName: string
   locales?: string[]
   defaultLocale?: string
+  appDir?: boolean
 }): Promise<
   Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
     paths: string[]
@@ -981,7 +988,9 @@ export async function buildStaticPaths({
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
               repeat ? 'an array' : 'a string'
-            } in getStaticPaths for ${page}`
+            } in ${
+              appDir ? 'generateStaticParams' : 'getStaticPaths'
+            } for ${page}`
           )
         }
         let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
@@ -1086,7 +1095,9 @@ export const collectGenerateParams = async (
 ): Promise<GenerateParams> => {
   if (!Array.isArray(segment)) return generateParams
   const isLayout = !!segment[2]?.layout
-  const mod = await (isLayout ? segment[2]?.layout?.() : segment[2]?.page?.())
+  const mod = await (isLayout
+    ? segment[2]?.layout?.[0]?.()
+    : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
 
   const result = {
@@ -1192,6 +1203,7 @@ export async function buildAppStaticPaths({
       },
       page,
       configFileName,
+      appDir: true,
     })
   }
 }
@@ -1255,11 +1267,17 @@ export async function isPageStatic({
       let prerenderFallback: boolean | 'blocking' | undefined
       let appConfig: AppConfig = {}
 
-      if (pageRuntime === SERVER_RUNTIME.edge) {
+      if (isEdgeRuntime(pageRuntime)) {
         const runtime = await getRuntimeContext({
           paths: edgeInfo.files.map((file: string) => path.join(distDir, file)),
           env: edgeInfo.env,
-          edgeFunctionEntry: edgeInfo,
+          edgeFunctionEntry: {
+            ...edgeInfo,
+            wasm: (edgeInfo.wasm ?? []).map((binding: AssetBinding) => ({
+              ...binding,
+              filePath: path.join(distDir, binding.filePath),
+            })),
+          },
           name: edgeInfo.name,
           useCache: true,
           distDir,
@@ -1432,7 +1450,7 @@ export async function isPageStatic({
         }))
       }
 
-      const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
+      const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = componentsResult.pageConfig
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
@@ -1579,7 +1597,8 @@ export function detectConflictingPaths(
 export async function copyTracedFiles(
   dir: string,
   distDir: string,
-  pageKeys: ReadonlyArray<string>,
+  pageKeys: readonly string[],
+  appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
   serverConfig: { [key: string]: any },
   middlewareManifest: MiddlewareManifest
@@ -1650,7 +1669,33 @@ export async function copyTracedFiles(
     }
   }
 
+  for (const page of Object.values(middlewareManifest.functions)) {
+    for (const file of page.files) {
+      const originalPath = path.join(distDir, file)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+    for (const file of [...(page.wasm ?? []), ...(page.assets ?? [])]) {
+      const originalPath = path.join(distDir, file.filePath)
+      const fileOutputPath = path.join(
+        outputPath,
+        path.relative(tracingRoot, distDir),
+        file.filePath
+      )
+      await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
+      await fs.copyFile(originalPath, fileOutputPath)
+    }
+  }
+
   for (const page of pageKeys) {
+    if (middlewareManifest.functions.hasOwnProperty(page)) {
+      continue
+    }
     const pageFile = path.join(
       distDir,
       'server',
@@ -1658,7 +1703,21 @@ export async function copyTracedFiles(
       `${normalizePagePath(page)}.js`
     )
     const pageTraceFile = `${pageFile}.nft.json`
-    await handleTraceFiles(pageTraceFile)
+    await handleTraceFiles(pageTraceFile).catch((err) => {
+      Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+    })
+  }
+  if (appPageKeys) {
+    for (const page of appPageKeys) {
+      if (middlewareManifest.functions.hasOwnProperty(page)) {
+        continue
+      }
+      const pageFile = path.join(distDir, 'server', 'app', `${page}.js`)
+      const pageTraceFile = `${pageFile}.nft.json`
+      await handleTraceFiles(pageTraceFile).catch((err) => {
+        Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+      })
+    }
   }
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
   const serverOutputPath = path.join(
@@ -1730,6 +1789,7 @@ server.listen(currentPort, (err) => {
 })`
   )
 }
+
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }
@@ -1754,13 +1814,17 @@ export function getPossibleMiddlewareFilenames(
 }
 
 export class NestedMiddlewareError extends Error {
-  constructor(nestedFileNames: string[], mainDir: string, pagesDir: string) {
+  constructor(
+    nestedFileNames: string[],
+    mainDir: string,
+    pagesOrAppDir: string
+  ) {
     super(
       `Nested Middleware is not allowed, found:\n` +
         `${nestedFileNames.map((file) => `pages${file}`).join('\n')}\n` +
         `Please move your code to a single file at ${path.join(
           path.posix.sep,
-          path.relative(mainDir, path.resolve(pagesDir, '..')),
+          path.relative(mainDir, path.resolve(pagesOrAppDir, '..')),
           'middleware'
         )} instead.\n` +
         `Read More - https://nextjs.org/docs/messages/nested-middleware`

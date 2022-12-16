@@ -292,7 +292,7 @@ describe('CLI Usage', () => {
 
     test('should exit when SIGINT is signalled', async () => {
       const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 1000)
+        setTimeout(() => instance.kill('SIGINT'), 2000)
       const port = await findPort()
       const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
         ignoreFail: true,
@@ -307,7 +307,7 @@ describe('CLI Usage', () => {
     })
     test('should exit when SIGTERM is signalled', async () => {
       const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 1000)
+        setTimeout(() => instance.kill('SIGTERM'), 2000)
       const port = await findPort()
       const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
         ignoreFail: true,

@@ -3,13 +3,13 @@ import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
 import { toNodeHeaders, validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
-import { NextCookies } from './cookies'
+import { RequestCookies } from './cookies'
 
 export const INTERNALS = Symbol('internal request')
 
 export class NextRequest extends Request {
   [INTERNALS]: {
-    cookies: NextCookies
+    cookies: RequestCookies
     geo: RequestData['geo']
     ip?: string
     url: NextURL
@@ -21,7 +21,7 @@ export class NextRequest extends Request {
     validateURL(url)
     super(url, init)
     this[INTERNALS] = {
-      cookies: new NextCookies(this),
+      cookies: new RequestCookies(this.headers),
       geo: init.geo || {},
       ip: init.ip,
       url: new NextURL(url, {

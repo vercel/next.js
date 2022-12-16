@@ -1,0 +1,7 @@
+
+  x NEXT_RSC_ERR_CLIENT_DIRECTIVE
+   ,-[input.js:2:1]
+ 2 | 
+ 3 | "use client"
+   : ^^^^^^^^^^^^
+   `----

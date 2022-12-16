@@ -4,7 +4,7 @@ description: Backwards compatible Image Optimization with the Legacy Image compo
 
 # next/legacy/image
 
-<details>
+<details open>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/image-legacy-component">Legacy Image Component</a></li>
@@ -20,7 +20,7 @@ description: Backwards compatible Image Optimization with the Legacy Image compo
 
 </details>
 
-Starting with Next.js 13, the `next/image` component was rewritten to improves both the performance and developer experience. In order to provide a backwards compatible upgrade solution, the old `next/image` was renamed to `next/legacy/image`.
+Starting with Next.js 13, the `next/image` component was rewritten to improve both the performance and developer experience. In order to provide a backwards compatible upgrade solution, the old `next/image` was renamed to `next/legacy/image`.
 
 ## Comparison
 

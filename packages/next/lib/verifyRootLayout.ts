@@ -26,7 +26,7 @@ function getRootLayout(isTs: boolean) {
 }) {
   return (
     <html>
-      <head></head>
+      <head />
       <body>{children}</body>
     </html>
   )
@@ -37,9 +37,22 @@ function getRootLayout(isTs: boolean) {
   return `export default function RootLayout({ children }) {
   return (
     <html>
-      <head></head>
+      <head />
       <body>{children}</body>
     </html>
+  )
+}
+`
+}
+
+function getHead() {
+  return `export default function Head() {
+  return (
+    <>
+      <title></title>
+      <meta content="width=device-width, initial-scale=1" name="viewport" />
+      <link rel="icon" href="/favicon.ico" />
+    </>
   )
 }
 `
@@ -63,15 +76,38 @@ export async function verifyRootLayout({
       appDir,
       `**/layout.{${pageExtensions.join(',')}}`
     )
-    const hasLayout = layoutFiles.length !== 0
-
     const normalizedPagePath = pagePath.replace(`${APP_DIR_ALIAS}/`, '')
-    const firstSegmentValue = normalizedPagePath.split('/')[0]
-    const pageRouteGroup = firstSegmentValue.startsWith('(')
-      ? firstSegmentValue
-      : undefined
+    const pagePathSegments = normalizedPagePath.split('/')
 
-    if (pageRouteGroup || !hasLayout) {
+    // Find an available dir to place the layout file in, the layout file can't affect any other layout.
+    // Place the layout as close to app/ as possible.
+    let availableDir: string | undefined
+
+    if (layoutFiles.length === 0) {
+      // If there's no other layout file we can place the layout file in the app dir.
+      // However, if the page is within a route group directly under app (e.g. app/(routegroup)/page.js)
+      // prefer creating the root layout in that route group.
+      const firstSegmentValue = pagePathSegments[0]
+      availableDir = firstSegmentValue.startsWith('(') ? firstSegmentValue : ''
+    } else {
+      pagePathSegments.pop() // remove the page from segments
+
+      let currentSegments: string[] = []
+      for (const segment of pagePathSegments) {
+        currentSegments.push(segment)
+        // Find the dir closest to app/ where a layout can be created without affecting other layouts.
+        if (
+          !layoutFiles.some((file) =>
+            file.startsWith(currentSegments.join('/'))
+          )
+        ) {
+          availableDir = currentSegments.join('/')
+          break
+        }
+      }
+    }
+
+    if (typeof availableDir === 'string') {
       const resolvedTsConfigPath = path.join(dir, tsconfigPath)
       const hasTsConfig = await fs.access(resolvedTsConfigPath).then(
         () => true,
@@ -80,19 +116,35 @@ export async function verifyRootLayout({
 
       const rootLayoutPath = path.join(
         appDir,
-        // If the page is within a route group directly under app (e.g. app/(routegroup)/page.js)
-        // prefer creating the root layout in that route group. Otherwise create the root layout in the app root.
-        pageRouteGroup ? pageRouteGroup : '',
+        availableDir,
         `layout.${hasTsConfig ? 'tsx' : 'js'}`
       )
       await fs.writeFile(rootLayoutPath, getRootLayout(hasTsConfig))
+      const headPath = path.join(
+        appDir,
+        availableDir,
+        `head.${hasTsConfig ? 'tsx' : 'js'}`
+      )
+      const hasHead = await fs.access(headPath).then(
+        () => true,
+        () => false
+      )
+
+      if (!hasHead) {
+        await fs.writeFile(headPath, getHead())
+      }
+
       console.log(
         chalk.green(
           `\nYour page ${chalk.bold(
             `app/${normalizedPagePath}`
-          )} did not have a root layout, we created ${chalk.bold(
+          )} did not have a root layout. We created ${chalk.bold(
             `app${rootLayoutPath.replace(appDir, '')}`
-          )} for you.`
+          )}${
+            !hasHead
+              ? ` and ${chalk.bold(`app${headPath.replace(appDir, '')}`)}`
+              : ''
+          } for you.`
         ) + '\n'
       )
 

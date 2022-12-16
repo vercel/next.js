@@ -2,7 +2,7 @@ import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
 import { toNodeHeaders, validateURL } from '../utils'
 
-import { NextCookies } from './cookies'
+import { ResponseCookies } from './cookies'
 
 const INTERNALS = Symbol('internal response')
 const REDIRECTS = new Set([301, 302, 303, 307, 308])
@@ -28,7 +28,7 @@ function handleMiddlewareField(
 
 export class NextResponse extends Response {
   [INTERNALS]: {
-    cookies: NextCookies
+    cookies: ResponseCookies
     url?: NextURL
   }
 
@@ -36,7 +36,7 @@ export class NextResponse extends Response {
     super(body, init)
 
     this[INTERNALS] = {
-      cookies: new NextCookies(this),
+      cookies: new ResponseCookies(this.headers),
       url: init.url
         ? new NextURL(init.url, {
             headers: toNodeHeaders(this.headers),

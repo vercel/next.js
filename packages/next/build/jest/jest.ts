@@ -95,6 +95,9 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
+      const transpiled = (
+        nextConfig?.experimental?.transpilePackages ?? []
+      ).join('|')
       return {
         ...resolvedJestConfig,
 
@@ -114,6 +117,9 @@ export default function nextJest(options: { dir?: string } = {}) {
 
           // Keep .svg to it's own rule to make overriding easy
           '^.+\\.(svg)$': require.resolve(`./__mocks__/fileMock.js`),
+
+          // Handle @next/font
+          '@next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
@@ -148,8 +154,16 @@ export default function nextJest(options: { dir?: string } = {}) {
         },
 
         transformIgnorePatterns: [
-          // To match Next.js behavior node_modules is not transformed
-          '/node_modules/',
+          // To match Next.js behavior node_modules is not transformed, only `transpiledPackages`
+          ...(transpiled
+            ? [
+                `/node_modules/(?!.pnpm)(?!(${transpiled})/)`,
+                `/node_modules/.pnpm/(?!(${transpiled.replace(
+                  /\//g,
+                  '\\+'
+                )})@)`,
+              ]
+            : ['/node_modules/']),
           // CSS modules are mocked so they don't need to be transformed
           '^.+\\.module\\.(css|sass|scss)$',
 

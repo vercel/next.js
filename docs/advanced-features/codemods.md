@@ -10,7 +10,7 @@ Codemods are transformations that run on your codebase programmatically. This al
 
 ## Usage
 
-`npx @next/codemod <transform> <path>`
+`npx @next/codemod@latest <transform> <path>`
 
 - `transform` - name of transform, see available transforms below.
 - `path` - files or directory to transform
@@ -45,7 +45,7 @@ export default function Page() {
 
 ### `next-image-to-legacy-image`
 
-Safely migrates existing Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13.
+This codemod safely migrates existing Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13.
 
 For example:
 
@@ -81,7 +81,7 @@ export default function Home() {
 
 ### `next-image-experimental` (experimental)
 
-Dangerously migrates from `next/legacy/image` to the new `next/image` by adding inline styles and removing unused props.
+This codemod dangerously migrates from `next/legacy/image` to the new `next/image` by adding inline styles and removing unused props. Please note this codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
 
 - Removes `layout` prop and adds `style`
 - Removes `objectFit` prop and adds `style`
@@ -254,7 +254,7 @@ cd path-to-your-project/
 Run the codemod:
 
 ```
-npx @next/codemod name-default-component
+npx @next/codemod@latest name-default-component
 ```
 
 ### `withamp-to-config`
@@ -296,7 +296,7 @@ cd path-to-your-project/
 Run the codemod:
 
 ```
-npx @next/codemod withamp-to-config
+npx @next/codemod@latest withamp-to-config
 ```
 
 ## Next.js 6
@@ -345,5 +345,5 @@ cd path-to-your-project/
 Run the codemod:
 
 ```
-npx @next/codemod url-to-withrouter
+npx @next/codemod@latest url-to-withrouter
 ```

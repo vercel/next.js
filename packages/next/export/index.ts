@@ -13,7 +13,7 @@ import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
-import { API_ROUTE, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
+import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
@@ -40,6 +40,7 @@ import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-pa
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import { isAPIRoute } from '../lib/is-api-route'
 import { getPagePath } from '../server/require'
 import { Span } from '../trace'
 import { FontConfig } from '../server/font-utils'
@@ -182,6 +183,9 @@ export default async function exportApp(
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
           isCustomServer: null,
+          turboFlag: false,
+          pagesDir: null,
+          appDir: null,
         })
       )
     }
@@ -240,7 +244,7 @@ export default async function exportApp(
       // _error is exported as 404.html later on
       // API Routes are Node.js functions
 
-      if (page.match(API_ROUTE)) {
+      if (isAPIRoute(page)) {
         hasApiRoutes = true
         continue
       }
@@ -409,7 +413,7 @@ export default async function exportApp(
     }
 
     // We need this for server rendering the Link component.
-    ;(global as any).__NEXT_DATA__ = {
+    ;(globalThis as any).__NEXT_DATA__ = {
       nextExport: true,
     }
 
@@ -472,7 +476,7 @@ export default async function exportApp(
 
     const filteredPaths = exportPaths.filter(
       // Remove API routes
-      (route) => !exportPathMap[route].page.match(API_ROUTE)
+      (route) => !isAPIRoute(exportPathMap[route].page)
     )
 
     if (filteredPaths.length !== exportPaths.length) {

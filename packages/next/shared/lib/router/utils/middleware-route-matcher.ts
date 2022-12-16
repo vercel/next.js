@@ -25,8 +25,8 @@ export function getMiddlewareRouteMatcher(
         continue
       }
 
-      if (matcher.has) {
-        const hasParams = matchHas(req, matcher.has, query)
+      if (matcher.has || matcher.missing) {
+        const hasParams = matchHas(req, query, matcher.has, matcher.missing)
         if (!hasParams) {
           continue
         }

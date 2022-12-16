@@ -630,6 +630,7 @@ export function onDemandEntryHandler({
           pageFilePath: pagePathData.absolutePagePath,
           nextConfig,
           isDev: true,
+          pageType: isInsideAppDir ? 'app' : 'pages',
         })
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()

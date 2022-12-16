@@ -56,6 +56,7 @@ type EventBuildCompleted = {
   totalPageCount: number
   hasDunderPages: boolean
   hasTestPages: boolean
+  totalAppPagesCount?: number
 }
 
 export function eventBuildCompleted(
@@ -77,6 +78,7 @@ export function eventBuildCompleted(
         (path) =>
           REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
+      totalAppPagesCount: event.totalAppPagesCount,
     },
   }
 }
@@ -100,6 +102,11 @@ type EventBuildOptimized = {
   rewritesWithHasCount: number
   redirectsWithHasCount: number
   middlewareCount: number
+  totalAppPagesCount?: number
+  staticAppPagesCount?: number
+  serverAppPagesCount?: number
+  edgeRuntimeAppCount?: number
+  edgeRuntimePagesCount?: number
 }
 
 export function eventBuildOptimize(
@@ -121,6 +128,11 @@ export function eventBuildOptimize(
         (path) =>
           REGEXP_DIRECTORY_TESTS.test(path) || REGEXP_FILE_TEST.test(path)
       ),
+      totalAppPagesCount: event.totalAppPagesCount,
+      staticAppPagesCount: event.staticAppPagesCount,
+      serverAppPagesCount: event.serverAppPagesCount,
+      edgeRuntimeAppCount: event.edgeRuntimeAppCount,
+      edgeRuntimePagesCount: event.edgeRuntimePagesCount,
     },
   }
 }
@@ -136,6 +148,8 @@ export type EventBuildFeatureUsage = {
     | 'next/future/image'
     | 'next/script'
     | 'next/dynamic'
+    | '@next/font/google'
+    | '@next/font/local'
     | 'experimental/optimizeCss'
     | 'experimental/nextScriptWorkers'
     | 'optimizeFonts'
@@ -149,7 +163,9 @@ export type EventBuildFeatureUsage = {
     | 'swcImportSource'
     | 'swcEmotion'
     | `swc/target/${SWC_TARGET_TRIPLE}`
+    | 'turbotrace'
     | 'build-lint'
+    | 'vercelImageGeneration'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

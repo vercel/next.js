@@ -1,18 +1,20 @@
-import { isServerRuntime } from '../../server/config-shared'
 import type { NextConfig } from '../../server/config-shared'
 import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
+
+import { promises as fs } from 'fs'
+import { matcher } from 'next/dist/compiled/micromatch'
+import { ServerRuntime } from 'next/types'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
 } from './extract-const-value'
 import { parseModule } from './parse-module'
-import { promises as fs } from 'fs'
-import { tryToParsePath } from '../../lib/try-to-parse-path'
 import * as Log from '../output/log'
 import { SERVER_RUNTIME } from '../../lib/constants'
-import { ServerRuntime } from 'next/types'
 import { checkCustomRoutes } from '../../lib/load-custom-routes'
-import { matcher } from 'next/dist/compiled/micromatch'
+import { tryToParsePath } from '../../lib/try-to-parse-path'
+import { isAPIRoute } from '../../lib/is-api-route'
+import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 
 export interface MiddlewareConfig {
@@ -25,6 +27,7 @@ export interface MiddlewareMatcher {
   regexp: string
   locale?: false
   has?: RouteHas[]
+  missing?: RouteHas[]
 }
 
 export interface PageStaticInfo {
@@ -228,13 +231,13 @@ function getMiddlewareConfig(
   return result
 }
 
-let warnedAboutExperimentalEdgeApiFunctions = false
-function warnAboutExperimentalEdgeApiFunctions() {
-  if (warnedAboutExperimentalEdgeApiFunctions) {
+let warnedAboutExperimentalEdge = false
+function warnAboutExperimentalEdge() {
+  if (warnedAboutExperimentalEdge) {
     return
   }
   Log.warn(`You are using an experimental edge runtime, the API might change.`)
-  warnedAboutExperimentalEdgeApiFunctions = true
+  warnedAboutExperimentalEdge = true
 }
 
 const warnedUnsupportedValueMap = new Map<string, boolean>()
@@ -273,8 +276,9 @@ export async function getPageStaticInfo(params: {
   pageFilePath: string
   isDev?: boolean
   page?: string
+  pageType?: 'pages' | 'app'
 }): Promise<PageStaticInfo> {
-  const { isDev, pageFilePath, nextConfig, page } = params
+  const { isDev, pageFilePath, nextConfig, page, pageType } = params
 
   const fileContent = (await tryToReadFile(pageFilePath, !isDev)) || ''
   if (
@@ -305,7 +309,8 @@ export async function getPageStaticInfo(params: {
 
     if (
       typeof resolvedRuntime !== 'undefined' &&
-      !isServerRuntime(resolvedRuntime)
+      resolvedRuntime !== SERVER_RUNTIME.nodejs &&
+      !isEdgeRuntime(resolvedRuntime)
     ) {
       const options = Object.values(SERVER_RUNTIME).join(', ')
       if (typeof resolvedRuntime !== 'string') {
@@ -314,7 +319,7 @@ export async function getPageStaticInfo(params: {
         )
       } else {
         Log.error(
-          `Provided runtime "${config.runtime}" is not supported. Please leave it empty or choose one of: ${options}`
+          `Provided runtime "${resolvedRuntime}" is not supported. Please leave it empty or choose one of: ${options}`
         )
       }
       if (!isDev) {
@@ -322,15 +327,30 @@ export async function getPageStaticInfo(params: {
       }
     }
 
-    resolvedRuntime =
-      SERVER_RUNTIME.edge === resolvedRuntime
-        ? SERVER_RUNTIME.edge
-        : ssr || ssg
-        ? resolvedRuntime || nextConfig.experimental?.runtime
-        : undefined
+    const requiresServerRuntime = ssr || ssg || pageType === 'app'
 
-    if (resolvedRuntime === SERVER_RUNTIME.edge) {
-      warnAboutExperimentalEdgeApiFunctions()
+    resolvedRuntime = isEdgeRuntime(resolvedRuntime)
+      ? resolvedRuntime
+      : requiresServerRuntime
+      ? resolvedRuntime || nextConfig.experimental?.runtime
+      : undefined
+
+    if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
+      warnAboutExperimentalEdge()
+    }
+
+    if (
+      resolvedRuntime === SERVER_RUNTIME.edge &&
+      pageType === 'pages' &&
+      page &&
+      !isAPIRoute(page.replace(/^\/pages\//, '/'))
+    ) {
+      const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
+      Log.error(message)
+
+      if (!isDev) {
+        process.exit(1)
+      }
     }
 
     const middlewareConfig = getMiddlewareConfig(

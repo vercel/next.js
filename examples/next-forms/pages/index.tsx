@@ -24,18 +24,14 @@ export default function IndexPage() {
         </p>
 
         <div className={styles.grid}>
-          <Link href="/js-form">
-            <a className={styles.card}>
-              <h2>Form with JavaScript &rarr;</h2>
-              <p>Learn to handle forms with JavaScript in Next.js.</p>
-            </a>
+          <Link href="/js-form" className={styles.card}>
+            <h2>Form with JavaScript &rarr;</h2>
+            <p>Learn to handle forms with JavaScript in Next.js.</p>
           </Link>
 
-          <Link href="/no-js-form">
-            <a className={styles.card}>
-              <h2>Form without JavaScript &rarr;</h2>
-              <p>Learn to handle forms without JavaScript in Next.js.</p>
-            </a>
+          <Link href="/no-js-form" className={styles.card}>
+            <h2>Form without JavaScript &rarr;</h2>
+            <p>Learn to handle forms without JavaScript in Next.js.</p>
           </Link>
         </div>
       </main>

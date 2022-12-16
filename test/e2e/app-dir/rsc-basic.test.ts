@@ -38,7 +38,7 @@ describe('app dir - rsc basics', () => {
     next = await createNext({
       files: new FileRef(path.join(__dirname, './rsc-basic')),
       dependencies: {
-        'styled-components': '6.0.0-beta.2',
+        'styled-components': '6.0.0-beta.5',
         react: 'latest',
         'react-dom': 'latest',
       },
@@ -64,6 +64,45 @@ describe('app dir - rsc basics', () => {
     return
   }
 
+  it('should correctly render page returning null', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-null/page')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render component returning null', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-null/component')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render layout returning null', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-null/layout')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render page returning undefined', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-undefined/page')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render component returning undefined', async () => {
+    const homeHTML = await renderViaHTTP(
+      next.url,
+      '/return-undefined/component'
+    )
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render layout returning undefined', async () => {
+    const homeHTML = await renderViaHTTP(next.url, '/return-undefined/layout')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
   it('should render server components correctly', async () => {
     const homeHTML = await renderViaHTTP(next.url, '/', null, {
       headers: {
@@ -73,6 +112,10 @@ describe('app dir - rsc basics', () => {
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
+    // should have default head when there's no head.js provided
+    expect(homeHTML).toContain(
+      '<meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>'
+    )
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('header:test-util')
 
@@ -88,9 +131,6 @@ describe('app dir - rsc basics', () => {
       '__nextLocale',
       '__nextDefaultLocale',
       '__nextIsNotFound',
-      '__rsc__',
-      '__next_router_state_tree__',
-      '__next_router_prefetch__',
     ]
 
     const hasNextInternalQuery = inlineFlightContents.some((content) =>
@@ -108,9 +148,9 @@ describe('app dir - rsc basics', () => {
           requestsCount++
           return request.allHeaders().then((headers) => {
             if (
-              headers.__rsc__ === '1' &&
-              // Prefetches also include `__rsc__`
-              headers.__next_router_prefetch__ !== '1'
+              headers['RSC'.toLowerCase()] === '1' &&
+              // Prefetches also include `RSC`
+              headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
             ) {
               hasFlightRequest = true
             }
@@ -185,41 +225,18 @@ describe('app dir - rsc basics', () => {
     }
   })
 
-  it('should refresh correctly with next/link', async () => {
+  it('should link correctly with next/link without mpa navigation to the page', async () => {
     // Select the button which is not hidden but rendered
     const selector = '#goto-next-link'
-    let hasFlightRequest = false
-    const browser = await webdriver(next.url, '/root', {
-      beforePageLoad(page) {
-        page.on('request', (request) => {
-          return request.allHeaders().then((headers) => {
-            if (
-              headers.__rsc__ === '1' &&
-              headers.__next_router_prefetch__ !== '1'
-            ) {
-              hasFlightRequest = true
-            }
-          })
-        })
-      },
-    })
+    const browser = await webdriver(next.url, '/root', {})
 
-    // wait for hydration
-    await new Promise((res) => setTimeout(res, 1000))
-    if (isNextDev) {
-      expect(hasFlightRequest).toBe(false)
-    }
-    await browser.elementByCss(selector).click()
+    await browser.eval('window.didNotReloadPage = true')
+    await browser.elementByCss(selector).click().waitForElementByCss('#query')
 
-    // wait for re-hydration
-    if (isNextDev) {
-      await check(
-        () => (hasFlightRequest ? 'success' : hasFlightRequest),
-        'success'
-      )
-    }
-    const refreshText = await browser.elementByCss(selector).text()
-    expect(refreshText).toBe('next link')
+    expect(await browser.eval('window.didNotReloadPage')).toBe(true)
+
+    const text = await browser.elementByCss('#query').text()
+    expect(text).toBe('query:0')
   })
 
   it('should escape streaming data correctly', async () => {
@@ -299,7 +316,7 @@ describe('app dir - rsc basics', () => {
     expect(content).toContain('bar.server.js:')
   })
 
-  it('should render initial styles of css-in-js in SSR correctly', async () => {
+  it('should render initial styles of css-in-js in nodejs SSR correctly', async () => {
     const html = await renderViaHTTP(next.url, '/css-in-js')
     const head = getNodeBySelector(html, 'head').html()
 
@@ -309,11 +326,67 @@ describe('app dir - rsc basics', () => {
 
     // from styled-components
     expect(head).toMatch(/{color:(\s*)blue;?}/)
+  })
 
-    // css-in-js like styled-jsx in server components won't be transformed
-    expect(html).toMatch(
-      /<style>\s*\.this-wont-be-transformed\s*\{\s*color:\s*purple;\s*\}\s*<\/style>/
+  it('should render initial styles of css-in-js in edge SSR correctly', async () => {
+    const html = await renderViaHTTP(next.url, '/css-in-js/edge')
+    const head = getNodeBySelector(html, 'head').html()
+
+    // from styled-jsx
+    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
+    expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+
+    // from styled-components
+    expect(head).toMatch(/{color:(\s*)blue;?}/)
+  })
+
+  it('should render css-in-js suspense boundary correctly', async () => {
+    await fetchViaHTTP(next.url, '/css-in-js/suspense', null, {}).then(
+      async (response) => {
+        const results = []
+
+        await resolveStreamResponse(response, (chunk: string) => {
+          // check if rsc refresh script for suspense show up, the test content could change with react version
+          const hasRCScript = /\$RC=function/.test(chunk)
+          if (hasRCScript) results.push('refresh-script')
+
+          const isSuspenseyDataResolved =
+            /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
+          if (isSuspenseyDataResolved) results.push('data')
+
+          const isFallbackResolved = chunk.includes('fallback')
+          if (isFallbackResolved) results.push('fallback')
+        })
+
+        expect(results).toEqual(['fallback', 'data', 'refresh-script'])
+      }
     )
+    // // TODO-APP: fix streaming/suspense within browser for test suite
+    // const browser = await webdriver(next.url, '/css-in-js', { waitHydration: false })
+    // const footer = await browser.elementByCss('#footer')
+    // expect(await footer.text()).toBe('wait for fallback')
+    // expect(
+    //   await browser.eval(
+    //     `window.getComputedStyle(document.querySelector('#footer')).borderColor`
+    //   )
+    // ).toBe('rgb(255, 165, 0)')
+    // // Suspense is not rendered yet
+    // expect(
+    //   await browser.eval(
+    //     `document.querySelector('#footer-inner')`
+    //   )
+    // ).toBe('null')
+
+    // // Wait for suspense boundary
+    // await check(
+    //   () => browser.elementByCss('#footer').text(),
+    //   'wait for footer'
+    // )
+    // expect(
+    //   await browser.eval(
+    //     `window.getComputedStyle(document.querySelector('#footer-inner')).color`
+    //   )
+    // ).toBe('rgb(255, 165, 0)')
   })
 
   it('should stick to the url without trailing /page suffix', async () => {
@@ -337,7 +410,7 @@ describe('app dir - rsc basics', () => {
       {},
       {
         headers: {
-          __rsc__: '1',
+          ['RSC'.toString()]: '1',
         },
       }
     ).then(async (response) => {

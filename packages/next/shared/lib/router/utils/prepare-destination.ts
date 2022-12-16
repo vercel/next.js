@@ -42,12 +42,13 @@ function unescapeSegments(str: string) {
 
 export function matchHas(
   req: BaseNextRequest | IncomingMessage,
-  has: RouteHas[],
-  query: Params
+  query: Params,
+  has: RouteHas[] = [],
+  missing: RouteHas[] = []
 ): false | Params {
   const params: Params = {}
 
-  const allMatch = has.every((hasItem) => {
+  const hasMatch = (hasItem: RouteHas) => {
     let value: undefined | string
     let key = hasItem.key
 
@@ -100,7 +101,11 @@ export function matchHas(
       }
     }
     return false
-  })
+  }
+
+  const allMatch =
+    has.every((item) => hasMatch(item)) &&
+    !missing.some((item) => hasMatch(item))
 
   if (allMatch) {
     return params

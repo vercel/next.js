@@ -24,7 +24,7 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
     },
     {
       "name": "Next.js: debug client-side",
-      "type": "pwa-chrome",
+      "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000"
     },
@@ -33,7 +33,6 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev",
-      "console": "integratedTerminal",
       "serverReadyAction": {
         "pattern": "started server on .+, url: (https?://.+)",
         "uriFormat": "%s",

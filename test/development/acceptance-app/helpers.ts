@@ -22,6 +22,7 @@ export async function sandbox(
   await next.start()
   const browser = await webdriver(next.appPort, '/')
   return {
+    browser,
     session: {
       async write(filename, content) {
         // Update the file on filesystem
@@ -99,6 +100,15 @@ export async function sandbox(
       async hasRedbox(expected = false) {
         return hasRedbox(browser, expected)
       },
+      async hasErrorToast() {
+        return browser.eval(() => {
+          return Boolean(
+            Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-toast]')
+            )
+          )
+        })
+      },
       async getRedboxDescription() {
         return getRedboxDescription(browser)
       },
@@ -110,6 +120,9 @@ export async function sandbox(
           return `${header}\n\n${source}`
         }
         return source
+      },
+      async waitForAndOpenRuntimeError() {
+        return browser.waitForElementByCss('[data-nextjs-toast]').click()
       },
     },
     async cleanup() {

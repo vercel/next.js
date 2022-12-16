@@ -1,4 +1,5 @@
 import { spawn } from 'child_process'
+import { Span } from 'next/trace'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {
@@ -8,8 +9,8 @@ export class NextDevInstance extends NextInstance {
     return 'development'
   }
 
-  public async setup() {
-    await super.createTestDir()
+  public async setup(parentSpan: Span) {
+    await super.createTestDir({ parentSpan })
   }
 
   public get cliOutput() {
@@ -20,15 +21,21 @@ export class NextDevInstance extends NextInstance {
     if (this.childProcess) {
       throw new Error('next already started')
     }
-    let startArgs = ['yarn', 'next', useDirArg && this.testDir].filter(
-      Boolean
-    ) as string[]
+
+    const useTurbo = !process.env.TEST_WASM && (this as any).turbo
+
+    let startArgs = [
+      'yarn',
+      'next',
+      useTurbo ? '--turbo' : undefined,
+      useDirArg && this.testDir,
+    ].filter(Boolean) as string[]
 
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
         cwd: useDirArg ? process.cwd() : this.testDir,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -68,8 +75,21 @@ export class NextDevInstance extends NextInstance {
       })
       const readyCb = (msg) => {
         if (msg.includes('started server on') && msg.includes('url:')) {
-          this._url = msg.split('url: ').pop().trim()
-          this._parsedUrl = new URL(this._url)
+          // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
+          // strip out again for the safety
+          this._url = msg
+            .split('url: ')
+            .pop()
+            .trim()
+            .split(require('os').EOL)[0]
+          try {
+            this._parsedUrl = new URL(this._url)
+          } catch (err) {
+            reject({
+              err,
+              msg,
+            })
+          }
           this.off('stdout', readyCb)
           resolve()
         }

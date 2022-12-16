@@ -12,6 +12,7 @@ import {
   getNextInternalQuery,
   NextUrlWithParsedQuery,
 } from './request-meta'
+import { isAPIRoute } from '../lib/is-api-route'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -30,6 +31,7 @@ type RouteResult = {
 export type Route = {
   match: RouteMatch
   has?: RouteHas[]
+  missing?: RouteHas[]
   type: string
   check?: boolean
   statusCode?: number
@@ -373,7 +375,7 @@ export default class Router {
         if (
           pathnameInfo.locale &&
           !route.matchesLocaleAPIRoutes &&
-          pathnameInfo.pathname.match(/^\/api(?:\/|$)/)
+          isAPIRoute(pathnameInfo.pathname)
         ) {
           continue
         }
@@ -416,8 +418,13 @@ export default class Router {
         })
 
         let params = route.match(matchPathname)
-        if (route.has && params) {
-          const hasParams = matchHas(req, route.has, parsedUrlUpdated.query)
+        if ((route.has || route.missing) && params) {
+          const hasParams = matchHas(
+            req,
+            parsedUrlUpdated.query,
+            route.has,
+            route.missing
+          )
           if (hasParams) {
             Object.assign(params, hasParams)
           } else {

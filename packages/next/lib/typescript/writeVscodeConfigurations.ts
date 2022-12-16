@@ -1,50 +1,60 @@
 import path from 'path'
+import isError from '../is-error'
 import { promises as fs } from 'fs'
+import * as Log from '../../build/output/log'
+import * as CommentJson from 'next/dist/compiled/comment-json'
 
 // Write .vscode settings to enable Next.js typescript plugin.
 export async function writeVscodeConfigurations(
-  baseDir: string
+  baseDir: string,
+  tsPath: string
 ): Promise<void> {
-  const vscodeSettings = path.join(baseDir, '.vscode', 'settings.json')
-  let settings: any = {}
-  let currentContent: string = ''
-
   try {
-    currentContent = await fs.readFile(vscodeSettings, 'utf8')
-    settings = JSON.parse(currentContent)
-  } catch (err) {}
+    const vscodeSettings = path.join(baseDir, '.vscode', 'settings.json')
+    let settings: any = {}
+    let configExisted = false
+    let currentContent: string = ''
 
-  const libPath =
-    '.' + path.sep + path.join('node_modules', 'typescript', 'lib')
-  if (
-    settings['typescript.tsdk'] === libPath &&
-    settings['typescript.enablePromptUseWorkspaceTsdk']
-  ) {
-    return
-  }
-
-  settings['typescript.tsdk'] = libPath
-  settings['typescript.enablePromptUseWorkspaceTsdk'] = true
-
-  const content = JSON.stringify(settings, null, 2)
-
-  const vscodeFolder = path.join(baseDir, '.vscode')
-  try {
-    await fs.lstat(vscodeFolder)
-  } catch (e) {
-    await fs.mkdir(vscodeFolder, { recursive: true })
-  }
-
-  await fs.writeFile(vscodeSettings, content)
-
-  // Write to .gitignore if it exists
-  const gitIgnore = path.join(baseDir, '.gitignore')
-  try {
-    const gitIgnoreContent = await fs.readFile(gitIgnore, 'utf8')
-    if (!gitIgnoreContent.includes('.vscode')) {
-      await fs.writeFile(gitIgnore, `${gitIgnoreContent}\n.vscode\n`)
+    try {
+      currentContent = await fs.readFile(vscodeSettings, 'utf8')
+      settings = CommentJson.parse(currentContent)
+      configExisted = true
+    } catch (err) {
+      if (isError(err) && err.code !== 'ENOENT') {
+        throw err
+      }
     }
-  } catch (e) {
-    await fs.writeFile(gitIgnore, `vscode\n`)
+
+    const libPath = path.relative(baseDir, path.dirname(tsPath))
+    if (
+      settings['typescript.tsdk'] === libPath &&
+      settings['typescript.enablePromptUseWorkspaceTsdk']
+    ) {
+      return
+    }
+
+    settings['typescript.tsdk'] = libPath
+    settings['typescript.enablePromptUseWorkspaceTsdk'] = true
+
+    const content = CommentJson.stringify(settings, null, 2)
+    const vscodeFolder = path.join(baseDir, '.vscode')
+
+    try {
+      await fs.lstat(vscodeFolder)
+    } catch (e) {
+      await fs.mkdir(vscodeFolder, { recursive: true })
+    }
+    await fs.writeFile(vscodeSettings, content)
+
+    Log.info(
+      `VS Code settings.json has been ${
+        configExisted ? 'updated' : 'created'
+      } for Next.js' automatic app types, this file can be added to .gitignore if desired`
+    )
+  } catch (err) {
+    Log.error(
+      `Failed to apply custom vscode config for Next.js' app types`,
+      err
+    )
   }
 }

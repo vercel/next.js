@@ -44,9 +44,12 @@ use swc_core::{
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
 
+pub mod mdx;
 pub mod minify;
 pub mod parse;
 pub mod transform;
+pub mod turbopack;
+pub mod turbotrace;
 pub mod util;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {

@@ -178,8 +178,13 @@ export function getUtils({
       )
       let params = matcher(parsedUrl.pathname)
 
-      if (rewrite.has && params) {
-        const hasParams = matchHas(req, rewrite.has, parsedUrl.query)
+      if ((rewrite.has || rewrite.missing) && params) {
+        const hasParams = matchHas(
+          req,
+          parsedUrl.query,
+          rewrite.has,
+          rewrite.missing
+        )
 
         if (hasParams) {
           Object.assign(params, hasParams)

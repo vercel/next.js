@@ -7,15 +7,10 @@ export default function Page() {
 
   return (
     <>
-      <h1
-        id="params"
-        data-param-first={params.get('first') ?? 'N/A'}
-        data-param-second={params.get('second') ?? 'N/A'}
-        data-param-third={params.get('third') ?? 'N/A'}
-        data-param-not-real={params.get('notReal') ?? 'N/A'}
-      >
-        hello from /hooks/use-search-params
-      </h1>
+      <p id="params-first">{params.get('first') ?? 'N/A'}</p>
+      <p id="params-second">{params.get('second') ?? 'N/A'}</p>
+      <p id="params-third">{params.get('third') ?? 'N/A'}</p>
+      <p id="params-not-real">{params.get('notReal') ?? 'N/A'}</p>
     </>
   )
 }

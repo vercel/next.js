@@ -119,30 +119,6 @@ var require_symbols2 = __commonJS({
   }
 });
 
-// src/patches/http.js
-var require_http = __commonJS({
-  "src/patches/http.js"() {
-    init_define_process();
-    var http = require_http();
-    http.validateHeaderName = /* @__PURE__ */ __name(function validateHeaderName(name) {
-      if (typeof name !== "string" || !name) {
-        const message = `Header name must be a valid HTTP token ["${name}"]`;
-        const error = new TypeError(message);
-        error.code = "ERR_INVALID_HTTP_TOKEN";
-        throw error;
-      }
-    }, "validateHeaderName");
-    http.validateHeaderValue = /* @__PURE__ */ __name(function validateHeaderValue(value) {
-      if (value === void 0) {
-        const message = `Invalid value "${value}" for header "${value}"`;
-        const error = new TypeError(message);
-        error.code = "ERR_HTTP_INVALID_HEADER_VALUE";
-        throw error;
-      }
-    }, "validateHeaderValue");
-  }
-});
-
 // ../../node_modules/.pnpm/undici@5.11.0/node_modules/undici/lib/core/errors.js
 var require_errors = __commonJS({
   "../../node_modules/.pnpm/undici@5.11.0/node_modules/undici/lib/core/errors.js"(exports, module2) {
@@ -354,15 +330,6 @@ var require_errors = __commonJS({
   }
 });
 
-// src/patches/buffer.js
-var require_buffer = __commonJS({
-  "src/patches/buffer.js"(exports, module2) {
-    init_define_process();
-    module2.exports = require_buffer();
-    module2.exports.Blob = require("./blob").Blob;
-  }
-});
-
 // ../../node_modules/.pnpm/undici@5.11.0/node_modules/undici/lib/core/util.js
 var require_util = __commonJS({
   "../../node_modules/.pnpm/undici@5.11.0/node_modules/undici/lib/core/util.js"(exports, module2) {
@@ -370,11 +337,11 @@ var require_util = __commonJS({
     init_define_process();
     var assert = require("assert");
     var { kDestroyed, kBodyUsed } = require_symbols();
-    var { IncomingMessage } = require_http();
+    var { IncomingMessage } = require("http");
     var stream = require("stream");
     var net = require("net");
     var { InvalidArgumentError: InvalidArgumentError2 } = require_errors();
-    var { Blob } = require_buffer();
+    var { Blob } = require("buffer");
     var nodeUtil = require("util");
     var { stringify } = require("querystring");
     function nop() {
@@ -743,8 +710,7 @@ var require_constants = __commonJS({
       "xslt",
       ""
     ];
-    var _a;
-    var DOMException = (_a = globalThis.DOMException) != null ? _a : (() => {
+    var DOMException = globalThis.DOMException ?? (() => {
       try {
         atob("~");
       } catch (err) {
@@ -1019,12 +985,11 @@ var require_util2 = __commonJS({
     }
     __name(coarsenedSharedCurrentTime, "coarsenedSharedCurrentTime");
     function createOpaqueTimingInfo(timingInfo) {
-      var _a, _b;
       return {
-        startTime: (_a = timingInfo.startTime) != null ? _a : 0,
+        startTime: timingInfo.startTime ?? 0,
         redirectStartTime: 0,
         redirectEndTime: 0,
-        postRedirectStartTime: (_b = timingInfo.startTime) != null ? _b : 0,
+        postRedirectStartTime: timingInfo.startTime ?? 0,
         finalServiceWorkerStartTime: 0,
         finalNetworkResponseStartTime: 0,
         finalNetworkRequestStartTime: 0,
@@ -1044,7 +1009,7 @@ var require_util2 = __commonJS({
     }
     __name(clonePolicyContainer, "clonePolicyContainer");
     function determineRequestsReferrer(request) {
-      var _a, _b, _c, _d, _e, _f, _g;
+      var _a, _b, _c, _d, _e, _f;
       const policy = request.referrerPolicy;
       if (policy == null || policy === "" || policy === "no-referrer") {
         return "no-referrer";
@@ -1053,12 +1018,12 @@ var require_util2 = __commonJS({
       let referrerSource = null;
       if (request.referrer === "client") {
         if (((_c = (_b = (_a = request.client) == null ? void 0 : _a.globalObject) == null ? void 0 : _b.constructor) == null ? void 0 : _c.name) === "Window") {
-          const origin = (_f = (_d = environment.globalObject.self) == null ? void 0 : _d.origin) != null ? _f : (_e = environment.globalObject.location) == null ? void 0 : _e.origin;
+          const origin = ((_d = environment.globalObject.self) == null ? void 0 : _d.origin) ?? ((_e = environment.globalObject.location) == null ? void 0 : _e.origin);
           if (origin == null || origin === "null")
             return "no-referrer";
           referrerSource = new URL(environment.globalObject.location.href);
         } else {
-          if (((_g = environment == null ? void 0 : environment.globalObject) == null ? void 0 : _g.location) == null) {
+          if (((_f = environment == null ? void 0 : environment.globalObject) == null ? void 0 : _f.location) == null) {
             return "no-referrer";
           }
           referrerSource = new URL(environment.globalObject.location.href);
@@ -1494,7 +1459,7 @@ var require_webidl = __commonJS({
           let value = dictionary[key];
           const hasDefault = hasOwn(options, "defaultValue");
           if (hasDefault && value !== null) {
-            value = value != null ? value : defaultValue;
+            value = value ?? defaultValue;
           }
           if (required || hasDefault || value !== void 0) {
             value = converter(value);
@@ -1716,12 +1681,11 @@ var require_headers = __commonJS({
         return this[kHeadersMap].delete(name);
       }
       get(name) {
-        var _a;
         name = name.toLowerCase();
         if (!this.contains(name)) {
           return null;
         }
-        return (_a = this[kHeadersMap].get(name)) != null ? _a : null;
+        return this[kHeadersMap].get(name) ?? null;
       }
       has(name) {
         name = name.toLowerCase();
@@ -5724,7 +5688,7 @@ var require_file = __commonJS({
   "../../node_modules/.pnpm/undici@5.11.0/node_modules/undici/lib/fetch/file.js"(exports, module2) {
     "use strict";
     init_define_process();
-    var { Blob } = require_buffer();
+    var { Blob } = require("buffer");
     var { types } = require("util");
     var { kState } = require_symbols2();
     var { isBlobLike } = require_util2();
@@ -5764,10 +5728,9 @@ var require_file = __commonJS({
     __name(File2, "File");
     var FileLike = class {
       constructor(blobLike, fileName, options = {}) {
-        var _a;
         const n = fileName;
         const t = options.type;
-        const d = (_a = options.lastModified) != null ? _a : Date.now();
+        const d = options.lastModified ?? Date.now();
         this[kState] = {
           blobLike,
           name: n,
@@ -5917,7 +5880,7 @@ var require_formdata = __commonJS({
     var { kState } = require_symbols2();
     var { File: File2, FileLike, isFileLike } = require_file();
     var { webidl } = require_webidl();
-    var { Blob } = require_buffer();
+    var { Blob } = require("buffer");
     var _FormData = class {
       constructor(form) {
         if (arguments.length > 0 && form != null) {
@@ -6132,7 +6095,7 @@ var require_body = __commonJS({
     var { kState } = require_symbols2();
     var { webidl } = require_webidl();
     var { DOMException } = require_constants();
-    var { Blob } = require_buffer();
+    var { Blob } = require("buffer");
     var { kBodyUsed } = require_symbols();
     var assert = require("assert");
     var { isErrored } = require_util();
@@ -7232,7 +7195,7 @@ var require_request = __commonJS({
             this[kHeaders2].append("content-type", contentType);
           }
         }
-        const inputOrInitBody = initBody != null ? initBody : inputBody;
+        const inputOrInitBody = initBody ?? inputBody;
         if (inputOrInitBody != null && inputOrInitBody.source == null) {
           if (request.mode !== "same-origin" && request.mode !== "cors") {
             throw new TypeError(
@@ -7572,7 +7535,7 @@ var require_dataURL = __commonJS({
   "../../node_modules/.pnpm/undici@5.11.0/node_modules/undici/lib/fetch/dataURL.js"(exports, module2) {
     init_define_process();
     var assert = require("assert");
-    var { atob: atob2 } = require_buffer();
+    var { atob: atob2 } = require("buffer");
     var { isValidHTTPToken } = require_util2();
     var encoder = new TextEncoder();
     function dataURLProcessor(dataURL) {
@@ -8241,7 +8204,7 @@ var require_fetch = __commonJS({
           return makeNetworkError("invalid path called");
         }
         case "blob:": {
-          resolveObjectURL = resolveObjectURL || require_buffer().resolveObjectURL;
+          resolveObjectURL = resolveObjectURL || require("buffer").resolveObjectURL;
           const currentURL = requestCurrentURL(request);
           if (currentURL.search.length !== 0) {
             return makeNetworkError("NetworkError when attempting to fetch resource.");
@@ -8555,7 +8518,7 @@ var require_fetch = __commonJS({
           var _a;
           if (!this.destroyed) {
             this.destroyed = true;
-            (_a = this.abort) == null ? void 0 : _a.call(this, err != null ? err : new DOMException("The operation was aborted.", "AbortError"));
+            (_a = this.abort) == null ? void 0 : _a.call(this, err ?? new DOMException("The operation was aborted.", "AbortError"));
           }
         }
       };
@@ -8649,7 +8612,6 @@ var require_fetch = __commonJS({
       response.body = { stream };
       fetchParams.controller.on("terminated", onAborted);
       fetchParams.controller.resume = async () => {
-        var _a;
         while (true) {
           let bytes;
           try {
@@ -8676,7 +8638,7 @@ var require_fetch = __commonJS({
             finalizeResponse(fetchParams, response);
             return;
           }
-          timingInfo.decodedBodySize += (_a = bytes == null ? void 0 : bytes.byteLength) != null ? _a : 0;
+          timingInfo.decodedBodySize += (bytes == null ? void 0 : bytes.byteLength) ?? 0;
           if (isErrorLike(bytes)) {
             fetchParams.controller.terminate(bytes);
             return;

@@ -109,7 +109,6 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 
 The following services support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
 
-- [Azure Static Web Apps](https://docs.microsoft.com/en-us/azure/static-web-apps/deploy-nextjs)
 - [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
 - [Firebase](https://github.com/vercel/next.js/tree/canary/examples/with-firebase-hosting)
 - [GitHub Pages](https://github.com/vercel/next.js/tree/canary/examples/github-pages)
@@ -119,6 +118,7 @@ You can also manually deploy the [`next export`](/docs/advanced-features/static-
 ### Serverless
 
 - [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
+- [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/nextjs)
 - [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
 - [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
 
@@ -136,7 +136,18 @@ Next.js will automatically load the latest version of your application in the ba
 
 Sometimes you might want to run some cleanup code on process signals like `SIGTERM` or `SIGINT`.
 
-You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file.
+You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file. Please note that you need to register env variable directly in the system env variable, not in the `.env` file.
+
+```json
+// package.json
+{
+  "scripts": {
+    "dev": "NEXT_MANUAL_SIG_HANDLE=true next dev",
+    "build": "next build",
+    "start": "NEXT_MANUAL_SIG_HANDLE=true next start"
+  }
+}
+```
 
 ```js
 // pages/_document.js

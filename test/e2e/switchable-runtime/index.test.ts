@@ -45,15 +45,10 @@ describe('Switchable runtime', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        app: new FileRef(join(__dirname, './app')),
-        pages: new FileRef(join(__dirname, './pages')),
-        utils: new FileRef(join(__dirname, './utils')),
-        'next.config.js': new FileRef(join(__dirname, './next.config.js')),
-      },
+      files: new FileRef(__dirname),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
     context = {
@@ -120,7 +115,7 @@ describe('Switchable runtime', () => {
           beforePageLoad(page) {
             page.on('request', (request) => {
               return request.allHeaders().then((headers) => {
-                if (headers.__rsc__ === '1') {
+                if (headers['RSC'.toLowerCase()] === '1') {
                   flightRequest = request.url()
                 }
               })
@@ -229,7 +224,7 @@ describe('Switchable runtime', () => {
           'pages/api/switch-in-dev.js',
           `
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
           }
 
           export default () => new Response('edge response')
@@ -259,7 +254,7 @@ describe('Switchable runtime', () => {
           'pages/api/switch-in-dev.js',
           `
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
           }
 
           export default () => new Response('edge response again')
@@ -340,7 +335,7 @@ describe('Switchable runtime', () => {
           'pages/api/switch-in-dev-same-content.js',
           `
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
           }
 
           export default () => new Response('edge response')
@@ -373,7 +368,7 @@ describe('Switchable runtime', () => {
           'pages/api/syntax-error-in-dev.js',
           `
         export const config = {
-          runtime: 'experimental-edge',
+          runtime: 'edge',
         }
 
         export default  => new Response('edge response')
@@ -391,7 +386,7 @@ describe('Switchable runtime', () => {
           export default () => new Response('edge response again')
 
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
           }
 
         `
@@ -467,6 +462,34 @@ describe('Switchable runtime', () => {
         await check(
           () => renderViaHTTP(next.url, '/invalid-runtime'),
           /Hello from page without errors/
+        )
+      })
+
+      it('should give proper errors for invalid runtime in app dir', async () => {
+        // Invalid runtime
+        await next.patchFile(
+          'app/app-invalid-runtime/page.js',
+          `
+          export default function Page() {
+            return <p>Hello from app</p>
+          }
+          export const runtime = 'invalid-runtime'
+          `
+        )
+        await check(
+          () => renderViaHTTP(next.url, '/app-invalid-runtime'),
+          /Hello from app/
+        )
+        expect(next.cliOutput).toInclude(
+          'error - Provided runtime "invalid-runtime" is not supported. Please leave it empty or choose one of:'
+        )
+
+        await next.patchFile(
+          'app/app-invalid-runtime/page.js',
+          `
+          export default function Page() {
+            return <p>Hello from app</p>
+          }`
         )
       })
     })
@@ -680,7 +703,7 @@ describe('Switchable runtime', () => {
           beforePageLoad(page) {
             page.on('request', (request) => {
               request.allHeaders().then((headers) => {
-                if (headers.__rsc__ === '1') {
+                if (headers['RSC'.toLowerCase()] === '1') {
                   flightRequest = request.url()
                 }
               })

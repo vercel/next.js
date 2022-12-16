@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require('react');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-e7c5af45c-20221023';
+var ReactVersion = '18.3.0-next-3ba7add60-20221201';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -93,6 +93,9 @@ function stringToChunk(content) {
 }
 function stringToPrecomputedChunk(content) {
   return content;
+}
+function clonePrecomputedChunk(chunk) {
+  return chunk;
 }
 function closeWithError(destination, error) {
   // $FlowFixMe: This is an Error object or the destination accepts other types.
@@ -2188,8 +2191,13 @@ function preinit(href, options) {
     return;
   }
 
-  var resources = currentResources;
+  preinitImpl(currentResources, href, options);
+} // On the server, preinit may be called outside of render when sending an
+// external SSR runtime as part of the initial resources payload. Since this
+// is an internal React call, we do not need to use the resources stack.
 
+
+function preinitImpl(resources, href, options) {
   {
     validatePreinitArguments(href, options);
   }
@@ -2710,7 +2718,11 @@ function resourcesFromLink(props) {
   }
 
   if (props.onLoad || props.onError) {
-    return false;
+    // When a link has these props we can't treat it is a Resource but if we rendered it on the
+    // server it would look like a Resource in the rendered html (the onLoad/onError aren't emitted)
+    // Instead we expect the client to insert them rather than hydrate them which also guarantees
+    // that the onLoad and onError won't fire before the event handlers are attached
+    return true;
   }
 
   var sizes = typeof props.sizes === 'string' ? props.sizes : '';
@@ -2832,7 +2844,7 @@ function cleanupAfterRender(previousDispatcher) {
   finishRenderingResources();
   ReactDOMCurrentDispatcher.current = previousDispatcher;
 } // Used to distinguish these contexts from ones used in other renderers.
-
+var ScriptStreamingFormat = 0;
 var startInlineScript = stringToPrecomputedChunk('<script>');
 var endInlineScript = stringToPrecomputedChunk('</script>');
 var startScriptSrc = stringToPrecomputedChunk('<script src="');
@@ -2865,10 +2877,14 @@ var scriptReplacer = function (match, prefix, s, suffix) {
 };
 
 // Allows us to keep track of what we've already written so we can refer back to it.
+// if passed externalRuntimeConfig and the enableFizzExternalRuntime feature flag
+// is set, the server will send instructions via data attributes (instead of inline scripts)
 function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules, externalRuntimeConfig) {
   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
   var bootstrapChunks = [];
+  var externalRuntimeDesc = null;
+  var streamingFormat = ScriptStreamingFormat;
 
   if (bootstrapScriptContent !== undefined) {
     bootstrapChunks.push(inlineScriptWithNonce, stringToChunk(escapeBootstrapScriptContent(bootstrapScriptContent)), endInlineScript);
@@ -2877,15 +2893,12 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
   if (bootstrapScripts !== undefined) {
     for (var i = 0; i < bootstrapScripts.length; i++) {
       var scriptConfig = bootstrapScripts[i];
+      var src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
+      var integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
+      bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(src)));
 
-      var _src = typeof scriptConfig === 'string' ? scriptConfig : scriptConfig.src;
-
-      var _integrity = typeof scriptConfig === 'string' ? undefined : scriptConfig.integrity;
-
-      bootstrapChunks.push(startScriptSrc, stringToChunk(escapeTextForBrowser(_src)));
-
-      if (_integrity) {
-        bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
+      if (integrity) {
+        bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(integrity)));
       }
 
       bootstrapChunks.push(endAsyncScript);
@@ -2896,14 +2909,14 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
     for (var _i = 0; _i < bootstrapModules.length; _i++) {
       var _scriptConfig = bootstrapModules[_i];
 
-      var _src2 = typeof _scriptConfig === 'string' ? _scriptConfig : _scriptConfig.src;
+      var _src = typeof _scriptConfig === 'string' ? _scriptConfig : _scriptConfig.src;
 
-      var _integrity2 = typeof _scriptConfig === 'string' ? undefined : _scriptConfig.integrity;
+      var _integrity = typeof _scriptConfig === 'string' ? undefined : _scriptConfig.integrity;
 
-      bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src2)));
+      bootstrapChunks.push(startModuleSrc, stringToChunk(escapeTextForBrowser(_src)));
 
-      if (_integrity2) {
-        bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity2)));
+      if (_integrity) {
+        bootstrapChunks.push(scriptIntegirty, stringToChunk(escapeTextForBrowser(_integrity)));
       }
 
       bootstrapChunks.push(endAsyncScript);
@@ -2912,16 +2925,18 @@ function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bo
 
   return {
     bootstrapChunks: bootstrapChunks,
-    startInlineScript: inlineScriptWithNonce,
     placeholderPrefix: stringToPrecomputedChunk(idPrefix + 'P:'),
     segmentPrefix: stringToPrecomputedChunk(idPrefix + 'S:'),
     boundaryPrefix: idPrefix + 'B:',
     idPrefix: idPrefix,
     nextSuspenseID: 0,
+    streamingFormat: streamingFormat,
+    startInlineScript: inlineScriptWithNonce,
     sentCompleteSegmentFunction: false,
     sentCompleteBoundaryFunction: false,
     sentClientRenderFunction: false,
-    sentStyleInsertionFunction: false
+    sentStyleInsertionFunction: false,
+    externalRuntimeConfig: externalRuntimeDesc
   };
 } // Constants for the insertion mode we're currently writing in. We don't encode all HTML5 insertion
 // modes. We only include the variants as they matter for the sake of our purposes.
@@ -2938,52 +2953,56 @@ var HTML_TABLE_ROW_MODE = 6;
 var HTML_COLGROUP_MODE = 7; // We have a greater than HTML_TABLE_MODE check elsewhere. If you add more cases here, make sure it
 // still makes sense
 
-function createFormatContext(insertionMode, selectedValue) {
+function createFormatContext(insertionMode, selectedValue, noscriptTagInScope) {
   return {
     insertionMode: insertionMode,
-    selectedValue: selectedValue
+    selectedValue: selectedValue,
+    noscriptTagInScope: noscriptTagInScope
   };
 }
 function getChildFormatContext(parentContext, type, props) {
   switch (type) {
+    case 'noscript':
+      return createFormatContext(HTML_MODE, null, true);
+
     case 'select':
-      return createFormatContext(HTML_MODE, props.value != null ? props.value : props.defaultValue);
+      return createFormatContext(HTML_MODE, props.value != null ? props.value : props.defaultValue, parentContext.noscriptTagInScope);
 
     case 'svg':
-      return createFormatContext(SVG_MODE, null);
+      return createFormatContext(SVG_MODE, null, parentContext.noscriptTagInScope);
 
     case 'math':
-      return createFormatContext(MATHML_MODE, null);
+      return createFormatContext(MATHML_MODE, null, parentContext.noscriptTagInScope);
 
     case 'foreignObject':
-      return createFormatContext(HTML_MODE, null);
+      return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
     // Table parents are special in that their children can only be created at all if they're
     // wrapped in a table parent. So we need to encode that we're entering this mode.
 
     case 'table':
-      return createFormatContext(HTML_TABLE_MODE, null);
+      return createFormatContext(HTML_TABLE_MODE, null, parentContext.noscriptTagInScope);
 
     case 'thead':
     case 'tbody':
     case 'tfoot':
-      return createFormatContext(HTML_TABLE_BODY_MODE, null);
+      return createFormatContext(HTML_TABLE_BODY_MODE, null, parentContext.noscriptTagInScope);
 
     case 'colgroup':
-      return createFormatContext(HTML_COLGROUP_MODE, null);
+      return createFormatContext(HTML_COLGROUP_MODE, null, parentContext.noscriptTagInScope);
 
     case 'tr':
-      return createFormatContext(HTML_TABLE_ROW_MODE, null);
+      return createFormatContext(HTML_TABLE_ROW_MODE, null, parentContext.noscriptTagInScope);
   }
 
   if (parentContext.insertionMode >= HTML_TABLE_MODE) {
     // Whatever tag this was, it wasn't a table parent or other special parent, so we must have
     // entered plain HTML again.
-    return createFormatContext(HTML_MODE, null);
+    return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
   }
 
   if (parentContext.insertionMode === ROOT_HTML_MODE) {
     // We've emitted the root and is now in plain HTML mode.
-    return createFormatContext(HTML_MODE, null);
+    return createFormatContext(HTML_MODE, null, parentContext.noscriptTagInScope);
   }
 
   return parentContext;
@@ -3663,8 +3682,8 @@ function pushStartTextArea(target, props, responseState) {
   return null;
 }
 
-function pushBase(target, props, responseState, textEmbedded) {
-  if ( resourcesFromElement('base', props)) {
+function pushBase(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromElement('base', props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -3679,8 +3698,8 @@ function pushBase(target, props, responseState, textEmbedded) {
   return pushSelfClosing(target, props, 'base', responseState);
 }
 
-function pushMeta(target, props, responseState, textEmbedded) {
-  if ( resourcesFromElement('meta', props)) {
+function pushMeta(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromElement('meta', props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -3695,8 +3714,8 @@ function pushMeta(target, props, responseState, textEmbedded) {
   return pushSelfClosing(target, props, 'meta', responseState);
 }
 
-function pushLink(target, props, responseState, textEmbedded) {
-  if ( resourcesFromLink(props)) {
+function pushLink(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromLink(props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -3805,7 +3824,7 @@ function pushStartMenuItem(target, props, responseState) {
   return null;
 }
 
-function pushTitle(target, props, responseState) {
+function pushTitle(target, props, responseState, insertionMode, noscriptTagInScope) {
   {
     var children = props.children;
     var childForValidation = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
@@ -3819,7 +3838,8 @@ function pushTitle(target, props, responseState) {
     }
   }
 
-  if ( resourcesFromElement('title', props)) {
+  if ( // title is valid in SVG so we avoid resour
+  insertionMode !== SVG_MODE && !noscriptTagInScope && resourcesFromElement('title', props)) {
     // We have converted this link exclusively to a resource and no longer
     // need to emit it
     return null;
@@ -3884,8 +3904,8 @@ function pushStartHtml(target, preamble, props, tag, responseState, formatContex
   return pushStartGenericElement(target, props, tag, responseState);
 }
 
-function pushScript(target, props, responseState, textEmbedded) {
-  if ( resourcesFromScript(props)) {
+function pushScript(target, props, responseState, textEmbedded, noscriptTagInScope) {
+  if ( !noscriptTagInScope && resourcesFromScript(props)) {
     if (textEmbedded) {
       // This link follows text but we aren't writing a tag. while not as efficient as possible we need
       // to be safe and assume text will follow by inserting a textSeparator
@@ -4170,19 +4190,19 @@ function pushStartInstance(target, preamble, type, props, responseState, formatC
       return pushStartMenuItem(target, props, responseState);
 
     case 'title':
-      return  pushTitle(target, props, responseState) ;
+      return  pushTitle(target, props, responseState, formatContext.insertionMode, formatContext.noscriptTagInScope) ;
 
     case 'link':
-      return pushLink(target, props, responseState, textEmbedded);
+      return pushLink(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
 
     case 'script':
-      return  pushScript(target, props, responseState, textEmbedded) ;
+      return  pushScript(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope) ;
 
     case 'meta':
-      return pushMeta(target, props, responseState, textEmbedded);
+      return pushMeta(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
 
     case 'base':
-      return pushBase(target, props, responseState, textEmbedded);
+      return pushBase(target, props, responseState, textEmbedded, formatContext.noscriptTagInScope);
     // Newline eating tags
 
     case 'listing':
@@ -4520,26 +4540,37 @@ function writeEndSegment(destination, formatContext) {
 var completeSegmentScript1Full = stringToPrecomputedChunk(completeSegment + ';$RS("');
 var completeSegmentScript1Partial = stringToPrecomputedChunk('$RS("');
 var completeSegmentScript2 = stringToPrecomputedChunk('","');
-var completeSegmentScript3 = stringToPrecomputedChunk('")</script>');
+var completeSegmentScriptEnd = stringToPrecomputedChunk('")</script>');
 function writeCompletedSegmentInstruction(destination, responseState, contentSegmentID) {
-  writeChunk(destination, responseState.startInlineScript);
 
-  if (!responseState.sentCompleteSegmentFunction) {
-    // The first time we write this, we'll need to include the full implementation.
-    responseState.sentCompleteSegmentFunction = true;
-    writeChunk(destination, completeSegmentScript1Full);
-  } else {
-    // Future calls can just reuse the same function.
-    writeChunk(destination, completeSegmentScript1Partial);
-  }
+  {
+    writeChunk(destination, responseState.startInlineScript);
+
+    if (!responseState.sentCompleteSegmentFunction) {
+      // The first time we write this, we'll need to include the full implementation.
+      responseState.sentCompleteSegmentFunction = true;
+      writeChunk(destination, completeSegmentScript1Full);
+    } else {
+      // Future calls can just reuse the same function.
+      writeChunk(destination, completeSegmentScript1Partial);
+    }
+  } // Write function arguments, which are string literals
+
 
   writeChunk(destination, responseState.segmentPrefix);
   var formattedID = stringToChunk(contentSegmentID.toString(16));
   writeChunk(destination, formattedID);
-  writeChunk(destination, completeSegmentScript2);
+
+  {
+    writeChunk(destination, completeSegmentScript2);
+  }
+
   writeChunk(destination, responseState.placeholderPrefix);
   writeChunk(destination, formattedID);
-  return writeChunkAndReturn(destination, completeSegmentScript3);
+
+  {
+    return writeChunkAndReturn(destination, completeSegmentScriptEnd);
+  }
 }
 var completeBoundaryScript1Full = stringToPrecomputedChunk(completeBoundary + ';$RC("');
 var completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("');
@@ -4547,9 +4578,9 @@ var completeBoundaryWithStylesScript1FullBoth = stringToPrecomputedChunk(complet
 var completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(completeBoundaryWithStyles + ';$RR("');
 var completeBoundaryWithStylesScript1Partial = stringToPrecomputedChunk('$RR("');
 var completeBoundaryScript2 = stringToPrecomputedChunk('","');
-var completeBoundaryScript2a = stringToPrecomputedChunk('",');
-var completeBoundaryScript3 = stringToPrecomputedChunk('"');
-var completeBoundaryScript4 = stringToPrecomputedChunk(')</script>');
+var completeBoundaryScript3a = stringToPrecomputedChunk('",');
+var completeBoundaryScript3b = stringToPrecomputedChunk('"');
+var completeBoundaryScriptEnd = stringToPrecomputedChunk(')</script>');
 function writeCompletedBoundaryInstruction(destination, responseState, boundaryID, contentSegmentID, boundaryResources) {
   var hasStyleDependencies;
 
@@ -4557,62 +4588,84 @@ function writeCompletedBoundaryInstruction(destination, responseState, boundaryI
     hasStyleDependencies = hasStyleResourceDependencies(boundaryResources);
   }
 
-  writeChunk(destination, responseState.startInlineScript);
+  {
+    writeChunk(destination, responseState.startInlineScript);
 
-  if ( hasStyleDependencies) {
-    if (!responseState.sentCompleteBoundaryFunction) {
-      responseState.sentCompleteBoundaryFunction = true;
-      responseState.sentStyleInsertionFunction = true;
-      writeChunk(destination, completeBoundaryWithStylesScript1FullBoth);
-    } else if (!responseState.sentStyleInsertionFunction) {
-      responseState.sentStyleInsertionFunction = true;
-      writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
+    if ( hasStyleDependencies) {
+      if (!responseState.sentCompleteBoundaryFunction) {
+        responseState.sentCompleteBoundaryFunction = true;
+        responseState.sentStyleInsertionFunction = true;
+        writeChunk(destination, clonePrecomputedChunk(completeBoundaryWithStylesScript1FullBoth));
+      } else if (!responseState.sentStyleInsertionFunction) {
+        responseState.sentStyleInsertionFunction = true;
+        writeChunk(destination, completeBoundaryWithStylesScript1FullPartial);
+      } else {
+        writeChunk(destination, completeBoundaryWithStylesScript1Partial);
+      }
     } else {
-      writeChunk(destination, completeBoundaryWithStylesScript1Partial);
-    }
-  } else {
-    if (!responseState.sentCompleteBoundaryFunction) {
-      responseState.sentCompleteBoundaryFunction = true;
-      writeChunk(destination, completeBoundaryScript1Full);
-    } else {
-      writeChunk(destination, completeBoundaryScript1Partial);
+      if (!responseState.sentCompleteBoundaryFunction) {
+        responseState.sentCompleteBoundaryFunction = true;
+        writeChunk(destination, completeBoundaryScript1Full);
+      } else {
+        writeChunk(destination, completeBoundaryScript1Partial);
+      }
     }
   }
 
   if (boundaryID === null) {
     throw new Error('An ID must have been assigned before we can complete the boundary.');
-  }
+  } // Write function arguments, which are string and array literals
+
 
   var formattedContentID = stringToChunk(contentSegmentID.toString(16));
   writeChunk(destination, boundaryID);
-  writeChunk(destination, completeBoundaryScript2);
+
+  {
+    writeChunk(destination, completeBoundaryScript2);
+  }
+
   writeChunk(destination, responseState.segmentPrefix);
   writeChunk(destination, formattedContentID);
 
   if ( hasStyleDependencies) {
-    writeChunk(destination, completeBoundaryScript2a);
-    writeStyleResourceDependencies(destination, boundaryResources);
+    // Script and data writers must format this differently:
+    //  - script writer emits an array literal, whose string elements are
+    //    escaped for javascript  e.g. ["A", "B"]
+    //  - data writer emits a string literal, which is escaped as html
+    //    e.g. [&#34;A&#34;, &#34;B&#34;]
+    {
+      writeChunk(destination, completeBoundaryScript3a); // boundaryResources encodes an array literal
+
+      writeStyleResourceDependenciesInJS(destination, boundaryResources);
+    }
   } else {
-    writeChunk(destination, completeBoundaryScript3);
+    {
+      writeChunk(destination, completeBoundaryScript3b);
+    }
   }
 
-  return writeChunkAndReturn(destination, completeBoundaryScript4);
+  {
+    return writeChunkAndReturn(destination, completeBoundaryScriptEnd);
+  }
 }
 var clientRenderScript1Full = stringToPrecomputedChunk(clientRenderBoundary + ';$RX("');
 var clientRenderScript1Partial = stringToPrecomputedChunk('$RX("');
 var clientRenderScript1A = stringToPrecomputedChunk('"');
-var clientRenderScript2 = stringToPrecomputedChunk(')</script>');
 var clientRenderErrorScriptArgInterstitial = stringToPrecomputedChunk(',');
+var clientRenderScriptEnd = stringToPrecomputedChunk(')</script>');
 function writeClientRenderBoundaryInstruction(destination, responseState, boundaryID, errorDigest, errorMessage, errorComponentStack) {
-  writeChunk(destination, responseState.startInlineScript);
 
-  if (!responseState.sentClientRenderFunction) {
-    // The first time we write this, we'll need to include the full implementation.
-    responseState.sentClientRenderFunction = true;
-    writeChunk(destination, clientRenderScript1Full);
-  } else {
-    // Future calls can just reuse the same function.
-    writeChunk(destination, clientRenderScript1Partial);
+  {
+    writeChunk(destination, responseState.startInlineScript);
+
+    if (!responseState.sentClientRenderFunction) {
+      // The first time we write this, we'll need to include the full implementation.
+      responseState.sentClientRenderFunction = true;
+      writeChunk(destination, clientRenderScript1Full);
+    } else {
+      // Future calls can just reuse the same function.
+      writeChunk(destination, clientRenderScript1Partial);
+    }
   }
 
   if (boundaryID === null) {
@@ -4620,24 +4673,41 @@ function writeClientRenderBoundaryInstruction(destination, responseState, bounda
   }
 
   writeChunk(destination, boundaryID);
-  writeChunk(destination, clientRenderScript1A);
+
+  {
+    // " needs to be inserted for scripts, since ArgInterstitual does not contain
+    // leading or trailing quotes
+    writeChunk(destination, clientRenderScript1A);
+  }
 
   if (errorDigest || errorMessage || errorComponentStack) {
-    writeChunk(destination, clientRenderErrorScriptArgInterstitial);
-    writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorDigest || '')));
+    {
+      // ,"JSONString"
+      writeChunk(destination, clientRenderErrorScriptArgInterstitial);
+      writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorDigest || '')));
+    }
   }
 
   if (errorMessage || errorComponentStack) {
-    writeChunk(destination, clientRenderErrorScriptArgInterstitial);
-    writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorMessage || '')));
+    {
+      // ,"JSONString"
+      writeChunk(destination, clientRenderErrorScriptArgInterstitial);
+      writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorMessage || '')));
+    }
   }
 
   if (errorComponentStack) {
-    writeChunk(destination, clientRenderErrorScriptArgInterstitial);
-    writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorComponentStack)));
+    // ,"JSONString"
+    {
+      writeChunk(destination, clientRenderErrorScriptArgInterstitial);
+      writeChunk(destination, stringToChunk(escapeJSStringsForInstructionScripts(errorComponentStack)));
+    }
   }
 
-  return writeChunkAndReturn(destination, clientRenderScript2);
+  {
+    // ></script>
+    return writeChunkAndReturn(destination, clientRenderScriptEnd);
+  }
 }
 var regexForJSStringsInInstructionScripts = /[<\u2028\u2029]/g;
 
@@ -4697,7 +4767,8 @@ function escapeJSObjectForInstructionScripts(input) {
 
 var precedencePlaceholderStart = stringToPrecomputedChunk('<style data-precedence="');
 var precedencePlaceholderEnd = stringToPrecomputedChunk('"></style>');
-function writeInitialResources(destination, resources, responseState) {
+function writeInitialResources(destination, resources, responseState, willFlushAllSegments) {
+
   function flushLinkResource(resource) {
     if (!resource.flushed) {
       pushLinkImpl(target, resource.props, responseState);
@@ -4921,20 +4992,22 @@ function hasStyleResourceDependencies(boundaryResources) {
 var arrayFirstOpenBracket = stringToPrecomputedChunk('[');
 var arraySubsequentOpenBracket = stringToPrecomputedChunk(',[');
 var arrayInterstitial = stringToPrecomputedChunk(',');
-var arrayCloseBracket = stringToPrecomputedChunk(']');
+var arrayCloseBracket = stringToPrecomputedChunk(']'); // This function writes a 2D array of strings to be embedded in javascript.
+// E.g.
+//  [["JS_escaped_string1", "JS_escaped_string2"]]
 
-function writeStyleResourceDependencies(destination, boundaryResources) {
+function writeStyleResourceDependenciesInJS(destination, boundaryResources) {
   writeChunk(destination, arrayFirstOpenBracket);
   var nextArrayOpenBrackChunk = arrayFirstOpenBracket;
   boundaryResources.forEach(function (resource) {
     if (resource.inShell) ; else if (resource.flushed) {
       writeChunk(destination, nextArrayOpenBrackChunk);
-      writeStyleResourceDependencyHrefOnly(destination, resource.href);
+      writeStyleResourceDependencyHrefOnlyInJS(destination, resource.href);
       writeChunk(destination, arrayCloseBracket);
       nextArrayOpenBrackChunk = arraySubsequentOpenBracket;
     } else {
       writeChunk(destination, nextArrayOpenBrackChunk);
-      writeStyleResourceDependency(destination, resource.href, resource.precedence, resource.props);
+      writeStyleResourceDependencyInJS(destination, resource.href, resource.precedence, resource.props);
       writeChunk(destination, arrayCloseBracket);
       nextArrayOpenBrackChunk = arraySubsequentOpenBracket;
       resource.flushed = true;
@@ -4943,8 +5016,10 @@ function writeStyleResourceDependencies(destination, boundaryResources) {
   });
   writeChunk(destination, arrayCloseBracket);
 }
+/* Helper functions */
 
-function writeStyleResourceDependencyHrefOnly(destination, href) {
+
+function writeStyleResourceDependencyHrefOnlyInJS(destination, href) {
   // We should actually enforce this earlier when the resource is created but for
   // now we make sure we are actually dealing with a string here.
   {
@@ -4955,7 +5030,7 @@ function writeStyleResourceDependencyHrefOnly(destination, href) {
   writeChunk(destination, stringToChunk(escapeJSObjectForInstructionScripts(coercedHref)));
 }
 
-function writeStyleResourceDependency(destination, href, precedence, props) {
+function writeStyleResourceDependencyInJS(destination, href, precedence, props) {
   {
     checkAttributeStringCoercion(href, 'href');
   }
@@ -4995,7 +5070,7 @@ function writeStyleResourceDependency(destination, href, precedence, props) {
         // eslint-disable-next-line-no-fallthrough
 
         default:
-          writeStyleResourceAttribute(destination, propKey, propValue);
+          writeStyleResourceAttributeInJS(destination, propKey, propValue);
           break;
       }
     }
@@ -5004,7 +5079,7 @@ function writeStyleResourceDependency(destination, href, precedence, props) {
   return null;
 }
 
-function writeStyleResourceAttribute(destination, name, value) {
+function writeStyleResourceAttributeInJS(destination, name, value) {
   var attributeName = name.toLowerCase();
   var attributeValue;
 
@@ -5074,23 +5149,25 @@ function writeStyleResourceAttribute(destination, name, value) {
   writeChunk(destination, stringToChunk(escapeJSObjectForInstructionScripts(attributeName)));
   writeChunk(destination, arrayInterstitial);
   writeChunk(destination, stringToChunk(escapeJSObjectForInstructionScripts(attributeValue)));
-}
+} // This function writes a 2D array of strings to be embedded in an attribute
 
-function createResponseState$1(generateStaticMarkup, identifierPrefix) {
-  var responseState = createResponseState(identifierPrefix, undefined);
+function createResponseState$1(generateStaticMarkup, identifierPrefix, externalRuntimeConfig) {
+  var responseState = createResponseState(identifierPrefix, undefined, undefined, undefined, undefined);
   return {
     // Keep this in sync with ReactDOMServerFormatConfig
     bootstrapChunks: responseState.bootstrapChunks,
-    startInlineScript: responseState.startInlineScript,
     placeholderPrefix: responseState.placeholderPrefix,
     segmentPrefix: responseState.segmentPrefix,
     boundaryPrefix: responseState.boundaryPrefix,
     idPrefix: responseState.idPrefix,
     nextSuspenseID: responseState.nextSuspenseID,
+    streamingFormat: responseState.streamingFormat,
+    startInlineScript: responseState.startInlineScript,
     sentCompleteSegmentFunction: responseState.sentCompleteSegmentFunction,
     sentCompleteBoundaryFunction: responseState.sentCompleteBoundaryFunction,
     sentClientRenderFunction: responseState.sentClientRenderFunction,
     sentStyleInsertionFunction: responseState.sentStyleInsertionFunction,
+    externalRuntimeConfig: responseState.externalRuntimeConfig,
     // This is an extra field for the legacy renderer
     generateStaticMarkup: generateStaticMarkup
   };
@@ -5099,7 +5176,8 @@ function createRootFormatContext() {
   return {
     insertionMode: HTML_MODE,
     // We skip the root mode because we don't want to emit the DOCTYPE in legacy mode.
-    selectedValue: null
+    selectedValue: null,
+    noscriptTagInScope: false
   };
 }
 function pushTextInstance$1(target, text, responseState, textEmbedded) {
@@ -6594,6 +6672,9 @@ function clz32Fallback(x) {
 // changes to one module should be reflected in the others.
 // TODO: Rename this module and the corresponding Fiber one to "Thenable"
 // instead of "Wakeable". Or some other more appropriate name.
+// An error that is thrown (e.g. by `use`) to trigger Suspense. If we
+// detect this is caught by userspace, we'll log a warning in development.
+var SuspenseException = new Error("Suspense Exception: This is not a real error! It's an implementation " + 'detail of `use` to interrupt the current render. You must either ' + 'rethrow it immediately, or move the `use` call outside of the ' + '`try/catch` block. Capturing without rethrowing will lead to ' + 'unexpected behavior.\n\n' + 'To handle async errors, wrap your component in an error boundary, or ' + "call the promise's `.catch` method and pass the result to `use`");
 function createThenableState() {
   // The ThenableState is created the first time a component suspends. If it
   // suspends again, we'll reuse the same state.
@@ -6654,19 +6735,51 @@ function trackUsedThenable(thenableState, thenable, index) {
               rejectedThenable.status = 'rejected';
               rejectedThenable.reason = error;
             }
-          });
+          }); // Check one more time in case the thenable resolved synchronously
+
+          switch (thenable.status) {
+            case 'fulfilled':
+              {
+                var fulfilledThenable = thenable;
+                return fulfilledThenable.value;
+              }
+
+            case 'rejected':
+              {
+                var rejectedThenable = thenable;
+                throw rejectedThenable.reason;
+              }
+          }
         } // Suspend.
-        // TODO: Throwing here is an implementation detail that allows us to
-        // unwind the call stack. But we shouldn't allow it to leak into
-        // userspace. Throw an opaque placeholder value instead of the
-        // actual thenable. If it doesn't get captured by the work loop, log
-        // a warning, because that means something in userspace must have
-        // caught it.
+        //
+        // Throwing here is an implementation detail that allows us to unwind the
+        // call stack. But we shouldn't allow it to leak into userspace. Throw an
+        // opaque placeholder value instead of the actual thenable. If it doesn't
+        // get captured by the work loop, log a warning, because that means
+        // something in userspace must have caught it.
 
 
-        throw thenable;
+        suspendedThenable = thenable;
+        throw SuspenseException;
       }
   }
+} // This is used to track the actual thenable that suspended so it can be
+// passed to the rest of the Suspense implementation — which, for historical
+// reasons, expects to receive a thenable.
+
+var suspendedThenable = null;
+function getSuspendedThenable() {
+  // This is called right after `use` suspends by throwing an exception. `use`
+  // throws an opaque value instead of the thenable itself so that it can't be
+  // caught in userspace. Then the work loop accesses the actual thenable using
+  // this function.
+  if (suspendedThenable === null) {
+    throw new Error('Expected a suspended thenable. This is a bug in React. Please file ' + 'an issue.');
+  }
+
+  var thenable = suspendedThenable;
+  suspendedThenable = null;
+  return thenable;
 }
 
 /**
@@ -7664,6 +7777,7 @@ var didWarnAboutModulePatternComponent = {};
 var didWarnAboutContextTypeOnFunctionComponent = {};
 var didWarnAboutGetDerivedStateOnFunctionComponent = {};
 var didWarnAboutReassigningProps = false;
+var didWarnAboutDefaultPropsOnFunctionComponent = {};
 var didWarnAboutGenerators = false;
 var didWarnAboutMaps = false;
 var hasWarnedAboutUsingContextAsConsumer = false; // This would typically be a function component but we still support module pattern
@@ -7756,6 +7870,16 @@ function validateFunctionComponentInDev(Component) {
     if (Component) {
       if (Component.childContextTypes) {
         error('%s(...): childContextTypes cannot be defined on a function component.', Component.displayName || Component.name || 'Component');
+      }
+    }
+
+    if ( Component.defaultProps !== undefined) {
+      var componentName = getComponentNameFromType(Component) || 'Unknown';
+
+      if (!didWarnAboutDefaultPropsOnFunctionComponent[componentName]) {
+        error('%s: Support for defaultProps will be removed from function components ' + 'in a future major release. Use JavaScript default parameters instead.', componentName);
+
+        didWarnAboutDefaultPropsOnFunctionComponent[componentName] = true;
       }
     }
 
@@ -8239,12 +8363,19 @@ function renderNode(request, task, node) {
 
   try {
     return renderNodeDestructive(request, task, null, node);
-  } catch (x) {
+  } catch (thrownValue) {
     resetHooksState();
+    var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
+    // reasons, the rest of the Suspense implementation expects the thrown
+    // value to be a thenable, because before `use` existed that was the
+    // (unstable) API for suspending. This implementation detail can change
+    // later, once we deprecate the old API in favor of `use`.
+    getSuspendedThenable() : thrownValue; // $FlowFixMe[method-unbinding]
 
     if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
+      var wakeable = x;
       var thenableState = getThenableStateAfterSuspending();
-      spawnNewSuspendedTask(request, task, thenableState, x); // Restore the context. We assume that this will be restored by the inner
+      spawnNewSuspendedTask(request, task, thenableState, wakeable); // Restore the context. We assume that this will be restored by the inner
       // functions in case nothing throws so we don't use "finally" here.
 
       task.blockedSegment.formatContext = previousFormatContext;
@@ -8522,8 +8653,14 @@ function retryTask(request, task) {
     task.abortSet.delete(task);
     segment.status = COMPLETED;
     finishedTask(request, task.blockedBoundary, segment);
-  } catch (x) {
+  } catch (thrownValue) {
     resetHooksState();
+    var x = thrownValue === SuspenseException ? // This is a special type of exception used for Suspense. For historical
+    // reasons, the rest of the Suspense implementation expects the thrown
+    // value to be a thenable, because before `use` existed that was the
+    // (unstable) API for suspending. This implementation detail can change
+    // later, once we deprecate the old API in favor of `use`.
+    getSuspendedThenable() : thrownValue; // $FlowFixMe[method-unbinding]
 
     if (typeof x === 'object' && x !== null && typeof x.then === 'function') {
       // Something suspended again, let's pick it back up later.
@@ -8735,7 +8872,7 @@ function flushSegment(request, destination, segment) {
   }
 }
 
-function flushInitialResources(destination, resources, responseState) {
+function flushInitialResources(destination, resources, responseState, willFlushAllSegments) {
   writeInitialResources(destination, resources, responseState);
 }
 
@@ -8838,7 +8975,7 @@ function flushCompletedQueues(request, destination) {
             writeChunk(destination, preamble[i]);
           }
 
-          flushInitialResources(destination, request.resources, request.responseState);
+          flushInitialResources(destination, request.resources, request.responseState, request.allPendingTasks === 0);
         }
 
         flushSegment(request, destination, completedRootSegment);
@@ -9004,7 +9141,7 @@ function abort(request, reason) {
 function onError() {// Non-fatal errors are ignored.
 }
 
-function renderToStringImpl(children, options, generateStaticMarkup, abortReason) {
+function renderToStringImpl(children, options, generateStaticMarkup, abortReason, unstable_externalRuntimeSrc) {
   var didFatal = false;
   var fatalError = null;
   var result = '';

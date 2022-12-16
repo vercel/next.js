@@ -31,6 +31,7 @@ import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
+import { isAPIRoute } from '../lib/is-api-route'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   PAGES_MANIFEST,
@@ -94,16 +95,12 @@ import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
-import { shouldUseReactRoot } from './utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
-if (shouldUseReactRoot) {
-  ;(process.env as any).__NEXT_REACT_ROOT = 'true'
-}
-
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
+import { setHttpClientAndAgentOptions } from './config'
 
 export * from './base-server'
 
@@ -232,15 +229,7 @@ export default class NextNodeServer extends BaseServer {
     }
 
     if (!this.minimalMode) {
-      const { ImageOptimizerCache } =
-        require('./image-optimizer') as typeof import('./image-optimizer')
-      this.imageResponseCache = new ResponseCache(
-        new ImageOptimizerCache({
-          distDir: this.distDir,
-          nextConfig: this.nextConfig,
-        }),
-        this.minimalMode
-      )
+      this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
     if (!options.dev) {
@@ -260,11 +249,12 @@ export default class NextNodeServer extends BaseServer {
       }).catch(() => {})
     }
 
-    if (this.nextConfig.experimental.appDir) {
-      // expose AsyncLocalStorage on global for react usage
-      const { AsyncLocalStorage } = require('async_hooks')
-      ;(global as any).AsyncLocalStorage = AsyncLocalStorage
-    }
+    // expose AsyncLocalStorage on global for react usage
+    const { AsyncLocalStorage } = require('async_hooks')
+    ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
+
+    // ensure options are set when loadConfig isn't called
+    setHttpClientAndAgentOptions(this.nextConfig)
   }
 
   private compression = this.nextConfig.compress
@@ -281,12 +271,23 @@ export default class NextNodeServer extends BaseServer {
     loadEnvConfig(this.dir, dev, Log, forceReload)
   }
 
-  protected getResponseCache({ dev }: { dev: boolean }) {
-    const incrementalCache = new IncrementalCache({
+  protected getIncrementalCache({
+    requestHeaders,
+  }: {
+    requestHeaders: IncrementalCache['requestHeaders']
+  }) {
+    const dev = !!this.renderOpts.dev
+    // incremental-cache is request specific with a shared
+    // although can have shared caches in module scope
+    // per-cache handler
+    return new IncrementalCache({
       fs: this.getCacheFilesystem(),
       dev,
-      serverDistDir: this.serverDistDir,
+      requestHeaders,
       appDir: this.hasAppDir,
+      minimalMode: this.minimalMode,
+      serverDistDir: this.serverDistDir,
+      fetchCache: this.nextConfig.experimental.fetchCache,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
@@ -306,8 +307,10 @@ export default class NextNodeServer extends BaseServer {
         }
       },
     })
+  }
 
-    return new ResponseCache(incrementalCache, this.minimalMode)
+  protected getResponseCache() {
+    return new ResponseCache(this.minimalMode)
   }
 
   protected getPublicDir(): string {
@@ -386,7 +389,15 @@ export default class NextNodeServer extends BaseServer {
               finished: true,
             }
           }
-          const { getHash, ImageOptimizerCache, sendResponse, ImageError } =
+          const { ImageOptimizerCache } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+
+          const imageOptimizerCache = new ImageOptimizerCache({
+            distDir: this.distDir,
+            nextConfig: this.nextConfig,
+          })
+
+          const { getHash, sendResponse, ImageError } =
             require('./image-optimizer') as typeof import('./image-optimizer')
 
           if (!this.imageResponseCache) {
@@ -394,7 +405,6 @@ export default class NextNodeServer extends BaseServer {
               'invariant image optimizer cache was not initialized'
             )
           }
-
           const imagesConfig = this.nextConfig.images
 
           if (imagesConfig.loader !== 'default') {
@@ -437,7 +447,9 @@ export default class NextNodeServer extends BaseServer {
                   revalidate: maxAge,
                 }
               },
-              {}
+              {
+                incrementalCache: imageOptimizerCache,
+              }
             )
 
             if (cacheEntry?.value?.kind !== 'IMAGE') {
@@ -1188,7 +1200,7 @@ export default class NextNodeServer extends BaseServer {
         }
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
-        if (pathname === '/api' || pathname.startsWith('/api/')) {
+        if (isAPIRoute(pathname)) {
           delete query._nextBubbleNoFallback
 
           const handled = await this.handleApiRequest(req, res, pathname, query)
@@ -1257,7 +1269,7 @@ export default class NextNodeServer extends BaseServer {
     if (!pageFound && this.dynamicRoutes) {
       for (const dynamicRoute of this.dynamicRoutes) {
         params = dynamicRoute.match(pathname) || undefined
-        if (dynamicRoute.page.startsWith('/api') && params) {
+        if (isAPIRoute(dynamicRoute.page) && params) {
           page = dynamicRoute.page
           pageFound = true
           break
@@ -1777,7 +1789,7 @@ export default class NextNodeServer extends BaseServer {
         page: page,
         body: getRequestMeta(params.request, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: false,
+      useCache: !this.renderOpts.dev,
       onWarning: params.onWarning,
     })
 
@@ -1978,6 +1990,14 @@ export default class NextNodeServer extends BaseServer {
                   ? `${parsedDestination.hostname}:${parsedDestination.port}`
                   : parsedDestination.hostname) !== req.headers.host
               ) {
+                // when we are handling a middleware prefetch and it doesn't
+                // resolve to a static data route we bail early to avoid
+                // unexpected SSR invocations
+                if (req.headers['x-middleware-prefetch']) {
+                  res.setHeader('x-middleware-skip', '1')
+                  res.body('{}').send()
+                  return { finished: true }
+                }
                 return this.proxyRequest(
                   req as NodeNextRequest,
                   res as NodeNextResponse,
@@ -2134,7 +2154,7 @@ export default class NextNodeServer extends BaseServer {
         },
         body: getRequestMeta(params.req, '__NEXT_CLONABLE_BODY'),
       },
-      useCache: false,
+      useCache: !this.renderOpts.dev,
       onWarning: params.onWarning,
     })
 

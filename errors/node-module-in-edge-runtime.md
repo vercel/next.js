@@ -16,3 +16,4 @@ For example, you might replace the Node.js `crypto` module with the [Web Crypto 
 
 - [Edge Runtime Supported APIs](https://nextjs.org/docs/api-reference/edge-runtime)
 - [Next.js Middleware](https://nextjs.org/docs/advanced-features/middleware)
+- [JWT Example](https://vercel.com/templates/next.js/jwt-authentication)

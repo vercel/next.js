@@ -1,6 +1,7 @@
 import { NextConfig } from './config'
 import type { JSONSchemaType } from 'ajv'
 import { VALID_LOADERS } from '../shared/lib/image-config'
+import { SERVER_RUNTIME } from '../lib/constants'
 
 const configSchema = {
   type: 'object',
@@ -51,6 +52,9 @@ const configSchema = {
                 labelFormat: {
                   type: 'string',
                   minLength: 1,
+                },
+                importMap: {
+                  type: 'object',
                 },
               },
             },
@@ -274,6 +278,9 @@ const configSchema = {
         fallbackNodePolyfills: {
           type: 'boolean',
         },
+        fetchCache: {
+          type: 'boolean',
+        },
         forceSwcTransforms: {
           type: 'boolean',
         },
@@ -301,6 +308,11 @@ const configSchema = {
         manualClientBasePath: {
           type: 'boolean',
         },
+        middlewarePrefetch: {
+          // automatic typing doesn't like enum
+          enum: ['strict', 'flexible'] as any,
+          type: 'string',
+        },
         modularizeImports: {
           type: 'object',
         },
@@ -327,6 +339,9 @@ const configSchema = {
           minLength: 1,
           type: 'string',
         },
+        outputFileTracingIgnores: {
+          type: 'array',
+        },
         pageEnv: {
           type: 'boolean',
         },
@@ -339,7 +354,7 @@ const configSchema = {
         },
         runtime: {
           // automatic typing doesn't like enum
-          enum: ['experimental-edge', 'nodejs'] as any,
+          enum: Object.values(SERVER_RUNTIME) as any,
           type: 'string',
         },
         serverComponentsExternalPackages: {
@@ -432,6 +447,42 @@ const configSchema = {
             enum: ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'],
           } as any,
         },
+        mdxRs: {
+          type: 'boolean',
+        },
+        turbotrace: {
+          type: 'object',
+          properties: {
+            logLevel: {
+              type: 'string',
+              enum: [
+                'bug',
+                'fatal',
+                'error',
+                'warning',
+                'hint',
+                'note',
+                'suggestions',
+                'info',
+              ],
+            } as any,
+            logAll: {
+              type: 'boolean',
+            },
+            logDetail: {
+              type: 'boolean',
+            },
+            contextDirectory: {
+              type: 'string',
+            },
+            processCwd: {
+              type: 'string',
+            },
+            maxFiles: {
+              type: 'integer',
+            },
+          },
+        },
       },
       type: 'object',
     },
@@ -522,7 +573,6 @@ const configSchema = {
                 type: 'string',
               },
               port: {
-                minLength: 1,
                 type: 'string',
               },
               protocol: {

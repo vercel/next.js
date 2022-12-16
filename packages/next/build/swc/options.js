@@ -33,7 +33,6 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   isServerLayer,
-  relativeFilePathFromRoot,
   hasServerComponents,
 }) {
   const parserConfig = getParserOptions({ filename, jsConfig })
@@ -118,28 +117,18 @@ function getBaseSWCOptions({
       : nextConfig?.compiler?.reactRemoveProperties,
     modularizeImports: nextConfig?.experimental?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
-    // Disable css-in-js transform on server layer for server components
-    ...(isServerLayer
-      ? {}
-      : {
-          emotion: getEmotionOptions(nextConfig, development),
-          styledComponents: getStyledComponentsOptions(nextConfig, development),
-          styledJsx: true,
-        }),
+    // Always transform styled-jsx and error when `client-only` condition is triggered
+    styledJsx: true,
+    // Disable css-in-js libs (without client-only integration) transform on server layer for server components
+    ...(!isServerLayer && {
+      emotion: getEmotionOptions(nextConfig, development),
+      styledComponents: getStyledComponentsOptions(nextConfig, development),
+    }),
     serverComponents: hasServerComponents
       ? {
           isServer: !!isServerLayer,
         }
-      : false,
-    fontLoaders:
-      nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot
-        ? {
-            fontLoaders: nextConfig.experimental.fontLoaders.map(
-              ({ loader }) => loader
-            ),
-            relativeFilePathFromRoot,
-          }
-        : null,
+      : undefined,
   }
 }
 
@@ -175,6 +164,7 @@ function getEmotionOptions(nextConfig, development) {
   return {
     enabled: true,
     autoLabel,
+    importMap: nextConfig?.compiler?.emotion?.importMap,
     labelFormat: nextConfig?.compiler?.emotion?.labelFormat,
     sourcemap: development
       ? nextConfig?.compiler?.emotion?.sourceMap ?? true
@@ -254,6 +244,15 @@ export function getLoaderSWCOptions({
     relativeFilePathFromRoot,
     hasServerComponents,
   })
+
+  if (nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot) {
+    baseOptions.fontLoaders = {
+      fontLoaders: nextConfig.experimental.fontLoaders.map(
+        ({ loader }) => loader
+      ),
+      relativeFilePathFromRoot,
+    }
+  }
 
   const isNextDist = nextDistPath.test(filename)
 

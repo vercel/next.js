@@ -7,12 +7,7 @@ const Page = () => {
   return (
     <div>
       <h1 id="page-header">Static Image</h1>
-      <Image
-        id="basic-static"
-        src={testTall}
-        layout="fixed"
-        placeholder="blur"
-      />
+      <Image id="basic-static" src={testTall} placeholder="blur" />
     </div>
   )
 }

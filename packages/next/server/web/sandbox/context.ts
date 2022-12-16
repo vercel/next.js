@@ -14,6 +14,7 @@ import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import { UnwrapPromise } from '../../../lib/coalesced-function'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -319,8 +320,15 @@ interface ModuleContextOptions {
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm'>
 }
 
+const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
+
 function getModuleContextShared(options: ModuleContextOptions) {
-  return createModuleContext(options)
+  let deferredModuleContext = pendingModuleCaches.get(options.moduleName)
+  if (!deferredModuleContext) {
+    deferredModuleContext = createModuleContext(options)
+    pendingModuleCaches.set(options.moduleName, deferredModuleContext)
+  }
+  return deferredModuleContext
 }
 
 /**
@@ -335,9 +343,15 @@ export async function getModuleContext(options: ModuleContextOptions): Promise<{
   paths: Map<string, string>
   warnedEvals: Set<string>
 }> {
-  let moduleContext = options.useCache
-    ? moduleContexts.get(options.moduleName)
-    : await getModuleContextShared(options)
+  let moduleContext:
+    | UnwrapPromise<ReturnType<typeof getModuleContextShared>>
+    | undefined
+
+  if (options.useCache) {
+    moduleContext =
+      moduleContexts.get(options.moduleName) ||
+      (await getModuleContextShared(options))
+  }
 
   if (!moduleContext) {
     moduleContext = await createModuleContext(options)

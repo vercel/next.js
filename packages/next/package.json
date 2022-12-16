@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "12.3.2-canary.38",
+  "version": "13.0.8-canary.0",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -16,6 +16,7 @@
     "babel.d.ts",
     "client.js",
     "client.d.ts",
+    "compat",
     "config.js",
     "config.d.ts",
     "constants.js",
@@ -70,22 +71,22 @@
   "taskr": {
     "requires": [
       "./taskfile-ncc.js",
-      "./taskfile-swc.js"
+      "./taskfile-swc.js",
+      "./taskfile-watch.js"
     ]
   },
   "dependencies": {
-    "@next/env": "12.3.2-canary.38",
-    "@swc/helpers": "0.4.11",
+    "@next/env": "13.0.8-canary.0",
+    "@swc/helpers": "0.4.14",
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
-    "styled-jsx": "5.1.0",
-    "use-sync-external-store": "1.2.0"
+    "styled-jsx": "5.1.0"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
     "node-sass": "^6.0.0 || ^7.0.0",
-    "react": "^18.0.0-0",
-    "react-dom": "^18.0.0-0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "sass": "^1.3.0"
   },
   "peerDependenciesMeta": {
@@ -121,19 +122,18 @@
     "@babel/runtime": "7.15.4",
     "@babel/traverse": "7.18.0",
     "@babel/types": "7.18.0",
-    "@edge-runtime/primitives": "1.1.0-beta.37",
+    "@edge-runtime/primitives": "2.0.0",
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "2.12.0",
     "@napi-rs/triples": "1.1.0",
-    "@next/polyfill-module": "12.3.2-canary.38",
-    "@next/polyfill-nomodule": "12.3.2-canary.38",
-    "@next/react-dev-overlay": "12.3.2-canary.38",
-    "@next/react-refresh-utils": "12.3.2-canary.38",
-    "@next/swc": "12.3.2-canary.38",
+    "@next/polyfill-module": "13.0.8-canary.0",
+    "@next/polyfill-nomodule": "13.0.8-canary.0",
+    "@next/react-dev-overlay": "13.0.8-canary.0",
+    "@next/react-refresh-utils": "13.0.8-canary.0",
+    "@next/swc": "13.0.8-canary.0",
     "@segment/ajv-human-errors": "2.1.2",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
-    "@taskr/watch": "1.1.0",
     "@types/amphtml-validator": "1.0.0",
     "@types/babel__code-frame": "7.0.2",
     "@types/babel__core": "7.1.12",
@@ -204,7 +204,7 @@
     "debug": "4.1.1",
     "devalue": "2.0.1",
     "domain-browser": "4.19.0",
-    "edge-runtime": "1.1.0-beta.40",
+    "edge-runtime": "2.0.0",
     "events": "3.3.0",
     "find-cache-dir": "3.3.1",
     "find-up": "4.1.0",
@@ -276,7 +276,7 @@
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",
     "ua-parser-js": "0.7.28",
-    "undici": "5.10.0",
+    "undici": "5.13.0",
     "unistore": "3.4.1",
     "util": "0.12.4",
     "uuid": "8.3.2",
@@ -293,6 +293,6 @@
     "caniuse-lite": "1.0.30001406"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=14.6.0"
   }
 }

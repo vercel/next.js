@@ -73,6 +73,44 @@ describe('@next/font/google loader', () => {
         { weight: '400' },
         'https://fonts.googleapis.com/css2?family=Molle:ital,wght@1,400&display=optional',
       ],
+      [
+        'Roboto',
+        { weight: ['500', '300', '400'], style: ['normal', 'italic'] },
+        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=optional',
+      ],
+      [
+        'Roboto Mono',
+        { style: ['italic', 'normal'] },
+        'https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=optional',
+      ],
+      [
+        'Fraunces',
+        {
+          style: ['normal', 'italic'],
+          axes: ['WONK', 'opsz', 'SOFT'],
+        },
+        'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&display=optional',
+      ],
+      [
+        'Poppins',
+        { weight: ['900', '400', '100'] },
+        'https://fonts.googleapis.com/css2?family=Poppins:wght@100;400;900&display=optional',
+      ],
+      [
+        'Nabla',
+        {},
+        'https://fonts.googleapis.com/css2?family=Nabla&display=optional',
+      ],
+      [
+        'Nabla',
+        { axes: ['EDPT', 'EHLT'] },
+        'https://fonts.googleapis.com/css2?family=Nabla:EDPT,EHLT@0..200,0..24&display=optional',
+      ],
+      [
+        'Ballet',
+        {},
+        'https://fonts.googleapis.com/css2?family=Ballet&display=optional',
+      ],
     ])('%s', async (functionName: string, data: any, url: string) => {
       fetch.mockResolvedValue({
         ok: true,
@@ -84,8 +122,10 @@ describe('@next/font/google loader', () => {
         config: { subsets: [] },
         emitFontFile: jest.fn(),
         resolve: jest.fn(),
-        fs: {} as any,
+        loaderContext: {} as any,
+        isDev: false,
         isServer: true,
+        variableName: 'myFont',
       })
       expect(css).toBe('OK')
       expect(fetch).toHaveBeenCalledTimes(1)
@@ -93,120 +133,7 @@ describe('@next/font/google loader', () => {
     })
   })
 
-  describe('Fallback fonts', () => {
-    test('Inter', async () => {
-      fetch.mockResolvedValue({
-        ok: true,
-        text: async () => '',
-      })
-      const { adjustFontFallback, fallbackFonts } = await loader({
-        functionName: 'Inter',
-        data: [],
-        config: { subsets: [] },
-        emitFontFile: jest.fn(),
-        resolve: jest.fn(),
-        fs: {} as any,
-        isServer: true,
-      })
-      expect(adjustFontFallback).toEqual({
-        ascentOverride: '88.84%',
-        descentOverride: '22.14%',
-        fallbackFont: 'Arial',
-        lineGapOverride: '0.00%',
-        sizeAdjust: '109.04%',
-      })
-      expect(fallbackFonts).toBeUndefined()
-    })
-
-    test('Source Code Pro', async () => {
-      fetch.mockResolvedValue({
-        ok: true,
-        text: async () => '',
-      })
-      const { fallbackFonts, adjustFontFallback } = await loader({
-        functionName: 'Source_Code_Pro',
-        data: [],
-        config: { subsets: [] },
-        emitFontFile: jest.fn(),
-        resolve: jest.fn(),
-        fs: {} as any,
-        isServer: true,
-      })
-      expect(adjustFontFallback).toEqual({
-        ascentOverride: '80.28%',
-        descentOverride: '22.27%',
-        fallbackFont: 'Arial',
-        lineGapOverride: '0.00%',
-        sizeAdjust: '122.56%',
-      })
-      expect(fallbackFonts).toBeUndefined()
-    })
-
-    test('Fraunces', async () => {
-      fetch.mockResolvedValue({
-        ok: true,
-        text: async () => '',
-      })
-      const { adjustFontFallback, fallbackFonts } = await loader({
-        functionName: 'Fraunces',
-        data: [{ fallback: ['Abc', 'Def'] }],
-        config: { subsets: [] },
-        emitFontFile: jest.fn(),
-        resolve: jest.fn(),
-        fs: {} as any,
-        isServer: true,
-      })
-      expect(adjustFontFallback).toEqual({
-        ascentOverride: '83.79%',
-        descentOverride: '21.85%',
-        fallbackFont: 'Times New Roman',
-        lineGapOverride: '0.00%',
-        sizeAdjust: '116.72%',
-      })
-      expect(fallbackFonts).toEqual(['Abc', 'Def'])
-    })
-
-    test('adjustFontFallback disabled', async () => {
-      fetch.mockResolvedValue({
-        ok: true,
-        text: async () => '',
-      })
-      const { css, fallbackFonts } = await loader({
-        functionName: 'Inter',
-        data: [{ adjustFontFallback: false, fallback: ['system-ui', 'Arial'] }],
-        config: { subsets: [] },
-        emitFontFile: jest.fn(),
-        resolve: jest.fn(),
-        fs: {} as any,
-        isServer: true,
-      })
-      expect(css).toBe('')
-      expect(fallbackFonts).toEqual(['system-ui', 'Arial'])
-    })
-  })
-
   describe('Errors', () => {
-    test('Failed to fetch', async () => {
-      fetch.mockResolvedValue({
-        ok: false,
-      })
-
-      await expect(
-        loader({
-          functionName: 'Alkalami',
-          data: [{ weight: '400' }],
-          config: { subsets: [] },
-          emitFontFile: jest.fn(),
-          resolve: jest.fn(),
-          fs: {} as any,
-          isServer: true,
-        })
-      ).rejects.toThrowErrorMatchingInlineSnapshot(`
-              "Failed to fetch font  \`Alkalami\`.
-              URL: https://fonts.googleapis.com/css2?family=Alkalami:wght@400&display=optional"
-            `)
-    })
-
     test('Missing function name', async () => {
       await expect(
         loader({
@@ -215,8 +142,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"@next/font/google has no default export"`
@@ -231,8 +160,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unknown font \`Unknown Font\`"`
@@ -247,8 +178,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Unknown weight \`123\` for font \`Inter\`.
@@ -264,8 +197,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Missing weight for font \`Abel\`.
@@ -281,8 +216,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Unknown style \`normal\` for font \`Molle\`.
@@ -298,8 +235,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
                       "Invalid display value \`invalid\` for font \`Inter\`.
@@ -315,8 +254,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Axes can only be defined for variable fonts"`
@@ -331,8 +272,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Font \`Lora\` has no definable \`axes\`"`
@@ -347,8 +290,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid axes value for font \`Inter\`, expected an array of axes.
@@ -364,13 +309,86 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
           isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid axes value \`INVALID\` for font \`Roboto Flex\`.
               Available axes: \`GRAD\`, \`XTRA\`, \`YOPQ\`, \`YTAS\`, \`YTDE\`, \`YTFI\`, \`YTLC\`, \`YTUC\`, \`opsz\`, \`slnt\`, \`wdth\`"
             `)
     })
+
+    test('Variable in weight array', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: { subsets: [] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Unexpected \`variable\` in weight array for font \`Inter\`. You only need \`variable\`, it includes all available weights."`
+      )
+    })
+  })
+
+  it('should not send duplicate requests when several font variants use the same font file', async () => {
+    fetch
+      .mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => '',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => `
+/* latin */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v24/6NUu8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib14c7qv8oRcTn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v24/6NUu8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib14c7qv8oRcTn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v24/6NUu8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib14c7qv8oRcTn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+      `,
+      })
+    const { css } = await loader({
+      functionName: 'Fraunces',
+      data: [{ weight: ['100', '300', '900'] }],
+      config: { subsets: [] },
+      emitFontFile: jest.fn(),
+      resolve: jest.fn(),
+      loaderContext: {} as any,
+      isDev: false,
+      isServer: true,
+      variableName: 'myFont',
+    })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(css).not.toInclude('https://fonts.gstatic.com/s/fraunces/v24/')
   })
 })

@@ -9,3 +9,5 @@ export function initCustomTraceSubscriber(traceFileName?: string): void
 export function teardownTraceSubscriber(): void
 export function teardownCrashReporter(): void
 export function loadBindings(): Promise<void>
+
+export function __isCustomTurbopackBinary(): Promise<boolean>

@@ -57,6 +57,12 @@ function findAndReplaceProps(
           objectPosition = String(a.value.value)
           return false
         }
+        if (a.name.name === 'lazyBoundary') {
+          return false
+        }
+        if (a.name.name === 'lazyRoot') {
+          return false
+        }
 
         if (a.name.name === 'style') {
           if (

@@ -62,10 +62,11 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   if (types) {
                     main += '\n' + ' '.repeat(indent * 2)
 
-                    if (types[2] === 'PageComponent') {
-                      main += `The exported page component isn't correctly typed.`
-                    } else if (types[2] === 'LayoutComponent') {
-                      main += `The exported layout component isn't correctly typed.`
+                    if (
+                      types[2] === 'PageComponent' ||
+                      types[2] === 'LayoutComponent'
+                    ) {
+                      main += `The exported ${type} component isn't correctly typed.`
                     } else {
                       main += `Expected "${chalk.bold(
                         types[2].replace(
@@ -80,6 +81,20 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   main += '\n' + ' '.repeat(indent * 2)
                   main += `Invalid configuration:`
                   break
+                case 2739:
+                  const invalidProp = item.messageText.match(
+                    /Type '(.+)' is missing the following properties from type '(.+)'/
+                  )
+                  if (invalidProp) {
+                    if (
+                      invalidProp[1] === 'LayoutProps' ||
+                      invalidProp[1] === 'PageProps'
+                    ) {
+                      main += '\n' + ' '.repeat(indent * 2)
+                      main += `Prop "${invalidProp[2]}" is incompatible with the ${type}.`
+                    }
+                  }
+                  break
                 case 2559:
                   const invalid = item.messageText.match(/Type '(.+)' has/)
                   if (invalid) {
@@ -88,14 +103,24 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   }
                   break
                 case 2741:
-                  const incompatProp = item.messageText.match(
+                  const incompatPageProp = item.messageText.match(
                     /Property '(.+)' is missing in type 'PageProps'/
                   )
-                  if (incompatProp) {
+                  if (incompatPageProp) {
                     main += '\n' + ' '.repeat(indent * 2)
                     main += `Prop "${chalk.bold(
-                      incompatProp[1]
+                      incompatPageProp[1]
                     )}" will never be passed. Remove it from the component's props.`
+                  } else {
+                    const extraLayoutProp = item.messageText.match(
+                      /Property '(.+)' is missing in type 'LayoutProps' but required in type '(.+)'/
+                    )
+                    if (extraLayoutProp) {
+                      main += '\n' + ' '.repeat(indent * 2)
+                      main += `Prop "${chalk.bold(
+                        extraLayoutProp[1]
+                      )}" is not valid for this Layout, remove it to fix.`
+                    }
                   }
                   break
                 default:
@@ -116,9 +141,9 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
         if (filepathAndInvalidExport) {
           const main = `${type} "${chalk.bold(
             relativeSourceFile
-          )}" exports invalid field "${chalk.bold(
+          )}" exports an invalid "${chalk.bold(
             filepathAndInvalidExport[2]
-          )}". Only "default" and other configuration exports are allowed.`
+          )}" field. ${type} should only export a default React component and configuration options. Learn more: https://nextjs.org/docs/messages/invalid-segment-export`
           return main
         }
         break

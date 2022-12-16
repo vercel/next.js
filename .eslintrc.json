@@ -238,7 +238,6 @@
     "no-obj-calls": "warn",
     "no-octal": "warn",
     "no-octal-escape": "warn",
-    "no-redeclare": ["warn", { "builtinGlobals": false }],
     "no-regex-spaces": "warn",
     "no-restricted-syntax": [
       "warn",
@@ -330,6 +329,10 @@
     "react/style-prop-object": "warn",
     "react-hooks/rules-of-hooks": "error",
     // "@typescript-eslint/non-nullable-type-assertion-style": "warn",
-    "@typescript-eslint/prefer-as-const": "warn"
+    "@typescript-eslint/prefer-as-const": "warn",
+    "@typescript-eslint/no-redeclare": [
+      "warn",
+      { "builtinGlobals": false, "ignoreDeclarationMerge": true }
+    ]
   }
 }

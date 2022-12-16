@@ -33,6 +33,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   NEXT_BUILTIN_DOCUMENT,
   STATIC_STATUS_PAGES,
@@ -74,6 +75,12 @@ import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import {
+  RSC,
+  RSC_VARY_HEADER,
+  FLIGHT_PARAMETERS,
+  FETCH_CACHE_HEADER,
+} from '../client/components/app-router-headers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -205,6 +212,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     serverComponents?: boolean
     crossOrigin?: string
     supportsDynamicHTML?: boolean
+    isBot?: boolean
     serverComponentManifest?: any
     serverCSSManifest?: any
     fontLoaderManifest?: FontLoaderManifest
@@ -303,6 +311,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     req: BaseNextRequest,
     res: BaseNextResponse
   ): void
+
+  protected abstract getIncrementalCache(options: {
+    requestHeaders: Record<string, undefined | string | string[]>
+  }): import('./lib/incremental-cache').IncrementalCache
 
   protected abstract getResponseCache(options: {
     dev: boolean
@@ -483,13 +495,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (typeof parsedUrl.query === 'string') {
         parsedUrl.query = parseQs(parsedUrl.query)
       }
-      // in minimal mode we detect RSC revalidate if the .rsc path is requested
-      if (
-        this.minimalMode &&
-        (req.url.endsWith('.rsc') ||
-          (typeof req.headers['x-matched-path'] === 'string' &&
-            req.headers['x-matched-path'].endsWith('.rsc')))
-      ) {
+      // in minimal mode we detect RSC revalidate if the .rsc
+      // path is requested
+      if (this.minimalMode && req.url.endsWith('.rsc')) {
         parsedUrl.query.__nextDataReq = '1'
       }
 
@@ -868,6 +876,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: !isBotRequest,
+        isBot: !!isBotRequest,
       },
     } as const
     const payload = await fn(ctx)
@@ -1054,24 +1063,30 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ) &&
       (isSSG || hasServerProps)
 
-    if (isAppPath) {
-      res.setHeader(
-        'vary',
-        '__rsc__, __next_router_state_tree__, __next_router_prefetch__'
-      )
+    // when we are handling a middleware prefetch and it doesn't
+    // resolve to a static data route we bail early to avoid
+    // unexpected SSR invocations
+    if (!isSSG && req.headers['x-middleware-prefetch']) {
+      res.setHeader('x-middleware-skip', '1')
+      res.body('{}').send()
+      return null
+    }
 
-      if (isSSG && req.headers['__rsc__']) {
+    if (isAppPath) {
+      res.setHeader('vary', RSC_VARY_HEADER)
+
+      if (isSSG && req.headers[RSC.toLowerCase()]) {
         if (!this.minimalMode) {
           isDataReq = true
         }
         // strip header so we generate HTML still
         if (
-          opts.runtime !== 'experimental-edge' ||
+          !isEdgeRuntime(opts.runtime) ||
           (this.serverOptions as any).webServerConfig
         ) {
-          delete req.headers['__rsc__']
-          delete req.headers['__next_router_state_tree__']
-          delete req.headers['__next_router_prefetch__']
+          for (const param of FLIGHT_PARAMETERS) {
+            delete req.headers[param.toString().toLowerCase()]
+          }
         }
       }
     }
@@ -1098,9 +1113,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       )
     }
 
-    // Don't delete query.__rsc__ yet, it still needs to be used in renderToHTML later
+    // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isFlightRequest = Boolean(
-      this.serverComponentManifest && req.headers.__rsc__
+      this.serverComponentManifest && req.headers[RSC.toLowerCase()]
     )
 
     // we need to ensure the status code if /404 is visited directly
@@ -1148,10 +1163,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const isBotRequest = isBot(req.headers['user-agent'] || '')
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
-        // When concurrent features is enabled, the built-in `Document`
-        // component also supports dynamic HTML.
-        (!!process.env.__NEXT_REACT_ROOT &&
-          NEXT_BUILTIN_DOCUMENT in components.Document)
+        // The built-in `Document` component also supports dynamic HTML for concurrent mode.
+        NEXT_BUILTIN_DOCUMENT in components.Document
 
       // Disable dynamic HTML in cases that we know it won't be generated,
       // so that we can continue generating a cache key when possible.
@@ -1160,6 +1173,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       // cache if there are no dynamic data requirements
       opts.supportsDynamicHTML =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
+      opts.isBot = isBotRequest
     }
 
     const defaultLocale = isSSG
@@ -1275,11 +1289,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
+    const incrementalCache = this.getIncrementalCache({
+      requestHeaders: Object.assign({}, req.headers),
+    })
+    if (
+      this.nextConfig.experimental.fetchCache &&
+      (!isEdgeRuntime(opts.runtime) ||
+        (this.serverOptions as any).webServerConfig)
+    ) {
+      delete req.headers[FETCH_CACHE_HEADER]
+    }
+    let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       let pageData: any
       let body: RenderResult | null
-      let sprRevalidate: number | false
+      let isrRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
 
@@ -1304,6 +1329,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const renderOpts: RenderOpts = {
         ...components,
         ...opts,
+        ...(isAppPath && this.nextConfig.experimental.fetchCache
+          ? {
+              incrementalCache,
+              isRevalidate: this.minimalMode || isRevalidate,
+            }
+          : {}),
         isDataReq,
         resolvedUrl,
         locale,
@@ -1338,7 +1369,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       body = renderResult
       // TODO: change this to a different passing mechanism
       pageData = (renderOpts as any).pageData
-      sprRevalidate = (renderOpts as any).revalidate
+      isrRevalidate = (renderOpts as any).revalidate
       isNotFound = (renderOpts as any).isNotFound
       isRedirect = (renderOpts as any).isRedirect
 
@@ -1353,7 +1384,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         value = { kind: 'PAGE', html: body, pageData }
       }
-      return { revalidate: sprRevalidate, value }
+      return { revalidate: isrRevalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(
@@ -1362,6 +1393,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
+
+        if (hadCache) {
+          isRevalidate = true
+        }
 
         if (!staticPaths) {
           ;({ staticPaths, fallbackMode } = hasStaticPaths
@@ -1478,6 +1513,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       },
       {
+        incrementalCache,
         isManualRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
       }

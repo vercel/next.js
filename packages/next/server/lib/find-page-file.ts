@@ -64,9 +64,9 @@ export async function findPageFile(
 }
 
 // Determine if the file is leaf node page file under layouts,
-// The filename should start with 'page', it can be either shared,
-// client, or server components with allowed page file extension.
-// e.g. page.js, page.server.js, page.client.tsx, etc.
-export function isLayoutsLeafPage(filePath: string) {
-  return /[\\/]?page\.((server|client)\.?)?[jt]sx?$/.test(filePath)
+// The filename should start with 'page' and end with one of the allowed extensions
+export function isLayoutsLeafPage(filePath: string, pageExtensions: string[]) {
+  return new RegExp(
+    `(^page|[\\\\/]page)\\.(?:${pageExtensions.join('|')})$`
+  ).test(filePath)
 }
