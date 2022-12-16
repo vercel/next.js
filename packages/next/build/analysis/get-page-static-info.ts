@@ -313,17 +313,13 @@ export async function getPageStaticInfo(params: {
       !isEdgeRuntime(resolvedRuntime)
     ) {
       const options = Object.values(SERVER_RUNTIME).join(', ')
-      if (typeof resolvedRuntime !== 'string') {
-        Log.error(
-          `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
-        )
-      } else {
-        Log.error(
-          `Provided runtime "${resolvedRuntime}" is not supported. Please leave it empty or choose one of: ${options}`
-        )
-      }
+      const message =
+        typeof resolvedRuntime !== 'string'
+          ? `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
+          : `Provided runtime "${resolvedRuntime}" is not supported. Please leave it empty or choose one of: ${options}`
+      Log.error(message)
       if (!isDev) {
-        process.exit(1)
+        throw new Error(message)
       }
     }
 
@@ -347,9 +343,8 @@ export async function getPageStaticInfo(params: {
     ) {
       const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
       Log.error(message)
-
       if (!isDev) {
-        process.exit(1)
+        throw new Error(message)
       }
     }
 
