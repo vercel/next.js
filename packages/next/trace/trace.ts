@@ -93,17 +93,17 @@ export class Span {
     this.attrs[key] = String(value)
   }
 
-  traceFn<T>(fn: () => T): T {
+  traceFn<T>(fn: (span: Span) => T): T {
     try {
-      return fn()
+      return fn(this)
     } finally {
       this.stop()
     }
   }
 
-  async traceAsyncFn<T>(fn: () => T | Promise<T>): Promise<T> {
+  async traceAsyncFn<T>(fn: (span: Span) => T | Promise<T>): Promise<T> {
     try {
-      return await fn()
+      return await fn(this)
     } finally {
       this.stop()
     }
