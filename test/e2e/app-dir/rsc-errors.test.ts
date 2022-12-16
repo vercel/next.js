@@ -7,8 +7,7 @@ describe('app dir - rsc errors', () => {
   let next: NextInstance
 
   const { isNextDeploy, isNextDev } = global as any
-  const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
-  if (isNextDeploy || isReact17) {
+  if (isNextDeploy) {
     it('should skip tests for next-deploy and react 17', () => {})
     return
   }
