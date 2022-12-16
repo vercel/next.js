@@ -12,6 +12,7 @@ import {
   getNextInternalQuery,
   NextUrlWithParsedQuery,
 } from './request-meta'
+import { isAPIRoute } from '../lib/is-api-route'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -374,7 +375,7 @@ export default class Router {
         if (
           pathnameInfo.locale &&
           !route.matchesLocaleAPIRoutes &&
-          pathnameInfo.pathname.match(/^\/api(?:\/|$)/)
+          isAPIRoute(pathnameInfo.pathname)
         ) {
           continue
         }
