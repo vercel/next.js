@@ -8,7 +8,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = []
+default = ["rustls-tls"]
 # Instead of enabling all the plugin-related features by default, make it explicitly specified
 # when build (i.e napi --build --features plugin), same for the wasm as well.
 # this is due to some of transitive dependencies have features cannot be enabled at the same time
@@ -16,6 +16,9 @@ default = []
 plugin = ["next-binding/__swc_core_binding_napi_plugin", "next-swc/plugin"]
 sentry_native_tls = ["_sentry_native_tls"]
 sentry_rustls = ["_sentry_rustls"]
+
+native-tls = ["next-binding/__turbo_native_tls"]
+rustls-tls = ["next-binding/__turbo_rustls_tls"]
 
 [dependencies]
 anyhow = "1.0.66"
@@ -36,7 +39,7 @@ tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
-next-binding = { git = "https://github.com/vercel/turbo.git", rev = "cc024fa59f1c3ad253e74eefe86e0386455455d1", features = [
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "d3820c52989a2badf38ff868a176f61a7a7255fd", features = [
   "__swc_core_binding_napi",
   "__turbo_next_dev_server",
   "__turbo_node_file_trace",
