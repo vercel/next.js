@@ -355,7 +355,6 @@ function handleLoading(
   })
 }
 
-sanjaiyan-image-loading-priority
 const ImageElement = ({
   imgAttributes,
   heightInt,
