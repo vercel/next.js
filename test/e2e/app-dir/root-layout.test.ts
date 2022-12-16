@@ -215,17 +215,17 @@ describe('app-dir root layout', () => {
       )
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toBeUndefined()
     })
+  })
 
-    it('should correctly handle navigation between multiple root layouts', async () => {
-      const browser = await webdriver(next.url, '/root-layout-a')
+  it('should correctly handle navigation between multiple root layouts', async () => {
+    const browser = await webdriver(next.url, '/root-layout-a')
 
-      await browser.waitForElementByCss('#root-a')
-      expect(await browser.hasElementByCssSelector('#root-b')).toBeFalse()
-      await browser
-        .elementById('to-layout-b')
-        .click()
-        .waitForElementByCss('#root-b')
-      expect(await browser.hasElementByCssSelector('#root-a')).toBeFalse()
-    })
+    await browser.waitForElementByCss('#root-a')
+    expect(await browser.hasElementByCssSelector('#root-b')).toBeFalse()
+    await browser
+      .elementById('to-layout-b')
+      .click()
+      .waitForElementByCss('#root-b')
+    expect(await browser.hasElementByCssSelector('#root-a')).toBeFalse()
   })
 })
