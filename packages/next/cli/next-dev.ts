@@ -171,10 +171,6 @@ const nextDev: cliCommand = async (argv) => {
       require('../build/webpack-config') as typeof import('../build/webpack-config')
     const { defaultConfig } =
       require('../server/config-shared') as typeof import('../server/config-shared')
-    const { default: loadConfig } =
-      require('../server/config') as typeof import('../server/config')
-    const { PHASE_DEVELOPMENT_SERVER } =
-      require('../shared/lib/constants') as typeof import('../shared/lib/constants')
     const chalk =
       require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
     const { interopDefault } =
@@ -377,8 +373,6 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       require('../build/swc') as typeof import('../build/swc')
     const { eventCliSession } =
       require('../telemetry/events/version') as typeof import('../telemetry/events/version')
-    const { findPagesDir } =
-      require('../lib/find-pages-dir') as typeof import('../lib/find-pages-dir')
     const { setGlobal } = require('../trace') as typeof import('../trace')
     require('../telemetry/storage') as typeof import('../telemetry/storage')
     const findUp =
