@@ -77,6 +77,10 @@ __turbo = []
 __turbo_next_dev_server = ["__turbo", "next-dev/serializable"]
 __turbo_node_file_trace = ["__turbo", "node-file-trace/node-api"]
 
+# set tls for downstream dependenices of turbo
+__turbo_native_tls = ["next-dev/native-tls"]
+__turbo_rustls_tls = ["next-dev/rustls-tls"]
+
 __features = []
 __feature_mdx_rs = ["__features", "mdxjs/serializable"]
 
@@ -98,7 +102,10 @@ __swc_testing = ["__swc", "testing"]
 [dependencies]
 mdxjs = { optional = true, workspace = true }
 modularize_imports = { optional = true, workspace = true }
-next-dev = { optional = true, workspace = true }
+# TODO: Not sure what's going on, but using `workspace = true` noops `default-features = false`?
+next-dev = { optional = true, path = "../next-dev", version = "0.1.0", default-features = false, features = [
+  "custom_allocator",
+] }
 node-file-trace = { optional = true, workspace = true }
 styled_components = { optional = true, workspace = true }
 styled_jsx = { optional = true, workspace = true }
