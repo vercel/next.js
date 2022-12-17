@@ -21,13 +21,6 @@ describe('app dir - layout params', () => {
   })
   afterAll(() => next.destroy())
 
-  const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
-
-  if (isReact17) {
-    it('should skip tests for react 17', () => {})
-    return
-  }
-
   describe('basic params', () => {
     it('check layout without params get no params', async () => {
       const html = await renderViaHTTP(next.url, '/base/something/another')

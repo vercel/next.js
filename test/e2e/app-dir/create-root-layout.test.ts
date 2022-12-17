@@ -12,10 +12,6 @@ describe('app-dir create root layout', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   if (isDev) {
