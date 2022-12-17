@@ -107,7 +107,7 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 
 ### Static Only
 
-The following services support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
+The following services only support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
 
 - [GitHub Pages](https://github.com/vercel/next.js/tree/canary/examples/github-pages)
 
@@ -115,18 +115,15 @@ You can also manually deploy the [`next export`](/docs/advanced-features/static-
 
 ### Serverless
 
-- [Firebase](https://firebase.google.com/docs/hosting/nextjs)
 - [AWS Amplify](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-Amplify-support.html)
 - [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
 - [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/nextjs)
-- [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
+- [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
+- [Firebase](https://firebase.google.com/docs/hosting/nextjs)
 - [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
+- [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
 
 > **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
-
-### Edge
-
-- [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
 
 ## Automatic Updates
 
