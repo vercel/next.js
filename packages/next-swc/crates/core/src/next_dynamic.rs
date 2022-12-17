@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
 
-use swc_core::{
+use next_binding::swc::core::{
     common::{errors::HANDLER, FileName, DUMMY_SP},
     ecma::ast::{
         ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
