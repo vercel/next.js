@@ -233,7 +233,7 @@ export const getStaticProps: GetStaticProps<{ posts: Post[] }> = async (
 If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`:
 
 ```tsx
-import { InferGetStaticPropsType } from 'next'
+import type { InferGetStaticPropsType } from 'next'
 import { GetStaticProps } from 'next'
 
 type Post = {
