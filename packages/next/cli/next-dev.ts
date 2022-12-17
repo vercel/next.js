@@ -335,8 +335,6 @@ const nextDev: cliCommand = async (argv) => {
       )
     }
 
-    console.error({ unsupportedParts })
-
     if (unsupportedParts) {
       const pkgManager = getPkgManager(dir)
 
