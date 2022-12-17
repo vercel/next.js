@@ -40,7 +40,8 @@ use turbopack_dev_server::{
     introspect::IntrospectionSource,
     source::{
         combined::CombinedContentSourceVc, router::RouterContentSource,
-        static_assets::StaticAssetsContentSourceVc, ContentSourceVc,
+        source_maps::SourceMapContentSourceVc, static_assets::StaticAssetsContentSourceVc,
+        ContentSourceVc,
     },
     DevServer,
 };
@@ -349,6 +350,7 @@ async fn source(
     .cell()
     .into();
     let main_source = main_source.into();
+    let source_maps = SourceMapContentSourceVc::new(main_source).into();
     let source_map_trace = NextSourceMapTraceContentSourceVc::new(main_source).into();
     let img_source = NextImageContentSourceVc::new(
         CombinedContentSourceVc::new(vec![static_source, rendered_source]).into(),
@@ -364,6 +366,7 @@ async fn source(
             ),
             // TODO: Load path from next.config.js
             ("_next/image".to_string(), img_source),
+            ("__turbopack_sourcemap__/".to_string(), source_maps),
         ],
         fallback: main_source,
     }
