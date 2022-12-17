@@ -4,6 +4,7 @@ pub mod conditional;
 pub mod lazy_instatiated;
 pub mod query;
 pub mod router;
+pub mod source_maps;
 pub mod specificity;
 pub mod static_assets;
 
