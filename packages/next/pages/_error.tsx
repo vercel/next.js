@@ -2,12 +2,12 @@ import React from 'react'
 import Head from '../shared/lib/head'
 import type { NextPageContext } from '../shared/lib/utils'
 
-const statusCodes: { [code: number]: string } = {
+const statusCodes = {
   400: 'Bad Request',
   404: 'This page could not be found',
   405: 'Method Not Allowed',
   500: 'Internal Server Error',
-}
+} satisfies { [code: number]: string }
 
 export type ErrorProps = {
   statusCode: number
@@ -24,7 +24,7 @@ function _getInitialProps({
   return { statusCode }
 }
 
-const styles: { [k: string]: React.CSSProperties } = {
+const styles = {
   error: {
     fontFamily:
       '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
@@ -62,7 +62,7 @@ const styles: { [k: string]: React.CSSProperties } = {
     margin: 0,
     padding: 0,
   },
-}
+} satisfies { [k: string]: React.CSSProperties }
 
 /**
  * `Error` component used for handling errors.
