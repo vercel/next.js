@@ -1,7 +1,6 @@
 import path from 'path'
 import { renderViaHTTP } from 'next-test-utils'
-import { createNextDescribe, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { createNextDescribe } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 createNextDescribe(
