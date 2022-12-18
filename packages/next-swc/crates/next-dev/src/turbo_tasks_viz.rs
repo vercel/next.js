@@ -1,7 +1,7 @@
-use std::{str::FromStr, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
-use mime::Mime;
+use mime::TEXT_HTML_UTF_8;
 use turbo_tasks::{get_invalidator, TurboTasks, TurboTasksBackendApi, Value};
 use turbo_tasks_fs::File;
 use turbo_tasks_memory::{
@@ -115,10 +115,7 @@ impl ContentSource for TurboTasksSource {
         };
         Ok(ContentSourceResultVc::exact(
             ContentSourceContent::Static(
-                AssetContentVc::from(
-                    File::from(html).with_content_type(Mime::from_str("text/html")?),
-                )
-                .into(),
+                AssetContentVc::from(File::from(html).with_content_type(TEXT_HTML_UTF_8)).into(),
             )
             .cell(),
         ))
