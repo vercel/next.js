@@ -196,13 +196,7 @@ impl NextConfigVc {
 
     #[turbo_tasks::function]
     pub async fn image_config(self) -> Result<ImageConfigVc> {
-        let mut image_config = self.await?.images.clone();
-        // TODO is this the right place to do this?
-        image_config.remote_patterns.push(RemotePattern {
-            hostname: "**".to_string(),
-            ..Default::default()
-        });
-        Ok(image_config.cell())
+        Ok(self.await?.images.clone().cell())
     }
 }
 

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_tasks::{debug::ValueDebug, primitives::StringVc};
 use turbo_tasks_fs::{File, FileSystemPathVc};
@@ -187,7 +187,7 @@ impl VersionedContent for DevHtmlAssetContent {
     async fn update(self_vc: DevHtmlAssetContentVc, from_version: VersionVc) -> Result<UpdateVc> {
         let from_version = DevHtmlAssetVersionVc::resolve_from(from_version)
             .await?
-            .ok_or_else(|| anyhow!("version must be an `DevHtmlAssetVersionVc`"))?;
+            .context("version must be an `DevHtmlAssetVersionVc`")?;
         let to_version = self_vc.version();
 
         let to = to_version.await?;

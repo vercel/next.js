@@ -240,7 +240,6 @@ pub async fn get_client_runtime_entries(
             .as_request();
 
     let mut runtime_entries = vec![RuntimeEntry::Ecmascript(
-        //TODO
         ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
     )
     .cell()];

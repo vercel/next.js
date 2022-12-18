@@ -24,13 +24,7 @@ pub struct StackFrame {
 
 impl Display for StackFrame {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.get_pos() {
-            Some((l, c)) => match &self.name {
-                Some(n) => write!(f, "{} ({}:{}:{})", n, self.file, l, c),
-                None => write!(f, "{}:{}:{}", self.file, l, c),
-            },
-            None => write!(f, "{}", self.file),
-        }
+        self.with_path(&self.file).fmt(f)
     }
 }
 
@@ -40,10 +34,7 @@ impl StackFrame {
     }
 
     pub fn get_pos(&self) -> Option<(usize, usize)> {
-        match (self.line, self.column) {
-            (Some(l), Some(c)) => Some((l, c)),
-            _ => None,
-        }
+        self.line.zip(self.column)
     }
 }
 
