@@ -84,7 +84,7 @@ impl<'a> From<sourcemap::Token<'a>> for Token {
                     .to_string(),
                 original_line: t.get_src_line() as usize,
                 original_column: t.get_src_col() as usize,
-                name: t.get_name().map(|n| n.to_string()),
+                name: t.get_name().map(String::from),
             })
         } else {
             Token::Synthetic(SyntheticToken {
@@ -147,7 +147,7 @@ impl SourceMapVc {
                 let mut first_section = true;
                 for (offset, section_map) in sections {
                     if !first_section {
-                        write!(rope, ",")?;
+                        rope += ",";
                     }
                     first_section = false;
 
@@ -160,14 +160,11 @@ impl SourceMapVc {
 
                     rope += &*section_map;
 
-                    write!(rope, r#"}}"#)?;
+                    rope += "}";
                 }
 
-                write!(
-                    rope,
-                    r#"]
-}}"#
-                )?;
+                rope += "]
+}";
 
                 rope.build()
             }
@@ -180,14 +177,12 @@ impl SourceMapVc {
     #[turbo_tasks::function]
     pub async fn lookup_token(self, line: usize, column: usize) -> Result<OptionTokenVc> {
         let token = match &*self.await? {
-            SourceMap::Regular(map) => {
-                match map.lookup_token(line as u32, column as u32) {
-                    // The sourcemap package incorrectly returns the last token for large lookup
-                    // lines.
-                    Some(t) if t.get_dst_line() == line as u32 => Some::<Token>(t.into()),
-                    _ => None,
-                }
-            }
+            SourceMap::Regular(map) => map
+                .lookup_token(line as u32, column as u32)
+                // The sourcemap crate incorrectly returns a previous line's token when there's
+                // not a match on this line.
+                .filter(|t| t.get_dst_line() == line as u32)
+                .map(Token::from),
 
             SourceMap::Sectioned(map) => {
                 let len = map.sections.len();
@@ -212,10 +207,10 @@ impl SourceMapVc {
                 if low > 0 && low <= len {
                     let SourceMapSection { map, offset } = &map.sections[low - 1];
                     // We're looking for the position `l` lines into region covered by this
-                    // sourcemap s section.
+                    // sourcemap's section.
                     let l = line - offset.line;
-                    // The source map starts if offset by the column only on its first line. On
-                    // the 2nd+ line, the section covers starting at column 0.
+                    // The source map starts offset by the section's column only on its first line.
+                    // On the 2nd+ line, the source map covers starting at column 0.
                     let c = if line == offset.line {
                         column - offset.column
                     } else {

@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use anyhow::Result;
+use mime::APPLICATION_JAVASCRIPT_UTF_8;
 use serde_json::json;
 use turbo_tasks_fs::File;
 use turbopack_core::{
@@ -102,13 +103,13 @@ impl SourceMapTraceVc {
 
         let token = this
             .map
-            .lookup_token(this.line.saturating_sub(1), this.column)
+            .lookup_token(this.line.saturating_sub(1), this.column.saturating_sub(1))
             .await?;
         let result = match &*token {
             Some(Token::Original(t)) => TraceResult::Found(StackFrame {
                 file: t.original_file.clone(),
                 line: Some(t.original_line.saturating_add(1)),
-                column: Some(t.original_column),
+                column: Some(t.original_column.saturating_add(1)),
                 name: t.name.clone().or_else(|| this.name.clone()),
             }),
             _ => TraceResult::NotFound,
@@ -132,6 +133,7 @@ impl SourceMapTraceVc {
             })
             .to_string(),
         };
-        Ok(File::from(result).into())
+        let file = File::from(result).with_content_type(APPLICATION_JAVASCRIPT_UTF_8);
+        Ok(file.into())
     }
 }

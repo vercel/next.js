@@ -760,6 +760,7 @@ impl GenerateSourceMap for EcmascriptChunkContent {
 #[derive(serde::Serialize)]
 struct HmrUpdateEntry<'a> {
     code: &'a Rope,
+    url: String,
     map: Option<String>,
 }
 
@@ -770,15 +771,14 @@ impl<'a> HmrUpdateEntry<'a> {
         struct Id<'a> {
             id: &'a ModuleId,
         }
+        let id = serde_qs::to_string(&Id { id: &entry.id }).unwrap();
         HmrUpdateEntry {
             code: entry.source_code(),
-            map: entry.code.has_source_map().then(|| {
-                format!(
-                    "/__turbopack_sourcemap__/{}.map?{}",
-                    chunk_path,
-                    serde_qs::to_string(&Id { id: &entry.id }).unwrap()
-                )
-            }),
+            url: format!("/{}?{}", chunk_path, &id),
+            map: entry
+                .code
+                .has_source_map()
+                .then(|| format!("/__turbopack_sourcemap__/{}.map?{}", chunk_path, &id)),
         }
     }
 }

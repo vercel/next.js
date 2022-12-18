@@ -532,9 +532,9 @@ __turbopack_export_value__((__turbopack_import__) => {
    * @returns {ModuleFactory}
    * @private
    */
-  function _eval(factory) {
-    let code = factory.code;
-    if (factory.map) code += `\n\n//# sourceMappingURL=${factory.map}`;
+  function _eval({ code, url, map }) {
+    code += `\n\n//# sourceURL=${location.origin}${url}`;
+    if (map) code += `\n//# sourceMappingURL=${map}`;
     return eval(code);
   }
 
