@@ -76,7 +76,7 @@ impl<const P: u64> SmallDuration<P> {
         SmallDuration(value as u32)
     }
 
-    pub(self) fn to_duration(&self) -> Duration {
+    pub(self) fn to_duration(self) -> Duration {
         Duration::from_nanos(self.0 as u64 * P)
     }
 }

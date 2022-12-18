@@ -1,5 +1,3 @@
-import type { Ipc } from "@vercel/turbopack-next/internal/ipc";
-
 // Provided by the rust generate code
 type FileType =
   | "layout"
@@ -21,6 +19,7 @@ declare global {
   const IPC: Ipc<unknown, unknown>;
 }
 
+import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type {
   FlightCSSManifest,

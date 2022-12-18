@@ -22,6 +22,8 @@ pub mod typescript;
 pub mod utils;
 pub mod webpack;
 
+use std::collections::HashMap;
+
 use anyhow::Result;
 use chunk::{
     EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
@@ -41,12 +43,15 @@ pub use transform::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::{Asset, AssetContentVc, AssetVc},
+    asset::{Asset, AssetContentVc, AssetOptionVc, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
     environment::EnvironmentVc,
     reference::AssetReferencesVc,
-    resolve::origin::{ResolveOrigin, ResolveOriginVc},
+    resolve::{
+        origin::{ResolveOrigin, ResolveOriginVc},
+        parse::RequestVc,
+    },
 };
 
 use self::chunk::{
@@ -67,6 +72,9 @@ pub enum EcmascriptModuleAssetType {
     TypescriptDeclaration,
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct InnerAssets(HashMap<String, AssetVc>);
+
 #[turbo_tasks::value]
 #[derive(Clone, Copy)]
 pub struct EcmascriptModuleAsset {
@@ -75,6 +83,7 @@ pub struct EcmascriptModuleAsset {
     pub ty: EcmascriptModuleAssetType,
     pub transforms: EcmascriptInputTransformsVc,
     pub environment: EnvironmentVc,
+    pub inner_assets: Option<InnerAssetsVc>,
 }
 
 #[turbo_tasks::value_impl]
@@ -93,6 +102,26 @@ impl EcmascriptModuleAssetVc {
             ty: ty.into_value(),
             transforms,
             environment,
+            inner_assets: None,
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub fn new_with_inner_assets(
+        source: AssetVc,
+        context: AssetContextVc,
+        ty: Value<EcmascriptModuleAssetType>,
+        transforms: EcmascriptInputTransformsVc,
+        environment: EnvironmentVc,
+        inner_assets: InnerAssetsVc,
+    ) -> Self {
+        Self::cell(EcmascriptModuleAsset {
+            source,
+            context,
+            ty: ty.into_value(),
+            transforms,
+            environment,
+            inner_assets: Some(inner_assets),
         })
     }
 
@@ -174,6 +203,21 @@ impl ResolveOrigin for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn context(&self) -> AssetContextVc {
         self.context
+    }
+
+    #[turbo_tasks::function]
+    async fn get_inner_asset(&self, request: RequestVc) -> Result<AssetOptionVc> {
+        Ok(AssetOptionVc::cell(
+            if let Some(inner_assets) = &self.inner_assets {
+                if let Some(request) = request.await?.request() {
+                    inner_assets.await?.get(&request).copied()
+                } else {
+                    None
+                }
+            } else {
+                None
+            },
+        ))
     }
 }
 

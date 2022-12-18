@@ -19,6 +19,7 @@ use crate::{
         get_client_asset_context, get_client_chunking_context, get_client_runtime_entries,
         ContextType,
     },
+    next_config::NextConfigVc,
 };
 
 #[turbo_tasks::function]
@@ -29,13 +30,14 @@ pub async fn create_web_entry_source(
     env: ProcessEnvVc,
     eager_compile: bool,
     browserslist_query: &str,
+    next_config: NextConfigVc,
 ) -> Result<ContentSourceVc> {
     let project_root = wrap_with_next_js_fs(project_root);
 
     let ty = Value::new(ContextType::Other);
     let context = get_client_asset_context(project_root, browserslist_query, ty);
     let chunking_context = get_client_chunking_context(project_root, server_root, ty);
-    let entries = get_client_runtime_entries(project_root, env, ty);
+    let entries = get_client_runtime_entries(project_root, env, ty, next_config);
 
     let runtime_entries = entries.resolve_entries(context);
 

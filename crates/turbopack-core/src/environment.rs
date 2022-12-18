@@ -53,6 +53,8 @@ pub enum EnvironmentIntention {
     StaticRendering,
     /// Intent to render on the client
     Client,
+    /// Intent to evaluate build time javascript code like config, plugins, etc.
+    Build,
     // TODO allow custom trait here
     Custom(u8),
 }

@@ -187,7 +187,7 @@ impl VersionedContent for DevHtmlAssetContent {
     async fn update(self_vc: DevHtmlAssetContentVc, from_version: VersionVc) -> Result<UpdateVc> {
         let from_version = DevHtmlAssetVersionVc::resolve_from(from_version)
             .await?
-            .expect("version must be an `DevHtmlAssetVersionVc`");
+            .ok_or_else(|| anyhow!("version must be an `DevHtmlAssetVersionVc`"))?;
         let to_version = self_vc.version();
 
         let to = to_version.await?;

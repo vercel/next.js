@@ -28,6 +28,7 @@ use crate::{
     embed_js::attached_next_js_package_path,
     env::env_for_js,
     next_client::runtime_entry::{RuntimeEntriesVc, RuntimeEntry},
+    next_config::NextConfigVc,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
@@ -230,6 +231,7 @@ pub async fn get_client_runtime_entries(
     project_root: FileSystemPathVc,
     env: ProcessEnvVc,
     ty: Value<ContextType>,
+    next_config: NextConfigVc,
 ) -> Result<RuntimeEntriesVc> {
     let resolve_options_context = get_client_resolve_options_context(project_root, ty);
     let enable_react_refresh =
@@ -238,7 +240,8 @@ pub async fn get_client_runtime_entries(
             .as_request();
 
     let mut runtime_entries = vec![RuntimeEntry::Ecmascript(
-        ProcessEnvAssetVc::new(project_root, env_for_js(env, true)).into(),
+        //TODO
+        ProcessEnvAssetVc::new(project_root, env_for_js(env, true, next_config)).into(),
     )
     .cell()];
 

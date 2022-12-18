@@ -1,8 +1,9 @@
+use anyhow::Result;
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 
-use super::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc};
-use crate::{context::AssetContextVc, reference_type::ReferenceType};
+use super::{options::ResolveOptionsVc, parse::RequestVc, ResolveResult, ResolveResultVc};
+use crate::{asset::AssetOptionVc, context::AssetContextVc, reference_type::ReferenceType};
 
 /// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.
@@ -17,6 +18,12 @@ pub trait ResolveOrigin {
     /// The AssetContext that carries the configuration for building that
     /// subgraph.
     fn context(&self) -> AssetContextVc;
+
+    /// Get an inner asset form this origin that doesn't require resolving but
+    /// is directly attached
+    fn get_inner_asset(&self, _request: RequestVc) -> AssetOptionVc {
+        AssetOptionVc::cell(None)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -28,14 +35,18 @@ impl ResolveOriginVc {
     /// Resolve to an asset from that origin. Custom resolve options can be
     /// passed. Otherwise provide `origin.resolve_options()` unmodified.
     #[turbo_tasks::function]
-    pub fn resolve_asset(
+    pub async fn resolve_asset(
         self,
         request: RequestVc,
         options: ResolveOptionsVc,
         reference_type: Value<ReferenceType>,
-    ) -> ResolveResultVc {
-        self.context()
-            .resolve_asset(self.origin_path(), request, options, reference_type)
+    ) -> Result<ResolveResultVc> {
+        if let Some(asset) = *self.get_inner_asset(request).await? {
+            return Ok(ResolveResult::Single(asset, Vec::new()).cell());
+        }
+        Ok(self
+            .context()
+            .resolve_asset(self.origin_path(), request, options, reference_type))
     }
 
     /// Get the resolve options that apply for this origin.
@@ -106,5 +117,10 @@ impl ResolveOrigin for ResolveOriginWithTransition {
     #[turbo_tasks::function]
     fn context(&self) -> AssetContextVc {
         self.previous.context().with_transition(&self.transition)
+    }
+
+    #[turbo_tasks::function]
+    fn get_inner_asset(&self, request: RequestVc) -> AssetOptionVc {
+        self.previous.get_inner_asset(request)
     }
 }
