@@ -3,8 +3,7 @@ import cheerio from 'cheerio'
 import { promisify } from 'util'
 import path, { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import { check, normalizeRegEx, waitFor } from 'next-test-utils'
 
 const glob = promisify(globOrig)
 

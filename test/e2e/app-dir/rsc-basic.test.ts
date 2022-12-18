@@ -5,11 +5,6 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import cheerio from 'cheerio'
 
-function getNodeBySelector(html, selector) {
-  const $ = cheerio.load(html)
-  return $(selector)
-}
-
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
   onData = onData || (() => {})
@@ -195,8 +190,8 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should support next/link in server components', async () => {
-    const linkHTML = await next.render('/next-api/link')
-    const linkText = getNodeBySelector(linkHTML, 'body a[href="/root"]').text()
+    const $ = await next.render$('/next-api/link')
+    const linkText = $('body a[href="/root"]').text()
 
     expect(linkText).toContain('home')
 
@@ -249,22 +244,22 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should suspense next/legacy/image in server components', async () => {
-    const imageHTML = await next.render('/next-api/image-legacy')
-    const imageTag = getNodeBySelector(imageHTML, '#myimg')
+    const $ = await next.render$('/next-api/image-legacy')
+    const imageTag = $('#myimg')
 
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
   it('should suspense next/image in server components', async () => {
-    const imageHTML = await next.render('/next-api/image-new')
-    const imageTag = getNodeBySelector(imageHTML, '#myimg')
+    const $ = await next.render$('/next-api/image-new')
+    const imageTag = $('#myimg')
 
     expect(imageTag.attr('src')).toMatch(/test.+jpg/)
   })
 
   it('should handle various kinds of exports correctly', async () => {
-    const html = await next.render('/various-exports')
-    const content = getNodeBySelector(html, 'body').text()
+    const $ = await next.render$('/various-exports')
+    const content = $('body').text()
 
     expect(content).toContain('abcde')
     expect(content).toContain('default-export-arrow.client')
@@ -282,17 +277,17 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should support native modules in server component', async () => {
-    const html = await next.render('/native-module')
-    const content = getNodeBySelector(html, 'body').text()
+    const $ = await next.render$('/native-module')
+    const content = $('body').text()
 
     expect(content).toContain('fs: function')
     expect(content).toContain('foo.client')
   })
 
   it('should resolve different kinds of components correctly', async () => {
-    const html = await next.render('/shared')
-    const main = getNodeBySelector(html, '#main').html()
-    const content = getNodeBySelector(html, '#bar').text()
+    const $ = await next.render$('/shared')
+    const main = $('#main').html()
+    const content = $('#bar').text()
 
     // Should have 5 occurrences of "client_component".
     expect(Array.from(main.matchAll(/client_component/g)).length).toBe(5)
@@ -312,8 +307,8 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should render initial styles of css-in-js in nodejs SSR correctly', async () => {
-    const html = await next.render('/css-in-js')
-    const head = getNodeBySelector(html, 'head').html()
+    const $ = await next.render$('/css-in-js')
+    const head = $('head').html()
 
     // from styled-jsx
     expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
@@ -324,8 +319,8 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should render initial styles of css-in-js in edge SSR correctly', async () => {
-    const html = await next.render('/css-in-js/edge')
-    const head = getNodeBySelector(html, 'head').html()
+    const $ = await next.render$('/css-in-js/edge')
+    const head = $('head').html()
 
     // from styled-jsx
     expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style

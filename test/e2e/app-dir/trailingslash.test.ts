@@ -1,6 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
 import path from 'path'
-import cheerio from 'cheerio'
 
 createNextDescribe(
   'app-dir trailingSlash handling',
@@ -22,8 +21,7 @@ createNextDescribe(
     })
 
     it('should render link with trailing slash', async () => {
-      const html = await next.render('/')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/')
       expect($('#to-a-trailing-slash').attr('href')).toBe('/a/')
     })
 

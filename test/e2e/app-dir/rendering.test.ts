@@ -17,21 +17,19 @@ createNextDescribe(
 
     describe('SSR only', () => {
       it('should run data in layout and page', async () => {
-        const html = await next.render('/ssr-only/nested')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/ssr-only/nested')
         expect($('#layout-message').text()).toBe('hello from layout')
         expect($('#page-message').text()).toBe('hello from page')
       })
 
       it('should run data fetch in parallel', async () => {
         const startTime = Date.now()
-        const html = await next.render('/ssr-only/slow')
+        const $ = await next.render$('/ssr-only/slow')
         const endTime = Date.now()
         const duration = endTime - startTime
         // Each part takes 5 seconds so it should be below 10 seconds
         // Using 7 seconds to ensure external factors causing slight slowness don't fail the tests
         expect(duration < 7000).toBe(true)
-        const $ = cheerio.load(html)
         expect($('#slow-layout-message').text()).toBe('hello from slow layout')
         expect($('#slow-page-message').text()).toBe('hello from slow page')
       })
@@ -39,8 +37,7 @@ createNextDescribe(
 
     describe('static only', () => {
       it('should run data in layout and page', async () => {
-        const html = await next.render('/static-only/nested')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/static-only/nested')
         expect($('#layout-message').text()).toBe('hello from layout')
         expect($('#page-message').text()).toBe('hello from page')
       })
@@ -49,7 +46,7 @@ createNextDescribe(
         isDev ? 'during development' : 'and use cached version for production'
       }`, async () => {
         // const startTime = Date.now()
-        const html = await next.render('/static-only/slow')
+        const $ = await next.render$('/static-only/slow')
         // const endTime = Date.now()
         // const duration = endTime - startTime
         // Each part takes 5 seconds so it should be below 10 seconds
@@ -57,7 +54,6 @@ createNextDescribe(
         // TODO: cache static props in prod
         // expect(duration < (isDev ? 7000 : 2000)).toBe(true)
         // expect(duration < 7000).toBe(true)
-        const $ = cheerio.load(html)
         expect($('#slow-layout-message').text()).toBe('hello from slow layout')
         expect($('#slow-page-message').text()).toBe('hello from slow page')
       })
@@ -106,10 +102,10 @@ createNextDescribe(
     describe.skip('mixed static and dynamic', () => {
       it('should generate static data during build and use it', async () => {
         const getPage = async () => {
-          const html = await next.render('isr-ssr-combined/nested')
+          const $ = await next.render$('isr-ssr-combined/nested')
 
           return {
-            $: cheerio.load(html),
+            $,
           }
         }
         const { $ } = await getPage()

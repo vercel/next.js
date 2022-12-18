@@ -1,6 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
-import cheerio from 'cheerio'
 import path from 'path'
 
 createNextDescribe(
@@ -17,8 +16,7 @@ createNextDescribe(
   ({ next, isNextDev: isDev }) => {
     describe('import values', () => {
       it('should have correct values at /', async () => {
-        const html = await next.render('/')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/')
 
         // layout
         expect(JSON.parse($('#root-layout').text())).toEqual({
@@ -48,8 +46,7 @@ createNextDescribe(
       })
 
       it('should have correct values at /client', async () => {
-        const html = await next.render('/client')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/client')
 
         // root layout
         expect(JSON.parse($('#root-layout').text())).toEqual({
@@ -218,8 +215,7 @@ createNextDescribe(
     if (!isDev) {
       describe('preload', () => {
         it('should preload correctly with server components', async () => {
-          const html = await next.render('/')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/')
 
           // Preconnect
           expect($('link[rel="preconnect"]').length).toBe(0)
@@ -249,8 +245,7 @@ createNextDescribe(
         })
 
         it('should preload correctly with client components', async () => {
-          const html = await next.render('/client')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/client')
 
           // Preconnect
           expect($('link[rel="preconnect"]').length).toBe(0)
@@ -282,8 +277,7 @@ createNextDescribe(
         })
 
         it('should preload correctly with layout using fonts', async () => {
-          const html = await next.render('/layout-with-fonts')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/layout-with-fonts')
 
           // Preconnect
           expect($('link[rel="preconnect"]').length).toBe(0)
@@ -308,8 +302,7 @@ createNextDescribe(
         })
 
         it('should preload correctly with page using fonts', async () => {
-          const html = await next.render('/page-with-fonts')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/page-with-fonts')
 
           // Preconnect
           expect($('link[rel="preconnect"]').length).toBe(0)

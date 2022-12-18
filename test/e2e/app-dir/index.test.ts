@@ -93,8 +93,7 @@ createNextDescribe(
     })
 
     it('should pass props from getServerSideProps in root layout', async () => {
-      const html = await next.render('/dashboard')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard')
       expect($('title').text()).toBe('hello world')
     })
 
@@ -135,8 +134,7 @@ createNextDescribe(
       })
 
       it('should handle next/dynamic correctly', async () => {
-        const html = await next.render('/dashboard/dynamic')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/dashboard/dynamic')
         // filter out the script
         const selector = 'body div'
         const serverContent = $(selector).text()
@@ -193,8 +191,7 @@ createNextDescribe(
     })
 
     it('should include layouts when no direct parent layout', async () => {
-      const html = await next.render('/dashboard/integrations')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard/integrations')
       // Should not be nested in dashboard
       expect($('h1').text()).toBe('Dashboard')
       // Should include the page text
@@ -203,8 +200,8 @@ createNextDescribe(
 
     // TODO-APP: handle new root layout
     it.skip('should not include parent when not in parent directory with route in directory', async () => {
-      const html = await next.render('/dashboard/hello')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard/hello')
+      const html = $.html()
 
       // new root has to provide it's own custom root layout or the default
       // is used instead
@@ -221,8 +218,7 @@ createNextDescribe(
     })
 
     it('should use new root layout when provided', async () => {
-      const html = await next.render('/dashboard/another')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard/another')
 
       // new root has to provide it's own custom root layout or the default
       // is used instead
@@ -237,8 +233,7 @@ createNextDescribe(
     })
 
     it('should not create new root layout when nested (optional)', async () => {
-      const html = await next.render('/dashboard/deployments/breakdown')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard/deployments/breakdown')
 
       // new root has to provide it's own custom root layout or the default
       // is used instead
@@ -256,16 +251,14 @@ createNextDescribe(
     })
 
     it('should include parent document when no direct parent layout', async () => {
-      const html = await next.render('/dashboard/integrations')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard/integrations')
 
       expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
       expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
     })
 
     it('should not include parent when not in parent directory', async () => {
-      const html = await next.render('/dashboard/changelog')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard/changelog')
       // Should not be nested in dashboard
       expect($('h1').text()).toBeFalsy()
       // Should include the page text
@@ -273,8 +266,7 @@ createNextDescribe(
     })
 
     it('should serve nested parent', async () => {
-      const html = await next.render('/dashboard/deployments/123')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard/deployments/123')
       // Should be nested in dashboard
       expect($('h1').text()).toBe('Dashboard')
       // Should be nested in deployments
@@ -282,8 +274,7 @@ createNextDescribe(
     })
 
     it('should serve dynamic parameter', async () => {
-      const html = await next.render('/dashboard/deployments/123')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard/deployments/123')
       // Should include the page text with the parameter
       expect($('p').text()).toBe(
         'hello from app/dashboard/deployments/[id]. ID is: 123'
@@ -299,8 +290,7 @@ createNextDescribe(
     }
 
     it('should include document html and body', async () => {
-      const html = await next.render('/dashboard')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/dashboard')
 
       expect($('html').hasClass('this-is-the-document-html')).toBeTruthy()
       expect($('body').hasClass('this-is-the-document-body')).toBeTruthy()
@@ -686,8 +676,7 @@ createNextDescribe(
 
       describe('dynamic routes', () => {
         it('should only pass params that apply to the layout', async () => {
-          const html = await next.render('/dynamic/books/hello-world')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/dynamic/books/hello-world')
 
           expect($('#dynamic-layout-params').text()).toBe('{}')
           expect($('#category-layout-params').text()).toBe(
@@ -706,14 +695,12 @@ createNextDescribe(
         it('should handle optional segments', async () => {
           const params = ['this', 'is', 'a', 'test']
           const route = params.join('/')
-          const html = await next.render(`/catch-all-optional/${route}`)
-          const $ = cheerio.load(html)
+          const $ = await next.render$(`/catch-all-optional/${route}`)
           expect($('#text').attr('data-params')).toBe(route)
         })
 
         it('should handle optional segments root', async () => {
-          const html = await next.render(`/catch-all-optional`)
-          const $ = cheerio.load(html)
+          const $ = await next.render$(`/catch-all-optional`)
           expect($('#text').attr('data-params')).toBe('')
         })
 
@@ -731,8 +718,7 @@ createNextDescribe(
         it('should handle required segments', async () => {
           const params = ['this', 'is', 'a', 'test']
           const route = params.join('/')
-          const html = await next.render(`/catch-all/${route}`)
-          const $ = cheerio.load(html)
+          const $ = await next.render$(`/catch-all/${route}`)
           expect($('#text').attr('data-params')).toBe(route)
           expect($('#not-a-page').text()).toBe('Not a page')
 
@@ -761,8 +747,7 @@ createNextDescribe(
 
       describe('should serve client component', () => {
         it('should serve server-side', async () => {
-          const html = await next.render('/client-component-route')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/client-component-route')
           expect($('p').text()).toBe(
             'hello from app/client-component-route. count: 0'
           )
@@ -781,8 +766,7 @@ createNextDescribe(
 
       describe('should include client component layout with server component route', () => {
         it('should include it server-side', async () => {
-          const html = await next.render('/client-nested')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/client-nested')
           // Should not be nested in dashboard
           expect($('h1').text()).toBe('Client Nested. Count: 0')
           // Should include the page text
@@ -806,8 +790,7 @@ createNextDescribe(
 
       describe('Loading', () => {
         it('should render loading.js in initial html for slow page', async () => {
-          const html = await next.render('/slow-page-with-loading')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/slow-page-with-loading')
 
           expect($('#loading').text()).toBe('Loading...')
         })
@@ -825,8 +808,7 @@ createNextDescribe(
         })
 
         it('should render loading.js in initial html for slow layout', async () => {
-          const html = await next.render('/slow-layout-with-loading/slow')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/slow-layout-with-loading/slow')
 
           expect($('#loading').text()).toBe('Loading...')
         })
@@ -848,10 +830,9 @@ createNextDescribe(
         })
 
         it('should render loading.js in initial html for slow layout and page', async () => {
-          const html = await next.render(
+          const $ = await next.render$(
             '/slow-layout-and-page-with-loading/slow'
           )
-          const $ = cheerio.load(html)
 
           expect($('#loading-layout').text()).toBe('Loading layout...')
           expect($('#loading-page').text()).toBe('Loading page...')
@@ -1004,22 +985,20 @@ createNextDescribe(
         describe('headers function', () => {
           it('should have access to incoming headers in a server component', async () => {
             // Check to see that we can't see the header when it's not present.
-            let html = await next.render(
+            let $ = await next.render$(
               '/hooks/use-headers',
               {},
               { headers: {} }
             )
-            let $ = cheerio.load(html)
             expect($('#does-not-have-header').length).toBe(1)
             expect($('#has-header').length).toBe(0)
 
             // Check to see that we can see the header when it's present.
-            html = await next.render(
+            $ = await next.render$(
               '/hooks/use-headers',
               {},
               { headers: { 'x-use-headers': 'value' } }
             )
-            $ = cheerio.load(html)
             expect($('#has-header').length).toBe(1)
             expect($('#does-not-have-header').length).toBe(0)
           })
@@ -1159,16 +1138,14 @@ createNextDescribe(
 
         describe('usePathname', () => {
           it('should have the correct pathname', async () => {
-            const html = await next.render('/hooks/use-pathname')
-            const $ = cheerio.load(html)
+            const $ = await next.render$('/hooks/use-pathname')
             expect($('#pathname').attr('data-pathname')).toBe(
               '/hooks/use-pathname'
             )
           })
 
           it('should have the canonical url pathname on rewrite', async () => {
-            const html = await next.render('/rewritten-use-pathname')
-            const $ = cheerio.load(html)
+            const $ = await next.render$('/rewritten-use-pathname')
             expect($('#pathname').attr('data-pathname')).toBe(
               '/rewritten-use-pathname'
             )
@@ -1177,10 +1154,9 @@ createNextDescribe(
 
         describe('useSearchParams', () => {
           it('should have the correct search params', async () => {
-            const html = await next.render(
+            const $ = await next.render$(
               '/hooks/use-search-params?first=value&second=other%20value&third'
             )
-            const $ = cheerio.load(html)
             expect($('#params-first').text()).toBe('value')
             expect($('#params-second').text()).toBe('other value')
             expect($('#params-third').text()).toBe('')
@@ -1190,10 +1166,9 @@ createNextDescribe(
           // TODO-APP: correct this behavior when deployed
           if (!isNextDeploy) {
             it('should have the canonical url search params on rewrite', async () => {
-              const html = await next.render(
+              const $ = await next.render$(
                 '/rewritten-use-search-params?first=a&second=b&third=c'
               )
-              const $ = cheerio.load(html)
               expect($('#params-first').text()).toBe('a')
               expect($('#params-second').text()).toBe('b')
               expect($('#params-third').text()).toBe('c')
@@ -1224,10 +1199,7 @@ createNextDescribe(
 
           if (!isNextDeploy) {
             it('should have consistent query and params handling', async () => {
-              const html = await next.render(
-                '/param-and-query/params?slug=query'
-              )
-              const $ = cheerio.load(html)
+              const $ = await next.render$('/param-and-query/params?slug=query')
               const el = $('#params-and-query')
               expect(el.attr('data-params')).toBe('params')
               expect(el.attr('data-query')).toBe('query')
@@ -1247,8 +1219,7 @@ createNextDescribe(
           `(
             'should have the correct layout segments at $path',
             async ({ path, outerLayout, innerLayout }) => {
-              const html = await next.render(path)
-              const $ = cheerio.load(html)
+              const $ = await next.render$(path)
 
               expect(JSON.parse($('#outer-layout').text())).toEqual(outerLayout)
               expect(JSON.parse($('#inner-layout').text())).toEqual(innerLayout)
@@ -1256,10 +1227,9 @@ createNextDescribe(
           )
 
           it('should return an empty array in pages', async () => {
-            const html = await next.render(
+            const $ = await next.render$(
               '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
             )
-            const $ = cheerio.load(html)
 
             expect(JSON.parse($('#page-layout-segments').text())).toEqual([])
           })
@@ -1274,8 +1244,7 @@ createNextDescribe(
           `(
             'should have the correct layout segment at $path',
             async ({ path, outerLayout, innerLayout }) => {
-              const html = await next.render(path)
-              const $ = cheerio.load(html)
+              const $ = await next.render$(path)
 
               expect(JSON.parse($('#outer-layout-segment').text())).toEqual(
                 outerLayout
@@ -1287,10 +1256,9 @@ createNextDescribe(
           )
 
           it('should return null in pages', async () => {
-            const html = await next.render(
+            const $ = await next.render$(
               '/hooks/use-selected-layout-segment/first/slug2/second/a/b'
             )
-            const $ = cheerio.load(html)
 
             expect(JSON.parse($('#page-layout-segment').text())).toEqual(null)
           })
@@ -1693,10 +1661,9 @@ createNextDescribe(
     describe('searchParams prop', () => {
       describe('client component', () => {
         it('should have the correct search params', async () => {
-          const html = await next.render(
+          const $ = await next.render$(
             '/search-params-prop?first=value&second=other%20value&third'
           )
-          const $ = cheerio.load(html)
           const el = $('#params')
           expect(el.attr('data-param-first')).toBe('value')
           expect(el.attr('data-param-second')).toBe('other value')
@@ -1705,8 +1672,7 @@ createNextDescribe(
         })
 
         it('should have the correct search params on rewrite', async () => {
-          const html = await next.render('/search-params-prop-rewrite')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/search-params-prop-rewrite')
           const el = $('#params')
           expect(el.attr('data-param-first')).toBe('value')
           expect(el.attr('data-param-second')).toBe('other value')
@@ -1715,10 +1681,7 @@ createNextDescribe(
         })
 
         it('should have the correct search params on middleware rewrite', async () => {
-          const html = await next.render(
-            '/search-params-prop-middleware-rewrite'
-          )
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/search-params-prop-middleware-rewrite')
           const el = $('#params')
           expect(el.attr('data-param-first')).toBe('value')
           expect(el.attr('data-param-second')).toBe('other value')
@@ -1729,10 +1692,9 @@ createNextDescribe(
 
       describe('server component', () => {
         it('should have the correct search params', async () => {
-          const html = await next.render(
+          const $ = await next.render$(
             '/search-params-prop/server?first=value&second=other%20value&third'
           )
-          const $ = cheerio.load(html)
           const el = $('#params')
           expect(el.attr('data-param-first')).toBe('value')
           expect(el.attr('data-param-second')).toBe('other value')
@@ -1741,8 +1703,7 @@ createNextDescribe(
         })
 
         it('should have the correct search params on rewrite', async () => {
-          const html = await next.render('/search-params-prop-server-rewrite')
-          const $ = cheerio.load(html)
+          const $ = await next.render$('/search-params-prop-server-rewrite')
           const el = $('#params')
           expect(el.attr('data-param-first')).toBe('value')
           expect(el.attr('data-param-second')).toBe('other value')
@@ -1751,10 +1712,9 @@ createNextDescribe(
         })
 
         it('should have the correct search params on middleware rewrite', async () => {
-          const html = await next.render(
+          const $ = await next.render$(
             '/search-params-prop-server-middleware-rewrite'
           )
-          const $ = cheerio.load(html)
           const el = $('#params')
           expect(el.attr('data-param-first')).toBe('value')
           expect(el.attr('data-param-second')).toBe('other value')
@@ -1977,9 +1937,7 @@ createNextDescribe(
       })
 
       it('includes an integrity attribute on scripts', async () => {
-        const html = await next.render('/dashboard')
-
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/dashboard')
 
         // Find all the script tags with src attributes.
         const elements = $('script[src]')

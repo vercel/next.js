@@ -1,5 +1,4 @@
 import { createNextDescribe } from 'e2e-utils'
-import cheerio from 'cheerio'
 import path from 'path'
 
 createNextDescribe(
@@ -11,8 +10,7 @@ createNextDescribe(
   ({ next }) => {
     describe('ssr content', () => {
       it('should render images on / route', async () => {
-        const html = await next.render('/')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/')
 
         const layout = $('#app-layout')
         expect(layout.attr('src')).toBe(
@@ -40,8 +38,7 @@ createNextDescribe(
       })
 
       it('should render images on /client route', async () => {
-        const html = await next.render('/client')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/client')
 
         const root = $('#app-layout')
         expect(root.attr('src')).toBe(
@@ -77,8 +74,7 @@ createNextDescribe(
       })
 
       it('should render images nested under page dir on /nested route', async () => {
-        const html = await next.render('/nested')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/nested')
 
         const root = $('#app-layout')
         expect(root.attr('src')).toBe(
@@ -218,8 +214,7 @@ createNextDescribe(
 
     describe('image content', () => {
       it('should render images on / route', async () => {
-        const html = await next.render('/')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/')
 
         const res1 = await next.fetch($('#app-layout').attr('src'))
         expect(res1.status).toBe(200)
@@ -235,8 +230,7 @@ createNextDescribe(
       })
 
       it('should render images on /client route', async () => {
-        const html = await next.render('/client')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/client')
 
         const res1 = await next.fetch($('#app-layout').attr('src'))
         expect(res1.status).toBe(200)
@@ -256,8 +250,7 @@ createNextDescribe(
       })
 
       it('should render images nested under page dir on /nested route', async () => {
-        const html = await next.render('/nested')
-        const $ = cheerio.load(html)
+        const $ = await next.render$('/nested')
 
         const res1 = await next.fetch($('#app-layout').attr('src'))
         expect(res1.status).toBe(200)
