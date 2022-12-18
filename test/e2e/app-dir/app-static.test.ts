@@ -225,7 +225,7 @@ createNextDescribe(
     }
 
     it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
-      const browserOnIndexPage = await webdriver(next.url, '/ssg-preview')
+      const browserOnIndexPage = await next.browser('/ssg-preview')
 
       const content = await browserOnIndexPage
         .elementByCss('#preview-data')
@@ -235,7 +235,7 @@ createNextDescribe(
     })
 
     it('should force SSR correctly for headers usage', async () => {
-      const res = await fetchViaHTTP(next.url, '/force-static', undefined, {
+      const res = await next.fetch('/force-static', undefined, {
         headers: {
           Cookie: 'myCookie=cookieValue',
           another: 'header',
@@ -260,7 +260,7 @@ createNextDescribe(
       const firstTime = $('#now').text()
 
       if (!(global as any).isNextDev) {
-        const res2 = await fetchViaHTTP(next.url, '/force-static')
+        const res2 = await next.fetch('/force-static')
         expect(res2.status).toBe(200)
 
         const $2 = cheerio.load(await res2.text())
@@ -269,7 +269,7 @@ createNextDescribe(
     })
 
     it('should honor dynamic = "force-static" correctly', async () => {
-      const res = await fetchViaHTTP(next.url, '/force-static/first')
+      const res = await next.fetch('/force-static/first')
       expect(res.status).toBe(200)
 
       const html = await res.text()
@@ -282,7 +282,7 @@ createNextDescribe(
       const firstTime = $('#now').text()
 
       if (!(global as any).isNextDev) {
-        const res2 = await fetchViaHTTP(next.url, '/force-static/first')
+        const res2 = await next.fetch('/force-static/first')
         expect(res2.status).toBe(200)
 
         const $2 = cheerio.load(await res2.text())
@@ -291,7 +291,7 @@ createNextDescribe(
     })
 
     it('should honor dynamic = "force-static" correctly (lazy)', async () => {
-      const res = await fetchViaHTTP(next.url, '/force-static/random')
+      const res = await next.fetch('/force-static/random')
       expect(res.status).toBe(200)
 
       const html = await res.text()
@@ -304,7 +304,7 @@ createNextDescribe(
       const firstTime = $('#now').text()
 
       if (!(global as any).isNextDev) {
-        const res2 = await fetchViaHTTP(next.url, '/force-static/random')
+        const res2 = await next.fetch('/force-static/random')
         expect(res2.status).toBe(200)
 
         const $2 = cheerio.load(await res2.text())
@@ -316,7 +316,7 @@ createNextDescribe(
       const validParams = ['tim', 'seb', 'styfle']
 
       for (const param of validParams) {
-        const res = await fetchViaHTTP(next.url, `/blog/${param}`, undefined, {
+        const res = await next.fetch(`/blog/${param}`, undefined, {
           redirect: 'manual',
         })
         expect(res.status).toBe(200)
@@ -331,12 +331,9 @@ createNextDescribe(
       const invalidParams = ['timm', 'non-existent']
 
       for (const param of invalidParams) {
-        const invalidRes = await fetchViaHTTP(
-          next.url,
-          `/blog/${param}`,
-          undefined,
-          { redirect: 'manual' }
-        )
+        const invalidRes = await next.fetch(`/blog/${param}`, undefined, {
+          redirect: 'manual',
+        })
         expect(invalidRes.status).toBe(404)
         expect(await invalidRes.text()).toContain('page could not be found')
       }
@@ -344,8 +341,7 @@ createNextDescribe(
 
     it('should work with forced dynamic path', async () => {
       for (const slug of ['first', 'second']) {
-        const res = await fetchViaHTTP(
-          next.url,
+        const res = await next.fetch(
           `/dynamic-no-gen-params-ssr/${slug}`,
           undefined,
           { redirect: 'manual' }
@@ -357,8 +353,7 @@ createNextDescribe(
 
     it('should work with dynamic path no generateStaticParams', async () => {
       for (const slug of ['first', 'second']) {
-        const res = await fetchViaHTTP(
-          next.url,
+        const res = await next.fetch(
           `/dynamic-no-gen-params/${slug}`,
           undefined,
           { redirect: 'manual' }
@@ -389,8 +384,7 @@ createNextDescribe(
       ]
 
       for (const params of paramsToCheck) {
-        const res = await fetchViaHTTP(
-          next.url,
+        const res = await next.fetch(
           `/blog/${params.author}/${params.slug}`,
           undefined,
           {
@@ -407,7 +401,7 @@ createNextDescribe(
     })
 
     it('should navigate to static path correctly', async () => {
-      const browser = await webdriver(next.url, '/blog/tim')
+      const browser = await next.browser('/blog/tim')
       await browser.eval('window.beforeNav = 1')
 
       expect(
@@ -443,7 +437,7 @@ createNextDescribe(
 
     it('should ssr dynamically when detected automatically with fetch cache option', async () => {
       const pathname = '/ssr-auto/cache-no-store'
-      const initialRes = await fetchViaHTTP(next.url, pathname, undefined, {
+      const initialRes = await next.fetch(pathname, undefined, {
         redirect: 'manual',
       })
       expect(initialRes.status).toBe(200)
@@ -456,7 +450,7 @@ createNextDescribe(
 
       expect(initialHtml).toContain('Example Domain')
 
-      const secondRes = await fetchViaHTTP(next.url, pathname, undefined, {
+      const secondRes = await next.fetch(pathname, undefined, {
         redirect: 'manual',
       })
       expect(secondRes.status).toBe(200)
@@ -472,7 +466,7 @@ createNextDescribe(
     })
 
     it('should render not found pages correctly and fallback to the default one', async () => {
-      const res = await fetchViaHTTP(next.url, `/blog/shu/hi`, undefined, {
+      const res = await next.fetch(`/blog/shu/hi`, undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(404)
@@ -484,7 +478,7 @@ createNextDescribe(
     // TODO-APP: support fetch revalidate case for dynamic rendering
     it.skip('should ssr dynamically when detected automatically with fetch revalidate option', async () => {
       const pathname = '/ssr-auto/fetch-revalidate-zero'
-      const initialRes = await fetchViaHTTP(next.url, pathname, undefined, {
+      const initialRes = await next.fetch(pathname, undefined, {
         redirect: 'manual',
       })
       expect(initialRes.status).toBe(200)
@@ -497,7 +491,7 @@ createNextDescribe(
 
       expect(initialHtml).toContain('Example Domain')
 
-      const secondRes = await fetchViaHTTP(next.url, pathname, undefined, {
+      const secondRes = await next.fetch(pathname, undefined, {
         redirect: 'manual',
       })
       expect(secondRes.status).toBe(200)
@@ -513,14 +507,9 @@ createNextDescribe(
     })
 
     it('should ssr dynamically when forced via config', async () => {
-      const initialRes = await fetchViaHTTP(
-        next.url,
-        '/ssr-forced',
-        undefined,
-        {
-          redirect: 'manual',
-        }
-      )
+      const initialRes = await next.fetch('/ssr-forced', undefined, {
+        redirect: 'manual',
+      })
       expect(initialRes.status).toBe(200)
 
       const initialHtml = await initialRes.text()
@@ -529,7 +518,7 @@ createNextDescribe(
       expect(initial$('#page').text()).toBe('/ssr-forced')
       const initialDate = initial$('#date').text()
 
-      const secondRes = await fetchViaHTTP(next.url, '/ssr-forced', undefined, {
+      const secondRes = await next.fetch('/ssr-forced', undefined, {
         redirect: 'manual',
       })
       expect(secondRes.status).toBe(200)
@@ -546,8 +535,7 @@ createNextDescribe(
     describe('useSearchParams', () => {
       describe('client', () => {
         it('should bailout to client rendering - without suspense boundary', async () => {
-          const browser = await webdriver(
-            next.url,
+          const browser = await next.browser(
             '/hooks/use-search-params?first=value&second=other&third'
           )
 
@@ -564,8 +552,7 @@ createNextDescribe(
         })
 
         it('should bailout to client rendering - with suspense boundary', async () => {
-          const browser = await webdriver(
-            next.url,
+          const browser = await next.browser(
             '/hooks/use-search-params/with-suspense?first=value&second=other&third'
           )
 
@@ -582,8 +569,7 @@ createNextDescribe(
         })
 
         it.skip('should have empty search params on force-static', async () => {
-          const browser = await webdriver(
-            next.url,
+          const browser = await next.browser(
             '/hooks/use-search-params/force-static?first=value&second=other&third'
           )
 
@@ -611,8 +597,7 @@ createNextDescribe(
         // TODO-APP: re-enable after investigating rewrite params
         if (!(global as any).isNextDeploy) {
           it('should have values from canonical url on rewrite', async () => {
-            const browser = await webdriver(
-              next.url,
+            const browser = await next.browser(
               '/rewritten-use-search-params?first=a&second=b&third=c'
             )
 
@@ -631,14 +616,13 @@ createNextDescribe(
       if (!isDev) {
         describe('server response', () => {
           it('should bailout to client rendering - without suspense boundary', async () => {
-            const res = await fetchViaHTTP(next.url, '/hooks/use-search-params')
+            const res = await next.fetch('/hooks/use-search-params')
             const html = await res.text()
             expect(html).toInclude('<html id="__next_error__">')
           })
 
           it('should bailout to client rendering - with suspense boundary', async () => {
-            const res = await fetchViaHTTP(
-              next.url,
+            const res = await next.fetch(
               '/hooks/use-search-params/with-suspense'
             )
             const html = await res.text()
@@ -646,8 +630,7 @@ createNextDescribe(
           })
 
           it.skip('should have empty search params on force-static', async () => {
-            const res = await fetchViaHTTP(
-              next.url,
+            const res = await next.fetch(
               '/hooks/use-search-params/force-static?first=value&second=other&third'
             )
             const html = await res.text()
@@ -670,14 +653,14 @@ createNextDescribe(
     describe.skip('usePathname', () => {
       if (isDev) {
         it('should bail out to client rendering during SSG', async () => {
-          const res = await fetchViaHTTP(next.url, '/hooks/use-pathname/slug')
+          const res = await next.fetch('/hooks/use-pathname/slug')
           const html = await res.text()
           expect(html).toInclude('<html id="__next_error__">')
         })
       }
 
       it('should have the correct values', async () => {
-        const browser = await webdriver(next.url, '/hooks/use-pathname/slug')
+        const browser = await next.browser('/hooks/use-pathname/slug')
 
         expect(await browser.elementByCss('#pathname').text()).toBe(
           '/hooks/use-pathname/slug'
@@ -685,7 +668,7 @@ createNextDescribe(
       })
 
       it('should have values from canonical url on rewrite', async () => {
-        const browser = await webdriver(next.url, '/rewritten-use-pathname')
+        const browser = await next.browser('/rewritten-use-pathname')
 
         expect(await browser.elementByCss('#pathname').text()).toBe(
           '/rewritten-use-pathname'
@@ -702,7 +685,7 @@ createNextDescribe(
     }
 
     it('should keep querystring on static page', async () => {
-      const browser = await webdriver(next.url, '/blog/tim?message=hello-world')
+      const browser = await next.browser('/blog/tim?message=hello-world')
       const checkUrl = async () =>
         expect(await browser.url()).toBe(
           next.url + '/blog/tim?message=hello-world'

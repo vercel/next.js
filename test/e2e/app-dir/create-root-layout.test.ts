@@ -1,7 +1,6 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
 
 describe('app-dir create root layout', () => {
@@ -35,7 +34,7 @@ describe('app-dir create root layout', () => {
 
         it('create root layout', async () => {
           const outputIndex = next.cliOutput.length
-          const browser = await webdriver(next.url, '/route')
+          const browser = await next.browser('/route')
 
           expect(await browser.elementById('page-text').text()).toBe(
             'Hello world!'
@@ -97,7 +96,7 @@ describe('app-dir create root layout', () => {
 
         it('create root layout', async () => {
           const outputIndex = next.cliOutput.length
-          const browser = await webdriver(next.url, '/')
+          const browser = await next.browser('/')
 
           expect(await browser.elementById('page-text').text()).toBe(
             'Hello world'
@@ -164,7 +163,7 @@ describe('app-dir create root layout', () => {
 
         it('create root layout', async () => {
           const outputIndex = next.cliOutput.length
-          const browser = await webdriver(next.url, '/route/second/inner')
+          const browser = await next.browser('/route/second/inner')
 
           expect(await browser.elementById('page-text').text()).toBe(
             'Hello world'
@@ -232,7 +231,7 @@ describe('app-dir create root layout', () => {
 
       it('create root layout', async () => {
         const outputIndex = next.cliOutput.length
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
 
         expect(await browser.elementById('page-text').text()).toBe(
           'Hello world!'

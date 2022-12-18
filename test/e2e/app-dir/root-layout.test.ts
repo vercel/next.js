@@ -1,6 +1,5 @@
 import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 
 createNextDescribe(
@@ -14,7 +13,7 @@ createNextDescribe(
       // TODO-APP: re-enable after reworking the error overlay.
       describe.skip('Missing required tags', () => {
         it('should error on page load', async () => {
-          const browser = await webdriver(next.url, '/missing-tags', {
+          const browser = await next.browser('/missing-tags', {
             waitHydration: false,
           })
 
@@ -27,7 +26,7 @@ createNextDescribe(
         })
 
         it('should error on page navigation', async () => {
-          const browser = await webdriver(next.url, '/has-tags', {
+          const browser = await next.browser('/has-tags', {
             waitHydration: false,
           })
           await browser.elementByCss('a').click()
@@ -41,13 +40,9 @@ createNextDescribe(
         })
 
         it('should error on page load on static generation', async () => {
-          const browser = await webdriver(
-            next.url,
-            '/static-missing-tags/slug',
-            {
-              waitHydration: false,
-            }
-          )
+          const browser = await next.browser('/static-missing-tags/slug', {
+            waitHydration: false,
+          })
 
           expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
@@ -61,7 +56,7 @@ createNextDescribe(
 
     describe('Should do a mpa navigation when switching root layout', () => {
       it('should work with basic routes', async () => {
-        const browser = await webdriver(next.url, '/basic-route')
+        const browser = await next.browser('/basic-route')
 
         expect(await browser.elementById('basic-route').text()).toBe(
           'Basic route'
@@ -84,7 +79,7 @@ createNextDescribe(
       })
 
       it('should work with route groups', async () => {
-        const browser = await webdriver(next.url, '/route-group')
+        const browser = await next.browser('/route-group')
 
         expect(await browser.elementById('route-group').text()).toBe(
           'Route group'
@@ -110,7 +105,7 @@ createNextDescribe(
       })
 
       it('should work with parallel routes', async () => {
-        const browser = await webdriver(next.url, '/with-parallel-routes')
+        const browser = await next.browser('/with-parallel-routes')
 
         expect(await browser.elementById('parallel-one').text()).toBe('One')
         expect(await browser.elementById('parallel-two').text()).toBe('Two')
@@ -132,7 +127,7 @@ createNextDescribe(
       })
 
       it('should work with dynamic routes', async () => {
-        const browser = await webdriver(next.url, '/dynamic/first')
+        const browser = await next.browser('/dynamic/first')
 
         expect(await browser.elementById('dynamic-first').text()).toBe(
           'dynamic first'
@@ -155,7 +150,7 @@ createNextDescribe(
       })
 
       it('should work with dynamic catchall routes', async () => {
-        const browser = await webdriver(next.url, '/dynamic-catchall/slug')
+        const browser = await next.browser('/dynamic-catchall/slug')
 
         expect(await browser.elementById('catchall-slug').text()).toBe(
           'catchall slug'
@@ -178,10 +173,7 @@ createNextDescribe(
       })
 
       it('should work with static routes', async () => {
-        const browser = await webdriver(
-          next.url,
-          '/static-mpa-navigation/slug1'
-        )
+        const browser = await next.browser('/static-mpa-navigation/slug1')
 
         expect(await browser.elementById('static-slug1').text()).toBe(
           'static slug1'

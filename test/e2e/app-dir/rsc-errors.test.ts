@@ -1,5 +1,5 @@
 import path from 'path'
-import { check, fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { check } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 if (!(globalThis as any).isNextDev) {
@@ -20,15 +20,13 @@ if (!(globalThis as any).isNextDev) {
           'export function getServerSideProps'
         )
         await next.patchFile(pageFile, uncomment)
-        const res = await fetchViaHTTP(
-          next.url,
+        const res = await next.fetch(
           '/client-with-errors/get-server-side-props'
         )
         await next.patchFile(pageFile, content)
 
         await check(async () => {
-          const { status } = await fetchViaHTTP(
-            next.url,
+          const { status } = await next.fetch(
             '/client-with-errors/get-server-side-props'
           )
           return status
@@ -48,14 +46,10 @@ if (!(globalThis as any).isNextDev) {
           'export function getStaticProps'
         )
         await next.patchFile(pageFile, uncomment)
-        const res = await fetchViaHTTP(
-          next.url,
-          '/client-with-errors/get-static-props'
-        )
+        const res = await next.fetch('/client-with-errors/get-static-props')
         await next.patchFile(pageFile, content)
         await check(async () => {
-          const { status } = await fetchViaHTTP(
-            next.url,
+          const { status } = await next.fetch(
             '/client-with-errors/get-static-props'
           )
           return status
@@ -68,20 +62,14 @@ if (!(globalThis as any).isNextDev) {
       })
 
       it('should error for styled-jsx imports on server side', async () => {
-        const html = await renderViaHTTP(
-          next.url,
-          '/server-with-errors/styled-jsx'
-        )
+        const html = await next.render('/server-with-errors/styled-jsx')
         expect(html).toContain(
           'This module cannot be imported from a Server Component module. It should only be used from a Client Component.'
         )
       })
 
       it('should error when page component export is not valid', async () => {
-        const html = await renderViaHTTP(
-          next.url,
-          '/server-with-errors/page-export'
-        )
+        const html = await next.render('/server-with-errors/page-export')
         expect(html).toContain(
           'The default export is not a React Component in page:'
         )
@@ -92,11 +80,11 @@ if (!(globalThis as any).isNextDev) {
         const content = await next.readFile(pageFile)
         const uncomment = content.replace("// 'use client'", "'use client'")
         await next.patchFile(pageFile, uncomment)
-        const res = await fetchViaHTTP(next.url, '/swc/use-client')
+        const res = await next.fetch('/swc/use-client')
         await next.patchFile(pageFile, content)
 
         await check(async () => {
-          const { status } = await fetchViaHTTP(next.url, '/swc/use-client')
+          const { status } = await next.fetch('/swc/use-client')
           return status
         }, /200/)
 

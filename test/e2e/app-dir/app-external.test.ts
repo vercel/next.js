@@ -1,5 +1,4 @@
 import path from 'path'
-import { renderViaHTTP } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
@@ -51,14 +50,8 @@ createNextDescribe(
     })
 
     it('should handle external async module libraries correctly', async () => {
-      const clientHtml = await renderViaHTTP(
-        next.url,
-        '/external-imports/client'
-      )
-      const serverHtml = await renderViaHTTP(
-        next.url,
-        '/external-imports/server'
-      )
+      const clientHtml = await next.render('/external-imports/client')
+      const serverHtml = await next.render('/external-imports/server')
       const sharedHtml = await next.render('/shared-esm-dep')
 
       const browser = await next.browser('/external-imports/client')
@@ -84,10 +77,7 @@ createNextDescribe(
     })
 
     it('should transpile specific external packages with the `transpilePackages` option', async () => {
-      const clientHtml = await renderViaHTTP(
-        next.url,
-        '/external-imports/client'
-      )
+      const clientHtml = await next.render('/external-imports/client')
       expect(clientHtml).toContain('transpilePackages:5')
     })
 

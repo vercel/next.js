@@ -1,8 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import path from 'path'
-import webdriver from 'next-webdriver'
 
 createNextDescribe(
   'app dir next-image',
@@ -13,7 +11,7 @@ createNextDescribe(
   ({ next }) => {
     describe('ssr content', () => {
       it('should render images on / route', async () => {
-        const html = await renderViaHTTP(next.url, '/')
+        const html = await next.render('/')
         const $ = cheerio.load(html)
 
         const layout = $('#app-layout')
@@ -42,7 +40,7 @@ createNextDescribe(
       })
 
       it('should render images on /client route', async () => {
-        const html = await renderViaHTTP(next.url, '/client')
+        const html = await next.render('/client')
         const $ = cheerio.load(html)
 
         const root = $('#app-layout')
@@ -79,7 +77,7 @@ createNextDescribe(
       })
 
       it('should render images nested under page dir on /nested route', async () => {
-        const html = await renderViaHTTP(next.url, '/nested')
+        const html = await next.render('/nested')
         const $ = cheerio.load(html)
 
         const root = $('#app-layout')
@@ -118,7 +116,7 @@ createNextDescribe(
 
     describe('browser content', () => {
       it('should render images on / route', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
 
         const layout = await browser.elementById('app-layout')
         expect(await layout.getAttribute('src')).toBe(
@@ -146,7 +144,7 @@ createNextDescribe(
       })
 
       it('should render images on /client route', async () => {
-        const browser = await webdriver(next.url, '/client')
+        const browser = await next.browser('/client')
 
         const root = await browser.elementById('app-layout')
         expect(await root.getAttribute('src')).toBe(
@@ -182,7 +180,7 @@ createNextDescribe(
       })
 
       it('should render images nested under page dir on /nested route', async () => {
-        const browser = await webdriver(next.url, '/nested')
+        const browser = await next.browser('/nested')
 
         const root = await browser.elementById('app-layout')
         expect(await root.getAttribute('src')).toBe(
@@ -220,78 +218,60 @@ createNextDescribe(
 
     describe('image content', () => {
       it('should render images on / route', async () => {
-        const html = await renderViaHTTP(next.url, '/')
+        const html = await next.render('/')
         const $ = cheerio.load(html)
 
-        const res1 = await fetchViaHTTP(next.url, $('#app-layout').attr('src'))
+        const res1 = await next.fetch($('#app-layout').attr('src'))
         expect(res1.status).toBe(200)
         expect(res1.headers.get('content-type')).toBe('image/png')
 
-        const res2 = await fetchViaHTTP(next.url, $('#app-page').attr('src'))
+        const res2 = await next.fetch($('#app-page').attr('src'))
         expect(res2.status).toBe(200)
         expect(res2.headers.get('content-type')).toBe('image/png')
 
-        const res3 = await fetchViaHTTP(next.url, $('#app-comp').attr('src'))
+        const res3 = await next.fetch($('#app-comp').attr('src'))
         expect(res3.status).toBe(200)
         expect(res3.headers.get('content-type')).toBe('image/png')
       })
 
       it('should render images on /client route', async () => {
-        const html = await renderViaHTTP(next.url, '/client')
+        const html = await next.render('/client')
         const $ = cheerio.load(html)
 
-        const res1 = await fetchViaHTTP(next.url, $('#app-layout').attr('src'))
+        const res1 = await next.fetch($('#app-layout').attr('src'))
         expect(res1.status).toBe(200)
         expect(res1.headers.get('content-type')).toBe('image/png')
 
-        const res2 = await fetchViaHTTP(
-          next.url,
-          $('#app-client-layout').attr('src')
-        )
+        const res2 = await next.fetch($('#app-client-layout').attr('src'))
         expect(res2.status).toBe(200)
         expect(res2.headers.get('content-type')).toBe('image/png')
 
-        const res3 = await fetchViaHTTP(
-          next.url,
-          $('#app-client-page').attr('src')
-        )
+        const res3 = await next.fetch($('#app-client-page').attr('src'))
         expect(res3.status).toBe(200)
         expect(res3.headers.get('content-type')).toBe('image/png')
 
-        const res4 = await fetchViaHTTP(
-          next.url,
-          $('#app-client-comp').attr('src')
-        )
+        const res4 = await next.fetch($('#app-client-comp').attr('src'))
         expect(res4.status).toBe(200)
         expect(res4.headers.get('content-type')).toBe('image/png')
       })
 
       it('should render images nested under page dir on /nested route', async () => {
-        const html = await renderViaHTTP(next.url, '/nested')
+        const html = await next.render('/nested')
         const $ = cheerio.load(html)
 
-        const res1 = await fetchViaHTTP(next.url, $('#app-layout').attr('src'))
+        const res1 = await next.fetch($('#app-layout').attr('src'))
         expect(res1.status).toBe(200)
         expect(res1.headers.get('content-type')).toBe('image/png')
 
-        const res2 = await fetchViaHTTP(
-          next.url,
-          $('#app-nested-layout').attr('src')
-        )
+        const res2 = await next.fetch($('#app-nested-layout').attr('src'))
         expect(res2.status).toBe(200)
         expect(res2.headers.get('content-type')).toBe('image/jpeg')
 
-        const res3 = await fetchViaHTTP(
-          next.url,
-          $('#app-nested-page').attr('src')
-        )
+        const res3 = await next.fetch($('#app-nested-page').attr('src'))
         expect(res3.status).toBe(200)
         expect(res3.headers.get('content-type')).toBe('image/jpeg')
 
-        const res4 = await fetchViaHTTP(
-          next.url,
-          $('#app-nested-comp').attr('src')
-        )
+        const res4 = await next.fetch($('#app-nested-comp').attr('src'))
         expect(res4.status).toBe(200)
         expect(res4.headers.get('content-type')).toBe('image/jpeg')
       })

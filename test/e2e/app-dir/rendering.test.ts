@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
+import { waitFor } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
 
@@ -11,13 +11,13 @@ createNextDescribe(
   },
   ({ next, isNextDev: isDev }) => {
     it('should serve app/page.server.js at /', async () => {
-      const html = await renderViaHTTP(next.url, '/')
+      const html = await next.render('/')
       expect(html).toContain('app/page.server.js')
     })
 
     describe('SSR only', () => {
       it('should run data in layout and page', async () => {
-        const html = await renderViaHTTP(next.url, '/ssr-only/nested')
+        const html = await next.render('/ssr-only/nested')
         const $ = cheerio.load(html)
         expect($('#layout-message').text()).toBe('hello from layout')
         expect($('#page-message').text()).toBe('hello from page')
@@ -25,7 +25,7 @@ createNextDescribe(
 
       it('should run data fetch in parallel', async () => {
         const startTime = Date.now()
-        const html = await renderViaHTTP(next.url, '/ssr-only/slow')
+        const html = await next.render('/ssr-only/slow')
         const endTime = Date.now()
         const duration = endTime - startTime
         // Each part takes 5 seconds so it should be below 10 seconds
@@ -39,7 +39,7 @@ createNextDescribe(
 
     describe('static only', () => {
       it('should run data in layout and page', async () => {
-        const html = await renderViaHTTP(next.url, '/static-only/nested')
+        const html = await next.render('/static-only/nested')
         const $ = cheerio.load(html)
         expect($('#layout-message').text()).toBe('hello from layout')
         expect($('#page-message').text()).toBe('hello from page')
@@ -49,7 +49,7 @@ createNextDescribe(
         isDev ? 'during development' : 'and use cached version for production'
       }`, async () => {
         // const startTime = Date.now()
-        const html = await renderViaHTTP(next.url, '/static-only/slow')
+        const html = await next.render('/static-only/slow')
         // const endTime = Date.now()
         // const duration = endTime - startTime
         // Each part takes 5 seconds so it should be below 10 seconds
@@ -66,7 +66,7 @@ createNextDescribe(
     describe('ISR', () => {
       it('should revalidate the page when revalidate is configured', async () => {
         const getPage = async () => {
-          const res = await fetchViaHTTP(next.url, 'isr-multiple/nested')
+          const res = await next.fetch('isr-multiple/nested')
           const html = await res.text()
 
           return {
@@ -106,7 +106,7 @@ createNextDescribe(
     describe.skip('mixed static and dynamic', () => {
       it('should generate static data during build and use it', async () => {
         const getPage = async () => {
-          const html = await renderViaHTTP(next.url, 'isr-ssr-combined/nested')
+          const html = await next.render('isr-ssr-combined/nested')
 
           return {
             $: cheerio.load(html),

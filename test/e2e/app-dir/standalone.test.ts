@@ -3,10 +3,10 @@ import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
 import {
-  fetchViaHTTP,
   findPort,
   initNextServerScript,
   killApp,
+  fetchViaHTTP,
 } from 'next-test-utils'
 
 if (!(globalThis as any).isNextStart) {

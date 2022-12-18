@@ -1,8 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
-import { getRedboxSource, hasRedbox, renderViaHTTP } from 'next-test-utils'
+import { getRedboxSource, hasRedbox } from 'next-test-utils'
 import cheerio from 'cheerio'
 import path from 'path'
-import webdriver from 'next-webdriver'
 
 createNextDescribe(
   'app dir next-font',
@@ -18,7 +17,7 @@ createNextDescribe(
   ({ next, isNextDev: isDev }) => {
     describe('import values', () => {
       it('should have correct values at /', async () => {
-        const html = await renderViaHTTP(next.url, '/')
+        const html = await next.render('/')
         const $ = cheerio.load(html)
 
         // layout
@@ -49,7 +48,7 @@ createNextDescribe(
       })
 
       it('should have correct values at /client', async () => {
-        const html = await renderViaHTTP(next.url, '/client')
+        const html = await next.render('/client')
         const $ = cheerio.load(html)
 
         // root layout
@@ -89,7 +88,7 @@ createNextDescribe(
 
     describe('computed styles', () => {
       it('should have correct styles at /', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
 
         // layout
         expect(
@@ -144,7 +143,7 @@ createNextDescribe(
       })
 
       it('should have correct styles at /client', async () => {
-        const browser = await webdriver(next.url, '/client')
+        const browser = await next.browser('/client')
 
         // root layout
         expect(
@@ -219,7 +218,7 @@ createNextDescribe(
     if (!isDev) {
       describe('preload', () => {
         it('should preload correctly with server components', async () => {
-          const html = await renderViaHTTP(next.url, '/')
+          const html = await next.render('/')
           const $ = cheerio.load(html)
 
           // Preconnect
@@ -250,7 +249,7 @@ createNextDescribe(
         })
 
         it('should preload correctly with client components', async () => {
-          const html = await renderViaHTTP(next.url, '/client')
+          const html = await next.render('/client')
           const $ = cheerio.load(html)
 
           // Preconnect
@@ -283,7 +282,7 @@ createNextDescribe(
         })
 
         it('should preload correctly with layout using fonts', async () => {
-          const html = await renderViaHTTP(next.url, '/layout-with-fonts')
+          const html = await next.render('/layout-with-fonts')
           const $ = cheerio.load(html)
 
           // Preconnect
@@ -309,7 +308,7 @@ createNextDescribe(
         })
 
         it('should preload correctly with page using fonts', async () => {
-          const html = await renderViaHTTP(next.url, '/page-with-fonts')
+          const html = await next.render('/page-with-fonts')
           const $ = cheerio.load(html)
 
           // Preconnect
@@ -339,7 +338,7 @@ createNextDescribe(
     if (isDev) {
       describe('Dev errors', () => {
         it('should recover on font loader error', async () => {
-          const browser = await webdriver(next.url, '/')
+          const browser = await next.browser('/')
           const font1Content = await next.readFile('fonts/index.js')
 
           // Break file

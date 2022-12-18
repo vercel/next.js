@@ -1,8 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 
 createNextDescribe(
   'app-dir trailingSlash handling',
@@ -12,8 +10,7 @@ createNextDescribe(
   },
   ({ next }) => {
     it('should redirect route when requesting it directly', async () => {
-      const res = await fetchViaHTTP(
-        next.url,
+      const res = await next.fetch(
         '/a',
         {},
         {
@@ -25,18 +22,18 @@ createNextDescribe(
     })
 
     it('should render link with trailing slash', async () => {
-      const html = await renderViaHTTP(next.url, '/')
+      const html = await next.render('/')
       const $ = cheerio.load(html)
       expect($('#to-a-trailing-slash').attr('href')).toBe('/a/')
     })
 
     it('should redirect route when requesting it directly by browser', async () => {
-      const browser = await webdriver(next.url, '/a')
+      const browser = await next.browser('/a')
       expect(await browser.waitForElementByCss('#a-page').text()).toBe('A page')
     })
 
     it('should redirect route when clicking link', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser
         .elementByCss('#to-a-trailing-slash')
         .click()

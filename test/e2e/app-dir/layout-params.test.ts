@@ -1,5 +1,4 @@
 import path from 'path'
-import { renderViaHTTP } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 import cheerio from 'cheerio'
 
@@ -18,7 +17,7 @@ createNextDescribe(
   ({ next }) => {
     describe('basic params', () => {
       it('check layout without params get no params', async () => {
-        const html = await renderViaHTTP(next.url, '/base/something/another')
+        const html = await next.render('/base/something/another')
 
         const $ = cheerio.load(html)
 
@@ -30,7 +29,7 @@ createNextDescribe(
       })
 
       it("check layout renders just it's params", async () => {
-        const html = await renderViaHTTP(next.url, '/base/something/another')
+        const html = await next.render('/base/something/another')
 
         const $ = cheerio.load(html)
 
@@ -39,7 +38,7 @@ createNextDescribe(
       })
 
       it('check topmost layout renders all params', async () => {
-        const html = await renderViaHTTP(next.url, '/base/something/another')
+        const html = await next.render('/base/something/another')
 
         const $ = cheerio.load(html)
 
@@ -51,10 +50,7 @@ createNextDescribe(
 
     describe('catchall params', () => {
       it('should give catchall params just to last layout', async () => {
-        const html = await renderViaHTTP(
-          next.url,
-          '/catchall/something/another'
-        )
+        const html = await next.render('/catchall/something/another')
 
         const $ = cheerio.load(html)
 
@@ -65,10 +61,7 @@ createNextDescribe(
       })
 
       it('should give optional catchall params just to last layout', async () => {
-        const html = await renderViaHTTP(
-          next.url,
-          '/optional-catchall/something/another'
-        )
+        const html = await next.render('/optional-catchall/something/another')
 
         const $ = cheerio.load(html)
 
@@ -79,7 +72,7 @@ createNextDescribe(
       })
 
       it("should give empty optional catchall params won't give params to any layout", async () => {
-        const html = await renderViaHTTP(next.url, '/optional-catchall')
+        const html = await next.render('/optional-catchall')
 
         const $ = cheerio.load(html)
 
