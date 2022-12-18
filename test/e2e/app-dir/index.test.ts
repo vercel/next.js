@@ -153,7 +153,7 @@ createNextDescribe(
         )
 
         // client component under server component with ssr: false will not be rendered either in flight or SSR
-        expect(html).not.toContain('client component under sever no ssr')
+        expect($.html()).not.toContain('client component under sever no ssr')
 
         const browser = await next.browser('/dashboard/dynamic')
         const clientContent = await browser.elementByCss(selector).text()
