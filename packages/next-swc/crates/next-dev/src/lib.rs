@@ -18,13 +18,12 @@ use anyhow::{anyhow, Context, Result};
 use devserver_options::DevServerOptions;
 use next_core::{
     create_app_source, create_server_rendered_source, create_web_entry_source, env::load_env,
-    manifest::DevManifestContentSource, next_image::NextImageContentSourceVc,
-    source_map::NextSourceMapTraceContentSourceVc,
+    manifest::DevManifestContentSource, next_config::load_next_config,
+    next_image::NextImageContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
 use turbo_malloc::TurboMalloc;
 use turbo_tasks::{
-    primitives::StringsVc,
     util::{FormatBytes, FormatDuration},
     RawVc, StatsType, TransientInstance, TransientValue, TurboTasks, TurboTasksBackendApi, Value,
 };
@@ -57,7 +56,6 @@ pub struct NextDevServerBuilder {
     project_dir: String,
     root_dir: String,
     entry_requests: Vec<EntryRequest>,
-    server_component_externals: Vec<String>,
     eager_compile: bool,
     hostname: Option<IpAddr>,
     port: Option<u16>,
@@ -79,7 +77,6 @@ impl NextDevServerBuilder {
             project_dir,
             root_dir,
             entry_requests: vec![],
-            server_component_externals: vec![],
             eager_compile: false,
             hostname: None,
             port: None,
@@ -95,11 +92,6 @@ impl NextDevServerBuilder {
 
     pub fn entry_request(mut self, entry_asset_path: EntryRequest) -> NextDevServerBuilder {
         self.entry_requests.push(entry_asset_path);
-        self
-    }
-
-    pub fn server_component_external(mut self, external: String) -> NextDevServerBuilder {
-        self.server_component_externals.push(external);
         self
     }
 
@@ -148,7 +140,6 @@ impl NextDevServerBuilder {
 
         let project_dir = self.project_dir;
         let root_dir = self.root_dir;
-        let server_component_externals = self.server_component_externals;
         let eager_compile = self.eager_compile;
         let show_all = self.show_all;
         let log_detail = self.log_detail;
@@ -178,7 +169,6 @@ impl NextDevServerBuilder {
                 turbo_tasks.clone().into(),
                 console_ui.clone().into(),
                 browserslist_query.clone(),
-                server_component_externals.clone(),
             )
         };
 
@@ -275,7 +265,6 @@ async fn source(
     turbo_tasks: TransientInstance<TurboTasks<MemoryBackend>>,
     console_ui: TransientInstance<ConsoleUi>,
     browserslist_query: String,
-    server_component_externals: Vec<String>,
 ) -> Result<ContentSourceVc> {
     let console_ui = (*console_ui).clone().cell();
     let output_fs = output_fs(&project_dir, console_ui);
@@ -287,8 +276,10 @@ async fn source(
     let project_path = fs.root().join(project_relative);
 
     let env = load_env(project_path);
+    let config_output_root = output_fs.root().join(".next/config");
+    let next_config = load_next_config(project_path, config_output_root);
 
-    let output_root = output_fs.root().join("/.next/server");
+    let output_root = output_fs.root().join(".next/server");
 
     let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
     let dev_server_root = dev_server_fs.root();
@@ -309,6 +300,7 @@ async fn source(
         env,
         eager_compile,
         &browserslist_query,
+        next_config,
     );
     let rendered_source = create_server_rendered_source(
         project_path,
@@ -316,6 +308,7 @@ async fn source(
         dev_server_root,
         env,
         &browserslist_query,
+        next_config,
     );
     let app_source = create_app_source(
         project_path,
@@ -323,7 +316,7 @@ async fn source(
         dev_server_root,
         env,
         &browserslist_query,
-        StringsVc::cell(server_component_externals),
+        next_config,
     );
     let viz = turbo_tasks_viz::TurboTasksSource {
         turbo_tasks: turbo_tasks.into(),
@@ -440,10 +433,6 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     #[cfg(feature = "serializable")]
     {
         server = server.allow_retry(options.allow_retry);
-
-        for package in options.server_components_external_packages.iter() {
-            server = server.server_component_external(package.to_string());
-        }
     }
 
     let server = server.build().await?;

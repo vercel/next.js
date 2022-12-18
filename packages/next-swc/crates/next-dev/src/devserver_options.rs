@@ -92,11 +92,6 @@ pub struct DevServerOptions {
     #[cfg_attr(feature = "serializable", serde(default))]
     /// Internal for next.js, no specific usage yet.
     pub is_next_dev_command: bool,
-    #[cfg_attr(feature = "cli", clap(long))]
-    #[cfg_attr(feature = "serializable", serde(default))]
-    /// Specify server component external packages explicitly. This is an
-    /// experimental flag.
-    pub server_components_external_packages: Vec<String>,
 }
 
 #[cfg(feature = "serializable")]

@@ -1,3 +1,7 @@
+// IPC need to be the first import to allow it to catch errors happening during
+// the other imports
+import { IPC } from "@vercel/turbopack-next/ipc/index";
+
 import "next/dist/server/node-polyfill-fetch.js";
 import "@vercel/turbopack-next/internal/shims";
 
@@ -8,7 +12,7 @@ import RenderResult from "next/dist/server/render-result";
 import type { BuildManifest } from "next/dist/server/get-page-files";
 
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
-import IPC, { Ipc } from "@vercel/turbopack-next/internal/ipc";
+import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { RenderData } from "types/turbopack";
 import type { ChunkGroup } from "types/next";
 

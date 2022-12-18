@@ -1,5 +1,8 @@
-import IPC, { Ipc } from "@vercel/turbopack-next/internal/ipc";
+// IPC need to be the first import to allow it to catch errors happening during
+// the other imports
+import { IPC } from "@vercel/turbopack-next/ipc/index";
 
+import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { ClientRequest, IncomingMessage, Server } from "node:http";
 import http, { ServerResponse } from "node:http";
 import type { AddressInfo, Socket } from "node:net";

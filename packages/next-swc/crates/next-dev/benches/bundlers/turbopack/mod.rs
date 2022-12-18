@@ -1,4 +1,5 @@
 use std::{
+    fs,
     path::Path,
     process::{Child, Command, Stdio},
 };
@@ -54,6 +55,12 @@ impl Bundler for Turbopack {
             ],
         )
         .context("failed to install from npm")?;
+
+        fs::write(
+            install_dir.join("next.config.js"),
+            include_bytes!("next.config.js"),
+        )?;
+
         Ok(())
     }
 

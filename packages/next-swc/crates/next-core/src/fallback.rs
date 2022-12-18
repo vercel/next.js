@@ -19,6 +19,7 @@ use crate::{
         get_client_chunking_context, get_client_environment, get_client_module_options_context,
         get_client_resolve_options_context, get_client_runtime_entries, ContextType,
     },
+    next_config::NextConfigVc,
     next_import_map::insert_next_shared_aliases,
     runtime::resolve_runtime_request,
 };
@@ -29,13 +30,14 @@ pub async fn get_fallback_page(
     dev_server_root: FileSystemPathVc,
     env: ProcessEnvVc,
     browserslist_query: &str,
+    next_config: NextConfigVc,
 ) -> Result<DevHtmlAssetVc> {
     let ty = Value::new(ContextType::Fallback);
     let environment = get_client_environment(browserslist_query);
     let resolve_options_context = get_client_resolve_options_context(project_root, ty);
     let module_options_context = get_client_module_options_context(project_root, environment, ty);
     let chunking_context = get_client_chunking_context(project_root, dev_server_root, ty);
-    let entries = get_client_runtime_entries(project_root, env, ty);
+    let entries = get_client_runtime_entries(project_root, env, ty, next_config);
 
     let mut import_map = ImportMap::empty();
     insert_next_shared_aliases(&mut import_map, project_root);
