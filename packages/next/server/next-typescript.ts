@@ -403,8 +403,12 @@ export function createTSPlugin(modules: {
           isDefaultFunctionExport(node) &&
           isPositionInsideNode(position, node)
         ) {
-          const paramNode = (node as ts.FunctionDeclaration).parameters?.[0]
-          if (isPositionInsideNode(position, paramNode)) {
+          // Default export function might not accept parameters
+          const paramNode = (node as ts.FunctionDeclaration).parameters?.[0] as
+            | ts.ParameterDeclaration
+            | undefined
+
+          if (paramNode && isPositionInsideNode(position, paramNode)) {
             const props = paramNode?.name
             if (props && ts.isObjectBindingPattern(props)) {
               let validProps = []
