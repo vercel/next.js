@@ -24,7 +24,7 @@ describe('ReactRefresh app', () => {
   })
   afterAll(() => next.destroy())
 
-  test('can edit a component without losing state', async () => {
+  test.only('can edit a component without losing state', async () => {
     const { session, cleanup } = await sandbox(next)
     await session.patch(
       'index.js',
