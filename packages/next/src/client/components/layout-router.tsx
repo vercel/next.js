@@ -103,29 +103,20 @@ function findDOMNode(
   return ReactDOM.findDOMNode(instance)
 }
 
-const getElementIntersectionObserverEntry = (element: HTMLElement) =>
-  new Promise<IntersectionObserverEntry>((resolve) => {
-    const intersectionObserver = new IntersectionObserver((entries) => {
-      if (entries.length === 0) return
-      intersectionObserver.disconnect()
-      resolve(entries.sort((a, b) => a.time - b.time).reverse()[0])
-    })
-    intersectionObserver.observe(element)
-  })
-
 /**
  * Check if the top corner of the HTMLElement is in the viewport.
  */
-const topOfElementVisible = async (element: HTMLElement) => {
-  const entry = await getElementIntersectionObserverEntry(element)
-  return Math.abs(entry.boundingClientRect.top - entry.intersectionRect.top) < 1
+function topOfElementInViewport(element: HTMLElement) {
+  const rect = element.getBoundingClientRect()
+  const viewportHeight = document.documentElement.clientHeight
+  return rect.top >= 0 && rect.top <= viewportHeight
 }
 
 class ScrollAndFocusHandler extends React.Component<{
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
 }> {
-  async componentDidMount() {
+  componentDidMount() {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef } = this.props
     const domNode = findDOMNode(this)
@@ -135,7 +126,7 @@ class ScrollAndFocusHandler extends React.Component<{
       focusAndScrollRef.apply = false
 
       // Try scrolling go the top of the document to be backward compatible with pages
-      if (!(await topOfElementVisible(domNode))) {
+      if (!topOfElementInViewport(domNode)) {
         // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
         // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
         // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
@@ -145,7 +136,7 @@ class ScrollAndFocusHandler extends React.Component<{
       }
 
       // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-      if (!(await topOfElementVisible(domNode))) {
+      if (!topOfElementInViewport(domNode)) {
         // Scroll into view doesn't scroll horizontally by default when not needed
         handleSmoothScroll(() => domNode.scrollIntoView())
       }
