@@ -191,7 +191,9 @@ export class FlightManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
+          const chunks = [...chunk.files].filter(
+            (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
+          )
           if (!manifest[resource]) {
             manifest[resource] = {
               default: {
@@ -350,7 +352,7 @@ export class FlightManifestPlugin {
     })
 
     const file = 'server/' + FLIGHT_MANIFEST
-    const json = JSON.stringify(manifest)
+    const json = JSON.stringify(manifest, null, this.dev ? 2 : undefined)
 
     ASYNC_CLIENT_MODULES.clear()
 
