@@ -172,7 +172,7 @@ importers:
       shell-quote: 1.7.3
       strip-ansi: 6.0.0
       styled-components: 6.0.0-beta.5
-      styled-jsx: 5.1.0
+      styled-jsx: 5.1.1
       styled-jsx-plugin-postcss: 3.0.2
       swr: 2.0.0-rc.0
       tailwindcss: 1.1.3
@@ -348,7 +348,7 @@ importers:
       shell-quote: 1.7.3
       strip-ansi: 6.0.0
       styled-components: 6.0.0-beta.5_biqbaboplfbrettd7655fr4n2y
-      styled-jsx: 5.1.0_uuaxwgga6hqycsez5ok7v2wg4i
+      styled-jsx: 5.1.1_uuaxwgga6hqycsez5ok7v2wg4i
       styled-jsx-plugin-postcss: 3.0.2
       swr: 2.0.0-rc.0_react@18.2.0
       tailwindcss: 1.1.3
@@ -649,7 +649,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.1.0
+      styled-jsx: 5.1.1
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -673,7 +673,7 @@ importers:
       '@swc/helpers': 0.4.14
       caniuse-lite: 1.0.30001406
       postcss: 8.4.14
-      styled-jsx: 5.1.0_uuaxwgga6hqycsez5ok7v2wg4i
+      styled-jsx: 5.1.1_uuaxwgga6hqycsez5ok7v2wg4i
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
       '@babel/code-frame': 7.12.11
@@ -21980,8 +21980,8 @@ packages:
       postcss-load-plugins: 2.3.0
     dev: true
 
-  /styled-jsx/5.1.0_uuaxwgga6hqycsez5ok7v2wg4i:
-    resolution: {integrity: sha512-/iHaRJt9U7T+5tp6TRelLnqBqiaIT0HsO0+vgyj8hK2KUk7aejFqRrumqPUlAqDwAj8IbS/1hk3IhBAAK/FCUQ==}
+  /styled-jsx/5.1.1_uuaxwgga6hqycsez5ok7v2wg4i:
+    resolution: {integrity: sha512-pW7uC1l4mBZ8ugbiZrcIsiIvVx1UmTfw7UkC3Um2tmfUq9Bhk8IiyEIPl6F8agHgjzku6j0xQEZbfA5uSgSaCw==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
       '@babel/core': '*'
