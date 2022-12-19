@@ -1,7 +1,7 @@
 use regex::Regex;
 use serde::Deserialize;
 
-use swc_core::{
+use next_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,

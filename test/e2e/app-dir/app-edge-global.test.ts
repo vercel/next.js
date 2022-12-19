@@ -1,32 +1,23 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { createNextDescribe } from 'e2e-utils'
 import path from 'path'
 
-describe('app-dir global edge configuration', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.join(__dirname, 'app-edge-global')),
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
-      },
+createNextDescribe(
+  'app-dir global edge configuration',
+  {
+    files: path.join(__dirname, 'app-edge-global'),
+    dependencies: {
+      react: 'latest',
+      'react-dom': 'latest',
+      typescript: 'latest',
+      '@types/react': 'latest',
+      '@types/node': 'latest',
+    },
+    skipDeployment: true,
+  },
+  ({ next }) => {
+    it('should handle edge only routes', async () => {
+      const html = await next.render('/app-edge')
+      expect(html).toContain('<p>Edge!</p>')
     })
-  })
-  afterAll(() => next.destroy())
-
-  it('should handle edge only routes', async () => {
-    const appHtml = await renderViaHTTP(next.url, '/app-edge')
-    expect(appHtml).toContain('<p>Edge!</p>')
-  })
-})
+  }
+)
