@@ -191,7 +191,7 @@ module.exports = (actionInfo) => {
                   .traceAsyncFn(async () => {
                     const { pkgPath } = pkgDatas.get(pkgName)
                     await exec(
-                      `cd ${pkgPath} && turbo run test-pack --cache-dir="${turboCacheLocation}"`,
+                      `cd ${pkgPath} && pnpm run --dir=${nextjsRepoRoot} turbo run test-pack --cache-dir="${turboCacheLocation}"`,
                       true
                     )
                   })
