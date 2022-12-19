@@ -29,6 +29,9 @@ describe('router autoscrolling on navigation', () => {
     return
   }
 
+  /** These is no clear API so we just wait a really long time to avoid flakiness */
+  const waitForScrollToComplete = () => waitFor(1000)
+
   type BrowserInterface = Awaited<ReturnType<typeof webdriver>>
 
   const getTopScroll = async (browser: BrowserInterface) =>
@@ -42,8 +45,7 @@ describe('router autoscrolling on navigation', () => {
     options: { x: number; y: number }
   ) => {
     await browser.eval(`window.scrollTo(${options.x}, ${options.y})`)
-    // Scrolling is not instant
-    await waitFor(100)
+    await waitForScrollToComplete()
   }
 
   describe('vertical scroll', () => {
@@ -54,7 +56,7 @@ describe('router autoscrolling on navigation', () => {
       expect(await getTopScroll(browser)).toBe(1000)
 
       await browser.eval(`window.router.push("/0/0/100/10000/page2")`)
-      await waitFor(100)
+      await waitForScrollToComplete()
 
       expect(await getTopScroll(browser)).toBe(0)
 
@@ -68,7 +70,7 @@ describe('router autoscrolling on navigation', () => {
       expect(await getTopScroll(browser)).toBe(1500)
 
       await browser.eval(`window.router.push("/0/1000/100/1000/page2")`)
-      await waitFor(100)
+      await waitForScrollToComplete()
 
       expect(await getTopScroll(browser)).toBe(1000)
 
@@ -80,7 +82,7 @@ describe('router autoscrolling on navigation', () => {
       expect(await getTopScroll(browser)).toBe(0)
 
       await browser.eval(`window.router.push("/0/1000/100/1000/page2")`)
-      await waitFor(100)
+      await waitForScrollToComplete()
 
       expect(await getTopScroll(browser)).toBe(1000)
 
@@ -94,7 +96,7 @@ describe('router autoscrolling on navigation', () => {
       expect(await getTopScroll(browser)).toBe(800)
 
       await browser.eval(`window.router.push("/10/1000/100/1000/page2")`)
-      await waitFor(100)
+      await waitForScrollToComplete()
 
       expect(await getTopScroll(browser)).toBe(800)
 
@@ -108,7 +110,7 @@ describe('router autoscrolling on navigation', () => {
       expect(await getTopScroll(browser)).toBe(50)
 
       await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
-      await waitFor(100)
+      await waitForScrollToComplete()
 
       expect(await getTopScroll(browser)).toBe(50)
 
@@ -122,7 +124,7 @@ describe('router autoscrolling on navigation', () => {
       expect(await getTopScroll(browser)).toBe(200)
 
       await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
-      await waitFor(100)
+      await waitForScrollToComplete()
 
       expect(await getTopScroll(browser)).toBe(0)
 
@@ -139,7 +141,7 @@ describe('router autoscrolling on navigation', () => {
       expect(await getTopScroll(browser)).toBe(1000)
 
       await browser.eval(`window.router.push("/0/0/10000/10000/page2")`)
-      await waitFor(100)
+      await waitForScrollToComplete()
 
       expect(await getLeftScroll(browser)).toBe(1000)
       expect(await getTopScroll(browser)).toBe(0)
@@ -156,7 +158,7 @@ describe('router autoscrolling on navigation', () => {
       expect(await getTopScroll(browser)).toBe(12000)
 
       await browser.eval(`window.router.refresh()`)
-      await waitFor(100)
+      await waitForScrollToComplete()
 
       expect(await getTopScroll(browser)).toBe(12000)
 
@@ -176,7 +178,7 @@ describe('router autoscrolling on navigation', () => {
           window.router.refresh()
         })
       `)
-      await waitFor(100)
+      await waitForScrollToComplete()
 
       expect(await getTopScroll(browser)).toBe(10000)
 
