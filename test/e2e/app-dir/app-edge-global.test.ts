@@ -5,13 +5,6 @@ createNextDescribe(
   'app-dir global edge configuration',
   {
     files: path.join(__dirname, 'app-edge-global'),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-      typescript: 'latest',
-      '@types/react': 'latest',
-      '@types/node': 'latest',
-    },
     skipDeployment: true,
   },
   ({ next }) => {

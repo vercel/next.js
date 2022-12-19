@@ -5,13 +5,6 @@ createNextDescribe(
   'app dir - layout params',
   {
     files: path.join(__dirname, './layout-params'),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-      typescript: 'latest',
-      '@types/react': 'latest',
-      '@types/node': 'latest',
-    },
   },
   ({ next }) => {
     describe('basic params', () => {
