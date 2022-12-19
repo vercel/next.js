@@ -1,4 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { fetchViaHTTP } from 'next-test-utils'
 
@@ -7,12 +7,7 @@ describe('createNext', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: new FileRef(__dirname),
-      dependencies: {
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
-      },
+      files: __dirname,
     })
   })
   afterAll(() => next.destroy())
