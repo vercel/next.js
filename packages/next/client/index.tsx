@@ -43,7 +43,7 @@ import {
   PathnameContextProviderAdapter,
 } from '../shared/lib/router/adapters'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
+import onRecoverableError from './on-recoverable-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -507,11 +507,7 @@ function renderReactElement(
   if (!reactRoot) {
     // Unlike with createRoot, you don't need a separate root.render() call here
     reactRoot = ReactDOM.hydrateRoot(domEl, reactEl, {
-      onRecoverableError(err: any) {
-        // Skip certain custom errors which are not expected to throw on client
-        if (err.message === NEXT_DYNAMIC_NO_SSR_CODE) return
-        throw err
-      },
+      onRecoverableError,
     })
     // TODO: Remove shouldHydrate variable when React 18 is stable as it can depend on `reactRoot` existing
     shouldHydrate = false
