@@ -1,4 +1,4 @@
-use swc_core::{
+use next_binding::swc::core::{
     common::errors::HANDLER,
     ecma::ast::ExportAll,
     ecma::transforms::base::pass::Optional,

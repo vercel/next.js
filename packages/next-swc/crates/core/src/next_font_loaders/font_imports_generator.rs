@@ -1,9 +1,9 @@
+use next_binding::swc::core::common::errors::HANDLER;
+use next_binding::swc::core::common::{Spanned, DUMMY_SP};
+use next_binding::swc::core::ecma::ast::*;
+use next_binding::swc::core::ecma::atoms::JsWord;
+use next_binding::swc::core::ecma::visit::{noop_visit_type, Visit};
 use serde_json::Value;
-use swc_core::common::errors::HANDLER;
-use swc_core::common::{Spanned, DUMMY_SP};
-use swc_core::ecma::ast::*;
-use swc_core::ecma::atoms::JsWord;
-use swc_core::ecma::visit::{noop_visit_type, Visit};
 
 pub struct FontImportsGenerator<'a> {
     pub state: &'a mut super::State,

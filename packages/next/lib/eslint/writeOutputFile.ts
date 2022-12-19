@@ -5,10 +5,12 @@ import isError from '../../lib/is-error'
 
 /**
  * Check if a given file path is a directory or not.
- * @param {string} filePath The path to a file to check.
- * @returns {Promise<boolean>} `true` if the path is a directory.
+ * Returns `true` if the path is a directory.
  */
-async function isDirectory(filePath: string): Promise<boolean> {
+async function isDirectory(
+  /**  The path to a file to check. */
+  filePath: string
+): Promise<boolean> {
   try {
     return (await fs.stat(filePath)).isDirectory()
   } catch (error) {
@@ -23,10 +25,13 @@ async function isDirectory(filePath: string): Promise<boolean> {
 }
 /**
  * Create a file with eslint output data
- * @param {string} outputFile The name file that needs to be created
- * @param {string} outputData The data that needs to be inserted into the file
  */
-export async function writeOutputFile(outputFile: string, outputData: string) {
+export async function writeOutputFile(
+  /** The name file that needs to be created */
+  outputFile: string,
+  /** The data that needs to be inserted into the file */
+  outputData: string
+): Promise<void> {
   const filePath = path.resolve(process.cwd(), outputFile)
 
   if (await isDirectory(filePath)) {
