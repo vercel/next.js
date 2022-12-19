@@ -37,11 +37,14 @@ module.exports = function (plop) {
           templateFile: `test/${
             data.type === 'unit' ? 'unit' : 'e2e'
           }/example.txt`,
-          path: `test/{{type}}/${
-            data.type === 'unit'
-              ? `${fileName}.test.ts`
-              : `${fileName}/index.test.ts`
-          }`,
+          path: `test/{{type}}/${fileName}/${fileName}.test.ts`,
+        },
+        {
+          type: 'add',
+          templateFile: `test/${
+            data.type === 'unit' ? 'unit' : 'e2e'
+          }/example-file.txt`,
+          path: `test/{{type}}/${fileName}/pages/index.js`,
         },
       ]
     },

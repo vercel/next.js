@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  '{{name}}',
+  'abc',
   {
     files: __dirname,
   },
