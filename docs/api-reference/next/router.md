@@ -132,7 +132,7 @@ export default function Page() {
     if (!(user || loading)) {
       router.push('/login')
     }
-  }, [user, loading])
+  }, [user, loading, router])
 
   return <p>Redirecting...</p>
 }
@@ -265,25 +265,28 @@ import { useRouter } from 'next/router'
 
 export default function Login() {
   const router = useRouter()
-  const handleSubmit = useCallback((e) => {
-    e.preventDefault()
+  const handleSubmit = useCallback(
+    (e) => {
+      e.preventDefault()
 
-    fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        /* Form data */
-      }),
-    }).then((res) => {
-      // Do a fast client-side transition to the already prefetched dashboard page
-      if (res.ok) router.push('/dashboard')
-    })
-  }, [])
+      fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          /* Form data */
+        }),
+      }).then((res) => {
+        // Do a fast client-side transition to the already prefetched dashboard page
+        if (res.ok) router.push('/dashboard')
+      })
+    },
+    [router]
+  )
 
   useEffect(() => {
     // Prefetch the dashboard page
     router.prefetch('/dashboard')
-  }, [])
+  }, [router])
 
   return (
     <form onSubmit={handleSubmit}>
@@ -331,7 +334,7 @@ export default function Page() {
 
       return true
     })
-  }, [])
+  }, [router])
 
   return <p>Welcome to the page</p>
 }
@@ -425,7 +428,7 @@ export default function MyApp({ Component, pageProps }) {
     return () => {
       router.events.off('routeChangeStart', handleRouteChange)
     }
-  }, [])
+  }, [router])
 
   return <Component {...pageProps} />
 }
@@ -458,7 +461,7 @@ export default function MyApp({ Component, pageProps }) {
     return () => {
       router.events.off('routeChangeError', handleRouteChangeError)
     }
-  }, [])
+  }, [router])
 
   return <Component {...pageProps} />
 }
@@ -505,7 +508,7 @@ export default function Page() {
       }
     }
     void handleRouteChange()
-  }, [user, loading])
+  }, [user, loading, router])
 
   return <p>Redirecting...</p>
 }
