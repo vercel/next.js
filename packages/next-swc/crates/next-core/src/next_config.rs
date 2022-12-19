@@ -7,12 +7,15 @@ use turbo_tasks::{
     trace::TraceRawVcs,
     Value,
 };
-use turbo_tasks_fs::FileSystemEntryType;
 use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::Asset,
     reference_type::{EntryReferenceSubType, ReferenceType},
-    resolve::options::{ImportMap, ImportMapping},
+    resolve::{
+        find_context_file,
+        options::{ImportMap, ImportMapping},
+        FindContextFileResult,
+    },
     source_asset::SourceAssetVc,
 };
 use turbopack_ecmascript::{
@@ -27,7 +30,7 @@ use turbopack_node::{
 use crate::embed_js::next_asset;
 
 #[turbo_tasks::value(serialization = "custom")]
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NextConfig {
     pub config_file: Option<String>,
@@ -200,6 +203,15 @@ impl NextConfigVc {
     }
 }
 
+fn next_configs() -> StringsVc {
+    StringsVc::cell(
+        ["next.config.mjs", "next.config.js"]
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect(),
+    )
+}
+
 #[turbo_tasks::function]
 pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<NextConfigVc> {
     let ExecutionContext {
@@ -212,20 +224,10 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
     import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
 
     let context = node_evaluate_asset_context(Some(import_map.cell()));
-    let next_config_mjs_path = project_root.join("next.config.mjs").realpath();
-    let next_config_js_path = project_root.join("next.config.js").realpath();
-    let config_asset = if matches!(
-        &*next_config_mjs_path.get_type().await?,
-        FileSystemEntryType::File
-    ) {
-        Some(SourceAssetVc::new(next_config_mjs_path))
-    } else if matches!(
-        &*next_config_js_path.get_type().await?,
-        FileSystemEntryType::File
-    ) {
-        Some(SourceAssetVc::new(next_config_js_path))
-    } else {
-        None
+    let find_config_result = find_context_file(project_root, next_configs());
+    let config_asset = match &*find_config_result.await? {
+        FindContextFileResult::Found(config_path, _) => Some(SourceAssetVc::new(*config_path)),
+        FindContextFileResult::NotFound(_) => None,
     };
 
     let runtime_entries = config_asset.map(|config_asset| {
@@ -262,6 +264,7 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
             let next_config: NextConfig = serde_json::from_reader(val.read())?;
             Ok(next_config.cell())
         }
+        JavaScriptValue::Error => Ok(NextConfig::default().cell()),
         JavaScriptValue::Stream(_) => {
             unimplemented!("Stream not supported now");
         }
