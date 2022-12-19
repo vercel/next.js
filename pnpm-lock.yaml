@@ -655,7 +655,7 @@ importers:
       timers-browserify: 2.0.12
       tty-browserify: 0.0.1
       ua-parser-js: 0.7.28
-      undici: 5.13.0
+      undici: 5.14.0
       unistore: 3.4.1
       util: 0.12.4
       uuid: 8.3.2
@@ -848,7 +848,7 @@ importers:
       timers-browserify: 2.0.12
       tty-browserify: 0.0.1
       ua-parser-js: 0.7.28
-      undici: 5.13.0
+      undici: 5.14.0
       unistore: 3.4.1_react@18.2.0
       util: 0.12.4
       uuid: 8.3.2
@@ -22809,8 +22809,8 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /undici/5.13.0:
-    resolution: {integrity: sha512-UDZKtwb2k7KRsK4SdXWG7ErXiL7yTGgLWvk2AXO1JMjgjh404nFo6tWSCM2xMpJwMPx3J8i/vfqEh1zOqvj82Q==}
+  /undici/5.14.0:
+    resolution: {integrity: sha512-yJlHYw6yXPPsuOH0x2Ib1Km61vu4hLiRRQoafs+WUgX1vO64vgnxiCEN9dpIrhZyHFsai3F0AEj4P9zy19enEQ==}
     engines: {node: '>=12.18'}
     dependencies:
       busboy: 1.6.0
