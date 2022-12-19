@@ -6,6 +6,8 @@ description: Optimizing loading web fonts with the built-in `@next/font` loaders
 
 [**`@next/font`**](/docs/api-reference/next/font.md) will automatically optimize your fonts (including custom fonts) and remove external network requests for improved privacy and performance.
 
+> **🎥 Watch:** Learn more about how to use `@next/font` → [YouTube (6 minutes)](https://www.youtube.com/watch?v=L8_98i_bMMA).
+
 ## Overview
 
 `@next/font` includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with zero layout shift, thanks to the underlying CSS `size-adjust` property used.
@@ -19,6 +21,12 @@ To get started, install `@next/font`:
 ```bash
 npm install @next/font
 ```
+
+### Choosing font-display
+
+[`font-display`](https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display) lets you to control how your font is displayed while it's loading. `@next/font` uses `font-display: optional` by default. When the primary font used by `@next/font` does not load within 100ms, the auto generated fallback font will be displayed in the browser. While it is automatically generated to be as visually similar to the primary font as possible to reduce layout shift, it does come with the tradeoff that your intended font might not be shown on slower networks unless it's cached.
+
+If you want guarantees around your intended font always showing, and accept the tradeoff of minimal layout shift from swapping your fallback font for the primary font, you can [use `font-display: swap`](/docs/api-reference/next/font.md#display).
 
 ### Google Fonts
 

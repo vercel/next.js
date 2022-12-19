@@ -37,7 +37,7 @@ let app
 const context = {}
 
 if (process.env.TEST_WASM) {
-  jest.setTimeout(120 * 1000)
+  jest.setTimeout(240 * 1000)
 }
 
 describe('Production Usage', () => {

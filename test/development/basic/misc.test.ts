@@ -19,17 +19,17 @@ describe('misc basic dev tests', () => {
   afterAll(() => next.destroy())
 
   it('should set process.env.NODE_ENV in development', async () => {
-    const browser = await webdriver(next.appPort, '/process-env')
+    const browser = await webdriver(next.url, '/process-env')
     const nodeEnv = await browser.elementByCss('#node-env').text()
     expect(nodeEnv).toBe('development')
     await browser.close()
   })
 
   it('should allow access to public files', async () => {
-    const data = await renderViaHTTP(next.appPort, '/data/data.txt')
+    const data = await renderViaHTTP(next.url, '/data/data.txt')
     expect(data).toBe('data')
 
-    const legacy = await renderViaHTTP(next.appPort, '/static/legacy.txt')
+    const legacy = await renderViaHTTP(next.url, '/static/legacy.txt')
     expect(legacy).toMatch(`new static folder`)
   })
 
@@ -40,7 +40,7 @@ describe('misc basic dev tests', () => {
         `/_next/static/../routes-manifest.json`,
       ]
       for (const path of pathsToCheck) {
-        const res = await fetchViaHTTP(next.appPort, path)
+        const res = await fetchViaHTTP(next.url, path)
         const text = await res.text()
         try {
           expect(res.status).toBe(404)
@@ -52,12 +52,9 @@ describe('misc basic dev tests', () => {
     })
 
     it('should handle encoded / value for trailing slash correctly', async () => {
-      const res = await fetchViaHTTP(
-        next.appPort,
-        '/%2fexample.com/',
-        undefined,
-        { redirect: 'manual' }
-      )
+      const res = await fetchViaHTTP(next.url, '/%2fexample.com/', undefined, {
+        redirect: 'manual',
+      })
 
       const { pathname, hostname } = url.parse(
         res.headers.get('location') || ''
@@ -74,7 +71,7 @@ describe('misc basic dev tests', () => {
     let foundLog = false
     let browser
     try {
-      browser = await webdriver(next.appPort, path)
+      browser = await webdriver(next.url, path)
       const browserLogs = await browser.log('browser')
 
       browserLogs.forEach((log) => {

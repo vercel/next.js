@@ -8,39 +8,64 @@ import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
-import { CONFIG_FILES } from '../shared/lib/constants'
+import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfig } from '../types'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
+import cluster from 'cluster'
+import { Telemetry } from '../telemetry/storage'
+import loadConfig from '../server/config'
+import { findPagesDir } from '../lib/find-pages-dir'
 
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
+let dir: string
 
 const handleSessionStop = async () => {
   if (sessionStopHandled) return
   sessionStopHandled = true
 
-  const { eventCliSession } =
-    require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
-  const telemetry = traceGlobals.get('telemetry') as InstanceType<
-    typeof import('../telemetry/storage').Telemetry
-  >
-  if (!telemetry) {
-    process.exit(0)
-  }
+  try {
+    const { eventCliSession } =
+      require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-  telemetry.record(
-    eventCliSession({
-      cliCommand: 'dev',
-      turboFlag: isTurboSession,
-      durationMilliseconds: Date.now() - sessionStarted,
-      pagesDir: !!traceGlobals.get('pagesDir'),
-      appDir: !!traceGlobals.get('appDir'),
-    })
-  )
-  await telemetry.flush()
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+
+    let telemetry =
+      (traceGlobals.get('telemetry') as InstanceType<
+        typeof import('../telemetry/storage').Telemetry
+      >) ||
+      new Telemetry({
+        distDir: path.join(dir, config.distDir),
+      })
+
+    let appDir: boolean = !!traceGlobals.get('pagesDir')
+    let pagesDir: boolean = !!traceGlobals.get('appDir')
+
+    if (
+      typeof traceGlobals.get('pagesDir') === 'undefined' ||
+      typeof traceGlobals.get('appDir') === 'undefined'
+    ) {
+      const pagesResult = await findPagesDir(dir, !!config.experimental.appDir)
+      appDir = !!pagesResult.appDir
+      pagesDir = !!pagesResult.pagesDir
+    }
+
+    telemetry.record(
+      eventCliSession({
+        cliCommand: 'dev',
+        turboFlag: isTurboSession,
+        durationMilliseconds: Date.now() - sessionStarted,
+        pagesDir,
+        appDir,
+      })
+    )
+    await telemetry.flush()
+  } catch (err) {
+    console.error(err)
+  }
   process.exit(0)
 }
 
@@ -94,7 +119,7 @@ const nextDev: cliCommand = async (argv) => {
     process.exit(0)
   }
 
-  const dir = getProjectDir(args._[0])
+  dir = getProjectDir(args._[0])
 
   // Check if pages dir exists and warn if not
   if (!existsSync(dir)) {
@@ -146,10 +171,6 @@ const nextDev: cliCommand = async (argv) => {
       require('../build/webpack-config') as typeof import('../build/webpack-config')
     const { defaultConfig } =
       require('../server/config-shared') as typeof import('../server/config-shared')
-    const { default: loadConfig } =
-      require('../server/config') as typeof import('../server/config')
-    const { PHASE_DEVELOPMENT_SERVER } =
-      require('../shared/lib/constants') as typeof import('../shared/lib/constants')
     const chalk =
       require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
     const { interopDefault } =
@@ -352,11 +373,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       require('../build/swc') as typeof import('../build/swc')
     const { eventCliSession } =
       require('../telemetry/events/version') as typeof import('../telemetry/events/version')
-    const { findPagesDir } =
-      require('../lib/find-pages-dir') as typeof import('../lib/find-pages-dir')
     const { setGlobal } = require('../trace') as typeof import('../trace')
-    const { Telemetry } =
-      require('../telemetry/storage') as typeof import('../telemetry/storage')
+    require('../telemetry/storage') as typeof import('../telemetry/storage')
     const findUp =
       require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
 
@@ -416,39 +434,53 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     await telemetry.flush()
     return server
   } else {
-    startServer(devServerOptions)
-      .then(async (app) => {
-        const appUrl = `http://${app.hostname}:${app.port}`
-        startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
-        // Start preflight after server is listening and ignore errors:
-        preflight().catch(() => {})
-        // Finalize server bootup:
-        await app.prepare()
-      })
-      .catch((err) => {
-        if (err.code === 'EADDRINUSE') {
-          let errorMessage = `Port ${port} is already in use.`
-          const pkgAppPath = require('next/dist/compiled/find-up').sync(
-            'package.json',
-            {
-              cwd: dir,
-            }
-          )
-          const appPackage = require(pkgAppPath)
-          if (appPackage.scripts) {
-            const nextScript = Object.entries(appPackage.scripts).find(
-              (scriptLine) => scriptLine[1] === 'next'
-            )
-            if (nextScript) {
-              errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
-            }
-          }
-          console.error(errorMessage)
+    // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
+    // this is a temporary solution until we can fix the memory leaks.
+    // the logic for the worker killing itself is in `packages/next/server/lib/start-server.ts`
+    if (!process.env.__NEXT_DISABLE_MEMORY_WATCHER && cluster.isMaster) {
+      cluster.fork()
+      cluster.on('exit', (worker) => {
+        if (worker.exitedAfterDisconnect) {
+          cluster.fork()
         } else {
-          console.error(err)
+          process.exit(1)
         }
-        process.nextTick(() => process.exit(1))
       })
+    } else {
+      startServer(devServerOptions)
+        .then(async (app) => {
+          const appUrl = `http://${app.hostname}:${app.port}`
+          startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
+          // Start preflight after server is listening and ignore errors:
+          preflight().catch(() => {})
+          // Finalize server bootup:
+          await app.prepare()
+        })
+        .catch((err) => {
+          if (err.code === 'EADDRINUSE') {
+            let errorMessage = `Port ${port} is already in use.`
+            const pkgAppPath = require('next/dist/compiled/find-up').sync(
+              'package.json',
+              {
+                cwd: dir,
+              }
+            )
+            const appPackage = require(pkgAppPath)
+            if (appPackage.scripts) {
+              const nextScript = Object.entries(appPackage.scripts).find(
+                (scriptLine) => scriptLine[1] === 'next'
+              )
+              if (nextScript) {
+                errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+              }
+            }
+            console.error(errorMessage)
+          } else {
+            console.error(err)
+          }
+          process.nextTick(() => process.exit(1))
+        })
+    }
   }
 
   for (const CONFIG_FILE of CONFIG_FILES) {

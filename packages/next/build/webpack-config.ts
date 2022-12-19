@@ -10,13 +10,13 @@ import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
-  SERVER_RUNTIME,
   WEBPACK_LAYERS,
   RSC_MOD_REF_PROXY_ALIAS,
 } from '../lib/constants'
 import { EXTERNAL_PACKAGES } from '../lib/server-external-packages'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -97,6 +97,14 @@ const BABEL_CONFIG_FILES = [
   'babel.config.mjs',
   'babel.config.cjs',
 ]
+
+function appDirIssuerLayer(layer: string) {
+  return (
+    layer === WEBPACK_LAYERS.client ||
+    layer === WEBPACK_LAYERS.server ||
+    layer === WEBPACK_LAYERS.appClient
+  )
+}
 
 export const getBabelConfigFile = async (dir: string) => {
   const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
@@ -620,7 +628,7 @@ export default async function getBaseWebpackConfig(
   const disableOptimizedLoading = true
 
   if (isClient) {
-    if (config.experimental.runtime === SERVER_RUNTIME.edge) {
+    if (isEdgeRuntime(config.experimental.runtime)) {
       Log.warn(
         'You are using the experimental Edge Runtime with `experimental.runtime`.'
       )
@@ -1151,15 +1159,16 @@ export default async function getBaseWebpackConfig(
 
     const isLocalCallback = (localRes: string) => {
       // Makes sure dist/shared and dist/server are not bundled
-      // we need to process shared `router/router` and `dynamic`,
-      // so that the DefinePlugin can inject process.env values
+      // we need to process shared `router/router`, `head` and `dynamic`,
+      // so that the DefinePlugin can inject process.env values.
+
+      // Treat next internals as non-external for server layer
+      if (layer === WEBPACK_LAYERS.server) return
+
       const isNextExternal =
-        // Treat next internals as non-external for server layer
-        layer === WEBPACK_LAYERS.server
-          ? false
-          : /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic))/.test(
-              localRes
-            )
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|head[^-]))/.test(
+          localRes
+        )
 
       if (isNextExternal) {
         // Generate Next.js external import
@@ -1176,10 +1185,6 @@ export default async function getBaseWebpackConfig(
             .replace(/\\/g, '/')
         )
         return `commonjs ${externalRequest}`
-      } else if (layer !== WEBPACK_LAYERS.client) {
-        // We don't want to retry local requests
-        // with other preferEsm options
-        return
       }
     }
 
@@ -1710,22 +1715,17 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        // Alias `next/dynamic` to React.lazy implementation for RSC
         ...(hasServerComponents
           ? [
+              // Alias next/head component to noop for RSC
               {
                 test: codeCondition.test,
-                issuerLayer(layer: string) {
-                  return (
-                    layer === WEBPACK_LAYERS.client ||
-                    layer === WEBPACK_LAYERS.server
-                  )
-                },
+                issuerLayer: appDirIssuerLayer,
                 resolve: {
                   alias: {
                     // Alias `next/dynamic` to React.lazy implementation for RSC
-                    [require.resolve('next/dynamic')]: require.resolve(
-                      'next/dist/client/components/dynamic'
+                    [require.resolve('next/head')]: require.resolve(
+                      'next/dist/client/components/noop-head'
                     ),
                   },
                 },

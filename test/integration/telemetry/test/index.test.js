@@ -72,6 +72,18 @@ describe('Telemetry CLI', () => {
     expect(stdout).toMatch(/Status: Disabled/)
   })
 
+  it('can disable telemetry with env NEXT_TELEMETRY_DISABLED', async () => {
+    // next config is not reset between tests
+    await runNextCommand(['telemetry', 'enable'])
+    const { stdout } = await runNextCommand(['telemetry', 'status'], {
+      stdout: true,
+      env: {
+        NEXT_TELEMETRY_DISABLED: '1',
+      },
+    })
+    expect(stdout).toMatch(/Status: Disabled/)
+  })
+
   it('detects isSrcDir dir correctly for `next build`', async () => {
     // must clear cache for GSSP imports to be detected correctly
     await fs.remove(path.join(appDir, '.next'))
@@ -455,8 +467,10 @@ describe('Telemetry CLI', () => {
         turbo: true,
       })
 
+      await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
+
       if (app) {
-        await killApp(app)
+        await app.kill('SIGTERM')
       }
       await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 
@@ -491,7 +505,7 @@ describe('Telemetry CLI', () => {
       await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
 
       if (app) {
-        await killApp(app)
+        await app.kill('SIGTERM')
       }
       await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 

@@ -1,7 +1,7 @@
 use regex::Regex;
 use serde::Deserialize;
 
-use swc_core::{
+use next_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -111,7 +111,7 @@ impl<C: Comments> ReactServerComponents<C> {
                                         return false;
                                     }
                                 }
-                                // Match `ParenthesisExpression` which is some formartting tools
+                                // Match `ParenthesisExpression` which is some formatting tools
                                 // usually do: ('use client'). In these case we need to throw
                                 // an exception because they are not valid directives.
                                 Expr::Paren(ParenExpr { expr, .. }) => {

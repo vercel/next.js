@@ -1,8 +1,5 @@
 import type { ServerRuntime } from '../types'
 
-// Regex for API routes
-export const API_ROUTE = /^\/api(?:\/|$)/
-
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
@@ -65,7 +62,8 @@ export const ESLINT_PROMPT_VALUES = [
 ]
 
 export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
-  edge: 'experimental-edge',
+  edge: 'edge',
+  experimentalEdge: 'experimental-edge',
   nodejs: 'nodejs',
 }
 
@@ -76,4 +74,5 @@ export const WEBPACK_LAYERS = {
   api: 'api',
   middleware: 'middleware',
   edgeAsset: 'edge-asset',
+  appClient: 'app-client',
 }

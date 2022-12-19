@@ -1,10 +1,4 @@
 'use client'
-
-import React, { useContext, useEffect, useRef, use } from 'react'
-import type {
-  ChildProp,
-  //Segment
-} from '../../server/app-render'
 import type {
   AppRouterInstance,
   ChildSegmentMap,
@@ -12,9 +6,13 @@ import type {
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  // FlightDataPath,
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
+import type { FocusAndScrollRef } from './reducer'
+import type { ChildProp } from '../../server/app-render'
+
+import React, { useContext, useEffect, use } from 'react'
+import ReactDOM from 'react-dom'
 import {
   CacheStates,
   LayoutRouterContext,
@@ -77,12 +75,73 @@ function walkAddRefetch(
   return treeToRecreate
 }
 
+// TODO-APP: Replace with new React API for finding dom nodes without a `ref` when available
+/**
+ * Wraps ReactDOM.findDOMNode with additional logic to hide React Strict Mode warning
+ */
+function findDOMNode(
+  instance: Parameters<typeof ReactDOM.findDOMNode>[0]
+): ReturnType<typeof ReactDOM.findDOMNode> {
+  // Tree-shake for server bundle
+  if (typeof window === undefined) return null
+  // Only apply strict mode warning when not in production
+  if (process.env.NODE_ENV !== 'production') {
+    const originalConsoleError = console.error
+    try {
+      console.error = (...messages) => {
+        // Ignore strict mode warning for the findDomNode call below
+        if (!messages[0].includes('Warning: %s is deprecated in StrictMode.')) {
+          originalConsoleError(...messages)
+        }
+      }
+      return ReactDOM.findDOMNode(instance)
+    } finally {
+      console.error = originalConsoleError!
+    }
+  }
+  return ReactDOM.findDOMNode(instance)
+}
+
 /**
  * Check if the top of the HTMLElement is in the viewport.
  */
 function topOfElementInViewport(element: HTMLElement) {
   const rect = element.getBoundingClientRect()
   return rect.top >= 0
+}
+
+class ScrollAndFocusHandler extends React.Component<{
+  focusAndScrollRef: FocusAndScrollRef
+  children: React.ReactNode
+}> {
+  componentDidMount() {
+    // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
+    const { focusAndScrollRef } = this.props
+    const domNode = findDOMNode(this)
+
+    if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
+      // State is mutated to ensure that the focus and scroll is applied only once.
+      focusAndScrollRef.apply = false
+      // Set focus on the element
+      domNode.focus()
+      // Only scroll into viewport when the layout is not visible currently.
+      if (!topOfElementInViewport(domNode)) {
+        const htmlElement = document.documentElement
+        const existing = htmlElement.style.scrollBehavior
+        htmlElement.style.scrollBehavior = 'auto'
+        // In Chrome-based browsers we need to force reflow before calling `scrollTo`.
+        // Otherwise it will not pickup the change in scrollBehavior
+        // More info here: https://github.com/vercel/next.js/issues/40719#issuecomment-1336248042
+        htmlElement.getClientRects()
+        domNode.scrollIntoView()
+        htmlElement.style.scrollBehavior = existing
+      }
+    }
+  }
+
+  render() {
+    return this.props.children
+  }
 }
 
 /**
@@ -116,26 +175,6 @@ export function InnerLayoutRouter({
   }
 
   const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
-
-  const focusAndScrollElementRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
-    if (focusAndScrollRef.apply && focusAndScrollElementRef.current) {
-      // State is mutated to ensure that the focus and scroll is applied only once.
-      focusAndScrollRef.apply = false
-      // Set focus on the element
-      focusAndScrollElementRef.current.focus()
-      // Only scroll into viewport when the layout is not visible currently.
-      if (!topOfElementInViewport(focusAndScrollElementRef.current)) {
-        const htmlElement = document.documentElement
-        const existing = htmlElement.style.scrollBehavior
-        htmlElement.style.scrollBehavior = 'auto'
-        focusAndScrollElementRef.current.scrollIntoView()
-        htmlElement.style.scrollBehavior = existing
-      }
-    }
-  }, [focusAndScrollRef])
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(path)
@@ -209,7 +248,6 @@ export function InnerLayoutRouter({
 
   // If cache node has a data request we have to unwrap response by `use` and update the cache.
   if (childNode.data) {
-    // TODO-APP: error case
     /**
      * Flight response data
      */
@@ -229,7 +267,6 @@ export function InnerLayoutRouter({
     setTimeout(() => {
       // @ts-ignore startTransition exists
       React.startTransition(() => {
-        // TODO-APP: handle redirect
         changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
       })
     })
@@ -259,9 +296,9 @@ export function InnerLayoutRouter({
 
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
   return rootLayoutIncluded ? (
-    <div ref={focusAndScrollElementRef} data-nextjs-scroll-focus-boundary={''}>
+    <ScrollAndFocusHandler focusAndScrollRef={focusAndScrollRef}>
       {subtree}
-    </div>
+    </ScrollAndFocusHandler>
   ) : (
     subtree
   )
@@ -324,7 +361,7 @@ class RedirectErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error.digest?.startsWith('NEXT_REDIRECT')) {
+    if (error?.digest?.startsWith('NEXT_REDIRECT')) {
       const url = error.digest.split(';')[1]
       return { redirect: url }
     }
@@ -365,7 +402,7 @@ class NotFoundErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error.digest === 'NEXT_NOT_FOUND') {
+    if (error?.digest === 'NEXT_NOT_FOUND') {
       return { notFoundTriggered: true }
     }
     // Re-throw if error is not for 404

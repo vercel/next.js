@@ -106,6 +106,7 @@ function performFullReload(err: any, sendMessage: any) {
     JSON.stringify({
       event: 'client-full-reload',
       stackTrace,
+      hadRuntimeError: !!RuntimeErrorHandler.hadRuntimeError,
     })
   )
 
@@ -347,6 +348,13 @@ function processMessage(
         dispatcher.onRefresh()
       })
 
+      if (process.env.__NEXT_TEST_MODE) {
+        if (self.__NEXT_HMR_CB) {
+          self.__NEXT_HMR_CB()
+          self.__NEXT_HMR_CB = null
+        }
+      }
+
       return
     }
     case 'reloadPage': {
@@ -427,6 +435,9 @@ export default function HotReload({
       frames: parseStack(reason.stack!),
     })
   }, [])
+  const handleOnReactError = useCallback(() => {
+    RuntimeErrorHandler.hadRuntimeError = true
+  }, [])
   useErrorHandler(handleOnUnhandledError, handleOnUnhandledRejection)
 
   const webSocketRef = useWebsocket(assetPrefix)
@@ -459,5 +470,9 @@ export default function HotReload({
     return () => websocket && websocket.removeEventListener('message', handler)
   }, [sendMessage, router, webSocketRef, dispatcher])
 
-  return <ReactDevOverlay state={state}>{children}</ReactDevOverlay>
+  return (
+    <ReactDevOverlay onReactError={handleOnReactError} state={state}>
+      {children}
+    </ReactDevOverlay>
+  )
 }

@@ -1,15 +1,9 @@
 import path from 'path'
 import fs from 'fs-extra'
-import webdriver from 'next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, check } from 'next-test-utils'
+import { check } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import cheerio from 'cheerio'
-
-function getNodeBySelector(html, selector) {
-  const $ = cheerio.load(html)
-  return $(selector)
-}
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -58,14 +52,49 @@ describe('app dir - rsc basics', () => {
   afterAll(() => next.destroy())
 
   const { isNextDeploy, isNextDev } = global as any
-  const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
-  if (isNextDeploy || isReact17) {
+  if (isNextDeploy) {
     it('should skip tests for next-deploy and react 17', () => {})
     return
   }
 
+  it('should correctly render page returning null', async () => {
+    const homeHTML = await next.render('/return-null/page')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render component returning null', async () => {
+    const homeHTML = await next.render('/return-null/component')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render layout returning null', async () => {
+    const homeHTML = await next.render('/return-null/layout')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-null-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render page returning undefined', async () => {
+    const homeHTML = await next.render('/return-undefined/page')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render component returning undefined', async () => {
+    const homeHTML = await next.render('/return-undefined/component')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
+  it('should correctly render layout returning undefined', async () => {
+    const homeHTML = await next.render('/return-undefined/layout')
+    const $ = cheerio.load(homeHTML)
+    expect($('#return-undefined-layout').html()).toBeEmpty()
+  })
+
   it('should render server components correctly', async () => {
-    const homeHTML = await renderViaHTTP(next.url, '/', null, {
+    const homeHTML = await next.render('/', null, {
       headers: {
         'x-next-test-client': 'test-util',
       },
@@ -73,6 +102,10 @@ describe('app dir - rsc basics', () => {
 
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
+    // should have default head when there's no head.js provided
+    expect(homeHTML).toContain(
+      '<meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>'
+    )
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('header:test-util')
 
@@ -99,7 +132,7 @@ describe('app dir - rsc basics', () => {
   it('should reuse the inline flight response without sending extra requests', async () => {
     let hasFlightRequest = false
     let requestsCount = 0
-    await webdriver(next.url, '/root', {
+    await next.browser('/root', {
       beforePageLoad(page) {
         page.on('request', (request) => {
           requestsCount++
@@ -121,13 +154,13 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should support multi-level server component imports', async () => {
-    const html = await renderViaHTTP(next.url, '/multi')
+    const html = await next.render('/multi')
     expect(html).toContain('bar.server.js:')
     expect(html).toContain('foo.client')
   })
 
   it('should be able to navigate between rsc routes', async () => {
-    const browser = await webdriver(next.url, '/root')
+    const browser = await next.browser('/root')
 
     await browser.waitForElementByCss('#goto-next-link').click()
     await new Promise((res) => setTimeout(res, 1000))
@@ -149,7 +182,7 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should handle streaming server components correctly', async () => {
-    const browser = await webdriver(next.url, '/streaming-rsc')
+    const browser = await next.browser('/streaming-rsc')
     const content = await browser.eval(
       `document.querySelector('#content').innerText`
     )
@@ -157,12 +190,12 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should support next/link in server components', async () => {
-    const linkHTML = await renderViaHTTP(next.url, '/next-api/link')
-    const linkText = getNodeBySelector(linkHTML, 'body a[href="/root"]').text()
+    const $ = await next.render$('/next-api/link')
+    const linkText = $('body a[href="/root"]').text()
 
     expect(linkText).toContain('home')
 
-    const browser = await webdriver(next.url, '/next-api/link')
+    const browser = await next.browser('/next-api/link')
 
     // We need to make sure the app is fully hydrated before clicking, otherwise
     // it will be a full redirection instead of being taken over by the next
@@ -185,7 +218,7 @@ describe('app dir - rsc basics', () => {
   it('should link correctly with next/link without mpa navigation to the page', async () => {
     // Select the button which is not hidden but rendered
     const selector = '#goto-next-link'
-    const browser = await webdriver(next.url, '/root', {})
+    const browser = await next.browser('/root', {})
 
     await browser.eval('window.didNotReloadPage = true')
     await browser.elementByCss(selector).click().waitForElementByCss('#query')
@@ -197,13 +230,13 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should escape streaming data correctly', async () => {
-    const browser = await webdriver(next.url, '/escaping-rsc')
+    const browser = await next.browser('/escaping-rsc')
     const manipulated = await browser.eval(`window.__manipulated_by_injection`)
     expect(manipulated).toBe(undefined)
   })
 
   it('should render built-in 404 page for missing route if pagesDir is not presented', async () => {
-    const res = await fetchViaHTTP(next.url, '/does-not-exist')
+    const res = await next.fetch('/does-not-exist')
 
     expect(res.status).toBe(404)
     const html = await res.text()
@@ -211,28 +244,28 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should suspense next/legacy/image in server components', async () => {
-    const imageHTML = await renderViaHTTP(next.url, '/next-api/image-legacy')
-    const imageTag = getNodeBySelector(imageHTML, '#myimg')
+    const $ = await next.render$('/next-api/image-legacy')
+    const imageTag = $('#myimg')
 
     expect(imageTag.attr('src')).toContain('data:image')
   })
 
   it('should suspense next/image in server components', async () => {
-    const imageHTML = await renderViaHTTP(next.url, '/next-api/image-new')
-    const imageTag = getNodeBySelector(imageHTML, '#myimg')
+    const $ = await next.render$('/next-api/image-new')
+    const imageTag = $('#myimg')
 
     expect(imageTag.attr('src')).toMatch(/test.+jpg/)
   })
 
   it('should handle various kinds of exports correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/various-exports')
-    const content = getNodeBySelector(html, 'body').text()
+    const $ = await next.render$('/various-exports')
+    const content = $('body').text()
 
     expect(content).toContain('abcde')
     expect(content).toContain('default-export-arrow.client')
     expect(content).toContain('named.client')
 
-    const browser = await webdriver(next.url, '/various-exports')
+    const browser = await next.browser('/various-exports')
     const hydratedContent = await browser.waitForElementByCss('body').text()
 
     expect(hydratedContent).toContain('abcde')
@@ -244,17 +277,17 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should support native modules in server component', async () => {
-    const html = await renderViaHTTP(next.url, '/native-module')
-    const content = getNodeBySelector(html, 'body').text()
+    const $ = await next.render$('/native-module')
+    const content = $('body').text()
 
     expect(content).toContain('fs: function')
     expect(content).toContain('foo.client')
   })
 
   it('should resolve different kinds of components correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/shared')
-    const main = getNodeBySelector(html, '#main').html()
-    const content = getNodeBySelector(html, '#bar').text()
+    const $ = await next.render$('/shared')
+    const main = $('#main').html()
+    const content = $('#bar').text()
 
     // Should have 5 occurrences of "client_component".
     expect(Array.from(main.matchAll(/client_component/g)).length).toBe(5)
@@ -274,8 +307,8 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should render initial styles of css-in-js in nodejs SSR correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/css-in-js')
-    const head = getNodeBySelector(html, 'head').html()
+    const $ = await next.render$('/css-in-js')
+    const head = $('head').html()
 
     // from styled-jsx
     expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
@@ -286,8 +319,8 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should render initial styles of css-in-js in edge SSR correctly', async () => {
-    const html = await renderViaHTTP(next.url, '/css-in-js/edge')
-    const head = getNodeBySelector(html, 'head').html()
+    const $ = await next.render$('/css-in-js/edge')
+    const head = $('head').html()
 
     // from styled-jsx
     expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
@@ -298,28 +331,26 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should render css-in-js suspense boundary correctly', async () => {
-    await fetchViaHTTP(next.url, '/css-in-js/suspense', null, {}).then(
-      async (response) => {
-        const results = []
+    await next.fetch('/css-in-js/suspense', null, {}).then(async (response) => {
+      const results = []
 
-        await resolveStreamResponse(response, (chunk: string) => {
-          // check if rsc refresh script for suspense show up, the test content could change with react version
-          const hasRCScript = /\$RC=function/.test(chunk)
-          if (hasRCScript) results.push('refresh-script')
+      await resolveStreamResponse(response, (chunk: string) => {
+        // check if rsc refresh script for suspense show up, the test content could change with react version
+        const hasRCScript = /\$RC=function/.test(chunk)
+        if (hasRCScript) results.push('refresh-script')
 
-          const isSuspenseyDataResolved =
-            /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
-          if (isSuspenseyDataResolved) results.push('data')
+        const isSuspenseyDataResolved =
+          /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
+        if (isSuspenseyDataResolved) results.push('data')
 
-          const isFallbackResolved = chunk.includes('fallback')
-          if (isFallbackResolved) results.push('fallback')
-        })
+        const isFallbackResolved = chunk.includes('fallback')
+        if (isFallbackResolved) results.push('fallback')
+      })
 
-        expect(results).toEqual(['fallback', 'data', 'refresh-script'])
-      }
-    )
+      expect(results).toEqual(['fallback', 'data', 'refresh-script'])
+    })
     // // TODO-APP: fix streaming/suspense within browser for test suite
-    // const browser = await webdriver(next.url, '/css-in-js', { waitHydration: false })
+    // const browser = await next.browser( '/css-in-js', { waitHydration: false })
     // const footer = await browser.elementByCss('#footer')
     // expect(await footer.text()).toBe('wait for fallback')
     // expect(
@@ -347,7 +378,7 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should stick to the url without trailing /page suffix', async () => {
-    const browser = await webdriver(next.url, '/edge/dynamic')
+    const browser = await next.browser('/edge/dynamic')
     const indexUrl = await browser.url()
 
     await browser.loadPage(`${next.url}/edge/dynamic/123`, {
@@ -361,51 +392,50 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should support streaming for flight response', async () => {
-    await fetchViaHTTP(
-      next.url,
-      '/',
-      {},
-      {
-        headers: {
-          ['RSC'.toString()]: '1',
-        },
-      }
-    ).then(async (response) => {
-      const result = await resolveStreamResponse(response)
-      expect(result).toContain('component:index.server')
-    })
+    await next
+      .fetch(
+        '/',
+        {},
+        {
+          headers: {
+            ['RSC'.toString()]: '1',
+          },
+        }
+      )
+      .then(async (response) => {
+        const result = await resolveStreamResponse(response)
+        expect(result).toContain('component:index.server')
+      })
   })
 
   it('should support partial hydration with inlined server data', async () => {
-    await fetchViaHTTP(next.url, '/partial-hydration', null, {}).then(
-      async (response) => {
-        let gotFallback = false
-        let gotData = false
-        let gotInlinedData = false
+    await next.fetch('/partial-hydration', null, {}).then(async (response) => {
+      let gotFallback = false
+      let gotData = false
+      let gotInlinedData = false
 
-        await resolveStreamResponse(response, (_, result) => {
-          gotInlinedData = result.includes('self.__next_f=')
-          gotData = result.includes('next_streaming_data')
-          if (!gotFallback) {
-            gotFallback = result.includes('next_streaming_fallback')
-            if (gotFallback) {
-              expect(gotData).toBe(false)
-              expect(gotInlinedData).toBe(false)
-            }
+      await resolveStreamResponse(response, (_, result) => {
+        gotInlinedData = result.includes('self.__next_f=')
+        gotData = result.includes('next_streaming_data')
+        if (!gotFallback) {
+          gotFallback = result.includes('next_streaming_fallback')
+          if (gotFallback) {
+            expect(gotData).toBe(false)
+            expect(gotInlinedData).toBe(false)
           }
-        })
+        }
+      })
 
-        expect(gotFallback).toBe(true)
-        expect(gotData).toBe(true)
-        expect(gotInlinedData).toBe(true)
-      }
-    )
+      expect(gotFallback).toBe(true)
+      expect(gotData).toBe(true)
+      expect(gotInlinedData).toBe(true)
+    })
   })
 
   // disable this flaky test
   it.skip('should support partial hydration with inlined server data in browser', async () => {
     // Should end up with "next_streaming_data".
-    const browser = await webdriver(next.url, '/partial-hydration', {
+    const browser = await next.browser('/partial-hydration', {
       waitHydration: false,
     })
     const content = await browser.eval(`window.document.body.innerText`)

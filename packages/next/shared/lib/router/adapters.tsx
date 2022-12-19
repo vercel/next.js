@@ -117,7 +117,14 @@ export function PathnameContextProviderAdapter({
     // any query strings), so it should have that stripped. Read more about the
     // `asPath` option over at:
     // https://nextjs.org/docs/api-reference/next/router#router-object
-    const url = new URL(router.asPath, 'http://f')
+    let url: URL
+    try {
+      url = new URL(router.asPath, 'http://f')
+    } catch (_) {
+      // fallback to / for invalid asPath values e.g. //
+      return '/'
+    }
+
     return url.pathname
   }, [router.asPath, router.isFallback, router.isReady, router.pathname])
 

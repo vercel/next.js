@@ -33,6 +33,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
+import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   NEXT_BUILTIN_DOCUMENT,
   STATIC_STATUS_PAGES,
@@ -78,6 +79,7 @@ import {
   RSC,
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
+  FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
 
 export type FindComponentsResult = {
@@ -309,6 +311,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     req: BaseNextRequest,
     res: BaseNextResponse
   ): void
+
+  protected abstract getIncrementalCache(options: {
+    requestHeaders: Record<string, undefined | string | string[]>
+  }): import('./lib/incremental-cache').IncrementalCache
 
   protected abstract getResponseCache(options: {
     dev: boolean
@@ -1075,7 +1081,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         // strip header so we generate HTML still
         if (
-          opts.runtime !== 'experimental-edge' ||
+          !isEdgeRuntime(opts.runtime) ||
           (this.serverOptions as any).webServerConfig
         ) {
           for (const param of FLIGHT_PARAMETERS) {
@@ -1283,11 +1289,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
+    const incrementalCache = this.getIncrementalCache({
+      requestHeaders: Object.assign({}, req.headers),
+    })
+    if (
+      this.nextConfig.experimental.fetchCache &&
+      (!isEdgeRuntime(opts.runtime) ||
+        (this.serverOptions as any).webServerConfig)
+    ) {
+      delete req.headers[FETCH_CACHE_HEADER]
+    }
+    let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
       let pageData: any
       let body: RenderResult | null
-      let sprRevalidate: number | false
+      let isrRevalidate: number | false
       let isNotFound: boolean | undefined
       let isRedirect: boolean | undefined
 
@@ -1312,6 +1329,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const renderOpts: RenderOpts = {
         ...components,
         ...opts,
+        ...(isAppPath && this.nextConfig.experimental.fetchCache
+          ? {
+              incrementalCache,
+              isRevalidate: this.minimalMode || isRevalidate,
+            }
+          : {}),
         isDataReq,
         resolvedUrl,
         locale,
@@ -1346,7 +1369,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       body = renderResult
       // TODO: change this to a different passing mechanism
       pageData = (renderOpts as any).pageData
-      sprRevalidate = (renderOpts as any).revalidate
+      isrRevalidate = (renderOpts as any).revalidate
       isNotFound = (renderOpts as any).isNotFound
       isRedirect = (renderOpts as any).isRedirect
 
@@ -1361,7 +1384,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
         value = { kind: 'PAGE', html: body, pageData }
       }
-      return { revalidate: sprRevalidate, value }
+      return { revalidate: isrRevalidate, value }
     }
 
     const cacheEntry = await this.responseCache.get(
@@ -1370,6 +1393,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         const isProduction = !this.renderOpts.dev
         const isDynamicPathname = isDynamicRoute(pathname)
         const didRespond = hasResolved || res.sent
+
+        if (hadCache) {
+          isRevalidate = true
+        }
 
         if (!staticPaths) {
           ;({ staticPaths, fallbackMode } = hasStaticPaths
@@ -1486,6 +1513,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       },
       {
+        incrementalCache,
         isManualRevalidate,
         isPrefetch: req.headers.purpose === 'prefetch',
       }

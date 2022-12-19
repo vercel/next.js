@@ -7,6 +7,7 @@ import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-we
 
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
+import onRecoverableError from './on-recoverable-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -29,7 +30,23 @@ __webpack_require__.u = (chunkId: any) => {
 // Ignore the module ID transform in client.
 // eslint-disable-next-line no-undef
 // @ts-expect-error TODO: fix type
-self.__next_require__ = __webpack_require__
+self.__next_require__ =
+  process.env.NODE_ENV !== 'production'
+    ? (id: string) => {
+        const mod = __webpack_require__(id)
+        if (typeof mod === 'object') {
+          // Return a proxy to flight client to make sure it's always getting
+          // the latest module, instead of being cached.
+          return new Proxy(mod, {
+            get(_target, prop) {
+              return __webpack_require__(id)[prop]
+            },
+          })
+        }
+
+        return mod
+      }
+    : __webpack_require__
 
 // eslint-disable-next-line no-undef
 ;(self as any).__next_chunk_load__ = (chunk: string) => {
@@ -190,7 +207,9 @@ export function hydrate() {
     if (rootLayoutMissingTagsError) {
       const reactRootElement = document.createElement('div')
       document.body.appendChild(reactRootElement)
-      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement)
+      const reactRoot = (ReactDOMClient as any).createRoot(reactRootElement, {
+        onRecoverableError,
+      })
 
       reactRoot.render(
         <GlobalLayoutRouterContext.Provider
@@ -231,11 +250,14 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
+  const options = {
+    onRecoverableError,
+  }
   const isError = document.documentElement.id === '__next_error__'
   const reactRoot = isError
-    ? (ReactDOMClient as any).createRoot(appElement)
+    ? (ReactDOMClient as any).createRoot(appElement, options)
     : (React as any).startTransition(() =>
-        (ReactDOMClient as any).hydrateRoot(appElement, reactEl)
+        (ReactDOMClient as any).hydrateRoot(appElement, reactEl, options)
       )
   if (isError) {
     reactRoot.render(reactEl)

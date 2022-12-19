@@ -5,17 +5,17 @@ import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import { NoFallbackError, Options } from './base-server'
 import type { DynamicRoutes, PageChecker, Route } from './router'
 import type { NextConfig } from './config-shared'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { UrlWithParsedQuery } from 'url'
 
-import BaseServer from './base-server'
 import { byteLength } from './api-utils/web'
+import BaseServer, { NoFallbackError, Options } from './base-server'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
+import { isAPIRoute } from '../lib/is-api-route'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
 import { detectDomainLocale } from '../shared/lib/i18n/detect-domain-locale'
@@ -53,6 +53,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected handleCompression() {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
+  }
+  protected getIncrementalCache() {
+    return {} as any
   }
   protected getResponseCache() {
     return new WebResponseCache(this.minimalMode)
@@ -304,7 +307,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         }
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
-        if (pathname === '/api' || pathname.startsWith('/api/')) {
+        if (isAPIRoute(pathname)) {
           delete query._nextBubbleNoFallback
         }
 

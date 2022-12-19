@@ -16,10 +16,6 @@ export function headers() {
 }
 
 export function previewData() {
-  if (staticGenerationBailout('previewData')) {
-    return {}
-  }
-
   const requestStore =
     requestAsyncStorage && 'getStore' in requestAsyncStorage
       ? requestAsyncStorage.getStore()!
