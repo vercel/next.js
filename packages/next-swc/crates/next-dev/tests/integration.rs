@@ -146,6 +146,9 @@ async fn run_test(resource: &str) -> JestRunResult {
     .eager_compile(false)
     .hostname(requested_addr.ip())
     .port(requested_addr.port())
+    .log_level(turbopack_core::issue::IssueSeverity::Warning)
+    .log_detail(true)
+    .show_all(true)
     .build()
     .await
     .unwrap();

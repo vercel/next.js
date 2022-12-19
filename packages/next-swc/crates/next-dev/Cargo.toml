@@ -55,6 +55,7 @@ turbo-tasks-memory = { path = "../turbo-tasks-memory" }
 turbopack-cli-utils = { path = "../turbopack-cli-utils" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-dev-server = { path = "../turbopack-dev-server" }
+turbopack-node = { path = "../turbopack-node" }
 webbrowser = "0.7.1"
 
 [dev-dependencies]
