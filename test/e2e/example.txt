@@ -15,7 +15,7 @@ createNextDescribe(
     // Recommended for tests that need a full browser
     it('should work using browser', async () => {
       const browser = await next.browser('/')
-      expect(await browser.getElementByCss('p').text()).toBe('hello world')
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
     })
 
     // In case you need the full HTML. Can also use $.html() with cheerio.
