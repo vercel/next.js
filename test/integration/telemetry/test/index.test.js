@@ -467,8 +467,10 @@ describe('Telemetry CLI', () => {
         turbo: true,
       })
 
+      await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
+
       if (app) {
-        await killApp(app)
+        await app.kill('SIGTERM')
       }
       await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 
@@ -503,7 +505,7 @@ describe('Telemetry CLI', () => {
       await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
 
       if (app) {
-        await killApp(app)
+        await app.kill('SIGTERM')
       }
       await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 

@@ -7,6 +7,9 @@ import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/trace'
+import webdriver from 'next-webdriver'
+import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
+import cheerio from 'cheerio'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -18,7 +21,7 @@ export type PackageJson = {
   [key: string]: unknown
 }
 export interface NextInstanceOpts {
-  files: FileRef | { [filename: string]: string | FileRef }
+  files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
   packageJson?: PackageJson
   packageLockPath?: string
@@ -30,6 +33,16 @@ export interface NextInstanceOpts {
   dirSuffix?: string
   turbo?: boolean
 }
+
+/**
+ * Omit the first argument of a function
+ */
+type OmitFirstArgument<F> = F extends (
+  firstArgument: any,
+  ...args: infer P
+) => infer R
+  ? (...args: P) => R
+  : never
 
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
@@ -57,20 +70,23 @@ export class NextInstance {
   }
 
   protected async writeInitialFiles() {
-    if (this.files instanceof FileRef) {
+    // Handle case where files is a directory string
+    const files =
+      typeof this.files === 'string' ? new FileRef(this.files) : this.files
+    if (files instanceof FileRef) {
       // if a FileRef is passed directly to `files` we copy the
       // entire folder to the test directory
-      const stats = await fs.stat(this.files.fsPath)
+      const stats = await fs.stat(files.fsPath)
 
       if (!stats.isDirectory()) {
         throw new Error(
-          `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
+          `FileRef passed to "files" in "createNext" is not a directory ${files.fsPath}`
         )
       }
-      await fs.copy(this.files.fsPath, this.testDir)
+      await fs.copy(files.fsPath, this.testDir)
     } else {
-      for (const filename of Object.keys(this.files)) {
-        const item = this.files[filename]
+      for (const filename of Object.keys(files)) {
+        const item = files[filename]
         const outputFilename = path.join(this.testDir, filename)
 
         if (typeof item === 'string') {
@@ -348,6 +364,9 @@ export class NextInstance {
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
+  public async readJSON(filename: string) {
+    return fs.readJSON(path.join(this.testDir, filename))
+  }
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
     await fs.ensureDir(path.dirname(outputPath))
@@ -361,6 +380,43 @@ export class NextInstance {
   }
   public async deleteFile(filename: string) {
     return fs.remove(path.join(this.testDir, filename))
+  }
+
+  /**
+   * Create new browser window for the Next.js app.
+   */
+  public async browser(
+    ...args: Parameters<OmitFirstArgument<typeof webdriver>>
+  ) {
+    return webdriver(this.url, ...args)
+  }
+
+  /**
+   * Fetch the HTML for the provided page. This is a shortcut for `renderViaHTTP().then(html => cheerio.load(html))`.
+   */
+  public async render$(
+    ...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>
+  ): Promise<ReturnType<typeof cheerio.load>> {
+    const html = await renderViaHTTP(this.url, ...args)
+    return cheerio.load(html)
+  }
+
+  /**
+   * Fetch the HTML for the provided page. This is a shortcut for `fetchViaHTTP().then(res => res.text())`.
+   */
+  public async render(
+    ...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>
+  ) {
+    return renderViaHTTP(this.url, ...args)
+  }
+
+  /**
+   * Fetch the HTML for the provided page.
+   */
+  public async fetch(
+    ...args: Parameters<OmitFirstArgument<typeof fetchViaHTTP>>
+  ) {
+    return fetchViaHTTP(this.url, ...args)
   }
 
   public on(event: Event, cb: (...args: any[]) => any) {

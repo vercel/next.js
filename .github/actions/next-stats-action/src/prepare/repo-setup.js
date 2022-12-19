@@ -152,17 +152,19 @@ module.exports = (actionInfo) => {
         await rootSpan
           .traceChild('packing packages')
           .traceAsyncFn(async (packingSpan) => {
-            for (const pkgName of pkgDatas.keys()) {
-              await packingSpan
-                .traceChild(`pack ${pkgName}`)
-                .traceAsyncFn(async () => {
-                  const { pkg, pkgPath } = pkgDatas.get(pkgName)
-                  await exec(
-                    `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
-                    true
-                  )
-                })
-            }
+            await Promise.all(
+              Array.from(pkgDatas.keys()).map(async (pkgName) => {
+                await packingSpan
+                  .traceChild(`pack ${pkgName}`)
+                  .traceAsyncFn(async () => {
+                    const { pkg, pkgPath } = pkgDatas.get(pkgName)
+                    await exec(
+                      `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
+                      true
+                    )
+                  })
+              })
+            )
           })
 
         return pkgPaths

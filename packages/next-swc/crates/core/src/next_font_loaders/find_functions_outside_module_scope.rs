@@ -1,7 +1,7 @@
-use swc_core::common::errors::HANDLER;
-use swc_core::ecma::ast::*;
-use swc_core::ecma::visit::noop_visit_type;
-use swc_core::ecma::visit::Visit;
+use next_binding::swc::core::common::errors::HANDLER;
+use next_binding::swc::core::ecma::ast::*;
+use next_binding::swc::core::ecma::visit::noop_visit_type;
+use next_binding::swc::core::ecma::visit::Visit;
 
 pub struct FindFunctionsOutsideModuleScope<'a> {
     pub state: &'a super::State,
