@@ -2364,6 +2364,20 @@ createNextDescribe(
             .getAttribute('content')
         ).toBe('noindex')
       })
+      it('should trigger not-found while streaming', async () => {
+        const initialHtml = await next.render('/not-found/suspense')
+        expect(initialHtml).not.toContain('noindex')
+
+        const browser = await next.browser('/not-found/suspense')
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('Not Found!')
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
+      })
     })
 
     describe('bots', () => {
