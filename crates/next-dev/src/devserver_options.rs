@@ -93,6 +93,8 @@ pub struct DevServerOptions {
     pub dev: bool,
 
     /// Internal for next.js, no specific usage yet.
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
     pub is_next_dev_command: bool,
 }
 
