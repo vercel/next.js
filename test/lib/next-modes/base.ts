@@ -364,6 +364,9 @@ export class NextInstance {
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
+  public async readJSON(filename: string) {
+    return fs.readJSON(path.join(this.testDir, filename))
+  }
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
     await fs.ensureDir(path.dirname(outputPath))

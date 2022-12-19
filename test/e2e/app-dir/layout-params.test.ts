@@ -1,99 +1,69 @@
 import path from 'path'
-import { renderViaHTTP } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import cheerio from 'cheerio'
+import { createNextDescribe } from 'e2e-utils'
 
-describe('app dir - layout params', () => {
-  let next: NextInstance
+createNextDescribe(
+  'app dir - layout params',
+  {
+    files: path.join(__dirname, './layout-params'),
+    dependencies: {
+      react: 'latest',
+      'react-dom': 'latest',
+      typescript: 'latest',
+      '@types/react': 'latest',
+      '@types/node': 'latest',
+    },
+  },
+  ({ next }) => {
+    describe('basic params', () => {
+      it('check layout without params get no params', async () => {
+        const $ = await next.render$('/base/something/another')
+        const ids = ['#root-layout', '#lvl1-layout']
+        ids.forEach((divId) => {
+          const params = $(`${divId} > div`)
+          expect(params.length).toBe(0)
+        })
+      })
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.join(__dirname, './layout-params')),
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
-      },
-    })
-  })
-  afterAll(() => next.destroy())
+      it("check layout renders just it's params", async () => {
+        const $ = await next.render$('/base/something/another')
 
-  const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
+        expect($('#lvl2-layout > div').length).toBe(1)
+        expect($('#lvl2-param1').text()).toBe('"something"')
+      })
 
-  if (isReact17) {
-    it('should skip tests for react 17', () => {})
-    return
-  }
+      it('check topmost layout renders all params', async () => {
+        const $ = await next.render$('/base/something/another')
 
-  describe('basic params', () => {
-    it('check layout without params get no params', async () => {
-      const html = await renderViaHTTP(next.url, '/base/something/another')
-
-      const $ = cheerio.load(html)
-
-      const ids = ['#root-layout', '#lvl1-layout']
-      ids.forEach((divId) => {
-        const params = $(`${divId} > div`)
-        expect(params.length).toBe(0)
+        expect($('#lvl3-layout > div').length).toBe(2)
+        expect($('#lvl3-param1').text()).toBe('"something"')
+        expect($('#lvl3-param2').text()).toBe('"another"')
       })
     })
 
-    it("check layout renders just it's params", async () => {
-      const html = await renderViaHTTP(next.url, '/base/something/another')
+    describe('catchall params', () => {
+      it('should give catchall params just to last layout', async () => {
+        const $ = await next.render$('/catchall/something/another')
 
-      const $ = cheerio.load(html)
+        expect($(`#root-layout > div`).length).toBe(0)
+        expect($('#lvl2-layout > div').length).toBe(1)
+        expect($('#lvl2-params').text()).toBe('["something","another"]')
+      })
 
-      expect($('#lvl2-layout > div').length).toBe(1)
-      expect($('#lvl2-param1').text()).toBe('"something"')
+      it('should give optional catchall params just to last layout', async () => {
+        const $ = await next.render$('/optional-catchall/something/another')
+
+        expect($(`#root-layout > div`).length).toBe(0)
+
+        expect($('#lvl2-layout > div').length).toBe(1)
+        expect($('#lvl2-params').text()).toBe('["something","another"]')
+      })
+
+      it("should give empty optional catchall params won't give params to any layout", async () => {
+        const $ = await next.render$('/optional-catchall')
+
+        expect($(`#root-layout > div`).length).toBe(0)
+        expect($('#lvl2-layout > div').length).toBe(0)
+      })
     })
-
-    it('check topmost layout renders all params', async () => {
-      const html = await renderViaHTTP(next.url, '/base/something/another')
-
-      const $ = cheerio.load(html)
-
-      expect($('#lvl3-layout > div').length).toBe(2)
-      expect($('#lvl3-param1').text()).toBe('"something"')
-      expect($('#lvl3-param2').text()).toBe('"another"')
-    })
-  })
-
-  describe('catchall params', () => {
-    it('should give catchall params just to last layout', async () => {
-      const html = await renderViaHTTP(next.url, '/catchall/something/another')
-
-      const $ = cheerio.load(html)
-
-      expect($(`#root-layout > div`).length).toBe(0)
-
-      expect($('#lvl2-layout > div').length).toBe(1)
-      expect($('#lvl2-params').text()).toBe('["something","another"]')
-    })
-
-    it('should give optional catchall params just to last layout', async () => {
-      const html = await renderViaHTTP(
-        next.url,
-        '/optional-catchall/something/another'
-      )
-
-      const $ = cheerio.load(html)
-
-      expect($(`#root-layout > div`).length).toBe(0)
-
-      expect($('#lvl2-layout > div').length).toBe(1)
-      expect($('#lvl2-params').text()).toBe('["something","another"]')
-    })
-
-    it("should give empty optional catchall params won't give params to any layout", async () => {
-      const html = await renderViaHTTP(next.url, '/optional-catchall')
-
-      const $ = cheerio.load(html)
-
-      expect($(`#root-layout > div`).length).toBe(0)
-      expect($('#lvl2-layout > div').length).toBe(0)
-    })
-  })
-})
+  }
+)

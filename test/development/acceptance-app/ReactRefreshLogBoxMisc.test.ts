@@ -6,11 +6,6 @@ import path from 'path'
 // TODO: re-enable these tests after figuring out what is causing
 // them to be so unreliable in CI
 describe.skip('ReactRefreshLogBox app', () => {
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {

@@ -145,10 +145,10 @@ export default class PageLoader {
     )
   }
 
-  /**
-   * @param {string} route - the route (file-system path)
-   */
-  _isSsg(route: string): Promise<boolean> {
+  _isSsg(
+    /** the route (file-system path) */
+    route: string
+  ): Promise<boolean> {
     return this.promisedSsgManifest.then((manifest) => manifest.has(route))
   }
 
