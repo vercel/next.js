@@ -58,38 +58,40 @@ pub struct DevServerOptions {
     #[cfg_attr(feature = "serializable", serde(default))]
     pub no_open: bool,
 
+    /// Filter by issue severity.
     #[cfg_attr(feature = "cli", clap(short, long))]
     #[cfg_attr(feature = "serializable", serde(default))]
-    /// Filter by issue severity.
     pub log_level: Option<IssueSeverityCliOption>,
 
+    /// Show all log messages without limit.
     #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]
-    /// Show all log messages without limit.
     pub show_all: bool,
 
+    /// Expand the log details.
     #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]
-    /// Expand the log details.
     pub log_detail: bool,
 
+    /// Whether to enable full task stats recording in Turbo Engine.
     #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]
-    /// Whether to enable full task stats recording in Turbo Engine.
     pub full_stats: bool,
 
-    // Inherited options from next-dev, need revisit later.
-    #[cfg_attr(feature = "cli", clap(long))]
-    #[cfg_attr(feature = "serializable", serde(default))]
+    // ==
+    // = Inherited options from next-dev, need revisit later.
+    // ==
     /// If port is not explicitly specified, use different port if it's already
     /// in use.
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
     pub allow_retry: bool,
-    #[cfg_attr(feature = "cli", clap(long))]
-    #[cfg_attr(feature = "serializable", serde(default))]
+
     /// Internal for next.js, no specific usage yet.
-    pub dev: bool,
     #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]
+    pub dev: bool,
+
     /// Internal for next.js, no specific usage yet.
     pub is_next_dev_command: bool,
 }

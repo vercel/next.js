@@ -63,7 +63,7 @@ impl IssueSeverity {
             IssueSeverity::Bug => "bug in implementation",
             IssueSeverity::Fatal => "unrecoverable problem",
             IssueSeverity::Error => "problem that cause a broken result",
-            IssueSeverity::Warning => "problem should be adressed in short term",
+            IssueSeverity::Warning => "problem should be addressed in short term",
             IssueSeverity::Hint => "idea for improvement",
             IssueSeverity::Note => "detail that is worth mentioning",
             IssueSeverity::Suggestion => "change proposal for improvement",

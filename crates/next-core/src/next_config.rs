@@ -26,9 +26,9 @@ use crate::{
     next_server::{get_build_module_options_context, get_build_resolve_options_context},
 };
 
+#[turbo_tasks::value(serialization = "custom")]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-#[turbo_tasks::value(transparent, serialization = "custom")]
 pub struct NextConfig {
     pub config_file: Option<String>,
     pub config_file_name: String,
