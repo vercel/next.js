@@ -219,8 +219,7 @@ __turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/import-meta/u
       // an external module we don't provide a shim for (e.g. querystring, url).
       // For now, we fail semi-silently, but in the future this should be a
       // compilation error.
-      console.error(`Failed to load external module ${id}: ${err}`);
-      return undefined;
+      throw new Error(`Failed to load external module ${id}: ${err}`);
     }
     if (!esm || raw.__esModule) {
       return raw;

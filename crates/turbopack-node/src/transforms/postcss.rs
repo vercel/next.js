@@ -6,7 +6,7 @@ use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     TryJoinIterExt, Value,
 };
-use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemEntryType, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     context::AssetContextVc,
@@ -120,8 +120,8 @@ impl Asset for PostCssTransformedAsset {
             project_root,
             intermediate_output_path,
         } = *self.execution_context.await?;
-        let content = self.source.content().await?;
-        let AssetContent::File(file) = *content else {
+        let source_content = self.source.content();
+        let AssetContent::File(file) = *source_content.await? else {
             bail!("PostCSS transform only support transforming files");
         };
         let FileContent::Content(content) = &*file.await? else {
@@ -186,12 +186,11 @@ impl Asset for PostCssTransformedAsset {
         )
         .await?;
         let JavaScriptValue::Value(val) = &*config_value else {
-            bail!("Expected a value from PostCSS transform");
+            return Ok(source_content);
         };
         let processed_css: ProcessedCSS = serde_json::from_reader(val.read())
             .context("Unable to deserializate response from PostCSS transform operation")?;
-        let new_content = Rope::from(processed_css.css.clone());
-        let file = File::from(new_content);
+        let file = File::from(processed_css.css);
         // TODO handle SourceMap
         Ok(AssetContent::File(FileContent::Content(file).cell()).cell())
     }

@@ -1,7 +1,10 @@
 use anyhow::Result;
 use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPathVc, LinkContent};
 
-use crate::asset::{Asset, AssetContent, AssetContentVc, AssetVc};
+use crate::{
+    asset::{Asset, AssetContent, AssetContentVc, AssetVc},
+    reference::AssetReferencesVc,
+};
 
 /// The raw [Asset]. It represents raw content from a path without any
 /// references to other [Asset]s.
@@ -43,5 +46,12 @@ impl Asset for SourceAsset {
             }
             _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
         }
+    }
+
+    #[turbo_tasks::function]
+    fn references(&self) -> AssetReferencesVc {
+        // TODO: build input sourcemaps via language specific sourceMappingURL comment
+        // or parse.
+        AssetReferencesVc::empty()
     }
 }

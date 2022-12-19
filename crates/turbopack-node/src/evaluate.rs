@@ -1,12 +1,16 @@
 use std::{collections::HashMap, thread::available_parallelism};
 
-use anyhow::{bail, Result};
-use turbo_tasks::{primitives::JsonValueVc, TryJoinIterExt, Value};
+use anyhow::Result;
+use turbo_tasks::{
+    primitives::{JsonValueVc, StringVc},
+    TryJoinIterExt, Value,
+};
 use turbo_tasks_fs::{rope::Rope, to_sys_path, File, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
     chunk::{dev::DevChunkingContextVc, ChunkGroupVc},
     context::AssetContextVc,
+    issue::{Issue, IssueVc},
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
 };
@@ -20,12 +24,13 @@ use crate::{
     embed_js::embed_file_path,
     emit,
     pool::{NodeJsOperation, NodeJsPool, NodeJsPoolVc},
-    EvalJavaScriptIncomingMessage, EvalJavaScriptOutgoingMessage,
+    EvalJavaScriptIncomingMessage, EvalJavaScriptOutgoingMessage, StructuredError,
 };
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum JavaScriptValue {
+    Error,
     Value(Rope),
     // TODO, support stream in the future
     Stream(#[turbo_tasks(trace_ignore)] Vec<u8>),
@@ -34,14 +39,22 @@ pub enum JavaScriptValue {
 async fn eval_js_operation(
     operation: &mut NodeJsOperation,
     content: EvalJavaScriptOutgoingMessage<'_>,
-) -> Result<String> {
+    context_path: FileSystemPathVc,
+) -> Result<JavaScriptValue> {
     operation.send(content).await?;
-    match operation.recv().await? {
-        EvalJavaScriptIncomingMessage::Error(err) => {
-            bail!(err.print(Default::default(), None).await?);
+    Ok(match operation.recv().await? {
+        EvalJavaScriptIncomingMessage::Error(error) => {
+            EvaluationIssue {
+                error,
+                context_path,
+            }
+            .cell()
+            .as_issue()
+            .emit();
+            JavaScriptValue::Error
         }
-        EvalJavaScriptIncomingMessage::JsonValue { data } => Ok(data),
-    }
+        EvalJavaScriptIncomingMessage::JsonValue { data } => JavaScriptValue::Value(data.into()),
+    })
 }
 
 #[turbo_tasks::function]
@@ -113,9 +126,9 @@ pub async fn get_evaluate_pool(
     Ok(pool.cell())
 }
 
-#[turbo_tasks::function]
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
+#[turbo_tasks::function]
 pub async fn evaluate(
     context_path: FileSystemPathVc,
     module_asset: AssetVc,
@@ -135,12 +148,13 @@ pub async fn evaluate(
     )
     .await?;
     let mut operation = pool.operation().await?;
-    let args = args.into_iter().map(|v| v).try_join().await?;
+    let args = args.into_iter().try_join().await?;
     let output = eval_js_operation(
         &mut operation,
         EvalJavaScriptOutgoingMessage::Evaluate {
             args: args.iter().map(|v| &**v).collect(),
         },
+        context_path,
     )
     .await?;
     if args.is_empty() {
@@ -148,5 +162,37 @@ pub async fn evaluate(
         // TODO use a better way to decide that.
         operation.wait_or_kill().await?;
     }
-    Ok(JavaScriptValue::Value(output.into()).cell())
+    Ok(output.cell())
+}
+
+/// An issue that occurred while evaluating node code.
+#[turbo_tasks::value(shared)]
+pub struct EvaluationIssue {
+    pub context_path: FileSystemPathVc,
+    pub error: StructuredError,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for EvaluationIssue {
+    #[turbo_tasks::function]
+    fn title(&self) -> StringVc {
+        StringVc::cell("Error evaluating Node.js code".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> StringVc {
+        StringVc::cell("build".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn context(&self) -> FileSystemPathVc {
+        self.context_path
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(
+            self.error.print(Default::default(), None).await?,
+        ))
+    }
 }
