@@ -54,7 +54,7 @@ function preloadComponent(Component: any, props: any) {
   const prev = console.error
   // Hide invalid hook call warning when calling component
   console.error = function (msg) {
-    if (msg.startsWith('Invalid hook call..')) {
+    if (msg.startsWith('Warning: Invalid hook call.')) {
       // ignore
     } else {
       // @ts-expect-error argument is defined
@@ -1628,6 +1628,11 @@ export async function renderToHTMLOrFlight(
     const AppRouter =
       ComponentMod.AppRouter as typeof import('../client/components/app-router').default
 
+    const GlobalError = interopDefault(
+      /** GlobalError can be either the default error boundary or the overwritten app/global-error.js **/
+      ComponentMod.GlobalError as typeof import('../client/components/error-boundary').default
+    )
+
     let serverComponentsInlinedTransformStream: TransformStream<
       Uint8Array,
       Uint8Array
@@ -1636,7 +1641,7 @@ export async function renderToHTMLOrFlight(
     // TODO-APP: validate req.url as it gets passed to render.
     const initialCanonicalUrl = req.url!
 
-    // Get the nonce from the incomming request if it has one.
+    // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
     let nonce: string | undefined
     if (csp && typeof csp === 'string') {
@@ -1682,6 +1687,7 @@ export async function renderToHTMLOrFlight(
             initialCanonicalUrl={initialCanonicalUrl}
             initialTree={initialTree}
             initialHead={initialHead}
+            globalErrorComponent={GlobalError}
           >
             <ComponentTree />
           </AppRouter>

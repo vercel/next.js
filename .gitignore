@@ -28,6 +28,7 @@ test/**/tsconfig.json
 .DS_Store
 /e2e-tests
 test/tmp/**
+test/.trace
 
 # Editors
 **/.idea

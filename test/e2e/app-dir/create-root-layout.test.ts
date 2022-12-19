@@ -1,7 +1,6 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
 
 describe('app-dir create root layout', () => {
@@ -12,10 +11,6 @@ describe('app-dir create root layout', () => {
     return
   }
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
   let next: NextInstance
 
   if (isDev) {
@@ -39,7 +34,7 @@ describe('app-dir create root layout', () => {
 
         it('create root layout', async () => {
           const outputIndex = next.cliOutput.length
-          const browser = await webdriver(next.url, '/route')
+          const browser = await next.browser('/route')
 
           expect(await browser.elementById('page-text').text()).toBe(
             'Hello world!'
@@ -101,7 +96,7 @@ describe('app-dir create root layout', () => {
 
         it('create root layout', async () => {
           const outputIndex = next.cliOutput.length
-          const browser = await webdriver(next.url, '/')
+          const browser = await next.browser('/')
 
           expect(await browser.elementById('page-text').text()).toBe(
             'Hello world'
@@ -168,7 +163,7 @@ describe('app-dir create root layout', () => {
 
         it('create root layout', async () => {
           const outputIndex = next.cliOutput.length
-          const browser = await webdriver(next.url, '/route/second/inner')
+          const browser = await next.browser('/route/second/inner')
 
           expect(await browser.elementById('page-text').text()).toBe(
             'Hello world'
@@ -223,20 +218,13 @@ describe('app-dir create root layout', () => {
               path.join(__dirname, 'create-root-layout/next.config.js')
             ),
           },
-          dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
-            typescript: 'latest',
-            '@types/react': 'latest',
-            '@types/node': 'latest',
-          },
         })
       })
       afterAll(() => next.destroy())
 
       it('create root layout', async () => {
         const outputIndex = next.cliOutput.length
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
 
         expect(await browser.elementById('page-text').text()).toBe(
           'Hello world!'

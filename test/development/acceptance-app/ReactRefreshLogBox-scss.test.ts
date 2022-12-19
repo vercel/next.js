@@ -7,11 +7,6 @@ import path from 'path'
 // TODO: figure out why snapshots mismatch on GitHub actions
 // specifically but work in docker and locally
 describe.skip('ReactRefreshLogBox app', () => {
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
