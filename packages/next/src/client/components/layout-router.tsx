@@ -125,22 +125,27 @@ class ScrollAndFocusHandler extends React.Component<{
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
 
-      // Try scrolling go the top of the document to be backward compatible with pages
-      if (!topOfElementInViewport(domNode)) {
-        // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
-        // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
-        // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
-        handleSmoothScroll(() => {
-          document.documentElement.scrollTop = 0
-        })
-      }
+      handleSmoothScroll(
+        () => {
+          // Try scrolling go the top of the document to be backward compatible with pages
+          if (!topOfElementInViewport(domNode)) {
+            // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
+            // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
+            // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
+            document.documentElement.scrollTop = 0
+          }
 
-      // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-      if (!topOfElementInViewport(domNode)) {
-        // Scroll into view doesn't scroll horizontally by default when not needed
-        handleSmoothScroll(() => domNode.scrollIntoView())
-      }
-
+          // Scroll to domNode if domNode is not in viewport when scrolled to top of document
+          if (!topOfElementInViewport(domNode)) {
+            // Scroll into view doesn't scroll horizontally by default when not needed
+            domNode.scrollIntoView()
+          }
+        },
+        {
+          // We will force layout by querying domNode position
+          dontForceLayout: true,
+        }
+      )
       // Set focus on the element
       domNode.focus()
     }
