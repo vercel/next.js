@@ -175,10 +175,9 @@ async function createNextInstall({
             } else {
               const cacheDir = path.join(
                 origRepoDir,
-                'node_modules',
-                '.cache',
-                'tests',
-                'genericInstall'
+                'test',
+                'tmp',
+                'genericInstallCache'
               )
 
               const cachedFiles = [
@@ -196,7 +195,6 @@ async function createNextInstall({
                 require('console').log(
                   'We are able to prepopulate pnpm install from cache'
                 )
-                // There is cache available, let's populate our install dir from that cache
                 cachedFiles.forEach((file) => {
                   fs.copy(
                     path.join(cacheDir, file),
@@ -207,7 +205,6 @@ async function createNextInstall({
 
               await runInstall()
 
-              // Save current node_modules and pnpm-lock.yaml to a cache
               await fs.ensureDir(cacheDir)
               cachedFiles.forEach((file) => {
                 fs.copy(path.join(installDir, file), path.join(cacheDir, file))
@@ -215,6 +212,7 @@ async function createNextInstall({
             }
           })
       }
+      await new Promise(() => {})
 
       await fs.remove(tmpRepoDir)
       return installDir
