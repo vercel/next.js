@@ -7,12 +7,7 @@ describe('createNext', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: new FileRef(__dirname),
-      dependencies: {
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
-      },
+      files: __dirname,
     })
   })
   afterAll(() => next.destroy())
