@@ -1,14 +1,22 @@
-use anyhow::Result;
-use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
-use turbopack_css::{CssInputTransform, CssInputTransformsVc};
-use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
-
 pub mod module_options_context;
 pub mod module_rule;
+pub mod rule_condition;
 
+use anyhow::{Context, Result};
 pub use module_options_context::*;
 pub use module_rule::*;
+pub use rule_condition::*;
+use turbo_tasks_fs::FileSystemPathVc;
+use turbopack_core::{
+    reference_type::{ReferenceType, UrlReferenceSubType},
+    resolve::options::{ImportMap, ImportMapping},
+    source_transform::SourceTransformsVc,
+};
+use turbopack_css::{CssInputTransform, CssInputTransformsVc};
+use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
+use turbopack_node::transforms::postcss::PostCssTransformVc;
+
+use crate::evaluate_context::node_evaluate_asset_context;
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct ModuleOptions {
@@ -19,7 +27,7 @@ pub struct ModuleOptions {
 impl ModuleOptionsVc {
     #[turbo_tasks::function]
     pub async fn new(
-        _path: FileSystemPathVc,
+        path: FileSystemPathVc,
         context: ModuleOptionsContextVc,
     ) -> Result<ModuleOptionsVc> {
         let ModuleOptionsContext {
@@ -28,10 +36,12 @@ impl ModuleOptionsVc {
             enable_styled_jsx,
             enable_styled_components,
             enable_typescript_transform,
+            ref enable_postcss_transform,
             preset_env_versions,
             ref custom_ecmascript_app_transforms,
             ref custom_ecmascript_transforms,
             ref custom_rules,
+            execution_context,
             ..
         } = *context.await?;
         let mut transforms = custom_ecmascript_app_transforms.clone();
@@ -98,9 +108,39 @@ impl ModuleOptionsVc {
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Css(
-                    css_transforms,
-                ))],
+                [
+                    if let Some(options) = enable_postcss_transform {
+                        let execution_context = execution_context
+                            .context("execution_context is required for the postcss_transform")?
+                            .join("postcss");
+
+                        let mut import_map = ImportMap::default();
+                        import_map.insert_exact_alias(
+                            "@vercel/turbopack/postcss",
+                            if let Some(postcss) = options.postcss_package {
+                                postcss
+                            } else {
+                                ImportMapping::PrimaryAlternative("postcss".to_string(), Some(path))
+                                    .cell()
+                            },
+                        );
+                        Some(ModuleRuleEffect::SourceTransforms(
+                            SourceTransformsVc::cell(vec![PostCssTransformVc::new(
+                                node_evaluate_asset_context(Some(import_map.cell())),
+                                execution_context,
+                            )
+                            .into()]),
+                        ))
+                    } else {
+                        None
+                    },
+                    Some(ModuleRuleEffect::ModuleType(ModuleType::Css(
+                        css_transforms,
+                    ))),
+                ]
+                .into_iter()
+                .flatten()
+                .collect(),
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".module.css".to_string()),

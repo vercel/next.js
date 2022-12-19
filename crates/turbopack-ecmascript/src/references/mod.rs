@@ -38,8 +38,8 @@ use turbopack_core::{
     reference::{AssetReferenceVc, AssetReferencesVc, SourceMapVc},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        find_context_file, origin::ResolveOriginVc, parse::RequestVc, pattern::Pattern, resolve,
-        FindContextFileResult, ResolveResult,
+        find_context_file, origin::ResolveOriginVc, package_json, parse::RequestVc,
+        pattern::Pattern, resolve, FindContextFileResult, ResolveResult,
     },
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -91,6 +91,7 @@ use crate::{
         },
         esm::{module_id::EsmModuleIdAssetReferenceVc, EsmBindingVc, EsmExportsVc},
     },
+    typescript::resolve::tsconfig,
     EcmascriptInputTransformsVc,
 };
 
@@ -183,7 +184,7 @@ pub(crate) async fn analyze_ecmascript_module(
 
     let parsed = parse(source, ty, transforms);
 
-    match &*find_context_file(path.parent(), "package.json").await? {
+    match &*find_context_file(path.parent(), package_json()).await? {
         FindContextFileResult::Found(package_json, _) => {
             analysis.add_reference(PackageJsonReferenceVc::new(*package_json));
         }
@@ -191,7 +192,7 @@ pub(crate) async fn analyze_ecmascript_module(
     };
 
     if is_typescript {
-        match &*find_context_file(path.parent(), "tsconfig.json").await? {
+        match &*find_context_file(path.parent(), tsconfig()).await? {
             FindContextFileResult::Found(tsconfig, _) => {
                 analysis.add_reference(TsConfigReferenceVc::new(origin, *tsconfig));
             }

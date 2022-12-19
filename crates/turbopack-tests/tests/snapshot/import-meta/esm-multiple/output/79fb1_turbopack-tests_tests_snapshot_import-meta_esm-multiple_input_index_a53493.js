@@ -211,7 +211,7 @@ bar();
     return getOrInstantiateModuleFromParent(id, sourceModule).exports;
   }
 
-  function externalRequire(id) {
+  function externalRequire(id, esm) {
     let raw;
     try {
       raw = require(id);
@@ -223,7 +223,7 @@ bar();
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
     }
-    if (raw.__esModule) {
+    if (!esm || raw.__esModule) {
       return raw;
     }
     const ns = {};

@@ -7,8 +7,8 @@ use turbopack_core::asset::AssetContentVc;
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceResultVc, ContentSourceVc,
 };
-use turbopack_node::{
-    node_api_source::NodeApiContentSourceVc, node_rendered_source::NodeRenderContentSourceVc,
+use turbopack_node::render::{
+    node_api_source::NodeApiContentSourceVc, rendered_source::NodeRenderContentSourceVc,
 };
 
 /// A content source which creates the next.js `_devPagesManifest.json` and
@@ -29,6 +29,7 @@ impl DevManifestContentSourceVc {
         while let Some(content_source) = queue.pop() {
             queue.extend(content_source.get_children().await?.iter());
 
+            // TODO This shouldn't use casts but an public api instead
             if let Some(api_source) = NodeApiContentSourceVc::resolve_from(content_source).await? {
                 routes.insert(format!("/{}", api_source.get_pathname().await?));
 

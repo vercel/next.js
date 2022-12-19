@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
+use turbo_tasks::{
+    primitives::{StringVc, StringsVc},
+    Value, ValueToString, ValueToStringVc,
+};
 use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
     asset::AssetVc,
@@ -205,6 +208,11 @@ pub async fn tsconfig_resolve_options(
         import_map,
     }
     .cell())
+}
+
+#[turbo_tasks::function]
+pub fn tsconfig() -> StringsVc {
+    StringsVc::cell(vec!["tsconfig.json".to_string()])
 }
 
 #[turbo_tasks::function]

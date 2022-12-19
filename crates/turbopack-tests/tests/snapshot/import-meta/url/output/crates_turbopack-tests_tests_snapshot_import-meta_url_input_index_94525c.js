@@ -210,7 +210,7 @@ __turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/import-meta/u
     return getOrInstantiateModuleFromParent(id, sourceModule).exports;
   }
 
-  function externalRequire(id) {
+  function externalRequire(id, esm) {
     let raw;
     try {
       raw = require(id);
@@ -222,7 +222,7 @@ __turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/import-meta/u
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
     }
-    if (raw.__esModule) {
+    if (!esm || raw.__esModule) {
       return raw;
     }
     const ns = {};

@@ -46,6 +46,7 @@ use turbopack_core::{
     },
 };
 
+pub mod evaluate_context;
 mod graph;
 pub mod module_options;
 pub mod rebase;
@@ -101,17 +102,75 @@ impl Issue for ModuleIssue {
 }
 
 #[turbo_tasks::function]
-async fn get_module_type(
-    path: FileSystemPathVc,
-    options: ModuleOptionsVc,
+async fn apply_module_type(
+    source: AssetVc,
+    context: ModuleAssetContextVc,
+    module_type: ModuleTypeVc,
+) -> Result<AssetVc> {
+    Ok(match &*module_type.await? {
+        ModuleType::Ecmascript(transforms) => EcmascriptModuleAssetVc::new(
+            source,
+            context.into(),
+            Value::new(EcmascriptModuleAssetType::Ecmascript),
+            *transforms,
+            context.environment(),
+        )
+        .into(),
+        ModuleType::Typescript(transforms) => EcmascriptModuleAssetVc::new(
+            source,
+            context.with_typescript_resolving_enabled().into(),
+            Value::new(EcmascriptModuleAssetType::Typescript),
+            *transforms,
+            context.environment(),
+        )
+        .into(),
+        ModuleType::TypescriptDeclaration(transforms) => EcmascriptModuleAssetVc::new(
+            source,
+            context.with_typescript_resolving_enabled().into(),
+            Value::new(EcmascriptModuleAssetType::TypescriptDeclaration),
+            *transforms,
+            context.environment(),
+        )
+        .into(),
+        ModuleType::Json => JsonModuleAssetVc::new(source).into(),
+        ModuleType::Raw => source,
+        ModuleType::Css(transforms) => {
+            CssModuleAssetVc::new(source, context.into(), *transforms).into()
+        }
+        ModuleType::CssModule(transforms) => {
+            ModuleCssModuleAssetVc::new(source, context.into(), *transforms).into()
+        }
+        ModuleType::Static => StaticModuleAssetVc::new(source, context.into()).into(),
+        ModuleType::Mdx(transforms) => {
+            MdxModuleAssetVc::new(source, context.into(), *transforms).into()
+        }
+        ModuleType::Custom(_) => todo!(),
+    })
+}
+
+#[turbo_tasks::function]
+async fn module(
+    source: AssetVc,
+    context: ModuleAssetContextVc,
     reference_type: Value<ReferenceType>,
-) -> Result<ModuleTypeVc> {
+) -> Result<AssetVc> {
+    let path = source.path().resolve().await?;
+    let options = ModuleOptionsVc::new(path.parent(), context.module_options_context());
+
     let reference_type = reference_type.into_value();
+    let mut current_source = source;
     let mut current_module_type = None;
     for rule in options.await?.rules.iter() {
-        if rule.matches(&path.await?, &reference_type) {
-            for (_, effect) in rule.effects() {
+        if rule.matches(&*path.await?, &reference_type) {
+            for effect in rule.effects() {
                 match effect {
+                    ModuleRuleEffect::SourceTransforms(transforms) => {
+                        current_source = transforms.transform(current_source);
+                        if current_source.path().resolve().await? != path {
+                            // The path has been changed, so we need to apply new rules.
+                            return Ok(module(current_source, context, Value::new(reference_type)));
+                        }
+                    }
                     ModuleRuleEffect::ModuleType(module) => {
                         current_module_type = Some(*module);
                     }
@@ -163,59 +222,9 @@ async fn get_module_type(
         }
     }
 
-    Ok(current_module_type.unwrap_or(ModuleType::Raw).cell())
-}
+    let module_type = current_module_type.unwrap_or(ModuleType::Raw).cell();
 
-#[turbo_tasks::function]
-async fn module(
-    source: AssetVc,
-    context: ModuleAssetContextVc,
-    reference_type: Value<ReferenceType>,
-) -> Result<AssetVc> {
-    let path = source.path();
-    let options = ModuleOptionsVc::new(path.parent(), context.module_options_context());
-
-    let current_module_type = get_module_type(path, options, reference_type).await?;
-
-    Ok(match &*current_module_type {
-        ModuleType::Ecmascript(transforms) => EcmascriptModuleAssetVc::new(
-            source,
-            context.into(),
-            Value::new(EcmascriptModuleAssetType::Ecmascript),
-            *transforms,
-            context.environment(),
-        )
-        .into(),
-        ModuleType::Typescript(transforms) => EcmascriptModuleAssetVc::new(
-            source,
-            context.with_typescript_resolving_enabled().into(),
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            *transforms,
-            context.environment(),
-        )
-        .into(),
-        ModuleType::TypescriptDeclaration(transforms) => EcmascriptModuleAssetVc::new(
-            source,
-            context.with_typescript_resolving_enabled().into(),
-            Value::new(EcmascriptModuleAssetType::TypescriptDeclaration),
-            *transforms,
-            context.environment(),
-        )
-        .into(),
-        ModuleType::Json => JsonModuleAssetVc::new(source).into(),
-        ModuleType::Raw => source,
-        ModuleType::Css(transforms) => {
-            CssModuleAssetVc::new(source, context.into(), *transforms).into()
-        }
-        ModuleType::CssModule(transforms) => {
-            ModuleCssModuleAssetVc::new(source, context.into(), *transforms).into()
-        }
-        ModuleType::Static => StaticModuleAssetVc::new(source, context.into()).into(),
-        ModuleType::Mdx(transforms) => {
-            MdxModuleAssetVc::new(source, context.into(), *transforms).into()
-        }
-        ModuleType::Custom(_) => todo!(),
-    })
+    Ok(apply_module_type(current_source, context, module_type))
 }
 
 #[turbo_tasks::value]
@@ -590,6 +599,7 @@ pub fn register() {
     turbopack_core::register();
     turbopack_css::register();
     turbopack_ecmascript::register();
+    turbopack_node::register();
     turbopack_env::register();
     turbopack_mdx::register();
     turbopack_json::register();

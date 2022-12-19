@@ -12,6 +12,7 @@ use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{asset_graph::AssetGraphContentSourceVc, ContentSourceVc},
 };
+use turbopack_node::execution_context::ExecutionContextVc;
 
 use crate::{
     embed_js::wrap_with_next_js_fs,
@@ -25,6 +26,7 @@ use crate::{
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
     project_root: FileSystemPathVc,
+    execution_context: ExecutionContextVc,
     entry_requests: Vec<RequestVc>,
     server_root: FileSystemPathVc,
     env: ProcessEnvVc,
@@ -35,7 +37,7 @@ pub async fn create_web_entry_source(
     let project_root = wrap_with_next_js_fs(project_root);
 
     let ty = Value::new(ContextType::Other);
-    let context = get_client_asset_context(project_root, browserslist_query, ty);
+    let context = get_client_asset_context(project_root, execution_context, browserslist_query, ty);
     let chunking_context = get_client_chunking_context(project_root, server_root, ty);
     let entries = get_client_runtime_entries(project_root, env, ty, next_config);
 

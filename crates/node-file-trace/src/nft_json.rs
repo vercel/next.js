@@ -3,7 +3,7 @@ use serde_json::json;
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    reference::{all_assets, AssetReferencesVc},
+    reference::all_assets,
 };
 
 #[turbo_tasks::value(shared)]
@@ -52,10 +52,5 @@ impl Asset for NftJsonAsset {
         });
 
         Ok(File::from(json.to_string()).into())
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
     }
 }

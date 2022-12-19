@@ -231,6 +231,7 @@ struct ModuleChunkItem {
 impl ValueToString for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
+        // TODO include inner_assets in this name
         Ok(StringVc::cell(format!(
             "{} (ecmascript)",
             self.module.await?.source.path().to_string().await?

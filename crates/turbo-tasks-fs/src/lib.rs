@@ -468,7 +468,7 @@ impl FileSystem for DiskFileSystem {
             .with_context(|| format!("reading old content of {}", full_path.display()))?;
 
         if *content == *old_content {
-            return Ok(CompletionVc::new());
+            return Ok(CompletionVc::unchanged());
         }
 
         let create_directory = *old_content == FileContent::NotFound;
@@ -533,7 +533,7 @@ impl FileSystem for DiskFileSystem {
             .with_context(|| format!("reading old symlink target of {}", full_path.display()))?;
         let target_link = target.await?;
         if target_link == old_content {
-            return Ok(CompletionVc::new());
+            return Ok(CompletionVc::unchanged());
         }
         let file_type = &*fs_path.get_type().await?;
         let create_directory = file_type == &FileSystemEntryType::NotFound;

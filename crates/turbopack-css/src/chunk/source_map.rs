@@ -3,7 +3,7 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{File, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    reference::{AssetReference, AssetReferenceVc},
     resolve::{ResolveResult, ResolveResultVc},
     source_map::GenerateSourceMap,
 };
@@ -35,11 +35,6 @@ impl Asset for CssChunkSourceMapAsset {
     async fn content(&self) -> Result<AssetContentVc> {
         let sm = self.chunk.generate_source_map().to_rope().await?;
         Ok(File::from(sm).into())
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
     }
 }
 

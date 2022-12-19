@@ -160,7 +160,7 @@ impl RunningNodeJsPoolProcess {
 /// The worker will *not* use the env of the parent process by default. All env
 /// vars need to be provided to make the execution as pure as possible.
 #[turbo_tasks::value(into = "new", cell = "new", serialization = "none", eq = "manual")]
-pub(super) struct NodeJsPool {
+pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: HashMap<String, String>,
@@ -204,7 +204,7 @@ impl NodeJsPool {
         Ok((process, permit))
     }
 
-    pub(super) async fn operation(&self) -> Result<NodeJsOperation> {
+    pub async fn operation(&self) -> Result<NodeJsOperation> {
         let (process, permit) = self.acquire_process().await?;
 
         Ok(NodeJsOperation {
@@ -230,7 +230,7 @@ impl NodeJsOperation {
             .context("Node.js operation already finished")
     }
 
-    pub(super) async fn recv<M>(&mut self) -> Result<M>
+    pub async fn recv<M>(&mut self) -> Result<M>
     where
         M: DeserializeOwned,
     {
@@ -242,7 +242,7 @@ impl NodeJsOperation {
         serde_json::from_slice(&message).context("deserializing message")
     }
 
-    pub(super) async fn send<M>(&mut self, message: M) -> Result<()>
+    pub async fn send<M>(&mut self, message: M) -> Result<()>
     where
         M: Serialize,
     {
@@ -252,7 +252,7 @@ impl NodeJsOperation {
             .context("sending message")
     }
 
-    pub(super) async fn wait_or_kill(mut self) -> Result<ExitStatus> {
+    pub async fn wait_or_kill(mut self) -> Result<ExitStatus> {
         let mut process = self
             .process
             .take()

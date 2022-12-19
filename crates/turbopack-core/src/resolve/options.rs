@@ -2,7 +2,10 @@ use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, Value};
+use turbo_tasks::{
+    debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs, TryJoinIterExt, Value,
+    ValueToString, ValueToStringVc,
+};
 use turbo_tasks_fs::{
     glob::{Glob, GlobVc},
     FileSystemPathVc,
@@ -275,6 +278,41 @@ async fn import_mapping_to_result(
         ),
         ImportMapping::Dynamic(replacement) => (*replacement.result(request).await?).clone(),
     })
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ImportMapResult {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        match self {
+            ImportMapResult::Result(_) => Ok(StringVc::cell("Resolved by import map".to_string())),
+            ImportMapResult::Alias(request, context) => {
+                let s = if let Some(path) = context {
+                    format!(
+                        "aliased to {} inside of {}",
+                        request.to_string().await?,
+                        path.to_string().await?
+                    )
+                } else {
+                    format!("aliased to {}", request.to_string().await?)
+                };
+                Ok(StringVc::cell(s))
+            }
+            ImportMapResult::Alternatives(alternatives) => {
+                let strings = alternatives
+                    .iter()
+                    .map(|alternative| alternative.clone().cell().to_string())
+                    .try_join()
+                    .await?;
+                let strings = strings
+                    .iter()
+                    .map(|string| string.as_str())
+                    .collect::<Vec<_>>();
+                Ok(StringVc::cell(strings.join(" | ")))
+            }
+            ImportMapResult::NoEntry => Ok(StringVc::cell("No import map entry".to_string())),
+        }
+    }
 }
 
 // This cannot be inlined within `import_mapping_to_result`, otherwise we run

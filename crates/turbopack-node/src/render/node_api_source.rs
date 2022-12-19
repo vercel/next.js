@@ -1,91 +1,69 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack_core::{
-    asset::{Asset, AssetsSetVc},
-    introspect::{
-        asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
-    },
+use turbopack_core::introspect::{
+    asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
 };
-use turbopack_dev_server::{
-    html::DevHtmlAssetVc,
-    source::{
-        asset_graph::AssetGraphContentSourceVc,
-        conditional::ConditionalContentSourceVc,
-        lazy_instatiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
-        specificity::SpecificityVc,
-        ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
-        ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
-    },
+use turbopack_dev_server::source::{
+    specificity::SpecificityVc, ContentSource, ContentSourceContent, ContentSourceData,
+    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc,
+    ContentSourceVc,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
-use super::{
-    external_asset_entrypoints, get_intermediate_asset, render_static, NodeEntryVc, RenderData,
-};
-use crate::path_regex::PathRegexVc;
+use super::{render_proxy::render_proxy, RenderData};
+use crate::{get_intermediate_asset, node_entry::NodeEntryVc, path_regex::PathRegexVc};
 
-/// Creates a content source that renders something in Node.js with the passed
-/// `entry` when it matches a `path_regex`. Once rendered it serves
-/// all assets referenced by the `entry` that are within the `server_root`.
-/// It needs a temporary directory (`intermediate_output_path`) to place file
-/// for Node.js execution during rendering. The `chunking_context` should emit
-/// to this directory.
+/// Creates a [NodeApiContentSource].
 #[turbo_tasks::function]
-pub fn create_node_rendered_source(
+pub fn create_node_api_source(
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     pathname: StringVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
-    fallback_page: DevHtmlAssetVc,
 ) -> ContentSourceVc {
-    let source = NodeRenderContentSource {
+    NodeApiContentSource {
         specificity,
         server_root,
         pathname,
         path_regex,
         entry,
         runtime_entries,
-        fallback_page,
     }
-    .cell();
-    ConditionalContentSourceVc::new(
-        source.into(),
-        LazyInstantiatedContentSource {
-            get_source: source.as_get_content_source(),
-        }
-        .cell()
-        .into(),
-    )
+    .cell()
     .into()
 }
 
-/// see [create_node_rendered_source]
+/// A content source that proxies API requests to one-off Node.js
+/// servers running the passed `entry` when it matches a `path_regex`.
+///
+/// It needs a temporary directory (`intermediate_output_path`) to place file
+/// for Node.js execution during rendering. The `chunking_context` should emit
+/// to this directory.
 #[turbo_tasks::value]
-pub struct NodeRenderContentSource {
+pub struct NodeApiContentSource {
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     pathname: StringVc,
     path_regex: PathRegexVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
-    fallback_page: DevHtmlAssetVc,
 }
 
 #[turbo_tasks::value_impl]
-impl NodeRenderContentSourceVc {
+impl NodeApiContentSourceVc {
     #[turbo_tasks::function]
     pub async fn get_pathname(self) -> Result<StringVc> {
         Ok(self.await?.pathname)
     }
 }
 
-impl NodeRenderContentSource {
+impl NodeApiContentSource {
     /// Checks if a path matches the regular expression
     async fn is_matching_path(&self, path: &str) -> Result<bool> {
         Ok(self.path_regex.await?.is_match(path))
@@ -99,49 +77,10 @@ impl NodeRenderContentSource {
 }
 
 #[turbo_tasks::value_impl]
-impl GetContentSource for NodeRenderContentSource {
-    /// Returns the [ContentSource] that serves all referenced external
-    /// assets. This is wrapped into [LazyInstantiatedContentSource].
-    #[turbo_tasks::function]
-    async fn content_source(&self) -> Result<ContentSourceVc> {
-        let entries = self.entry.entries();
-        let mut set = IndexSet::new();
-        for reference in self.fallback_page.references().await?.iter() {
-            set.extend(
-                reference
-                    .resolve_reference()
-                    .primary_assets()
-                    .await?
-                    .iter()
-                    .copied(),
-            )
-        }
-        for &entry in entries.await?.iter() {
-            let entry = entry.await?;
-            set.extend(
-                external_asset_entrypoints(
-                    entry.module,
-                    self.runtime_entries,
-                    entry.chunking_context,
-                    entry.intermediate_output_path,
-                )
-                .await?
-                .iter()
-                .copied(),
-            )
-        }
-        Ok(
-            AssetGraphContentSourceVc::new_lazy_multiple(self.server_root, AssetsSetVc::cell(set))
-                .into(),
-        )
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ContentSource for NodeRenderContentSource {
+impl ContentSource for NodeApiContentSource {
     #[turbo_tasks::function]
     async fn get(
-        self_vc: NodeRenderContentSourceVc,
+        self_vc: NodeApiContentSourceVc,
         path: &str,
         data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
@@ -149,19 +88,19 @@ impl ContentSource for NodeRenderContentSource {
         if this.is_matching_path(path).await? {
             if let Some(params) = this.get_matches(path).await? {
                 let content = if let ContentSourceData {
+                    headers: Some(headers),
                     method: Some(method),
                     url: Some(url),
-                    headers: Some(headers),
                     query: Some(query),
+                    body: Some(body),
                     ..
                 } = &*data
                 {
                     let entry = this.entry.entry(data.clone()).await?;
-                    let asset = render_static(
+                    ContentSourceContent::HttpProxy(render_proxy(
                         this.server_root.join(path),
                         entry.module,
                         this.runtime_entries,
-                        this.fallback_page,
                         entry.chunking_context,
                         entry.intermediate_output_path,
                         RenderData {
@@ -170,11 +109,12 @@ impl ContentSource for NodeRenderContentSource {
                             url: url.clone(),
                             query: query.clone(),
                             headers: headers.clone(),
-                            path: format!("/{}", this.pathname.await?),
+                            path: format!("/{path}"),
                         }
                         .cell(),
-                    );
-                    ContentSourceContent::Static(asset.into()).cell()
+                        *body,
+                    ))
+                    .cell()
                 } else {
                     ContentSourceContent::NeedData {
                         source: self_vc.into(),
@@ -184,6 +124,8 @@ impl ContentSource for NodeRenderContentSource {
                             url: true,
                             headers: Some(ContentSourceDataFilter::All),
                             query: Some(ContentSourceDataFilter::All),
+                            body: true,
+                            cache_buster: true,
                             ..Default::default()
                         },
                     }
@@ -202,11 +144,11 @@ impl ContentSource for NodeRenderContentSource {
 
 #[turbo_tasks::function]
 fn introspectable_type() -> StringVc {
-    StringVc::cell("node render content source".to_string())
+    StringVc::cell("node api content source".to_string())
 }
 
 #[turbo_tasks::value_impl]
-impl Introspectable for NodeRenderContentSource {
+impl Introspectable for NodeApiContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> StringVc {
         introspectable_type()
@@ -237,9 +179,9 @@ impl Introspectable for NodeRenderContentSource {
             set.insert((
                 StringVc::cell("intermediate asset".to_string()),
                 IntrospectableAssetVc::new(get_intermediate_asset(
-                    entry.module,
-                    self.runtime_entries,
-                    entry.chunking_context,
+                    entry
+                        .module
+                        .as_evaluated_chunk(entry.chunking_context, Some(self.runtime_entries)),
                     entry.intermediate_output_path,
                 )),
             ));

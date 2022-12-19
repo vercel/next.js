@@ -5,7 +5,7 @@ use turbopack_core::issue::{Issue, IssueVc};
 
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone)]
-pub(super) struct RenderingIssue {
+pub struct RenderingIssue {
     pub context: FileSystemPathVc,
     pub message: StringVc,
     pub status: Option<i32>,

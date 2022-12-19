@@ -4,7 +4,7 @@ PlainIssue {
     category: "resolve",
     title: "Error resolving commonjs request",
     description: "unable to resolve module \"does-not-exist\" with subpath \"/path\"",
-    detail: "It was not possible to find the requested file.\nParsed request as written in source code: module \"does-not-exist\" with subpath \"/path\"\nPath where resolving has started: [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js\nType of request: commonjs request",
+    detail: "It was not possible to find the requested file.\nParsed request as written in source code: module \"does-not-exist\" with subpath \"/path\"\nPath where resolving has started: [project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_cjs/input/index.js\nType of request: commonjs request\nImport map: No import map entry\n",
     documentation_link: "",
     source: None,
     sub_issues: [],

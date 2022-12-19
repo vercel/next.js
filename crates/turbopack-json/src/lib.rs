@@ -47,11 +47,6 @@ impl Asset for JsonModuleAsset {
     fn content(&self) -> AssetContentVc {
         self.source.content()
     }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
-    }
 }
 
 #[turbo_tasks::value_impl]

@@ -204,7 +204,7 @@ __TURBOPACK__import$2e$meta__.foo = 1;
     return getOrInstantiateModuleFromParent(id, sourceModule).exports;
   }
 
-  function externalRequire(id) {
+  function externalRequire(id, esm) {
     let raw;
     try {
       raw = require(id);
@@ -216,7 +216,7 @@ __TURBOPACK__import$2e$meta__.foo = 1;
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
     }
-    if (raw.__esModule) {
+    if (!esm || raw.__esModule) {
       return raw;
     }
     const ns = {};

@@ -1,7 +1,16 @@
-use turbopack_core::environment::EnvironmentVc;
+use serde::{Deserialize, Serialize};
+use turbo_tasks::trace::TraceRawVcs;
+use turbopack_core::{environment::EnvironmentVc, resolve::options::ImportMappingVc};
 use turbopack_ecmascript::EcmascriptInputTransform;
+use turbopack_node::execution_context::ExecutionContextVc;
 
 use super::ModuleRule;
+
+#[derive(Default, Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+pub struct PostCssTransformOptions {
+    pub postcss_package: Option<ImportMappingVc>,
+    pub placeholder_for_future_extensions: (),
+}
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
@@ -10,12 +19,14 @@ pub struct ModuleOptionsContext {
     pub enable_react_refresh: bool,
     pub enable_styled_components: bool,
     pub enable_styled_jsx: bool,
+    pub enable_postcss_transform: Option<PostCssTransformOptions>,
     pub enable_typescript_transform: bool,
     pub preset_env_versions: Option<EnvironmentVc>,
     pub custom_ecmascript_app_transforms: Vec<EcmascriptInputTransform>,
     pub custom_ecmascript_transforms: Vec<EcmascriptInputTransform>,
     /// Custom rules to be applied after all default rules.
     pub custom_rules: Vec<ModuleRule>,
+    pub execution_context: Option<ExecutionContextVc>,
     pub placeholder_for_future_extensions: (),
 }
 

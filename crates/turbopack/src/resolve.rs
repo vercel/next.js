@@ -12,7 +12,7 @@ use turbopack_core::resolve::{
 };
 use turbopack_ecmascript::{
     resolve::apply_cjs_specific_options,
-    typescript::resolve::{apply_tsconfig_resolve_options, tsconfig_resolve_options},
+    typescript::resolve::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
 };
 
 use crate::resolve_options_context::ResolveOptionsContextVc;
@@ -235,7 +235,7 @@ pub async fn resolve_options(
 
     let options_context = options_context.await?;
     let resolve_options = if options_context.enable_typescript {
-        let tsconfig = find_context_file(context, "tsconfig.json").await?;
+        let tsconfig = find_context_file(context, tsconfig()).await?;
         let cjs_resolve_options = apply_cjs_specific_options(resolve_options);
         match *tsconfig {
             FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(

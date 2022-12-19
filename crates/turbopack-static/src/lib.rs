@@ -66,11 +66,6 @@ impl Asset for StaticModuleAsset {
     fn content(&self) -> AssetContentVc {
         self.source.content()
     }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<AssetReferencesVc> {
-        Ok(AssetReferencesVc::empty())
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -145,11 +140,6 @@ impl Asset for StaticAsset {
     #[turbo_tasks::function]
     fn content(&self) -> AssetContentVc {
         self.source.content()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
     }
 }
 

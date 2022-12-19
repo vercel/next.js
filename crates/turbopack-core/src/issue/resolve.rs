@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
@@ -44,29 +46,35 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     async fn detail(&self) -> Result<StringVc> {
+        let mut detail = String::new();
+
         if let Some(error_message) = &self.error_message {
-            Ok(StringVc::cell(format!(
-                "An error happened during resolving.
-Error message: {error}
-Parsed request as written in source code: {request}
-Path where resolving has started: {context}
-Type of request: {request_type}",
-                error = error_message,
-                request_type = self.request_type,
-                request = self.request.to_string().await?,
-                context = self.context.to_string().await?
-            )))
+            writeln!(detail, "An error happened during resolving.")?;
+            writeln!(detail, "Error message: {error_message}")?;
         } else {
-            Ok(StringVc::cell(format!(
-                "It was not possible to find the requested file.
-Parsed request as written in source code: {request}
-Path where resolving has started: {context}
-Type of request: {request_type}",
-                request_type = self.request_type,
-                request = self.request.to_string().await?,
-                context = self.context.to_string().await?
-            )))
+            writeln!(detail, "It was not possible to find the requested file.")?;
         }
+        writeln!(
+            detail,
+            "Parsed request as written in source code: {request}",
+            request = self.request.to_string().await?
+        )?;
+        writeln!(
+            detail,
+            "Path where resolving has started: {context}",
+            context = self.context.to_string().await?
+        )?;
+        writeln!(
+            detail,
+            "Type of request: {request_type}",
+            request_type = self.request_type,
+        )?;
+        if let Some(import_map) = &self.resolve_options.await?.import_map {
+            let result = import_map.lookup(self.request);
+
+            writeln!(detail, "Import map: {}", result.to_string().await?)?;
+        }
+        Ok(StringVc::cell(detail))
     }
 
     // TODO add sub_issue for a description of resolve_options

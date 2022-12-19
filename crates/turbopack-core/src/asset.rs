@@ -42,7 +42,9 @@ pub trait Asset {
     fn content(&self) -> AssetContentVc;
 
     /// Other things (most likely [Asset]s) referenced from this [Asset].
-    fn references(&self) -> AssetReferencesVc;
+    fn references(&self) -> AssetReferencesVc {
+        AssetReferencesVc::empty()
+    }
 
     /// The content of the [Asset] alongside its version.
     async fn versioned_content(&self) -> Result<VersionedContentVc> {

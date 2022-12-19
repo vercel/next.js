@@ -1,10 +1,7 @@
 use anyhow::Result;
 use turbo_tasks_fs::FileSystemPathVc;
 
-use crate::{
-    asset::{Asset, AssetContentVc, AssetVc},
-    reference::AssetReferencesVc,
-};
+use crate::asset::{Asset, AssetContentVc, AssetVc};
 
 /// An [Asset] that is created from some passed source code.
 #[turbo_tasks::value]
@@ -31,10 +28,5 @@ impl Asset for VirtualAsset {
     #[turbo_tasks::function]
     fn content(&self) -> AssetContentVc {
         self.content
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
     }
 }

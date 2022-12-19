@@ -388,6 +388,10 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     value.make_unknown("call of object");
                     true
                 }
+                JsValue::WellKnownObject(..) => {
+                    value.make_unknown("call of well known object");
+                    true
+                }
                 JsValue::Constant(_) => {
                     value.make_unknown("call of constant");
                     true
@@ -402,6 +406,10 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 }
                 JsValue::Add(..) => {
                     value.make_unknown("call of number or string");
+                    true
+                }
+                JsValue::WellKnownFunction(..) => {
+                    value.make_unknown("unknown call of well known function");
                     true
                 }
                 JsValue::Function(_, box ref mut return_value) => {
@@ -440,11 +448,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 | JsValue::Call(..)
                 | JsValue::MemberCall(..)
                 | JsValue::Member(..)
-                | JsValue::WellKnownObject(_)
                 | JsValue::Argument(_)
-                | JsValue::WellKnownFunction(_)
                 | JsValue::Module(..) => {
-                    // keep the call infact since it might be handled later
+                    // keep the call intact since it might be handled later
                     debug_assert!(callee.has_placeholder());
                     false
                 }

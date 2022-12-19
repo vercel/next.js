@@ -207,7 +207,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
     return getOrInstantiateModuleFromParent(id, sourceModule).exports;
   }
 
-  function externalRequire(id) {
+  function externalRequire(id, esm) {
     let raw;
     try {
       raw = require(id);
@@ -219,7 +219,7 @@ throw new Error("An error occurred while importing a JSON module: \"File is not 
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
     }
-    if (raw.__esModule) {
+    if (!esm || raw.__esModule) {
       return raw;
     }
     const ns = {};

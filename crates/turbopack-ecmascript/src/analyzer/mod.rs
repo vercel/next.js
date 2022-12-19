@@ -1018,7 +1018,6 @@ impl JsValue {
 
     pub fn has_placeholder(&self) -> bool {
         match self {
-            JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject) => true,
             // These are leafs and not placeholders
             JsValue::Constant(_)
             | JsValue::Url(_)

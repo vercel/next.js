@@ -18,6 +18,7 @@ pub mod resolve;
 pub mod source_asset;
 pub mod source_map;
 pub mod source_pos;
+pub mod source_transform;
 pub mod target;
 mod utils;
 pub mod version;

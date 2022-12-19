@@ -2,12 +2,12 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use turbo_tasks_fs::{File, FileSystemPathVc};
-use turbopack::ecmascript::utils::stringify_str;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkGroupVc, ChunkReferenceVc},
     reference::AssetReferencesVc,
 };
+use turbopack_ecmascript::utils::stringify_str;
 
 #[turbo_tasks::value(shared)]
 pub(super) struct NodeJsBootstrapAsset {

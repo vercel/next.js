@@ -21,7 +21,6 @@ serde_qs = "0.10.1"
 tokio = { version = "1.21.2", features = ["full"] }
 turbo-tasks = { path = "../turbo-tasks" }
 turbo-tasks-fs = { path = "../turbo-tasks-fs" }
-turbopack = { path = "../turbopack" }
 turbopack-core = { path = "../turbopack-core" }
 turbopack-dev-server = { path = "../turbopack-dev-server" }
 turbopack-ecmascript = { path = "../turbopack-ecmascript" }

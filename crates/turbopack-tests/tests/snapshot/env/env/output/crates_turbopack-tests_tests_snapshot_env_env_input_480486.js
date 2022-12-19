@@ -202,7 +202,7 @@ instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/env/en
     return getOrInstantiateModuleFromParent(id, sourceModule).exports;
   }
 
-  function externalRequire(id) {
+  function externalRequire(id, esm) {
     let raw;
     try {
       raw = require(id);
@@ -214,7 +214,7 @@ instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/env/en
       console.error(`Failed to load external module ${id}: ${err}`);
       return undefined;
     }
-    if (raw.__esModule) {
+    if (!esm || raw.__esModule) {
       return raw;
     }
     const ns = {};
