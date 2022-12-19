@@ -361,7 +361,7 @@ export class FlightManifestPlugin {
     })
 
     const file = 'server/' + FLIGHT_MANIFEST
-    const json = JSON.stringify(manifest)
+    const json = JSON.stringify(manifest, null, this.dev ? 2 : undefined)
 
     ASYNC_CLIENT_MODULES.clear()
 

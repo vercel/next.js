@@ -345,14 +345,18 @@ export class FlightClientEntryPlugin {
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
-        const manifest = JSON.stringify({
-          ...serverCSSManifest,
-          ...edgeServerCSSManifest,
-          __entry_css_mods__: {
-            ...serverCSSManifest.__entry_css_mods__,
-            ...edgeServerCSSManifest.__entry_css_mods__,
+        const manifest = JSON.stringify(
+          {
+            ...serverCSSManifest,
+            ...edgeServerCSSManifest,
+            __entry_css_mods__: {
+              ...serverCSSManifest.__entry_css_mods__,
+              ...edgeServerCSSManifest.__entry_css_mods__,
+            },
           },
-        })
+          null,
+          this.dev ? 2 : undefined
+        )
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
           manifest
         ) as unknown as webpack.sources.RawSource
