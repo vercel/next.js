@@ -25,7 +25,7 @@ harness = false
 # promote this as default backend. Actual configuration is done when build next-swc,
 # and also turbopack standalone when we have it.
 default = ["cli", "custom_allocator", "native-tls"]
-cli = []
+cli = ["clap"]
 serializable = []
 tokio_console = [
   "dep:console-subscriber",
@@ -40,7 +40,7 @@ rustls-tls = ["next-core/rustls-tls"]
 
 [dependencies]
 anyhow = "1.0.47"
-clap = { version = "4.0.18", features = ["derive", "env"] }
+clap = { version = "4.0.18", features = ["derive", "env"], optional = true }
 console-subscriber = { version = "0.1.8", optional = true }
 futures = "0.3.25"
 mime = "0.3.16"
