@@ -2210,6 +2210,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
 
 [[package]]
+name = "next-binding"
+version = "0.1.0"
+source = "git+https://github.com/vercel/turbo.git?rev=cc024fa59f1c3ad253e74eefe86e0386455455d1#cc024fa59f1c3ad253e74eefe86e0386455455d1"
+dependencies = [
+ "mdxjs",
+ "modularize_imports",
+ "next-dev",
+ "node-file-trace",
+ "styled_components",
+ "styled_jsx",
+ "swc_core 0.45.4",
+ "swc_emotion",
+ "testing",
+]
+
+[[package]]
 name = "next-core"
 version = "0.1.0"
 source = "git+https://github.com/vercel/turbo.git?rev=cc024fa59f1c3ad253e74eefe86e0386455455d1#cc024fa59f1c3ad253e74eefe86e0386455455d1"
@@ -2276,6 +2292,7 @@ dependencies = [
  "either",
  "fxhash",
  "modularize_imports",
+ "next-binding",
  "once_cell",
  "pathdiff",
  "regex",
@@ -2283,9 +2300,7 @@ dependencies = [
  "serde_json",
  "styled_components",
  "styled_jsx",
- "swc_core 0.45.4",
  "swc_emotion",
- "testing",
  "tracing",
  "walkdir",
 ]
@@ -2297,18 +2312,15 @@ dependencies = [
  "anyhow",
  "backtrace",
  "fxhash",
- "mdxjs",
  "napi",
  "napi-build",
  "napi-derive",
- "next-dev",
+ "next-binding",
  "next-swc",
- "node-file-trace",
  "once_cell",
  "sentry",
  "serde",
  "serde_json",
- "swc_core 0.45.4",
  "tracing",
  "tracing-chrome",
  "tracing-futures",
@@ -2321,9 +2333,11 @@ version = "0.1.0"
 source = "git+https://github.com/vercel/turbo.git?rev=cc024fa59f1c3ad253e74eefe86e0386455455d1#cc024fa59f1c3ad253e74eefe86e0386455455d1"
 dependencies = [
  "anyhow",
+ "clap",
  "serde",
  "serde_json",
  "tokio",
+ "turbo-malloc",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -3039,9 +3053,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.12"
+version = "0.11.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "431949c384f4e2ae07605ccaa56d1d9d2ecdb5cadd4f9577ccfab29f2e5149fc"
+checksum = "68cc60575865c7831548863cc02356512e3f1dc2f3f82cb837d7fc4cc8f3c97c"
 dependencies = [
  "base64",
  "bytes",
@@ -5890,7 +5904,7 @@ dependencies = [
  "console_error_panic_hook",
  "getrandom",
  "js-sys",
- "mdxjs",
+ "next-binding",
  "next-swc",
  "once_cell",
  "parking_lot_core 0.8.0",
@@ -5898,7 +5912,6 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
- "swc_core 0.45.4",
  "tracing",
  "wasm-bindgen",
  "wasm-bindgen-futures",

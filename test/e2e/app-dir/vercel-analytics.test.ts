@@ -2,7 +2,6 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
 import path from 'path'
-import webdriver from 'next-webdriver'
 
 describe('vercel analytics', () => {
   const isDev = (global as any).isNextDev
@@ -48,7 +47,7 @@ describe('vercel analytics', () => {
       it('should send web vitals to Vercel analytics', async () => {
         let eventsCount = 0
         let countEvents = false
-        const browser = await webdriver(next.url, '/client-nested', {
+        const browser = await next.browser('/client-nested', {
           beforePageLoad(page) {
             page.route(
               'https://vitals.vercel-insights.com/v1/vitals',
