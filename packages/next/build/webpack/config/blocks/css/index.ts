@@ -28,10 +28,6 @@ const regexSassModules = /\.module\.(scss|sass)$/
 
 /**
  * Mark a rule as removable if built-in CSS support is disabled
- *
- * @param {webpack.RuleSetRule} r the rule to mark
- *
- * @returns {webpack.RuleSetRule} the marked rule
  */
 function markRemovable(r: webpack.RuleSetRule): webpack.RuleSetRule {
   Object.defineProperty(r, Symbol.for('__next_css_remove'), {
@@ -83,15 +79,11 @@ export async function lazyPostCSS(
         /**
          * Returns the vendor prefix extracted from an input string.
          *
-         * @param {string} prop String with or without vendor prefix.
-         *
-         * @return {string} vendor prefix or empty string
-         *
          * @example
          * postcss.vendor.prefix('-moz-tab-size') //=> '-moz-'
          * postcss.vendor.prefix('tab-size')      //=> ''
          */
-        prefix: function prefix(prop: any) {
+        prefix: function prefix(prop: string): string {
           const match = prop.match(/^(-\w+-)/)
 
           if (match) {
@@ -104,14 +96,15 @@ export async function lazyPostCSS(
         /**
          * Returns the input string stripped of its vendor prefix.
          *
-         * @param {string} prop String with or without vendor prefix.
-         *
-         * @return {string} String name without vendor prefixes.
-         *
          * @example
          * postcss.vendor.unprefixed('-moz-tab-size') //=> 'tab-size'
          */
-        unprefixed: function unprefixed(prop: any) {
+        unprefixed: function unprefixed(
+          /**
+           * String with or without vendor prefix.
+           */
+          prop: string
+        ): string {
           return prop.replace(/^-\w+-/, '')
         },
       }
