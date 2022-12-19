@@ -617,7 +617,7 @@ describe('basePath', () => {
       it('should navigate an absolute local url with basePath', async () => {
         const browser = await webdriver(
           next.url,
-          `${basePath}/absolute-url-basepath?port=${next.url}`
+          `${basePath}/absolute-url-basepath?port=${next.appPort}`
         )
         await browser.eval('window._didNotNavigate = true')
         await browser.waitForElementByCss('#absolute-link').click()
@@ -632,7 +632,7 @@ describe('basePath', () => {
       it('should navigate an absolute local url without basePath', async () => {
         const browser = await webdriver(
           next.url,
-          `${basePath}/absolute-url-no-basepath?port=${next.url}`
+          `${basePath}/absolute-url-no-basepath?port=${next.appPort}`
         )
         await browser.waitForElementByCss('#absolute-link').click()
         await check(
