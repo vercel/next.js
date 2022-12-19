@@ -129,6 +129,9 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
+          '@types/react': reactVersion,
+          typescript: 'latest',
+          '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }
@@ -363,6 +366,9 @@ export class NextInstance {
   // TODO: block these in deploy mode
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
+  }
+  public async readJSON(filename: string) {
+    return fs.readJSON(path.join(this.testDir, filename))
   }
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
