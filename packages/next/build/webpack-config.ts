@@ -2106,6 +2106,7 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
+              appDir,
             })
           : new FlightClientEntryPlugin({
               appDir,

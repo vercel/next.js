@@ -26,6 +26,7 @@ import { traverseModules } from '../utils'
 
 interface Options {
   dev: boolean
+  appDir: string
 }
 
 /**
@@ -65,6 +66,9 @@ export type FlightManifest = {
   __edge_ssr_module_mapping__: {
     [moduleId: string]: ManifestNode
   }
+  __entry_css_files__: {
+    [entryPathWithoutExtension: string]: string[]
+  }
 } & {
   [modulePath: string]: ManifestNode
 }
@@ -72,7 +76,7 @@ export type FlightManifest = {
 export type FlightCSSManifest = {
   [modulePath: string]: string[]
 } & {
-  __entry_css__?: {
+  __entry_css_mods__?: {
     [entry: string]: string[]
   }
 }
@@ -86,9 +90,11 @@ export const ASYNC_CLIENT_MODULES = new Set<string>()
 
 export class FlightManifestPlugin {
   dev: Options['dev'] = false
+  appDir: Options['appDir']
 
   constructor(options: Options) {
     this.dev = options.dev
+    this.appDir = options.appDir
   }
 
   apply(compiler: webpack.Compiler) {
@@ -127,6 +133,7 @@ export class FlightManifestPlugin {
     const manifest: FlightManifest = {
       __ssr_module_mapping__: {},
       __edge_ssr_module_mapping__: {},
+      __entry_css_files__: {},
     }
     const dev = this.dev
 
@@ -145,13 +152,10 @@ export class FlightManifestPlugin {
     traverseModules(compilation, (mod) => collectClientRequest(mod))
 
     compilation.chunkGroups.forEach((chunkGroup) => {
-      const cssResourcesInChunkGroup = new Set<string>()
-      let entryFilepath: string = ''
-
       function recordModule(
-        chunk: webpack.Chunk,
         id: ModuleId,
-        mod: webpack.NormalModule
+        mod: webpack.NormalModule,
+        chunkCSS: string[]
       ) {
         const isCSSModule =
           regexCSS.test(mod.resource) ||
@@ -191,13 +195,12 @@ export class FlightManifestPlugin {
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
         if (isCSSModule) {
-          const chunks = [...chunk.files].filter((f) => f.endsWith('.css'))
           if (!manifest[resource]) {
             manifest[resource] = {
               default: {
                 id,
                 name: 'default',
-                chunks,
+                chunks: chunkCSS,
               },
             }
           } else {
@@ -205,12 +208,8 @@ export class FlightManifestPlugin {
             // e.g. extracted by mini-css-extract-plugin. In that case we need to
             // merge the chunks.
             manifest[resource].default.chunks = [
-              ...new Set([...manifest[resource].default.chunks, ...chunks]),
+              ...new Set([...manifest[resource].default.chunks, ...chunkCSS]),
             ]
-          }
-
-          if (chunkGroup.name) {
-            cssResourcesInChunkGroup.add(resource)
           }
 
           return
@@ -220,10 +219,6 @@ export class FlightManifestPlugin {
         // or if the module is marked as client module.
         if (!clientRequestsSet.has(resource) && !isClientComponentModule(mod)) {
           return
-        }
-
-        if (/[\\/](page|layout)\.(ts|js)x?$/.test(resource)) {
-          entryFilepath = resource
         }
 
         const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
@@ -326,27 +321,43 @@ export class FlightManifestPlugin {
           chunk
           // TODO: Update type so that it doesn't have to be cast.
         ) as Iterable<webpack.NormalModule>
+
+        const chunkCSS = [...chunk.files].filter(
+          (f) => !f.startsWith('static/css/pages/') && f.endsWith('.css')
+        )
+
         for (const mod of chunkModules) {
           const modId: string = compilation.chunkGraph.getModuleId(mod) + ''
 
-          recordModule(chunk, modId, mod)
+          recordModule(modId, mod, chunkCSS)
 
           // If this is a concatenation, register each child to the parent ID.
           // TODO: remove any
           const anyModule = mod as any
           if (anyModule.modules) {
             anyModule.modules.forEach((concatenatedMod: any) => {
-              recordModule(chunk, modId, concatenatedMod)
+              recordModule(modId, concatenatedMod, chunkCSS)
             })
           }
         }
       })
 
-      const clientCSSManifest: any = manifest.__client_css_manifest__ || {}
-      if (entryFilepath) {
-        clientCSSManifest[entryFilepath] = Array.from(cssResourcesInChunkGroup)
+      let entryName = chunkGroup.name
+
+      // Can be created from a child entry.
+      if (!entryName) {
+        entryName = chunkGroup.getParents()[0]?.options.name
       }
-      manifest.__client_css_manifest__ = clientCSSManifest
+
+      const entryCSSFiles: any = manifest.__entry_css_files__ || {}
+      if (entryName?.startsWith('app/')) {
+        const key = this.appDir + entryName.slice(3)
+        entryCSSFiles[key] = chunkGroup
+          .getFiles()
+          .filter((f) => f.endsWith('.css'))
+          .concat(entryCSSFiles[key] || [])
+      }
+      manifest.__entry_css_files__ = entryCSSFiles
     })
 
     const file = 'server/' + FLIGHT_MANIFEST

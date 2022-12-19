@@ -684,24 +684,34 @@ function getCssInlinedLinkTags(
   filePath: string,
   serverCSSForEntries: string[]
 ): string[] {
-  const layoutOrPageCss =
-    serverCSSManifest[filePath] ||
-    serverComponentManifest.__client_css_manifest__?.[filePath]
+  const layoutOrPageCssModules = serverCSSManifest[filePath]
 
-  if (!layoutOrPageCss) {
+  const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
+  const cssFilesForEntry = new Set(
+    serverComponentManifest.__entry_css_files__?.[filePathWithoutExt] || []
+  )
+
+  // console.log(
+  //   filePath,
+  //   cssFilesForEntry,
+  //   serverComponentManifest.__entry_css_files__
+  // )
+
+  if (!layoutOrPageCssModules || !cssFilesForEntry.size) {
     return []
   }
-
   const chunks = new Set<string>()
 
-  for (const css of layoutOrPageCss) {
+  for (const mod of layoutOrPageCssModules) {
     // We only include the CSS if it's a global CSS, or it is used by this
     // entrypoint.
-    if (serverCSSForEntries.includes(css) || !/\.module\.css/.test(css)) {
-      const mod = serverComponentManifest[css]
-      if (mod) {
-        for (const chunk of mod.default.chunks) {
-          chunks.add(chunk)
+    if (serverCSSForEntries.includes(mod) || !/\.module\.css/.test(mod)) {
+      const modData = serverComponentManifest[mod]
+      if (modData) {
+        for (const chunk of modData.default.chunks) {
+          if (cssFilesForEntry.has(chunk)) {
+            chunks.add(chunk)
+          }
         }
       }
     }
@@ -718,10 +728,10 @@ function getServerCSSForEntries(
   for (const entry of entries) {
     const entryName = entry.replace(/\.[^.]+$/, '')
     if (
-      serverCSSManifest.__entry_css__ &&
-      serverCSSManifest.__entry_css__[entryName]
+      serverCSSManifest.__entry_css_mods__ &&
+      serverCSSManifest.__entry_css_mods__[entryName]
     ) {
-      css.push(...serverCSSManifest.__entry_css__[entryName])
+      css.push(...serverCSSManifest.__entry_css_mods__[entryName])
     }
   }
   return css
