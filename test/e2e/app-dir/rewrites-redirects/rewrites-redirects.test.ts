@@ -1,5 +1,4 @@
 import { createNextDescribe } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import { waitFor } from 'next-test-utils'
 
 createNextDescribe(
