@@ -5,11 +5,6 @@ import path from 'path'
 
 // TODO-APP: Investigate snapshot mismatch
 describe('ReactRefreshLogBox app', () => {
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {

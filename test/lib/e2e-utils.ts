@@ -221,7 +221,8 @@ export function createNextDescribe(
 
     const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
       get: function (_target, property) {
-        return next[property]
+        const prop = next[property]
+        return typeof prop === 'function' ? prop.bind(next) : prop
       },
     })
     fn({

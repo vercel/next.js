@@ -597,14 +597,10 @@ describe('basic HMR', () => {
           )
         )
 
-        const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
-
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
         expect(await getRedboxHeader(browser)).toMatch(
-          `Objects are not valid as a React child (found: ${
-            isReact17 ? '/search/' : '[object RegExp]'
-          }). If you meant to render a collection of children, use an array instead.`
+          `Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.`
         )
 
         await next.patchFile(aboutPage, aboutContent)
