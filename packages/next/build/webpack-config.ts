@@ -1255,10 +1255,10 @@ export default async function getBaseWebpackConfig(
 
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
-    if (config.experimental.transpilePackages && !resolvedExternalPackageDirs) {
+    if (config.transpilePackages && !resolvedExternalPackageDirs) {
       resolvedExternalPackageDirs = new Map()
       // We need to resolve all the external package dirs initially.
-      for (const pkg of config.experimental.transpilePackages) {
+      for (const pkg of config.transpilePackages) {
         const pkgRes = await resolveExternal(
           dir,
           config.experimental.esmExternals,
@@ -1281,7 +1281,7 @@ export default async function getBaseWebpackConfig(
     const shouldBeBundled =
       isResourceInPackages(
         res,
-        config.experimental.transpilePackages,
+        config.transpilePackages,
         resolvedExternalPackageDirs
       ) ||
       (isEsm && config.experimental.appDir)
@@ -1319,7 +1319,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const shouldIncludeExternalDirs =
-    config.experimental.externalDir || !!config.experimental.transpilePackages
+    config.experimental.externalDir || !!config.transpilePackages
 
   const codeCondition = {
     test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
@@ -1334,7 +1334,7 @@ export default async function getBaseWebpackConfig(
 
       const shouldBeBundled = isResourceInPackages(
         excludePath,
-        config.experimental.transpilePackages
+        config.transpilePackages
       )
       if (shouldBeBundled) return false
 
@@ -2400,6 +2400,7 @@ export default async function getBaseWebpackConfig(
     future: config.future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
+    transpilePackages: config.transpilePackages,
   })
 
   // @ts-ignore Cache exists

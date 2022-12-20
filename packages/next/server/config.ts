@@ -606,6 +606,16 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
   }
 
   if (
+    result.experimental &&
+    'transpilePackages' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`transpilePackages\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.transpilePackages = (result.experimental as any).transpilePackages
+  }
+
+  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {

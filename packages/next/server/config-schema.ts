@@ -363,12 +363,6 @@ const configSchema = {
           },
           type: 'array',
         },
-        transpilePackages: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
-        },
         scrollRestoration: {
           type: 'boolean',
         },
@@ -705,6 +699,12 @@ const configSchema = {
     },
     trailingSlash: {
       type: 'boolean',
+    },
+    transpilePackages: {
+      items: {
+        type: 'string',
+      },
+      type: 'array',
     },
     typescript: {
       additionalProperties: false,
