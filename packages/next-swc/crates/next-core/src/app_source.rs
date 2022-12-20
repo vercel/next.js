@@ -18,6 +18,7 @@ use turbopack::{
 use turbopack_core::{
     chunk::dev::DevChunkingContextVc,
     context::AssetContextVc,
+    environment::ServerAddrVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     virtual_asset::VirtualAssetVc,
 };
@@ -129,6 +130,7 @@ fn next_ssr_client_module_transition(
     app_dir: FileSystemPathVc,
     process_env: ProcessEnvVc,
     next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppSSR { app_dir });
     NextSSRClientModuleTransition {
@@ -142,7 +144,7 @@ fn next_ssr_client_module_transition(
             ty,
             next_config,
         ),
-        ssr_environment: get_server_environment(ty, process_env),
+        ssr_environment: get_server_environment(ty, process_env, server_addr),
     }
     .cell()
     .into()
@@ -156,9 +158,10 @@ fn next_layout_entry_transition(
     server_root: FileSystemPathVc,
     process_env: ProcessEnvVc,
     next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
-    let rsc_environment = get_server_environment(ty, process_env);
+    let rsc_environment = get_server_environment(ty, process_env, server_addr);
     let rsc_resolve_options_context =
         get_server_resolve_options_context(project_path, ty, next_config);
     let rsc_module_options_context =
@@ -174,6 +177,7 @@ fn next_layout_entry_transition(
     .into()
 }
 
+#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 fn app_context(
     project_path: FileSystemPathVc,
@@ -184,6 +188,7 @@ fn app_context(
     browserslist_query: &str,
     ssr: bool,
     next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
 ) -> AssetContextVc {
     let next_server_to_client_transition = NextServerToClientTransition { ssr }.cell().into();
 
@@ -197,6 +202,7 @@ fn app_context(
             server_root,
             env,
             next_config,
+            server_addr,
         ),
     );
     transitions.insert(
@@ -233,13 +239,14 @@ fn app_context(
             app_dir,
             env,
             next_config,
+            server_addr,
         ),
     );
 
     let ssr_ty = Value::new(ServerContextType::AppSSR { app_dir });
     ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
-        get_server_environment(ssr_ty, env),
+        get_server_environment(ssr_ty, env, server_addr),
         get_server_module_options_context(project_path, execution_context, ssr_ty),
         get_server_resolve_options_context(project_path, ssr_ty, next_config),
     )
@@ -257,6 +264,7 @@ pub async fn create_app_source(
     env: ProcessEnvVc,
     browserslist_query: &str,
     next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
 ) -> Result<ContentSourceVc> {
     let project_path = wrap_with_next_js_fs(project_path);
 
@@ -283,6 +291,7 @@ pub async fn create_app_source(
         browserslist_query,
         true,
         next_config,
+        server_addr,
     );
     let context = app_context(
         project_path,
@@ -293,6 +302,7 @@ pub async fn create_app_source(
         browserslist_query,
         false,
         next_config,
+        server_addr,
     );
 
     let server_runtime_entries =
@@ -327,6 +337,7 @@ pub async fn create_app_source(
     .into())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn create_app_source_for_directory(
     context_ssr: AssetContextVc,
