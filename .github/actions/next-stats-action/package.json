@@ -1,6 +1,9 @@
 {
   "private": true,
   "main": "src/index.js",
+  "scripts": {
+    "turbo": "turbo"
+  },
   "dependencies": {
     "async-sema": "^3.1.0",
     "fs-extra": "^8.1.0",
