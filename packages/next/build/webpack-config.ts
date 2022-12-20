@@ -2400,7 +2400,7 @@ export default async function getBaseWebpackConfig(
     future: config.future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
-    transpilePackages: config.transpileModules,
+    transpilePackages: config.transpilePackages,
   })
 
   // @ts-ignore Cache exists
