@@ -408,7 +408,6 @@ pub(crate) async fn analyze_ecmascript_module(
 
             analysis.set_exports(exports);
 
-            #[allow(clippy::too_many_arguments)]
             fn handle_call_boxed<
                 'a,
                 FF: Future<Output = Result<JsValue>> + Send + 'a,
@@ -443,7 +442,6 @@ pub(crate) async fn analyze_ecmascript_module(
                 ))
             }
 
-            #[allow(clippy::too_many_arguments)]
             async fn handle_call<
                 FF: Future<Output = Result<JsValue>> + Send,
                 F: Fn(JsValue) -> FF + Sync,

@@ -58,7 +58,7 @@ async fn into_ecmascript_module_asset(
     );
     Ok(EcmascriptModuleAssetVc::new(
         source.into(),
-        this.context.into(),
+        this.context,
         Value::new(EcmascriptModuleAssetType::Typescript),
         this.transforms,
         this.context.environment(),
