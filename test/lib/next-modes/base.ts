@@ -10,6 +10,7 @@ import { Span } from 'next/trace'
 import webdriver from 'next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { BrowserInterface } from '../browsers/base'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -390,8 +391,8 @@ export class NextInstance {
    */
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
-  ) {
-    return webdriver(this.url, ...args)
+  ): Promise<BrowserInterface> {
+    return await webdriver(this.url, ...args)
   }
 
   /**
