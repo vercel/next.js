@@ -659,7 +659,7 @@ export default async function loadCustomRoutes(
     )
   }
 
-  if (!config.experimental?.skipTrailingSlashRedirect) {
+  if (!config.skipTrailingSlashRedirect) {
     if (config.trailingSlash) {
       redirects.unshift(
         {

@@ -80,9 +80,6 @@ export interface NextJsWebpackConfig {
 
 export interface ExperimentalConfig {
   fetchCache?: boolean
-  allowMiddlewareResponseBody?: boolean
-  skipMiddlewareUrlNormalize?: boolean
-  skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   legacyBrowsers?: boolean
@@ -506,6 +503,12 @@ export interface NextConfig extends Record<string, any> {
 
   // A list of packages that should always be transpiled and bundled in the server
   transpilePackages?: string[]
+  
+  allowMiddlewareResponseBody?: boolean
+
+  skipMiddlewareUrlNormalize?: boolean
+
+  skipTrailingSlashRedirect?: boolean
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
