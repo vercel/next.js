@@ -2,7 +2,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { renderViaHTTP, check } from 'next-test-utils'
+import { renderViaHTTP, check, hasRedbox } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
 describe('basic next/dynamic usage', () => {
@@ -124,6 +124,7 @@ describe('basic next/dynamic usage', () => {
             () => browser.elementByCss('body').text(),
             /Hello World 1/
           )
+          expect(await hasRedbox(browser)).toBe(false)
         } finally {
           if (browser) {
             await browser.close()
