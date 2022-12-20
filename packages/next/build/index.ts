@@ -2726,14 +2726,20 @@ export default async function build(
         pathname: makeRe(p.pathname ?? '**').source,
       }))
 
-      await promises.writeFile(
-        path.join(distDir, IMAGES_MANIFEST),
-        JSON.stringify({
-          version: 1,
-          images,
-        }),
-        'utf8'
-      )
+      if (images.unoptimized) {
+        // Skip writing the images manifest file
+        // so that any downstream consumer will know
+        // to disable the Image Optimization API
+      } else {
+        await promises.writeFile(
+          path.join(distDir, IMAGES_MANIFEST),
+          JSON.stringify({
+            version: 1,
+            images,
+          }),
+          'utf8'
+        )
+      }
       await promises.writeFile(
         path.join(distDir, EXPORT_MARKER),
         JSON.stringify({
