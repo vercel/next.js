@@ -145,8 +145,7 @@ describe('ReactRefreshRegression app', () => {
   })
 
   // https://github.com/vercel/next.js/issues/13978
-  // TODO-APP: fix case where server component is moved to a client component
-  test.skip('can fast refresh a page with dynamic rendering', async () => {
+  test('can fast refresh a page with dynamic rendering', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -216,8 +215,7 @@ describe('ReactRefreshRegression app', () => {
   })
 
   // https://github.com/vercel/next.js/issues/13978
-  // TODO-APP: fix case where server component is moved to a client component
-  test.skip('can fast refresh a page with config', async () => {
+  test('can fast refresh a page with config', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -264,16 +262,13 @@ describe('ReactRefreshRegression app', () => {
   })
 
   // https://github.com/vercel/next.js/issues/11504
-  // TODO-APP: fix case where error is not resolved to source correctly.
   test('shows an overlay for anonymous function server-side error', async () => {
-    const { session, browser, cleanup } = await sandbox(next)
+    const { session, cleanup } = await sandbox(next)
 
     await session.patch(
       'app/page.js',
       `export default function () { throw new Error('boom'); }`
     )
-
-    await browser.refresh()
 
     expect(await session.hasRedbox(true)).toBe(true)
 
@@ -287,14 +282,12 @@ describe('ReactRefreshRegression app', () => {
   })
 
   test('shows an overlay for server-side error in server component', async () => {
-    const { session, browser, cleanup } = await sandbox(next)
+    const { session, cleanup } = await sandbox(next)
 
     await session.patch(
       'app/page.js',
       `export default function Page() { throw new Error('boom'); }`
     )
-
-    await browser.refresh()
 
     expect(await session.hasRedbox(true)).toBe(true)
 
@@ -308,15 +301,13 @@ describe('ReactRefreshRegression app', () => {
   })
 
   test('shows an overlay for server-side error in client component', async () => {
-    const { session, browser, cleanup } = await sandbox(next)
+    const { session, cleanup } = await sandbox(next)
 
     await session.patch(
       'app/page.js',
       `'use client'
       export default function Page() { throw new Error('boom'); }`
     )
-
-    await browser.refresh()
 
     expect(await session.hasRedbox(true)).toBe(true)
 

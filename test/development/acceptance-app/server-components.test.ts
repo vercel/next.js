@@ -43,9 +43,6 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      // TODO-APP: currently requires a full reload because moving from a client component to a server component isn't causing a Fast Refresh yet.
-      await browser.refresh()
-
       expect(await session.hasRedbox(true)).toBe(true)
       await check(async () => {
         expect(await session.getRedboxSource(true)).toContain(
@@ -96,9 +93,6 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
-      // TODO-APP: currently requires a full reload because moving from a client component to a server component isn't causing a Fast Refresh yet.
-      await browser.refresh()
 
       expect(await session.hasRedbox(true)).toBe(true)
 
@@ -152,9 +146,6 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
-      // TODO-APP: currently requires a full reload because moving from a client component to a server component isn't causing a Fast Refresh yet.
-      await browser.refresh()
 
       expect(await session.hasRedbox(true)).toBe(true)
 
