@@ -7,9 +7,9 @@
 To develop locally:
 
 1. Install the [GitHub CLI](https://github.com/cli/cli#installation).
-1. Clone the Next.js repository (downloads only the last commit for faster clone):
+1. Clone the Next.js repository (download only recent commits for faster clone):
    ```
-   gh repo clone vercel/next.js --depth=1 --branch canary --single-branch
+   gh repo clone vercel/next.js --depth=3000 --branch canary --single-branch
    ```
 1. Create a new branch:
    ```
