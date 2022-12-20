@@ -24,6 +24,7 @@ include_dir = { version = "0.7.2", features = ["nightly"] }
 jsonc-parser = { version = "0.21.0", features = ["serde"] }
 mime = "0.3.16"
 notify = "4.0.17"
+parking_lot = "0.12.1"
 serde = { version = "1.0.136", features = ["rc"] }
 serde_json = "1.0.85"
 tokio = "1.21.2"
