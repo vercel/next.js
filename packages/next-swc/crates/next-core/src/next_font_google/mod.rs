@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use indoc::formatdoc;
 use once_cell::sync::Lazy;
-use turbo_tasks::primitives::{OptionStringVc, OptionU16Vc, StringVc};
+use turbo_tasks::primitives::{OptionStringVc, OptionU16Vc, StringVc, U32Vc};
 use turbo_tasks_fetch::fetch;
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbo_tasks_hash::hash_xxh3_hash64;
@@ -72,11 +72,11 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
 
         let query = &*query_vc.await?;
         let options = font_options_from_query_map(*query_vc);
-        let properties = get_font_css_properties(options).await?;
-        let request_id = get_request_id(*query_vc).await?.await?;
+        let properties =
+            get_font_css_properties(get_scoped_font_family(*query_vc), options).await?;
         let js_asset = VirtualAssetVc::new(
                 attached_next_js_package_path(self.project_path)
-                    .join(&format!("internal/font/google/{}.js", request_id)),
+                    .join(&format!("internal/font/google/{}.js", get_request_id(*query_vc).await?)),
                 FileContent::Content(
                     formatdoc!(
                         r#"
@@ -147,9 +147,11 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
 
         let options = font_options_from_query_map(*query_vc);
         let stylesheet_url = get_stylesheet_url_from_options(options);
-        let request_id = get_request_id(*query_vc).await?.await?;
-        let css_virtual_path = attached_next_js_package_path(self.project_path)
-            .join(&format!("internal/font/google/{}.module.css", request_id));
+        let scoped_font_family = get_scoped_font_family(*query_vc);
+        let css_virtual_path = attached_next_js_package_path(self.project_path).join(&format!(
+            "internal/font/google/{}.module.css",
+            get_request_id(*query_vc).await?
+        ));
 
         let stylesheet_res = fetch(
             stylesheet_url,
@@ -162,7 +164,11 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         .await?;
 
         let stylesheet = match &*stylesheet_res {
-            Ok(r) => Some(r.await?.body.to_string().await?.clone()),
+            Ok(r) => Some(
+                update_stylesheet(r.await?.body.to_string(), options, scoped_font_family)
+                    .await?
+                    .clone(),
+            ),
             Err(err) => {
                 // Inform the user of the failure to retreive the stylesheet, but don't
                 // propagate this error. We don't want e.g. offline connections to prevent page
@@ -179,8 +185,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             }
         };
 
-        let properties = get_font_css_properties(options).await?;
-
+        let properties = get_font_css_properties(scoped_font_family, options).await?;
         let css_asset = VirtualAssetVc::new(
             css_virtual_path,
             FileContent::Content(
@@ -216,7 +221,44 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
     }
 }
 
+#[turbo_tasks::function]
+async fn update_stylesheet(
+    stylesheet: StringVc,
+    options: NextFontGoogleOptionsVc,
+    scoped_font_family: StringVc,
+) -> Result<StringVc> {
+    // Update font-family definitions to the scoped name
+    // TODO: Do this more resiliently, e.g. transforming an swc ast
+    Ok(StringVc::cell(stylesheet.await?.replace(
+        &format!("font-family: '{}';", &*options.await?.font_family),
+        &format!("font-family: '{}';", &*scoped_font_family.await?),
+    )))
+}
+
+#[turbo_tasks::function]
+async fn get_scoped_font_family(query_vc: QueryMapVc) -> Result<StringVc> {
+    let options = font_options_from_query_map(query_vc).await?;
+
+    Ok(StringVc::cell(format!(
+        "__{}_{:x?}",
+        options.font_family.replace(' ', "_"),
+        *get_request_hash(query_vc).await?
+    )))
+}
+
+#[turbo_tasks::function]
 async fn get_request_id(query_vc: QueryMapVc) -> Result<StringVc> {
+    let options = font_options_from_query_map(query_vc).await?;
+
+    Ok(StringVc::cell(format!(
+        "{}_{:x?}",
+        options.font_family.to_lowercase().replace(' ', "_"),
+        get_request_hash(query_vc).await?,
+    )))
+}
+
+#[turbo_tasks::function]
+async fn get_request_hash(query_vc: QueryMapVc) -> Result<U32Vc> {
     let query = &*query_vc.await?;
     let query = query.as_ref().context("Query map must be present")?;
     let mut to_hash = vec![];
@@ -225,12 +267,11 @@ async fn get_request_id(query_vc: QueryMapVc) -> Result<StringVc> {
         to_hash.push(v);
     }
 
-    let options = font_options_from_query_map(query_vc).await?;
-    Ok(StringVc::cell(format!(
-        "{}_{:x?}",
-        options.font_family.to_lowercase().replace(' ', "_"),
-        hash_xxh3_hash64(to_hash)
-    )))
+    Ok(U32Vc::cell(
+        // Truncate the has to u32. These hashes are ultimately displayed as 8-character
+        // hexadecimal values.
+        hash_xxh3_hash64(to_hash) as u32,
+    ))
 }
 
 #[turbo_tasks::function]
@@ -262,10 +303,14 @@ struct FontCssProperties {
 }
 
 #[turbo_tasks::function]
-async fn get_font_css_properties(options: NextFontGoogleOptionsVc) -> Result<FontCssPropertiesVc> {
+async fn get_font_css_properties(
+    scoped_font_family: StringVc,
+    options: NextFontGoogleOptionsVc,
+) -> Result<FontCssPropertiesVc> {
     let options = &*options.await?;
+    let scoped_font_family = &*scoped_font_family.await?;
 
-    let mut font_families = vec![options.font_family.clone()];
+    let mut font_families = vec![scoped_font_family.clone()];
     if let Some(fallback) = &options.fallback {
         font_families.extend_from_slice(fallback);
     }
