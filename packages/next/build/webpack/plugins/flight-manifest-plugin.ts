@@ -342,21 +342,28 @@ export class FlightManifestPlugin {
         }
       })
 
-      let entryName = chunkGroup.name
-
-      // Can be created from a child entry.
-      if (!entryName) {
-        entryName = chunkGroup.getParents()[0]?.options.name
-      }
-
       const entryCSSFiles: any = manifest.__entry_css_files__ || {}
-      if (entryName?.startsWith('app/')) {
-        const key = this.appDir + entryName.slice(3)
-        entryCSSFiles[key] = chunkGroup
-          .getFiles()
-          .filter((f) => f.endsWith('.css'))
-          .concat(entryCSSFiles[key] || [])
+
+      const addCSSFilesToEntry = (
+        files: string[],
+        entryName: string | undefined | null
+      ) => {
+        if (entryName?.startsWith('app/')) {
+          const key = this.appDir + entryName.slice(3)
+          entryCSSFiles[key] = files.concat(entryCSSFiles[key] || [])
+        }
       }
+
+      const cssFiles = chunkGroup.getFiles().filter((f) => f.endsWith('.css'))
+
+      if (cssFiles.length) {
+        // Add to chunk entry and parent chunk groups too.
+        addCSSFilesToEntry(cssFiles, chunkGroup.name)
+        chunkGroup.getParents().forEach((parent) => {
+          addCSSFilesToEntry(cssFiles, parent.options.name)
+        })
+      }
+
       manifest.__entry_css_files__ = entryCSSFiles
     })
 
