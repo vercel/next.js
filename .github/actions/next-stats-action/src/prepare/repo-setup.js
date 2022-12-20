@@ -10,13 +10,17 @@ const mockTrace = () => ({
   traceChild: () => mockTrace(),
 })
 
-const nextjsRepoRoot = path.join(__dirname, '../../../../../')
+let turboRepoRoot = path.join(__dirname, '..', '..', '..', '..', '..')
+
+// stats-action runs this code without access to the original repo.
+// In that case we just use the temporary directory (everything is temporary anyway in CI)
+if (turboRepoRoot === '/') {
+  turboRepoRoot = path.join(__dirname, '..', '..', '..')
+}
+
 /** Save turbo cache to persistent storage */
-const turboCacheLocation = path.join(
-  nextjsRepoRoot,
-  'node_modules/.cache/turbo'
-)
-const packedPkgsDir = path.join(nextjsRepoRoot, 'test/tmp/packedPkgs')
+const turboCacheLocation = path.join(turboRepoRoot, 'node_modules/.cache/turbo')
+const packedPkgsDir = path.join(turboRepoRoot, 'test/tmp/packedPkgs')
 
 module.exports = (actionInfo) => {
   return {
@@ -195,7 +199,7 @@ module.exports = (actionInfo) => {
                   .traceAsyncFn(async () => {
                     const { pkgPath } = pkgDatas.get(pkgName)
                     await exec(
-                      `pnpm run --dir="${nextjsRepoRoot}" turbo run test-pack --cache-dir="${turboCacheLocation}" --cwd="${pkgPath}"`,
+                      `pnpm run --dir="${turboRepoRoot}" turbo run test-pack --cache-dir="${turboCacheLocation}" --cwd="${pkgPath}"`,
                       true
                     )
                   })
