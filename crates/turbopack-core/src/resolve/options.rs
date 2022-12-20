@@ -6,10 +6,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs, TryJoinIterExt, Value,
     ValueToString, ValueToStringVc,
 };
-use turbo_tasks_fs::{
-    glob::{Glob, GlobVc},
-    FileSystemPathVc,
-};
+use turbo_tasks_fs::{glob::GlobVc, FileSystemPathVc};
 
 use super::{
     alias_map::{AliasMap, AliasTemplate},
