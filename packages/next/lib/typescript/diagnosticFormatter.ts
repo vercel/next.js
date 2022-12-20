@@ -162,7 +162,7 @@ export async function getFormattedDiagnostic(
   // If the error comes from .next/types/, we handle it specially.
   const isLayoutOrPageError =
     isAppDirEnabled &&
-    diagnostic.file?.fileName.includes(path.join(baseDir, distDir, 'types'))
+    diagnostic.file?.fileName.startsWith(path.join(baseDir, distDir, 'types'))
 
   let message = ''
 
