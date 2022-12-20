@@ -155,10 +155,14 @@ module.exports = (actionInfo) => {
               }
 
               // Turbo requires package manager specification
-              pkgData.packageManager ||= repoData.packageManager
+              pkgData.packageManager =
+                pkgData.packageManager || repoData.packageManager
 
-              pkgData.scripts ||= {}
-              pkgData.scripts['test-pack'] = `yarn pack -f ${packedPkgPath}`
+              pkgData.scripts = {
+                ...pkgData.scripts,
+                'test-pack': `yarn pack -f ${packedPkgPath}`,
+              }
+
               await fs.writeJSON(path.join(pkgPath, 'turbo.json'), {
                 pipeline: {
                   'test-pack': {
