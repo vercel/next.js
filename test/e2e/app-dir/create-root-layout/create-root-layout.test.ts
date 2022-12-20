@@ -1,5 +1,5 @@
 import path from 'path'
-import { createNext } from 'e2e-utils'
+import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
 
@@ -19,8 +19,10 @@ describe('app-dir create root layout', () => {
         beforeAll(async () => {
           next = await createNext({
             files: {
-              app: path.join(__dirname, 'app'),
-              'next.config.js': path.join(__dirname, 'next.config.js'),
+              app: new FileRef(path.join(__dirname, 'app')),
+              'next.config.js': new FileRef(
+                path.join(__dirname, 'next.config.js')
+              ),
             },
             dependencies: {
               react: 'latest',
@@ -77,8 +79,10 @@ describe('app-dir create root layout', () => {
         beforeAll(async () => {
           next = await createNext({
             files: {
-              app: path.join(__dirname, 'app-group-layout'),
-              'next.config.js': path.join(__dirname, 'next.config.js'),
+              app: new FileRef(path.join(__dirname, 'app-group-layout')),
+              'next.config.js': new FileRef(
+                path.join(__dirname, 'next.config.js')
+              ),
             },
             dependencies: {
               react: 'latest',
@@ -137,8 +141,10 @@ describe('app-dir create root layout', () => {
         beforeAll(async () => {
           next = await createNext({
             files: {
-              app: path.join(__dirname, 'app-find-available-dir'),
-              'next.config.js': path.join(__dirname, 'next.config.js'),
+              app: new FileRef(path.join(__dirname, 'app-find-available-dir')),
+              'next.config.js': new FileRef(
+                path.join(__dirname, 'next.config.js')
+              ),
             },
             dependencies: {
               react: 'latest',
@@ -198,8 +204,12 @@ describe('app-dir create root layout', () => {
       beforeAll(async () => {
         next = await createNext({
           files: {
-            'app/page.tsx': path.join(__dirname, 'app/route/page.js'),
-            'next.config.js': path.join(__dirname, 'next.config.js'),
+            'app/page.tsx': new FileRef(
+              path.join(__dirname, 'app/route/page.js')
+            ),
+            'next.config.js': new FileRef(
+              path.join(__dirname, 'next.config.js')
+            ),
           },
         })
       })
@@ -257,8 +267,12 @@ describe('app-dir create root layout', () => {
         const next = await createNext({
           skipStart: true,
           files: {
-            'app/page.js': path.join(__dirname, 'app/route/page.js'),
-            'next.config.js': path.join(__dirname, 'next.config.js'),
+            'app/page.js': new FileRef(
+              path.join(__dirname, 'app/route/page.js')
+            ),
+            'next.config.js': new FileRef(
+              path.join(__dirname, 'next.config.js')
+            ),
           },
           dependencies: {
             react: 'latest',
