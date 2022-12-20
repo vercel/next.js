@@ -503,7 +503,7 @@ export interface NextConfig extends Record<string, any> {
 
   // A list of packages that should always be transpiled and bundled in the server
   transpilePackages?: string[]
-  
+
   allowMiddlewareResponseBody?: boolean
 
   skipMiddlewareUrlNormalize?: boolean
