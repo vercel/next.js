@@ -29,7 +29,7 @@ describe('emotion SWC option', () => {
   it('should have styling from the css prop', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
       const color = await browser
         .elementByCss('#test-element')
         .getComputedCss('background-color')
