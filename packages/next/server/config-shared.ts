@@ -162,9 +162,6 @@ export interface ExperimentalConfig {
   // A list of packages that should be treated as external in the RSC server build
   serverComponentsExternalPackages?: string[]
 
-  // A list of packages that should always be transpiled and bundled in the server
-  transpilePackages?: string[]
-
   fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
@@ -506,6 +503,9 @@ export interface NextConfig extends Record<string, any> {
   }
 
   output?: 'standalone'
+
+  // A list of packages that should always be transpiled and bundled in the server
+  transpilePackages?: string[]
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.

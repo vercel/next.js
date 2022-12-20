@@ -20,6 +20,8 @@ export type ConfigurationContext = {
   sassOptions: any
   productionBrowserSourceMaps: boolean
 
+  transpilePackages: NextConfigComplete['transpilePackages']
+
   future: NextConfigComplete['future']
   experimental: NextConfigComplete['experimental']
 }
