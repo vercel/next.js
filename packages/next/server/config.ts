@@ -616,6 +616,42 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
   }
 
   if (
+    result.experimental &&
+    'allowMiddlewareResponseBody' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`allowMiddlewareResponseBody\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.allowMiddlewareResponseBody = (
+      result.experimental as any
+    ).allowMiddlewareResponseBody
+  }
+
+  if (
+    result.experimental &&
+    'skipMiddlewareUrlNormalize' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`skipMiddlewareUrlNormalize\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.skipMiddlewareUrlNormalize = (
+      result.experimental as any
+    ).skipMiddlewareUrlNormalize
+  }
+
+  if (
+    result.experimental &&
+    'skipTrailingSlashRedirect' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`skipTrailingSlashRedirect\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.skipTrailingSlashRedirect = (
+      result.experimental as any
+    ).skipTrailingSlashRedirect
+  }
+
+  if (
     result.experimental?.outputFileTracingRoot &&
     !isAbsolute(result.experimental.outputFileTracingRoot)
   ) {

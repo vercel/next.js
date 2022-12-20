@@ -166,6 +166,10 @@ export type EventBuildFeatureUsage = {
     | 'turbotrace'
     | 'build-lint'
     | 'vercelImageGeneration'
+    | 'transpilePackages'
+    | 'allowMiddlewareResponseBody'
+    | 'skipMiddlewareUrlNormalize'
+    | 'skipTrailingSlashRedirect'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(
