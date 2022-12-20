@@ -302,7 +302,7 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
     'process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY': JSON.stringify(
-      config.experimental.allowMiddlewareResponseBody
+      config.allowMiddlewareResponseBody
     ),
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.experimental.skipMiddlewareUrlNormalize
@@ -2062,8 +2062,7 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           hasFontLoaders: !!config.experimental.fontLoaders,
-          allowMiddlewareResponseBody:
-            !!config.experimental.allowMiddlewareResponseBody,
+          allowMiddlewareResponseBody: !!config.allowMiddlewareResponseBody,
         }),
       isClient &&
         new BuildManifestPlugin({

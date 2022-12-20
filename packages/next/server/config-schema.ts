@@ -7,6 +7,9 @@ const configSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
+    allowMiddlewareResponseBody: {
+      type: 'boolean',
+    },
     amp: {
       additionalProperties: false,
       properties: {
@@ -267,9 +270,6 @@ const configSchema = {
           ] as any,
         },
         appDir: {
-          type: 'boolean',
-        },
-        allowMiddlewareResponseBody: {
           type: 'boolean',
         },
         externalDir: {
