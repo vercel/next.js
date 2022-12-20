@@ -11,6 +11,7 @@ pub type FontData = IndexMap<String, FontDataEntry>;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub struct NextFontGoogleOptions {
+    /// Name of the requested font from Google. Contains literal spaces.
     pub font_family: String,
     pub weights: FontWeights,
     pub styles: IndexSet<String>,
