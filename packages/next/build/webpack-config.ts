@@ -2146,6 +2146,16 @@ export default async function getBaseWebpackConfig(
               ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
               ['swcEmotion', !!config.compiler?.emotion],
               ['turbotrace', !!config.experimental.turbotrace],
+              ['transpilePackages', !!config.transpilePackages],
+              [
+                'allowMiddlewareResponseBody',
+                !!config.allowMiddlewareResponseBody,
+              ],
+              [
+                'skipMiddlewareUrlNormalize',
+                !!config.skipMiddlewareUrlNormalize,
+              ],
+              ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
               SWCBinaryTarget,
             ].filter<[Feature, boolean]>(Boolean as any)
           )

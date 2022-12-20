@@ -1090,4 +1090,64 @@ describe('Telemetry CLI', () => {
       invocationCount: 1,
     })
   })
+
+  it('emits telemetry for transpilePackages', async () => {
+    await fs.rename(
+      path.join(appDir, 'next.config.transpile-packages'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.transpile-packages')
+    )
+
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'transpilePackages',
+      invocationCount: 1,
+    })
+  })
+
+  it('emits telemetry for middleware related options', async () => {
+    await fs.rename(
+      path.join(appDir, 'next.config.middleware-options'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.middleware-options')
+    )
+
+    const featureUsageEvents = findAllTelemetryEvents(
+      stderr,
+      'NEXT_BUILD_FEATURE_USAGE'
+    )
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'allowMiddlewareResponseBody',
+      invocationCount: 1,
+    })
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'skipMiddlewareUrlNormalize',
+      invocationCount: 1,
+    })
+    expect(featureUsageEvents).toContainEqual({
+      featureName: 'skipTrailingSlashRedirect',
+      invocationCount: 1,
+    })
+  })
 })
