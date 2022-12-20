@@ -691,12 +691,6 @@ function getCssInlinedLinkTags(
     serverComponentManifest.__entry_css_files__?.[filePathWithoutExt] || []
   )
 
-  // console.log(
-  //   filePath,
-  //   cssFilesForEntry,
-  //   serverComponentManifest.__entry_css_files__
-  // )
-
   if (!layoutOrPageCssModules || !cssFilesForEntry.size) {
     return []
   }
