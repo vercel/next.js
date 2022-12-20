@@ -6,7 +6,7 @@ import path from 'path'
 createNextDescribe(
   'app-dir with middleware',
   {
-    files: path.join(__dirname, 'app-middleware'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next }) => {

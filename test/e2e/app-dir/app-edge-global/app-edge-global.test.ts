@@ -1,10 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
-import path from 'path'
 
 createNextDescribe(
   'app-dir global edge configuration',
   {
-    files: path.join(__dirname, 'app-edge-global'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next }) => {
