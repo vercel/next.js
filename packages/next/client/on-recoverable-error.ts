@@ -1,9 +1,10 @@
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 
-export default function onRecoverableError(err: any) {
+export default function onRecoverableError(err: any, errorInfo: any) {
+  const digest = err.digest || errorInfo.digest
+
   // Using default react onRecoverableError
   // x-ref: https://github.com/facebook/react/blob/d4bc16a7d69eb2ea38a88c8ac0b461d5f72cdcab/packages/react-dom/src/client/ReactDOMRoot.js#L83
-  const digest = err.digest || err.message
   const defaultOnRecoverableError =
     typeof reportError === 'function'
       ? // In modern browsers, reportError will dispatch an error event,
