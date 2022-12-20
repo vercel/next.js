@@ -15,7 +15,7 @@ let turboRepoRoot = path.join(__dirname, '..', '..', '..', '..', '..')
 // stats-action runs this code without access to the original repo.
 // In that case we just use the temporary directory (everything is temporary anyway in CI)
 if (turboRepoRoot === '/') {
-  turboRepoRoot = path.join(__dirname, '..', '..', '..')
+  turboRepoRoot = path.join(__dirname, '..', '..')
 }
 
 /** Save turbo cache to persistent storage */
