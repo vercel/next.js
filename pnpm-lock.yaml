@@ -500,7 +500,7 @@ importers:
       '@babel/types': 7.18.0
       '@edge-runtime/primitives': 2.0.0
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.12.0
+      '@napi-rs/cli': 2.13.3
       '@napi-rs/triples': 1.1.0
       '@next/env': 13.0.8-canary.1
       '@next/polyfill-module': 13.0.8-canary.1
@@ -698,7 +698,7 @@ importers:
       '@babel/types': 7.18.0
       '@edge-runtime/primitives': 2.0.0
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.12.0
+      '@napi-rs/cli': 2.13.3
       '@napi-rs/triples': 1.1.0
       '@next/polyfill-module': link:../next-polyfill-module
       '@next/polyfill-nomodule': link:../next-polyfill-nomodule
@@ -932,9 +932,9 @@ importers:
 
   packages/next-swc:
     specifiers:
-      '@napi-rs/cli': 2.12.0
+      '@napi-rs/cli': 2.13.3
     devDependencies:
-      '@napi-rs/cli': 2.12.0
+      '@napi-rs/cli': 2.13.3
 
   packages/react-dev-overlay:
     specifiers:
@@ -5883,8 +5883,8 @@ packages:
       glob-to-regexp: 0.3.0
     dev: true
 
-  /@napi-rs/cli/2.12.0:
-    resolution: {integrity: sha512-DWx9jDpun9JqDBypiXKjcYMm7gEnh83bry7b6UkItpmVE3w3tNrj91fOEPKDbFQZ7EULfFt+aQBbqtUHq5oNzQ==}
+  /@napi-rs/cli/2.13.3:
+    resolution: {integrity: sha512-nAlbKuakQ+YHZE+M3Afih9UA1jr+gx63Gt4xHA+j2xD1NY6TjQ+QCgF9Yaj/YZIkCc2t3CZh52znFrfbU8b2bA==}
     engines: {node: '>= 10'}
     hasBin: true
     dev: true
@@ -24000,7 +24000,7 @@ packages:
     dev: true
 
   github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540:
-    resolution: {tarball: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540}
+    resolution: {commit: f43f6a1cefff47fb361c88cf4b943fdbcaafe540, repo: git+ssh://git@github.com/watson/ci-info.git, type: git}
     name: ci-info
     version: 2.0.0
     dev: true
