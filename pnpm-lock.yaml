@@ -172,7 +172,7 @@ importers:
       shell-quote: 1.7.3
       strip-ansi: 6.0.0
       styled-components: 6.0.0-beta.5
-      styled-jsx: 5.1.0
+      styled-jsx: 5.1.1
       styled-jsx-plugin-postcss: 3.0.2
       swr: 2.0.0-rc.0
       tailwindcss: 1.1.3
@@ -348,7 +348,7 @@ importers:
       shell-quote: 1.7.3
       strip-ansi: 6.0.0
       styled-components: 6.0.0-beta.5_biqbaboplfbrettd7655fr4n2y
-      styled-jsx: 5.1.0_uuaxwgga6hqycsez5ok7v2wg4i
+      styled-jsx: 5.1.1_uuaxwgga6hqycsez5ok7v2wg4i
       styled-jsx-plugin-postcss: 3.0.2
       swr: 2.0.0-rc.0_react@18.2.0
       tailwindcss: 1.1.3
@@ -434,7 +434,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.0.8-canary.0
+      '@next/eslint-plugin-next': 13.0.8-canary.1
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint-import-resolver-node: ^0.3.6
@@ -500,14 +500,14 @@ importers:
       '@babel/types': 7.18.0
       '@edge-runtime/primitives': 2.0.0
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.12.0
+      '@napi-rs/cli': 2.13.3
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.0.8-canary.0
-      '@next/polyfill-module': 13.0.8-canary.0
-      '@next/polyfill-nomodule': 13.0.8-canary.0
-      '@next/react-dev-overlay': 13.0.8-canary.0
-      '@next/react-refresh-utils': 13.0.8-canary.0
-      '@next/swc': 13.0.8-canary.0
+      '@next/env': 13.0.8-canary.1
+      '@next/polyfill-module': 13.0.8-canary.1
+      '@next/polyfill-nomodule': 13.0.8-canary.1
+      '@next/react-dev-overlay': 13.0.8-canary.1
+      '@next/react-refresh-utils': 13.0.8-canary.1
+      '@next/swc': 13.0.8-canary.1
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
@@ -649,7 +649,7 @@ importers:
       string_decoder: 1.3.0
       string-hash: 1.1.3
       strip-ansi: 6.0.0
-      styled-jsx: 5.1.0
+      styled-jsx: 5.1.1
       tar: 6.1.11
       taskr: 1.1.0
       terser: 5.14.1
@@ -673,7 +673,7 @@ importers:
       '@swc/helpers': 0.4.14
       caniuse-lite: 1.0.30001406
       postcss: 8.4.14
-      styled-jsx: 5.1.0_uuaxwgga6hqycsez5ok7v2wg4i
+      styled-jsx: 5.1.1_uuaxwgga6hqycsez5ok7v2wg4i
     devDependencies:
       '@ampproject/toolbox-optimizer': 2.8.3
       '@babel/code-frame': 7.12.11
@@ -698,7 +698,7 @@ importers:
       '@babel/types': 7.18.0
       '@edge-runtime/primitives': 2.0.0
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.12.0
+      '@napi-rs/cli': 2.13.3
       '@napi-rs/triples': 1.1.0
       '@next/polyfill-module': link:../next-polyfill-module
       '@next/polyfill-nomodule': link:../next-polyfill-nomodule
@@ -932,9 +932,9 @@ importers:
 
   packages/next-swc:
     specifiers:
-      '@napi-rs/cli': 2.12.0
+      '@napi-rs/cli': 2.13.3
     devDependencies:
-      '@napi-rs/cli': 2.12.0
+      '@napi-rs/cli': 2.13.3
 
   packages/react-dev-overlay:
     specifiers:
@@ -5883,8 +5883,8 @@ packages:
       glob-to-regexp: 0.3.0
     dev: true
 
-  /@napi-rs/cli/2.12.0:
-    resolution: {integrity: sha512-DWx9jDpun9JqDBypiXKjcYMm7gEnh83bry7b6UkItpmVE3w3tNrj91fOEPKDbFQZ7EULfFt+aQBbqtUHq5oNzQ==}
+  /@napi-rs/cli/2.13.3:
+    resolution: {integrity: sha512-nAlbKuakQ+YHZE+M3Afih9UA1jr+gx63Gt4xHA+j2xD1NY6TjQ+QCgF9Yaj/YZIkCc2t3CZh52znFrfbU8b2bA==}
     engines: {node: '>= 10'}
     hasBin: true
     dev: true
@@ -21980,8 +21980,8 @@ packages:
       postcss-load-plugins: 2.3.0
     dev: true
 
-  /styled-jsx/5.1.0_uuaxwgga6hqycsez5ok7v2wg4i:
-    resolution: {integrity: sha512-/iHaRJt9U7T+5tp6TRelLnqBqiaIT0HsO0+vgyj8hK2KUk7aejFqRrumqPUlAqDwAj8IbS/1hk3IhBAAK/FCUQ==}
+  /styled-jsx/5.1.1_uuaxwgga6hqycsez5ok7v2wg4i:
+    resolution: {integrity: sha512-pW7uC1l4mBZ8ugbiZrcIsiIvVx1UmTfw7UkC3Um2tmfUq9Bhk8IiyEIPl6F8agHgjzku6j0xQEZbfA5uSgSaCw==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
       '@babel/core': '*'
