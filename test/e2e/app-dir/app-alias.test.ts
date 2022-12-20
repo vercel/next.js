@@ -5,13 +5,6 @@ createNextDescribe(
   'app-dir alias handling',
   {
     files: path.join(__dirname, 'app-alias'),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-      typescript: 'latest',
-      '@types/react': 'latest',
-      '@types/node': 'latest',
-    },
     packageJson: {
       type: 'module',
     },

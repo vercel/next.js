@@ -129,6 +129,9 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
+          '@types/react': reactVersion,
+          typescript: 'latest',
+          '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }

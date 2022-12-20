@@ -1301,7 +1301,7 @@ describe('Production Usage', () => {
     })
   }
 
-  it('should loading next/image correctly', async () => {
+  it('should remove placeholder for next/image correctly', async () => {
     const browser = await webdriver(context.appPort, '/')
 
     await browser.eval(`(function() {
@@ -1312,16 +1312,10 @@ describe('Production Usage', () => {
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
-    await check(async () => {
-      const result = await browser.eval(
-        `document.getElementById('static-image').width`
-      )
-      if (result === 0) {
-        throw new Error('Incorrectly loaded image')
-      }
-
-      return 'result-correct'
-    }, /result-correct/)
+    await check(
+      () => browser.elementByCss('img').getComputedCss('background-image'),
+      'none'
+    )
 
     await browser.eval(`(function() {
         window.beforeNav = 1
@@ -1338,16 +1332,22 @@ describe('Production Usage', () => {
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
-    await check(async () => {
-      const result = await browser.eval(
-        `document.getElementById('static-image').width`
-      )
-      if (result === 0) {
-        throw new Error('Incorrectly loaded image')
-      }
+    await check(
+      () =>
+        browser
+          .elementByCss('#static-image')
+          .getComputedCss('background-image'),
+      'none'
+    )
 
-      return 'result-correct'
-    }, /result-correct/)
+    for (let i = 0; i < 5; i++) {
+      expect(
+        await browser
+          .elementByCss('#static-image')
+          .getComputedCss('background-image')
+      ).toBe('none')
+      await waitFor(500)
+    }
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
