@@ -222,7 +222,7 @@ export const css = curry(async function css(
   )
 
   const shouldIncludeExternalCSSImports =
-    !!ctx.experimental.craCompat || !!ctx.experimental.transpilePackages
+    !!ctx.experimental.craCompat || !!ctx.transpilePackages
 
   // CSS modules & SASS modules support. They are allowed to be imported in anywhere.
   fns.push(
