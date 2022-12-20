@@ -375,9 +375,6 @@ const configSchema = {
         sharedPool: {
           type: 'boolean',
         },
-        skipTrailingSlashRedirect: {
-          type: 'boolean',
-        },
         sri: {
           properties: {
             algorithm: {
@@ -695,6 +692,9 @@ const configSchema = {
       type: 'object',
     },
     skipMiddlewareUrlNormalize: {
+      type: 'boolean',
+    },
+    skipTrailingSlashRedirect: {
       type: 'boolean',
     },
     staticPageGenerationTimeout: {

@@ -308,7 +308,7 @@ export function getDefineEnv({
       config.skipMiddlewareUrlNormalize
     ),
     'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
-      config.experimental?.skipTrailingSlashRedirect
+      config.skipTrailingSlashRedirect
     ),
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution &&
