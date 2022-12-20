@@ -318,6 +318,56 @@ describe('tsconfig.json verifier', () => {
     `)
   })
 
+  it('allows you to set node16 module mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "node16", "moduleResolution": "node16" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"node16\\",
+          \\"moduleResolution\\": \\"node16\\",
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
   it('allows you to extend another configuration file', async () => {
     expect(await exists(tsConfig)).toBe(false)
     expect(await exists(tsConfigBase)).toBe(false)

@@ -49,6 +49,8 @@ function getDesiredCompilerOptions(
         ts.ModuleKind.ESNext,
         ts.ModuleKind.CommonJS,
         ts.ModuleKind.AMD,
+        ts.ModuleKind.NodeNext,
+        ts.ModuleKind.Node16,
       ],
       value: 'esnext',
       reason: 'for dynamic import() support',
