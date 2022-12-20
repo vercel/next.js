@@ -1716,7 +1716,7 @@ export default class NextNodeServer extends BaseServer {
 
     let url: string
 
-    if (this.nextConfig.experimental.skipMiddlewareUrlNormalize) {
+    if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
