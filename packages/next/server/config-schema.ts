@@ -375,9 +375,6 @@ const configSchema = {
         sharedPool: {
           type: 'boolean',
         },
-        skipMiddlewareUrlNormalize: {
-          type: 'boolean',
-        },
         skipTrailingSlashRedirect: {
           type: 'boolean',
         },
@@ -696,6 +693,9 @@ const configSchema = {
     },
     serverRuntimeConfig: {
       type: 'object',
+    },
+    skipMiddlewareUrlNormalize: {
+      type: 'boolean',
     },
     staticPageGenerationTimeout: {
       type: 'number',

@@ -305,7 +305,7 @@ export function getDefineEnv({
       config.allowMiddlewareResponseBody
     ),
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
-      config.experimental.skipMiddlewareUrlNormalize
+      config.skipMiddlewareUrlNormalize
     ),
     'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
       config.experimental?.skipTrailingSlashRedirect

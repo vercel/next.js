@@ -797,8 +797,7 @@ export default async function build(
             header: RSC,
             varyHeader: RSC_VARY_HEADER,
           },
-          skipMiddlewareUrlNormalize:
-            config.experimental.skipMiddlewareUrlNormalize,
+          skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
         }
       })
 

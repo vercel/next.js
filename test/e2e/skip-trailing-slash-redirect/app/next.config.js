@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowMiddlewareResponseBody: true,
+  skipMiddlewareUrlNormalize: true,
   experimental: {
     skipTrailingSlashRedirect: true,
-    skipMiddlewareUrlNormalize: true,
   },
   async redirects() {
     return [
