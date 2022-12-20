@@ -7,6 +7,9 @@ const configSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
+    allowMiddlewareResponseBody: {
+      type: 'boolean',
+    },
     amp: {
       additionalProperties: false,
       properties: {
@@ -269,9 +272,6 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
-        allowMiddlewareResponseBody: {
-          type: 'boolean',
-        },
         externalDir: {
           type: 'boolean',
         },
@@ -363,22 +363,10 @@ const configSchema = {
           },
           type: 'array',
         },
-        transpilePackages: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
-        },
         scrollRestoration: {
           type: 'boolean',
         },
         sharedPool: {
-          type: 'boolean',
-        },
-        skipMiddlewareUrlNormalize: {
-          type: 'boolean',
-        },
-        skipTrailingSlashRedirect: {
           type: 'boolean',
         },
         sri: {
@@ -697,6 +685,12 @@ const configSchema = {
     serverRuntimeConfig: {
       type: 'object',
     },
+    skipMiddlewareUrlNormalize: {
+      type: 'boolean',
+    },
+    skipTrailingSlashRedirect: {
+      type: 'boolean',
+    },
     staticPageGenerationTimeout: {
       type: 'number',
     },
@@ -705,6 +699,12 @@ const configSchema = {
     },
     trailingSlash: {
       type: 'boolean',
+    },
+    transpilePackages: {
+      items: {
+        type: 'string',
+      },
+      type: 'array',
     },
     typescript: {
       additionalProperties: false,
