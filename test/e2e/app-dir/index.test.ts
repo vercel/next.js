@@ -1315,6 +1315,11 @@ createNextDescribe(
           ).toBe('rgb(0, 0, 255)')
         })
 
+        it('should not contain pages css in app dir page', async () => {
+          const html = await next.render('/css/css-page')
+          expect(html).not.toContain('/pages/_app.css')
+        })
+
         if (!isDev) {
           it('should not include unused css modules in the page in prod', async () => {
             const browser = await next.browser('/css/css-page/unused')
@@ -2353,6 +2358,20 @@ createNextDescribe(
         expect(await browser.elementByCss('#not-found-component').text()).toBe(
           'Not Found!'
         )
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
+      })
+      it('should trigger not-found while streaming', async () => {
+        const initialHtml = await next.render('/not-found/suspense')
+        expect(initialHtml).not.toContain('noindex')
+
+        const browser = await next.browser('/not-found/suspense')
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('Not Found!')
         expect(
           await browser
             .waitForElementByCss('meta[name="robots"]')
