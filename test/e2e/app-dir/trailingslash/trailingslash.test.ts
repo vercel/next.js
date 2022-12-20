@@ -1,10 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
-import path from 'path'
 
 createNextDescribe(
   'app-dir trailingSlash handling',
   {
-    files: path.join(__dirname, 'trailingslash'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next }) => {

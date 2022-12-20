@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { createNextDescribe, FileRef } from 'e2e-utils'
+import { createNextDescribe } from 'e2e-utils'
 import cheerio from 'cheerio'
 import path from 'path'
 
@@ -121,10 +121,8 @@ createNextDescribe(
   'app dir middleware without pages dir',
   {
     files: {
-      app: new FileRef(path.join(__dirname, 'app-middleware/app')),
-      'next.config.js': new FileRef(
-        path.join(__dirname, 'app-middleware/next.config.js')
-      ),
+      app: path.join(__dirname, 'app'),
+      'next.config.js': path.join(__dirname, 'next.config.js'),
       'middleware.js': `
       import { NextResponse } from 'next/server'
 

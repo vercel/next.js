@@ -1,11 +1,10 @@
-import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 
 createNextDescribe(
   'app-dir root layout',
   {
-    files: path.join(__dirname, 'root-layout'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next, isNextDev: isDev }) => {

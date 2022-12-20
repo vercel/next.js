@@ -1,11 +1,10 @@
-import path from 'path'
 import { getRedboxHeader, hasRedbox } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
   'app dir - global error',
   {
-    files: path.join(__dirname, './global-error'),
+    files: __dirname,
   },
   ({ next, isNextDev }) => {
     it('should trigger error component when an error happens during rendering', async () => {
