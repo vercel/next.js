@@ -21,6 +21,10 @@ import treeKill from 'tree-kill'
 export const nextServer = server
 export const pkg = _pkg
 
+export const itif = (condition) => (condition ? it : it.skip)
+
+export const describeif = (condition) => (condition ? describe : describe.skip)
+
 export function initNextServerScript(
   scriptPath,
   successRegexp,
