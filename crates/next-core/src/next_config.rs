@@ -253,6 +253,7 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
         project_root,
         load_next_config_asset,
         project_root,
+        config_asset.map_or(project_root, |c| c.path()),
         context,
         intermediate_output_path,
         runtime_entries,

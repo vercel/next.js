@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     TryJoinIterExt, Value,
@@ -17,8 +18,8 @@ use turbopack_core::{
     virtual_asset::VirtualAssetVc,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
+    chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+    EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 
 use crate::{
@@ -27,12 +28,22 @@ use crate::{
     execution_context::{ExecutionContext, ExecutionContextVc},
 };
 
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PostCssEmittedAsset {
+    file: String,
+    content: String,
+    source_map: Option<JsonValue>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[turbo_tasks::value(transparent, serialization = "custom")]
-struct ProcessedCSS {
+struct PostCssProcessingResult {
     css: String,
     map: Option<String>,
+    #[turbo_tasks(trace_ignore)]
+    assets: Option<Vec<PostCssEmittedAsset>>,
 }
 
 #[turbo_tasks::function]
@@ -110,25 +121,46 @@ impl Asset for PostCssTransformedAsset {
     }
 
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<AssetContentVc> {
-        let find_config_result = find_context_file(self.source.path().parent(), postcss_configs());
+    async fn content(self_vc: PostCssTransformedAssetVc) -> Result<AssetContentVc> {
+        Ok(self_vc.process().await?.content)
+    }
+}
+
+#[turbo_tasks::value]
+struct ProcessPostCssResult {
+    content: AssetContentVc,
+    assets: Vec<VirtualAssetVc>,
+}
+
+#[turbo_tasks::value_impl]
+impl PostCssTransformedAssetVc {
+    #[turbo_tasks::function]
+    async fn process(self) -> Result<ProcessPostCssResultVc> {
+        let this = self.await?;
+        let find_config_result = find_context_file(this.source.path().parent(), postcss_configs());
         let FindContextFileResult::Found(config_path, _) = *find_config_result.await? else {
-            return Ok(self.source.content())
+            return Ok(ProcessPostCssResult {
+                content: this.source.content(),
+                assets: Vec::new()
+            }.cell())
         };
 
         let ExecutionContext {
             project_root,
             intermediate_output_path,
-        } = *self.execution_context.await?;
-        let source_content = self.source.content();
+        } = *this.execution_context.await?;
+        let source_content = this.source.content();
         let AssetContent::File(file) = *source_content.await? else {
             bail!("PostCSS transform only support transforming files");
         };
         let FileContent::Content(content) = &*file.await? else {
-            return Ok(AssetContent::File(FileContent::NotFound.cell()).cell());
+            return Ok(ProcessPostCssResult {
+                content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                assets: Vec::new()
+            }.cell());
         };
         let content = content.content().to_str()?;
-        let context = self.evaluate_context;
+        let context = this.evaluate_context;
         // TODO this is a hack to get these files watched.
         let config_paths = [config_path.parent().join("tailwind.config.js")];
         let configs = config_paths
@@ -161,21 +193,22 @@ impl Asset for PostCssTransformedAsset {
         let postcss_executor = EcmascriptModuleAssetVc::new_with_inner_assets(
             VirtualAssetVc::new(
                 config_path.join("transform.js"),
-                AssetContent::File(embed_file("transforms/postcss.js")).cell(),
+                AssetContent::File(embed_file("transforms/postcss.ts")).cell(),
             )
             .into(),
             context,
-            Value::new(EcmascriptModuleAssetType::Ecmascript),
-            EcmascriptInputTransformsVc::cell(Default::default()),
+            Value::new(EcmascriptModuleAssetType::Typescript),
+            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
             context.environment(),
             InnerAssetsVc::cell(HashMap::from([("CONFIG".to_string(), config_asset)])),
         );
-        let css_fs_path = self.source.path().await?;
+        let css_fs_path = this.source.path().await?;
         let css_path = css_fs_path.path.as_str();
         let config_value = evaluate(
             project_root,
             postcss_executor.into(),
             project_root,
+            this.source.path(),
             context,
             intermediate_output_path,
             Some(EcmascriptChunkPlaceablesVc::cell(configs)),
@@ -186,12 +219,39 @@ impl Asset for PostCssTransformedAsset {
         )
         .await?;
         let JavaScriptValue::Value(val) = &*config_value else {
-            return Ok(source_content);
+            // An error happened, which has already been converted into an issue.
+            return Ok(ProcessPostCssResult {
+                content: AssetContent::File(FileContent::NotFound.cell()).cell(),
+                assets: Vec::new()
+            }.cell());
         };
-        let processed_css: ProcessedCSS = serde_json::from_reader(val.read())
+        let processed_css: PostCssProcessingResult = serde_json::from_reader(val.read())
             .context("Unable to deserializate response from PostCSS transform operation")?;
         let file = File::from(processed_css.css);
         // TODO handle SourceMap
-        Ok(AssetContent::File(FileContent::Content(file).cell()).cell())
+        let assets = processed_css
+            .assets
+            .into_iter()
+            .flatten()
+            .map(
+                |PostCssEmittedAsset {
+                     file,
+                     content,
+                     source_map,
+                 }| (file, (content, source_map)),
+            )
+            // Sort it to make it determinstic
+            .collect::<BTreeMap<_, _>>()
+            .into_iter()
+            .map(|(file, (content, _source_map))| {
+                // TODO handle SourceMap
+                VirtualAssetVc::new(
+                    project_root.join(&file),
+                    AssetContent::File(FileContent::Content(File::from(content)).cell()).cell(),
+                )
+            })
+            .collect();
+        let content = AssetContent::File(FileContent::Content(file).cell()).cell();
+        Ok(ProcessPostCssResult { content, assets }.cell())
     }
 }

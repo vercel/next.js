@@ -1,4 +1,6 @@
-use anyhow::Result;
+use std::mem::take;
+
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 
@@ -47,45 +49,24 @@ pub struct Glob {
 impl Glob {
     pub fn execute(&self, path: &str) -> bool {
         let match_partial = path.ends_with('/');
-        let mut stack = Vec::new();
-        let mut i = 0;
-        let mut current = path;
-        let mut is_path_separator_equalivalent = true;
-        loop {
-            if let Some(part) = self.expression.get(i) {
-                let iter = if let Some(iter) = stack.get_mut(i) {
-                    iter
-                } else {
-                    let iter = part.iter_matches(current, is_path_separator_equalivalent);
-                    stack.push(iter);
-                    stack.last_mut().unwrap()
-                };
-                if let Some((new_path, new_is_path_separator_equalivalent)) = iter.next() {
-                    current = new_path;
-                    is_path_separator_equalivalent = new_is_path_separator_equalivalent;
+        self.iter_matches(path, true, match_partial)
+            .next()
+            .is_some()
+    }
 
-                    i += 1;
-
-                    if match_partial && current.is_empty() {
-                        return true;
-                    }
-                } else {
-                    if i == 0 {
-                        // failed to match
-                        return false;
-                    }
-                    // backtrace
-                    stack.pop();
-                    i -= 1;
-                }
-            } else {
-                // end of expression, matched successfully if also end of path
-                if current.is_empty() {
-                    return true;
-                }
-                // backtrace
-                i -= 1;
-            }
+    fn iter_matches<'a>(
+        &'a self,
+        path: &'a str,
+        previous_part_is_path_separator_equivalent: bool,
+        match_partial: bool,
+    ) -> GlobMatchesIterator<'a> {
+        GlobMatchesIterator {
+            current: path,
+            glob: self,
+            match_partial,
+            is_path_separator_equivalent: previous_part_is_path_separator_equivalent,
+            stack: Vec::new(),
+            index: 0,
         }
     }
 
@@ -103,17 +84,81 @@ impl Glob {
     }
 }
 
+struct GlobMatchesIterator<'a> {
+    current: &'a str,
+    glob: &'a Glob,
+    match_partial: bool,
+    is_path_separator_equivalent: bool,
+    stack: Vec<GlobPartMatchesIterator<'a>>,
+    index: usize,
+}
+
+impl<'a> Iterator for GlobMatchesIterator<'a> {
+    type Item = (&'a str, bool);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(part) = self.glob.expression.get(self.index) {
+                let iter = if let Some(iter) = self.stack.get_mut(self.index) {
+                    iter
+                } else {
+                    let iter = part.iter_matches(
+                        self.current,
+                        self.is_path_separator_equivalent,
+                        self.match_partial,
+                    );
+                    self.stack.push(iter);
+                    self.stack.last_mut().unwrap()
+                };
+                if let Some((new_path, new_is_path_separator_equivalent)) = iter.next() {
+                    self.current = new_path;
+                    self.is_path_separator_equivalent = new_is_path_separator_equivalent;
+
+                    self.index += 1;
+
+                    if self.match_partial && self.current.is_empty() {
+                        return Some(("", self.is_path_separator_equivalent));
+                    }
+                } else {
+                    if self.index == 0 {
+                        // failed to match
+                        return None;
+                    }
+                    // backtrack
+                    self.stack.pop();
+                    self.index -= 1;
+                }
+            } else {
+                // end of expression, matched successfully
+
+                // backtrack for the next iteration
+                self.index -= 1;
+
+                return Some((self.current, self.is_path_separator_equivalent));
+            }
+        }
+    }
+}
+
 impl GlobPart {
+    /// Iterates over all possible matches of this part with the provided path.
+    /// The least greedy match is returned first. This is usually used for
+    /// backtracking. The string slice returned is the remaining part or the
+    /// path. The boolean flag returned specifies if the matched part should
+    /// be considered as path-separator equivalent.
     fn iter_matches<'a>(
         &'a self,
         path: &'a str,
-        previous_part_is_path_separator_equalivalent: bool,
-    ) -> impl Iterator<Item = (&'a str, bool)> {
+        previous_part_is_path_separator_equivalent: bool,
+        match_partial: bool,
+    ) -> GlobPartMatchesIterator<'a> {
         GlobPartMatchesIterator {
             path,
             part: self,
-            previous_part_is_path_separator_equalivalent,
+            match_partial,
+            previous_part_is_path_separator_equivalent,
             index: 0,
+            glob_iterator: None,
         }
     }
 
@@ -130,7 +175,38 @@ impl GlobPart {
             ('?', _) => Ok((GlobPart::AnyFileChar, &input[1..])),
             ('[', Some('[')) => todo!("glob char classes are not implemented yet"),
             ('[', _) => todo!("glob char sequences are not implemented yet"),
-            ('{', _) => todo!("glob braces are not implemented yet"),
+            ('{', Some(_)) => {
+                let mut current = &input[1..];
+                let mut alternatives = Vec::new();
+                let mut expression = Vec::new();
+
+                loop {
+                    let (part, remainder) = GlobPart::parse(current, true)?;
+                    expression.push(part);
+                    current = remainder;
+                    match current.chars().next() {
+                        Some(',') => {
+                            alternatives.push(Glob {
+                                expression: take(&mut expression),
+                            });
+                            current = &current[1..];
+                        }
+                        Some('}') => {
+                            alternatives.push(Glob {
+                                expression: take(&mut expression),
+                            });
+                            current = &current[1..];
+                            break;
+                        }
+                        _ => bail!("Unterminated glob braces"),
+                    }
+                }
+
+                Ok((GlobPart::Alternatives(alternatives), current))
+            }
+            ('{', None) => {
+                bail!("Unterminated glob braces")
+            }
             _ => {
                 let mut is_escaped = false;
                 let mut literal = String::new();
@@ -144,6 +220,7 @@ impl GlobPart {
                         || c == '*'
                         || c == '?'
                         || c == '['
+                        || c == '{'
                         || (inside_of_braces && (c == ',' || c == '}'))
                     {
                         break;
@@ -160,8 +237,10 @@ impl GlobPart {
 struct GlobPartMatchesIterator<'a> {
     path: &'a str,
     part: &'a GlobPart,
-    previous_part_is_path_separator_equalivalent: bool,
+    match_partial: bool,
+    previous_part_is_path_separator_equivalent: bool,
     index: usize,
+    glob_iterator: Option<Box<GlobMatchesIterator<'a>>>,
 }
 
 impl<'a> Iterator for GlobPartMatchesIterator<'a> {
@@ -200,7 +279,7 @@ impl<'a> Iterator for GlobPartMatchesIterator<'a> {
                     } else {
                         Some((
                             &self.path[self.index..],
-                            self.previous_part_is_path_separator_equalivalent && self.index == 1,
+                            self.previous_part_is_path_separator_equivalent && self.index == 1,
                         ))
                     }
                 } else {
@@ -213,7 +292,7 @@ impl<'a> Iterator for GlobPartMatchesIterator<'a> {
                     self.index = 1;
                     if self.path.starts_with('/') {
                         Some((&self.path[1..], true))
-                    } else if self.previous_part_is_path_separator_equalivalent {
+                    } else if self.previous_part_is_path_separator_equivalent {
                         Some((self.path, true))
                     } else {
                         None
@@ -240,7 +319,24 @@ impl<'a> Iterator for GlobPartMatchesIterator<'a> {
                     None
                 }
             }
-            GlobPart::Alternatives(_) => todo!(),
+            GlobPart::Alternatives(alternatives) => loop {
+                if let Some(glob_iterator) = &mut self.glob_iterator {
+                    if let Some((path, is_path_separator_equivalent)) = glob_iterator.next() {
+                        return Some((path, is_path_separator_equivalent));
+                    } else {
+                        self.index += 1;
+                        self.glob_iterator = None;
+                    }
+                } else if let Some(alternative) = alternatives.get(self.index) {
+                    self.glob_iterator = Some(Box::new(alternative.iter_matches(
+                        self.path,
+                        self.previous_part_is_path_separator_equivalent,
+                        self.match_partial,
+                    )));
+                } else {
+                    return None;
+                }
+            },
         }
     }
 }
@@ -271,6 +367,9 @@ mod tests {
     #[case::file("file.js", "file.js")]
     #[case::dir_and_file("dir/file.js", "dir/file.js")]
     #[case::dir_and_file_partial("dir/file.js", "dir/")]
+    #[case::file_braces("file.{ts,js}", "file.js")]
+    #[case::dir_and_file_braces("dir/file.{ts,js}", "dir/file.js")]
+    #[case::dir_and_file_dir_braces("{dir,other}/file.{ts,js}", "dir/file.js")]
     #[case::star("*.js", "file.js")]
     #[case::dir_star("dir/*.js", "dir/file.js")]
     #[case::dir_star_partial("dir/*.js", "dir/")]

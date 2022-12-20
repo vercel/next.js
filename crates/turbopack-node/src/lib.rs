@@ -244,6 +244,9 @@ enum EvalJavaScriptOutgoingMessage<'a> {
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum EvalJavaScriptIncomingMessage {
+    FileDependency { path: String },
+    BuildDependency { path: String },
+    DirDependency { path: String, glob: String },
     JsonValue { data: String },
     Error(StructuredError),
 }
