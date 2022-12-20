@@ -42,11 +42,11 @@ impl Bundler for Vite {
     }
 
     fn prepare(&self, install_dir: &Path) -> Result<()> {
-        let mut packages = vec![NpmPackage::new("vite", "^3.2.4")];
+        let mut packages = vec![NpmPackage::new("vite", "4.0.2")];
         if self.swc {
-            packages.push(NpmPackage::new("vite-plugin-swc-react-refresh", "^2.2.1"));
+            packages.push(NpmPackage::new("@vitejs/plugin-react-swc", "3.0.1"));
         } else {
-            packages.push(NpmPackage::new("@vitejs/plugin-react", "^2.2.0"));
+            packages.push(NpmPackage::new("@vitejs/plugin-react", "3.0.0"));
         };
         if self.ssr {
             packages.push(NpmPackage::new("express", "^4.18.2"));

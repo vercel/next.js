@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
-import { swcReactRefresh } from "vite-plugin-swc-react-refresh";
+import react from "@vitejs/plugin-react-swc";
 
 export default defineConfig({
-  plugins: [swcReactRefresh()],
+  plugins: [react()],
   esbuild: { jsx: "automatic" },
 });
