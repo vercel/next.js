@@ -211,6 +211,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     start: Mutex<Option<Instant>>,
     aggregated_update: Mutex<Option<(Duration, usize)>>,
     event: Event,
+    event_start: Event,
     event_foreground: Event,
     event_background: Event,
     // NOTE(alexkirsz) We use an atomic bool instead of a lock around `StatsType` to avoid the
@@ -255,6 +256,7 @@ impl<B: Backend> TurboTasks<B> {
             start: Default::default(),
             aggregated_update: Default::default(),
             event: Event::new(|| "TurboTasks::event".to_string()),
+            event_start: Event::new(|| "TurboTasks::event_start".to_string()),
             event_foreground: Event::new(|| "TurboTasks::event_foreground".to_string()),
             event_background: Event::new(|| "TurboTasks::event_background".to_string()),
             enable_full_stats: AtomicBool::new(false),
@@ -451,6 +453,7 @@ impl<B: Backend> TurboTasks<B> {
             == 0
         {
             *self.start.lock().unwrap() = Some(Instant::now());
+            self.event_start.notify(usize::MAX);
         }
     }
 
@@ -524,31 +527,63 @@ impl<B: Backend> TurboTasks<B> {
     }
 
     pub async fn get_or_wait_update_info(&self, aggregation: Duration) -> (Duration, usize) {
+        self.update_info(aggregation, Duration::MAX).await.unwrap()
+    }
+
+    pub async fn update_info(
+        &self,
+        aggregation: Duration,
+        timeout: Duration,
+    ) -> Option<(Duration, usize)> {
         let listener = self
             .event
             .listen_with_note(|| "wait for update info".to_string());
-        if aggregation.is_zero() {
-            if let Some(info) = *self.aggregated_update.lock().unwrap() {
-                return info;
+        let wait_for_finish = {
+            let mut update = self.aggregated_update.lock().unwrap();
+            if update.is_some() {
+                if aggregation.is_zero() {
+                    return update.take();
+                }
+                false
+            } else {
+                true
             }
-            listener.await;
-        } else {
-            if self.aggregated_update.lock().unwrap().is_none() {
+        };
+        if wait_for_finish {
+            if timeout == Duration::MAX {
+                // wait for finish
                 listener.await;
+            } else {
+                // wait for start, then wait for finish or timeout
+                let start_listener = self
+                    .event_start
+                    .listen_with_note(|| "wait for update info".to_string());
+                if self.currently_scheduled_tasks.load(Ordering::Acquire) == 0 {
+                    start_listener.await;
+                } else {
+                    drop(start_listener);
+                }
+                if timeout.is_zero()
+                    || matches!(tokio::time::timeout(timeout, listener).await, Err(_))
+                {
+                    // Timeout
+                    return None;
+                }
             }
+        }
+        if !aggregation.is_zero() {
             loop {
                 select! {
                     () = tokio::time::sleep(aggregation) => {
                         break;
                     }
-                    () = self.event.listen() => {
+                    () = self.event.listen_with_note(|| "wait for update info".to_string()) => {
                         // Resets the sleep
                     }
                 }
             }
         }
-        // TODO(alexkirsz) The take unwrap crashed on me.
-        return self.aggregated_update.lock().unwrap().take().unwrap();
+        return self.aggregated_update.lock().unwrap().take();
     }
 
     pub async fn wait_background_done(&self) {
@@ -565,7 +600,7 @@ impl<B: Backend> TurboTasks<B> {
     pub async fn stop_and_wait(&self) {
         self.stopped.store(true, Ordering::Release);
         {
-            let listener = self.event.listen();
+            let listener = self.event.listen_with_note(|| "wait for stop".to_string());
             if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                 listener.await;
             }
@@ -596,7 +631,9 @@ impl<B: Backend> TurboTasks<B> {
             .fetch_add(1, Ordering::AcqRel);
         tokio::spawn(TURBO_TASKS.scope(this.clone(), async move {
             while this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
-                let listener = this.event.listen();
+                let listener = this
+                    .event
+                    .listen_with_note(|| "background job waiting for execution".to_string());
                 if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
                     listener.await;
                 }

@@ -8,6 +8,7 @@ use std::{
     collections::HashSet,
     env::current_dir,
     future::{join, Future},
+    io::{stdout, Write},
     net::{IpAddr, SocketAddr},
     path::MAIN_SEPARATOR,
     sync::Arc,
@@ -478,27 +479,45 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
             );
         }
 
+        let mut progress_counter = 0;
         loop {
             let update_future = profile_timeout(
                 tt_clone.as_ref(),
-                tt_clone.get_or_wait_update_info(Duration::from_millis(100)),
+                tt_clone.update_info(Duration::from_millis(100), Duration::from_secs(1)),
             );
 
-            let (elapsed, count) = update_future.await;
-            if options.log_detail {
-                println!(
-                    "{event_type} - updated in {elapsed} ({tasks} tasks, {memory})",
-                    event_type = "event".purple(),
-                    elapsed = FormatDuration(elapsed),
-                    tasks = count,
-                    memory = FormatBytes(TurboMalloc::memory_usage())
-                );
+            if let Some((elapsed, count)) = update_future.await {
+                progress_counter = 0;
+                if options.log_detail {
+                    println!(
+                        "\x1b[2K{event_type} - updated in {elapsed} ({tasks} tasks, {memory})",
+                        event_type = "event".purple(),
+                        elapsed = FormatDuration(elapsed),
+                        tasks = count,
+                        memory = FormatBytes(TurboMalloc::memory_usage())
+                    );
+                } else {
+                    println!(
+                        "\x1b[2K{event_type} - updated in {elapsed}",
+                        event_type = "event".purple(),
+                        elapsed = FormatDuration(elapsed),
+                    );
+                }
             } else {
-                println!(
-                    "{event_type} - updated in {elapsed}",
-                    event_type = "event".purple(),
-                    elapsed = FormatDuration(elapsed),
-                );
+                progress_counter += 1;
+                if options.log_detail {
+                    print!(
+                        "\x1b[2K{event_type} - updating for {progress_counter}s... ({memory})\r",
+                        event_type = "event".purple(),
+                        memory = FormatBytes(TurboMalloc::memory_usage())
+                    );
+                } else {
+                    print!(
+                        "\x1b[2K{event_type} - updating for {progress_counter}s...\r",
+                        event_type = "event".purple(),
+                    );
+                }
+                let _ = stdout().lock().flush();
             }
         }
     };
