@@ -3,15 +3,13 @@ use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
 };
-use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
-    Value, ValueToString, ValueToStringVc,
-};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{
         ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkingContextVc, ChunkingType,
         ChunkingTypeOptionVc,
     },
+    environment::{Rendering, RenderingVc},
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::UrlReferenceSubType,
@@ -36,7 +34,7 @@ use crate::{
 pub struct UrlAssetReference {
     origin: ResolveOriginVc,
     request: RequestVc,
-    is_rendering: BoolVc,
+    rendering: RenderingVc,
     ast_path: AstPathVc,
 }
 
@@ -46,13 +44,13 @@ impl UrlAssetReferenceVc {
     pub fn new(
         origin: ResolveOriginVc,
         request: RequestVc,
-        is_rendering: BoolVc,
+        rendering: RenderingVc,
         ast_path: AstPathVc,
     ) -> Self {
         UrlAssetReference {
             origin,
             request,
-            is_rendering,
+            rendering,
             ast_path,
         }
         .cell()
@@ -115,44 +113,46 @@ impl CodeGenerateable for UrlAssetReference {
 
         let referenced_asset = self_vc.get_referenced_asset().await?;
 
-        fn warn_unsupported_env(this: &UrlAssetReference) {
-            CodeGenerationIssue {
-                severity: IssueSeverity::Error.into(),
-                title: StringVc::cell(
-                    "new URL(…) not implemented for this environment".to_string(),
-                ),
-                message: StringVc::cell(
-                    "new URL(…) is only currently supported for rendering environments like \
-                     Client-Side or Server-Side Rendering."
-                        .to_string(),
-                ),
-                path: this.origin.origin_path(),
+        // For rendering environments (CSR and SSR), we rewrite the `import.meta.url` to
+        // be a location.origin because it allows us to access files from the root of
+        // the dev server. It's important that this be rewritten for SSR as well, so
+        // that the client's hydration matches exactly.
+        //
+        // In a non-rendering env, the `import.meta.url` is already the correct `file://` URL
+        // to load files.
+        let rewrite = match &*this.rendering.await? {
+            Rendering::None => {
+                CodeGenerationIssue {
+                    severity: IssueSeverity::Error.into(),
+                    title: StringVc::cell(
+                        "new URL(…) not implemented for this environment".to_string(),
+                    ),
+                    message: StringVc::cell(
+                        "new URL(…) is only currently supported for rendering environments like \
+                         Client-Side or Server-Side Rendering."
+                            .to_string(),
+                    ),
+                    path: this.origin.origin_path(),
+                }
+                .cell()
+                .as_issue()
+                .emit();
+                None
             }
-            .cell()
-            .as_issue()
-            .emit();
-        }
+            Rendering::Client => Some(quote!("location.origin" as Expr)),
+            Rendering::Server(server_addr) => {
+                let location = server_addr.await?.to_string()?;
+                Some(location.into())
+            }
+        };
+
+        let ast_path = this.ast_path.await?;
 
         match &*referenced_asset {
             ReferencedAsset::Some(asset) => {
                 // We rewrite the first `new URL()` arguments to be a require() of the chunk
                 // item, which exports the static asset path to the linked file.
                 let id = asset.as_chunk_item(context).id().await?;
-
-                // For rendering environments (CSR and SSR), we rewrite the `import.meta.url` to
-                // be a location.origin because it allows us to access files from the root of
-                // the dev server. It's important that this be rewritten for SSR as well, so
-                // that the client's hydration matches exactly.
-                //
-                // In a non-rendering env, the `import.meta.url` is already the correct `file://` URL
-                // to load files.
-                let is_rendering = *this.is_rendering.await?;
-
-                let ast_path = this.ast_path.await?;
-
-                if !is_rendering {
-                    warn_unsupported_env(&this);
-                }
 
                 visitors.push(
                     create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
@@ -164,10 +164,9 @@ impl CodeGenerateable for UrlAssetReference {
                                 );
                             }
 
-                            // TODO: Fix non-rendering
-                            if is_rendering {
+                            if let Some(rewrite) = &rewrite {
                                 if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
-                                    *expr = quote!("location.origin" as Expr);
+                                    *expr = rewrite.clone();
                                 }
                             }
                         }
@@ -175,23 +174,7 @@ impl CodeGenerateable for UrlAssetReference {
                 );
             }
             ReferencedAsset::OriginalReferenceTypeExternal(request) => {
-                // Handle new URL that points to an external URL
-
-                // For rendering environments (CSR and SSR), we rewrite the `import.meta.url` to
-                // be a location.origin because it allows us to access files from the root of
-                // the dev server. It's important that this be rewritten for SSR as well, so
-                // that the client's hydration matches exactly.
-                //
-                // In a non-rendering env, the `import.meta.url` is already the correct `file://` URL
-                // to load files.
-                let is_rendering = *this.is_rendering.await?;
-
-                if !is_rendering {
-                    warn_unsupported_env(&this);
-                }
-
                 let request = request.to_string();
-                let ast_path = this.ast_path.await?;
                 visitors.push(
                     create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
                         if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -199,10 +182,9 @@ impl CodeGenerateable for UrlAssetReference {
                                 *expr = request.as_str().into()
                             }
 
-                            // TODO: Fix non-rendering
-                            if is_rendering {
+                            if let Some(rewrite) = &rewrite {
                                 if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(1) {
-                                    *expr = quote!("location.origin" as Expr);
+                                    *expr = rewrite.clone();
                                 }
                             }
                         }

@@ -6,7 +6,7 @@ use turbopack::{
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
 };
 use turbopack_core::environment::{
-    EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc,
+    EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc, ServerAddrVc,
 };
 use turbopack_ecmascript::EcmascriptInputTransform;
 use turbopack_node::execution_context::ExecutionContextVc;
@@ -66,10 +66,11 @@ pub fn get_server_resolve_options_context(
 pub fn get_server_environment(
     ty: Value<ServerContextType>,
     process_env: ProcessEnvVc,
+    server_addr: ServerAddrVc,
 ) -> EnvironmentVc {
     EnvironmentVc::new(
         Value::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironmentVc::current(process_env),
+            NodeJsEnvironmentVc::current(process_env, server_addr),
         )),
         match ty.into_value() {
             ServerContextType::Pages { .. } => Value::new(EnvironmentIntention::ServerRendering),

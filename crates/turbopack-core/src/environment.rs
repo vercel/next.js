@@ -1,4 +1,5 @@
 use std::{
+    net::SocketAddr,
     process::{Command, Stdio},
     str::FromStr,
 };
@@ -14,6 +15,53 @@ use turbo_tasks_env::ProcessEnvVc;
 use crate::target::CompileTargetVc;
 
 static DEFAULT_NODEJS_VERSION: &str = "16.0.0";
+
+#[derive(Default)]
+#[turbo_tasks::value(shared)]
+pub struct ServerAddr(#[turbo_tasks(trace_ignore)] Option<SocketAddr>);
+
+impl ServerAddr {
+    pub fn new(addr: SocketAddr) -> Self {
+        Self(Some(addr))
+    }
+
+    pub fn to_string(&self) -> Result<String> {
+        let addr = &self.0.context("expected some server address")?;
+        let uri = if addr.ip().is_loopback() || addr.ip().is_unspecified() {
+            match addr.port() {
+                80 => "http://localhost".to_string(),
+                443 => "https://localhost".to_string(),
+                _ => format!("http://localhost:{}", addr.port()),
+            }
+        } else {
+            format!("http://{}", addr)
+        };
+        Ok(uri)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ServerAddrVc {
+    #[turbo_tasks::function]
+    pub fn empty() -> Self {
+        ServerAddr(None).cell()
+    }
+}
+
+#[derive(Default)]
+#[turbo_tasks::value]
+pub enum Rendering {
+    #[default]
+    None,
+    Client,
+    Server(ServerAddrVc),
+}
+
+impl Rendering {
+    pub fn is_none(&self) -> bool {
+        matches!(self, Rendering::None)
+    }
+}
 
 #[turbo_tasks::value]
 pub struct Environment {
@@ -171,15 +219,17 @@ impl EnvironmentVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_rendering(self) -> Result<BoolVc> {
+    pub async fn rendering(self) -> Result<RenderingVc> {
         let env = self.await?;
-        Ok(BoolVc::cell(matches!(
-            env.intention,
-            EnvironmentIntention::Prerendering
-                | EnvironmentIntention::ServerRendering
-                | EnvironmentIntention::StaticRendering
-                | EnvironmentIntention::Client
-        )))
+        Ok(match env.execution {
+            ExecutionEnvironment::NodeJsBuildTime(env)
+            | ExecutionEnvironment::NodeJsLambda(env)
+            | ExecutionEnvironment::EdgeFunction(env) => {
+                Rendering::Server(env.await?.server_addr).cell()
+            }
+            ExecutionEnvironment::Browser(_) => Rendering::Client.cell(),
+            _ => Rendering::None.cell(),
+        })
     }
 }
 
@@ -193,6 +243,7 @@ pub struct NodeJsEnvironment {
     pub node_version: NodeJsVersionVc,
     // user specified process.cwd
     pub cwd: OptionStringVc,
+    pub server_addr: ServerAddrVc,
 }
 
 impl Default for NodeJsEnvironment {
@@ -201,6 +252,7 @@ impl Default for NodeJsEnvironment {
             compile_target: CompileTargetVc::current(),
             node_version: NodeJsVersionVc::default(),
             cwd: OptionStringVc::cell(None),
+            server_addr: ServerAddrVc::empty(),
         }
     }
 }
@@ -224,11 +276,12 @@ impl NodeJsEnvironmentVc {
     }
 
     #[turbo_tasks::function]
-    pub fn current(process_env: ProcessEnvVc) -> Self {
+    pub fn current(process_env: ProcessEnvVc, server_addr: ServerAddrVc) -> Self {
         Self::cell(NodeJsEnvironment {
             compile_target: CompileTargetVc::current(),
             node_version: NodeJsVersionVc::cell(NodeJsVersion::Current(process_env)),
             cwd: OptionStringVc::cell(None),
+            server_addr,
         })
     }
 }
