@@ -24000,7 +24000,7 @@ packages:
     dev: true
 
   github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540:
-    resolution: {commit: f43f6a1cefff47fb361c88cf4b943fdbcaafe540, repo: git+ssh://git@github.com/watson/ci-info.git, type: git}
+    resolution: {tarball: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540}
     name: ci-info
     version: 2.0.0
     dev: true
