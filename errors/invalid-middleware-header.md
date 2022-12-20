@@ -22,4 +22,4 @@ You included a proxy header in a middleware response that is reserved by next.js
 
 #### Possible Ways to Fix It
 
-Rename your header so that it does not conflict with a system reserved header. For instance renane `x-middleware-my-header` to `x-my-header`.
+Rename your header so that it does not conflict with a system reserved header. For instance rename `x-middleware-my-header` to `x-my-header`.
