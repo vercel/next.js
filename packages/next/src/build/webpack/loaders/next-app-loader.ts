@@ -19,6 +19,7 @@ const FILE_TYPES = {
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 
+const ROUTE_SEGMENT = 'route$'
 const PAGE_SEGMENT = 'page$'
 
 // TODO-APP: check if this can be narrowed.
@@ -72,6 +73,17 @@ async function createTreeCodeFromPath({
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
+        const resolvedPagePath = await resolve(matchedPagePath)
+        if (resolvedPagePath) pages.push(resolvedPagePath)
+
+        // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
+        props[parallelKey] = `['', {}, {
+          page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+            resolvedPagePath
+          )}), ${JSON.stringify(resolvedPagePath)}]}]`
+        continue
+      } else if (parallelSegment === ROUTE_SEGMENT) {
+        const matchedPagePath = `${appDirPrefix}${segmentPath}/route`
         const resolvedPagePath = await resolve(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
@@ -206,14 +218,16 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         const rest = path.slice(pathname.length + 1).split('/')
 
         let matchedSegment = rest[0]
-        // It is the actual page, mark it specially.
-        if (rest.length === 1 && matchedSegment === 'page') {
-          matchedSegment = PAGE_SEGMENT
-        }
 
         const matchedKey = matchedSegment.startsWith('@')
           ? matchedSegment.slice(1)
           : 'children'
+
+        // It is the actual page, mark it.
+        if (rest.length === 1) {
+          if (matchedSegment === 'page') matchedSegment = PAGE_SEGMENT
+          if (matchedSegment === 'route') matchedSegment = ROUTE_SEGMENT
+        }
 
         matched[matchedKey] = matchedSegment
       }
