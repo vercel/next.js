@@ -112,7 +112,7 @@ async function runOperation(renderData: RenderData) {
   const pageModule = pageItem.page!.module;
   const Page = pageModule.default;
   let tree: LoaderTree = ["", {}, { page: [() => Page, "page.js"] }];
-  layoutInfoChunks["page.js"] = pageItem.page!.chunks;
+  layoutInfoChunks["page"] = pageItem.page!.chunks;
   for (let i = LAYOUT_INFO.length - 2; i >= 0; i--) {
     const info = LAYOUT_INFO[i];
     const components: ComponentsType = {};
@@ -122,7 +122,7 @@ async function runOperation(renderData: RenderData) {
       }
       const k = key as FileType;
       components[k] = [() => info[k]!.module.default, `${k}${i}.js`];
-      layoutInfoChunks[`${k}${i}.js`] = info[k]!.chunks;
+      layoutInfoChunks[`${k}${i}`] = info[k]!.chunks;
     }
     tree = [info.segment, { children: tree }, components];
   }
@@ -145,8 +145,8 @@ async function runOperation(renderData: RenderData) {
         if (name === "__ssr_module_mapping__") {
           return manifest;
         }
-        if (name === "__client_css_manifest__") {
-          return {};
+        if (name === "__entry_css_files__") {
+          return __entry_css_files__;
         }
         return new Proxy({}, proxyMethodsForModule(name as string, css));
       },
@@ -154,14 +154,15 @@ async function runOperation(renderData: RenderData) {
   };
   const manifest: FlightManifest = new Proxy({} as any, proxyMethods(false));
   const serverCSSManifest: FlightCSSManifest = {};
-  serverCSSManifest.__entry_css__ = {};
+  const __entry_css_files__: FlightManifest["__entry_css_files__"] = {};
   for (const [key, chunks] of Object.entries(layoutInfoChunks)) {
     const cssChunks = chunks.filter((path) => path.endsWith(".css"));
-    serverCSSManifest[key] = cssChunks.map((chunk) =>
+    serverCSSManifest[`${key}.js`] = cssChunks.map((chunk) =>
       JSON.stringify([chunk, [chunk]])
     );
+    __entry_css_files__[key] = cssChunks;
   }
-  serverCSSManifest.__entry_css__ = {
+  serverCSSManifest.__entry_css_mods__ = {
     page: serverCSSManifest["page.js"],
   };
   const req: IncomingMessage = {

@@ -3,7 +3,7 @@
   "devDependencies": {
     "@turbo/pack-test-harness": "*",
     "autoprefixer": "^10.4.13",
-    "next": "13.0.1",
+    "next": "13.0.8-canary.2",
     "postcss": "^8.4.20",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
