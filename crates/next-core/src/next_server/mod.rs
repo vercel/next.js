@@ -2,6 +2,7 @@ use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
+    condition::ContextCondition,
     module_options::{ModuleOptionsContext, ModuleOptionsContextVc, PostCssTransformOptions},
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
 };
@@ -35,9 +36,7 @@ pub fn get_server_resolve_options_context(
     let next_server_import_map = get_next_server_import_map(project_path, ty, next_config);
     match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::AppSSR { .. } => {
-            ResolveOptionsContext {
-                enable_typescript: true,
-                enable_react: true,
+            let resolve_options_context = ResolveOptionsContext {
                 enable_node_modules: true,
                 enable_node_externals: true,
                 enable_node_native_modules: true,
@@ -45,19 +44,37 @@ pub fn get_server_resolve_options_context(
                 import_map: Some(next_server_import_map),
                 module: true,
                 ..Default::default()
+            };
+            ResolveOptionsContext {
+                enable_typescript: true,
+                enable_react: true,
+                rules: vec![(
+                    ContextCondition::InDirectory("node_modules".to_string()),
+                    resolve_options_context.clone().cell(),
+                )],
+                ..resolve_options_context
             }
         }
-        ServerContextType::AppRSC { .. } => ResolveOptionsContext {
-            enable_typescript: true,
-            enable_react: true,
-            enable_node_modules: true,
-            enable_node_externals: true,
-            enable_node_native_modules: true,
-            custom_conditions: vec!["development".to_string(), "react-server".to_string()],
-            import_map: Some(next_server_import_map),
-            module: true,
-            ..Default::default()
-        },
+        ServerContextType::AppRSC { .. } => {
+            let resolve_options_context = ResolveOptionsContext {
+                enable_node_modules: true,
+                enable_node_externals: true,
+                enable_node_native_modules: true,
+                custom_conditions: vec!["development".to_string(), "react-server".to_string()],
+                import_map: Some(next_server_import_map),
+                module: true,
+                ..Default::default()
+            };
+            ResolveOptionsContext {
+                enable_typescript: true,
+                enable_react: true,
+                rules: vec![(
+                    ContextCondition::InDirectory("node_modules".to_string()),
+                    resolve_options_context.clone().cell(),
+                )],
+                ..resolve_options_context
+            }
+        }
     }
     .cell()
 }
@@ -87,38 +104,65 @@ pub fn get_server_module_options_context(
     ty: Value<ServerContextType>,
 ) -> ModuleOptionsContextVc {
     let module_options_context = match ty.into_value() {
-        ServerContextType::Pages { .. } => ModuleOptionsContext {
-            enable_styled_jsx: true,
-            enable_postcss_transform: Some(PostCssTransformOptions {
-                postcss_package: Some(get_postcss_package_mapping(project_path)),
+        ServerContextType::Pages { .. } => {
+            let module_options_context = ModuleOptionsContext {
+                execution_context: Some(execution_context),
                 ..Default::default()
-            }),
-            enable_typescript_transform: true,
-            execution_context: Some(execution_context),
-            ..Default::default()
-        },
-        ServerContextType::AppSSR { .. } => ModuleOptionsContext {
-            enable_styled_jsx: true,
-            enable_postcss_transform: Some(PostCssTransformOptions {
-                postcss_package: Some(get_postcss_package_mapping(project_path)),
+            };
+            ModuleOptionsContext {
+                enable_styled_jsx: true,
+                enable_postcss_transform: Some(PostCssTransformOptions {
+                    postcss_package: Some(get_postcss_package_mapping(project_path)),
+                    ..Default::default()
+                }),
+                enable_typescript_transform: true,
+                rules: vec![(
+                    ContextCondition::InDirectory("node_modules".to_string()),
+                    module_options_context.clone().cell(),
+                )],
+                ..module_options_context
+            }
+        }
+        ServerContextType::AppSSR { .. } => {
+            let module_options_context = ModuleOptionsContext {
+                execution_context: Some(execution_context),
                 ..Default::default()
-            }),
-            enable_typescript_transform: true,
-            execution_context: Some(execution_context),
-            ..Default::default()
-        },
-        ServerContextType::AppRSC { .. } => ModuleOptionsContext {
-            enable_postcss_transform: Some(PostCssTransformOptions {
-                postcss_package: Some(get_postcss_package_mapping(project_path)),
+            };
+            ModuleOptionsContext {
+                enable_styled_jsx: true,
+                enable_postcss_transform: Some(PostCssTransformOptions {
+                    postcss_package: Some(get_postcss_package_mapping(project_path)),
+                    ..Default::default()
+                }),
+                enable_typescript_transform: true,
+                rules: vec![(
+                    ContextCondition::InDirectory("node_modules".to_string()),
+                    module_options_context.clone().cell(),
+                )],
+                ..module_options_context
+            }
+        }
+        ServerContextType::AppRSC { .. } => {
+            let module_options_context = ModuleOptionsContext {
+                custom_ecmascript_transforms: vec![EcmascriptInputTransform::ClientDirective(
+                    StringVc::cell("server-to-client".to_string()),
+                )],
+                execution_context: Some(execution_context),
                 ..Default::default()
-            }),
-            enable_typescript_transform: true,
-            custom_ecmascript_transforms: vec![EcmascriptInputTransform::ClientDirective(
-                StringVc::cell("server-to-client".to_string()),
-            )],
-            execution_context: Some(execution_context),
-            ..Default::default()
-        },
+            };
+            ModuleOptionsContext {
+                enable_postcss_transform: Some(PostCssTransformOptions {
+                    postcss_package: Some(get_postcss_package_mapping(project_path)),
+                    ..Default::default()
+                }),
+                enable_typescript_transform: true,
+                rules: vec![(
+                    ContextCondition::InDirectory("node_modules".to_string()),
+                    module_options_context.clone().cell(),
+                )],
+                ..module_options_context
+            }
+        }
     }
     .cell();
 

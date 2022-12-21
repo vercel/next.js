@@ -46,6 +46,7 @@ use turbopack_core::{
     },
 };
 
+pub mod condition;
 pub mod evaluate_context;
 mod graph;
 pub mod module_options;

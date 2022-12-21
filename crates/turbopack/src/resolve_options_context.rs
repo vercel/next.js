@@ -4,6 +4,8 @@ use turbopack_core::{
     resolve::options::{ImportMapVc, ResolvedMapVc},
 };
 
+use crate::condition::ContextCondition;
+
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
@@ -34,6 +36,9 @@ pub struct ResolveOptionsContext {
     pub fallback_import_map: Option<ImportMapVc>,
     /// An additional resolved map to use after modules have been resolved.
     pub resolved_map: Option<ResolvedMapVc>,
+    /// A list of rules to use a different resolve option context for certain
+    /// context paths. The first matching is used.
+    pub rules: Vec<(ContextCondition, ResolveOptionsContextVc)>,
     pub placeholder_for_future_extensions: (),
 }
 

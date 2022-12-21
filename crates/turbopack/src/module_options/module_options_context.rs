@@ -5,6 +5,7 @@ use turbopack_ecmascript::EcmascriptInputTransform;
 use turbopack_node::execution_context::ExecutionContextVc;
 
 use super::ModuleRule;
+use crate::condition::ContextCondition;
 
 #[derive(Default, Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub struct PostCssTransformOptions {
@@ -27,6 +28,9 @@ pub struct ModuleOptionsContext {
     /// Custom rules to be applied after all default rules.
     pub custom_rules: Vec<ModuleRule>,
     pub execution_context: Option<ExecutionContextVc>,
+    /// A list of rules to use a different module option context for certain
+    /// context paths. The first matching is used.
+    pub rules: Vec<(ContextCondition, ModuleOptionsContextVc)>,
     pub placeholder_for_future_extensions: (),
 }
 

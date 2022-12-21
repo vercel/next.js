@@ -198,7 +198,7 @@ pub fn get_next_client_resolved_map(
                 "**/*/next/dist/client/components/react-dev-overlay/hot-reloader-client.js",
             ),
             ImportMapping::PrimaryAlternative(
-                "@vercel/turbopack-next/dev/hot-reloader".to_string(),
+                "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
                 Some(root),
             )
             .into(),
@@ -243,7 +243,7 @@ pub fn insert_next_shared_aliases(import_map: &mut ImportMap, project_path: File
     // own
     import_map.insert_exact_alias(
         "next/dist/compiled/@next/react-dev-overlay/dist/client",
-        request_to_import_mapping(package_root, "./overlay/client"),
+        request_to_import_mapping(package_root, "./overlay/client.ts"),
     );
 
     insert_package_alias(

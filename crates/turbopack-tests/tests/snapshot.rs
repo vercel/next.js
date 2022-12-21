@@ -20,6 +20,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::encode_hex;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
+    condition::ContextCondition,
     ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc},
     module_options::ModuleOptionsContext,
     resolve_options_context::ResolveOptionsContext,
@@ -170,6 +171,15 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
             enable_react: true,
             enable_node_modules: true,
             custom_conditions: vec!["development".to_string()],
+            rules: vec![(
+                ContextCondition::InDirectory("node_modules".to_string()),
+                ResolveOptionsContext {
+                    enable_node_modules: true,
+                    custom_conditions: vec!["development".to_string()],
+                    ..Default::default()
+                }
+                .cell(),
+            )],
             ..Default::default()
         }
         .cell(),
