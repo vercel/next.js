@@ -20,6 +20,8 @@ import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
 
+import { StalenessIndicator, VersionInfo } from '../components/Staleness'
+
 export type SupportedErrorEvent = {
   id: number
   event: UnhandledErrorAction | UnhandledRejectionAction
@@ -27,6 +29,7 @@ export type SupportedErrorEvent = {
 export type ErrorsProps = {
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
+  versionInfo?: VersionInfo
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -81,6 +84,7 @@ const HotlinkedText: React.FC<{
 export const Errors: React.FC<ErrorsProps> = function Errors({
   errors,
   initialDisplayState,
+  versionInfo,
 }) {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -271,6 +275,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
                 <span>{readyErrors.length}</span> unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
+              {versionInfo ? <StalenessIndicator {...versionInfo} /> : null}
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
@@ -364,5 +369,26 @@ export const styles = css`
   }
   .nextjs-toast-errors-hide-button:hover {
     opacity: 1;
+  }
+  .nextjs-container-build-error-version-status {
+    flex: 1;
+    text-align: right;
+  }
+  .nextjs-container-build-error-version-status span {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background: #eaeaea;
+    margin-left: var(--size-gap);
+  }
+  .nextjs-container-build-error-version-status span.fresh {
+    background: #50e3c2;
+  }
+  .nextjs-container-build-error-version-status span.outdated {
+    background: #e00;
+  }
+  .nextjs-container-build-error-version-status span.stale {
+    background: #f5a623;
   }
 `

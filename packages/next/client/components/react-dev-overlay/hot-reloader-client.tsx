@@ -10,7 +10,10 @@ import React, {
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../dev/error-overlay/format-webpack-messages'
 import { useRouter } from '../navigation'
-import { errorOverlayReducer } from './internal/error-overlay-reducer'
+import {
+  ACTION_VERSION_INFO,
+  errorOverlayReducer,
+} from './internal/error-overlay-reducer'
 import {
   ACTION_BUILD_OK,
   ACTION_BUILD_ERROR,
@@ -30,10 +33,12 @@ import {
   useWebsocket,
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
+import { VersionInfo } from './internal/components/Staleness'
 
 interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
+  onVersionInfo(versionInfo: VersionInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
 }
@@ -218,7 +223,8 @@ function processMessage(
         handleAvailableHash(obj.hash)
       }
 
-      const { errors, warnings } = obj
+      const { errors, warnings, versionInfo } = obj
+      dispatcher.onVersionInfo(versionInfo)
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
       if (hasErrors) {
@@ -376,6 +382,7 @@ function processMessage(
       router.refresh()
       return
     }
+
     case 'pong': {
       const { invalid } = obj
       if (invalid) {
@@ -403,20 +410,24 @@ export default function HotReload({
     buildError: null,
     errors: [],
     refreshState: { type: 'idle' },
+    versionInfo: { canary: '0.0.0', installed: '0.0.0', latest: '0.0.0' },
   })
   const dispatcher = useMemo((): Dispatcher => {
     return {
-      onBuildOk(): void {
+      onBuildOk() {
         dispatch({ type: ACTION_BUILD_OK })
       },
-      onBuildError(message: string): void {
+      onBuildError(message) {
         dispatch({ type: ACTION_BUILD_ERROR, message })
       },
-      onBeforeRefresh(): void {
+      onBeforeRefresh() {
         dispatch({ type: ACTION_BEFORE_REFRESH })
       },
-      onRefresh(): void {
+      onRefresh() {
         dispatch({ type: ACTION_REFRESH })
+      },
+      onVersionInfo(versionInfo) {
+        dispatch({ type: ACTION_VERSION_INFO, versionInfo })
       },
     }
   }, [dispatch])

@@ -8,11 +8,11 @@ import {
 import { ShadowPortal } from './components/ShadowPortal'
 import { BuildError } from './container/BuildError'
 import { Errors, SupportedErrorEvent } from './container/Errors'
+import { RootLayoutError } from './container/RootLayoutError'
+import { parseStack } from './helpers/parseStack'
 import { Base } from './styles/Base'
 import { ComponentStyles } from './styles/ComponentStyles'
 import { CssReset } from './styles/CssReset'
-import { parseStack } from './helpers/parseStack'
-import { RootLayoutError } from './container/RootLayoutError'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
@@ -73,7 +73,6 @@ class ReactDevOverlay extends React.PureComponent<
             <CssReset />
             <Base />
             <ComponentStyles />
-
             {rootLayoutMissingTagsError ? (
               <RootLayoutError
                 missingTags={rootLayoutMissingTagsError.missingTags}
@@ -81,7 +80,11 @@ class ReactDevOverlay extends React.PureComponent<
             ) : hasBuildError ? (
               <BuildError message={state.buildError!} />
             ) : reactError ? (
-              <Errors initialDisplayState="fullscreen" errors={[reactError]} />
+              <Errors
+                versionInfo={state.versionInfo}
+                initialDisplayState="fullscreen"
+                errors={[reactError]}
+              />
             ) : hasRuntimeErrors ? (
               <Errors initialDisplayState="minimized" errors={state.errors} />
             ) : undefined}

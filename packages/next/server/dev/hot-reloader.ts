@@ -47,6 +47,7 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
+import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/components/Staleness'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -178,6 +179,11 @@ export default class HotReloader {
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
+  private versionInfo: VersionInfo = {
+    canary: '0.0.0',
+    installed: '0.0.0',
+    latest: '0.0.0',
+  }
   public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
@@ -414,6 +420,21 @@ export default class HotReloader {
       )
   }
 
+  private async getVersionInfo(span: Span) {
+    const versionInfoSpan = span.traceChild('get-version-info')
+    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
+      // TODO: Get the correct values
+      const installed = '0.0.0'
+      const canary = 'canary'
+      const latest = '13.0.8'
+      return {
+        installed,
+        latest,
+        canary,
+      }
+    })
+  }
+
   private async getWebpackConfig(span: Span) {
     const webpackConfigSpan = span.traceChild('get-webpack-config')
 
@@ -557,6 +578,8 @@ export default class HotReloader {
   public async start(): Promise<void> {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
+
+    this.versionInfo = await this.getVersionInfo(startSpan)
 
     await this.clean(startSpan)
     // Ensure distDir exists before writing package.json
@@ -1039,7 +1062,8 @@ export default class HotReloader {
     )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
-      this.multiCompiler.compilers
+      this.multiCompiler.compilers,
+      this.versionInfo
     )
 
     let booted = false
