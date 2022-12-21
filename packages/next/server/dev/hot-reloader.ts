@@ -1,4 +1,5 @@
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
+import * as semver from 'next/dist/compiled/semver'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
@@ -180,7 +181,7 @@ export default class HotReloader {
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
   private versionInfo: VersionInfo = {
-    staleness: 'fresh',
+    staleness: 'unknown',
     installed: '0.0.0',
   }
   public multiCompiler?: webpack.MultiCompiler
@@ -423,28 +424,35 @@ export default class HotReloader {
     const versionInfoSpan = span.traceChild('get-version-info')
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
       // TODO: Get the correct values
-      const installed = '0.0.0'
-      const canary = 'canary'
-      const latest = '13.0.8'
+      const installed = semver.parse('13.0.6')
+      const latest = semver.parse('13.0.8')
+      const canary = semver.parse('13.0.8-canary.8')
 
-      function compareVersions(a: string, b: string): VersionInfo['staleness'] {
-        const pa = a.split('.')
-        const pb = b.split('.')
-        for (let i = 0; i < 3; i++) {
-          const na = Number(pa[i])
-          const nb = Number(pb[i])
-          if (na > nb) return 'fresh'
-          if (nb > na) return 'stale'
-          if (!isNaN(na) && isNaN(nb)) return 'fresh'
-          if (isNaN(na) && !isNaN(nb)) return 'stale'
+      let staleness: VersionInfo['staleness'] = 'unknown'
+
+      if (installed && latest && canary) {
+        if (installed.major < latest.major) {
+          // Old version
+          staleness = 'outdated'
+        } else if (
+          // Canary, but old
+          installed.prerelease[0] === 'canary' &&
+          semver.lt(installed, canary)
+        ) {
+          staleness = 'outdated'
+        } else if (
+          // Stable, but not the latest
+          !installed.prerelease.length &&
+          semver.lt(installed, latest)
+        ) {
+          staleness = 'stale'
+        } else {
+          // Latest
+          staleness = 'fresh'
         }
-        return 'fresh'
       }
 
-      return {
-        installed: '0.0.0',
-        staleness: 'fresh',
-      }
+      return { installed: installed?.raw ?? '0.0.0', staleness }
     })
   }
 
