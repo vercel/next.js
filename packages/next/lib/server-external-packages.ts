@@ -23,4 +23,5 @@ export const EXTERNAL_PACKAGES = [
   'ts-node',
   'typescript',
   'webpack',
+  'aws-crt',
 ]
