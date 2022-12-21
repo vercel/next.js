@@ -294,7 +294,7 @@ export default async function middleware(req) {
 }
 ```
 
-`skipMiddlewareUrlNormalize` allows disabling the URL normalizing Next.js does to make handling direct visits and client-transitions the same easy. There are some advanced cases where you need full control using the original URL which this unlocks.
+`skipMiddlewareUrlNormalize` allows disabling the URL normalizing Next.js does to make handling direct visits and client-transitions the same. There are some advanced cases where you need full control using the original URL which this unlocks.
 
 ```js
 // next.config.js
