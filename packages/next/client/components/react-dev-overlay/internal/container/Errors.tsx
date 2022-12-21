@@ -284,17 +284,16 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
                 <span>{readyErrors.length}</span> unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              {versionInfo ? (
-                <>
-                  <small
-                    title={stalenessTitles[versionInfo.staleness]}
-                    className="nextjs-container-build-error-version-status"
-                  >
-                    Next.js {versionInfo.installed}
-                    <span className={versionInfo.staleness} />
-                  </small>
-                </>
-              ) : null}
+              <small
+                title={
+                  stalenessTitles[versionInfo!.staleness] ||
+                  'Could not determine version'
+                }
+                className="nextjs-container-build-error-version-status"
+              >
+                Next.js {versionInfo!.installed}
+                <span className={versionInfo!.staleness} />
+              </small>
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
