@@ -407,7 +407,7 @@ export default class NextNodeServer extends BaseServer {
           }
           const imagesConfig = this.nextConfig.images
 
-          if (imagesConfig.loader !== 'default') {
+          if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
             await this.render404(req, res)
             return { finished: true }
           }
