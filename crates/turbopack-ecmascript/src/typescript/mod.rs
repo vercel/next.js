@@ -4,7 +4,7 @@ pub mod resolve;
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_tasks::{primitives::StringVc, Value};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{DirectoryContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
@@ -115,7 +115,31 @@ impl Asset for TsConfigModuleAsset {
                 }
             })
             .await?;
-            let types = types.unwrap_or_else(|| vec![(self.source, "node".to_string())]);
+            let types = if let Some(types) = types {
+                types
+            } else {
+                let mut all_types = Vec::new();
+                let mut current = self.source.path().parent().resolve().await?;
+                loop {
+                    if let DirectoryContent::Entries(entries) =
+                        &*current.join("node_modules/@types").read_dir().await?
+                    {
+                        all_types.extend(entries.iter().filter_map(|(name, _)| {
+                            if name.starts_with('.') {
+                                None
+                            } else {
+                                Some((self.source, name.to_string()))
+                            }
+                        }));
+                    }
+                    let parent = current.parent().resolve().await?;
+                    if parent == current {
+                        break;
+                    }
+                    current = parent;
+                }
+                all_types
+            };
             for (_, name) in types {
                 references.push(
                     TsConfigTypesReferenceVc::new(
