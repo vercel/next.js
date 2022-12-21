@@ -1,3 +1,5 @@
+const { addConsoleHandler } = require('selenium-webdriver/lib/logging')
+
 module.exports = function (plop) {
   plop.setHelper('toFileName', (str) => str.toLowerCase().replace(/ /g, '-'))
 
@@ -34,11 +36,13 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const templatePath = `test/${
+      const appDirPath = data.appDir ? 'app-dir' : ''
+      let templatePath = `test/${
         data.type === 'unit' ? 'unit' : 'e2e'
-      }/test-template`
-      const targetPath = `test/{{ type }}`
+      }/${appDirPath}/test-template`
+      let targetPath = `test/{{ type }}/${appDirPath}`
 
+      console.log(templatePath)
       return [
         {
           type: 'addMany',
