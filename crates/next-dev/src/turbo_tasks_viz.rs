@@ -76,13 +76,10 @@ impl ContentSource for TurboTasksSource {
                     let mut stats = Stats::new();
                     let b = tt.backend();
                     let active_only = query.contains_key("active");
+                    let include_unloaded = query.contains_key("unloaded");
                     b.with_all_cached_tasks(|task| {
                         stats.add_id_conditional(b, task, |_, info| {
-                            (!active_only || info.active)
-                                && info
-                                    .executions
-                                    .map(|executions| executions > 0)
-                                    .unwrap_or(true)
+                            (include_unloaded || !info.unloaded) && (!active_only || info.active)
                         });
                     });
                     let tree = stats.treeify(ReferenceType::Dependency);
@@ -94,9 +91,7 @@ impl ContentSource for TurboTasksSource {
                             source: self_vc.into(),
                             path: path.to_string(),
                             vary: ContentSourceDataVary {
-                                query: Some(ContentSourceDataFilter::Subset(
-                                    ["active".to_string()].into(),
-                                )),
+                                query: Some(ContentSourceDataFilter::All),
                                 ..Default::default()
                             },
                         }

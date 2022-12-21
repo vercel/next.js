@@ -36,12 +36,15 @@ struct MaxValues {
     pub max_duration: Duration,
     pub count: usize,
     pub active_count: usize,
+    pub unloaded_count: usize,
     pub updates: Option<usize>,
     pub roots: usize,
     /// stored as scopes * 100
     pub scopes: usize,
     /// stored as dependencies * 100
     pub dependencies: usize,
+    /// stored as children * 100
+    pub children: usize,
     pub depth: u32,
 }
 
@@ -60,6 +63,17 @@ pub fn get_avg_dependencies_count_times_100(stats: &ExportedTaskStats) -> usize 
         / stats.count
 }
 
+pub fn get_avg_children_count_times_100(stats: &ExportedTaskStats) -> usize {
+    stats
+        .references
+        .iter()
+        .filter(|((ty, _), _)| *ty == ReferenceType::Child)
+        .map(|(_, ref_stats)| ref_stats.count)
+        .sum::<usize>()
+        * 100
+        / stats.count
+}
+
 fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
     let mut max_total_duration = None;
     let mut max_total_current_duration = Duration::ZERO;
@@ -68,10 +82,12 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
     let mut max_max_duration = Duration::ZERO;
     let mut max_count = 0;
     let mut max_active_count = 0;
+    let mut max_unloaded_count = 0;
     let mut max_updates = None;
     let mut max_roots = 0;
     let mut max_scopes = 0;
     let mut max_dependencies = 0;
+    let mut max_children = 0;
     let mut max_depth = 0;
     for (_, ref s) in node.task_types.iter().chain(node.primary.iter()) {
         if let Some(total_duration) = s.total_duration {
@@ -82,14 +98,17 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
         max_total_current_duration = max(max_total_current_duration, s.total_current_duration);
         max_total_update_duration = max(max_total_update_duration, s.total_update_duration);
         if let Some((total_duration, executions)) = s.total_duration.zip(s.executions) {
-            let avg_duration = total_duration / executions;
-            max_avg_duration = max_avg_duration
-                .map(|max_avg_duration| max(max_avg_duration, avg_duration))
-                .or(Some(avg_duration));
+            if executions > 0 {
+                let avg_duration = total_duration / executions;
+                max_avg_duration = max_avg_duration
+                    .map(|max_avg_duration| max(max_avg_duration, avg_duration))
+                    .or(Some(avg_duration));
+            }
         }
         max_max_duration = max(max_max_duration, s.max_duration);
         max_count = max(max_count, s.count);
         max_active_count = max(max_active_count, s.active_count);
+        max_unloaded_count = max(max_unloaded_count, s.unloaded_count);
         if let Some(executions) = s.executions {
             let updates = (executions as usize).saturating_sub(s.count);
             max_updates = max_updates
@@ -99,6 +118,7 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
         max_roots = max(max_roots, s.roots);
         max_scopes = max(max_scopes, 100 * s.scopes / s.count);
         max_dependencies = max(max_dependencies, get_avg_dependencies_count_times_100(s));
+        max_children = max(max_children, get_avg_children_count_times_100(s));
     }
     max_depth = max(
         max_depth,
@@ -117,10 +137,12 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
             max_duration,
             count,
             active_count,
+            unloaded_count,
             updates,
             roots,
             scopes,
             dependencies,
+            children,
             depth: inner_depth,
         } = get_max_values_internal(depth + 1, child);
         max_total_duration = max_total_duration
@@ -132,10 +154,12 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
         max_max_duration = max(max_max_duration, max_duration);
         max_count = max(max_count, count);
         max_active_count = max(max_active_count, active_count);
+        max_unloaded_count = max(max_unloaded_count, unloaded_count);
         max_updates = max_updates.zip(updates).map(|(a, b)| max(a, b));
         max_roots = max(max_roots, roots);
         max_scopes = max(max_scopes, scopes);
         max_dependencies = max(max_dependencies, dependencies);
+        max_children = max(max_children, children);
         max_depth = max(max_depth, inner_depth);
     }
     MaxValues {
@@ -146,10 +170,12 @@ fn get_max_values_internal(depth: u32, node: &GroupTree) -> MaxValues {
         max_duration: max_max_duration,
         count: max_count,
         active_count: max_active_count,
+        unloaded_count: max_unloaded_count,
         updates: max_updates,
         roots: max_roots,
         scopes: max_scopes,
         dependencies: max_dependencies,
+        children: max_children,
         depth: max_depth,
     }
 }

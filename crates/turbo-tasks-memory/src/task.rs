@@ -1410,6 +1410,7 @@ impl Task {
                     active: state.scopes.iter().any(|scope| {
                         backend.with_scope(scope, |scope| scope.state.lock().is_active())
                     }),
+                    unloaded: false,
                 }
             }
             TaskMetaStateReadGuard::Partial(state) => TaskStatsInfo {
@@ -1423,6 +1424,7 @@ impl Task {
                     0
                 },
                 active: false,
+                unloaded: true,
             },
             TaskMetaStateReadGuard::Unloaded(_) => TaskStatsInfo {
                 total_duration: None,
@@ -1431,6 +1433,7 @@ impl Task {
                 root_scoped: false,
                 child_scopes: 0,
                 active: false,
+                unloaded: true,
             },
         }
     }
@@ -1872,4 +1875,5 @@ pub struct TaskStatsInfo {
     pub root_scoped: bool,
     pub child_scopes: usize,
     pub active: bool,
+    pub unloaded: bool,
 }

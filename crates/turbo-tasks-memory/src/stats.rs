@@ -60,6 +60,7 @@ pub enum ReferenceType {
 pub struct ExportedTaskStats {
     pub count: usize,
     pub active_count: usize,
+    pub unloaded_count: usize,
     pub executions: Option<u32>,
     pub roots: usize,
     pub scopes: usize,
@@ -75,6 +76,7 @@ impl Default for ExportedTaskStats {
         Self {
             count: 0,
             active_count: 0,
+            unloaded_count: 0,
             executions: None,
             roots: 0,
             scopes: 0,
@@ -105,11 +107,7 @@ impl Stats {
     }
 
     pub fn add(&mut self, backend: &MemoryBackend, task: &Task) {
-        self.add_conditional(backend, task, |_, info| {
-            info.executions
-                .map(|executions| executions > 0)
-                .unwrap_or(true)
-        })
+        self.add_conditional(backend, task, |_, _| true)
     }
 
     pub fn add_conditional(
@@ -130,6 +128,7 @@ impl Stats {
             root_scoped,
             child_scopes,
             active,
+            unloaded,
         } = info;
         let stats = self.tasks.entry(ty).or_default();
         stats.count += 1;
@@ -138,6 +137,9 @@ impl Stats {
         }
         if let Some(total_duration) = total_duration {
             *stats.total_duration.get_or_insert(Duration::ZERO) += total_duration;
+        }
+        if unloaded {
+            stats.unloaded_count += 1
         }
         stats.total_current_duration += last_duration;
         if executions.map(|executions| executions > 1).unwrap_or(true) {
