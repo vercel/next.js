@@ -1,46 +1,21 @@
 import fs from 'fs-extra'
 import path from 'path'
-import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import { createNextDescribe } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
-describe('app dir head', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-  let next: NextInstance
-
-  function runTests() {
-    beforeAll(async () => {
-      next = await createNext({
-        files: new FileRef(path.join(__dirname, 'head')),
-        dependencies: {
-          react: 'latest',
-          'react-dom': 'latest',
-        },
-        skipStart: true,
-      })
-
-      await next.start()
-    })
-    afterAll(() => next.destroy())
-
+createNextDescribe(
+  'app dir head',
+  {
+    files: path.join(__dirname, 'head'),
+    skipDeployment: true,
+  },
+  ({ next }) => {
     it('should use head from index page', async () => {
-      const html = await renderViaHTTP(next.url, '/')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/')
       const headTags = $('head').children().toArray()
 
       // should not include default tags in page with head.js provided
-      expect(html).not.toContain(
+      expect($.html()).not.toContain(
         '<meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>'
       )
       expect(headTags.find((el) => el.attribs.src === '/hello.js')).toBeTruthy()
@@ -50,8 +25,7 @@ describe('app dir head', () => {
     })
 
     it('should use correct head for /blog', async () => {
-      const html = await renderViaHTTP(next.url, '/blog')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/blog')
       const headTags = $('head').children().toArray()
 
       expect(headTags.find((el) => el.attribs.src === '/hello3.js')).toBeFalsy()
@@ -67,8 +41,7 @@ describe('app dir head', () => {
     })
 
     it('should use head from layout when not on page', async () => {
-      const html = await renderViaHTTP(next.url, '/blog/about')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/blog/about')
       const headTags = $('head').children().toArray()
 
       expect(
@@ -83,8 +56,7 @@ describe('app dir head', () => {
     })
 
     it('should pass params to head for dynamic path', async () => {
-      const html = await renderViaHTTP(next.url, '/blog/post-1')
-      const $ = cheerio.load(html)
+      const $ = await next.render$('/blog/post-1')
       const headTags = $('head').children().toArray()
 
       expect(
@@ -100,7 +72,7 @@ describe('app dir head', () => {
     })
 
     it('should apply head when navigating client-side', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
 
       const getTitle = () => browser.elementByCss('title').text()
 
@@ -125,7 +97,7 @@ describe('app dir head', () => {
       next.on('stderr', (args) => {
         errors.push(args)
       })
-      const html = await renderViaHTTP(next.url, '/next-head')
+      const html = await next.render('/next-head')
       expect(html).not.toMatch(/<title>legacy-head<\/title>/)
 
       if (globalThis.isNextDev) {
@@ -155,6 +127,4 @@ describe('app dir head', () => {
       }
     })
   }
-
-  runTests()
-})
+)

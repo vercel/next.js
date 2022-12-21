@@ -4,11 +4,6 @@ import { NextInstance } from 'test/lib/next-modes/base'
 import { sandbox } from './helpers'
 
 describe('ReactRefreshModule app', () => {
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {

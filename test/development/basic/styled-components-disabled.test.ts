@@ -41,10 +41,10 @@ describe.each([
   it('should have hydration mismatch with styled-components transform disabled', async () => {
     let browser
     try {
-      browser = await webdriver(next.appPort, '/')
+      browser = await webdriver(next.url, '/')
 
       // Compile /_error
-      await fetchViaHTTP(next.appPort, '/404')
+      await fetchViaHTTP(next.url, '/404')
 
       try {
         // Try 4 times to be sure there is no mismatch

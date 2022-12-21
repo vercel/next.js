@@ -22,7 +22,7 @@ describe('basic next/dynamic usage', () => {
   afterAll(() => next.destroy())
 
   async function get$(path, query?: any) {
-    const html = await renderViaHTTP(next.appPort, path, query)
+    const html = await renderViaHTTP(next.url, path, query)
     return cheerio.load(html)
   }
 
@@ -49,7 +49,7 @@ describe('basic next/dynamic usage', () => {
       it('should render even there are no physical chunk exists', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/dynamic/no-chunk')
+          browser = await webdriver(next.url, '/docs/dynamic/no-chunk')
           await check(
             () => browser.elementByCss('body').text(),
             /Welcome, normal/
@@ -68,7 +68,7 @@ describe('basic next/dynamic usage', () => {
       it('should hydrate nested chunks', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/dynamic/nested')
+          browser = await webdriver(next.url, '/docs/dynamic/nested')
           await check(() => browser.elementByCss('body').text(), /Nested 1/)
           await check(() => browser.elementByCss('body').text(), /Nested 2/)
           await check(
@@ -95,7 +95,7 @@ describe('basic next/dynamic usage', () => {
       it('should render the component Head content', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/dynamic/head')
+          browser = await webdriver(next.url, '/docs/dynamic/head')
           await check(() => browser.elementByCss('body').text(), /test/)
           const backgroundColor = await browser
             .elementByCss('.dynamic-style')
@@ -122,7 +122,7 @@ describe('basic next/dynamic usage', () => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/dynamic/no-ssr')
+          browser = await webdriver(next.url, '/docs/dynamic/no-ssr')
           await check(
             () => browser.elementByCss('body').text(),
             /Hello World 1/
@@ -154,7 +154,7 @@ describe('basic next/dynamic usage', () => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/dynamic/ssr-true')
+          browser = await webdriver(next.url, '/docs/dynamic/ssr-true')
           await check(
             () => browser.elementByCss('body').text(),
             /Hello World 1/
@@ -177,7 +177,7 @@ describe('basic next/dynamic usage', () => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/dynamic/chunkfilename')
+          browser = await webdriver(next.url, '/docs/dynamic/chunkfilename')
           await check(
             () => browser.elementByCss('body').text(),
             /test chunkfilename/
@@ -200,7 +200,7 @@ describe('basic next/dynamic usage', () => {
         let browser
         try {
           browser = await webdriver(
-            next.appPort,
+            next.url,
             '/docs/dynamic/no-ssr-custom-loading'
           )
           await check(
@@ -226,10 +226,7 @@ describe('basic next/dynamic usage', () => {
       it('should only load the rendered module in the browser', async () => {
         let browser
         try {
-          browser = await webdriver(
-            next.appPort,
-            '/docs/dynamic/multiple-modules'
-          )
+          browser = await webdriver(next.url, '/docs/dynamic/multiple-modules')
           const html = await browser.eval('document.documentElement.innerHTML')
           expect(html).toMatch(/hello1\.js/)
           expect(html).not.toMatch(/hello2\.js/)

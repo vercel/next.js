@@ -5,7 +5,7 @@ use std::sync::Arc;
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::future_to_promise;
 
-use swc_core::{
+use next_binding::swc::core::{
     base::{config::JsMinifyOptions, config::ParseOptions, try_with_handler, Compiler},
     common::{
         comments::{Comments, SingleThreadedComments},
@@ -31,7 +31,7 @@ pub fn minify_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
 
     let value = try_with_handler(
         c.cm.clone(),
-        swc_core::base::HandlerOpts {
+        next_binding::swc::core::base::HandlerOpts {
             color: ColorConfig::Never,
             skip_filename: false,
         },
@@ -68,7 +68,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
     let s = s.dyn_into::<js_sys::JsString>();
     let out = try_with_handler(
         c.cm.clone(),
-        swc_core::base::HandlerOpts {
+        next_binding::swc::core::base::HandlerOpts {
             color: ColorConfig::Never,
             skip_filename: false,
         },
@@ -133,12 +133,14 @@ pub fn transform(s: JsValue, opts: JsValue) -> js_sys::Promise {
 pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
 
-    let c = swc_core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
+    let c = next_binding::swc::core::base::Compiler::new(Arc::new(SourceMap::new(
+        FilePathMapping::empty(),
+    )));
     let opts: ParseOptions = serde_wasm_bindgen::from_value(opts)?;
 
     try_with_handler(
         c.cm.clone(),
-        swc_core::base::HandlerOpts {
+        next_binding::swc::core::base::HandlerOpts {
             ..Default::default()
         },
         |handler| {
