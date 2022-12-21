@@ -1471,6 +1471,29 @@ createNextDescribe(
           ).toBe('50px')
         })
       })
+
+      if (isDev) {
+        describe('multiple entries', () => {
+          it('should only load chunks for the css module that is used by the specific entrypoint', async () => {
+            // Visit /b first
+            await next.render('/css/css-duplicate/b')
+
+            const browser = await next.browser('/css/css-duplicate/a')
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ href }) => href.endsWith('/a/page.css'))`
+              )
+            ).toBe(true)
+
+            // Should not load the chunk from /b
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ href }) => href.endsWith('/b/page.css'))`
+              )
+            ).toBe(false)
+          })
+        })
+      }
     })
 
     if (isDev) {

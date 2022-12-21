@@ -300,7 +300,7 @@ const nextDev: cliCommand = async (argv) => {
         `The only configurations options supported are:\n    - ${chalk.cyan(
           'experimental.serverComponentsExternalPackages'
         )}\n    - ${chalk.cyan(
-          'experimental.transpilePackages'
+          'transpilePackages'
         )}\n  To use Turbopack, remove other configuration options.`
       )}   `
     }
