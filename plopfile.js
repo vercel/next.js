@@ -1,7 +1,5 @@
 module.exports = function (plop) {
-  function getFileName(str) {
-    return str.toLowerCase().replace(/ /g, '-')
-  }
+  plop.setHelper('toFileName', (str) => str.toLowerCase().replace(/ /g, '-'))
 
   plop.setGenerator('test', {
     description: 'Create a new test',
@@ -36,25 +34,17 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.name)
+      const templatePath = `test/${
+        data.type === 'unit' ? 'unit' : 'e2e'
+      }/test-template`
+      const targetPath = `test/{{ type }}`
+
       return [
         {
-          type: 'add',
-          templateFile: `test/${
-            data.type === 'unit' ? 'unit' : 'e2e'
-          }/example.txt`,
-          path: `test/{{type}}/${
-            data.appDir ? 'app-dir/' : ''
-          }${fileName}/${fileName}.test.ts`,
-        },
-        {
-          type: 'add',
-          templateFile: `test/${
-            data.type === 'unit' ? 'unit' : 'e2e'
-          }/example-file.txt`,
-          path: `test/{{type}}/${
-            data.appDir ? 'app-dir/' : ''
-          }${fileName}/pages/index.js`,
+          type: 'addMany',
+          templateFiles: `${templatePath}/**/*`,
+          base: templatePath,
+          destination: targetPath,
         },
       ]
     },
@@ -85,11 +75,10 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.urlPath)
       return [
         {
           type: 'add',
-          path: `errors/${fileName}.md`,
+          path: `errors/{{ toFileName name }}.md`,
           templateFile: `errors/template.txt`,
         },
         {
@@ -98,13 +87,13 @@ module.exports = function (plop) {
           transform(fileContents, data) {
             const manifestData = JSON.parse(fileContents)
             manifestData.routes[0].routes.push({
-              title: fileName,
-              path: `/errors/${fileName}.md`,
+              title: '{{ toFileName name }}',
+              path: `/errors/{{ toFileName name }}.md`,
             })
             return JSON.stringify(manifestData, null, 2)
           },
         },
-        `Url for the error: https://nextjs.org/docs/messages/${fileName}`,
+        `Url for the error: https://nextjs.org/docs/messages/{{ toFileName name }}`,
       ]
     },
   })
