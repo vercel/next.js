@@ -53,13 +53,13 @@ describe('Middleware validation during build', () => {
   ])('given a middleware $title', ({ code }) => {
     beforeAll(() => writeFile(middlewareFile, code))
 
-    it('throws an error', async () => {
+    it('does not throw an error', async () => {
       const { stderr, code } = await nextBuild(appDir, [], {
         stderr: true,
         stdout: true,
       })
-      expect(stderr).toMatch(middlewareError)
-      expect(code).toBe(1)
+      expect(stderr).not.toMatch(middlewareError)
+      expect(code).toBe(0)
     })
   })
 
