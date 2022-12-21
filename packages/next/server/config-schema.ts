@@ -310,9 +310,6 @@ const configSchema = {
           enum: ['strict', 'flexible'] as any,
           type: 'string',
         },
-        modularizeImports: {
-          type: 'object',
-        },
         newNextLinkBehavior: {
           type: 'boolean',
         },
@@ -627,6 +624,9 @@ const configSchema = {
           type: 'string',
         },
       },
+      type: 'object',
+    },
+    modularizeImports: {
       type: 'object',
     },
     onDemandEntries: {
