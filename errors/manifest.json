@@ -777,6 +777,10 @@
         {
           "title": "context-in-server-component",
           "path": "/errors/context-in-server-component.md"
+        },
+        {
+          "title": "version-staleness",
+          "path": "/errors/version-staleness.md"
         }
       ]
     }

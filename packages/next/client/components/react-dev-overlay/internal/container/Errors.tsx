@@ -333,7 +333,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
                 <a
                   target="_blank"
                   rel="noopener noreferrer"
-                  href="https://nextjs.org/docs/messages/nextjs-version-staleness"
+                  href="https://nextjs.org/docs/messages/version-staleness"
                 >
                   (learn more)
                 </a>
