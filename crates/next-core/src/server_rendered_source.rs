@@ -397,17 +397,18 @@ struct SsrEntry {
 }
 
 #[turbo_tasks::value_impl]
-impl NodeEntry for SsrEntry {
+impl SsrEntryVc {
     #[turbo_tasks::function]
-    async fn entry(&self, _data: Value<ContentSourceData>) -> Result<NodeRenderingEntryVc> {
-        let virtual_asset = if *self.is_api_path.await? {
+    async fn entry(self) -> Result<NodeRenderingEntryVc> {
+        let this = self.await?;
+        let virtual_asset = if *this.is_api_path.await? {
             VirtualAssetVc::new(
-                self.entry_asset.path().join("server-api.tsx"),
+                this.entry_asset.path().join("server-api.tsx"),
                 next_js_file("entry/server-api.tsx").into(),
             )
         } else {
             VirtualAssetVc::new(
-                self.entry_asset.path().join("server-renderer.tsx"),
+                this.entry_asset.path().join("server-renderer.tsx"),
                 next_js_file("entry/server-renderer.tsx").into(),
             )
         };
@@ -415,17 +416,26 @@ impl NodeEntry for SsrEntry {
         Ok(NodeRenderingEntry {
             module: EcmascriptModuleAssetVc::new(
                 virtual_asset.into(),
-                self.context,
+                this.context,
                 Value::new(EcmascriptModuleAssetType::Typescript),
                 EcmascriptInputTransformsVc::cell(vec![
                     EcmascriptInputTransform::TypeScript,
                     EcmascriptInputTransform::React { refresh: false },
                 ]),
-                self.context.environment(),
+                this.context.environment(),
             ),
-            chunking_context: self.chunking_context,
-            intermediate_output_path: self.intermediate_output_path,
+            chunking_context: this.chunking_context,
+            intermediate_output_path: this.intermediate_output_path,
         }
         .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl NodeEntry for SsrEntry {
+    #[turbo_tasks::function]
+    fn entry(self_vc: SsrEntryVc, _data: Value<ContentSourceData>) -> NodeRenderingEntryVc {
+        // Call without being keyed by data
+        self_vc.entry()
     }
 }

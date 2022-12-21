@@ -498,16 +498,12 @@ struct AppRenderer {
 }
 
 #[turbo_tasks::value_impl]
-impl NodeEntry for AppRenderer {
+impl AppRendererVc {
     #[turbo_tasks::function]
-    async fn entry(&self, data: Value<ContentSourceData>) -> Result<NodeRenderingEntryVc> {
-        let is_rsc = if let Some(headers) = data.into_value().headers {
-            headers.contains_key("rsc")
-        } else {
-            false
-        };
-        let layout_path = self.layout_path.await?;
-        let page = self.page_path;
+    async fn entry(self, is_rsc: bool) -> Result<NodeRenderingEntryVc> {
+        let this = self.await?;
+        let layout_path = this.layout_path.await?;
+        let page = this.page_path;
         let path = page.parent();
         let path_value = &*path.await?;
         let layout_and_page = layout_path
@@ -516,7 +512,7 @@ impl NodeEntry for AppRenderer {
             .chain(std::iter::once(
                 LayoutSegment {
                     files: HashMap::from([("page".to_string(), page)]),
-                    target: self.target,
+                    target: this.target,
                 }
                 .cell(),
             ))
@@ -525,7 +521,7 @@ impl NodeEntry for AppRenderer {
         let segments: Vec<_> = layout_and_page
             .into_iter()
             .fold(
-                (self.server_root, Vec::new()),
+                (this.server_root, Vec::new()),
                 |(last_path, mut futures), segment| {
                     (segment.target, {
                         futures.push(async move {
@@ -618,19 +614,19 @@ import BOOTSTRAP from {};
         let file = File::from(result.build());
         let asset = VirtualAssetVc::new(path.join("entry"), file.into());
         let (context, intermediate_output_path) = if is_rsc {
-            (self.context, self.intermediate_output_path.join("rsc"))
+            (this.context, this.intermediate_output_path.join("rsc"))
         } else {
-            (self.context_ssr, self.intermediate_output_path)
+            (this.context_ssr, this.intermediate_output_path)
         };
 
         let chunking_context = DevChunkingContextVc::builder(
-            self.project_path,
+            this.project_path,
             intermediate_output_path,
             intermediate_output_path.join("chunks"),
-            self.server_root.join("_next/static/assets"),
+            this.server_root.join("_next/static/assets"),
         )
         .layer("ssr")
-        .css_chunk_root_path(self.server_root.join("_next/static/chunks"))
+        .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
         .build();
 
         Ok(NodeRenderingEntry {
@@ -648,6 +644,21 @@ import BOOTSTRAP from {};
             intermediate_output_path,
         }
         .cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl NodeEntry for AppRenderer {
+    #[turbo_tasks::function]
+    fn entry(self_vc: AppRendererVc, data: Value<ContentSourceData>) -> NodeRenderingEntryVc {
+        let data = data.into_value();
+        let is_rsc = if let Some(headers) = data.headers {
+            headers.contains_key("rsc")
+        } else {
+            false
+        };
+        // Call with only is_rsc as key
+        self_vc.entry(is_rsc)
     }
 }
 
