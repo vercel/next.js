@@ -2155,6 +2155,7 @@ export default async function getBaseWebpackConfig(
                 !!config.skipMiddlewareUrlNormalize,
               ],
               ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
+              ['modularizeImports', !!config.modularizeImports],
               SWCBinaryTarget,
             ].filter<[Feature, boolean]>(Boolean as any)
           )
