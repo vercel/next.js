@@ -20,6 +20,7 @@ export interface TypeCheckResult {
 export async function runTypeCheck(
   ts: typeof import('typescript'),
   baseDir: string,
+  distDir: string,
   tsConfigPath: string,
   cacheDir?: string,
   isAppDirEnabled?: boolean
@@ -97,14 +98,22 @@ export async function runTypeCheck(
 
   if (firstError) {
     throw new CompileError(
-      await getFormattedDiagnostic(ts, baseDir, firstError, isAppDirEnabled)
+      await getFormattedDiagnostic(
+        ts,
+        baseDir,
+        distDir,
+        firstError,
+        isAppDirEnabled
+      )
     )
   }
 
   const warnings = await Promise.all(
     allDiagnostics
       .filter((d) => d.category === DiagnosticCategory.Warning)
-      .map((d) => getFormattedDiagnostic(ts, baseDir, d, isAppDirEnabled))
+      .map((d) =>
+        getFormattedDiagnostic(ts, baseDir, distDir, d, isAppDirEnabled)
+      )
   )
   return {
     hasWarnings: true,
