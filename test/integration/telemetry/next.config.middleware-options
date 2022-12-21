@@ -1,0 +1,5 @@
+module.exports = {
+  allowMiddlewareResponseBody: true,
+  skipMiddlewareUrlNormalize: true,
+  skipTrailingSlashRedirect: true,
+}

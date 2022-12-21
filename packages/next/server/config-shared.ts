@@ -80,9 +80,6 @@ export interface NextJsWebpackConfig {
 
 export interface ExperimentalConfig {
   fetchCache?: boolean
-  allowMiddlewareResponseBody?: boolean
-  skipMiddlewareUrlNormalize?: boolean
-  skipTrailingSlashRedirect?: boolean
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   legacyBrowsers?: boolean
@@ -161,9 +158,6 @@ export interface ExperimentalConfig {
 
   // A list of packages that should be treated as external in the RSC server build
   serverComponentsExternalPackages?: string[]
-
-  // A list of packages that should always be transpiled and bundled in the server
-  transpilePackages?: string[]
 
   fontLoaders?: Array<{ loader: string; options?: any }>
 
@@ -506,6 +500,15 @@ export interface NextConfig extends Record<string, any> {
   }
 
   output?: 'standalone'
+
+  // A list of packages that should always be transpiled and bundled in the server
+  transpilePackages?: string[]
+
+  allowMiddlewareResponseBody?: boolean
+
+  skipMiddlewareUrlNormalize?: boolean
+
+  skipTrailingSlashRedirect?: boolean
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
