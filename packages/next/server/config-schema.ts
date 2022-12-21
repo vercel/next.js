@@ -7,9 +7,6 @@ const configSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    allowMiddlewareResponseBody: {
-      type: 'boolean',
-    },
     amp: {
       additionalProperties: false,
       properties: {
