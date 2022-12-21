@@ -79,13 +79,6 @@ const HotlinkedText: React.FC<{
   )
 }
 
-const stalenessTitles = {
-  fresh: 'Next.js is up to date!',
-  stale: 'Next.js is out of date, update recommended!',
-  outdated: 'Next.js is out of date, update necessary!',
-  unknown: 'Could not determine Next.js version',
-}
-
 export interface VersionInfo {
   installed: string
   staleness: 'fresh' | 'stale' | 'outdated' | 'unknown'
