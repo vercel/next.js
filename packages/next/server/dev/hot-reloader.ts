@@ -425,10 +425,17 @@ export default class HotReloader {
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
       try {
         // TODO: Get the correct values
-        const installed = '12.0dfdf.7'
+
+        const installed = require('next/package.json').version
         const installedParsed = semver.parse(installed)
-        const latest = semver.parse('13.0.7')
-        const canary = semver.parse('13.0.8-canary.8')
+
+        const res = await fetch('TODO')
+
+        if (!res.ok) return { installed, staleness: 'unknown' }
+
+        const tags = await res.json()
+        const latest = semver.parse(tags.latest)
+        const canary = semver.parse(tags.canary)
 
         if (installedParsed && latest && canary) {
           if (installedParsed.major < latest.major) {
