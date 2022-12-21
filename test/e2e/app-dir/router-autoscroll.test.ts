@@ -35,10 +35,10 @@ describe('router autoscrolling on navigation', () => {
   type BrowserInterface = Awaited<ReturnType<typeof webdriver>>
 
   const getTopScroll = async (browser: BrowserInterface) =>
-    await browser.eval<number>('document.documentElement.scrollTop')
+    await browser.eval('document.documentElement.scrollTop')
 
   const getLeftScroll = async (browser: BrowserInterface) =>
-    await browser.eval<number>('document.documentElement.scrollLeft')
+    await browser.eval('document.documentElement.scrollLeft')
 
   const scrollTo = async (
     browser: BrowserInterface,
