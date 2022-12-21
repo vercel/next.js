@@ -88,7 +88,45 @@ const stalenessTitles = {
 
 export interface VersionInfo {
   installed: string
-  staleness: keyof typeof stalenessTitles
+  staleness: 'fresh' | 'stale' | 'outdated' | 'unknown'
+  expected?: string
+}
+
+function Staleness(props: VersionInfo) {
+  if (!props) return null
+  const { staleness, installed, expected } = props
+  let text = ''
+  let title = ''
+  switch (staleness) {
+    case 'fresh':
+      text = 'Up to date.'
+      title = `Latest available version is detected (${installed}).`
+      break
+    case 'stale':
+      text = `Next.js (${installed}) out of date`
+      title = `There is a newer version (${expected}) available, upgrade recommended! `
+      break
+    case 'outdated': {
+      if (installed.includes('canary')) {
+        text = `Using old canary (${installed})`
+        title = `There is a newer canary version (${expected}) available, please upgrade! `
+      }
+      text = `Next.js (${installed}) is outdated`
+      title = `An outdated version detected (latest is ${expected}), you have to upgrade!`
+      break
+    }
+    default:
+      break
+  }
+
+  return (
+    <small
+      className="nextjs-container-build-error-version-status"
+      title={title}
+    >
+      {text}
+    </small>
+  )
 }
 
 export const Errors: React.FC<ErrorsProps> = function Errors({
@@ -285,12 +323,16 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
                 <span>{readyErrors.length}</span> unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              <small
-                title={stalenessTitles[versionInfo!.staleness]}
-                className="nextjs-container-build-error-version-status"
-              >
-                Next.js {versionInfo!.installed}
+              <small className="nextjs-container-build-error-version-status">
                 <span className={versionInfo!.staleness} />
+                <Staleness {...versionInfo!} />{' '}
+                <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href="https://nextjs.org/docs/messages/nextjs-version-staleness"
+                >
+                  (learn more)
+                </a>
               </small>
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
@@ -395,16 +437,15 @@ export const styles = css`
     width: 10px;
     height: 10px;
     border-radius: 5px;
-    background: #eaeaea;
-    margin-left: var(--size-gap);
+    background: var(--color-ansi-bright-black);
   }
   .nextjs-container-build-error-version-status span.fresh {
-    background: #50e3c2;
+    background: var(--color-ansi-green);
   }
   .nextjs-container-build-error-version-status span.outdated {
-    background: #e00;
+    background: var(--color-ansi-red);
   }
   .nextjs-container-build-error-version-status span.stale {
-    background: #f5a623;
+    background: var(--color-ansi-yellow);
   }
 `

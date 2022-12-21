@@ -423,36 +423,42 @@ export default class HotReloader {
   private async getVersionInfo(span: Span) {
     const versionInfoSpan = span.traceChild('get-version-info')
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
-      // TODO: Get the correct values
-      const installed = semver.parse('13.0.6')
-      const latest = semver.parse('13.0.8')
-      const canary = semver.parse('13.0.8-canary.8')
+      try {
+        // TODO: Get the correct values
+        const installed = '13.0.6'
+        const installedParsed = semver.parse(installed)
+        const latest = semver.parse('13.0.7')
+        const canary = semver.parse('13.0.8-canary.8')
 
-      let staleness: VersionInfo['staleness'] = 'unknown'
-
-      if (installed && latest && canary) {
-        if (installed.major < latest.major) {
-          // Old version
-          staleness = 'outdated'
-        } else if (
-          // Canary, but old
-          installed.prerelease[0] === 'canary' &&
-          semver.lt(installed, canary)
-        ) {
-          staleness = 'outdated'
-        } else if (
-          // Stable, but not the latest
-          !installed.prerelease.length &&
-          semver.lt(installed, latest)
-        ) {
-          staleness = 'stale'
-        } else {
-          // Latest
-          staleness = 'fresh'
+        if (installedParsed && latest && canary) {
+          if (installedParsed.major < latest.major) {
+            // Old major version
+            return { staleness: 'outdated', expected: latest.raw, installed }
+          } else if (
+            installedParsed.prerelease[0] === 'canary' &&
+            semver.lt(installedParsed, canary)
+          ) {
+            // Matching major, but old canary
+            return { staleness: 'outdated', expected: canary.raw, installed }
+          } else if (
+            !installedParsed.prerelease.length &&
+            semver.lt(installedParsed, latest)
+          ) {
+            // Stable, but not the latest
+            return { staleness: 'stale', expected: latest.raw, installed }
+          } else {
+            // Latest and greatest
+            return { staleness: 'fresh', installed }
+          }
         }
-      }
 
-      return { installed: installed?.raw ?? '0.0.0', staleness }
+        return {
+          installed: installedParsed?.raw ?? '0.0.0',
+          staleness: 'unknown',
+        }
+      } catch {
+        return { installed: '0.0.0', staleness: 'unknown' }
+      }
     })
   }
 
