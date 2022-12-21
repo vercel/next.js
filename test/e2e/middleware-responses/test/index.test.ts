@@ -31,10 +31,9 @@ describe('Middleware Responses', () => {
 
     it(`${label}should not fail when returning a stream`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/stream-a-response`)
-      expect(res.status).toBe(500)
+      expect(res.status).toBe(200)
 
       if (!(global as any).isNextDeploy) {
-        expect(await res.text()).toEqual('Internal Server Error')
         expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
@@ -43,10 +42,9 @@ describe('Middleware Responses', () => {
 
     it(`${label}should not fail when returning a text body`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/send-response`)
-      expect(res.status).toBe(500)
+      expect(res.status).toBe(200)
 
       if (!(global as any).isNextDeploy) {
-        expect(await res.text()).toEqual('Internal Server Error')
         expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
