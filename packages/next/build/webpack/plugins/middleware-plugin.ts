@@ -232,21 +232,6 @@ function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
   return parser.state.module?.layer === 'middleware'
 }
 
-function isInMiddlewareFile(parser: webpack.javascript.JavascriptParser) {
-  return (
-    parser.state.current?.layer === 'middleware' &&
-    /middleware\.\w+$/.test(parser.state.current?.rawRequest)
-  )
-}
-
-function isNullLiteral(expr: any) {
-  return expr.value === null
-}
-
-function isUndefinedIdentifier(expr: any) {
-  return expr.name === 'undefined'
-}
-
 function isProcessEnvMemberExpression(memberExpression: any): boolean {
   return (
     memberExpression.object?.type === 'Identifier' &&
