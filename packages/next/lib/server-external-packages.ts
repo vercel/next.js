@@ -9,6 +9,7 @@ export const EXTERNAL_PACKAGES = [
   'express',
   'firebase-admin',
   'jest',
+  'lodash',
   'mongodb',
   'next-mdx-remote',
   'next-seo',

@@ -35,14 +35,13 @@ const unlinkPath = async (p: string, isDir = false, t = 1): Promise<void> => {
 
 /**
  * Recursively delete directory contents
- * @param  {string} dir Directory to delete the contents of
- * @param  {RegExp} [exclude] Exclude based on relative file path
- * @param  {string} [previousPath] Ensures that parameter dir exists, this is not passed recursively
- * @returns Promise void
  */
 export async function recursiveDelete(
+  /** Directory to delete the contents of */
   dir: string,
+  /** Exclude based on relative file path */
   exclude?: RegExp,
+  /** Ensures that parameter dir exists, this is not passed recursively */
   previousPath: string = ''
 ): Promise<void> {
   let result

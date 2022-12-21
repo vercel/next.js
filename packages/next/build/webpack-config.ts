@@ -302,13 +302,13 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
     'process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY': JSON.stringify(
-      config.experimental.allowMiddlewareResponseBody
+      config.allowMiddlewareResponseBody
     ),
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
-      config.experimental.skipMiddlewareUrlNormalize
+      config.skipMiddlewareUrlNormalize
     ),
     'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
-      config.experimental?.skipTrailingSlashRedirect
+      config.skipTrailingSlashRedirect
     ),
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution &&
@@ -1255,10 +1255,10 @@ export default async function getBaseWebpackConfig(
 
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
-    if (config.experimental.transpilePackages && !resolvedExternalPackageDirs) {
+    if (config.transpilePackages && !resolvedExternalPackageDirs) {
       resolvedExternalPackageDirs = new Map()
       // We need to resolve all the external package dirs initially.
-      for (const pkg of config.experimental.transpilePackages) {
+      for (const pkg of config.transpilePackages) {
         const pkgRes = await resolveExternal(
           dir,
           config.experimental.esmExternals,
@@ -1281,7 +1281,7 @@ export default async function getBaseWebpackConfig(
     const shouldBeBundled =
       isResourceInPackages(
         res,
-        config.experimental.transpilePackages,
+        config.transpilePackages,
         resolvedExternalPackageDirs
       ) ||
       (isEsm && config.experimental.appDir)
@@ -1319,7 +1319,7 @@ export default async function getBaseWebpackConfig(
   }
 
   const shouldIncludeExternalDirs =
-    config.experimental.externalDir || !!config.experimental.transpilePackages
+    config.experimental.externalDir || !!config.transpilePackages
 
   const codeCondition = {
     test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
@@ -1334,7 +1334,7 @@ export default async function getBaseWebpackConfig(
 
       const shouldBeBundled = isResourceInPackages(
         excludePath,
-        config.experimental.transpilePackages
+        config.transpilePackages
       )
       if (shouldBeBundled) return false
 
@@ -2062,8 +2062,7 @@ export default async function getBaseWebpackConfig(
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
           hasFontLoaders: !!config.experimental.fontLoaders,
-          allowMiddlewareResponseBody:
-            !!config.experimental.allowMiddlewareResponseBody,
+          allowMiddlewareResponseBody: !!config.allowMiddlewareResponseBody,
         }),
       isClient &&
         new BuildManifestPlugin({
@@ -2106,6 +2105,7 @@ export default async function getBaseWebpackConfig(
         (isClient
           ? new FlightManifestPlugin({
               dev,
+              appDir,
             })
           : new FlightClientEntryPlugin({
               appDir,
@@ -2147,6 +2147,16 @@ export default async function getBaseWebpackConfig(
               ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
               ['swcEmotion', !!config.compiler?.emotion],
               ['turbotrace', !!config.experimental.turbotrace],
+              ['transpilePackages', !!config.transpilePackages],
+              [
+                'allowMiddlewareResponseBody',
+                !!config.allowMiddlewareResponseBody,
+              ],
+              [
+                'skipMiddlewareUrlNormalize',
+                !!config.skipMiddlewareUrlNormalize,
+              ],
+              ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
               SWCBinaryTarget,
             ].filter<[Feature, boolean]>(Boolean as any)
           )
@@ -2400,6 +2410,7 @@ export default async function getBaseWebpackConfig(
     future: config.future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
+    transpilePackages: config.transpilePackages,
   })
 
   // @ts-ignore Cache exists
