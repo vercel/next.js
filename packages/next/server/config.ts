@@ -126,6 +126,45 @@ function setFontLoaderDefaults(config: NextConfigComplete) {
   } catch {}
 }
 
+function warnOptionHasBeenMovedOutOfExperimental(
+  config: NextConfig,
+  key: keyof NextConfigComplete['compiler'],
+  configFileName: string,
+  isCompilerFeature: true
+): NextConfig
+function warnOptionHasBeenMovedOutOfExperimental(
+  config: NextConfig,
+  key: keyof NextConfigComplete,
+  configFileName: string,
+  isCompilerFeature: false
+): NextConfig
+function warnOptionHasBeenMovedOutOfExperimental(
+  config: NextConfig,
+  key: keyof NextConfigComplete['compiler'] | keyof NextConfigComplete,
+  configFileName: string,
+  isCompilerFeature: boolean
+): NextConfig {
+  if (config.experimental && key in config.experimental) {
+    Log.warn(
+      `\`${key}\` has been moved out of \`experimental\`${
+        isCompilerFeature ? ' and into `compiler`' : ''
+      }. Please update your ${configFileName} file accordingly.`
+    )
+    if (isCompilerFeature) {
+      config.compiler = config.compiler || {}
+      // TODO: remove "as" once TypeScript supports type narrowing in overloaded functions
+      // https://github.com/microsoft/TypeScript/issues/22609
+      config.compiler[key as keyof NextConfigComplete['compiler']] = (
+        config.experimental as any
+      )[key]
+    } else {
+      config[key] = (config.experimental as any)[key]
+    }
+  }
+
+  return config
+}
+
 function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
@@ -934,43 +973,4 @@ export default async function loadConfig(
   setHttpClientAndAgentOptions(completeConfig)
   setFontLoaderDefaults(completeConfig)
   return completeConfig
-}
-
-function warnOptionHasBeenMovedOutOfExperimental(
-  config: NextConfig,
-  key: keyof NextConfigComplete['compiler'],
-  configFileName: string,
-  isCompilerFeature: true
-): NextConfig
-function warnOptionHasBeenMovedOutOfExperimental(
-  config: NextConfig,
-  key: keyof NextConfigComplete,
-  configFileName: string,
-  isCompilerFeature: false
-): NextConfig
-function warnOptionHasBeenMovedOutOfExperimental(
-  config: NextConfig,
-  key: keyof NextConfigComplete['compiler'] | keyof NextConfigComplete,
-  configFileName: string,
-  isCompilerFeature: boolean
-): NextConfig {
-  if (config.experimental && key in config.experimental) {
-    Log.warn(
-      `\`${key}\` has been moved out of \`experimental\`${
-        isCompilerFeature ? ' and into `compiler`' : ''
-      }. Please update your ${configFileName} file accordingly.`
-    )
-    if (isCompilerFeature) {
-      config.compiler = config.compiler || {}
-      // TODO: remove "as" once TypeScript supports type narrowing in overloaded functions
-      // https://github.com/microsoft/TypeScript/issues/22609
-      config.compiler[key as keyof NextConfigComplete['compiler']] = (
-        config.experimental as any
-      )[key]
-    } else {
-      config[key] = (config.experimental as any)[key]
-    }
-  }
-
-  return config
 }
