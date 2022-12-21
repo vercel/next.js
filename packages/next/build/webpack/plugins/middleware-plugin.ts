@@ -487,32 +487,6 @@ function getCodeAnalyzer(params: {
     }
 
     /**
-     * A handler for calls to `new Response()` so we can fail if user is setting the response's body.
-     */
-    const handleNewResponseExpression = (node: any) => {
-      const firstParameter = node?.arguments?.[0]
-      if (
-        isInMiddlewareFile(parser) &&
-        firstParameter &&
-        !isNullLiteral(firstParameter) &&
-        !isUndefinedIdentifier(firstParameter)
-      ) {
-        const error = buildWebpackError({
-          message: `Middleware is returning a response body (line: ${node.loc.start.line}), which is not supported.
-Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`,
-          compilation,
-          parser,
-          ...node,
-        })
-        if (dev) {
-          compilation.warnings.push(error)
-        } else {
-          compilation.errors.push(error)
-        }
-      }
-    }
-
-    /**
      * Handler to store original source location of static and dynamic imports into module's buildInfo.
      */
     const handleImport = (node: any) => {
