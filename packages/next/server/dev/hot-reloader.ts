@@ -424,8 +424,6 @@ export default class HotReloader {
     const versionInfoSpan = span.traceChild('get-version-info')
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
       try {
-        // TODO: Get the correct values
-
         const installed = require('next/package.json').version
         const installedParsed = semver.parse(installed)
 
