@@ -65,7 +65,7 @@ where
     }
 }
 
-#[derive(TraceRawVcs)]
+#[derive(TraceRawVcs, Debug)]
 pub struct DevServerBuilder {
     #[turbo_tasks(trace_ignore)]
     pub addr: SocketAddr,
