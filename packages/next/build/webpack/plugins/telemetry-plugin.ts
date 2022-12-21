@@ -40,6 +40,7 @@ export type Feature =
   | 'transpilePackages'
   | 'skipMiddlewareUrlNormalize'
   | 'skipTrailingSlashRedirect'
+  | 'modularizeImports'
 
 interface FeatureUsage {
   featureName: Feature
@@ -102,6 +103,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'transpilePackages',
   'skipMiddlewareUrlNormalize',
   'skipTrailingSlashRedirect',
+  'modularizeImports',
 ]
 
 const ELIMINATED_PACKAGES = new Set<string>()

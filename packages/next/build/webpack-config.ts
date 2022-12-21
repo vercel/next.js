@@ -2155,6 +2155,7 @@ export default async function getBaseWebpackConfig(
                 !!config.skipMiddlewareUrlNormalize,
               ],
               ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
+              ['modularizeImports', !!config.modularizeImports],
               SWCBinaryTarget,
             ].filter<[Feature, boolean]>(Boolean as any)
           )
@@ -2304,7 +2305,7 @@ export default async function getBaseWebpackConfig(
     styledComponents: config.compiler?.styledComponents,
     relay: config.compiler?.relay,
     emotion: config.compiler?.emotion,
-    modularizeImports: config.experimental?.modularizeImports,
+    modularizeImports: config.modularizeImports,
     legacyBrowsers: config.experimental?.legacyBrowsers,
     imageLoaderFile: config.images.loaderFile,
   })

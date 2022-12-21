@@ -169,6 +169,7 @@ export type EventBuildFeatureUsage = {
     | 'transpilePackages'
     | 'skipMiddlewareUrlNormalize'
     | 'skipTrailingSlashRedirect'
+    | 'modularizeImports'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(
