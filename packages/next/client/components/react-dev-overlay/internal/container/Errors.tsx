@@ -115,6 +115,10 @@ function Staleness(props: VersionInfo) {
       title = `An outdated version detected (latest is ${expected}), you have to upgrade!`
       break
     }
+    case 'unknown':
+      text = 'Next.js version unknown'
+      title = 'Could not determine Next.js version'
+      break
     default:
       break
   }

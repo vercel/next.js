@@ -425,7 +425,7 @@ export default class HotReloader {
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
       try {
         // TODO: Get the correct values
-        const installed = '13.0.6'
+        const installed = '12.0dfdf.7'
         const installedParsed = semver.parse(installed)
         const latest = semver.parse('13.0.7')
         const canary = semver.parse('13.0.8-canary.8')
