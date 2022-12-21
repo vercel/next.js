@@ -20,8 +20,6 @@ import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
 
-import { StalenessIndicator, VersionInfo } from '../components/Staleness'
-
 export type SupportedErrorEvent = {
   id: number
   event: UnhandledErrorAction | UnhandledRejectionAction
@@ -79,6 +77,17 @@ const HotlinkedText: React.FC<{
         : text}
     </>
   )
+}
+
+const stalenessTitles = {
+  fresh: 'Next.js is up to date!',
+  stale: 'Next.js is out of date, update recommended!',
+  outdated: 'Next.js is out of date, update necessary!',
+}
+
+export interface VersionInfo {
+  installed: string
+  staleness: keyof typeof stalenessTitles
 }
 
 export const Errors: React.FC<ErrorsProps> = function Errors({
@@ -275,7 +284,17 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
                 <span>{readyErrors.length}</span> unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              {versionInfo ? <StalenessIndicator {...versionInfo} /> : null}
+              {versionInfo ? (
+                <>
+                  <small
+                    title={stalenessTitles[versionInfo.staleness]}
+                    className="nextjs-container-build-error-version-status"
+                  >
+                    Next.js {versionInfo.installed}
+                    <span className={versionInfo.staleness} />
+                  </small>
+                </>
+              ) : null}
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}

@@ -47,7 +47,7 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
-import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/components/Staleness'
+import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/container/Errors'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -180,9 +180,8 @@ export default class HotReloader {
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
   private versionInfo: VersionInfo = {
-    canary: '0.0.0',
+    staleness: 'fresh',
     installed: '0.0.0',
-    latest: '0.0.0',
   }
   public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
@@ -427,10 +426,24 @@ export default class HotReloader {
       const installed = '0.0.0'
       const canary = 'canary'
       const latest = '13.0.8'
+
+      function compareVersions(a: string, b: string): VersionInfo['staleness'] {
+        const pa = a.split('.')
+        const pb = b.split('.')
+        for (let i = 0; i < 3; i++) {
+          const na = Number(pa[i])
+          const nb = Number(pb[i])
+          if (na > nb) return 'fresh'
+          if (nb > na) return 'stale'
+          if (!isNaN(na) && isNaN(nb)) return 'fresh'
+          if (isNaN(na) && !isNaN(nb)) return 'stale'
+        }
+        return 'fresh'
+      }
+
       return {
-        installed,
-        latest,
-        canary,
+        installed: '0.0.0',
+        staleness: 'fresh',
       }
     })
   }

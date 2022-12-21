@@ -33,7 +33,8 @@ import {
   useWebsocket,
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
-import { VersionInfo } from './internal/components/Staleness'
+
+import type { VersionInfo } from './internal/container/Errors'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -410,7 +411,7 @@ export default function HotReload({
     buildError: null,
     errors: [],
     refreshState: { type: 'idle' },
-    versionInfo: { canary: '0.0.0', installed: '0.0.0', latest: '0.0.0' },
+    versionInfo: { installed: '0.0.0', staleness: 'fresh' },
   })
   const dispatcher = useMemo((): Dispatcher => {
     return {

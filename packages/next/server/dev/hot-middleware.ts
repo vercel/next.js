@@ -24,8 +24,8 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type ws from 'ws'
 import { isMiddlewareFilename } from '../../build/utils'
-import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/components/Staleness'
 import { nonNullable } from '../../lib/non-nullable'
+import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/container/Errors'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
