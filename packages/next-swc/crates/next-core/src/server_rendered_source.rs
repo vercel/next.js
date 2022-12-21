@@ -318,7 +318,7 @@ async fn create_server_rendered_source_for_directory(
                                         )
                                     } else if basename == "404" {
                                         (
-                                            server_path.join("[...]"),
+                                            server_path.join("[...].html"),
                                             intermediate_output_path.join(basename),
                                             specificity.with_fallback(position),
                                         )
