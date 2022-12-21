@@ -99,7 +99,7 @@ function Staleness(props: VersionInfo) {
   let title = ''
   switch (staleness) {
     case 'fresh':
-      text = 'Up to date.'
+      text = 'Next.js is up to date'
       title = `Latest available version is detected (${installed}).`
       break
     case 'stale':
