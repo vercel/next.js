@@ -164,13 +164,9 @@ impl NextDevServerBuilder {
                         // `std::io::ErrorKind::AddrInUse`.
                         e.source()
                             .map(|e| {
-                                e.source()
-                                    .map(|e| {
-                                        e.downcast_ref::<std::io::Error>()
-                                            .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
-                                            == Some(true)
-                                    })
-                                    .unwrap_or_else(|| false)
+                                e.downcast_ref::<std::io::Error>()
+                                    .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
+                                    == Some(true)
                             })
                             .unwrap_or_else(|| false)
                     } else {
