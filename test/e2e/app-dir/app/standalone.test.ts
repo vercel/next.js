@@ -1,4 +1,4 @@
-import { createNextDescribe, FileRef } from 'e2e-utils'
+import { createNextDescribe } from 'e2e-utils'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
@@ -15,7 +15,7 @@ if (!(globalThis as any).isNextStart) {
   createNextDescribe(
     'output: standalone with app dir',
     {
-      files: new FileRef(path.join(__dirname, 'app')),
+      files: __dirname,
       dependencies: {
         swr: '2.0.0-rc.0',
         react: 'latest',

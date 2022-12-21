@@ -1,4 +1,3 @@
-import path from 'path'
 import { check } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
@@ -8,7 +7,7 @@ if (!(globalThis as any).isNextDev) {
   createNextDescribe(
     'app dir - rsc errors',
     {
-      files: path.join(__dirname, './rsc-errors'),
+      files: __dirname,
       skipDeployment: true,
     },
     ({ next }) => {

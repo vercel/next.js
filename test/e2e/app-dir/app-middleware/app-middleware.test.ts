@@ -6,7 +6,7 @@ import path from 'path'
 createNextDescribe(
   'app-dir with middleware',
   {
-    files: path.join(__dirname, 'app-middleware'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next }) => {
@@ -121,10 +121,8 @@ createNextDescribe(
   'app dir middleware without pages dir',
   {
     files: {
-      app: new FileRef(path.join(__dirname, 'app-middleware/app')),
-      'next.config.js': new FileRef(
-        path.join(__dirname, 'app-middleware/next.config.js')
-      ),
+      app: new FileRef(path.join(__dirname, 'app')),
+      'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
       'middleware.js': `
       import { NextResponse } from 'next/server'
 

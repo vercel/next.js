@@ -4,7 +4,7 @@ import path from 'path'
 createNextDescribe(
   'app-dir alias handling',
   {
-    files: path.join(__dirname, 'app-alias'),
+    files: __dirname,
     packageJson: {
       type: 'module',
     },

@@ -6,7 +6,7 @@ import escapeStringRegexp from 'escape-string-regexp'
 createNextDescribe(
   'app dir head',
   {
-    files: path.join(__dirname, 'head'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next }) => {

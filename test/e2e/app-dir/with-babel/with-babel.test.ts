@@ -1,10 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
-import path from 'path'
 
 createNextDescribe(
   'with babel',
   {
-    files: path.join(__dirname, 'with-babel'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next }) => {

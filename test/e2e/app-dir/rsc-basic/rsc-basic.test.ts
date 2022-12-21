@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs-extra'
 import { check } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import cheerio from 'cheerio'
 
@@ -30,7 +30,7 @@ describe('app dir - rsc basics', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: new FileRef(path.join(__dirname, './rsc-basic')),
+      files: __dirname,
       dependencies: {
         'styled-components': '6.0.0-beta.5',
         react: 'latest',
