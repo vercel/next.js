@@ -2304,7 +2304,7 @@ export default async function getBaseWebpackConfig(
     styledComponents: config.compiler?.styledComponents,
     relay: config.compiler?.relay,
     emotion: config.compiler?.emotion,
-    modularizeImports: config.experimental?.modularizeImports,
+    modularizeImports: config.modularizeImports,
     legacyBrowsers: config.experimental?.legacyBrowsers,
     imageLoaderFile: config.images.loaderFile,
   })

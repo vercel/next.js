@@ -115,7 +115,7 @@ function getBaseSWCOptions({
     reactRemoveProperties: jest
       ? false
       : nextConfig?.compiler?.reactRemoveProperties,
-    modularizeImports: nextConfig?.experimental?.modularizeImports,
+    modularizeImports: nextConfig?.modularizeImports,
     relay: nextConfig?.compiler?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: true,
