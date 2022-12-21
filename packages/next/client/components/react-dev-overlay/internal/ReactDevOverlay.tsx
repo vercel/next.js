@@ -73,6 +73,7 @@ class ReactDevOverlay extends React.PureComponent<
             <CssReset />
             <Base />
             <ComponentStyles />
+
             {rootLayoutMissingTagsError ? (
               <RootLayoutError
                 missingTags={rootLayoutMissingTagsError.missingTags}

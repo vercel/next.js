@@ -383,7 +383,6 @@ function processMessage(
       router.refresh()
       return
     }
-
     case 'pong': {
       const { invalid } = obj
       if (invalid) {
@@ -411,7 +410,7 @@ export default function HotReload({
     buildError: null,
     errors: [],
     refreshState: { type: 'idle' },
-    versionInfo: { installed: '0.0.0', staleness: 'fresh' },
+    versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   })
   const dispatcher = useMemo((): Dispatcher => {
     return {
