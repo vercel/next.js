@@ -542,55 +542,31 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     }
   }
 
-  if (result.experimental && 'relay' in (result.experimental as any)) {
-    Log.warn(
-      `\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.relay = (result.experimental as any).relay
-  }
-
-  if (
-    result.experimental &&
-    'styledComponents' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`styledComponents\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.styledComponents = (
-      result.experimental as any
-    ).styledComponents
-  }
-
-  if (result.experimental && 'emotion' in (result.experimental as any)) {
-    Log.warn(
-      `\`emotion\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.emotion = (result.experimental as any).emotion
-  }
-
-  if (
-    result.experimental &&
-    'reactRemoveProperties' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`reactRemoveProperties\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.reactRemoveProperties = (
-      result.experimental as any
-    ).reactRemoveProperties
-  }
-
-  if (result.experimental && 'removeConsole' in (result.experimental as any)) {
-    Log.warn(
-      `\`removeConsole\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.removeConsole = (result.experimental as any).removeConsole
-  }
+  warnOptionHasBeenMovedOutOfExperimental(result, 'relay', configFileName, true)
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'styledComponents',
+    configFileName,
+    true
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'emotion',
+    configFileName,
+    true
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'reactRemoveProperties',
+    configFileName,
+    true
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'removeConsole',
+    configFileName,
+    true
+  )
 
   if (result.experimental?.swcMinifyDebugOptions) {
     Log.warn(
@@ -605,39 +581,30 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     result.output = 'standalone'
   }
 
-  if (
-    result.experimental &&
-    'transpilePackages' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`transpilePackages\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.transpilePackages = (result.experimental as any).transpilePackages
-  }
-
-  if (
-    result.experimental &&
-    'skipMiddlewareUrlNormalize' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`skipMiddlewareUrlNormalize\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.skipMiddlewareUrlNormalize = (
-      result.experimental as any
-    ).skipMiddlewareUrlNormalize
-  }
-
-  if (
-    result.experimental &&
-    'skipTrailingSlashRedirect' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`skipTrailingSlashRedirect\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.skipTrailingSlashRedirect = (
-      result.experimental as any
-    ).skipTrailingSlashRedirect
-  }
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'transpilePackages',
+    configFileName,
+    false
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'allowMiddlewareResponseBody',
+    configFileName,
+    false
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'skipMiddlewareUrlNormalize',
+    configFileName,
+    false
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'skipTrailingSlashRedirect',
+    configFileName,
+    false
+  )
 
   if (
     result.experimental?.outputFileTracingRoot &&
@@ -967,4 +934,43 @@ export default async function loadConfig(
   setHttpClientAndAgentOptions(completeConfig)
   setFontLoaderDefaults(completeConfig)
   return completeConfig
+}
+
+function warnOptionHasBeenMovedOutOfExperimental(
+  config: NextConfig,
+  key: keyof NextConfigComplete['compiler'],
+  configFileName: string,
+  isCompilerFeature: true
+): NextConfig
+function warnOptionHasBeenMovedOutOfExperimental(
+  config: NextConfig,
+  key: keyof NextConfigComplete,
+  configFileName: string,
+  isCompilerFeature: false
+): NextConfig
+function warnOptionHasBeenMovedOutOfExperimental(
+  config: NextConfig,
+  key: keyof NextConfigComplete['compiler'] | keyof NextConfigComplete,
+  configFileName: string,
+  isCompilerFeature: boolean
+): NextConfig {
+  if (config.experimental && key in config.experimental) {
+    Log.warn(
+      `\`${key}\` has been moved out of \`experimental\`${
+        isCompilerFeature ? ' and into `compiler`' : ''
+      }. Please update your ${configFileName} file accordingly.`
+    )
+    if (isCompilerFeature) {
+      config.compiler = config.compiler || {}
+      // TODO: remove "as" once TypeScript supports type narrowing in overloaded functions
+      // https://github.com/microsoft/TypeScript/issues/22609
+      config.compiler[key as keyof NextConfigComplete['compiler']] = (
+        config.experimental as any
+      )[key]
+    } else {
+      config[key] = (config.experimental as any)[key]
+    }
+  }
+
+  return config
 }
