@@ -1,7 +1,6 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
-import path from 'path'
 
 describe('vercel analytics', () => {
   const isDev = (global as any).isNextDev
@@ -16,7 +15,7 @@ describe('vercel analytics', () => {
   function runTests({ assetPrefix }: { assetPrefix?: boolean }) {
     beforeAll(async () => {
       next = await createNext({
-        files: new FileRef(path.join(__dirname, 'app')),
+        files: __dirname,
         dependencies: {
           swr: '2.0.0-rc.0',
           react: 'latest',

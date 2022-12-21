@@ -1,11 +1,10 @@
 import { createNextDescribe } from 'e2e-utils'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
-import path from 'path'
 
 createNextDescribe(
   'app dir next-font',
   {
-    files: path.join(__dirname, 'next-font'),
+    files: __dirname,
     dependencies: {
       '@next/font': 'canary',
       react: 'latest',

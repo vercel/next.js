@@ -1,10 +1,9 @@
-import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
   'app dir imports',
   {
-    files: path.join(__dirname, 'import'),
+    files: __dirname,
   },
   ({ next }) => {
     ;['js', 'jsx', 'ts', 'tsx'].forEach((ext) => {

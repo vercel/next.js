@@ -1,13 +1,12 @@
 import { createNextDescribe } from 'e2e-utils'
 import crypto from 'crypto'
 import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
-import path from 'path'
 import cheerio from 'cheerio'
 
 createNextDescribe(
   'app dir',
   {
-    files: path.join(__dirname, 'app'),
+    files: __dirname,
     dependencies: {
       swr: '2.0.0-rc.0',
       react: 'latest',

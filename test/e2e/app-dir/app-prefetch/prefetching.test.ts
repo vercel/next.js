@@ -1,11 +1,10 @@
 import { createNextDescribe } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
-import path from 'path'
 
 createNextDescribe(
   'app dir prefetching',
   {
-    files: path.join(__dirname, 'app-prefetch'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next, isNextDev }) => {

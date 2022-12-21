@@ -1,4 +1,3 @@
-import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
@@ -18,7 +17,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
 createNextDescribe(
   'app dir - external dependency',
   {
-    files: path.join(__dirname, './app-external'),
+    files: __dirname,
     dependencies: {
       '@next/font': 'canary',
       react: 'latest',

@@ -1,11 +1,10 @@
 import { createNextDescribe } from 'e2e-utils'
 import { getRedboxDescription, hasRedbox } from 'next-test-utils'
-import path from 'path'
 
 createNextDescribe(
   'dynamic-href',
   {
-    files: path.join(__dirname, 'dynamic-href'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ isNextDev: isDev, next }) => {

@@ -1,11 +1,10 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import path from 'path'
 
 createNextDescribe(
   'app-dir edge SSR',
   {
-    files: path.join(__dirname, 'app-edge'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next }) => {

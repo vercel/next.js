@@ -1,10 +1,9 @@
-import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
   'app dir - layout params',
   {
-    files: path.join(__dirname, './layout-params'),
+    files: __dirname,
   },
   ({ next }) => {
     describe('basic params', () => {

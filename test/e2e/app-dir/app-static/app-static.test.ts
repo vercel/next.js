@@ -1,7 +1,7 @@
 import globOrig from 'glob'
 import cheerio from 'cheerio'
 import { promisify } from 'util'
-import path, { join } from 'path'
+import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
 import { check, normalizeRegEx, waitFor } from 'next-test-utils'
 
@@ -10,7 +10,7 @@ const glob = promisify(globOrig)
 createNextDescribe(
   'app-dir static/dynamic handling',
   {
-    files: path.join(__dirname, 'app-static'),
+    files: __dirname,
   },
   ({ next, isNextDev: isDev, isNextStart }) => {
     if (isNextStart) {

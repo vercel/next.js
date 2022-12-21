@@ -1,10 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
-import path from 'path'
 
 createNextDescribe(
   'async-component-preload',
   {
-    files: path.join(__dirname, 'async-component-preload'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next }) => {

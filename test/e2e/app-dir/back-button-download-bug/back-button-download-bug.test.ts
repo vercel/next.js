@@ -1,12 +1,11 @@
 import { createNextDescribe } from 'e2e-utils'
-import path from 'path'
 
 // TODO-APP: fix test as it's failing randomly
 describe.skip('app-dir back button download bug', () => {
   createNextDescribe(
     'app-dir back button download bug',
     {
-      files: path.join(__dirname, 'back-button-download-bug'),
+      files: __dirname,
       skipDeployment: true,
     },
     ({ next }) => {

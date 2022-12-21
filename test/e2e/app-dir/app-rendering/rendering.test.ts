@@ -1,12 +1,11 @@
 import { createNextDescribe } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
-import path from 'path'
 import cheerio from 'cheerio'
 
 createNextDescribe(
   'app dir rendering',
   {
-    files: path.join(__dirname, 'app-rendering'),
+    files: __dirname,
     skipDeployment: true,
   },
   ({ next, isNextDev: isDev }) => {
