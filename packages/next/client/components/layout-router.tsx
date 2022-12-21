@@ -6,10 +6,10 @@ import type {
 import type {
   FlightRouterState,
   FlightSegmentPath,
+  ChildProp,
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './reducer'
-import type { ChildProp } from '../../server/app-render'
 
 import React, { useContext, useEffect, use } from 'react'
 import ReactDOM from 'react-dom'
