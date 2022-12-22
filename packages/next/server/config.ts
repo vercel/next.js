@@ -128,38 +128,25 @@ function setFontLoaderDefaults(config: NextConfigComplete) {
 
 function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
-  key: keyof NextConfigComplete['compiler'],
-  configFileName: string,
-  isCompilerFeature: true
-): NextConfig
-function warnOptionHasBeenMovedOutOfExperimental(
-  config: NextConfig,
-  key: keyof NextConfigComplete,
-  configFileName: string,
-  isCompilerFeature: false
-): NextConfig
-function warnOptionHasBeenMovedOutOfExperimental(
-  config: NextConfig,
-  key: keyof NextConfigComplete['compiler'] | keyof NextConfigComplete,
-  configFileName: string,
-  isCompilerFeature: boolean
-): NextConfig {
-  if (config.experimental && key in config.experimental) {
+  oldKey: string,
+  newKey: string,
+  configFileName: string
+) {
+  if (config.experimental && oldKey in config.experimental) {
     Log.warn(
-      `\`${key}\` has been moved out of \`experimental\`${
-        isCompilerFeature ? ' and into `compiler`' : ''
-      }. Please update your ${configFileName} file accordingly.`
+      `\`${oldKey}\` has been moved out of \`experimental\`` +
+        (newKey.includes('.') ? ` and into \`${newKey}\`` : '') +
+        `. Please update your ${configFileName} file accordingly.`
     )
-    if (isCompilerFeature) {
-      config.compiler = config.compiler || {}
-      // TODO: remove "as" once TypeScript supports type narrowing in overloaded functions
-      // https://github.com/microsoft/TypeScript/issues/22609
-      config.compiler[key as keyof NextConfigComplete['compiler']] = (
-        config.experimental as any
-      )[key]
-    } else {
-      config[key] = (config.experimental as any)[key]
+
+    let current = config
+    const newKeys = newKey.split('.')
+    while (newKeys.length > 1) {
+      const key = newKeys.shift()!
+      current[key] = current[key] || {}
+      current = current[key]
     }
+    current[newKeys.shift()!] = (config.experimental as any)[oldKey]
   }
 
   return config
@@ -581,30 +568,35 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     }
   }
 
-  warnOptionHasBeenMovedOutOfExperimental(result, 'relay', configFileName, true)
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'relay',
+    'compiler.relay',
+    configFileName
+  )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'styledComponents',
-    configFileName,
-    true
+    'compiler.styledComponents',
+    configFileName
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'emotion',
-    configFileName,
-    true
+    'compiler.emotion',
+    configFileName
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'reactRemoveProperties',
-    configFileName,
-    true
+    'compiler.reactRemoveProperties',
+    configFileName
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'removeConsole',
-    configFileName,
-    true
+    'compiler.removeConsole',
+    configFileName
   )
 
   if (result.experimental?.swcMinifyDebugOptions) {
@@ -623,26 +615,26 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'transpilePackages',
-    configFileName,
-    false
+    'transpilePackages',
+    configFileName
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'allowMiddlewareResponseBody',
-    configFileName,
-    false
+    'allowMiddlewareResponseBody',
+    configFileName
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'skipMiddlewareUrlNormalize',
-    configFileName,
-    false
+    'skipMiddlewareUrlNormalize',
+    configFileName
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'skipTrailingSlashRedirect',
-    configFileName,
-    false
+    'skipTrailingSlashRedirect',
+    configFileName
   )
 
   if (
