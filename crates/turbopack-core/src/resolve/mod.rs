@@ -673,7 +673,11 @@ pub async fn resolve(
                 request,
                 context,
                 resolve_options: options,
-                error_message: Some("server relative imports are not implemented yet".to_string()),
+                error_message: Some(
+                    "server relative imports are not implemented yet. Please try an import \
+                     relative to the file you are importing from."
+                        .to_string(),
+                ),
             }
             .into();
             issue.as_issue().emit();
