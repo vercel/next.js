@@ -617,18 +617,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
 
   if (
     result.experimental &&
-    'allowMiddlewareResponseBody' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`allowMiddlewareResponseBody\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.allowMiddlewareResponseBody = (
-      result.experimental as any
-    ).allowMiddlewareResponseBody
-  }
-
-  if (
-    result.experimental &&
     'skipMiddlewareUrlNormalize' in (result.experimental as any)
   ) {
     Log.warn(

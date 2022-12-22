@@ -167,9 +167,9 @@ export type EventBuildFeatureUsage = {
     | 'build-lint'
     | 'vercelImageGeneration'
     | 'transpilePackages'
-    | 'allowMiddlewareResponseBody'
     | 'skipMiddlewareUrlNormalize'
     | 'skipTrailingSlashRedirect'
+    | 'modularizeImports'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

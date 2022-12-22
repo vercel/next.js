@@ -120,14 +120,6 @@ export interface ExperimentalConfig {
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
   outputFileTracingIgnores?: string[]
-  modularizeImports?: Record<
-    string,
-    {
-      transform: string
-      preventFullImport?: boolean
-      skipDefaultConversion?: boolean
-    }
-  >
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
@@ -504,11 +496,18 @@ export interface NextConfig extends Record<string, any> {
   // A list of packages that should always be transpiled and bundled in the server
   transpilePackages?: string[]
 
-  allowMiddlewareResponseBody?: boolean
-
   skipMiddlewareUrlNormalize?: boolean
 
   skipTrailingSlashRedirect?: boolean
+
+  modularizeImports?: Record<
+    string,
+    {
+      transform: string
+      preventFullImport?: boolean
+      skipDefaultConversion?: boolean
+    }
+  >
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -568,6 +567,7 @@ export const defaultConfig: NextConfig = {
   staticPageGenerationTimeout: 60,
   swcMinify: true,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
+  modularizeImports: undefined,
   experimental: {
     fetchCache: false,
     middlewarePrefetch: 'flexible',
@@ -610,7 +610,6 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    modularizeImports: undefined,
     enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,

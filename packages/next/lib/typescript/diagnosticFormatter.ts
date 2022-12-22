@@ -155,13 +155,14 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
 export async function getFormattedDiagnostic(
   ts: typeof import('typescript'),
   baseDir: string,
+  distDir: string,
   diagnostic: import('typescript').Diagnostic,
   isAppDirEnabled?: boolean
 ): Promise<string> {
   // If the error comes from .next/types/, we handle it specially.
   const isLayoutOrPageError =
     isAppDirEnabled &&
-    diagnostic.file?.fileName.includes(path.join(baseDir, '.next', 'types'))
+    diagnostic.file?.fileName.startsWith(path.join(baseDir, distDir, 'types'))
 
   let message = ''
 
