@@ -39,6 +39,7 @@ const requiredPackages = [
 
 export async function verifyTypeScriptSetup({
   dir,
+  distDir,
   cacheDir,
   intentDirs,
   tsconfigPath,
@@ -47,6 +48,7 @@ export async function verifyTypeScriptSetup({
   isAppDirEnabled,
 }: {
   dir: string
+  distDir: string
   cacheDir?: string
   tsconfigPath: string
   intentDirs: string[]
@@ -119,7 +121,8 @@ export async function verifyTypeScriptSetup({
       ts,
       resolvedTsConfigPath,
       intent.firstTimeSetup,
-      isAppDirEnabled
+      isAppDirEnabled,
+      distDir
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
@@ -137,6 +140,7 @@ export async function verifyTypeScriptSetup({
       result = await runTypeCheck(
         ts,
         dir,
+        distDir,
         resolvedTsConfigPath,
         cacheDir,
         isAppDirEnabled

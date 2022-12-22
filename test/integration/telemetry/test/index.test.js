@@ -1138,10 +1138,6 @@ describe('Telemetry CLI', () => {
       'NEXT_BUILD_FEATURE_USAGE'
     )
     expect(featureUsageEvents).toContainEqual({
-      featureName: 'allowMiddlewareResponseBody',
-      invocationCount: 1,
-    })
-    expect(featureUsageEvents).toContainEqual({
       featureName: 'skipMiddlewareUrlNormalize',
       invocationCount: 1,
     })
