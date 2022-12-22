@@ -479,7 +479,7 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         loop {
             let update_future = profile_timeout(
                 tt_clone.as_ref(),
-                tt_clone.update_info(Duration::from_millis(100), Duration::from_secs(1)),
+                tt_clone.update_info(Duration::from_millis(100), Duration::MAX),
             );
 
             if let Some((elapsed, count)) = update_future.await {
