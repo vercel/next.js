@@ -1,9 +1,7 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::{
-    introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+    introspect::{Introspectable, IntrospectableVc},
     source_map::GenerateSourceMapVc,
 };
 use turbopack_dev_server::source::{
@@ -132,10 +130,5 @@ impl Introspectable for NextSourceMapTraceContentSource {
         StringVc::cell(
             "supports tracing an error stack frame to its original source location".to_string(),
         )
-    }
-
-    #[turbo_tasks::function]
-    async fn children(&self) -> Result<IntrospectableChildrenVc> {
-        Ok(IntrospectableChildrenVc::cell(HashSet::new()))
     }
 }

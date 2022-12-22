@@ -16,5 +16,7 @@ pub trait Introspectable {
     fn details(&self) -> StringVc {
         StringVc::empty()
     }
-    fn children(&self) -> IntrospectableChildrenVc;
+    fn children(&self) -> IntrospectableChildrenVc {
+        IntrospectableChildrenVc::cell(HashSet::new())
+    }
 }

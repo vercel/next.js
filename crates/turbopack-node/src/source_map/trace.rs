@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use anyhow::Result;
-use mime::APPLICATION_JAVASCRIPT_UTF_8;
+use mime::APPLICATION_JSON;
 use serde_json::json;
 use turbo_tasks_fs::File;
 use turbopack_core::{
@@ -133,7 +133,7 @@ impl SourceMapTraceVc {
             })
             .to_string(),
         };
-        let file = File::from(result).with_content_type(APPLICATION_JAVASCRIPT_UTF_8);
+        let file = File::from(result).with_content_type(APPLICATION_JSON);
         Ok(file.into())
     }
 }

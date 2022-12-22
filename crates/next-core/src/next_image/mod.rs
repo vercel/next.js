@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
-use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
+use turbopack_core::introspect::{Introspectable, IntrospectableVc};
 use turbopack_dev_server::source::{
     query::QueryValue, ContentSource, ContentSourceContent, ContentSourceData,
     ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
@@ -101,10 +101,5 @@ impl Introspectable for NextImageContentSource {
     #[turbo_tasks::function]
     fn details(&self) -> StringVc {
         StringVc::cell("suports dynamic serving of any statically imported image".to_string())
-    }
-
-    #[turbo_tasks::function]
-    async fn children(&self) -> Result<IntrospectableChildrenVc> {
-        Ok(IntrospectableChildrenVc::cell(HashSet::new()))
     }
 }

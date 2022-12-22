@@ -1,11 +1,9 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContentVc,
-    introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+    introspect::{Introspectable, IntrospectableVc},
     source_map::GenerateSourceMapVc,
 };
 
@@ -110,11 +108,11 @@ impl ContentSource for SourceMapContentSource {
 impl Introspectable for SourceMapContentSource {
     #[turbo_tasks::function]
     fn ty(&self) -> StringVc {
-        StringVc::cell("static assets directory content source".to_string())
+        StringVc::cell("source map content source".to_string())
     }
 
     #[turbo_tasks::function]
-    fn children(&self) -> IntrospectableChildrenVc {
-        IntrospectableChildrenVc::cell(HashSet::new())
+    fn details(&self) -> StringVc {
+        StringVc::cell("serves chunk and chunk item source maps".to_string())
     }
 }
