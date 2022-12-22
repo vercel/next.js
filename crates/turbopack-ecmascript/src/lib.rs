@@ -67,8 +67,13 @@ use crate::{
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
 pub enum EcmascriptModuleAssetType {
+    /// Module with EcmaScript code
     Ecmascript,
+    /// Module with TypeScript code without types
     Typescript,
+    /// Module with TypeScript code with references to imported types
+    TypescriptWithTypes,
+    /// Module with TypeScript declaration code
     TypescriptDeclaration,
 }
 

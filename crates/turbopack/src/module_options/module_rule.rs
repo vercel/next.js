@@ -42,6 +42,7 @@ pub enum ModuleRuleEffect {
 pub enum ModuleType {
     Ecmascript(EcmascriptInputTransformsVc),
     Typescript(EcmascriptInputTransformsVc),
+    TypescriptWithTypes(EcmascriptInputTransformsVc),
     TypescriptDeclaration(EcmascriptInputTransformsVc),
     Json,
     Raw,

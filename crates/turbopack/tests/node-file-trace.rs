@@ -27,7 +27,7 @@ use turbo_tasks::{backend::Backend, TurboTasks, Value, ValueToString};
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion, rebase::RebasedAssetVc, register,
+    emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAssetVc, register,
     resolve_options_context::ResolveOptionsContext, transition::TransitionsByNameVc,
     ModuleAssetContextVc,
 };
@@ -403,7 +403,11 @@ fn node_file_trace<B: Backend + 'static>(
                         )),
                         Value::new(EnvironmentIntention::ServerRendering),
                     ),
-                    Default::default(),
+                    ModuleOptionsContext {
+                        enable_types: true,
+                        ..Default::default()
+                    }
+                    .cell(),
                     ResolveOptionsContext {
                         enable_node_native_modules: true,
                         enable_node_modules: true,

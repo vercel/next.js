@@ -119,15 +119,23 @@ async fn apply_module_type(
         .into(),
         ModuleType::Typescript(transforms) => EcmascriptModuleAssetVc::new(
             source,
-            context.with_typescript_resolving_enabled().into(),
+            context.into(),
             Value::new(EcmascriptModuleAssetType::Typescript),
+            *transforms,
+            context.environment(),
+        )
+        .into(),
+        ModuleType::TypescriptWithTypes(transforms) => EcmascriptModuleAssetVc::new(
+            source,
+            context.with_types_resolving_enabled().into(),
+            Value::new(EcmascriptModuleAssetType::TypescriptWithTypes),
             *transforms,
             context.environment(),
         )
         .into(),
         ModuleType::TypescriptDeclaration(transforms) => EcmascriptModuleAssetVc::new(
             source,
-            context.with_typescript_resolving_enabled().into(),
+            context.with_types_resolving_enabled().into(),
             Value::new(EcmascriptModuleAssetType::TypescriptDeclaration),
             *transforms,
             context.environment(),
@@ -183,6 +191,11 @@ async fn module(
                             Some(ModuleType::Typescript(transforms)) => Some(
                                 ModuleType::Typescript(transforms.extend(*additional_transforms)),
                             ),
+                            Some(ModuleType::TypescriptWithTypes(transforms)) => {
+                                Some(ModuleType::TypescriptWithTypes(
+                                    transforms.extend(*additional_transforms),
+                                ))
+                            }
                             Some(module_type) => {
                                 ModuleIssue {
                                     path,
@@ -278,21 +291,22 @@ impl ModuleAssetContextVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_typescript_resolving_enabled(self) -> Result<BoolVc> {
+    pub async fn is_types_resolving_enabled(self) -> Result<BoolVc> {
+        let context = self.await?.resolve_options_context.await?;
         Ok(BoolVc::cell(
-            self.await?.resolve_options_context.await?.enable_typescript,
+            context.enable_types && context.enable_typescript,
         ))
     }
 
     #[turbo_tasks::function]
-    pub async fn with_typescript_resolving_enabled(self) -> Result<ModuleAssetContextVc> {
-        if *self.is_typescript_resolving_enabled().await? {
+    pub async fn with_types_resolving_enabled(self) -> Result<ModuleAssetContextVc> {
+        if *self.is_types_resolving_enabled().await? {
             return Ok(self);
         }
         let this = self.await?;
         let resolve_options_context = this
             .resolve_options_context
-            .with_typescript_enabled()
+            .with_types_enabled()
             .resolve()
             .await?;
         Ok(ModuleAssetContextVc::new(
@@ -339,7 +353,7 @@ impl AssetContext for ModuleAssetContext {
         let result = resolve(context_path, request, resolve_options);
         let result = self_vc.process_resolve_result(result, reference_type);
 
-        if *self_vc.is_typescript_resolving_enabled().await? {
+        if *self_vc.is_types_resolving_enabled().await? {
             let types_reference = TypescriptTypesAssetReferenceVc::new(
                 PlainResolveOriginVc::new(self_vc.into(), origin_path).into(),
                 request,

@@ -160,9 +160,17 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
         TransitionsByNameVc::cell(HashMap::new()),
         env,
         ModuleOptionsContext {
+            enable_jsx: true,
             enable_emotion: true,
             enable_styled_components: true,
             preset_env_versions: Some(env),
+            rules: vec![(
+                ContextCondition::InDirectory("node_modules".to_string()),
+                ModuleOptionsContext {
+                    ..Default::default()
+                }
+                .cell(),
+            )],
             ..Default::default()
         }
         .into(),

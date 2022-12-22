@@ -32,7 +32,7 @@ use turbo_tasks_memory::{
     viz, MemoryBackend,
 };
 use turbopack::{
-    emit_asset, emit_with_completion, rebase::RebasedAssetVc,
+    emit_asset, emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAssetVc,
     resolve_options_context::ResolveOptionsContext, transition::TransitionsByNameVc,
     ModuleAssetContextVc,
 };
@@ -257,7 +257,11 @@ async fn input_to_modules<'a>(
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
         env,
-        Default::default(),
+        ModuleOptionsContext {
+            enable_types: true,
+            ..Default::default()
+        }
+        .cell(),
         ResolveOptionsContext {
             emulate_environment: Some(env),
             resolved_map: Some(
