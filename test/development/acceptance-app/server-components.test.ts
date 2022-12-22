@@ -22,7 +22,7 @@ describe('Error Overlay for server components', () => {
 
   describe('createContext called in Server Component', () => {
     it('should show error when React.createContext is called', async () => {
-      const { session, browser, cleanup } = await sandbox(
+      const { session, cleanup } = await sandbox(
         next,
         new Map([
           [
@@ -43,9 +43,6 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      // TODO-APP: currently requires a full reload because moving from a client component to a server component isn't causing a Fast Refresh yet.
-      await browser.refresh()
-
       expect(await session.hasRedbox(true)).toBe(true)
       await check(async () => {
         expect(await session.getRedboxSource(true)).toContain(
@@ -61,7 +58,7 @@ describe('Error Overlay for server components', () => {
     })
 
     it('should show error when React.createContext is called in external package', async () => {
-      const { session, browser, cleanup } = await sandbox(
+      const { session, cleanup } = await sandbox(
         next,
         new Map([
           [
@@ -97,9 +94,6 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      // TODO-APP: currently requires a full reload because moving from a client component to a server component isn't causing a Fast Refresh yet.
-      await browser.refresh()
-
       expect(await session.hasRedbox(true)).toBe(true)
 
       await check(async () => {
@@ -117,7 +111,7 @@ describe('Error Overlay for server components', () => {
     })
 
     it('should show error when createContext is called in external package', async () => {
-      const { session, browser, cleanup } = await sandbox(
+      const { session, cleanup } = await sandbox(
         next,
         new Map([
           [
@@ -152,9 +146,6 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
-      // TODO-APP: currently requires a full reload because moving from a client component to a server component isn't causing a Fast Refresh yet.
-      await browser.refresh()
 
       expect(await session.hasRedbox(true)).toBe(true)
 

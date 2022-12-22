@@ -95,9 +95,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
-      const transpiled = (
-        nextConfig?.experimental?.transpilePackages ?? []
-      ).join('|')
+      const transpiled = (nextConfig?.transpilePackages ?? []).join('|')
       return {
         ...resolvedJestConfig,
 

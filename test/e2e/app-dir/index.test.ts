@@ -1315,6 +1315,11 @@ createNextDescribe(
           ).toBe('rgb(0, 0, 255)')
         })
 
+        it('should not contain pages css in app dir page', async () => {
+          const html = await next.render('/css/css-page')
+          expect(html).not.toContain('/pages/_app.css')
+        })
+
         if (!isDev) {
           it('should not include unused css modules in the page in prod', async () => {
             const browser = await next.browser('/css/css-page/unused')
@@ -1467,6 +1472,29 @@ createNextDescribe(
           ).toBe('50px')
         })
       })
+
+      if (isDev) {
+        describe('multiple entries', () => {
+          it('should only load chunks for the css module that is used by the specific entrypoint', async () => {
+            // Visit /b first
+            await next.render('/css/css-duplicate/b')
+
+            const browser = await next.browser('/css/css-duplicate/a')
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ href }) => href.endsWith('/a/page.css'))`
+              )
+            ).toBe(true)
+
+            // Should not load the chunk from /b
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].some(({ href }) => href.endsWith('/b/page.css'))`
+              )
+            ).toBe(false)
+          })
+        })
+      }
     })
 
     if (isDev) {
@@ -2353,6 +2381,20 @@ createNextDescribe(
         expect(await browser.elementByCss('#not-found-component').text()).toBe(
           'Not Found!'
         )
+        expect(
+          await browser
+            .waitForElementByCss('meta[name="robots"]')
+            .getAttribute('content')
+        ).toBe('noindex')
+      })
+      it('should trigger not-found while streaming', async () => {
+        const initialHtml = await next.render('/not-found/suspense')
+        expect(initialHtml).not.toContain('noindex')
+
+        const browser = await next.browser('/not-found/suspense')
+        expect(
+          await browser.waitForElementByCss('#not-found-component').text()
+        ).toBe('Not Found!')
         expect(
           await browser
             .waitForElementByCss('meta[name="robots"]')

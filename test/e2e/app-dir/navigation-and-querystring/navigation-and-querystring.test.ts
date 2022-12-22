@@ -9,13 +9,6 @@ describe('app-dir navigation and querystring', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(__dirname),
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
-      },
     })
   })
   afterAll(() => next.destroy())

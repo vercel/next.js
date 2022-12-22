@@ -6,13 +6,6 @@ createNextDescribe(
   'app-dir edge SSR',
   {
     files: path.join(__dirname, 'app-edge'),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-      typescript: 'latest',
-      '@types/react': 'latest',
-      '@types/node': 'latest',
-    },
     skipDeployment: true,
   },
   ({ next }) => {
