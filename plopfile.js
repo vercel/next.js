@@ -1,5 +1,3 @@
-const { addConsoleHandler } = require('selenium-webdriver/lib/logging')
-
 module.exports = function (plop) {
   plop.setHelper('toFileName', (str) => str.toLowerCase().replace(/ /g, '-'))
 
