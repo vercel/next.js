@@ -77,15 +77,22 @@ export class BrowserInterface implements PromiseLike<any> {
   moveTo(): BrowserInterface {
     return this
   }
+  // TODO(NEXT-290): type this correctly as awaitable
   waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
     return this
   }
   waitForCondition(snippet: string, timeout?: number): BrowserInterface {
     return this
   }
+  /**
+   * Use browsers `go back` functionality.
+   */
   back(): BrowserInterface {
     return this
   }
+  /**
+   * Use browsers `go forward` functionality. Inverse of back.
+   */
   forward(): BrowserInterface {
     return this
   }
