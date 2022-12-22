@@ -317,8 +317,9 @@ export async function getPageStaticInfo(params: {
         typeof resolvedRuntime !== 'string'
           ? `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
           : `Provided runtime "${resolvedRuntime}" is not supported. Please leave it empty or choose one of: ${options}`
-      Log.error(message)
-      if (!isDev) {
+      if (isDev) {
+        Log.error(message)
+      } else {
         throw new Error(message)
       }
     }
@@ -342,8 +343,9 @@ export async function getPageStaticInfo(params: {
       !isAPIRoute(page.replace(/^\/pages\//, '/'))
     ) {
       const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
-      Log.error(message)
-      if (!isDev) {
+      if (isDev) {
+        Log.error(message)
+      } else {
         throw new Error(message)
       }
     }
