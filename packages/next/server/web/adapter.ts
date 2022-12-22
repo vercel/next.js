@@ -198,32 +198,6 @@ export async function adapter(params: {
   }
 }
 
-export function blockUnallowedResponse(
-  promise: Promise<FetchEventResult>
-): Promise<FetchEventResult> {
-  if (process.env.__NEXT_ALLOW_MIDDLEWARE_RESPONSE_BODY) {
-    return promise
-  }
-
-  return promise.then((result) => {
-    if (result.response?.body) {
-      console.error(
-        new Error(
-          `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
-        )
-      )
-      return {
-        ...result,
-        response: new Response('Internal Server Error', {
-          status: 500,
-          statusText: 'Internal Server Error',
-        }),
-      }
-    }
-    return result
-  })
-}
-
 function getUnsupportedModuleErrorMessage(module: string) {
   // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
   return `The edge runtime does not support Node.js '${module}' module.

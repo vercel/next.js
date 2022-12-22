@@ -7,9 +7,6 @@ const configSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    allowMiddlewareResponseBody: {
-      type: 'boolean',
-    },
     amp: {
       additionalProperties: false,
       properties: {
@@ -312,9 +309,6 @@ const configSchema = {
           // automatic typing doesn't like enum
           enum: ['strict', 'flexible'] as any,
           type: 'string',
-        },
-        modularizeImports: {
-          type: 'object',
         },
         newNextLinkBehavior: {
           type: 'boolean',
@@ -630,6 +624,9 @@ const configSchema = {
           type: 'string',
         },
       },
+      type: 'object',
+    },
+    modularizeImports: {
       type: 'object',
     },
     onDemandEntries: {
