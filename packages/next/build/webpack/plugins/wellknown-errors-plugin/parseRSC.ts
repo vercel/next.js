@@ -19,10 +19,15 @@ function formatRSCErrorMessage(message: string): null | [string, string] {
     const NEXT_RSC_ERR_INVALID_API = /.+NEXT_RSC_ERR_INVALID_API: (.*?)\n/s
 
     if (NEXT_RSC_ERR_REACT_API.test(message)) {
-      formattedMessage = message.replace(
-        NEXT_RSC_ERR_REACT_API,
-        `\n\nYou're importing a component that needs $1. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\n\n`
-      )
+      const matches = message.match(NEXT_RSC_ERR_REACT_API)
+      if (matches && matches[1] === 'Component') {
+        formattedMessage = `\n\nYou’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\n\n`
+      } else {
+        formattedMessage = message.replace(
+          NEXT_RSC_ERR_REACT_API,
+          `\n\nYou're importing a component that needs $1. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\n\n`
+        )
+      }
       formattedVerboseMessage =
         '\n\nMaybe one of these should be marked as a client entry with "use client":\n'
     } else if (NEXT_RSC_ERR_SERVER_IMPORT.test(message)) {
