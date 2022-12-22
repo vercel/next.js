@@ -7,9 +7,6 @@ const configSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    allowMiddlewareResponseBody: {
-      type: 'boolean',
-    },
     amp: {
       additionalProperties: false,
       properties: {
@@ -313,9 +310,6 @@ const configSchema = {
           enum: ['strict', 'flexible'] as any,
           type: 'string',
         },
-        modularizeImports: {
-          type: 'object',
-        },
         newNextLinkBehavior: {
           type: 'boolean',
         },
@@ -358,12 +352,6 @@ const configSchema = {
           type: 'string',
         },
         serverComponentsExternalPackages: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
-        },
-        transpilePackages: {
           items: {
             type: 'string',
           },
@@ -638,6 +626,9 @@ const configSchema = {
       },
       type: 'object',
     },
+    modularizeImports: {
+      type: 'object',
+    },
     onDemandEntries: {
       additionalProperties: false,
       properties: {
@@ -705,6 +696,12 @@ const configSchema = {
     },
     trailingSlash: {
       type: 'boolean',
+    },
+    transpilePackages: {
+      items: {
+        type: 'string',
+      },
+      type: 'array',
     },
     typescript: {
       additionalProperties: false,

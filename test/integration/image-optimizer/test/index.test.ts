@@ -558,6 +558,36 @@ describe('Image Optimizer', () => {
     })
   })
 
+  describe('images.unoptimized in next.config.js', () => {
+    let app
+    let appPort
+
+    beforeAll(async () => {
+      nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            unoptimized: true,
+          },
+        })
+      )
+      await cleanImagesDir({ imagesDir })
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+    })
+    it('should 404 when unoptimized', async () => {
+      const size = 384 // defaults defined in server/config.ts
+      const query = { w: size, q: 75, url: '/test.jpg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(404)
+    })
+  })
+
   describe('External rewrite support with for serving static content in images', () => {
     let app
     let appPort

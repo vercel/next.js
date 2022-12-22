@@ -22,6 +22,7 @@ export async function buildConfiguration(
     sassOptions,
     productionBrowserSourceMaps,
     future,
+    transpilePackages,
     experimental,
     disableStaticImages,
   }: {
@@ -36,6 +37,7 @@ export async function buildConfiguration(
     assetPrefix: string
     sassOptions: any
     productionBrowserSourceMaps: boolean
+    transpilePackages: NextConfigComplete['transpilePackages']
     future: NextConfigComplete['future']
     experimental: NextConfigComplete['experimental']
     disableStaticImages: NextConfigComplete['disableStaticImages']
@@ -59,6 +61,7 @@ export async function buildConfiguration(
       : '',
     sassOptions,
     productionBrowserSourceMaps,
+    transpilePackages,
     future,
     experimental,
   }
