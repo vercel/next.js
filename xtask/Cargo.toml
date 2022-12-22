@@ -20,6 +20,7 @@ chrono = "0.4.22"
 clap = { version = "4.0.18", features = ["derive"] }
 indexmap = { workspace = true }
 inquire = { version = "0.5.1" }
+num-format = "0.4.4"
 owo-colors = "3"
 plotters = { version = "0.3.4", features = ["full_palette"] }
 semver = "1"
