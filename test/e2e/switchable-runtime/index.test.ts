@@ -45,15 +45,10 @@ describe('Switchable runtime', () => {
 
   beforeAll(async () => {
     next = await createNext({
-      files: {
-        app: new FileRef(join(__dirname, './app')),
-        pages: new FileRef(join(__dirname, './pages')),
-        utils: new FileRef(join(__dirname, './utils')),
-        'next.config.js': new FileRef(join(__dirname, './next.config.js')),
-      },
+      files: new FileRef(__dirname),
       dependencies: {
-        react: 'experimental',
-        'react-dom': 'experimental',
+        react: 'latest',
+        'react-dom': 'latest',
       },
     })
     context = {
@@ -229,7 +224,7 @@ describe('Switchable runtime', () => {
           'pages/api/switch-in-dev.js',
           `
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
           }
 
           export default () => new Response('edge response')
@@ -259,7 +254,7 @@ describe('Switchable runtime', () => {
           'pages/api/switch-in-dev.js',
           `
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
           }
 
           export default () => new Response('edge response again')
@@ -340,7 +335,7 @@ describe('Switchable runtime', () => {
           'pages/api/switch-in-dev-same-content.js',
           `
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
           }
 
           export default () => new Response('edge response')
@@ -373,7 +368,7 @@ describe('Switchable runtime', () => {
           'pages/api/syntax-error-in-dev.js',
           `
         export const config = {
-          runtime: 'experimental-edge',
+          runtime: 'edge',
         }
 
         export default  => new Response('edge response')
@@ -391,7 +386,7 @@ describe('Switchable runtime', () => {
           export default () => new Response('edge response again')
 
           export const config = {
-            runtime: 'experimental-edge',
+            runtime: 'edge',
           }
 
         `

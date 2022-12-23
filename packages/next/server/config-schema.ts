@@ -1,6 +1,7 @@
 import { NextConfig } from './config'
 import type { JSONSchemaType } from 'ajv'
 import { VALID_LOADERS } from '../shared/lib/image-config'
+import { SERVER_RUNTIME } from '../lib/constants'
 
 const configSchema = {
   type: 'object',
@@ -268,9 +269,6 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
-        allowMiddlewareResponseBody: {
-          type: 'boolean',
-        },
         externalDir: {
           type: 'boolean',
         },
@@ -312,9 +310,6 @@ const configSchema = {
           enum: ['strict', 'flexible'] as any,
           type: 'string',
         },
-        modularizeImports: {
-          type: 'object',
-        },
         newNextLinkBehavior: {
           type: 'boolean',
         },
@@ -353,16 +348,10 @@ const configSchema = {
         },
         runtime: {
           // automatic typing doesn't like enum
-          enum: ['experimental-edge', 'nodejs'] as any,
+          enum: Object.values(SERVER_RUNTIME) as any,
           type: 'string',
         },
         serverComponentsExternalPackages: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
-        },
-        transpilePackages: {
           items: {
             type: 'string',
           },
@@ -372,12 +361,6 @@ const configSchema = {
           type: 'boolean',
         },
         sharedPool: {
-          type: 'boolean',
-        },
-        skipMiddlewareUrlNormalize: {
-          type: 'boolean',
-        },
-        skipTrailingSlashRedirect: {
           type: 'boolean',
         },
         sri: {
@@ -572,7 +555,6 @@ const configSchema = {
                 type: 'string',
               },
               port: {
-                minLength: 1,
                 type: 'string',
               },
               protocol: {
@@ -644,6 +626,9 @@ const configSchema = {
       },
       type: 'object',
     },
+    modularizeImports: {
+      type: 'object',
+    },
     onDemandEntries: {
       additionalProperties: false,
       properties: {
@@ -697,6 +682,12 @@ const configSchema = {
     serverRuntimeConfig: {
       type: 'object',
     },
+    skipMiddlewareUrlNormalize: {
+      type: 'boolean',
+    },
+    skipTrailingSlashRedirect: {
+      type: 'boolean',
+    },
     staticPageGenerationTimeout: {
       type: 'number',
     },
@@ -705,6 +696,12 @@ const configSchema = {
     },
     trailingSlash: {
       type: 'boolean',
+    },
+    transpilePackages: {
+      items: {
+        type: 'string',
+      },
+      type: 'array',
     },
     typescript: {
       additionalProperties: false,

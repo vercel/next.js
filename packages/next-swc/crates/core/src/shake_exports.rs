@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use swc_core::{
+use next_binding::swc::core::{
     common::Mark,
     ecma::ast::*,
     ecma::atoms::{js_word, JsWord},

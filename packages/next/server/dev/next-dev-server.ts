@@ -674,6 +674,7 @@ export default class DevServer extends Server {
       this.verifyingTypeScript = true
       const verifyResult = await verifyTypeScriptSetup({
         dir: this.dir,
+        distDir: this.nextConfig.distDir,
         intentDirs: [this.pagesDir, this.appDir].filter(Boolean) as string[],
         typeCheckPreflight: false,
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,
@@ -732,6 +733,12 @@ export default class DevServer extends Server {
     }
 
     const telemetry = new Telemetry({ distDir: this.distDir })
+
+    // This is required by the tracing subsystem.
+    setGlobal('appDir', this.appDir)
+    setGlobal('pagesDir', this.pagesDir)
+    setGlobal('telemetry', telemetry)
+
     const isSrcDir = relative(
       this.dir,
       this.pagesDir || this.appDir || ''
@@ -748,10 +755,6 @@ export default class DevServer extends Server {
         appDir: !!this.appDir,
       })
     )
-    // This is required by the tracing subsystem.
-    setGlobal('appDir', this.appDir)
-    setGlobal('pagesDir', this.pagesDir)
-    setGlobal('telemetry', telemetry)
 
     process.on('unhandledRejection', (reason) => {
       this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(

@@ -1,11 +1,18 @@
 export type Event = 'request'
 
-// This is the base Browser interface all browser
-// classes should build off of, it is the bare
-// methods we aim to support across tests
-export class BrowserInterface {
+/**
+ * This is the base Browser interface all browser
+ * classes should build off of, it is the bare
+ * methods we aim to support across tests
+ *
+ * They will always await last executed command.
+ * The interface is mutable - it doesn't have to be in sequece.
+ *
+ * You can manually await this interface to wait for completion of the last scheduled command.
+ */
+export class BrowserInterface implements PromiseLike<any> {
   private promise: any
-  private then: any
+  then: PromiseLike<any>['then']
   private catch: any
 
   protected chain(nextCall: any): BrowserInterface {
@@ -16,6 +23,24 @@ export class BrowserInterface {
     this.then = (...args) => this.promise.then(...args)
     this.catch = (...args) => this.promise.catch(...args)
     return this
+  }
+
+  /**
+   * This function will run in chain - it will wait for previous commands.
+   * But it won't have an effect on chain value and chain will still be green if this throws.
+   */
+  protected chainWithReturnValue<T>(
+    callback: (...args: any[]) => Promise<T>
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      this.chain(async (...args: any[]) => {
+        try {
+          resolve(await callback(...args))
+        } catch (error) {
+          reject(error)
+        }
+      })
+    })
   }
 
   async setup(browserName: string, locale?: string): Promise<void> {}
@@ -52,15 +77,22 @@ export class BrowserInterface {
   moveTo(): BrowserInterface {
     return this
   }
+  // TODO(NEXT-290): type this correctly as awaitable
   waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
     return this
   }
   waitForCondition(snippet: string, timeout?: number): BrowserInterface {
     return this
   }
+  /**
+   * Use browsers `go back` functionality.
+   */
   back(): BrowserInterface {
     return this
   }
+  /**
+   * Use browsers `go forward` functionality. Inverse of back.
+   */
   forward(): BrowserInterface {
     return this
   }

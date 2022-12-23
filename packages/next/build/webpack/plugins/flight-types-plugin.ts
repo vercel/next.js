@@ -8,6 +8,7 @@ const PLUGIN_NAME = 'FlightTypesPlugin'
 
 interface Options {
   dir: string
+  distDir: string
   appDir: string
   dev: boolean
   isEdgeServer: boolean
@@ -58,7 +59,11 @@ interface IEntry {
   dynamicParams?: boolean
   fetchCache?: 'auto' | 'force-no-store' | 'only-no-store' | 'default-no-store' | 'default-cache' | 'only-cache' | 'force-cache'
   preferredRegion?: 'auto' | 'home' | 'edge'
-  ${options.type === 'page' ? "runtime?: 'nodejs' | 'experimental-edge'" : ''}
+  ${
+    options.type === 'page'
+      ? "runtime?: 'nodejs' | 'experimental-edge' | 'edge'"
+      : ''
+  }
 }
 
 // =============
@@ -89,19 +94,29 @@ async function collectNamedSlots(layoutPath: string) {
 
 export class FlightTypesPlugin {
   dir: string
+  distDir: string
   appDir: string
   dev: boolean
   isEdgeServer: boolean
 
   constructor(options: Options) {
     this.dir = options.dir
+    this.distDir = options.distDir
     this.appDir = options.appDir
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
   }
 
   apply(compiler: webpack.Compiler) {
-    const assetPrefix = this.dev ? '..' : this.isEdgeServer ? '..' : '../..'
+    // From dist root to project root
+    const distDirRelative = path.relative(this.distDir + '/..', '.')
+
+    // From asset root to dist root
+    const assetDirRelative = this.dev
+      ? '..'
+      : this.isEdgeServer
+      ? '..'
+      : '../..'
 
     const handleModule = async (_mod: webpack.Module, assets: any) => {
       if (_mod.layer !== WEBPACK_LAYERS.server) return
@@ -123,11 +138,12 @@ export class FlightTypesPlugin {
       )
       const relativeImportPath = path
         .join(
+          distDirRelative,
           path.relative(typePath, ''),
           relativePathToRoot.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
         )
         .replace(/\\/g, '/')
-      const assetPath = assetPrefix + '/' + typePath.replace(/\\/g, '/')
+      const assetPath = assetDirRelative + '/' + typePath.replace(/\\/g, '/')
 
       if (IS_LAYOUT) {
         const slots = await collectNamedSlots(mod.resource)
