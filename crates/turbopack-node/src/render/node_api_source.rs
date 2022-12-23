@@ -10,7 +10,7 @@ use turbopack_core::introspect::{
 use turbopack_dev_server::source::{
     specificity::SpecificityVc, ContentSource, ContentSourceContent, ContentSourceData,
     ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc,
-    ContentSourceVc,
+    ContentSourceVc, NeededData,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
@@ -116,7 +116,7 @@ impl ContentSource for NodeApiContentSource {
                     ))
                     .cell()
                 } else {
-                    ContentSourceContent::NeedData {
+                    ContentSourceContent::NeedData(NeededData {
                         source: self_vc.into(),
                         path: path.to_string(),
                         vary: ContentSourceDataVary {
@@ -128,7 +128,7 @@ impl ContentSource for NodeApiContentSource {
                             cache_buster: true,
                             ..Default::default()
                         },
-                    }
+                    })
                     .cell()
                 };
                 return Ok(ContentSourceResult {

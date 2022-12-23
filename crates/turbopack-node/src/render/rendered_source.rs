@@ -19,6 +19,7 @@ use turbopack_dev_server::{
         specificity::SpecificityVc,
         ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
         ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+        NeededData,
     },
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
@@ -177,7 +178,7 @@ impl ContentSource for NodeRenderContentSource {
                     );
                     ContentSourceContent::Static(asset.into()).cell()
                 } else {
-                    ContentSourceContent::NeedData {
+                    ContentSourceContent::NeedData(NeededData {
                         source: self_vc.into(),
                         path: path.to_string(),
                         vary: ContentSourceDataVary {
@@ -187,7 +188,7 @@ impl ContentSource for NodeRenderContentSource {
                             query: Some(ContentSourceDataFilter::All),
                             ..Default::default()
                         },
-                    }
+                    })
                     .cell()
                 };
                 return Ok(ContentSourceResult {

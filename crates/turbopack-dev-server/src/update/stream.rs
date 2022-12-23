@@ -43,12 +43,10 @@ async fn get_content_wrapper(
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<ContentSourceResultVc> {
     let mut content = get_content();
-    while let ContentSourceContent::NeedData { source, path, vary } =
-        &*content.await?.content.await?
-    {
-        content = source.get(
-            path,
-            Value::new(resource_to_data(resource.clone().into_value(), vary)),
+    while let ContentSourceContent::NeedData(data) = &*content.await?.content.await? {
+        content = data.source.get(
+            &data.path,
+            Value::new(resource_to_data(resource.clone().into_value(), &data.vary)),
         );
     }
     Ok(content)
@@ -63,7 +61,7 @@ async fn resolve_static_content(
             panic!("HTTP proxying is not supported in UpdateStream")
         }
         ContentSourceContent::Static(content) => Some(content),
-        ContentSourceContent::NeedData { .. } => {
+        ContentSourceContent::NeedData(_) => {
             bail!("this might only happen temporary as get_content_wrapper resolves the data")
         }
     })

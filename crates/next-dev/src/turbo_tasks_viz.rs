@@ -11,7 +11,7 @@ use turbo_tasks_memory::{
 use turbopack_core::asset::AssetContentVc;
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
-    ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
+    ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc, NeededData,
 };
 
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", into = "new")]
@@ -87,14 +87,14 @@ impl ContentSource for TurboTasksSource {
                     viz::table::wrap_html(&table)
                 } else {
                     return Ok(ContentSourceResultVc::exact(
-                        ContentSourceContent::NeedData {
+                        ContentSourceContent::NeedData(NeededData {
                             source: self_vc.into(),
                             path: path.to_string(),
                             vary: ContentSourceDataVary {
                                 query: Some(ContentSourceDataFilter::All),
                                 ..Default::default()
                             },
-                        }
+                        })
                         .cell(),
                     ));
                 }
