@@ -4,11 +4,9 @@
  * @type {import('next').NextConfig}
  **/
 const nextConfig = {
-  experimental: {
-    modularizeImports: {
-      '../components/halves': {
-        transform: '../components/halves/{{ member }}',
-      },
+  modularizeImports: {
+    '../components/halves': {
+      transform: '../components/halves/{{ member }}',
     },
   },
 }
