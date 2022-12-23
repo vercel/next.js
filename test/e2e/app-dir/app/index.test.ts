@@ -1413,6 +1413,12 @@ createNextDescribe(
       })
 
       describe('special entries', () => {
+        it('should include css imported in layout.js', async () => {
+          const html = await next.render('/')
+          // The link tag should be included together with layout
+          expect(html).toMatch(/<link rel="stylesheet" href="(.+)style\.css"/)
+        })
+
         it('should include css imported in loading.js', async () => {
           const html = await next.render('/loading-bug/hi')
           // The link tag should be included together with loading
