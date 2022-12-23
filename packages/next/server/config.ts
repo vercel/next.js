@@ -126,7 +126,7 @@ function setFontLoaderDefaults(config: NextConfigComplete) {
   } catch {}
 }
 
-function warnOptionHasBeenMovedOutOfExperimental(
+export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
   oldKey: string,
   newKey: string,
