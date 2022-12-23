@@ -7,7 +7,7 @@
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
-import { relative } from 'path'
+import { relative, sep } from 'path'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
 
 import {
@@ -349,7 +349,9 @@ export class FlightManifestPlugin {
         entryName: string | undefined | null
       ) => {
         if (entryName?.startsWith('app/')) {
-          const key = this.appDir + entryName.slice(3)
+          // The `key` here should be the absolute file path but without extension.
+          // We need to replace the separator in the entry name to match the system separator.
+          const key = this.appDir + entryName.slice(3).replace(/\//g, sep)
           entryCSSFiles[key] = files.concat(entryCSSFiles[key] || [])
         }
       }
