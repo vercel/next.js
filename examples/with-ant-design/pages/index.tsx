@@ -33,6 +33,11 @@ export default function Home() {
         </Link>
 
         <p className="mb-0 mt-3 text-disabled">Welcome to the world !</p>
+        <Link href="/app-dir">
+          <Button className="mt-3" type="primary">
+            Go app directory
+          </Button>
+        </Link>
       </div>
       <div>
         <Form

@@ -6,9 +6,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ant-design/cssinjs": "^1.1.1",
+    "@ant-design/cssinjs": "^1.2.0",
     "@ant-design/icons": "^4.8.0",
-    "antd": "^5.0.7",
+    "antd": "^5.1.0",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0"
