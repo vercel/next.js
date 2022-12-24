@@ -528,10 +528,11 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
     // Remove property so it's not spread on <img> element
     delete rest.loader
+    // This special value indicates that the user
+    // didn't define a "loader" prop or "loader" config.
+    const isDefaultLoader = '__next_img_default' in loader
 
-    if ('__next_img_default' in loader) {
-      // This special value indicates that the user
-      // didn't define a "loader" prop or config.
+    if (isDefaultLoader) {
       if (config.loader === 'custom') {
         throw new Error(
           `Image with src "${src}" is missing "loader" prop.` +
@@ -623,6 +624,15 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       isLazy = false
     }
     if (config.unoptimized) {
+      unoptimized = true
+    }
+    if (
+      isDefaultLoader &&
+      src.endsWith('.svg') &&
+      !config.dangerouslyAllowSVG
+    ) {
+      // Special case to make svg serve as-is to avoid proxying
+      // through the built-in Image Optimization API.
       unoptimized = true
     }
 
