@@ -100,7 +100,7 @@ Each file inside your `pages/` directory will automatically be code split into i
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/Logflare/next-pino-logflare-logging-example">with-logging</a></li>
+    <li><a href="https://github.com/Logflare/next-pino-logflare-logging-example">Pino and Logflare Example</a></li>
   </ul>
 </details>
 
