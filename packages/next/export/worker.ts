@@ -357,11 +357,13 @@ export default async function exportPage({
           results.fromBuildExportRevalidate = revalidate
 
           if (revalidate !== 0) {
-            await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
-            await promises.writeFile(
-              htmlFilepath.replace(/\.html$/, '.rsc'),
-              flightData
-            )
+            await Promise.all([
+              promises.writeFile(htmlFilepath, html ?? '', 'utf8'),
+              promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.rsc'),
+                flightData
+              )
+            ])
           } else if (isDynamicError) {
             throw new Error(
               `Page with dynamic = "error" encountered dynamic data method ${path}.`
@@ -513,19 +515,19 @@ export default async function exportPage({
         )
 
         await promises.mkdir(dirname(dataFile), { recursive: true })
-        await promises.writeFile(
-          dataFile,
-          JSON.stringify((curRenderOpts as any).pageData),
-          'utf8'
-        )
-
-        if (hybridAmp) {
-          await promises.writeFile(
+       
+        await Promise.all([
+          promises.writeFile(
+            dataFile,
+            JSON.stringify((curRenderOpts as any).pageData),
+            'utf8'
+          ),
+          hybridAmp && promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
             JSON.stringify((curRenderOpts as any).pageData),
             'utf8'
           )
-        }
+        ])
       }
       results.fromBuildExportRevalidate = (curRenderOpts as any).revalidate
 
