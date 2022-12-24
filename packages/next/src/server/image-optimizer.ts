@@ -631,6 +631,7 @@ export async function imageOptimizer(
         // will inline a special url to lazily generate the blur placeholder at request time.
         const meta = await getMetadata(optimizedBuffer)
         const opts = {
+          objectFit: undefined, // TODO: what value should go here?
           blurWidth: meta.width,
           blurHeight: meta.height,
           blurDataURL: `data:${contentType};base64,${optimizedBuffer.toString(
