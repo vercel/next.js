@@ -620,12 +620,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
-    'allowMiddlewareResponseBody',
-    'allowMiddlewareResponseBody',
-    configFileName
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
     'skipMiddlewareUrlNormalize',
     'skipMiddlewareUrlNormalize',
     configFileName
