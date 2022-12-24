@@ -53,12 +53,6 @@ function defaultLoader({
     }
   }
 
-  if (src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    return src
-  }
-
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
     quality || 75
   }`

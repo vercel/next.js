@@ -102,12 +102,12 @@ createNextDescribe(
 
       if (globalThis.isNextDev) {
         expect(
-          errors.some(
+          errors.filter(
             (output) =>
               output ===
-              `You're using \`next/head\` inside app directory, please migrate to \`head.js\`. Checkout https://beta.nextjs.org/docs/api-reference/file-conventions/head for details.\n`
-          )
-        ).toBe(true)
+              `Warning: You're using \`next/head\` inside app directory, please migrate to \`head.js\`. Checkout https://beta.nextjs.org/docs/api-reference/file-conventions/head for details.\n`
+          ).length
+        ).toBe(1)
 
         const dynamicChunkPath = path.join(
           next.testDir,

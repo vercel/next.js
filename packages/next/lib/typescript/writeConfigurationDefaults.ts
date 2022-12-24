@@ -103,7 +103,8 @@ export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
-  isAppDirEnabled: boolean
+  isAppDirEnabled: boolean,
+  distDir: string
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
@@ -162,28 +163,27 @@ export async function writeConfigurationDefaults(
     }
   }
 
+  const nextAppTypes = `${distDir}/types/**/*.ts`
+
   if (!('include' in rawConfig)) {
     userTsConfig.include = isAppDirEnabled
-      ? ['next-env.d.ts', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx']
+      ? ['next-env.d.ts', nextAppTypes, '**/*.ts', '**/*.tsx']
       : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       chalk.cyan('include') +
         ' was set to ' +
         chalk.bold(
           isAppDirEnabled
-            ? `['next-env.d.ts', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx']`
+            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
             : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
         )
     )
-  } else if (
-    isAppDirEnabled &&
-    !rawConfig.include.includes('.next/types/**/*.ts')
-  ) {
-    userTsConfig.include.push('.next/types/**/*.ts')
+  } else if (isAppDirEnabled && !rawConfig.include.includes(nextAppTypes)) {
+    userTsConfig.include.push(nextAppTypes)
     suggestedActions.push(
       chalk.cyan('include') +
         ' was updated to add ' +
-        chalk.bold(`'.next/types/**/*.ts'`)
+        chalk.bold(`'${nextAppTypes}'`)
     )
   }
 

@@ -674,6 +674,7 @@ export default class DevServer extends Server {
       this.verifyingTypeScript = true
       const verifyResult = await verifyTypeScriptSetup({
         dir: this.dir,
+        distDir: this.nextConfig.distDir,
         intentDirs: [this.pagesDir, this.appDir].filter(Boolean) as string[],
         typeCheckPreflight: false,
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,

@@ -38,9 +38,9 @@ export type Feature =
   | `swc/target/${SWC_TARGET_TRIPLE}`
   | 'turbotrace'
   | 'transpilePackages'
-  | 'allowMiddlewareResponseBody'
   | 'skipMiddlewareUrlNormalize'
   | 'skipTrailingSlashRedirect'
+  | 'modularizeImports'
 
 interface FeatureUsage {
   featureName: Feature
@@ -101,9 +101,9 @@ const BUILD_FEATURES: Array<Feature> = [
   'swc/target/aarch64-pc-windows-msvc',
   'turbotrace',
   'transpilePackages',
-  'allowMiddlewareResponseBody',
   'skipMiddlewareUrlNormalize',
   'skipTrailingSlashRedirect',
+  'modularizeImports',
 ]
 
 const ELIMINATED_PACKAGES = new Set<string>()

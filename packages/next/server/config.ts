@@ -447,6 +447,10 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
       )
     }
 
+    if (images.path === imageConfigDefault.path && result.basePath) {
+      images.path = `${result.basePath}${images.path}`
+    }
+
     // Append trailing slash for non-default loaders and when trailingSlash is set
     if (images.path) {
       if (
@@ -456,10 +460,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
       ) {
         images.path += '/'
       }
-    }
-
-    if (images.path === imageConfigDefault.path && result.basePath) {
-      images.path = `${result.basePath}${images.path}`
     }
 
     if (images.loaderFile) {
@@ -613,18 +613,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
       `\`transpilePackages\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
     )
     result.transpilePackages = (result.experimental as any).transpilePackages
-  }
-
-  if (
-    result.experimental &&
-    'allowMiddlewareResponseBody' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`allowMiddlewareResponseBody\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.allowMiddlewareResponseBody = (
-      result.experimental as any
-    ).allowMiddlewareResponseBody
   }
 
   if (
