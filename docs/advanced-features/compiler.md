@@ -300,9 +300,7 @@ module.exports = {
 }
 ```
 
-Advanced transformations:
-
-- Using regular expressions
+#### Using regular expressions
 
 Similar to `babel-plugin-transform-imports`, but the transform is templated with [handlebars](https://docs.rs/handlebars) and regular expressions are in Rust [regex](https://docs.rs/regex/latest/regex/) crate's syntax.
 
@@ -336,7 +334,7 @@ import Header from 'my-library/components/App/Header'
 import Footer from 'my-library/components/App/Footer'
 ```
 
-- Handlebars templating
+#### Handlebars templating
 
 This transform uses [handlebars](https://docs.rs/handlebars) to template the replacement import path in the `transform` field. These variables and helper functions are available:
 
