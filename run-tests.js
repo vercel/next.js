@@ -109,22 +109,32 @@ async function main() {
   let tests = process.argv.filter((arg) => arg.match(/\.test\.(js|ts|tsx)/))
   let prevTimings
 
-  if (tests.length === 0) {
-    tests = (
-      await glob('**/*.test.{js,ts,tsx}', {
-        nodir: true,
-        cwd: path.join(__dirname, 'test'),
-      })
-    ).filter((test) => {
-      if (filterTestsBy) {
-        // only include the specified type
-        return filterTestsBy === 'none' ? true : test.startsWith(filterTestsBy)
-      } else {
-        // include all except the separately configured types
-        return !configuredTestTypes.some((type) => test.startsWith(type))
-      }
-    })
+  const noTestsSpecified = tests.length === 0
+  if (noTestsSpecified) {
+    tests.push('test/**/*.test.{js,ts,tsx}')
+  }
 
+  for (let i = 0; i < tests.length; i++) {
+    // Any test argument that contains a glob pattern is expanded
+    if (tests[i].includes('*')) {
+      tests[i] = (await glob(tests[i], { nodir: true, cwd: __dirname })).filter(
+        (test) => {
+          if (filterTestsBy) {
+            // only include the specified type
+            return filterTestsBy === 'none'
+              ? true
+              : test.startsWith(filterTestsBy)
+          } else {
+            // include all except the separately configured types
+            return !configuredTestTypes.some((type) => test.startsWith(type))
+          }
+        }
+      )
+    }
+  }
+  tests = tests.flat()
+
+  if (noTestsSpecified) {
     if (outputTimings && groupArg) {
       console.log('Fetching previous timings data')
       try {

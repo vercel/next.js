@@ -139,6 +139,6 @@ stages:
             condition: eq(variables['isDocsOnly'], 'No')
 
           - script: |
-              node run-tests.js -c 1 test/integration/app-dir-basic/test/index.test.js
+              node run-tests.js -c 1 test/integration/app-dir-basic/test/index.test.js test/e2e/app-dir/**/*.test.ts
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
