@@ -37,5 +37,5 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // We can enable redirect just from root
-  // mather: "/"
+  // matcher: "/"
 }
