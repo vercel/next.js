@@ -426,19 +426,19 @@ export default async function build(
                 })
               ),
             shouldLint &&
-              nextBuildSpan
-                .traceChild('verify-and-lint')
-                .traceAsyncFn(async () => {
-                  await verifyAndLint(
-                    dir,
-                    eslintCacheDir,
-                    config.eslint?.dirs,
-                    config.experimental.cpus,
-                    config.experimental.workerThreads,
-                    telemetry,
-                    isAppDirEnabled && !!appDir
-                  )
-                }),
+            nextBuildSpan
+              .traceChild('verify-and-lint')
+              .traceAsyncFn(async () => {
+                await verifyAndLint(
+                  dir,
+                  eslintCacheDir,
+                  config.eslint?.dirs,
+                  config.experimental.cpus,
+                  config.experimental.workerThreads,
+                  telemetry,
+                  isAppDirEnabled && !!appDir
+                )
+              }),
           ])
           typeCheckingAndLintingSpinner?.stopAndPersist()
 
@@ -483,13 +483,13 @@ export default async function build(
 
       const pagesPaths = pagesDir
         ? await nextBuildSpan
-            .traceChild('collect-pages')
-            .traceAsyncFn(() =>
-              recursiveReadDir(
-                pagesDir,
-                new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
-              )
+          .traceChild('collect-pages')
+          .traceAsyncFn(() =>
+            recursiveReadDir(
+              pagesDir,
+              new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
             )
+          )
         : []
 
       let appPaths: string[] | undefined
@@ -614,8 +614,7 @@ export default async function build(
       const numConflictingAppPaths = conflictingAppPagePaths.length
       if (mappedAppPages && numConflictingAppPaths > 0) {
         Log.error(
-          `Conflicting app and page file${
-            numConflictingAppPaths === 1 ? ' was' : 's were'
+          `Conflicting app and page file${numConflictingAppPaths === 1 ? ' was' : 's were'
           } found, please remove the conflicting files to continue:`
         )
         for (const [pagePath, appPath] of conflictingAppPagePaths) {
@@ -657,8 +656,7 @@ export default async function build(
 
           if (numConflicting) {
             throw new Error(
-              `Conflicting public and page file${
-                numConflicting === 1 ? ' was' : 's were'
+              `Conflicting public and page file${numConflicting === 1 ? ' was' : 's were'
               } found. https://nextjs.org/docs/messages/conflicting-public-file-page\n${conflictingPublicFiles.join(
                 '\n'
               )}`
@@ -675,8 +673,8 @@ export default async function build(
       if (nestedReservedPages.length) {
         Log.warn(
           `The following reserved Next.js pages were detected not directly under the pages directory:\n` +
-            nestedReservedPages.join('\n') +
-            `\nSee more info here: https://nextjs.org/docs/messages/nested-reserved-page\n`
+          nestedReservedPages.join('\n') +
+          `\nSee more info here: https://nextjs.org/docs/messages/nested-reserved-page\n`
         )
       }
 
@@ -714,9 +712,9 @@ export default async function build(
           ...r,
           ...(type === 'redirect'
             ? {
-                statusCode: getRedirectStatus(r as Redirect),
-                permanent: undefined,
-              }
+              statusCode: getRedirectStatus(r as Redirect),
+              permanent: undefined,
+            }
             : {}),
           regex: normalizeRouteRegex(regexSource),
         }
@@ -729,12 +727,12 @@ export default async function build(
         basePath: string
         redirects: Array<ReturnType<typeof buildCustomRoute>>
         rewrites?:
-          | Array<ReturnType<typeof buildCustomRoute>>
-          | {
-              beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
-              afterFiles: Array<ReturnType<typeof buildCustomRoute>>
-              fallback: Array<ReturnType<typeof buildCustomRoute>>
-            }
+        | Array<ReturnType<typeof buildCustomRoute>>
+        | {
+          beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
+          afterFiles: Array<ReturnType<typeof buildCustomRoute>>
+          fallback: Array<ReturnType<typeof buildCustomRoute>>
+        }
         headers: Array<ReturnType<typeof buildCustomRoute>>
         staticRoutes: Array<{
           page: string
@@ -898,31 +896,31 @@ export default async function build(
             ),
             ...(appDir
               ? [
-                  ...(config.experimental.sri
-                    ? [
-                        path.join(
-                          SERVER_DIRECTORY,
-                          SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
-                        ),
-                        path.join(
-                          SERVER_DIRECTORY,
-                          SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
-                        ),
-                      ]
-                    : []),
-                  path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
-                  APP_BUILD_MANIFEST,
-                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
-                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    FLIGHT_SERVER_CSS_MANIFEST + '.js'
-                  ),
-                  path.join(
-                    SERVER_DIRECTORY,
-                    FLIGHT_SERVER_CSS_MANIFEST + '.json'
-                  ),
-                ]
+                ...(config.experimental.sri
+                  ? [
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SUBRESOURCE_INTEGRITY_MANIFEST + '.js'
+                    ),
+                    path.join(
+                      SERVER_DIRECTORY,
+                      SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+                    ),
+                  ]
+                  : []),
+                path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
+                APP_BUILD_MANIFEST,
+                path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
+                path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
+                path.join(
+                  SERVER_DIRECTORY,
+                  FLIGHT_SERVER_CSS_MANIFEST + '.js'
+                ),
+                path.join(
+                  SERVER_DIRECTORY,
+                  FLIGHT_SERVER_CSS_MANIFEST + '.json'
+                ),
+              ]
               : []),
             REACT_LOADABLE_MANIFEST,
             config.optimizeFonts
@@ -932,9 +930,9 @@ export default async function build(
             appDir ? path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST) : null,
             ...(config.experimental.fontLoaders
               ? [
-                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
-                  path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
-                ]
+                path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
+                path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
+              ]
               : []),
           ]
             .filter(nonNullable)
@@ -1177,8 +1175,8 @@ export default async function build(
       ) as BuildManifest
       const appBuildManifest = appDir
         ? (JSON.parse(
-            await promises.readFile(appBuildManifestPath, 'utf8')
-          ) as AppBuildManifest)
+          await promises.readFile(appBuildManifestPath, 'utf8')
+        ) as AppBuildManifest)
         : undefined
 
       const timeout = config.staticPageGenerationTimeout || 0
@@ -1245,11 +1243,11 @@ export default async function build(
         enableWorkerThreads: config.experimental.workerThreads,
         exposedMethods: sharedPool
           ? [
-              'hasCustomGetInitialProps',
-              'isPageStatic',
-              'getNamedExports',
-              'exportPage',
-            ]
+            'hasCustomGetInitialProps',
+            'isPageStatic',
+            'getNamedExports',
+            'exportPage',
+          ]
           : ['hasCustomGetInitialProps', 'isPageStatic', 'getNamedExports'],
       }) as Worker &
         Pick<
@@ -1412,13 +1410,13 @@ export default async function build(
 
                 const staticInfo = pagePath
                   ? await getPageStaticInfo({
-                      pageFilePath: path.join(
-                        (pageType === 'pages' ? pagesDir : appDir) || '',
-                        pagePath
-                      ),
-                      nextConfig: config,
-                      pageType,
-                    })
+                    pageFilePath: path.join(
+                      (pageType === 'pages' ? pagesDir : appDir) || '',
+                      pagePath
+                    ),
+                    nextConfig: config,
+                    pageType,
+                  })
                   : undefined
 
                 const pageRuntime = staticInfo?.runtime
@@ -1669,9 +1667,9 @@ export default async function build(
       if (customAppGetInitialProps) {
         console.warn(
           chalk.bold.yellow(`Warning: `) +
-            chalk.yellow(
-              `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
-            )
+          chalk.yellow(
+            `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
+          )
         )
         console.warn(
           'Read more: https://nextjs.org/docs/messages/opt-out-auto-static-optimization\n'
@@ -1726,61 +1724,59 @@ export default async function build(
             })
           }
 
-          for (let page of pageKeys.pages) {
-            await includeExcludeSpan
-              .traceChild('include-exclude', { page })
-              .traceAsyncFn(async () => {
-                const includeGlobs = pageTraceIncludes.get(page)
-                const excludeGlobs = pageTraceExcludes.get(page)
-                page = normalizePagePath(page)
+          await Promise.all(pageKeys.pages.map((page) => includeExcludeSpan
+            .traceChild('include-exclude', { page })
+            .traceAsyncFn(async () => {
+              const includeGlobs = pageTraceIncludes.get(page)
+              const excludeGlobs = pageTraceExcludes.get(page)
+              page = normalizePagePath(page)
 
-                if (!includeGlobs?.length && !excludeGlobs?.length) {
-                  return
-                }
+              if (!includeGlobs?.length && !excludeGlobs?.length) {
+                return
+              }
 
-                const traceFile = path.join(
-                  distDir,
-                  'server/pages',
-                  `${page}.js.nft.json`
-                )
-                const pageDir = path.dirname(traceFile)
-                const traceContent = JSON.parse(
-                  await promises.readFile(traceFile, 'utf8')
-                )
-                let includes: string[] = []
+              const traceFile = path.join(
+                distDir,
+                'server/pages',
+                `${page}.js.nft.json`
+              )
+              const pageDir = path.dirname(traceFile)
+              const traceContent = JSON.parse(
+                await promises.readFile(traceFile, 'utf8')
+              )
+              let includes: string[] = []
 
-                if (includeGlobs?.length) {
-                  for (const includeGlob of includeGlobs) {
-                    const results = await glob(includeGlob)
-                    includes.push(
-                      ...results.map((file) => {
-                        return path.relative(pageDir, path.join(dir, file))
-                      })
-                    )
-                  }
-                }
-                const combined = new Set([...traceContent.files, ...includes])
-
-                if (excludeGlobs?.length) {
-                  const resolvedGlobs = excludeGlobs.map((exclude) =>
-                    path.join(dir, exclude)
+              if (includeGlobs?.length) {
+                for (const includeGlob of includeGlobs) {
+                  const results = await glob(includeGlob)
+                  includes.push(
+                    ...results.map((file) => {
+                      return path.relative(pageDir, path.join(dir, file))
+                    })
                   )
-                  combined.forEach((file) => {
-                    if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
-                      combined.delete(file)
-                    }
-                  })
                 }
+              }
+              const combined = new Set([...traceContent.files, ...includes])
 
-                await promises.writeFile(
-                  traceFile,
-                  JSON.stringify({
-                    version: traceContent.version,
-                    files: [...combined],
-                  })
+              if (excludeGlobs?.length) {
+                const resolvedGlobs = excludeGlobs.map((exclude) =>
+                  path.join(dir, exclude)
                 )
-              })
-          }
+                combined.forEach((file) => {
+                  if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+                    combined.delete(file)
+                  }
+                })
+              }
+
+              await promises.writeFile(
+                traceFile,
+                JSON.stringify({
+                  version: traceContent.version,
+                  files: [...combined],
+                })
+              )
+            })))
         })
 
         // TODO: move this inside of webpack so it can be cached
@@ -1836,7 +1832,7 @@ export default async function build(
                   )
                   return
                 }
-              } catch (_) {}
+              } catch (_) { }
             }
 
             const root =
@@ -1873,11 +1869,11 @@ export default async function build(
                 '**/next/dist/server/lib/squoosh/**/*.wasm',
                 ...(ciEnvironment.hasNextSupport
                   ? [
-                      // only ignore image-optimizer code when
-                      // this is being handled outside of next-server
-                      '**/next/dist/server/image-optimizer.js',
-                      '**/node_modules/sharp/**/*',
-                    ]
+                    // only ignore image-optimizer code when
+                    // this is being handled outside of next-server
+                    '**/next/dist/server/image-optimizer.js',
+                    '**/node_modules/sharp/**/*',
+                  ]
                   : []),
                 ...(!hasSsrAmpPages
                   ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
@@ -1913,10 +1909,10 @@ export default async function build(
                   files: string[]
                 })
               )
-              await promises.unlink(cachedTracePath).catch(() => {})
+              await promises.unlink(cachedTracePath).catch(() => { })
               await promises
                 .copyFile(nextServerTraceOutput, cachedTracePath)
-                .catch(() => {})
+                .catch(() => { })
             }
           })
       }
@@ -1986,8 +1982,7 @@ export default async function build(
 
       if (invalidPages.size > 0) {
         const err = new Error(
-          `Build optimization failed: found page${
-            invalidPages.size === 1 ? '' : 's'
+          `Build optimization failed: found page${invalidPages.size === 1 ? '' : 's'
           } without a React Component as default export in \n${[...invalidPages]
             .map((pg) => `pages${pg}`)
             .join(
@@ -2140,8 +2135,8 @@ export default async function build(
               : undefined,
             endWorker: sharedPool
               ? async () => {
-                  await staticWorkers.end()
-                }
+                await staticWorkers.end()
+              }
               : undefined,
             appPaths,
           }
@@ -2455,13 +2450,11 @@ export default async function build(
           }
 
           // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-          if (!hasPages404 && useStatic404) {
-            await moveExportedPage('/_error', '/404', '/404', false, 'html')
-          }
 
-          if (useDefaultStatic500) {
-            await moveExportedPage('/_error', '/500', '/500', false, 'html')
-          }
+          await Promise.all([
+            (!hasPages404 && useStatic404) && moveExportedPage('/_error', '/404', '/404', false, 'html'),
+            useDefaultStatic500 && moveExportedPage('/_error', '/500', '/500', false, 'html')
+          ])
 
           for (const page of combinedPages) {
             const isSsg = ssgPages.has(page)
@@ -2486,19 +2479,13 @@ export default async function build(
             // fallback is enabled. Below, we handle the specific prerenders
             // of these.
             const hasHtmlOutput = !(isSsg && isDynamic && !isStaticSsgFallback)
+            const ampPage = `${file}.amp`
 
-            if (hasHtmlOutput) {
-              await moveExportedPage(page, page, file, isSsg, 'html')
-            }
-
-            if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
-              const ampPage = `${file}.amp`
-              await moveExportedPage(page, ampPage, ampPage, isSsg, 'html')
-
-              if (isSsg) {
-                await moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
-              }
-            }
+            await Promise.all([
+              hasHtmlOutput && moveExportedPage(page, page, file, isSsg, 'html'),
+              (hasAmp && (!isSsg || (isSsg && !isDynamic))) && moveExportedPage(page, ampPage, ampPage, isSsg, 'html'),
+              ((hasAmp && (!isSsg || (isSsg && !isDynamic))) && isSsg) && moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
+            ])
 
             if (isSsg) {
               // For a non-dynamic SSG page, we must copy its data file
@@ -2547,34 +2534,33 @@ export default async function build(
                 const extraRoutes = additionalSsgPaths.get(page) || []
                 for (const route of extraRoutes) {
                   const pageFile = normalizePagePath(route)
-                  await moveExportedPage(
-                    page,
-                    route,
-                    pageFile,
-                    isSsg,
-                    'html',
-                    true
-                  )
-                  await moveExportedPage(
-                    page,
-                    route,
-                    pageFile,
-                    isSsg,
-                    'json',
-                    true
-                  )
-
-                  if (hasAmp) {
-                    const ampPage = `${pageFile}.amp`
-                    await moveExportedPage(
+                  const ampPage = `${pageFile}.amp`
+                  await Promise.all([
+                    moveExportedPage(
+                      page,
+                      route,
+                      pageFile,
+                      isSsg,
+                      'html',
+                      true
+                    ),
+                    moveExportedPage(
+                      page,
+                      route,
+                      pageFile,
+                      isSsg,
+                      'json',
+                      true
+                    ),
+                    hasAmp && moveExportedPage(
                       page,
                       ampPage,
                       ampPage,
                       isSsg,
                       'html',
                       true
-                    )
-                    await moveExportedPage(
+                    ),
+                    hasAmp && await moveExportedPage(
                       page,
                       ampPage,
                       ampPage,
@@ -2582,7 +2568,7 @@ export default async function build(
                       'json',
                       true
                     )
-                  }
+                  ])
 
                   finalPrerenderRoutes[route] = {
                     initialRevalidateSeconds:
@@ -2674,8 +2660,8 @@ export default async function build(
             fallback: ssgBlockingFallbackPages.has(tbdRoute)
               ? null
               : ssgStaticFallbackPages.has(tbdRoute)
-              ? `${normalizedRoute}.html`
-              : false,
+                ? `${normalizedRoute}.html`
+                : false,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(
                 dataRoute.replace(/\.json$/, '')
@@ -2718,16 +2704,16 @@ export default async function build(
 
       const images = { ...config.images }
       const { deviceSizes, imageSizes } = images
-      ;(images as any).sizes = [...deviceSizes, ...imageSizes]
-      ;(images as any).remotePatterns = (
-        config?.images?.remotePatterns || []
-      ).map((p: RemotePattern) => ({
-        // Should be the same as matchRemotePattern()
-        protocol: p.protocol,
-        hostname: makeRe(p.hostname).source,
-        port: p.port,
-        pathname: makeRe(p.pathname ?? '**').source,
-      }))
+        ; (images as any).sizes = [...deviceSizes, ...imageSizes]
+        ; (images as any).remotePatterns = (
+          config?.images?.remotePatterns || []
+        ).map((p: RemotePattern) => ({
+          // Should be the same as matchRemotePattern()
+          protocol: p.protocol,
+          hostname: makeRe(p.hostname).source,
+          port: p.port,
+          pathname: makeRe(p.pathname ?? '**').source,
+        }))
 
       await Promise.all([
         promises.writeFile(
@@ -2833,8 +2819,8 @@ export default async function build(
       if (config.analyticsId) {
         console.log(
           chalk.bold.green('Next.js Analytics') +
-            ' is enabled for this production build. ' +
-            "You'll receive a Real Experience Score computed by all of your visitors."
+          ' is enabled for this production build. ' +
+          "You'll receive a Real Experience Score computed by all of your visitors."
         )
         console.log('')
       }
