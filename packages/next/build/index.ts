@@ -1726,61 +1726,59 @@ export default async function build(
             })
           }
 
-          for (let page of pageKeys.pages) {
-            await includeExcludeSpan
-              .traceChild('include-exclude', { page })
-              .traceAsyncFn(async () => {
-                const includeGlobs = pageTraceIncludes.get(page)
-                const excludeGlobs = pageTraceExcludes.get(page)
-                page = normalizePagePath(page)
+          await Promise.all(pageKeys.pages.map((page) => includeExcludeSpan
+          .traceChild('include-exclude', { page })
+          .traceAsyncFn(async () => {
+            const includeGlobs = pageTraceIncludes.get(page)
+            const excludeGlobs = pageTraceExcludes.get(page)
+            page = normalizePagePath(page)
 
-                if (!includeGlobs?.length && !excludeGlobs?.length) {
-                  return
-                }
+            if (!includeGlobs?.length && !excludeGlobs?.length) {
+              return
+            }
 
-                const traceFile = path.join(
-                  distDir,
-                  'server/pages',
-                  `${page}.js.nft.json`
-                )
-                const pageDir = path.dirname(traceFile)
-                const traceContent = JSON.parse(
-                  await promises.readFile(traceFile, 'utf8')
-                )
-                let includes: string[] = []
+            const traceFile = path.join(
+              distDir,
+              'server/pages',
+              `${page}.js.nft.json`
+            )
+            const pageDir = path.dirname(traceFile)
+            const traceContent = JSON.parse(
+              await promises.readFile(traceFile, 'utf8')
+            )
+            let includes: string[] = []
 
-                if (includeGlobs?.length) {
-                  for (const includeGlob of includeGlobs) {
-                    const results = await glob(includeGlob)
-                    includes.push(
-                      ...results.map((file) => {
-                        return path.relative(pageDir, path.join(dir, file))
-                      })
-                    )
-                  }
-                }
-                const combined = new Set([...traceContent.files, ...includes])
-
-                if (excludeGlobs?.length) {
-                  const resolvedGlobs = excludeGlobs.map((exclude) =>
-                    path.join(dir, exclude)
-                  )
-                  combined.forEach((file) => {
-                    if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
-                      combined.delete(file)
-                    }
-                  })
-                }
-
-                await promises.writeFile(
-                  traceFile,
-                  JSON.stringify({
-                    version: traceContent.version,
-                    files: [...combined],
+            if (includeGlobs?.length) {
+              for (const includeGlob of includeGlobs) {
+                const results = await glob(includeGlob)
+                includes.push(
+                  ...results.map((file) => {
+                    return path.relative(pageDir, path.join(dir, file))
                   })
                 )
+              }
+            }
+            const combined = new Set([...traceContent.files, ...includes])
+
+            if (excludeGlobs?.length) {
+              const resolvedGlobs = excludeGlobs.map((exclude) =>
+                path.join(dir, exclude)
+              )
+              combined.forEach((file) => {
+                if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+                  combined.delete(file)
+                }
               })
-          }
+            }
+
+            await promises.writeFile(
+              traceFile,
+              JSON.stringify({
+                version: traceContent.version,
+                files: [...combined],
+              })
+            )
+          })))
         })
 
         // TODO: move this inside of webpack so it can be cached
@@ -2455,13 +2453,10 @@ export default async function build(
           }
 
           // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-          if (!hasPages404 && useStatic404) {
-            await moveExportedPage('/_error', '/404', '/404', false, 'html')
-          }
-
-          if (useDefaultStatic500) {
-            await moveExportedPage('/_error', '/500', '/500', false, 'html')
-          }
+          await Promise.all([
+            (!hasPages404 && useStatic404) && moveExportedPage('/_error', '/404', '/404', false, 'html'),
+            useDefaultStatic500 && moveExportedPage('/_error', '/500', '/500', false, 'html')
+          ])
 
           for (const page of combinedPages) {
             const isSsg = ssgPages.has(page)
@@ -2486,19 +2481,13 @@ export default async function build(
             // fallback is enabled. Below, we handle the specific prerenders
             // of these.
             const hasHtmlOutput = !(isSsg && isDynamic && !isStaticSsgFallback)
+            const ampPage = `${file}.amp`
 
-            if (hasHtmlOutput) {
-              await moveExportedPage(page, page, file, isSsg, 'html')
-            }
-
-            if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
-              const ampPage = `${file}.amp`
-              await moveExportedPage(page, ampPage, ampPage, isSsg, 'html')
-
-              if (isSsg) {
-                await moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
-              }
-            }
+            await Promise.all([
+              hasHtmlOutput && moveExportedPage(page, page, file, isSsg, 'html'),
+              (hasAmp && (!isSsg || (isSsg && !isDynamic))) && moveExportedPage(page, ampPage, ampPage, isSsg, 'html'),
+              ((hasAmp && (!isSsg || (isSsg && !isDynamic))) && isSsg) && moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
+            ])
 
             if (isSsg) {
               // For a non-dynamic SSG page, we must copy its data file
@@ -2548,23 +2537,6 @@ export default async function build(
                 for (const route of extraRoutes) {
                   const pageFile = normalizePagePath(route)
                   const ampPage = `${pageFile}.amp`
-
-                  await moveExportedPage(
-                    page,
-                    route,
-                    pageFile,
-                    isSsg,
-                    'html',
-                    true
-                  )
-                  await moveExportedPage(
-                    page,
-                    route,
-                    pageFile,
-                    isSsg,
-                    'json',
-                    true
-                  )
                   await Promise.all([
                     moveExportedPage(
                       page,
@@ -2581,19 +2553,16 @@ export default async function build(
                       isSsg,
                       'json',
                       true
-                    )
-                  ])
-
-                  if (hasAmp) {
-                    await moveExportedPage(
+                    ),
+                    hasAmp && moveExportedPage(
                       page,
                       ampPage,
                       ampPage,
                       isSsg,
                       'html',
                       true
-                    )
-                    await moveExportedPage(
+                    ),
+                    hasAmp && moveExportedPage(
                       page,
                       ampPage,
                       ampPage,
@@ -2601,7 +2570,7 @@ export default async function build(
                       'json',
                       true
                     )
-                  }
+                  ])
 
                   finalPrerenderRoutes[route] = {
                     initialRevalidateSeconds:
