@@ -388,10 +388,6 @@ jobs:
     steps:
       - run: echo ${{needs.build.outputs.docsChange}}
 
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
       - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
@@ -551,10 +547,6 @@ jobs:
         group: [1, 2, 3, 4]
     steps:
       - run: echo ${{needs.build.outputs.docsChange}}
-
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
