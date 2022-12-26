@@ -68,6 +68,7 @@ type RenderRouteInfo = PrivateRouteInfo & {
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 type RegisterFn = (input: [string, () => void]) => void
+type Maybe<T> = T | undefined
 
 export const version = process.env.__NEXT_VERSION
 export let router: Router
@@ -410,7 +411,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
         },
       }
       return Promise.resolve(
-        renderErrorProps.props?.err
+        renderErrorProps.props
           ? renderErrorProps.props
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>
@@ -757,12 +758,15 @@ async function render(renderingProps: RenderRouteInfo): Promise<void> {
         throw renderErr
       })
     }
+    // Remove initial props before passing to the error rendering
+    delete renderingProps.props
     await renderError({ ...renderingProps, err: renderErr })
   }
 }
 
 export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   let initialErr = initialData.err
+  let initialProps: Maybe<typeof initialData.props>
 
   try {
     const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
@@ -819,7 +823,6 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     if ('error' in pageEntrypoint) {
       throw pageEntrypoint.error
     }
-    CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('next/dist/compiled/react-is')
@@ -829,6 +832,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
         )
       }
     }
+
+    CachedComponent = pageEntrypoint.component
+    initialProps = initialData.props
   } catch (error) {
     // This catches errors like throwing in the top level of a module
     initialErr = getProperError(error)
@@ -873,7 +879,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   router = createRouter(initialData.page, initialData.query, asPath, {
-    initialProps: initialData.props,
+    initialProps,
     pageLoader,
     App: CachedApp,
     Component: CachedComponent,
@@ -904,7 +910,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     App: CachedApp,
     initial: true,
     Component: CachedComponent,
-    props: initialData.props,
+    props: initialProps,
     err: initialErr,
   }
 
