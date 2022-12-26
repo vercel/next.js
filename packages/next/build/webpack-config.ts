@@ -2222,7 +2222,10 @@ export default async function getBaseWebpackConfig(
     },
   }
   webpack5Config.module!.generator = {
-    asset: {
+    'asset/resource': {
+      filename: 'static/media/[name].[hash:8][ext]',
+    },
+    'asset/source': {
       filename: 'static/media/[name].[hash:8][ext]',
     },
   }
