@@ -2729,24 +2729,26 @@ export default async function build(
         pathname: makeRe(p.pathname ?? '**').source,
       }))
 
-      await promises.writeFile(
-        path.join(distDir, IMAGES_MANIFEST),
-        JSON.stringify({
-          version: 1,
-          images,
-        }),
-        'utf8'
-      )
-      await promises.writeFile(
-        path.join(distDir, EXPORT_MARKER),
-        JSON.stringify({
-          version: 1,
-          hasExportPathMap: typeof config.exportPathMap === 'function',
-          exportTrailingSlash: config.trailingSlash === true,
-          isNextImageImported: isNextImageImported === true,
-        }),
-        'utf8'
-      )
+      await Promise.all([
+        promises.writeFile(
+          path.join(distDir, IMAGES_MANIFEST),
+          JSON.stringify({
+            version: 1,
+            images,
+          }),
+          'utf8'
+        ),
+        promises.writeFile(
+          path.join(distDir, EXPORT_MARKER),
+          JSON.stringify({
+            version: 1,
+            hasExportPathMap: typeof config.exportPathMap === 'function',
+            exportTrailingSlash: config.trailingSlash === true,
+            isNextImageImported: isNextImageImported === true,
+          }),
+          'utf8'
+        )
+      ])
       await promises.unlink(path.join(distDir, EXPORT_DETAIL)).catch((err) => {
         if (err.code === 'ENOENT') {
           return Promise.resolve()
@@ -2776,19 +2778,20 @@ export default async function build(
           })
           await promises.copyFile(filePath, outputPath)
         }
-        await recursiveCopy(
-          path.join(distDir, SERVER_DIRECTORY, 'pages'),
-          path.join(
-            distDir,
-            'standalone',
-            path.relative(outputFileTracingRoot, distDir),
-            SERVER_DIRECTORY,
-            'pages'
+
+        await Promise.all([
+          recursiveCopy(
+            path.join(distDir, SERVER_DIRECTORY, 'pages'),
+            path.join(
+              distDir,
+              'standalone',
+              path.relative(outputFileTracingRoot, distDir),
+              SERVER_DIRECTORY,
+              'pages'
+            ),
+            { overwrite: true }
           ),
-          { overwrite: true }
-        )
-        if (appDir) {
-          await recursiveCopy(
+          appDir && recursiveCopy(
             path.join(distDir, SERVER_DIRECTORY, 'app'),
             path.join(
               distDir,
@@ -2799,7 +2802,7 @@ export default async function build(
             ),
             { overwrite: true }
           )
-        }
+        ])
       }
 
       staticPages.forEach((pg) => allStaticPages.add(pg))
