@@ -1727,58 +1727,58 @@ export default async function build(
           }
 
           await Promise.all(pageKeys.pages.map((page) => includeExcludeSpan
-          .traceChild('include-exclude', { page })
-          .traceAsyncFn(async () => {
-            const includeGlobs = pageTraceIncludes.get(page)
-            const excludeGlobs = pageTraceExcludes.get(page)
-            page = normalizePagePath(page)
+            .traceChild('include-exclude', { page })
+            .traceAsyncFn(async () => {
+              const includeGlobs = pageTraceIncludes.get(page)
+              const excludeGlobs = pageTraceExcludes.get(page)
+              page = normalizePagePath(page)
 
-            if (!includeGlobs?.length && !excludeGlobs?.length) {
-              return
-            }
-
-            const traceFile = path.join(
-              distDir,
-              'server/pages',
-              `${page}.js.nft.json`
-            )
-            const pageDir = path.dirname(traceFile)
-            const traceContent = JSON.parse(
-              await promises.readFile(traceFile, 'utf8')
-            )
-            let includes: string[] = []
-
-            if (includeGlobs?.length) {
-              for (const includeGlob of includeGlobs) {
-                const results = await glob(includeGlob)
-                includes.push(
-                  ...results.map((file) => {
-                    return path.relative(pageDir, path.join(dir, file))
-                  })
-                )
+              if (!includeGlobs?.length && !excludeGlobs?.length) {
+                return
               }
-            }
-            const combined = new Set([...traceContent.files, ...includes])
 
-            if (excludeGlobs?.length) {
-              const resolvedGlobs = excludeGlobs.map((exclude) =>
-                path.join(dir, exclude)
+              const traceFile = path.join(
+                distDir,
+                'server/pages',
+                `${page}.js.nft.json`
               )
-              combined.forEach((file) => {
-                if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
-                  combined.delete(file)
-                }
-              })
-            }
+              const pageDir = path.dirname(traceFile)
+              const traceContent = JSON.parse(
+                await promises.readFile(traceFile, 'utf8')
+              )
+              let includes: string[] = []
 
-            await promises.writeFile(
-              traceFile,
-              JSON.stringify({
-                version: traceContent.version,
-                files: [...combined],
-              })
-            )
-          })))
+              if (includeGlobs?.length) {
+                for (const includeGlob of includeGlobs) {
+                  const results = await glob(includeGlob)
+                  includes.push(
+                    ...results.map((file) => {
+                      return path.relative(pageDir, path.join(dir, file))
+                    })
+                  )
+                }
+              }
+              const combined = new Set([...traceContent.files, ...includes])
+
+              if (excludeGlobs?.length) {
+                const resolvedGlobs = excludeGlobs.map((exclude) =>
+                  path.join(dir, exclude)
+                )
+                combined.forEach((file) => {
+                  if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+                    combined.delete(file)
+                  }
+                })
+              }
+
+              await promises.writeFile(
+                traceFile,
+                JSON.stringify({
+                  version: traceContent.version,
+                  files: [...combined],
+                })
+              )
+            })))
         })
 
         // TODO: move this inside of webpack so it can be cached
