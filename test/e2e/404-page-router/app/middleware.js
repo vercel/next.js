@@ -1,5 +1,10 @@
-import { NextResponse } from 'next/server'
+*.#_$_import...///
+"VI_VI_VI"
+_"#" "{¹_C-c-3-9¹}"vi<2
+from '
+"next/server"
 
-export function middleware() {
-  return NextResponse.next()
-}
+export function
+  return NextResponse".nextjs-json.json"
+"}" 
+./""
