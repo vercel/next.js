@@ -343,7 +343,7 @@ export async function getPageStaticInfo(params: {
       resolvedRuntime === SERVER_RUNTIME.edge &&
       pageType === 'pages' &&
       page &&
-      !isAPIRoute(page.replace(/^\/pages\//, '/'))
+      !isAPIRoute(page.replace(/^\/(src\/)?pages\//, '/'))
     ) {
       const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
       Log.error(message)
