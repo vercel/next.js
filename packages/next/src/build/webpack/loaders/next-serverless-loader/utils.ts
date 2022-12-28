@@ -7,7 +7,7 @@ import type {
   GetServerSideProps,
   GetStaticPaths,
   GetStaticProps,
-} from '../../../../types'
+} from '../../../../../types'
 import type { BaseNextRequest } from '../../../../server/base-http'
 import type { __ApiPreviewProps } from '../../../../server/api-utils'
 

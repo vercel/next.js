@@ -1,4 +1,4 @@
-import type { ServerRuntime } from '../types'
+import type { ServerRuntime } from '../../types'
 
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'

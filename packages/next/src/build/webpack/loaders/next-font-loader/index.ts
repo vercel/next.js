@@ -1,4 +1,4 @@
-import type { FontLoader } from '../../../../font'
+import type { FontLoader } from '../../../../../font'
 
 import { promises as fs } from 'fs'
 import path from 'path'

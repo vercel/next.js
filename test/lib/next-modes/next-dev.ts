@@ -1,5 +1,5 @@
 import { spawn } from 'child_process'
-import { Span } from 'next/trace'
+import { Span } from 'next/src/trace'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {

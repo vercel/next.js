@@ -1,4 +1,4 @@
-import type { AdjustFontFallback } from '../../../../font'
+import type { AdjustFontFallback } from '../../../../../font'
 import postcss, { Declaration } from 'postcss'
 
 const postcssNextFontPlugin = ({
