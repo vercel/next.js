@@ -290,7 +290,7 @@ export async function ncc_edge_runtime_primitives() {
     externals[
       `@edge-runtime/primitives/${file}`
     ] = `next/dist/compiled/@edge-runtime/primitives/${file}`
-    const dest2 = `compiled/@edge-runtime/primitives/${file}`
+    const dest2 = `src/compiled/@edge-runtime/primitives/${file}`
     await fs.outputJson(join(dest2, 'package.json'), {
       main: `../${file}.js`,
       types: `../${file}.d.ts`,
@@ -1037,7 +1037,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
     .ncc({
       externals: externals,
     })
-    .target(`compiled/babel-packages`)
+    .target(`src/compiled/babel-packages`)
 
   await fs.writeFile(
     join(__dirname, 'src/compiled/babel-packages/package.json'),
@@ -1450,14 +1450,18 @@ export async function ncc_react(task, opts) {
   )
 
   // TODO-APP: remove unused fields from package.json and unused files
-  await task.source(join(reactDir, '*.{json,js}')).target(`compiled/react`)
-  await task.source(join(reactDir, 'LICENSE')).target(`compiled/react`)
-  await task.source(join(reactDir, 'cjs/**/*.js')).target(`compiled/react/cjs`)
+  await task.source(join(reactDir, '*.{json,js}')).target(`src/compiled/react`)
+  await task.source(join(reactDir, 'LICENSE')).target(`src/compiled/react`)
+  await task
+    .source(join(reactDir, 'cjs/**/*.js'))
+    .target(`src/compiled/react/cjs`)
 
   await task
     .source(join(reactDomDir, '*.{json,js}'))
-    .target(`compiled/react-dom`)
-  await task.source(join(reactDomDir, 'LICENSE')).target(`compiled/react-dom`)
+    .target(`src/compiled/react-dom`)
+  await task
+    .source(join(reactDomDir, 'LICENSE'))
+    .target(`src/compiled/react-dom`)
   await task
     .source(join(reactDomDir, 'cjs/**/*.js'))
     // eslint-disable-next-line require-yield
@@ -1469,7 +1473,7 @@ export async function ncc_react(task, opts) {
         'require("next/dist/compiled/scheduler")'
       )
     })
-    .target(`compiled/react-dom/cjs`)
+    .target(`src/compiled/react-dom/cjs`)
 
   // Remove unused files
   const reactDomCompiledDir = join(__dirname, 'src/compiled/react-dom')
