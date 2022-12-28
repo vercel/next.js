@@ -2,8 +2,8 @@ node_modules
 **/.next/**
 **/_next/**
 **/dist/**
-packages/next/bundles/webpack/packages/*.runtime.js
-packages/next/bundles/webpack/packages/lazy-compilation-*.js
+packages/next/src/bundles/webpack/packages/*.runtime.js
+packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 packages/next/compiled/**
 packages/react-refresh-utils/**/*.js
 packages/react-refresh-utils/**/*.d.ts
