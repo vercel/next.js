@@ -39,7 +39,7 @@ export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" va
 
 export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`getStaticPaths\` can not be exported. See more info here: https://nextjs.org/docs/messages/ssg-fallback-true-export`
 
-export const ESLINT_DEFAULT_DIRS = ['pages', 'components', 'lib', 'src']
+export const ESLINT_DEFAULT_DIRS = ['pages', 'app', 'components', 'lib', 'src']
 
 export const ESLINT_PROMPT_VALUES = [
   {
