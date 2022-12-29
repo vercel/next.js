@@ -1,5 +1,4 @@
 /* globals self */
-// @ts-expect-error fetch is expected to be overwritten.
-var fetch = self.fetch.bind(self)
-module.exports = fetch
+const fetchModule = self.fetch.bind(self)
+module.exports = fetchModule
 module.exports.default = module.exports
