@@ -1,8 +1,7 @@
 import fs from 'fs-extra'
 import os from 'os'
-import execa from 'execa'
 
-import { dirname, join } from 'path'
+import { join } from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
 import { nextBuild, nextLint } from 'next-test-utils'
@@ -100,12 +99,16 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Warning: Synchronous scripts should not be used'
       )
+      expect(output).toContain(
+        'Warning: `rel="preconnect"` is missing from Google Font'
+      )
 
       // Files in pages, components, lib, and src directories are linted
       expect(output).toContain('pages/_document.js')
       expect(output).toContain('components/bar.js')
       expect(output).toContain('lib/foo.js')
       expect(output).toContain('src/index.js')
+      expect(output).toContain('app/layout.js')
     })
 
     test('custom directories', async () => {
@@ -333,12 +336,16 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Warning: Synchronous scripts should not be used'
       )
+      expect(output).toContain(
+        'Warning: `rel="preconnect"` is missing from Google Font'
+      )
 
       // Files in pages, components, lib, and src directories are linted
       expect(output).toContain('pages/_document.js')
       expect(output).toContain('components/bar.js')
       expect(output).toContain('lib/foo.js')
       expect(output).toContain('src/index.js')
+      expect(output).toContain('app/layout.js')
     })
 
     test('shows warnings and errors with next/core-web-vitals config', async () => {
