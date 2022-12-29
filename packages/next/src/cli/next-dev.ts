@@ -5,7 +5,7 @@ import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
-import { cliCommand } from '../lib/commands'
+import { CliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
@@ -72,7 +72,7 @@ const handleSessionStop = async () => {
 process.on('SIGINT', handleSessionStop)
 process.on('SIGTERM', handleSessionStop)
 
-const nextDev: cliCommand = async (argv) => {
+const nextDev: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,

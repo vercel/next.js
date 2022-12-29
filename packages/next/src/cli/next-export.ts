@@ -4,12 +4,12 @@ import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
-import { cliCommand } from '../lib/commands'
+import { CliCommand } from '../lib/commands'
 import { trace } from '../trace'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 
-const nextExport: cliCommand = (argv) => {
+const nextExport: CliCommand = (argv) => {
   const nextExportCliSpan = trace('next-export-cli')
   const validArgs: arg.Spec = {
     // Types

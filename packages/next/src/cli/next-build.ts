@@ -2,13 +2,13 @@
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import * as Log from '../build/output/log'
-import { cliCommand } from '../lib/commands'
+import { CliCommand } from '../lib/commands'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 
-const nextBuild: cliCommand = (argv) => {
+const nextBuild: CliCommand = (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,

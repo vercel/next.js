@@ -2,11 +2,11 @@
 import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 import { printAndExit } from '../server/lib/utils'
-import { cliCommand } from '../lib/commands'
+import { CliCommand } from '../lib/commands'
 import { Telemetry } from '../telemetry/storage'
 import isError from '../lib/is-error'
 
-const nextTelemetry: cliCommand = (argv) => {
+const nextTelemetry: CliCommand = (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,

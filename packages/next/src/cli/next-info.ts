@@ -6,7 +6,7 @@ import chalk from 'next/dist/compiled/chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 import fetch from 'next/dist/compiled/node-fetch'
 import { printAndExit } from '../server/lib/utils'
-import { cliCommand } from '../lib/commands'
+import { CliCommand } from '../lib/commands'
 import isError from '../lib/is-error'
 
 function getPackageVersion(packageName: string) {
@@ -28,7 +28,7 @@ function getBinaryVersion(binaryName: string) {
   }
 }
 
-const nextInfo: cliCommand = async (argv) => {
+const nextInfo: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,

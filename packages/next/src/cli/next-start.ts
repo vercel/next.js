@@ -6,9 +6,9 @@ import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
-import { cliCommand } from '../lib/commands'
+import { CliCommand } from '../lib/commands'
 
-const nextStart: cliCommand = (argv) => {
+const nextStart: CliCommand = (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,

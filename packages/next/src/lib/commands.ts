@@ -1,6 +1,6 @@
-export type cliCommand = (argv?: string[]) => void
+export type CliCommand = (argv?: string[]) => void
 
-export const commands: { [command: string]: () => Promise<cliCommand> } = {
+export const commands: { [command: string]: () => Promise<CliCommand> } = {
   build: () => Promise.resolve(require('../cli/next-build').nextBuild),
   start: () => Promise.resolve(require('../cli/next-start').nextStart),
   export: () => Promise.resolve(require('../cli/next-export').nextExport),

@@ -4,7 +4,7 @@ import arg from 'next/dist/compiled/arg/index.js'
 import { join } from 'path'
 import chalk from 'next/dist/compiled/chalk'
 
-import { cliCommand } from '../lib/commands'
+import { CliCommand } from '../lib/commands'
 import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
@@ -45,7 +45,7 @@ const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
     : false,
 })
 
-const nextLint: cliCommand = async (argv) => {
+const nextLint: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
