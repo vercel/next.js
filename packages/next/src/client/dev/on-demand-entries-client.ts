@@ -1,4 +1,4 @@
-import Router from 'next/router'
+import Router from '../router'
 import { addMessageListener, sendMessage } from './error-overlay/websocket'
 
 export default async (page?: string) => {
