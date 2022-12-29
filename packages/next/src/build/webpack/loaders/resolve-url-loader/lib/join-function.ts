@@ -188,10 +188,12 @@ function createJoinMsg(
   /** Indicates the last base was correct */
   isFound: boolean
 ): string {
-  return ['resolve-url-loader: ' + pathToString(file) + ': ' + uri]
-    .concat(bases.map(pathToString).filter(Boolean))
-    .concat(isFound ? 'FOUND' : 'NOT FOUND')
-    .join('\n  ')
+  return [
+    'resolve-url-loader: ' + pathToString(file) + ': ' + uri,
+    //
+    ...bases.map(pathToString).filter(Boolean),
+    ...(isFound ? ['FOUND'] : ['NOT FOUND']),
+  ].join('\n  ')
 
   /**
    * If given path is within `process.cwd()` then show relative posix path, otherwise show absolute posix path.
