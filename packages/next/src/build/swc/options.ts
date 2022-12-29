@@ -5,7 +5,7 @@ const regeneratorRuntimePath = require.resolve(
   'next/dist/compiled/regenerator-runtime'
 )
 
-export function getParserOptions({ filename, jsConfig, ...rest }) {
+export function getParserOptions({ filename, jsConfig, ...rest }: any) {
   const isTSFile = filename.endsWith('.ts')
   const isTypeScript = isTSFile || filename.endsWith('.tsx')
   const enableDecorators = Boolean(
@@ -34,7 +34,7 @@ function getBaseSWCOptions({
   swcCacheDir,
   isServerLayer,
   hasServerComponents,
-}) {
+}: any) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -48,7 +48,7 @@ function getBaseSWCOptions({
   )
   const plugins = (nextConfig?.experimental?.swcPlugins ?? [])
     .filter(Array.isArray)
-    .map(([name, options]) => [require.resolve(name), options])
+    .map(([name, options]: any) => [require.resolve(name), options])
 
   return {
     jsc: {
@@ -121,7 +121,9 @@ function getBaseSWCOptions({
     styledJsx: true,
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isServerLayer && {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       emotion: getEmotionOptions(nextConfig, development),
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       styledComponents: getStyledComponentsOptions(nextConfig, development),
     }),
     serverComponents: hasServerComponents
@@ -132,7 +134,7 @@ function getBaseSWCOptions({
   }
 }
 
-function getStyledComponentsOptions(nextConfig, development) {
+function getStyledComponentsOptions(nextConfig: any, development: any) {
   let styledComponentsOptions = nextConfig?.compiler?.styledComponents
   if (!styledComponentsOptions) {
     return null
@@ -144,7 +146,7 @@ function getStyledComponentsOptions(nextConfig, development) {
   }
 }
 
-function getEmotionOptions(nextConfig, development) {
+function getEmotionOptions(nextConfig: any, development: any) {
   if (!nextConfig?.compiler?.emotion) {
     return null
   }
@@ -180,9 +182,9 @@ export function getJestSWCOptions({
   jsConfig,
   pagesDir,
   hasServerComponents,
-  // This is not passed yet as "paths" resolving needs a test first
-  // resolvedBaseUrl,
-}) {
+}: // This is not passed yet as "paths" resolving needs a test first
+// resolvedBaseUrl,
+any) {
   let baseOptions = getBaseSWCOptions({
     filename,
     jest: true,
@@ -228,10 +230,10 @@ export function getLoaderSWCOptions({
   swcCacheDir,
   relativeFilePathFromRoot,
   hasServerComponents,
-  // This is not passed yet as "paths" resolving is handled by webpack currently.
-  // resolvedBaseUrl,
-}) {
-  let baseOptions = getBaseSWCOptions({
+}: // This is not passed yet as "paths" resolving is handled by webpack currently.
+// resolvedBaseUrl,
+any) {
+  let baseOptions: any = getBaseSWCOptions({
     filename,
     development,
     globalWindow: !isServer,
@@ -248,7 +250,7 @@ export function getLoaderSWCOptions({
   if (nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot) {
     baseOptions.fontLoaders = {
       fontLoaders: nextConfig.experimental.fontLoaders.map(
-        ({ loader }) => loader
+        ({ loader }: any) => loader
       ),
       relativeFilePathFromRoot,
     }

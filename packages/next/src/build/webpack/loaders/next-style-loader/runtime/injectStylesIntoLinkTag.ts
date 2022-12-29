@@ -1,7 +1,7 @@
-const getTarget = (function getTarget() {
-  const memo = {}
+const getTarget = (() => {
+  const memo: any = {}
 
-  return function memorize(target) {
+  return function memorize(target: any) {
     if (typeof memo[target] === 'undefined') {
       let styleTarget = document.querySelector(target)
 
@@ -13,7 +13,7 @@ const getTarget = (function getTarget() {
         try {
           // This will throw an exception if access to iframe is blocked
           // due to cross-origin restrictions
-          styleTarget = styleTarget.contentDocument.head
+          styleTarget = (styleTarget as any).contentDocument.head
         } catch (e) {
           // istanbul ignore next
           styleTarget = null
@@ -27,7 +27,9 @@ const getTarget = (function getTarget() {
   }
 })()
 
-module.exports = (url, options) => {
+declare let __webpack_nonce__: string
+
+module.exports = (url: any, options: any) => {
   options = options || {}
   options.attributes =
     typeof options.attributes === 'object' ? options.attributes : {}
@@ -65,11 +67,11 @@ module.exports = (url, options) => {
     target.appendChild(link)
   }
 
-  return (newUrl) => {
+  return (newUrl: any) => {
     if (typeof newUrl === 'string') {
       link.href = newUrl
     } else {
-      link.parentNode.removeChild(link)
+      link.parentNode!.removeChild(link)
     }
   }
 }

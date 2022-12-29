@@ -34,9 +34,26 @@ import { getJestSWCOptions } from './options'
 // see https://github.com/facebook/jest/issues/9430
 const isSupportEsm = 'Module' in vm
 
+function getJestConfig(jestConfig: any) {
+  return 'config' in jestConfig
+    ? // jest 27
+      jestConfig.config
+    : // jest 26
+      jestConfig
+}
+
+function isEsm(isEsmProject: boolean, filename: any, jestConfig: any) {
+  return (
+    (/\.jsx?$/.test(filename) && isEsmProject) ||
+    jestConfig.extensionsToTreatAsEsm?.find((ext: any) =>
+      filename.endsWith(ext)
+    )
+  )
+}
+
 module.exports = {
-  createTransformer: (inputOptions) => ({
-    process(src, filename, jestOptions) {
+  createTransformer: (inputOptions: any) => ({
+    process(src: any, filename: any, jestOptions: any) {
       const jestConfig = getJestConfig(jestOptions)
 
       let swcTransformOpts = getJestSWCOptions({
@@ -57,19 +74,4 @@ module.exports = {
       return transformSync(src, { ...swcTransformOpts, filename })
     },
   }),
-}
-
-function getJestConfig(jestConfig) {
-  return 'config' in jestConfig
-    ? // jest 27
-      jestConfig.config
-    : // jest 26
-      jestConfig
-}
-
-function isEsm(isEsmProject, filename, jestConfig) {
-  return (
-    (/\.jsx?$/.test(filename) && isEsmProject) ||
-    jestConfig.extensionsToTreatAsEsm?.find((ext) => filename.endsWith(ext))
-  )
 }

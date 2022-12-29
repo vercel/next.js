@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { platform, arch } from 'os'
@@ -23,7 +24,7 @@ const __INTERNAL_CUSTOM_TURBOPACK_BINARY =
   process.env.__INTERNAL_CUSTOM_TURBOPACK_BINARY
 const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
   process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
-export const __isCustomTurbopackBinary = async () => {
+export const __isCustomTurbopackBinary = async (): Promise<boolean> => {
   if (
     !!__INTERNAL_CUSTOM_TURBOPACK_BINARY &&
     !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
@@ -51,20 +52,20 @@ const knownDefaultWasmFallbackTriples = [
   'i686-pc-windows-msvc',
 ]
 
-let nativeBindings
-let wasmBindings
-let downloadWasmPromise
-let pendingBindings
-let swcTraceFlushGuard
-let swcCrashReporterFlushGuard
-export const lockfilePatchPromise = {}
+let nativeBindings: any
+let wasmBindings: any
+let downloadWasmPromise: any
+let pendingBindings: any
+let swcTraceFlushGuard: any
+let swcCrashReporterFlushGuard: any
+export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
-export async function loadBindings() {
+export async function loadBindings(): Promise<any> {
   if (pendingBindings) {
     return pendingBindings
   }
   const isCustomTurbopack = await __isCustomTurbopackBinary()
-  pendingBindings = new Promise(async (resolve, reject) => {
+  pendingBindings = new Promise(async (resolve, _reject) => {
     if (!lockfilePatchPromise.cur) {
       // always run lockfile check once so that it gets patched
       // even if it doesn't fail to load locally
@@ -73,9 +74,9 @@ export async function loadBindings() {
       )
     }
 
-    let attempts = []
+    let attempts: any[] = []
     const shouldLoadWasmFallbackFirst = triples.some(
-      (triple) =>
+      (triple: any) =>
         !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
     )
 
@@ -105,9 +106,10 @@ export async function loadBindings() {
   return pendingBindings
 }
 
-async function tryLoadWasmWithFallback(attempts) {
+async function tryLoadWasmWithFallback(attempts: any) {
   try {
     let bindings = await loadWasm()
+    // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({ wasm: 'enabled' })
     return bindings
   } catch (a) {
@@ -128,6 +130,7 @@ async function tryLoadWasmWithFallback(attempts) {
     }
     await downloadWasmPromise
     let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
+    // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({ wasm: 'fallback' })
 
     // still log native load attempts so user is
@@ -142,7 +145,7 @@ async function tryLoadWasmWithFallback(attempts) {
 }
 
 function loadBindingsSync() {
-  let attempts = []
+  let attempts: any[] = []
   try {
     return loadNative()
   } catch (a) {
@@ -160,7 +163,7 @@ function loadBindingsSync() {
 
 let loggingLoadFailure = false
 
-function logLoadFailure(attempts, triedWasm = false) {
+function logLoadFailure(attempts: any, triedWasm = false) {
   // make sure we only emit the event and log the failure once
   if (loggingLoadFailure) return
   loggingLoadFailure = true
@@ -169,6 +172,7 @@ function logLoadFailure(attempts, triedWasm = false) {
     Log.warn(attempt)
   }
 
+  // @ts-expect-error TODO: this event has a wrong type.
   eventSwcLoadFailure({ wasm: triedWasm ? 'failed' : undefined })
     .then(() => lockfilePatchPromise.cur || Promise.resolve())
     .finally(() => {
@@ -203,29 +207,29 @@ async function loadWasm(importPath = '') {
       // interface coereces to sync interfaces.
       wasmBindings = {
         isWasm: true,
-        transform(src, options) {
+        transform(src: string, options: any) {
           // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published (current v12.2)
           return bindings?.transform
             ? bindings.transform(src.toString(), options)
             : Promise.resolve(bindings.transformSync(src.toString(), options))
         },
-        transformSync(src, options) {
+        transformSync(src: string, options: any) {
           return bindings.transformSync(src.toString(), options)
         },
-        minify(src, options) {
+        minify(src: string, options: any) {
           return bindings?.minify
             ? bindings.minify(src.toString(), options)
             : Promise.resolve(bindings.minifySync(src.toString(), options))
         },
-        minifySync(src, options) {
+        minifySync(src: string, options: any) {
           return bindings.minifySync(src.toString(), options)
         },
-        parse(src, options) {
+        parse(src: string, options: any) {
           return bindings?.parse
             ? bindings.parse(src.toString(), options)
             : Promise.resolve(bindings.parseSync(src.toString(), options))
         },
-        parseSync(src, options) {
+        parseSync(src: string, options: any) {
           const astStr = bindings.parseSync(src.toString(), options)
           return astStr
         },
@@ -241,12 +245,14 @@ async function loadWasm(importPath = '') {
           },
         },
         mdx: {
-          compile: (src, options) => bindings.mdxCompile(src, options),
-          compileSync: (src, options) => bindings.mdxCompileSync(src, options),
+          compile: (src: string, options: any) =>
+            bindings.mdxCompile(src, options),
+          compileSync: (src: string, options: any) =>
+            bindings.mdxCompileSync(src, options),
         },
       }
       return wasmBindings
-    } catch (e) {
+    } catch (e: any) {
       // Only log attempts for loading wasm when loading as fallback
       if (importPath) {
         if (e?.code === 'ERR_MODULE_NOT_FOUND') {
@@ -268,8 +274,8 @@ function loadNative(isCustomTurbopack = false) {
     return nativeBindings
   }
 
-  let bindings
-  let attempts = []
+  let bindings: any
+  let attempts: any[] = []
 
   for (const triple of triples) {
     try {
@@ -285,7 +291,7 @@ function loadNative(isCustomTurbopack = false) {
       try {
         bindings = require(pkg)
         break
-      } catch (e) {
+      } catch (e: any) {
         if (e?.code === 'MODULE_NOT_FOUND') {
           attempts.push(`Attempted to load ${pkg}, but it was not installed`)
         } else {
@@ -312,7 +318,7 @@ function loadNative(isCustomTurbopack = false) {
 
     nativeBindings = {
       isWasm: false,
-      transform(src, options) {
+      transform(src: string, options: any) {
         const isModule =
           typeof src !== undefined &&
           typeof src !== 'string' &&
@@ -330,7 +336,7 @@ function loadNative(isCustomTurbopack = false) {
         )
       },
 
-      transformSync(src, options) {
+      transformSync(src: string, options: any) {
         if (typeof src === undefined) {
           throw new Error(
             "transformSync doesn't implement reading the file from filesystem"
@@ -354,15 +360,15 @@ function loadNative(isCustomTurbopack = false) {
         )
       },
 
-      minify(src, options) {
+      minify(src: string, options: any) {
         return bindings.minify(toBuffer(src), toBuffer(options ?? {}))
       },
 
-      minifySync(src, options) {
+      minifySync(src: string, options: any) {
         return bindings.minifySync(toBuffer(src), toBuffer(options ?? {}))
       },
 
-      parse(src, options) {
+      parse(src: string, options: any) {
         return bindings.parse(src, toBuffer(options ?? {}))
       },
 
@@ -371,7 +377,7 @@ function loadNative(isCustomTurbopack = false) {
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
-        startDev: (options) => {
+        startDev: (options: any) => {
           const devOptions = {
             ...options,
             noOpen: options.noOpen ?? true,
@@ -386,7 +392,7 @@ function loadNative(isCustomTurbopack = false) {
 
             return new Promise((resolve, reject) => {
               const spawn = require('next/dist/compiled/cross-spawn')
-              const args = []
+              const args: any[] = []
 
               Object.entries(devOptions).forEach(([key, value]) => {
                 let cli_key = `--${key.replace(
@@ -410,10 +416,10 @@ function loadNative(isCustomTurbopack = false) {
                   ...process.env,
                 },
               })
-              child.on('message', (message) => {
+              child.on('message', (message: any) => {
                 console.log(message)
               })
-              child.on('close', (code) => {
+              child.on('close', (code: any) => {
                 if (code !== 0) {
                   reject({
                     command: `${__INTERNAL_CUSTOM_TURBOPACK_BINARY} ${args.join(
@@ -438,9 +444,9 @@ function loadNative(isCustomTurbopack = false) {
           bindings.runTurboTracing(toBuffer({ exact: true, ...options })),
       },
       mdx: {
-        compile: (src, options) =>
+        compile: (src: string, options: any) =>
           bindings.mdxCompile(src, toBuffer(options ?? {})),
-        compileSync: (src, options) =>
+        compileSync: (src: string, options: any) =>
           bindings.mdxCompileSync(src, toBuffer(options ?? {})),
       },
     }
@@ -450,39 +456,41 @@ function loadNative(isCustomTurbopack = false) {
   throw attempts
 }
 
-function toBuffer(t) {
+function toBuffer(t: any) {
   return Buffer.from(JSON.stringify(t))
 }
 
-export async function isWasm() {
+export async function isWasm(): Promise<boolean> {
   let bindings = await loadBindings()
   return bindings.isWasm
 }
 
-export async function transform(src, options) {
+export async function transform(src: string, options?: any): Promise<any> {
   let bindings = await loadBindings()
   return bindings.transform(src, options)
 }
 
-export function transformSync(src, options) {
+export function transformSync(src: string, options?: any): any {
   let bindings = loadBindingsSync()
   return bindings.transformSync(src, options)
 }
 
-export async function minify(src, options) {
+export async function minify(src: string, options: any): Promise<string> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
 }
 
-export function minifySync(src, options) {
+export function minifySync(src: string, options: any): string {
   let bindings = loadBindingsSync()
   return bindings.minifySync(src, options)
 }
 
-export async function parse(src, options) {
+export async function parse(src: string, options: any): Promise<any> {
   let bindings = await loadBindings()
   let parserOptions = getParserOptions(options)
-  return bindings.parse(src, parserOptions).then((astStr) => JSON.parse(astStr))
+  return bindings
+    .parse(src, parserOptions)
+    .then((astStr: any) => JSON.parse(astStr))
 }
 
 export function getBinaryMetadata() {
@@ -502,15 +510,13 @@ export function getBinaryMetadata() {
  * Initialize trace subscriber to emit traces.
  *
  */
-export const initCustomTraceSubscriber = (() => {
-  return (filename) => {
-    if (!swcTraceFlushGuard) {
-      // Wasm binary doesn't support trace emission
-      let bindings = loadNative()
-      swcTraceFlushGuard = bindings.initCustomTraceSubscriber(filename)
-    }
+export const initCustomTraceSubscriber = (traceFileName?: string): void => {
+  if (!swcTraceFlushGuard) {
+    // Wasm binary doesn't support trace emission
+    let bindings = loadNative()
+    swcTraceFlushGuard = bindings.initCustomTraceSubscriber(traceFileName)
   }
-})()
+}
 
 /**
  * Teardown swc's trace subscriber if there's an initialized flush guard exists.
@@ -523,7 +529,7 @@ export const initCustomTraceSubscriber = (() => {
  */
 export const teardownTraceSubscriber = (() => {
   let flushed = false
-  return () => {
+  return (): void => {
     if (!flushed) {
       flushed = true
       try {
@@ -540,7 +546,7 @@ export const teardownTraceSubscriber = (() => {
 
 export const teardownCrashReporter = (() => {
   let flushed = false
-  return () => {
+  return (): void => {
     if (!flushed) {
       flushed = true
       try {

@@ -1,10 +1,9 @@
 import path from 'path'
-import isEqualLocals from './runtime/isEqualLocals'
 import { stringifyRequest } from '../../stringify-request'
 
 const loaderApi = () => {}
 
-loaderApi.pitch = function loader(request) {
+loaderApi.pitch = function loader(this: any, request: any): any {
   const loaderSpan = this.currentTraceSpan.traceChild('next-style-loader')
 
   return loaderSpan.traceFn(() => {
@@ -83,7 +82,7 @@ ${esModule ? 'export default {}' : ''}`
           ? `
 if (module.hot) {
   if (!content.locals || module.hot.invalidate) {
-    var isEqualLocals = ${isEqualLocals.toString()};
+    var isEqualLocals = ${require('./runtime/isEqualLocals').toString()};
     var oldLocals = content.locals;
 
     module.hot.accept(

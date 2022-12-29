@@ -1,5 +1,5 @@
 const isOldIE = (function isOldIE() {
-  let memo
+  let memo: any
 
   return function memorize() {
     if (typeof memo === 'undefined') {
@@ -15,12 +15,12 @@ const isOldIE = (function isOldIE() {
   }
 })()
 
-const getTarget = (function getTarget() {
-  const memo = {}
+const getTarget = (function () {
+  const memo: any = {}
 
-  return function memorize(target) {
+  return function memorize(target: any) {
     if (typeof memo[target] === 'undefined') {
-      let styleTarget = document.querySelector(target)
+      let styleTarget: any = document.querySelector(target)
 
       // Special case to return head of iframe instead of iframe itself
       if (
@@ -30,7 +30,7 @@ const getTarget = (function getTarget() {
         try {
           // This will throw an exception if access to iframe is blocked
           // due to cross-origin restrictions
-          styleTarget = styleTarget.contentDocument.head
+          styleTarget = (styleTarget as any).contentDocument.head
         } catch (e) {
           // istanbul ignore next
           styleTarget = null
@@ -44,9 +44,9 @@ const getTarget = (function getTarget() {
   }
 })()
 
-const stylesInDom = []
+const stylesInDom: any = []
 
-function getIndexByIdentifier(identifier) {
+function getIndexByIdentifier(identifier: any) {
   let result = -1
 
   for (let i = 0; i < stylesInDom.length; i++) {
@@ -59,8 +59,8 @@ function getIndexByIdentifier(identifier) {
   return result
 }
 
-function modulesToDom(list, options) {
-  const idCountMap = {}
+function modulesToDom(list: any, options: any) {
+  const idCountMap: any = {}
   const identifiers = []
 
   for (let i = 0; i < list.length; i++) {
@@ -84,6 +84,7 @@ function modulesToDom(list, options) {
     } else {
       stylesInDom.push({
         identifier: identifier,
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         updater: addStyle(obj, options),
         references: 1,
       })
@@ -95,7 +96,7 @@ function modulesToDom(list, options) {
   return identifiers
 }
 
-function insertStyleElement(options) {
+function insertStyleElement(options: any) {
   const style = document.createElement('style')
   const attributes = options.attributes || {}
 
@@ -130,7 +131,7 @@ function insertStyleElement(options) {
   return style
 }
 
-function removeStyleElement(style) {
+function removeStyleElement(style: any) {
   // istanbul ignore if
   if (style.parentNode === null) {
     return false
@@ -141,16 +142,16 @@ function removeStyleElement(style) {
 
 /* istanbul ignore next  */
 const replaceText = (function replaceText() {
-  const textStore = []
+  const textStore: any = []
 
-  return function replace(index, replacement) {
+  return function replace(index: any, replacement: any) {
     textStore[index] = replacement
 
     return textStore.filter(Boolean).join('\n')
   }
 })()
 
-function applyToSingletonTag(style, index, remove, obj) {
+function applyToSingletonTag(style: any, index: any, remove: any, obj: any) {
   const css = remove
     ? ''
     : obj.media
@@ -177,7 +178,7 @@ function applyToSingletonTag(style, index, remove, obj) {
   }
 }
 
-function applyToTag(style, options, obj) {
+function applyToTag(style: any, _options: any, obj: any) {
   let css = obj.css
   const media = obj.media
   const sourceMap = obj.sourceMap
@@ -208,13 +209,13 @@ function applyToTag(style, options, obj) {
   }
 }
 
-let singleton = null
+let singleton: any = null
 let singletonCounter = 0
 
-function addStyle(obj, options) {
-  let style
-  let update
-  let remove
+function addStyle(obj: any, options: any) {
+  let style: any
+  let update: any
+  let remove: any
 
   if (options.singleton) {
     const styleIndex = singletonCounter++
@@ -234,7 +235,7 @@ function addStyle(obj, options) {
 
   update(obj)
 
-  return function updateStyle(newObj) {
+  return function updateStyle(newObj: any) {
     if (newObj) {
       if (
         newObj.css === obj.css &&
@@ -251,7 +252,7 @@ function addStyle(obj, options) {
   }
 }
 
-module.exports = function (list, options) {
+module.exports = function (list: any, options: any) {
   options = options || {}
 
   // Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
@@ -264,7 +265,7 @@ module.exports = function (list, options) {
 
   let lastIdentifiers = modulesToDom(list, options)
 
-  return function update(newList) {
+  return function update(newList: any) {
     newList = newList || []
 
     if (Object.prototype.toString.call(newList) !== '[object Array]') {
