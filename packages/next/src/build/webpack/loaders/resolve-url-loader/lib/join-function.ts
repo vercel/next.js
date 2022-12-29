@@ -196,10 +196,12 @@ function createJoinMsg(
   /**
    * If given path is within `process.cwd()` then show relative posix path, otherwise show absolute posix path.
    *
-   * @param {string} absolute An absolute path
-   * @return {string} A relative or absolute path
+   * Returns A relative or absolute path
    */
-  function pathToString(absolute: any) {
+  function pathToString(
+    /** An absolute path */
+    absolute: string
+  ): string | null {
     if (!absolute) {
       return null
     } else {
