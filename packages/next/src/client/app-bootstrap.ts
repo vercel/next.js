@@ -12,7 +12,10 @@ window.next = {
   appDir: true,
 }
 
-function loadScriptsInSequence(scripts, hydrate) {
+function loadScriptsInSequence(
+  scripts: [src: string, props: { [prop: string]: any }][],
+  hydrate: () => void
+) {
   if (!scripts || !scripts.length) {
     return hydrate()
   }
@@ -20,7 +23,7 @@ function loadScriptsInSequence(scripts, hydrate) {
   return scripts
     .reduce((promise, [src, props]) => {
       return promise.then(() => {
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
           const el = document.createElement('script')
 
           if (props) {
@@ -33,7 +36,7 @@ function loadScriptsInSequence(scripts, hydrate) {
 
           if (src) {
             el.src = src
-            el.onload = resolve
+            el.onload = () => resolve()
             el.onerror = reject
           } else if (props) {
             el.innerHTML = props.children
@@ -47,15 +50,15 @@ function loadScriptsInSequence(scripts, hydrate) {
     .then(() => {
       hydrate()
     })
-    .catch((err) => {
+    .catch((err: Error) => {
       console.error(err)
       // Still try to hydrate even if there's an error.
       hydrate()
     })
 }
 
-export function appBootstrap(callback) {
-  loadScriptsInSequence(self.__next_s, () => {
+export function appBootstrap(callback: () => void) {
+  loadScriptsInSequence((self as any).__next_s, () => {
     callback()
   })
 }

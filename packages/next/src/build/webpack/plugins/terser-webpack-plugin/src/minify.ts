@@ -1,7 +1,6 @@
-// @ts-nocheck
 import terser from 'next/dist/compiled/terser'
 
-function buildTerserOptions(terserOptions = {}) {
+function buildTerserOptions(terserOptions: any = {}) {
   return {
     ...terserOptions,
     mangle:
@@ -20,7 +19,7 @@ function buildTerserOptions(terserOptions = {}) {
   }
 }
 
-export async function minify(options) {
+export async function minify(options: any) {
   const { name, input, inputSourceMap, terserOptions } = options
   // Copy terser options
   const opts = buildTerserOptions(terserOptions)

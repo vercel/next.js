@@ -3,12 +3,18 @@ import { displayContent } from './fouc'
 import initOnDemandEntries from './on-demand-entries-client'
 import { addMessageListener, connectHMR } from './error-overlay/websocket'
 
-const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+declare global {
+  const __webpack_runtime_id__: string
+}
+
+const data = JSON.parse(
+  (document.getElementById('__NEXT_DATA__') as any).textContent
+)
 window.__NEXT_DATA__ = data
 
 let { assetPrefix, page } = data
 assetPrefix = assetPrefix || ''
-let mostRecentHash = null
+let mostRecentHash: null | string = null
 /* eslint-disable-next-line */
 let curHash = __webpack_hash__
 const hotUpdatePath =
@@ -24,6 +30,7 @@ function isUpdateAvailable() {
 
 // Webpack disallows updates in other states.
 function canApplyUpdates() {
+  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   return module.hot.status() === 'idle'
 }
 
@@ -45,7 +52,7 @@ async function tryApplyUpdates() {
     // webpack 5 uses an array instead
     const pageUpdated = (
       Array.isArray(jsonData.c) ? jsonData.c : Object.keys(jsonData.c)
-    ).some((mod) => {
+    ).some((mod: string) => {
       return (
         mod.indexOf(
           `pages${curPage.startsWith('/') ? curPage : `/${curPage}`}`
@@ -60,13 +67,13 @@ async function tryApplyUpdates() {
     })
 
     if (pageUpdated) {
-      document.location.reload(true)
+      window.location.reload()
     } else {
-      curHash = mostRecentHash
+      curHash = mostRecentHash as string
     }
   } catch (err) {
     console.error('Error occurred checking for update', err)
-    document.location.reload(true)
+    window.location.reload()
   }
 }
 
@@ -85,7 +92,7 @@ addMessageListener((event) => {
       mostRecentHash = message.hash
       tryApplyUpdates()
     } else if (message.action === 'reloadPage') {
-      document.location.reload(true)
+      window.location.reload()
     }
   } catch (ex) {
     console.warn('Invalid HMR message: ' + event.data + '\n' + ex)

@@ -1,7 +1,9 @@
+// TODO: Remove use of `any` type. Fix no-use-before-define violations.
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { addMessageListener } from './error-overlay/websocket'
 
 export default function initializeBuildWatcher(
-  toggleCallback,
+  toggleCallback: any,
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
@@ -10,12 +12,12 @@ export default function initializeBuildWatcher(
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   // Ensure container's position to be top or bottom (default)
-  shadowHost.style[verticalProperty] = '10px'
+  ;(shadowHost as any).style[verticalProperty] = '10px'
   // Ensure container's position to be left or right (default)
-  shadowHost.style[horizontalProperty] = '20px'
-  shadowHost.style.width = 0
-  shadowHost.style.height = 0
-  shadowHost.style.zIndex = 99999
+  ;(shadowHost as any).style[horizontalProperty] = '20px'
+  ;(shadowHost as any).style.width = 0
+  ;(shadowHost as any).style.height = 0
+  ;(shadowHost as any).style.zIndex = 99999
   document.body.appendChild(shadowHost)
 
   let shadowRoot
@@ -42,7 +44,7 @@ export default function initializeBuildWatcher(
   // State
   let isVisible = false
   let isBuilding = false
-  let timeoutId = null
+  let timeoutId: null | ReturnType<typeof setTimeout> = null
 
   // Handle events
 
@@ -57,7 +59,7 @@ export default function initializeBuildWatcher(
     } catch {}
   })
 
-  function handleMessage(event) {
+  function handleMessage(event: any) {
     const obj =
       typeof event === 'string' ? { action: event } : JSON.parse(event.data)
 
@@ -99,7 +101,7 @@ export default function initializeBuildWatcher(
   }
 }
 
-function createContainer(prefix) {
+function createContainer(prefix: string) {
   const container = document.createElement('div')
   container.id = `${prefix}container`
   container.innerHTML = `
@@ -127,7 +129,13 @@ function createContainer(prefix) {
   return container
 }
 
-function createCss(prefix, { horizontalProperty, verticalProperty }) {
+function createCss(
+  prefix: string,
+  {
+    horizontalProperty,
+    verticalProperty,
+  }: { horizontalProperty: string; verticalProperty: string }
+) {
   const css = document.createElement('style')
   css.textContent = `
     #${prefix}container {

@@ -6,16 +6,15 @@ import { normalizeSourceMap, normalizeSourceMapAfterPostcss } from './utils'
  * **PostCSS Loader**
  *
  * Loads && processes CSS with [PostCSS](https://github.com/postcss/postcss)
- *
- * @method loader
- *
- * @param {String} content Source
- * @param {Object} sourceMap Source Map
- * @param {Object} meta Meta
- *
- * @return {callback} callback Result
  */
-export default async function loader(content, sourceMap, meta) {
+export default async function loader(
+  this: any,
+  /** Source */
+  content: string,
+  /** Source Map */
+  sourceMap: any,
+  meta: any
+): Promise<void> {
   const loaderSpan = this.currentTraceSpan.traceChild('postcss-loader')
   const callback = this.async()
 
@@ -29,7 +28,7 @@ export default async function loader(content, sourceMap, meta) {
           ? options.sourceMap
           : this.sourceMap
 
-      const processOptions = {
+      const processOptions: any = {
         from: file,
         to: file,
       }
@@ -48,7 +47,7 @@ export default async function loader(content, sourceMap, meta) {
           .traceFn(() => normalizeSourceMap(sourceMap, this.context))
       }
 
-      let root
+      let root: any
 
       // Reuse PostCSS AST from other loaders
       if (meta && meta.ast && meta.ast.type === 'postcss') {
@@ -67,7 +66,7 @@ export default async function loader(content, sourceMap, meta) {
           .traceAsyncFn(() =>
             postcssWithPlugins.process(root || content, processOptions)
           )
-      } catch (error) {
+      } catch (error: any) {
         if (error.file) {
           this.addDependency(error.file)
         }
@@ -129,10 +128,10 @@ export default async function loader(content, sourceMap, meta) {
       return [result.css, map, { ast }]
     })
     .then(
-      ([css, map, { ast }]) => {
+      ([css, map, { ast }]: any) => {
         callback?.(null, css, map, { ast })
       },
-      (err) => {
+      (err: Error) => {
         callback?.(err)
       }
     )

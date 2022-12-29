@@ -1,3 +1,4 @@
+// TODO: Remove use of `any` type.
 /**
 @copyright (c) 2017-present James Kyle <me@thejameskyle.com>
  MIT License
@@ -24,26 +25,26 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 import React from 'react'
 import { LoadableContext } from './loadable-context'
 
-const ALL_INITIALIZERS = []
-const READY_INITIALIZERS = []
+const ALL_INITIALIZERS: any[] = []
+const READY_INITIALIZERS: any[] = []
 let initialized = false
 
-function load(loader) {
+function load(loader: any) {
   let promise = loader()
 
-  let state = {
+  let state: any = {
     loading: true,
     loaded: null,
     error: null,
   }
 
   state.promise = promise
-    .then((loaded) => {
+    .then((loaded: any) => {
       state.loading = false
       state.loaded = loaded
       return loaded
     })
-    .catch((err) => {
+    .catch((err: any) => {
       state.loading = false
       state.error = err
       throw err
@@ -52,7 +53,7 @@ function load(loader) {
   return state
 }
 
-function createLoadableComponent(loadFn, options) {
+function createLoadableComponent(loadFn: any, options: any) {
   let opts = Object.assign(
     {
       loader: null,
@@ -68,7 +69,7 @@ function createLoadableComponent(loadFn, options) {
   opts.lazy = React.lazy(opts.loader)
 
   /** @type LoadableSubscription */
-  let subscription = null
+  let subscription: any = null
   function init() {
     if (!subscription) {
       const sub = new LoadableSubscription(loadFn, opts)
@@ -91,11 +92,11 @@ function createLoadableComponent(loadFn, options) {
   if (!initialized && typeof window !== 'undefined') {
     // require.resolveWeak check is needed for environments that don't have it available like Jest
     const moduleIds =
-      opts.webpack && typeof require.resolveWeak === 'function'
+      opts.webpack && typeof (require as any).resolveWeak === 'function'
         ? opts.webpack()
         : opts.modules
     if (moduleIds) {
-      READY_INITIALIZERS.push((ids) => {
+      READY_INITIALIZERS.push((ids: any) => {
         for (const moduleId of moduleIds) {
           if (ids.indexOf(moduleId) !== -1) {
             return init()
@@ -110,12 +111,12 @@ function createLoadableComponent(loadFn, options) {
 
     const context = React.useContext(LoadableContext)
     if (context && Array.isArray(opts.modules)) {
-      opts.modules.forEach((moduleName) => {
+      opts.modules.forEach((moduleName: any) => {
         context(moduleName)
       })
     }
   }
-  function LoadableComponent(props) {
+  function LoadableComponent(props: any) {
     useLoadableModule()
 
     const fallbackElement = React.createElement(opts.loading, {
@@ -140,7 +141,14 @@ function createLoadableComponent(loadFn, options) {
 }
 
 class LoadableSubscription {
-  constructor(loadFn, opts) {
+  _loadFn: any
+  _opts: any
+  _callbacks: any
+  _delay: any
+  _timeout: any
+  _res: any
+  _state: any
+  constructor(loadFn: any, opts: any) {
     this._loadFn = loadFn
     this._opts = opts
     this._callbacks = new Set()
@@ -190,14 +198,14 @@ class LoadableSubscription {
         this._update({})
         this._clearTimeouts()
       })
-      .catch((_err) => {
+      .catch((_err: any) => {
         this._update({})
         this._clearTimeouts()
       })
     this._update({})
   }
 
-  _update(partial) {
+  _update(partial: any) {
     this._state = {
       ...this._state,
       error: this._res.error,
@@ -205,7 +213,7 @@ class LoadableSubscription {
       loading: this._res.loading,
       ...partial,
     }
-    this._callbacks.forEach((callback) => callback())
+    this._callbacks.forEach((callback: any) => callback())
   }
 
   _clearTimeouts() {
@@ -217,7 +225,7 @@ class LoadableSubscription {
     return this._state
   }
 
-  subscribe(callback) {
+  subscribe(callback: any) {
     this._callbacks.add(callback)
     return () => {
       this._callbacks.delete(callback)
@@ -225,11 +233,11 @@ class LoadableSubscription {
   }
 }
 
-function Loadable(opts) {
+function Loadable(opts: any) {
   return createLoadableComponent(load, opts)
 }
 
-function flushInitializers(initializers, ids) {
+function flushInitializers(initializers: any, ids?: any): any {
   let promises = []
 
   while (initializers.length) {
@@ -250,8 +258,8 @@ Loadable.preloadAll = () => {
   })
 }
 
-Loadable.preloadReady = (ids = []) => {
-  return new Promise((resolvePreload) => {
+Loadable.preloadReady = (ids = []): Promise<void> => {
+  return new Promise<void>((resolvePreload) => {
     const res = () => {
       initialized = true
       return resolvePreload()
@@ -259,6 +267,12 @@ Loadable.preloadReady = (ids = []) => {
     // We always will resolve, errors should be handled within loading UIs.
     flushInitializers(READY_INITIALIZERS, ids).then(res, res)
   })
+}
+
+declare global {
+  interface Window {
+    __NEXT_PRELOADREADY?: any
+  }
 }
 
 if (typeof window !== 'undefined') {

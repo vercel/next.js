@@ -30,20 +30,24 @@ const friendlySyntaxErrorLabel = 'Syntax error:'
 const WEBPACK_BREAKING_CHANGE_POLYFILLS =
   '\n\nBREAKING CHANGE: webpack < 5 used to include polyfills for node.js core modules by default.'
 
-function isLikelyASyntaxError(message) {
+function isLikelyASyntaxError(message: string) {
   return stripAnsi(message).indexOf(friendlySyntaxErrorLabel) !== -1
 }
 
 let hadMissingSassError = false
 
 // Cleans up webpack error messages.
-function formatMessage(message, verbose, importTraceNote) {
+function formatMessage(
+  message: any,
+  verbose?: boolean,
+  importTraceNote?: boolean
+) {
   // TODO: Replace this once webpack 5 is stable
   if (typeof message === 'object' && message.message) {
     const filteredModuleTrace =
       message.moduleTrace &&
       message.moduleTrace.filter(
-        (trace) =>
+        (trace: any) =>
           !/next-(middleware|client-pages|edge-function)-loader\.js/.test(
             trace.originName
           )
@@ -62,7 +66,9 @@ function formatMessage(message, verbose, importTraceNote) {
       (message.details && verbose ? '\n' + message.details : '') +
       (filteredModuleTrace && filteredModuleTrace.length && verbose
         ? (importTraceNote || '\n\nImport trace for requested module:') +
-          filteredModuleTrace.map((trace) => `\n${trace.moduleName}`).join('')
+          filteredModuleTrace
+            .map((trace: any) => `\n${trace.moduleName}`)
+            .join('')
         : '') +
       (message.stack && verbose ? '\n' + message.stack : '')
   }
@@ -70,11 +76,11 @@ function formatMessage(message, verbose, importTraceNote) {
 
   // Strip Webpack-added headers off errors/warnings
   // https://github.com/webpack/webpack/blob/master/lib/ModuleError.js
-  lines = lines.filter((line) => !/Module [A-z ]+\(from/.test(line))
+  lines = lines.filter((line: string) => !/Module [A-z ]+\(from/.test(line))
 
   // Transform parsing error into syntax error
   // TODO: move this to our ESLint formatter?
-  lines = lines.map((line) => {
+  lines = lines.map((line: string) => {
     const parsingError = /Line (\d+):(?:(\d+):)?\s*Parsing error: (.+)$/.exec(
       line
     )
@@ -159,7 +165,7 @@ function formatMessage(message, verbose, importTraceNote) {
   }
 
   // Remove duplicated newlines
-  lines = lines.filter(
+  lines = (lines as string[]).filter(
     (line, index, arr) =>
       index === 0 || line.trim() !== '' || line.trim() !== arr[index - 1].trim()
   )
@@ -169,14 +175,14 @@ function formatMessage(message, verbose, importTraceNote) {
   return message.trim()
 }
 
-function formatWebpackMessages(json, verbose) {
-  const formattedErrors = json.errors.map(function (message) {
+function formatWebpackMessages(json: any, verbose?: boolean) {
+  const formattedErrors = json.errors.map((message: any) => {
     const isUnknownNextFontError = message.message.includes(
       'An error occured in `@next/font`.'
     )
     return formatMessage(message, isUnknownNextFontError || verbose)
   })
-  const formattedWarnings = json.warnings.map(function (message) {
+  const formattedWarnings = json.warnings.map((message: any) => {
     return formatMessage(message, verbose)
   })
   const result = {

@@ -25,7 +25,7 @@ export function sendMessage(data: any) {
 export function connectHMR(options: {
   path: string
   assetPrefix: string
-  timeout: number
+  timeout?: number
   log?: boolean
 }) {
   if (!options.timeout) {

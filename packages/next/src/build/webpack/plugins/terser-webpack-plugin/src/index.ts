@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as path from 'path'
 import {
   webpack,
@@ -9,7 +8,7 @@ import pLimit from 'next/dist/compiled/p-limit'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { spans } from '../../profiling-plugin'
 
-function getEcmaVersion(environment) {
+function getEcmaVersion(environment: any) {
   // ES 6th
   if (
     environment.arrowFunction ||
@@ -29,7 +28,7 @@ function getEcmaVersion(environment) {
   return 5
 }
 
-function buildError(error, file) {
+function buildError(error: any, file: string) {
   if (error.line) {
     return new Error(
       `${file} from Terser\n${error.message} [${file}:${error.line},${
@@ -50,7 +49,8 @@ function buildError(error, file) {
 const debugMinify = process.env.NEXT_DEBUG_MINIFY
 
 export class TerserPlugin {
-  constructor(options = {}) {
+  options: any
+  constructor(options: any = {}) {
     const { terserOptions = {}, parallel, swcMinify } = options
 
     this.options = {
@@ -61,14 +61,14 @@ export class TerserPlugin {
   }
 
   async optimize(
-    compiler,
-    compilation,
-    assets,
-    optimizeOptions,
-    cache,
-    { SourceMapSource, RawSource }
+    compiler: any,
+    compilation: any,
+    assets: any,
+    optimizeOptions: any,
+    cache: any,
+    { SourceMapSource, RawSource }: any
   ) {
-    const compilationSpan = spans.get(compilation) || spans.get(compiler)
+    const compilationSpan = spans.get(compilation)! || spans.get(compiler)
     const terserSpan = compilationSpan.traceChild(
       'terser-webpack-plugin-optimize'
     )
@@ -148,13 +148,13 @@ export class TerserPlugin {
         optimizeOptions.availableNumberOfCores
       )
 
-      let initializedWorker
+      let initializedWorker: any
 
       // eslint-disable-next-line consistent-return
       const getWorker = () => {
         if (this.options.swcMinify) {
           return {
-            minify: async (options) => {
+            minify: async (options: any) => {
               const result = await require('../../../../swc').minify(
                 options.input,
                 {
@@ -253,7 +253,6 @@ export class TerserPlugin {
                     name,
                     output.map,
                     input,
-                    /** @type {SourceMapRawSourceMap} */ (inputSourceMap),
                     true
                   )
                 } else {
@@ -265,7 +264,6 @@ export class TerserPlugin {
                 })
               }
 
-              /** @type {AssetInfo} */
               const newInfo = { minimized: true }
               const { source } = output
 
@@ -283,11 +281,7 @@ export class TerserPlugin {
     })
   }
 
-  /**
-   * @param {Compiler} compiler
-   * @returns {void}
-   */
-  apply(compiler) {
+  apply(compiler: any) {
     const { SourceMapSource, RawSource } = compiler?.webpack?.sources || sources
     const { output } = compiler.options
 
@@ -298,10 +292,10 @@ export class TerserPlugin {
     const pluginName = this.constructor.name
     const availableNumberOfCores = this.options.parallel
 
-    compiler.hooks.thisCompilation.tap(pluginName, (compilation) => {
+    compiler.hooks.thisCompilation.tap(pluginName, (compilation: any) => {
       const cache = compilation.getCache('TerserWebpackPlugin')
 
-      const handleHashForChunk = (hash, chunk) => {
+      const handleHashForChunk = (hash: any, _chunk: any) => {
         // increment 'c' to invalidate cache
         hash.update('c')
       }
@@ -320,7 +314,7 @@ export class TerserPlugin {
           name: pluginName,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
         },
-        (assets) =>
+        (assets: any) =>
           this.optimize(
             compiler,
             compilation,
@@ -333,12 +327,14 @@ export class TerserPlugin {
           )
       )
 
-      compilation.hooks.statsPrinter.tap(pluginName, (stats) => {
+      compilation.hooks.statsPrinter.tap(pluginName, (stats: any) => {
         stats.hooks.print
           .for('asset.info.minimized')
-          .tap('terser-webpack-plugin', (minimized, { green, formatFlag }) =>
-            // eslint-disable-next-line no-undefined
-            minimized ? green(formatFlag('minimized')) : undefined
+          .tap(
+            'terser-webpack-plugin',
+            (minimized: any, { green, formatFlag }: any) =>
+              // eslint-disable-next-line no-undefined
+              minimized ? green(formatFlag('minimized')) : undefined
           )
       })
     })

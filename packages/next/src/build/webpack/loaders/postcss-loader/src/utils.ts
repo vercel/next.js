@@ -3,7 +3,7 @@ import path from 'path'
 const IS_NATIVE_WIN32_PATH = /^[a-z]:[/\\]|^\\\\/i
 const ABSOLUTE_SCHEME = /^[a-z0-9+\-.]+:/i
 
-function getURLType(source) {
+function getURLType(source: string) {
   if (source[0] === '/') {
     if (source[1] === '/') {
       return 'scheme-relative'
@@ -19,7 +19,7 @@ function getURLType(source) {
   return ABSOLUTE_SCHEME.test(source) ? 'absolute' : 'path-relative'
 }
 
-function normalizeSourceMap(map, resourceContext) {
+function normalizeSourceMap(map: any, resourceContext: string) {
   let newMap = map
 
   // Some loader emit source map as string
@@ -35,7 +35,7 @@ function normalizeSourceMap(map, resourceContext) {
   delete newMap.sourceRoot
 
   if (newMap.sources) {
-    newMap.sources = newMap.sources.map((source) => {
+    newMap.sources = newMap.sources.map((source: string) => {
       const sourceType = getURLType(source)
 
       // Do no touch `scheme-relative` and `absolute` URLs

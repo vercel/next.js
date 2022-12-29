@@ -4,7 +4,7 @@ import { sendMessage } from './error-overlay/websocket'
 export default () => {
   const devClient = connect()
 
-  devClient.subscribeToHmrEvent((obj) => {
+  devClient.subscribeToHmrEvent((obj: any) => {
     if (obj.action === 'reloadPage') {
       sendMessage(
         JSON.stringify({

@@ -1,3 +1,4 @@
+// TODO: Remove use of `any` type.
 import { initialize, hydrate, version, router, emitter } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
@@ -8,6 +9,12 @@ import {
   assign,
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
+
+declare global {
+  interface Window {
+    _nextSetupHydrationWarning?: boolean
+  }
+}
 
 if (!window._nextSetupHydrationWarning) {
   const origConsoleError = window.console.error
@@ -45,9 +52,9 @@ initialize({ webpackHMR })
     return hydrate({ beforeRender: displayContent }).then(() => {
       initOnDemandEntries()
 
-      let buildIndicatorHandler = () => {}
+      let buildIndicatorHandler: any = () => {}
 
-      function devPagesManifestListener(event) {
+      function devPagesManifestListener(event: any) {
         if (event.data.indexOf('devPagesManifest') !== -1) {
           fetch(
             `${assetPrefix}/_next/static/development/_devPagesManifest.json`
@@ -102,7 +109,7 @@ initialize({ webpackHMR })
       addMessageListener(devPagesManifestListener)
 
       if (process.env.__NEXT_BUILD_INDICATOR) {
-        initializeBuildWatcher((handler) => {
+        initializeBuildWatcher((handler: any) => {
           buildIndicatorHandler = handler
         }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
       }

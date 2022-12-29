@@ -29,11 +29,14 @@ import process from './lib/postcss'
 /**
  * A webpack loader that resolves absolute url() paths relative to their original source file.
  * Requires source-maps to do any meaningful work.
- * @param {string} content Css content
- * @param {object} sourceMap The source-map
- * @returns {string|String}
  */
-export default async function resolveUrlLoader(content, sourceMap) {
+export default async function resolveUrlLoader(
+  this: any,
+  /** Css content */
+  content: string,
+  /** The source-map */
+  sourceMap: any
+): Promise<void> {
   const options = Object.assign(
     {
       sourceMap: this.sourceMap,
@@ -60,14 +63,17 @@ export default async function resolveUrlLoader(content, sourceMap) {
     inputSourceMap: sourceMap,
     sourceMapConsumer: sourceMapConsumer,
   })
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     .catch(onFailure)
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     .then(onSuccess)
 
-  function onFailure(error) {
+  function onFailure(error: Error) {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     callback(encodeError('CSS error', error))
   }
 
-  function onSuccess(reworked) {
+  function onSuccess(reworked: any) {
     if (reworked) {
       // complete with source-map
       //  source-map sources are relative to the file being processed
@@ -81,7 +87,7 @@ export default async function resolveUrlLoader(content, sourceMap) {
     }
   }
 
-  function encodeError(label, exception) {
+  function encodeError(label: any, exception: any) {
     return new Error(
       [
         'resolve-url-loader',
@@ -91,7 +97,7 @@ export default async function resolveUrlLoader(content, sourceMap) {
             (typeof exception === 'string' && exception) ||
               (exception instanceof Error && [
                 exception.message,
-                exception.stack.split('\n')[1].trim(),
+                (exception as any).stack.split('\n')[1].trim(),
               ]) ||
               []
           )

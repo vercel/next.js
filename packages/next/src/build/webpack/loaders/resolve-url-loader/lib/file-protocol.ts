@@ -25,7 +25,7 @@ SOFTWARE.
 /**
  * Prepend file:// protocol to source path string or source-map sources.
  */
-function prepend(candidate) {
+export function prepend(candidate: any) {
   if (typeof candidate === 'string') {
     return 'file://' + candidate
   } else if (
@@ -41,12 +41,10 @@ function prepend(candidate) {
   }
 }
 
-exports.prepend = prepend
-
 /**
  * Remove file:// protocol from source path string or source-map sources.
  */
-function remove(candidate) {
+export function remove(candidate: any) {
   if (typeof candidate === 'string') {
     return candidate.replace(/^file:\/{2}/, '')
   } else if (
@@ -61,5 +59,3 @@ function remove(candidate) {
     throw new Error('expected string|object')
   }
 }
-
-exports.remove = remove

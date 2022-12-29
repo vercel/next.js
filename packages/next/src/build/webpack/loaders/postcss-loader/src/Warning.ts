@@ -8,8 +8,9 @@
  *
  * @param {Object} warning PostCSS Warning
  */
-class Warning extends Error {
-  constructor(warning) {
+export default class Warning extends Error {
+  stack: any
+  constructor(warning: any) {
     super(warning)
 
     const { text, line, column, plugin } = warning
@@ -28,5 +29,3 @@ class Warning extends Error {
     this.stack = false
   }
 }
-
-module.exports = Warning

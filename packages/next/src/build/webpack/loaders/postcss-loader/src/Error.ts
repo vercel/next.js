@@ -8,8 +8,9 @@
  *
  * @param {Object} err CssSyntaxError
  */
-class SyntaxError extends Error {
-  constructor(error) {
+export default class PostCSSSyntaxError extends Error {
+  stack: any
+  constructor(error: any) {
     super(error)
 
     const { line, column, reason, plugin, file } = error
@@ -35,5 +36,3 @@ class SyntaxError extends Error {
     this.stack = false
   }
 }
-
-module.exports = SyntaxError

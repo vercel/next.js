@@ -1,3 +1,5 @@
+// TODO: Remove use of `any` type. Fix no-use-before-define violations.
+/* eslint-disable @typescript-eslint/no-use-before-define */
 /**
  * MIT License
  *
@@ -46,10 +48,18 @@ import formatWebpackMessages from './format-webpack-messages'
 // that looks similar to our console output. The error overlay is inspired by:
 // https://github.com/glenjamin/webpack-hot-middleware
 
+declare global {
+  const __webpack_hash__: string
+  interface Window {
+    __nextDevClientId: number
+    __NEXT_HMR_LATENCY_CB: any
+  }
+}
+
 window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let hadRuntimeError = false
-let customHmrEventHandler
+let customHmrEventHandler: any
 export default function connect() {
   register()
 
@@ -64,7 +74,7 @@ export default function connect() {
   })
 
   return {
-    subscribeToHmrEvent(handler) {
+    subscribeToHmrEvent(handler: any) {
       customHmrEventHandler = handler
     },
     onUnrecoverableError() {
@@ -75,7 +85,7 @@ export default function connect() {
 
 // Remember some state related to hot module replacement.
 var isFirstCompilation = true
-var mostRecentCompilationHash = null
+var mostRecentCompilationHash: string | null = null
 var hasCompileErrors = false
 
 function clearOutdatedErrors() {
@@ -104,7 +114,7 @@ function handleSuccess() {
 }
 
 // Compilation with warnings (e.g. ESLint).
-function handleWarnings(warnings) {
+function handleWarnings(warnings: any) {
   clearOutdatedErrors()
 
   const isHotUpdate = !isFirstCompilation
@@ -141,7 +151,7 @@ function handleWarnings(warnings) {
 }
 
 // Compilation with errors (e.g. syntax error or missing modules).
-function handleErrors(errors) {
+function handleErrors(errors: any) {
   clearOutdatedErrors()
 
   isFirstCompilation = false
@@ -173,9 +183,9 @@ function handleErrors(errors) {
   }
 }
 
-let startLatency = undefined
+let startLatency: any = undefined
 
-function onBeforeFastRefresh(hasUpdates) {
+function onBeforeFastRefresh(hasUpdates: any) {
   if (hasUpdates) {
     // Only trigger a pending state if we have updates to apply
     // (cf. onFastRefresh)
@@ -183,7 +193,7 @@ function onBeforeFastRefresh(hasUpdates) {
   }
 }
 
-function onFastRefresh(hasUpdates) {
+function onFastRefresh(hasUpdates: any) {
   onBuildOk()
   if (hasUpdates) {
     // Only complete a pending state if we applied updates
@@ -210,13 +220,13 @@ function onFastRefresh(hasUpdates) {
 }
 
 // There is a newer version of the code available.
-function handleAvailableHash(hash) {
+function handleAvailableHash(hash: string) {
   // Update last known compilation hash.
   mostRecentCompilationHash = hash
 }
 
 // Handle messages from the server.
-function processMessage(e) {
+function processMessage(e: any) {
   const obj = JSON.parse(e.data)
   switch (obj.action) {
     case 'building': {
@@ -287,24 +297,28 @@ function isUpdateAvailable() {
 
 // Webpack disallows updates in other states.
 function canApplyUpdates() {
+  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   return module.hot.status() === 'idle'
 }
-function afterApplyUpdates(fn) {
+function afterApplyUpdates(fn: () => void) {
   if (canApplyUpdates()) {
     fn()
   } else {
-    function handler(status) {
+    function handler(status: string) {
       if (status === 'idle') {
+        // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
         module.hot.removeStatusHandler(handler)
         fn()
       }
     }
+    // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
     module.hot.addStatusHandler(handler)
   }
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
+function tryApplyUpdates(onBeforeHotUpdate: any, onHotUpdateSuccess: any) {
+  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
     console.error('HotModuleReplacementPlugin is not in Webpack configuration.')
@@ -317,7 +331,7 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
     return
   }
 
-  function handleApplyUpdates(err, updatedModules) {
+  function handleApplyUpdates(err: any, updatedModules: any) {
     if (err || hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
@@ -364,9 +378,10 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
   }
 
   // https://webpack.js.org/api/hot-module-replacement/#check
+  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   module.hot
     .check(/* autoApply */ false)
-    .then((updatedModules) => {
+    .then((updatedModules: any) => {
       if (!updatedModules) {
         return null
       }
@@ -375,19 +390,20 @@ function tryApplyUpdates(onBeforeHotUpdate, onHotUpdateSuccess) {
         const hasUpdates = Boolean(updatedModules.length)
         onBeforeHotUpdate(hasUpdates)
       }
+      // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
       return module.hot.apply()
     })
     .then(
-      (updatedModules) => {
+      (updatedModules: any) => {
         handleApplyUpdates(null, updatedModules)
       },
-      (err) => {
+      (err: any) => {
         handleApplyUpdates(err, null)
       }
     )
 }
 
-function performFullReload(err) {
+function performFullReload(err: any) {
   const stackTrace =
     err &&
     ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||

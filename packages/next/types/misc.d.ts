@@ -1,6 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
+declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
 declare module 'next/dist/compiled/react-dom/server.browser'

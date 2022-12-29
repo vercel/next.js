@@ -1,3 +1,5 @@
+// TODO: Remove use of `any` type. Fix no-use-before-define violations.
+/* eslint-disable @typescript-eslint/no-use-before-define */
 /*
 The MIT License (MIT)
 
@@ -25,8 +27,8 @@ import path from 'path'
 import fs from 'fs'
 
 const compose =
-  (f, g) =>
-  (...args) =>
+  (f: any, g: any) =>
+  (...args: any[]) =>
     f(g(...args))
 
 const simpleJoin = compose(path.normalize, path.join)
@@ -39,18 +41,18 @@ const simpleJoin = compose(path.normalize, path.join)
  * @type {function}
  */
 export const defaultJoin = createJoinForPredicate(function predicate(
-  _,
-  uri,
-  base,
-  i,
-  next
+  _: any,
+  uri: any,
+  base: any,
+  i: any,
+  next: any
 ) {
   const absolute = simpleJoin(base, uri)
   return fs.existsSync(absolute) ? absolute : next(i === 0 ? absolute : null)
 },
 'defaultJoin')
 
-function* createIterator(arr) {
+function* createIterator(arr: any) {
   for (const i of arr) {
     yield i
   }
@@ -76,17 +78,22 @@ function* createIterator(arr) {
  *
  * You can write a much simpler function than this if you have specific requirements.
  *
- * @param {function} predicate A function that tests values
- * @param {string} [name] Optional name for the resulting join function
  */
-function createJoinForPredicate(predicate, name) {
+function createJoinForPredicate(
+  /** predicate A function that tests values */
+  predicate: any,
+  /** Optional name for the resulting join function */
+  name: string
+) {
   /**
    * A factory for a join function with logging.
-   *
-   * @param {string} filename The current file being processed
-   * @param {{debug:function|boolean,root:string}} options An options hash
    */
-  function join(filename, options) {
+  function join(
+    /** The current file being processed */
+    filename: string,
+    /** An options hash */
+    options: { debug?: any | boolean; root: string }
+  ) {
     const log = createDebugLogger(options.debug)
 
     /**
@@ -94,11 +101,14 @@ function createJoinForPredicate(predicate, name) {
      *
      * For absolute uri only `uri` will be provided. In this case we substitute any `root` given in options.
      *
-     * @param {string} uri A uri path, relative or absolute
-     * @param {string|Iterator.<string>} [baseOrIteratorOrAbsent] Optional absolute base path or iterator thereof
-     * @return {string} Just the uri where base is empty or the uri appended to the base
+     * Returns Just the uri where base is empty or the uri appended to the base
      */
-    return function joinProper(uri, baseOrIteratorOrAbsent) {
+    return function joinProper(
+      /** A uri path, relative or absolute */
+      uri: string,
+      /** Optional absolute base path or iterator thereof */
+      baseOrIteratorOrAbsent: any
+    ) {
       const iterator =
         (typeof baseOrIteratorOrAbsent === 'undefined' &&
           createIterator([options.root])) ||
@@ -111,7 +121,7 @@ function createJoinForPredicate(predicate, name) {
 
       return typeof result.absolute === 'string' ? result.absolute : uri
 
-      function runIterator(accumulator) {
+      function runIterator(accumulator: any) {
         const nextItem = iterator.next()
         var base = !nextItem.done && nextItem.value
         if (typeof base === 'string') {
@@ -139,7 +149,7 @@ function createJoinForPredicate(predicate, name) {
           return accumulator
         }
 
-        function next(fallback) {
+        function next(fallback: any) {
           return runIterator(
             Object.assign(
               accumulator.concat(base),
@@ -166,14 +176,18 @@ function createJoinForPredicate(predicate, name) {
 
 /**
  * Format a debug message.
- *
- * @param {string} file The file being processed by webpack
- * @param {string} uri A uri path, relative or absolute
- * @param {Array.<string>} bases Absolute base paths up to and including the found one
- * @param {boolean} isFound Indicates the last base was correct
- * @return {string} Formatted message
+ * Return Formatted message
  */
-function createJoinMsg(file, uri, bases, isFound) {
+function createJoinMsg(
+  /** The file being processed by webpack */
+  file: string,
+  /**  A uri path, relative or absolute */
+  uri: string,
+  /** Absolute base paths up to and including the found one */
+  bases: string[],
+  /** Indicates the last base was correct */
+  isFound: boolean
+): string {
   return ['resolve-url-loader: ' + pathToString(file) + ': ' + uri]
     .concat(bases.map(pathToString).filter(Boolean))
     .concat(isFound ? 'FOUND' : 'NOT FOUND')
@@ -185,7 +199,7 @@ function createJoinMsg(file, uri, bases, isFound) {
    * @param {string} absolute An absolute path
    * @return {string} A relative or absolute path
    */
-  function pathToString(absolute) {
+  function pathToString(absolute: any) {
     if (!absolute) {
       return null
     } else {
@@ -211,17 +225,19 @@ exports.createJoinMsg = createJoinMsg
  * The log messages are de-duplicated based on the parameters, so it is assumed they are simple types that stringify
  * well.
  *
- * @param {function|boolean} debug A boolean or debug function
- * @return {function(function, array)} A logging function possibly degenerate
+ * Returns A logging function possibly degenerate
  */
-function createDebugLogger(debug) {
+function createDebugLogger(
+  /** A boolean or debug function */
+  debug: any | boolean
+): any {
   const log = !!debug && (typeof debug === 'function' ? debug : console.log)
-  const cache = {}
+  const cache: any = {}
   return log ? actuallyLog : noop
 
   function noop() {}
 
-  function actuallyLog(msgFn, params) {
+  function actuallyLog(msgFn: any, params: any) {
     const key = JSON.stringify(params)
     if (!cache[key]) {
       cache[key] = true

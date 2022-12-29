@@ -23,38 +23,41 @@ SOFTWARE.
 */
 
 import path from 'path'
-import fileProtocol from './file-protocol'
+import { prepend, remove } from './file-protocol'
 
 const ORPHAN_CR_REGEX = /\r(?!\n)(.|\n)?/g
 
-export default function process(postcss, sourceFile, sourceContent, params) {
+export default function process(
+  postcss: any,
+  sourceFile: any,
+  sourceContent: any,
+  params: any
+) {
   // #107 libsass emits orphan CR not considered newline, postcss does consider newline (content vs source-map mismatch)
 
   // prepend file protocol to all sources to avoid problems with source map
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   return postcss([postcss.plugin('postcss-resolve-url', postcssPlugin)])
     .process(sourceContent, {
-      from: fileProtocol.prepend(sourceFile),
+      from: prepend(sourceFile),
       map: params.outputSourceMap && {
-        prev:
-          !!params.inputSourceMap &&
-          fileProtocol.prepend(params.inputSourceMap),
+        prev: !!params.inputSourceMap && prepend(params.inputSourceMap),
         inline: false,
         annotation: false,
         sourcesContent: true, // #98 sourcesContent missing from output map
       },
     })
-    .then((result) => ({
+    .then((result: any) => ({
       content: result.css,
-      map: params.outputSourceMap
-        ? fileProtocol.remove(result.map.toJSON())
-        : null,
+      map: params.outputSourceMap ? remove(result.map.toJSON()) : null,
     }))
 
   /**
    * Plugin for postcss that follows SASS transpilation.
    */
   function postcssPlugin() {
-    return function (styles) {
+    return function (styles: any) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       styles.walkDecls(eachDeclaration)
     }
 
@@ -62,7 +65,7 @@ export default function process(postcss, sourceFile, sourceContent, params) {
      * Process a declaration from the syntax tree.
      * @param declaration
      */
-    function eachDeclaration(declaration) {
+    function eachDeclaration(declaration: any) {
       const isValid = declaration.value && declaration.value.indexOf('url') >= 0
       if (isValid) {
         // reverse the original source-map to find the original source file before transpilation
@@ -75,7 +78,7 @@ export default function process(postcss, sourceFile, sourceContent, params) {
         const directory =
           startPosOriginal &&
           startPosOriginal.source &&
-          fileProtocol.remove(path.dirname(startPosOriginal.source))
+          remove(path.dirname(startPosOriginal.source))
         if (directory) {
           declaration.value = params.transformDeclaration(
             declaration.value,

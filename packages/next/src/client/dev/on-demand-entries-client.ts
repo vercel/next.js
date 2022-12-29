@@ -1,7 +1,7 @@
 import Router from 'next/router'
 import { addMessageListener, sendMessage } from './error-overlay/websocket'
 
-export default async (page) => {
+export default async (page?: string) => {
   if (page) {
     // in AMP the router isn't initialized on the client and
     // client-transitions don't occur so ping initial page

@@ -25,7 +25,7 @@ SOFTWARE.
 import loaderUtils from 'next/dist/compiled/loader-utils2'
 import path from 'path'
 
-function valueProcessor(filename, options) {
+function valueProcessor(filename: any, options: any) {
   const URL_STATEMENT_REGEX =
     /(url\s*\()\s*(?:(['"])((?:(?!\2).)*)(\2)|([^'"](?:(?!\)).)*[^'"]))\s*(\))/g
   const directory = path.dirname(filename)
@@ -34,17 +34,20 @@ function valueProcessor(filename, options) {
   /**
    * Process the given CSS declaration value.
    *
-   * @param {string} value A declaration value that may or may not contain a url() statement
-   * @param {string|Iterator.<string>} candidate An absolute path that may be the correct base or an Iterator thereof
    */
-  return function transformValue(value, candidate) {
+  return function transformValue(
+    /** A declaration value that may or may not contain a url() statement */
+    value: string,
+    /** An absolute path that may be the correct base or an Iterator thereof */
+    candidate: any
+  ) {
     // allow multiple url() values in the declaration
     //  split by url statements and process the content
     //  additional capture groups are needed to match quotations correctly
     //  escaped quotations are not considered
     return value
       .split(URL_STATEMENT_REGEX)
-      .map((token, i, arr) => {
+      .map((token: any, i: any, arr: any) => {
         // we can get groups as undefined under certain match circumstances
         const initialised = token || ''
 
@@ -63,7 +66,9 @@ function valueProcessor(filename, options) {
           const split = unescaped.split(/([?#])/g),
             uri = split[0],
             absolute =
+              // eslint-disable-next-line @typescript-eslint/no-use-before-define
               (testIsRelative(uri) && join(uri, candidate)) ||
+              // eslint-disable-next-line @typescript-eslint/no-use-before-define
               (testIsAbsolute(uri) && join(uri)),
             query = options.keepQuery ? split.slice(1).join('') : ''
 
@@ -93,10 +98,12 @@ function valueProcessor(filename, options) {
    *
    * We also eliminate module relative (~) paths.
    *
-   * @param {string|undefined} uri A uri string possibly empty or undefined
-   * @return {boolean} True for relative uri
+   * Returns true for relative uri
    */
-  function testIsRelative(uri) {
+  function testIsRelative(
+    /** A uri string possibly empty or undefined */
+    uri?: string
+  ): boolean {
     return (
       !!uri &&
       loaderUtils.isUrlRequest(uri, false) &&
@@ -109,10 +116,12 @@ function valueProcessor(filename, options) {
    * The loaderUtils.isUrlRequest() doesn't support windows absolute paths on principle. We do not subscribe to that
    * dogma so we add path.isAbsolute() check to allow them.
    *
-   * @param {string|undefined} uri A uri string possibly empty or undefined
-   * @return {boolean} True for absolute uri
+   * Returns true for absolute uri
    */
-  function testIsAbsolute(uri) {
+  function testIsAbsolute(
+    /** A uri string possibly empty or undefined */
+    uri?: string
+  ) {
     return (
       !!uri &&
       typeof options.root === 'string' &&
@@ -122,4 +131,4 @@ function valueProcessor(filename, options) {
   }
 }
 
-module.exports = valueProcessor
+export default valueProcessor
