@@ -83,6 +83,7 @@ ${esModule ? 'export default {}' : ''}`
 if (module.hot) {
   if (!content.locals || module.hot.invalidate) {
     var isEqualLocals = ${require('./runtime/isEqualLocals').toString()};
+    console.log({isEqualLocals})
     var oldLocals = content.locals;
 
     module.hot.accept(
@@ -193,7 +194,7 @@ ${esModule ? 'export default' : 'module.exports ='} exported;`
           ? `
 if (module.hot) {
   if (!content.locals || module.hot.invalidate) {
-    var isEqualLocals = ${isEqualLocals.toString()};
+    var isEqualLocals = ${require('./runtime/isEqualLocals').toString()};
     var oldLocals = content.locals;
 
     module.hot.accept(
