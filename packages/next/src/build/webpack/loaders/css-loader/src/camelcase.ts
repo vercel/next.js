@@ -10,7 +10,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-const preserveCamelCase = (string, locale) => {
+const preserveCamelCase = (string: string, locale: string) => {
   let isLastCharLower = false
   let isLastCharUpper = false
   let isLastLastCharUpper = false
@@ -47,11 +47,11 @@ const preserveCamelCase = (string, locale) => {
   return string
 }
 
-const preserveConsecutiveUppercase = (input) => {
+const preserveConsecutiveUppercase = (input: string) => {
   return input.replace(/^[\p{Lu}](?![\p{Lu}])/gu, (m1) => m1.toLowerCase())
 }
 
-const postProcess = (input, options) => {
+const postProcess = (input: string, options: { locale: string }) => {
   return input
     .replace(/[_.\- ]+([\p{Alpha}\p{N}_]|$)/gu, (_, p1) =>
       p1.toLocaleUpperCase(options.locale)
@@ -61,7 +61,7 @@ const postProcess = (input, options) => {
     )
 }
 
-const camelCase = (input, options) => {
+const camelCase = (input: string | string[], options?: any) => {
   if (!(typeof input === 'string' || Array.isArray(input))) {
     throw new TypeError('Expected the input to be `string | string[]`')
   }

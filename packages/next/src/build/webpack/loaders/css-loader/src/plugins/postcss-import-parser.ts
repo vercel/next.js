@@ -5,10 +5,11 @@ import {
   resolveRequests,
   isUrlRequestable,
   requestify,
+  // @ts-expect-error TODO: this export doesn't exist? Double check.
   WEBPACK_IGNORE_COMMENT_REGEXP,
 } from '../utils'
 
-function parseNode(atRule, key) {
+function parseNode(atRule: any, key: any) {
   // Convert only top-level @import
   if (atRule.parent.type !== 'root') {
     return
@@ -41,7 +42,7 @@ function parseNode(atRule, key) {
 
   // Nodes do not exists - `@import url('http://') :root {}`
   if (atRule.nodes) {
-    const error = new Error(
+    const error: any = new Error(
       "It looks like you didn't end your @import statement correctly. Child nodes are attached to it."
     )
 
@@ -58,7 +59,7 @@ function parseNode(atRule, key) {
     paramsNodes.length === 0 ||
     (paramsNodes[0].type !== 'string' && paramsNodes[0].type !== 'function')
   ) {
-    const error = new Error(`Unable to find uri in "${atRule.toString()}"`)
+    const error: any = new Error(`Unable to find uri in "${atRule.toString()}"`)
 
     error.node = atRule
 
@@ -66,7 +67,7 @@ function parseNode(atRule, key) {
   }
 
   let isStringValue
-  let url
+  let url: any
 
   if (paramsNodes[0].type === 'string') {
     isStringValue = true
@@ -74,7 +75,9 @@ function parseNode(atRule, key) {
   } else {
     // Invalid function - `@import nourl(test.css);`
     if (paramsNodes[0].value.toLowerCase() !== 'url') {
-      const error = new Error(`Unable to find uri in "${atRule.toString()}"`)
+      const error: any = new Error(
+        `Unable to find uri in "${atRule.toString()}"`
+      )
 
       error.node = atRule
 
@@ -105,7 +108,7 @@ function parseNode(atRule, key) {
 
   // Empty url - `@import "";` or `@import url();`
   if (url.trim().length === 0) {
-    const error = new Error(`Unable to find uri in "${atRule.toString()}"`)
+    const error: any = new Error(`Unable to find uri in "${atRule.toString()}"`)
 
     error.node = atRule
 
@@ -123,20 +126,21 @@ function parseNode(atRule, key) {
   return { atRule, prefix, url, media, isRequestable }
 }
 
-const plugin = (options = {}) => {
+const plugin = (options: any = {}) => {
   return {
     postcssPlugin: 'postcss-import-parser',
-    prepare(result) {
-      const parsedAtRules = []
+    prepare(result: any) {
+      const parsedAtRules: any[] = []
 
       return {
         AtRule: {
-          import(atRule) {
+          import(atRule: any) {
             let parsedAtRule
 
             try {
+              // @ts-expect-error TODO: there is no third argument?
               parsedAtRule = parseNode(atRule, 'params', result)
-            } catch (error) {
+            } catch (error: any) {
               result.warn(error.message, { node: error.node })
             }
 

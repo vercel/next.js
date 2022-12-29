@@ -6,6 +6,7 @@ import {
   requestify,
   isUrlRequestable,
   isDataUrl,
+  // @ts-expect-error TODO: this export doesn't exist? Double check.
   WEBPACK_IGNORE_COMMENT_REGEXP,
 } from '../utils'
 
@@ -13,11 +14,11 @@ const isUrlFunc = /url/i
 const isImageSetFunc = /^(?:-webkit-)?image-set$/i
 const needParseDeclaration = /(?:url|(?:-webkit-)?image-set)\(/i
 
-function getNodeFromUrlFunc(node) {
+function getNodeFromUrlFunc(node: any) {
   return node.nodes && node.nodes[0]
 }
 
-function getWebpackIgnoreCommentValue(index, nodes, inBetween) {
+function getWebpackIgnoreCommentValue(index: any, nodes: any, inBetween?: any) {
   if (index === 0 && typeof inBetween !== 'undefined') {
     return inBetween
   }
@@ -48,7 +49,12 @@ function getWebpackIgnoreCommentValue(index, nodes, inBetween) {
   return matched && matched[2] === 'true'
 }
 
-function shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL) {
+function shouldHandleURL(
+  url: any,
+  declaration: any,
+  result: any,
+  isSupportDataURLInNewURL: any
+) {
   if (url.length === 0) {
     result.warn(`Unable to find uri in '${declaration.toString()}'`, {
       node: declaration,
@@ -74,7 +80,12 @@ function shouldHandleURL(url, declaration, result, isSupportDataURLInNewURL) {
   return true
 }
 
-function parseDeclaration(declaration, key, result, isSupportDataURLInNewURL) {
+function parseDeclaration(
+  declaration: any,
+  key: any,
+  result: any,
+  isSupportDataURLInNewURL: any
+) {
   if (!needParseDeclaration.test(declaration[key])) {
     return
   }
@@ -85,7 +96,7 @@ function parseDeclaration(declaration, key, result, isSupportDataURLInNewURL) {
       : declaration[key]
   )
 
-  let inBetween
+  let inBetween: any
 
   if (declaration.raws && declaration.raws.between) {
     const lastCommentIndex = declaration.raws.between.lastIndexOf('/*')
@@ -113,9 +124,9 @@ function parseDeclaration(declaration, key, result, isSupportDataURLInNewURL) {
 
   let needIgnore
 
-  const parsedURLs = []
+  const parsedURLs: any[] = []
 
-  parsed.walk((valueNode, index, valueNodes) => {
+  parsed.walk((valueNode: any, index: any, valueNodes: any) => {
     if (valueNode.type !== 'function') {
       return
     }
@@ -248,7 +259,7 @@ function parseDeclaration(declaration, key, result, isSupportDataURLInNewURL) {
           let prefix
 
           if (queryParts.length > 1) {
-            url = queryParts.pop()
+            url = queryParts.pop()!
             prefix = queryParts.join('!')
           }
 
@@ -273,14 +284,14 @@ function parseDeclaration(declaration, key, result, isSupportDataURLInNewURL) {
   return parsedURLs
 }
 
-const plugin = (options = {}) => {
+const plugin = (options: any = {}) => {
   return {
     postcssPlugin: 'postcss-url-parser',
-    prepare(result) {
-      const parsedDeclarations = []
+    prepare(result: any) {
+      const parsedDeclarations: any[] = []
 
       return {
-        Declaration(declaration) {
+        Declaration(declaration: any) {
           const { isSupportDataURLInNewURL } = options
           const parsedURL = parseDeclaration(
             declaration,
@@ -328,6 +339,7 @@ const plugin = (options = {}) => {
               const request = requestify(
                 pathname,
                 rootContext,
+                // @ts-expect-error TODO: only 2 arguments allowed.
                 needToResolveURL
               )
 

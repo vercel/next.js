@@ -8,7 +8,7 @@ import { stringifyRequest } from '../../../stringify-request'
 
 const moduleRegExp = /\.module\.\w+$/i
 
-function getModulesOptions(rawOptions, loaderContext) {
+function getModulesOptions(rawOptions: any, loaderContext: any) {
   const { resourcePath } = loaderContext
 
   if (typeof rawOptions.modules === 'undefined') {
@@ -24,7 +24,7 @@ function getModulesOptions(rawOptions, loaderContext) {
     return false
   }
 
-  let modulesOptions = {
+  let modulesOptions: any = {
     compileType: rawOptions.icss ? 'icss' : 'module',
     auto: true,
     mode: 'local',
@@ -100,7 +100,7 @@ function getModulesOptions(rawOptions, loaderContext) {
   return modulesOptions
 }
 
-function normalizeOptions(rawOptions, loaderContext) {
+function normalizeOptions(rawOptions: any, loaderContext: any) {
   if (rawOptions.icss) {
     loaderContext.emitWarning(
       new Error(
@@ -131,17 +131,22 @@ function normalizeOptions(rawOptions, loaderContext) {
   }
 }
 
-export default async function loader(content, map, meta) {
+export default async function loader(
+  this: any,
+  content: string,
+  map: any,
+  meta: any
+) {
   const rawOptions = this.getOptions()
 
-  const plugins = []
+  const plugins: any[] = []
   const callback = this.async()
 
   const loaderSpan = this.currentTraceSpan.traceChild('css-loader')
 
   loaderSpan
     .traceAsyncFn(async () => {
-      let options
+      let options: any
 
       try {
         options = normalizeOptions(rawOptions, this)
@@ -168,7 +173,7 @@ export default async function loader(content, map, meta) {
 
       const { icssParser, importParser, urlParser } = require('./plugins')
 
-      const replacements = []
+      const replacements: any[] = []
       // if it's a font loader next-font-loader will have exports that should be exported as is
       const exports = options.fontLoader ? meta.exports : []
 
@@ -176,8 +181,8 @@ export default async function loader(content, map, meta) {
         plugins.push(...getModulesPlugins(options, this, meta))
       }
 
-      const importPluginImports = []
-      const importPluginApi = []
+      const importPluginImports: any[] = []
+      const importPluginApi: any[] = []
 
       if (shouldUseImportPlugin(options)) {
         const resolver = this.getResolve({
@@ -196,7 +201,7 @@ export default async function loader(content, map, meta) {
             rootContext: this.rootContext,
             filter: getFilter(options.import, this.resourcePath),
             resolver,
-            urlHandler: (url) =>
+            urlHandler: (url: any) =>
               stringifyRequest(
                 this,
                 getPreRequester(this)(options.importLoaders) + url
@@ -205,7 +210,7 @@ export default async function loader(content, map, meta) {
         )
       }
 
-      const urlPluginImports = []
+      const urlPluginImports: any[] = []
 
       if (shouldUseURLPlugin(options)) {
         const urlResolver = this.getResolve({
@@ -223,13 +228,13 @@ export default async function loader(content, map, meta) {
             rootContext: this.rootContext,
             filter: getFilter(options.url, this.resourcePath),
             resolver: urlResolver,
-            urlHandler: (url) => stringifyRequest(this, url),
+            urlHandler: (url: string) => stringifyRequest(this, url),
           })
         )
       }
 
-      const icssPluginImports = []
-      const icssPluginApi = []
+      const icssPluginImports: any[] = []
+      const icssPluginApi: any[] = []
 
       if (shouldUseIcssPlugin(options)) {
         const icssResolver = this.getResolve({
@@ -248,7 +253,7 @@ export default async function loader(content, map, meta) {
             context: this.context,
             rootContext: this.rootContext,
             resolver: icssResolver,
-            urlHandler: (url) =>
+            urlHandler: (url: string) =>
               stringifyRequest(
                 this,
                 getPreRequester(this)(options.importLoaders) + url
@@ -284,7 +289,7 @@ export default async function loader(content, map, meta) {
               }
             : false,
         })
-      } catch (error) {
+      } catch (error: any) {
         if (error.file) {
           this.addDependency(error.file)
         }
@@ -298,13 +303,13 @@ export default async function loader(content, map, meta) {
         this.emitWarning(new Warning(warning))
       }
 
-      const imports = []
-        .concat(icssPluginImports.sort(sort))
-        .concat(importPluginImports.sort(sort))
-        .concat(urlPluginImports.sort(sort))
-      const api = []
-        .concat(importPluginApi.sort(sort))
-        .concat(icssPluginApi.sort(sort))
+      const imports = [
+        ...icssPluginImports.sort(sort),
+        ...importPluginImports.sort(sort),
+        ...urlPluginImports.sort(sort),
+      ]
+
+      const api = [...importPluginApi.sort(sort), ...icssPluginApi.sort(sort)]
 
       if (options.modules.exportOnlyLocals !== true) {
         imports.unshift({
@@ -320,10 +325,10 @@ export default async function loader(content, map, meta) {
       return `${importCode}${moduleCode}${exportCode}`
     })
     .then(
-      (code) => {
+      (code: string) => {
         callback(null, code)
       },
-      (err) => {
+      (err: Error) => {
         callback(err)
       }
     )

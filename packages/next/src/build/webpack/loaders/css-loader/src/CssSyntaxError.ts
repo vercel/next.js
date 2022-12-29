@@ -1,5 +1,6 @@
 export default class CssSyntaxError extends Error {
-  constructor(error) {
+  stack: any
+  constructor(error: any) {
     super(error)
 
     const { reason, line, column } = error

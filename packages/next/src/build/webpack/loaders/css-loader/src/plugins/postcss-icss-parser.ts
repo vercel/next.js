@@ -6,10 +6,10 @@ import {
 
 import { normalizeUrl, resolveRequests, requestify } from '../utils'
 
-const plugin = (options = {}) => {
+const plugin = (options: any = {}) => {
   return {
     postcssPlugin: 'postcss-icss-parser',
-    async OnceExit(root) {
+    async OnceExit(root: any) {
       const importReplacements = Object.create(null)
       const { icssImports, icssExports } = extractICSS(root)
       const imports = new Map()
@@ -30,7 +30,7 @@ const plugin = (options = {}) => {
         const queryParts = normalizedUrl.split('!')
 
         if (queryParts.length > 1) {
-          normalizedUrl = queryParts.pop()
+          normalizedUrl = queryParts.pop()!
           prefix = queryParts.join('!')
         }
 

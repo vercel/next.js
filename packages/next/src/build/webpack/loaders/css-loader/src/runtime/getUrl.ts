@@ -1,4 +1,4 @@
-module.exports = function (url, options) {
+module.exports = function (url: any, options: any) {
   if (!options) {
     // eslint-disable-next-line no-param-reassign
     options = {}

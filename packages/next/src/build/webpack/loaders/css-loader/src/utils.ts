@@ -19,9 +19,9 @@ const unescapeRegExp = new RegExp(
 )
 const matchNativeWin32Path = /^[A-Z]:[/\\]|^\\\\/i
 
-function unescape(str) {
+function unescape(str: string) {
   return str.replace(unescapeRegExp, (_, escaped, escapedWhitespace) => {
-    const high = `0x${escaped}` - 0x10000
+    const high = (`0x${escaped}` as any) - 0x10000
 
     /* eslint-disable line-comment-position */
     // NaN means non-codepoint
@@ -39,15 +39,15 @@ function unescape(str) {
   })
 }
 
-function normalizePath(file) {
+function normalizePath(file: string) {
   return path.sep === '\\' ? file.replace(/\\/g, '/') : file
 }
 
-function fixedEncodeURIComponent(str) {
+function fixedEncodeURIComponent(str: string) {
   return str.replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16)}`)
 }
 
-function normalizeUrl(url, isStringValue) {
+function normalizeUrl(url: string, isStringValue: boolean) {
   let normalizedUrl = url
 
   if (isStringValue && /\\(\n|\r\n|\r|\f)/.test(normalizedUrl)) {
@@ -66,6 +66,7 @@ function normalizeUrl(url, isStringValue) {
 
   normalizedUrl = unescape(normalizedUrl)
 
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   if (isDataUrl(url)) {
     return fixedEncodeURIComponent(normalizedUrl)
   }
@@ -79,7 +80,7 @@ function normalizeUrl(url, isStringValue) {
   return normalizedUrl
 }
 
-function requestify(url, rootContext) {
+function requestify(url: string, rootContext: string) {
   if (/^file:/i.test(url)) {
     return fileURLToPath(url)
   }
@@ -93,8 +94,8 @@ function requestify(url, rootContext) {
     : urlToRequest(url)
 }
 
-function getFilter(filter, resourcePath) {
-  return (...args) => {
+function getFilter(filter: any, resourcePath: string) {
+  return (...args: any[]) => {
     if (typeof filter === 'function') {
       return filter(...args, resourcePath)
     }
@@ -103,7 +104,7 @@ function getFilter(filter, resourcePath) {
   }
 }
 
-function shouldUseImportPlugin(options) {
+function shouldUseImportPlugin(options: any) {
   if (options.modules.exportOnlyLocals) {
     return false
   }
@@ -115,7 +116,7 @@ function shouldUseImportPlugin(options) {
   return true
 }
 
-function shouldUseURLPlugin(options) {
+function shouldUseURLPlugin(options: any) {
   if (options.modules.exportOnlyLocals) {
     return false
   }
@@ -127,15 +128,15 @@ function shouldUseURLPlugin(options) {
   return true
 }
 
-function shouldUseModulesPlugins(options) {
+function shouldUseModulesPlugins(options: any) {
   return options.modules.compileType === 'module'
 }
 
-function shouldUseIcssPlugin(options) {
+function shouldUseIcssPlugin(options: any) {
   return options.icss === true || Boolean(options.modules)
 }
 
-function getModulesPlugins(options, loaderContext, meta) {
+function getModulesPlugins(options: any, loaderContext: any, meta: any) {
   const {
     mode,
     getLocalIdent,
@@ -145,7 +146,7 @@ function getModulesPlugins(options, loaderContext, meta) {
     localIdentRegExp,
   } = options.modules
 
-  let plugins = []
+  let plugins: any[] = []
 
   try {
     plugins = [
@@ -153,7 +154,7 @@ function getModulesPlugins(options, loaderContext, meta) {
       localByDefault({ mode }),
       extractImports(),
       modulesScope({
-        generateScopedName(exportName) {
+        generateScopedName(exportName: any) {
           return getLocalIdent(
             loaderContext,
             localIdentName,
@@ -179,7 +180,7 @@ function getModulesPlugins(options, loaderContext, meta) {
 const IS_NATIVE_WIN32_PATH = /^[a-z]:[/\\]|^\\\\/i
 const ABSOLUTE_SCHEME = /^[a-z0-9+\-.]+:/i
 
-function getURLType(source) {
+function getURLType(source: string) {
   if (source[0] === '/') {
     if (source[1] === '/') {
       return 'scheme-relative'
@@ -195,7 +196,7 @@ function getURLType(source) {
   return ABSOLUTE_SCHEME.test(source) ? 'absolute' : 'path-relative'
 }
 
-function normalizeSourceMap(map, resourcePath) {
+function normalizeSourceMap(map: any, resourcePath: string) {
   let newMap = map
 
   // Some loader emit source map as string
@@ -213,7 +214,7 @@ function normalizeSourceMap(map, resourcePath) {
   if (newMap.sources) {
     // Source maps should use forward slash because it is URLs (https://github.com/mozilla/source-map/issues/91)
     // We should normalize path because previous loaders like `sass-loader` using backslash when generate source map
-    newMap.sources = newMap.sources.map((source) => {
+    newMap.sources = newMap.sources.map((source: string) => {
       // Non-standard syntax from `postcss`
       if (source.indexOf('<') === 0) {
         return source
@@ -238,10 +239,10 @@ function normalizeSourceMap(map, resourcePath) {
   return newMap
 }
 
-function getPreRequester({ loaders, loaderIndex }) {
+function getPreRequester({ loaders, loaderIndex }: any) {
   const cache = Object.create(null)
 
-  return (number) => {
+  return (number: any) => {
     if (cache[number]) {
       return cache[number]
     }
@@ -254,7 +255,7 @@ function getPreRequester({ loaders, loaderIndex }) {
           loaderIndex,
           loaderIndex + 1 + (typeof number !== 'number' ? 0 : number)
         )
-        .map((x) => x.request)
+        .map((x: any) => x.request)
         .join('!')
 
       cache[number] = `-!${loadersRequest}!`
@@ -264,7 +265,7 @@ function getPreRequester({ loaders, loaderIndex }) {
   }
 }
 
-function getImportCode(imports, options) {
+function getImportCode(imports: any, options: any) {
   let code = ''
 
   for (const item of imports) {
@@ -286,7 +287,7 @@ function getImportCode(imports, options) {
   return code ? `// Imports\n${code}` : ''
 }
 
-function normalizeSourceMapForRuntime(map, loaderContext) {
+function normalizeSourceMapForRuntime(map: any, loaderContext: any) {
   const resultMap = map ? map.toJSON() : null
 
   if (resultMap) {
@@ -294,7 +295,7 @@ function normalizeSourceMapForRuntime(map, loaderContext) {
 
     resultMap.sourceRoot = ''
 
-    resultMap.sources = resultMap.sources.map((source) => {
+    resultMap.sources = resultMap.sources.map((source: string) => {
       // Non-standard syntax from `postcss`
       if (source.indexOf('<') === 0) {
         return source
@@ -319,7 +320,16 @@ function normalizeSourceMapForRuntime(map, loaderContext) {
   return JSON.stringify(resultMap)
 }
 
-function getModuleCode(result, api, replacements, options, loaderContext) {
+function getModuleCode(
+  result: { map: any; css: any },
+  api: any,
+  replacements: any,
+  options: {
+    modules: { exportOnlyLocals: boolean; namedExport: any }
+    sourceMap: any
+  },
+  loaderContext: any
+) {
   if (options.modules.exportOnlyLocals === true) {
     return ''
   }
@@ -356,9 +366,10 @@ function getModuleCode(result, api, replacements, options, loaderContext) {
       )
     } else {
       const { hash, needQuotes } = item
-      const getUrlOptions = []
-        .concat(hash ? [`hash: ${JSON.stringify(hash)}`] : [])
-        .concat(needQuotes ? 'needQuotes: true' : [])
+      const getUrlOptions = [
+        ...(hash ? [`hash: ${JSON.stringify(hash)}`] : []),
+        ...(needQuotes ? 'needQuotes: true' : []),
+      ]
       const preparedOptions =
         getUrlOptions.length > 0 ? `, { ${getUrlOptions.join(', ')} }` : ''
 
@@ -373,17 +384,28 @@ function getModuleCode(result, api, replacements, options, loaderContext) {
   return `${beforeCode}// Module\n___CSS_LOADER_EXPORT___.push([module.id, ${code}, ""${sourceMapValue}]);\n`
 }
 
-function dashesCamelCase(str) {
-  return str.replace(/-+(\w)/g, (match, firstLetter) =>
+function dashesCamelCase(str: string) {
+  return str.replace(/-+(\w)/g, (_match: any, firstLetter: string) =>
     firstLetter.toUpperCase()
   )
 }
 
-function getExportCode(exports, replacements, options) {
+function getExportCode(
+  exports: any,
+  replacements: any,
+  options: {
+    modules: {
+      namedExport: any
+      exportLocalsConvention: any
+      exportOnlyLocals: any
+    }
+    esModule: any
+  }
+) {
   let code = '// Exports\n'
   let localsCode = ''
 
-  const addExportToLocalsCode = (name, value) => {
+  const addExportToLocalsCode = (name: string, value: any) => {
     if (options.modules.namedExport) {
       localsCode += `export const ${camelCase(name)} = ${JSON.stringify(
         value
@@ -482,12 +504,16 @@ function getExportCode(exports, replacements, options) {
   return code
 }
 
-async function resolveRequests(resolve, context, possibleRequests) {
+async function resolveRequests(
+  resolve: (arg0: any, arg1: any) => Promise<any>,
+  context: any,
+  possibleRequests: any[]
+): Promise<any> {
   return resolve(context, possibleRequests[0])
-    .then((result) => {
+    .then((result: any) => {
       return result
     })
-    .catch((error) => {
+    .catch((error: any) => {
       const [, ...tailPossibleRequests] = possibleRequests
 
       if (tailPossibleRequests.length === 0) {
@@ -498,7 +524,7 @@ async function resolveRequests(resolve, context, possibleRequests) {
     })
 }
 
-function isUrlRequestable(url) {
+function isUrlRequestable(url: string) {
   // Protocol-relative URLs
   if (/^\/\//.test(url)) {
     return false
@@ -522,11 +548,11 @@ function isUrlRequestable(url) {
   return true
 }
 
-function sort(a, b) {
+function sort(a: { index: number }, b: { index: number }) {
   return a.index - b.index
 }
 
-function isDataUrl(url) {
+function isDataUrl(url: string) {
   if (/^data:/i.test(url)) {
     return true
   }

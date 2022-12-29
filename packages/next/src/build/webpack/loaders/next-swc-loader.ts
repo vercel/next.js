@@ -30,7 +30,12 @@ import { isWasm, transform } from '../../swc'
 import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
 
-async function loaderTransform(parentTrace, source, inputSourceMap) {
+async function loaderTransform(
+  this: any,
+  parentTrace: any,
+  source?: string,
+  inputSourceMap?: any
+) {
   // Make the loader async
   const filename = this.resourcePath
 
@@ -103,7 +108,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 
   const swcSpan = parentTrace.traceChild('next-swc-transform')
   return swcSpan.traceAsyncFn(() =>
-    transform(source, programmaticOptions).then((output) => {
+    transform(source as any, programmaticOptions).then((output) => {
       if (output.eliminatedPackages && this.eliminatedPackages) {
         for (const pkg of JSON.parse(output.eliminatedPackages)) {
           this.eliminatedPackages.add(pkg)
@@ -117,7 +122,7 @@ async function loaderTransform(parentTrace, source, inputSourceMap) {
 const EXCLUDED_PATHS =
   /[\\/](cache[\\/][^\\/]+\.zip[\\/]node_modules|__virtual__)[\\/]/g
 
-export function pitch() {
+export function pitch(this: any) {
   const callback = this.async()
   ;(async () => {
     let loaderOptions = this.getOptions() || {}
@@ -142,7 +147,11 @@ export function pitch() {
   }, callback)
 }
 
-export default function swcLoader(inputSource, inputSourceMap) {
+export default function swcLoader(
+  this: any,
+  inputSource: string,
+  inputSourceMap: any
+) {
   const loaderSpan = this.currentTraceSpan.traceChild('next-swc-loader')
   const callback = this.async()
   loaderSpan
@@ -150,10 +159,10 @@ export default function swcLoader(inputSource, inputSourceMap) {
       loaderTransform.call(this, loaderSpan, inputSource, inputSourceMap)
     )
     .then(
-      ([transformedSource, outputSourceMap]) => {
+      ([transformedSource, outputSourceMap]: any) => {
         callback(null, transformedSource, outputSourceMap || inputSourceMap)
       },
-      (err) => {
+      (err: Error) => {
         callback(err)
       }
     )
