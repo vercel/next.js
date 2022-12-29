@@ -33,7 +33,9 @@ To begin using Middleware, follow the steps below:
 npm install next@latest
 ```
 
-2. Create a `middleware.ts` (or `.js`) file at the root or in the `src` directory (same level as your `pages`)
+2. Create a `middleware.ts` (or `.js`) file at the root or in the `src` directory (same level as your `pages`). 
+> **Note:** if you are using a custom `pageExtensions` in `next.config.js` (e.g. `page.ts`) you will need to conform the middleware file name to contain the page extension (e.g. `middleware.page.ts`).
+
 3. Export a middleware function from the `middleware.ts` file:
 
 ```typescript
