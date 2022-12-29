@@ -55,10 +55,10 @@ export function connectHMR(options: {
       setTimeout(init, options.timeout)
     }
     timer = setInterval(function () {
-      if (Date.now() - lastActivity > options.timeout) {
+      if (Date.now() - lastActivity > (options.timeout as any)) {
         handleDisconnect()
       }
-    }, options.timeout / 2)
+    }, (options.timeout as any) / 2)
 
     const { hostname, port } = location
     const protocol = getSocketProtocol(options.assetPrefix || '')

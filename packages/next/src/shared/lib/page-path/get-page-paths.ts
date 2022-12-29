@@ -1,6 +1,6 @@
 import { denormalizePagePath } from './denormalize-page-path'
 import { flatten } from '../flatten'
-import { join } from '../isomorphic/path'
+import path from '../isomorphic/path'
 
 /**
  * Calculate all possible pagePaths for a given normalized pagePath along with
@@ -23,7 +23,7 @@ export function getPagePaths(
   return flatten(
     extensions.map((extension) => {
       const appPage = `${page}.${extension}`
-      const folderIndexPage = join(page, `index.${extension}`)
+      const folderIndexPage = path.join(page, `index.${extension}`)
 
       if (!normalizedPagePath.endsWith('/index')) {
         return isAppDir ? [appPage] : [`${page}.${extension}`, folderIndexPage]

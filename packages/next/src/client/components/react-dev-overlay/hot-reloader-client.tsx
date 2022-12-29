@@ -70,7 +70,6 @@ function isUpdateAvailable() {
   /* globals __webpack_hash__ */
   // __webpack_hash__ is the hash of the current compilation.
   // It's a global variable injected by Webpack.
-  // @ts-expect-error __webpack_hash__ exists
   return mostRecentCompilationHash !== __webpack_hash__
 }
 

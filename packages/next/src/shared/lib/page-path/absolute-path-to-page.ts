@@ -1,6 +1,6 @@
 import { ensureLeadingSlash } from './ensure-leading-slash'
 import { normalizePathSep } from './normalize-path-sep'
-import { relative } from '../isomorphic/path'
+import path from '../isomorphic/path'
 import { removePagePathTail } from './remove-page-path-tail'
 
 /**
@@ -23,7 +23,9 @@ export function absolutePathToPage(
   }
 ) {
   return removePagePathTail(
-    normalizePathSep(ensureLeadingSlash(relative(options.pagesDir, pagePath))),
+    normalizePathSep(
+      ensureLeadingSlash(path.relative(options.pagesDir, pagePath))
+    ),
     {
       extensions: options.extensions,
       keepIndex: options.keepIndex,

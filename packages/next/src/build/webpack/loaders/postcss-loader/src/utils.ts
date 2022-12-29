@@ -55,7 +55,7 @@ function normalizeSourceMap(map: any, resourceContext: string) {
   return newMap
 }
 
-function normalizeSourceMapAfterPostcss(map, resourceContext) {
+function normalizeSourceMapAfterPostcss(map: any, resourceContext: string) {
   const newMap = map
 
   // result.map.file is an optional property that provides the output filename.
@@ -67,7 +67,7 @@ function normalizeSourceMapAfterPostcss(map, resourceContext) {
   newMap.sourceRoot = ''
 
   // eslint-disable-next-line no-param-reassign
-  newMap.sources = newMap.sources.map((source) => {
+  newMap.sources = newMap.sources.map((source: string) => {
     if (source.indexOf('<') === 0) {
       return source
     }

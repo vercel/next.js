@@ -15,7 +15,7 @@ const isOldIE = (function isOldIE() {
   }
 })()
 
-const getTarget = (function () {
+const getTargetElement = (function () {
   const memo: any = {}
 
   return function memorize(target: any) {
@@ -117,7 +117,7 @@ function insertStyleElement(options: any) {
   if (typeof options.insert === 'function') {
     options.insert(style)
   } else {
-    const target = getTarget(options.insert || 'head')
+    const target = getTargetElement(options.insert || 'head')
 
     if (!target) {
       throw new Error(

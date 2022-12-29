@@ -258,7 +258,7 @@ Loadable.preloadAll = () => {
   })
 }
 
-Loadable.preloadReady = (ids = []): Promise<void> => {
+Loadable.preloadReady = (ids?: (string | number)[]): Promise<void> => {
   return new Promise<void>((resolvePreload) => {
     const res = () => {
       initialized = true
@@ -271,7 +271,7 @@ Loadable.preloadReady = (ids = []): Promise<void> => {
 
 declare global {
   interface Window {
-    __NEXT_PRELOADREADY?: any
+    __NEXT_PRELOADREADY?: (ids?: (string | number)[]) => Promise<void>
   }
 }
 
