@@ -8,7 +8,8 @@ import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc } from '../../lib/download-wasm-swc'
-import { version as nextVersion } from 'next/package.json'
+
+const nextVersion = process.env.__NEXT_VERSION
 
 const ArchName = arch()
 const PlatformName = platform()

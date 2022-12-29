@@ -26,7 +26,7 @@ export function getNextFontError(
 
       // eslint-disable-next-line import/no-extraneous-dependencies
       const nextFontVersion = require('@next/font/package.json').version
-      const nextVersion = require('next/package.json').version
+      const nextVersion = process.env.__NEXT_VERSION
 
       let message = `An error occured in \`@next/font\`.`
 
