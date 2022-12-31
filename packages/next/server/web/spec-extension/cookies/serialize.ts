@@ -40,7 +40,9 @@ export function parseCookieString(cookie: string): Map<string, string> {
 
   for (const pair of cookie.split(/; */)) {
     if (!pair) continue
-    const [key, value] = pair.split('=', 2)
+    const splitIndex = pair.indexOf('=')
+    const key = pair.slice(0, splitIndex)
+    const value = pair.slice(splitIndex + 1)
     map.set(key, decodeURIComponent(value ?? 'true'))
   }
 
