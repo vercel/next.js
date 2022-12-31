@@ -473,6 +473,10 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
       )
     }
 
+    if (images.path === imageConfigDefault.path && result.basePath) {
+      images.path = `${result.basePath}${images.path}`
+    }
+
     // Append trailing slash for non-default loaders and when trailingSlash is set
     if (images.path) {
       if (
@@ -482,10 +486,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
       ) {
         images.path += '/'
       }
-    }
-
-    if (images.path === imageConfigDefault.path && result.basePath) {
-      images.path = `${result.basePath}${images.path}`
     }
 
     if (images.loaderFile) {
