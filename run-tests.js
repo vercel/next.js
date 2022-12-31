@@ -230,6 +230,7 @@ async function main() {
   })
 
   if (
+    process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
     ((testType && testType !== 'unit') || hasIsolatedTests)
   ) {
