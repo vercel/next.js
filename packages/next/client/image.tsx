@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useContext,
   useMemo,
+  useState,
   forwardRef,
 } from 'react'
 import Head from '../shared/lib/head'
@@ -148,6 +149,8 @@ type ImageElementProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
   placeholder: PlaceholderValue
   onLoadRef: React.MutableRefObject<OnLoad | undefined>
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
+  setBlurComplete: (b: boolean) => void
+  setShowAltText: (b: boolean) => void
 }
 
 function getWidths(
@@ -261,8 +264,10 @@ function getInt(x: unknown): number | undefined {
 function handleLoading(
   img: ImgElementWithDataProp,
   src: string,
+  placeholder: PlaceholderValue,
   onLoadRef: React.MutableRefObject<OnLoad | undefined>,
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>,
+  setBlurComplete: (b: boolean) => void,
   unoptimized: boolean
 ) {
   if (!img || img['data-loaded-src'] === src) {
@@ -278,6 +283,9 @@ function handleLoading(
       // - unmount is called
       // - decode() completes
       return
+    }
+    if (placeholder === 'blur') {
+      setBlurComplete(true)
     }
     if (onLoadRef?.current) {
       // Since we don't have the SyntheticEvent here,
@@ -375,6 +383,8 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       loader,
       onLoadRef,
       onLoadingCompleteRef,
+      setBlurComplete,
+      setShowAltText,
       onLoad,
       onError,
       ...rest
@@ -431,16 +441,20 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
                 handleLoading(
                   img,
                   srcString,
+                  placeholder,
                   onLoadRef,
                   onLoadingCompleteRef,
+                  setBlurComplete,
                   unoptimized
                 )
               }
             },
             [
               srcString,
+              placeholder,
               onLoadRef,
               onLoadingCompleteRef,
+              setBlurComplete,
               onError,
               unoptimized,
               forwardedRef,
@@ -451,30 +465,20 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             handleLoading(
               img,
               srcString,
+              placeholder,
               onLoadRef,
               onLoadingCompleteRef,
+              setBlurComplete,
               unoptimized
             )
           }}
           onError={(event) => {
-            // Note: We removed React.useState() in the error case here
-            // because it was causing Safari to become very slow when
-            // there were many images on the same page.
-            const { style } = event.currentTarget
-
-            if (style.color === 'transparent') {
-              // If src image fails to load, this will ensure "alt" is visible
-              style.color = ''
+            // if the real image fails to load, this will ensure "alt" is visible
+            setShowAltText(true)
+            if (placeholder === 'blur') {
+              // If the real image fails to load, this will still remove the placeholder.
+              setBlurComplete(true)
             }
-
-            if (placeholder === 'blur' && style.backgroundImage) {
-              // If src image fails to load, this will ensure the placeholder is removed
-              style.backgroundSize = ''
-              style.backgroundPosition = ''
-              style.backgroundRepeat = ''
-              style.backgroundImage = ''
-            }
-
             if (onError) {
               onError(event)
             }
@@ -524,10 +528,11 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
     // Remove property so it's not spread on <img> element
     delete rest.loader
+    // This special value indicates that the user
+    // didn't define a "loader" prop or "loader" config.
+    const isDefaultLoader = '__next_img_default' in loader
 
-    if ('__next_img_default' in loader) {
-      // This special value indicates that the user
-      // didn't define a "loader" prop or config.
+    if (isDefaultLoader) {
       if (config.loader === 'custom') {
         throw new Error(
           `Image with src "${src}" is missing "loader" prop.` +
@@ -621,6 +626,18 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     if (config.unoptimized) {
       unoptimized = true
     }
+    if (
+      isDefaultLoader &&
+      src.endsWith('.svg') &&
+      !config.dangerouslyAllowSVG
+    ) {
+      // Special case to make svg serve as-is to avoid proxying
+      // through the built-in Image Optimization API.
+      unoptimized = true
+    }
+
+    const [blurComplete, setBlurComplete] = useState(false)
+    const [showAltText, setShowAltText] = useState(false)
 
     const qualityInt = getInt(quality)
 
@@ -803,12 +820,12 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             objectPosition,
           }
         : {},
-      { color: 'transparent' },
+      showAltText ? {} : { color: 'transparent' },
       style
     )
 
     const blurStyle =
-      placeholder === 'blur' && blurDataURL
+      placeholder === 'blur' && blurDataURL && !blurComplete
         ? {
             backgroundSize: imgStyle.objectFit || 'cover',
             backgroundPosition: imgStyle.objectPosition || '50% 50%',
@@ -898,6 +915,8 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       srcString,
       onLoadRef,
       onLoadingCompleteRef,
+      setBlurComplete,
+      setShowAltText,
       ...rest,
     }
     return (

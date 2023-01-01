@@ -161,10 +161,8 @@ const nextDev: cliCommand = async (argv) => {
     port,
   }
 
-  // check for postcss, babelrc, swc plugins
+  // check for babelrc, swc plugins
   async function validateNextConfig(isCustomTurbopack: boolean) {
-    const { findConfigPath } =
-      require('../lib/find-config') as typeof import('../lib/find-config')
     const { getPkgManager } =
       require('../lib/helpers/get-pkg-manager') as typeof import('../lib/helpers/get-pkg-manager')
     const { getBabelConfigFile } =
@@ -175,8 +173,6 @@ const nextDev: cliCommand = async (argv) => {
       require('next/dist/compiled/chalk') as typeof import('next/dist/compiled/chalk')
     const { interopDefault } =
       require('../lib/interop-default') as typeof import('../lib/interop-default')
-    const findUp =
-      require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
 
     // To regenerate the TURBOPACK gradient require('gradient-string')('blue', 'red')('>>> TURBOPACK')
     const isTTY = process.stdout.isTTY
@@ -190,13 +186,10 @@ const nextDev: cliCommand = async (argv) => {
     let thankYouMsg = `Thank you for trying Next.js v13 with Turbopack! As a reminder,\nTurbopack is currently in alpha and not yet ready for production.\nWe appreciate your ongoing support as we work to make it ready\nfor everyone.\n`
 
     let unsupportedParts = ''
-    // TODO: warning for postcss mentioning sidecar
     let babelrc = await getBabelConfigFile(dir)
     if (babelrc) babelrc = path.basename(babelrc)
 
     let hasNonDefaultConfig
-    let postcssFile
-    let tailwindFile
     let rawNextConfig: NextConfig = {}
 
     try {
@@ -220,7 +213,7 @@ const nextDev: cliCommand = async (argv) => {
           if (
             configKey === 'serverComponentsExternalPackages' ||
             configKey === 'appDir' ||
-            configKey === 'transpilePackages' ||
+            configKey === 'images' ||
             configKey === 'reactStrictMode' ||
             configKey === 'swcMinify' ||
             configKey === 'configFileName'
@@ -248,29 +241,11 @@ const nextDev: cliCommand = async (argv) => {
       hasNonDefaultConfig = Object.keys(rawNextConfig).some((key) =>
         checkUnsupportedCustomConfig(key, rawNextConfig, defaultConfig)
       )
-
-      const packagePath = findUp.sync('package.json', { cwd: dir })
-      let hasSideCar = false
-
-      if (packagePath) {
-        const pkgData = require(packagePath)
-        hasSideCar = Object.values(
-          (pkgData.scripts || {}) as Record<string, string>
-        ).some(
-          (script) => script.includes('tailwind') || script.includes('postcss')
-        )
-      }
-      postcssFile = !hasSideCar && (await findConfigPath(dir, 'postcss'))
-      tailwindFile = !hasSideCar && (await findConfigPath(dir, 'tailwind'))
-
-      if (postcssFile) postcssFile = path.basename(postcssFile)
-      if (tailwindFile) tailwindFile = path.basename(tailwindFile)
     } catch (e) {
       console.error('Unexpected error occurred while checking config', e)
     }
 
-    const hasWarningOrError =
-      tailwindFile || postcssFile || babelrc || hasNonDefaultConfig
+    const hasWarningOrError = babelrc || hasNonDefaultConfig
     if (!hasWarningOrError) {
       thankYouMsg = chalk.dim(thankYouMsg)
     }
@@ -297,38 +272,17 @@ const nextDev: cliCommand = async (argv) => {
       unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
         'next.config.js'
       )})\n  ${chalk.dim(
-        `The only configurations options supported are:\n    - ${chalk.cyan(
-          'experimental.serverComponentsExternalPackages'
-        )}\n    - ${chalk.cyan(
-          'experimental.transpilePackages'
-        )}\n  To use Turbopack, remove other configuration options.`
+        `The only configurations options supported are:\n${[
+          'reactStrictMode',
+          'experimental.appDir',
+          'experimental.serverComponentsExternalPackages',
+          'images',
+          'swcMinify',
+          'configFileName',
+        ]
+          .map((name) => `    - ${chalk.cyan(name)}\n`)
+          .join('')}  To use Turbopack, remove other configuration options.`
       )}   `
-    }
-
-    if (postcssFile || tailwindFile) {
-      console.warn(
-        `${chalk.bold.yellow(
-          'Warning:'
-        )} You are using configuration that may require additional\nsetup with Turbopack. If you already made these changes please\nignore this warning.\n`
-      )
-    }
-
-    if (postcssFile) {
-      console.warn(
-        `- PostCSS detected (${chalk.cyan(postcssFile)})\n` +
-          `  ${chalk.dim(
-            'PostCSS is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-postcss'
-          )}\n`
-      )
-    }
-
-    if (tailwindFile) {
-      console.warn(
-        `- Tailwind detected (${chalk.cyan(tailwindFile)})\n` +
-          `  ${chalk.dim(
-            'Tailwind is not yet supported by Next.js v13 with Turbopack.\n  To use with Turbopack, see: https://nextjs.link/turbopack-tailwind'
-          )}\n`
-      )
     }
 
     if (unsupportedParts) {
@@ -425,8 +379,6 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           : packagePath
           ? path.dirname(packagePath)
           : undefined),
-      serverComponentsExternalPackages:
-        rawNextConfig.experimental?.serverComponentsExternalPackages,
     })
     // Start preflight after server is listening and ignore errors:
     preflight().catch(() => {})

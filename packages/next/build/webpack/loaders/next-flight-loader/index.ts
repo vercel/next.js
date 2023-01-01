@@ -1,6 +1,9 @@
 import { RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
+import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleType } from '../../../analysis/get-page-static-info'
 import { getModuleBuildInfo } from '../get-module-build-info'
+
+const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 
 export default async function transformSource(
   this: any,
@@ -24,5 +27,10 @@ export default async function transformSource(
     return callback(null, source, sourceMap)
   }
 
+  if (noopHeadPath === this.resourcePath) {
+    warnOnce(
+      `Warning: You're using \`next/head\` inside app directory, please migrate to \`head.js\`. Checkout https://beta.nextjs.org/docs/api-reference/file-conventions/head for details.`
+    )
+  }
   return callback(null, source, sourceMap)
 }

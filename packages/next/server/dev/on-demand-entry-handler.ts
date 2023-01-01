@@ -2,6 +2,8 @@ import type ws from 'ws'
 import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
+import type { DynamicParamTypesShort, FlightRouterState } from '../app-render'
+
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
 import { runDependingOnPageType } from '../../build/entries'
@@ -15,7 +17,6 @@ import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
 import { PageNotFoundError } from '../../shared/lib/utils'
-import { DynamicParamTypesShort, FlightRouterState } from '../app-render'
 import {
   CompilerNameValues,
   COMPILER_INDEXES,

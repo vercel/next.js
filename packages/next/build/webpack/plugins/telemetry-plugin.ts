@@ -37,6 +37,10 @@ export type Feature =
   | 'swcEmotion'
   | `swc/target/${SWC_TARGET_TRIPLE}`
   | 'turbotrace'
+  | 'transpilePackages'
+  | 'skipMiddlewareUrlNormalize'
+  | 'skipTrailingSlashRedirect'
+  | 'modularizeImports'
 
 interface FeatureUsage {
   featureName: Feature
@@ -96,6 +100,10 @@ const BUILD_FEATURES: Array<Feature> = [
   'swc/target/aarch64-unknown-linux-musl',
   'swc/target/aarch64-pc-windows-msvc',
   'turbotrace',
+  'transpilePackages',
+  'skipMiddlewareUrlNormalize',
+  'skipTrailingSlashRedirect',
+  'modularizeImports',
 ]
 
 const ELIMINATED_PACKAGES = new Set<string>()

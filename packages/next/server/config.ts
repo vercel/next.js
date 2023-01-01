@@ -447,6 +447,10 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
       )
     }
 
+    if (images.path === imageConfigDefault.path && result.basePath) {
+      images.path = `${result.basePath}${images.path}`
+    }
+
     // Append trailing slash for non-default loaders and when trailingSlash is set
     if (images.path) {
       if (
@@ -456,10 +460,6 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
       ) {
         images.path += '/'
       }
-    }
-
-    if (images.path === imageConfigDefault.path && result.basePath) {
-      images.path = `${result.basePath}${images.path}`
     }
 
     if (images.loaderFile) {
@@ -603,6 +603,40 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
       `experimental.outputStandalone has been renamed to "output: 'standalone'", please move the config.`
     )
     result.output = 'standalone'
+  }
+
+  if (
+    result.experimental &&
+    'transpilePackages' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`transpilePackages\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.transpilePackages = (result.experimental as any).transpilePackages
+  }
+
+  if (
+    result.experimental &&
+    'skipMiddlewareUrlNormalize' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`skipMiddlewareUrlNormalize\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.skipMiddlewareUrlNormalize = (
+      result.experimental as any
+    ).skipMiddlewareUrlNormalize
+  }
+
+  if (
+    result.experimental &&
+    'skipTrailingSlashRedirect' in (result.experimental as any)
+  ) {
+    Log.warn(
+      `\`skipTrailingSlashRedirect\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
+    )
+    result.skipTrailingSlashRedirect = (
+      result.experimental as any
+    ).skipTrailingSlashRedirect
   }
 
   if (

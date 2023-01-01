@@ -40,7 +40,7 @@ export default function middlewareLoader(this: any) {
   buildInfo.rootDir = rootDir
 
   return `
-        import { adapter, blockUnallowedResponse, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
+        import { adapter, enhanceGlobals } from 'next/dist/esm/server/web/adapter'
 
         enhanceGlobals()
 
@@ -52,11 +52,11 @@ export default function middlewareLoader(this: any) {
         }
 
         export default function (opts) {
-          return blockUnallowedResponse(adapter({
+          return adapter({
               ...opts,
               page: ${JSON.stringify(page)},
               handler,
-          }))
+          })
         }
     `
 }

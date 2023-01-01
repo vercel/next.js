@@ -1,4 +1,4 @@
-import '@/styles/dist.css';
+import '@/styles/globals.css';
 import React from 'react';
 import AddressBar from '@/ui/AddressBar';
 import GlobalNav from './GlobalNav';

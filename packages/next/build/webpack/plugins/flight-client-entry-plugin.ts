@@ -284,11 +284,11 @@ export class FlightClientEntryPlugin {
           }
 
           const entryCSSInfo: Record<string, string[]> =
-            cssManifest.__entry_css__ || {}
+            cssManifest.__entry_css_mods__ || {}
           entryCSSInfo[entryName] = cssImportsForChunk[entryName]
 
           Object.assign(cssManifest, {
-            __entry_css__: entryCSSInfo,
+            __entry_css_mods__: entryCSSInfo,
           })
         })
       })
@@ -345,14 +345,18 @@ export class FlightClientEntryPlugin {
         stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
       },
       (assets: webpack.Compilation['assets']) => {
-        const manifest = JSON.stringify({
-          ...serverCSSManifest,
-          ...edgeServerCSSManifest,
-          __entry_css__: {
-            ...serverCSSManifest.__entry_css__,
-            ...edgeServerCSSManifest.__entry_css__,
+        const manifest = JSON.stringify(
+          {
+            ...serverCSSManifest,
+            ...edgeServerCSSManifest,
+            __entry_css_mods__: {
+              ...serverCSSManifest.__entry_css_mods__,
+              ...edgeServerCSSManifest.__entry_css_mods__,
+            },
           },
-        })
+          null,
+          this.dev ? 2 : undefined
+        )
         assets[FLIGHT_SERVER_CSS_MANIFEST + '.json'] = new sources.RawSource(
           manifest
         ) as unknown as webpack.sources.RawSource

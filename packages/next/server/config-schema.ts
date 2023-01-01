@@ -269,9 +269,6 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
-        allowMiddlewareResponseBody: {
-          type: 'boolean',
-        },
         externalDir: {
           type: 'boolean',
         },
@@ -312,9 +309,6 @@ const configSchema = {
           // automatic typing doesn't like enum
           enum: ['strict', 'flexible'] as any,
           type: 'string',
-        },
-        modularizeImports: {
-          type: 'object',
         },
         newNextLinkBehavior: {
           type: 'boolean',
@@ -363,22 +357,10 @@ const configSchema = {
           },
           type: 'array',
         },
-        transpilePackages: {
-          items: {
-            type: 'string',
-          },
-          type: 'array',
-        },
         scrollRestoration: {
           type: 'boolean',
         },
         sharedPool: {
-          type: 'boolean',
-        },
-        skipMiddlewareUrlNormalize: {
-          type: 'boolean',
-        },
-        skipTrailingSlashRedirect: {
           type: 'boolean',
         },
         sri: {
@@ -644,6 +626,9 @@ const configSchema = {
       },
       type: 'object',
     },
+    modularizeImports: {
+      type: 'object',
+    },
     onDemandEntries: {
       additionalProperties: false,
       properties: {
@@ -697,6 +682,12 @@ const configSchema = {
     serverRuntimeConfig: {
       type: 'object',
     },
+    skipMiddlewareUrlNormalize: {
+      type: 'boolean',
+    },
+    skipTrailingSlashRedirect: {
+      type: 'boolean',
+    },
     staticPageGenerationTimeout: {
       type: 'number',
     },
@@ -705,6 +696,12 @@ const configSchema = {
     },
     trailingSlash: {
       type: 'boolean',
+    },
+    transpilePackages: {
+      items: {
+        type: 'string',
+      },
+      type: 'array',
     },
     typescript: {
       additionalProperties: false,

@@ -171,6 +171,7 @@ type SingleCompilerResult = {
  */
 function verifyTypeScriptSetup(
   dir: string,
+  distDir: string,
   intentDirs: string[],
   typeCheckPreflight: boolean,
   tsconfigPath: string,
@@ -197,6 +198,7 @@ function verifyTypeScriptSetup(
   return typeCheckWorker
     .verifyTypeScriptSetup({
       dir,
+      distDir,
       intentDirs,
       typeCheckPreflight,
       tsconfigPath,
@@ -409,6 +411,7 @@ export default async function build(
               .traceAsyncFn(() =>
                 verifyTypeScriptSetup(
                   dir,
+                  config.distDir,
                   [pagesDir, appDir].filter(Boolean) as string[],
                   !ignoreTypeScriptErrors,
                   config.typescript.tsconfigPath,
@@ -797,8 +800,7 @@ export default async function build(
             header: RSC,
             varyHeader: RSC_VARY_HEADER,
           },
-          skipMiddlewareUrlNormalize:
-            config.experimental.skipMiddlewareUrlNormalize,
+          skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
         }
       })
 
