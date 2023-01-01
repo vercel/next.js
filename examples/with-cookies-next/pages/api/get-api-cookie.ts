@@ -1,7 +1,10 @@
 import { getCookie, getCookies } from 'cookies-next'
 import { NextApiRequest, NextApiResponse } from 'next'
 
-export default async function getApiCookie(req: NextApiRequest, res: NextApiResponse) {
+export default async function getApiCookie(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
     const currentCookie = getCookie('api-cookie', { req, res })
     const allCookies = getCookies({ req, res })
