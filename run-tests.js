@@ -49,11 +49,22 @@ const cleanUpAndExit = async (code) => {
 }
 
 async function getTestTimings() {
-  const timingsRes = await fetch(TIMINGS_API, {
-    headers: {
-      ...TIMINGS_API_HEADERS,
-    },
-  })
+  let timingsRes
+
+  const doFetch = () =>
+    fetch(TIMINGS_API, {
+      headers: {
+        ...TIMINGS_API_HEADERS,
+      },
+    })
+  timingsRes = await doFetch()
+
+  if (timingsRes.status === 403) {
+    const delay = 15
+    console.log(`Got 403 response waiting ${delay} seconds before retry`)
+    await new Promise((resolve) => setTimeout(resolve, delay * 1000))
+    timingsRes = await doFetch()
+  }
 
   if (!timingsRes.ok) {
     throw new Error(`request status: ${timingsRes.status}`)
@@ -229,6 +240,7 @@ async function main() {
   })
 
   if (
+    process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
     ((testType && testType !== 'unit') || hasIsolatedTests)
   ) {

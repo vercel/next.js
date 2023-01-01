@@ -92,6 +92,23 @@ if (!(globalThis as any).isNextDev) {
           'directive must be placed before other expressions'
         )
       })
+
+      it('should throw an error when "Component" is imported in server components', async () => {
+        const pageFile = 'app/server-with-errors/class-component/page.js'
+        const content = await next.readFile(pageFile)
+        const uncomment = content.replace(
+          "// import { Component } from 'react'",
+          "import { Component } from 'react'"
+        )
+        await next.patchFile(pageFile, uncomment)
+        const res = await next.fetch('/server-with-errors/class-component')
+        await next.patchFile(pageFile, content)
+
+        expect(res.status).toBe(500)
+        expect(await res.text()).toContain(
+          `You’re importing a class component. It only works in a Client Component`
+        )
+      })
     }
   )
 }
