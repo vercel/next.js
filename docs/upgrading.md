@@ -176,6 +176,31 @@ location /_next/webpack-hmr {
 }
 ```
 
+If you are using Apache (2.x), you can add the below configuration to enable web sockets to the server. Review the port, host name and server names.
+
+```
+<VirtualHost *:443>
+ # ServerName yourwebsite.local
+ ServerName "${WEBSITE_SERVER_NAME}"
+
+ ProxyPass / http://localhost:3000/
+ ProxyPassReverse / http://localhost:3000/
+
+ # Next.js 12 uses websocket
+ <Location /_next/webpack-hmr>
+    RewriteEngine On
+    RewriteCond %{QUERY_STRING} transport=websocket [NC]
+    RewriteCond %{HTTP:Upgrade} websocket [NC]
+    RewriteCond %{HTTP:Connection} upgrade [NC]
+    RewriteRule /(.*) ws://localhost:3000/_next/webpack-hmr/$1 [P,L]
+    ProxyPass ws://localhost:3000/_next/webpack-hmr retry=0 timeout=30
+    ProxyPassReverse ws://localhost:3000/_next/webpack-hmr
+ </Location>
+</VirtualHost>
+
+```
+
+
 For custom servers, such as `express`, you may need to use `app.all` to ensure the request is passed correctly, for example:
 
 ```js
