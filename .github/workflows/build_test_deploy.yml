@@ -42,7 +42,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{ steps.docs-change.outputs.docsChange == 'nope' }}
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/checkout@v3
@@ -110,7 +110,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: npm i -g pnpm@${PNPM_VERSION}
@@ -179,7 +179,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -227,7 +227,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v3
@@ -533,7 +533,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/25 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v18 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/25 >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
         # RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testIntegration / Group ${{ matrix.group }}
@@ -573,7 +573,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v3
@@ -637,7 +637,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/production/test/index.test.js >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v18 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/production/test/index.test.js >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   testSafari:
@@ -667,7 +667,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts  >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v18 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts  >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   testSafariOld:
@@ -688,7 +688,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -758,7 +758,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       # https://github.com/actions/virtual-environments/issues/1187
@@ -812,7 +812,7 @@ jobs:
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v18 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
         name: Run test/e2e (deploy)
 
       - name: Upload test trace
@@ -833,7 +833,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v3
@@ -997,7 +997,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && node ./scripts/setup-wasm.mjs && npm i -g pnpm@${PNPM_VERSION} && TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js test/e2e/streaming-ssr/index.test.ts >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v18 | FORCE=1 bash && node -v && node ./scripts/setup-wasm.mjs && npm i -g pnpm@${PNPM_VERSION} && TEST_WASM=true xvfb-run node run-tests.js test/integration/production/test/index.test.js test/e2e/streaming-ssr/index.test.ts >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   # Build binaries for publishing
@@ -1170,7 +1170,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - name: Install
@@ -1224,7 +1224,7 @@ jobs:
   build-native-freebsd:
     if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && needs.build.outputs.turboToken != 'empty') }}
     needs: build
-    name: stable - x86_64-unknown-freebsd - node@16
+    name: stable - x86_64-unknown-freebsd - node@18
     runs-on: macos-12
     env:
       TURBO_TEAM: 'vercel'
@@ -1238,7 +1238,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
@@ -1329,7 +1329,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - name: Install Rust
@@ -1375,7 +1375,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - run: npm i -g turbo@${{ env.TURBO_VERSION }} pnpm@${PNPM_VERSION}
@@ -1447,7 +1447,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          node-version: 16
+          node-version: 18
           check-latest: true
 
       - uses: actions/cache@v3
