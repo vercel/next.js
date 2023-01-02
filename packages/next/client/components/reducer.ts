@@ -285,61 +285,6 @@ function invalidateCacheBelowFlightSegmentPath(
 }
 
 /**
- * Fill cache with subTreeData based on flightDataPath that was prefetched
- * This operation is append-only to the existing cache.
- */
-function fillCacheWithPrefetchedSubTreeData(
-  existingCache: CacheNode,
-  flightDataPath: FlightDataPath
-): void {
-  const isLastEntry = flightDataPath.length <= 5
-  const [parallelRouteKey, segment] = flightDataPath
-
-  const segmentForCache = Array.isArray(segment) ? segment[1] : segment
-
-  const existingChildSegmentMap =
-    existingCache.parallelRoutes.get(parallelRouteKey)
-
-  if (!existingChildSegmentMap) {
-    // Bailout because the existing cache does not have the path to the leaf node
-    return
-  }
-
-  const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
-
-  if (isLastEntry) {
-    if (!existingChildCacheNode) {
-      const childCacheNode: CacheNode = {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: flightDataPath[3],
-        parallelRoutes: new Map(),
-      }
-
-      fillLazyItemsTillLeafWithHead(
-        childCacheNode,
-        existingChildCacheNode,
-        flightDataPath[2],
-        flightDataPath[4]
-      )
-      existingChildSegmentMap.set(segmentForCache, childCacheNode)
-    }
-
-    return
-  }
-
-  if (!existingChildCacheNode) {
-    // Bailout because the existing cache does not have the path to the leaf node
-    return
-  }
-
-  fillCacheWithPrefetchedSubTreeData(
-    existingChildCacheNode,
-    flightDataPath.slice(2)
-  )
-}
-
-/**
  * Kick off fetch based on the common layout between two routes. Fill cache with data property holding the in-progress fetch.
  */
 function fillCacheWithDataProperty(
