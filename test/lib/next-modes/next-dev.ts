@@ -1,5 +1,5 @@
-import { spawn } from 'cross-spawn'
-import { Span } from 'next/trace'
+import spawn from 'cross-spawn'
+import type { Span } from 'next/trace'
 import { NextInstance } from './base'
 
 export class NextDevInstance extends NextInstance {

@@ -1,8 +1,9 @@
-import path from 'path'
-import fs from 'fs-extra'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import type { SpawnOptions } from 'node:child_process'
+import spawn from 'cross-spawn'
 import { NextInstance } from './base'
-import { spawn, SpawnOptions } from 'cross-spawn'
-import { Span } from 'next/trace'
+import type { Span } from 'next/trace'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -88,13 +89,13 @@ export class NextStartInstance extends NextInstance {
     })
 
     this._buildId = (
-      await fs.readFile(
+      await readFile(
         path.join(
           this.testDir,
           this.nextConfig?.distDir || '.next',
           'BUILD_ID'
         ),
-        'utf8'
+        { encoding: 'utf8' }
       )
     ).trim()
 
