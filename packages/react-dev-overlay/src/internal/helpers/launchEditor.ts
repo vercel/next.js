@@ -26,7 +26,6 @@ import child_process from 'child_process'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-// @ts-ignore
 import shellQuote from 'shell-quote'
 
 function isTerminalEditor(editor: string) {
@@ -214,7 +213,7 @@ function getArgumentsForLineNumber(
 function guessEditor(): string[] {
   // Explicit config always wins
   if (process.env.REACT_EDITOR) {
-    return shellQuote.parse(process.env.REACT_EDITOR)
+    return shellQuote.parse(process.env.REACT_EDITOR) as string[]
   }
 
   // We can find out which editor is currently running by:
