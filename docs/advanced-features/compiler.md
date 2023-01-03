@@ -281,7 +281,6 @@ module.exports = {
 
 Allows to modularize imports, similar to [babel-plugin-transform-imports](https://www.npmjs.com/package/babel-plugin-transform-imports).
 
-Transforms member style imports:
 Transforms member style imports of packages that use “barrel files” (files that re-exports other modules):
 
 ```js
@@ -289,7 +288,6 @@ import { Row, Grid as MyGrid } from 'react-bootstrap'
 import { merge } from 'lodash'
 ```
 
-...into default style imports:
 ...into default style imports of each module. This prevents compilation of unused modules:
 
 ```js
