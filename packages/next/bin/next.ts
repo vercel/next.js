@@ -87,7 +87,7 @@ if (process.env.NODE_ENV) {
       ? ['dev']
       : []
 
-  if (isNotStandard || shouldWarnCommands.includes(command)) {
+  if (isNotStandard && shouldWarnCommands.includes(command)) {
     log.warn(NON_STANDARD_NODE_ENV)
   }
 }
