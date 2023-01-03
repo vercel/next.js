@@ -312,11 +312,17 @@ module.exports = {
 }
 ```
 
+#### Handlebars templating
+
+This transform uses [handlebars](https://docs.rs/handlebars) to template the replacement import path in the `transform` field. These variables and helper functions are available:
+
+1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
+2. `member`: Has type `string`. The name of the member import.
+3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
+
 #### Using regular expressions
 
-Similar to `babel-plugin-transform-imports`, but the transform is templated with [handlebars](https://docs.rs/handlebars) and regular expressions are in Rust [regex](https://docs.rs/regex/latest/regex/) crate's syntax.
-
-The config:
+You can use regular expressions using Rust [regex](https://docs.rs/regex/latest/regex/) crate’s syntax:
 
 ```js
 // next.config.js
@@ -329,30 +335,20 @@ module.exports = {
 }
 ```
 
-Cause this code:
+The above config will transform your code as follows:
 
 ```js
+// Before
 import { MyModule } from 'my-library'
 import { App } from 'my-library/components'
 import { Header, Footer } from 'my-library/components/App'
-```
 
-To become:
-
-```js
+// After
 import MyModule from 'my-library/MyModule'
 import App from 'my-library/components/App'
 import Header from 'my-library/components/App/Header'
 import Footer from 'my-library/components/App/Footer'
 ```
-
-#### Handlebars templating
-
-This transform uses [handlebars](https://docs.rs/handlebars) to template the replacement import path in the `transform` field. These variables and helper functions are available:
-
-1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
-2. `member`: Has type `string`. The name of the member import.
-3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
 
 #### Using named imports
 
