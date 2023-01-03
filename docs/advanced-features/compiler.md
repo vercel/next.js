@@ -7,13 +7,14 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 <details open>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                                                            |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `v13.0.0` | SWC Minifier enabled by default.                                                                                                   |
-| `v12.3.0` | SWC Minifier [stable](https://nextjs.org/blog/next-12-3#swc-minifier-stable).                                                      |
-| `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                               |
-| `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
-| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
+| Version   | Changes                                                                                                                                                                                                  |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.1.0` | [Module Transpilation](https://nextjs.org/blog/next-13-1#built-in-module-transpilation-stable) and [Modularize Imports](https://nextjs.org/blog/next-13-1#import-resolution-for-smaller-bundles) stable. |
+| `v13.0.0` | SWC Minifier enabled by default.                                                                                                                                                                         |
+| `v12.3.0` | SWC Minifier [stable](https://nextjs.org/blog/next-12-3#swc-minifier-stable).                                                                                                                            |
+| `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                                                                                                     |
+| `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource.                                                                       |
+| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                                                                                          |
 
 </details>
 
@@ -264,29 +265,17 @@ module.exports = {
 }
 ```
 
-## Experimental Features
+### Module Transpilation
 
-### Minifier debug options
-
-While the minifier is experimental, we are making the following options available for debugging purposes. They will not be available once the minifier is made stable.
+Next.js can automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the `next-transpile-modules` package.
 
 ```js
 // next.config.js
 
 module.exports = {
-  experimental: {
-    swcMinifyDebugOptions: {
-      compress: {
-        defaults: true,
-        side_effects: false,
-      },
-    },
-  },
+  transpilePackages: ['@acme/ui', 'lodash-es'],
 }
 ```
-
-If your app works with the options above, it means `side_effects` is the problematic option.
-See [the SWC documentation](https://swc.rs/docs/configuration/minification#jscminifycompress) for detailed options.
 
 ### Modularize Imports
 
@@ -312,14 +301,12 @@ Config for the above transform:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
-    modularizeImports: {
-      'react-bootstrap': {
-        transform: 'react-bootstrap/lib/{{member}}',
-      },
-      lodash: {
-        transform: 'lodash/{{member}}',
-      },
+  modularizeImports: {
+    'react-bootstrap': {
+      transform: 'react-bootstrap/lib/{{member}}',
+    },
+    lodash: {
+      transform: 'lodash/{{member}}',
     },
   },
 }
@@ -336,11 +323,9 @@ The config:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
-    modularizeImports: {
-      'my-library/?(((\\w*)?/?)*)': {
-        transform: 'my-library/{{ matches.[1] }}/{{member}}',
-      },
+  modularizeImports: {
+    'my-library/?(((\\w*)?/?)*)': {
+      transform: 'my-library/{{ matches.[1] }}/{{member}}',
     },
   },
 }
@@ -370,6 +355,30 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
 2. `member`: Has type `string`. The name of the member import.
 3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
+
+## Experimental Features
+
+### Minifier debug options
+
+While the minifier is experimental, we are making the following options available for debugging purposes. They will not be available once the minifier is made stable.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcMinifyDebugOptions: {
+      compress: {
+        defaults: true,
+        side_effects: false,
+      },
+    },
+  },
+}
+```
+
+If your app works with the options above, it means `side_effects` is the problematic option.
+See [the SWC documentation](https://swc.rs/docs/configuration/minification#jscminifycompress) for detailed options.
 
 ### SWC Trace profiling
 
