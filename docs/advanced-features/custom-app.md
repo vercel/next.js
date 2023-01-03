@@ -12,7 +12,6 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 
 - Persist layouts between page changes
 - Keeping state when navigating pages
-- Custom error handling using `componentDidCatch`
 - Inject additional data into pages
 - [Add global CSS](/docs/basic-features/built-in-css-support.md#adding-a-global-stylesheet)
 
