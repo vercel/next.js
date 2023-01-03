@@ -291,8 +291,8 @@ import { merge } from 'lodash'
 ...into default style imports:
 
 ```js
-import Row from 'react-bootstrap/lib/Row'
-import MyGrid from 'react-bootstrap/lib/Grid'
+import Row from 'react-bootstrap/Row'
+import MyGrid from 'react-bootstrap/Grid'
 import merge from 'lodash/merge'
 ```
 
@@ -303,7 +303,7 @@ Config for the above transform:
 module.exports = {
   modularizeImports: {
     'react-bootstrap': {
-      transform: 'react-bootstrap/lib/{{member}}',
+      transform: 'react-bootstrap/{{member}}',
     },
     lodash: {
       transform: 'lodash/{{member}}',
