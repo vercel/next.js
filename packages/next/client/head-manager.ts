@@ -72,7 +72,7 @@ export function isEqualNode(oldTag: Element, newTag: Element) {
 
 function updateElements(type: string, components: JSX.Element[]): void {
   const headEl = document.getElementsByTagName('head')[0]
-  const headCountEl: HTMLMetaElement = headEl.querySelector(
+  const headCountEl: HTMLMetaElement = headEl?.querySelector(
     'meta[name=next-head-count]'
   ) as HTMLMetaElement
   if (process.env.NODE_ENV !== 'production') {
