@@ -2240,24 +2240,24 @@ export default async function (task) {
   const opts = { dev: true }
   await task.clear('dist')
   await task.start('build', opts)
-  await task.watch('bin', 'bin', opts)
-  await task.watch('pages', 'pages', opts)
-  await task.watch('server', ['server', 'server_esm', 'server_wasm'], opts)
+  await task.watch('src/bin', 'bin', opts)
+  await task.watch('src/pages', 'pages', opts)
+  await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
   await task.watch(
-    'build',
+    'src/build',
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
-  await task.watch('export', 'nextbuildstatic', opts)
-  await task.watch('client', 'client', opts)
-  await task.watch('client', 'client_esm', opts)
-  await task.watch('lib', 'lib', opts)
-  await task.watch('lib', 'lib_esm', opts)
-  await task.watch('cli', 'cli', opts)
-  await task.watch('telemetry', 'telemetry', opts)
-  await task.watch('trace', 'trace', opts)
+  await task.watch('src/export', 'nextbuildstatic', opts)
+  await task.watch('src/client', 'client', opts)
+  await task.watch('src/client', 'client_esm', opts)
+  await task.watch('src/lib', 'lib', opts)
+  await task.watch('src/lib', 'lib_esm', opts)
+  await task.watch('src/cli', 'cli', opts)
+  await task.watch('src/telemetry', 'telemetry', opts)
+  await task.watch('src/trace', 'trace', opts)
   await task.watch(
-    'shared',
+    'src/shared',
     ['shared_re_exported', 'shared_re_exported_esm', 'shared', 'shared_esm'],
     opts
   )
