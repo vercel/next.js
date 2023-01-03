@@ -1342,7 +1342,7 @@ export default class NextNodeServer extends BaseServer {
     const mod = await require(join(this.distDir, SERVER_DIRECTORY, path))
 
     // TODO: pull this list of supported methods to global scope
-    const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
+    const methods = ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'DELETE', 'PATCH']
 
     // Ensure that the requested method is a valid method (to prevent RCE's).
     if (!methods.includes(req.method)) return false
