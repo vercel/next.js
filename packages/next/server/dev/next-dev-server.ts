@@ -102,7 +102,7 @@ export default class DevServer extends Server {
   private hotReloader?: HotReloader
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
-  private addedUpgradeListener = false
+  private addedUpgradeListeners: Set<string> = new Set()
   private pagesDir?: string
   private appDir?: string
   private actualMiddlewareFile?: string
@@ -188,12 +188,6 @@ export default class DevServer extends Server {
       Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
       )
-    }
-
-    // setup upgrade listener eagerly when we can otherwise
-    // it will be done on the first request via req.socket.server
-    if (options.httpServer) {
-      this.setupWebSocketHandler(options.httpServer)
     }
 
     this.isCustomServer = !options.isNextDevCommand
@@ -859,10 +853,13 @@ export default class DevServer extends Server {
     return false
   }
 
-  private setupWebSocketHandler(server?: HTTPServer, _req?: NodeNextRequest) {
-    if (!this.addedUpgradeListener) {
-      this.addedUpgradeListener = true
-      server = server || (_req?.originalRequest.socket as any)?.server
+  private setupWebSocketHandler(_req: NodeNextRequest) {
+    const host = _req.headers.host as string
+    let addedUpgradeListenerForThisHost = this.addedUpgradeListeners.has(host)
+
+    if (!addedUpgradeListenerForThisHost) {
+      this.addedUpgradeListeners.add(host)
+      const server = (_req?.originalRequest.socket as any)?.server
 
       if (!server) {
         // this is very unlikely to happen but show an error in case
@@ -996,7 +993,7 @@ export default class DevServer extends Server {
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
     await this.devReady
-    this.setupWebSocketHandler(undefined, req)
+    this.setupWebSocketHandler(req)
 
     const { basePath } = this.nextConfig
     let originalPathname: string | null = null
