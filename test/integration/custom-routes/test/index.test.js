@@ -1249,6 +1249,38 @@ const runTests = (isDev = false) => {
     })
   })
 
+  it('should match has path redirect with encoded query value', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/has-redirect-8',
+      '?name=%E3%83%B4%E3%82%A1%E3%83%BC%E3%82%BB%E3%83%AB',
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe(
+      '/users/%E3%83%B4%E3%82%A1%E3%83%BC%E3%82%BB%E3%83%AB'
+    )
+  })
+
+  it('should match has hostname redirect with encoded query value', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/has-redirect-9',
+      '?name=%E3%83%B4%E3%82%A1%E3%83%BC%E3%82%BB%E3%83%AB',
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.hostname).toBe('https://xn--bck9bsh7a3b.example.com/')
+  })
+
   it('should match has header for header correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
       headers: {
@@ -1616,6 +1648,32 @@ const runTests = (isDev = false) => {
               },
             ],
             destination: '/somewhere?value=:hello',
+            statusCode: 307,
+          },
+          {
+            source: '/has-redirect-8',
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-8(?:\\/)?$'),
+            has: [
+              {
+                type: 'query',
+                key: 'name',
+                value: '(?<name>.*)',
+              },
+            ],
+            destination: '/users/:name',
+            statusCode: 307,
+          },
+          {
+            source: '/has-redirect-9',
+            regex: normalizeRegEx('^(?!\\/_next)\\/has-redirect-9(?:\\/)?$'),
+            has: [
+              {
+                type: 'query',
+                key: 'name',
+                value: '(?<name>.*)',
+              },
+            ],
+            destination: 'https://:name.example.com/',
             statusCode: 307,
           },
         ],

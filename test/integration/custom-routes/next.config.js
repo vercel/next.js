@@ -460,6 +460,30 @@ module.exports = {
         destination: '/somewhere?value=:hello',
         permanent: false,
       },
+      {
+        source: '/has-redirect-8',
+        has: [
+          {
+            type: 'query',
+            key: 'name',
+            value: '(?<name>.*)',
+          },
+        ],
+        destination: '/users/:name',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-9',
+        has: [
+          {
+            type: 'query',
+            key: 'name',
+            value: '(?<name>.*)',
+          },
+        ],
+        destination: 'https://:name.example.com/',
+        permanent: false,
+      },
     ]
   },
 

@@ -1,4 +1,5 @@
 import type { IncomingMessage } from 'http'
+import { domainToASCII } from 'url'
 import type { Key } from 'next/dist/compiled/path-to-regexp'
 import type { NextParsedUrlQuery } from '../../../../server/request-meta'
 import type { Params } from './route-matcher'
@@ -181,18 +182,21 @@ export function prepareDestination(args: {
   destPathParamKeys.forEach((key) => destParams.push(key.name))
   destHostnameParamKeys.forEach((key) => destParams.push(key.name))
 
-  const destPathCompiler = compile(
-    destPath,
+  const destPathCompiler = compile(destPath, {
     // we don't validate while compiling the destination since we should
     // have already validated before we got to this point and validating
     // breaks compiling destinations with named pattern params from the source
     // e.g. /something:hello(.*) -> /another/:hello is broken with validation
     // since compile validation is meant for reversing and not for inserting
     // params from a separate path-regex into another
-    { validate: false }
-  )
+    validate: false,
+    encode: encodeURIComponent,
+  })
 
-  const destHostnameCompiler = compile(destHostname, { validate: false })
+  const destHostnameCompiler = compile(destHostname, {
+    validate: false,
+    encode: domainToASCII,
+  })
 
   // update any params in query values
   for (const [key, strOrArray] of Object.entries(destQuery)) {
