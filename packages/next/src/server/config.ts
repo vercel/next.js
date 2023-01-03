@@ -126,6 +126,32 @@ function setFontLoaderDefaults(config: NextConfigComplete) {
   } catch {}
 }
 
+export function warnOptionHasBeenMovedOutOfExperimental(
+  config: NextConfig,
+  oldKey: string,
+  newKey: string,
+  configFileName: string
+) {
+  if (config.experimental && oldKey in config.experimental) {
+    Log.warn(
+      `\`${oldKey}\` has been moved out of \`experimental\`` +
+        (newKey.includes('.') ? ` and into \`${newKey}\`` : '') +
+        `. Please update your ${configFileName} file accordingly.`
+    )
+
+    let current = config
+    const newKeys = newKey.split('.')
+    while (newKeys.length > 1) {
+      const key = newKeys.shift()!
+      current[key] = current[key] || {}
+      current = current[key]
+    }
+    current[newKeys.shift()!] = (config.experimental as any)[oldKey]
+  }
+
+  return config
+}
+
 function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
@@ -542,55 +568,36 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     }
   }
 
-  if (result.experimental && 'relay' in (result.experimental as any)) {
-    Log.warn(
-      `\`relay\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.relay = (result.experimental as any).relay
-  }
-
-  if (
-    result.experimental &&
-    'styledComponents' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`styledComponents\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.styledComponents = (
-      result.experimental as any
-    ).styledComponents
-  }
-
-  if (result.experimental && 'emotion' in (result.experimental as any)) {
-    Log.warn(
-      `\`emotion\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.emotion = (result.experimental as any).emotion
-  }
-
-  if (
-    result.experimental &&
-    'reactRemoveProperties' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`reactRemoveProperties\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.reactRemoveProperties = (
-      result.experimental as any
-    ).reactRemoveProperties
-  }
-
-  if (result.experimental && 'removeConsole' in (result.experimental as any)) {
-    Log.warn(
-      `\`removeConsole\` has been moved out of \`experimental\` and into \`compiler\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.compiler = result.compiler || {}
-    result.compiler.removeConsole = (result.experimental as any).removeConsole
-  }
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'relay',
+    'compiler.relay',
+    configFileName
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'styledComponents',
+    'compiler.styledComponents',
+    configFileName
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'emotion',
+    'compiler.emotion',
+    configFileName
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'reactRemoveProperties',
+    'compiler.reactRemoveProperties',
+    configFileName
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'removeConsole',
+    'compiler.removeConsole',
+    configFileName
+  )
 
   if (result.experimental?.swcMinifyDebugOptions) {
     Log.warn(
@@ -605,39 +612,24 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     result.output = 'standalone'
   }
 
-  if (
-    result.experimental &&
-    'transpilePackages' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`transpilePackages\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.transpilePackages = (result.experimental as any).transpilePackages
-  }
-
-  if (
-    result.experimental &&
-    'skipMiddlewareUrlNormalize' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`skipMiddlewareUrlNormalize\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.skipMiddlewareUrlNormalize = (
-      result.experimental as any
-    ).skipMiddlewareUrlNormalize
-  }
-
-  if (
-    result.experimental &&
-    'skipTrailingSlashRedirect' in (result.experimental as any)
-  ) {
-    Log.warn(
-      `\`skipTrailingSlashRedirect\` has been moved out of \`experimental\`. Please update your ${configFileName} file accordingly.`
-    )
-    result.skipTrailingSlashRedirect = (
-      result.experimental as any
-    ).skipTrailingSlashRedirect
-  }
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'transpilePackages',
+    'transpilePackages',
+    configFileName
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'skipMiddlewareUrlNormalize',
+    'skipMiddlewareUrlNormalize',
+    configFileName
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'skipTrailingSlashRedirect',
+    'skipTrailingSlashRedirect',
+    configFileName
+  )
 
   if (
     result.experimental?.outputFileTracingRoot &&
