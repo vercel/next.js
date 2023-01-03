@@ -125,6 +125,8 @@ export async function writeConfigurationDefaults(
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
+  const strictWasPreviouslySet =
+    typeof userTsConfig.compilerOptions?.strict === 'boolean'
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
@@ -239,9 +241,14 @@ export async function writeConfigurationDefaults(
     chalk.green(
       `We detected TypeScript in your project and reconfigured your ${chalk.bold(
         'tsconfig.json'
-      )} file for you. Strict-mode is set to ${chalk.bold('false')} by default.`
+      )} file for you.${
+        strictWasPreviouslySet
+          ? ''
+          : ` Strict-mode is set to ${chalk.bold('false')} by default.`
+      }`
     ) + '\n'
   )
+
   if (suggestedActions.length) {
     console.log(
       `The following suggested values were added to your ${chalk.cyan(

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { createFile, exists, readFile, writeFile, remove } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, waitFor } from 'next-test-utils'
 import path from 'path'
 
 describe('tsconfig.json verifier', () => {
@@ -434,4 +434,38 @@ describe('tsconfig.json verifier', () => {
       "
     `)
   })
+
+  test.each([undefined, true, false])(
+    'strict was previusly: %p',
+    async (strict) => {
+      expect(await exists(tsConfig)).toBe(false)
+
+      await writeFile(
+        tsConfig,
+        `{ "compilerOptions": { ${
+          typeof strict === 'boolean' ? `"strict": ${strict}` : ''
+        }}}`
+      )
+      await waitFor(500)
+      const { code, stdout } = await nextBuild(appDir, [], { stdout: true })
+      expect(code).toBe(0)
+
+      expect(await readFile(tsConfig, 'utf8')).toContain(
+        `"strict": ${Boolean(strict)}`
+      )
+
+      if (typeof strict === 'undefined') {
+        expect(stdout).toContain(
+          'We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.'
+        )
+      } else {
+        expect(stdout).not.toContain(
+          'We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.'
+        )
+        expect(stdout).toContain(
+          'We detected TypeScript in your project and reconfigured your tsconfig.json file for you.'
+        )
+      }
+    }
+  )
 })
