@@ -84,7 +84,7 @@ module.exports = (actionInfo) => {
           pkgs = await fs.readdir(path.join(repoDir, 'packages'))
         } catch (err) {
           if (err.code === 'ENOENT') {
-            console.log('no packages to link')
+            require('console').log('no packages to link')
             return pkgPaths
           }
           throw err
@@ -105,7 +105,7 @@ module.exports = (actionInfo) => {
 
               const pkgDataPath = path.join(pkgPath, 'package.json')
               if (!fs.existsSync(pkgDataPath)) {
-                console.log(`Skipping ${pkgDataPath}`)
+                require('console').log(`Skipping ${pkgDataPath}`)
                 continue
               }
               const pkgData = require(pkgDataPath)
@@ -137,7 +137,7 @@ module.exports = (actionInfo) => {
                   pkgData.files = []
                 }
                 pkgData.files.push('native')
-                console.log(
+                require('console').log(
                   'using swc binaries: ',
                   await exec(
                     `ls ${path.join(path.dirname(pkgDataPath), 'native')}`

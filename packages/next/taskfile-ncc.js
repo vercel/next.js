@@ -74,7 +74,7 @@ function writePackageManifest(packageName, main, bundleName, precompiled) {
 
   const compiledPackagePath = join(
     __dirname,
-    `${!precompiled ? 'dist/' : ''}compiled/${bundleName || packageName}`
+    `${!precompiled ? 'dist/' : ''}src/compiled/${bundleName || packageName}`
   )
 
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')
