@@ -28,7 +28,7 @@
     "build": "pnpm release"
   },
   "devDependencies": {
-    "@types/async-retry": "1.4.2",
+    "@types/async-retry": "1.4.5",
     "@types/ci-info": "2.0.0",
     "@types/cross-spawn": "6.0.0",
     "@types/node": "^12.6.8",

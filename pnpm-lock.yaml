@@ -390,7 +390,7 @@ importers:
 
   packages/create-next-app:
     specifiers:
-      '@types/async-retry': 1.4.2
+      '@types/async-retry': 1.4.5
       '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
       '@types/node': ^12.6.8
@@ -411,7 +411,7 @@ importers:
       update-check: 1.5.4
       validate-npm-package-name: 3.0.0
     devDependencies:
-      '@types/async-retry': 1.4.2
+      '@types/async-retry': 1.4.5
       '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
       '@types/node': 12.12.24
@@ -6845,8 +6845,8 @@ packages:
     resolution: {integrity: sha512-yMQ6CVgICWtyFNBqJT3zqOc+TnqqEPLo4nKJNPFwcialiylil38Ie6q1ENeFTjvaLOkVim9K5LisHgAKJWidGQ==}
     dev: true
 
-  /@types/async-retry/1.4.2:
-    resolution: {integrity: sha512-GUDuJURF0YiJZ+CBjNQA0+vbP/VHlJbB0sFqkzsV7EcOPRfurVonXpXKAt3w8qIjM1TEzpz6hc6POocPvHOS3w==}
+  /@types/async-retry/1.4.5:
+    resolution: {integrity: sha512-YrdjSD+yQv7h6d5Ip+PMxh3H6ZxKyQk0Ts+PvaNRInxneG9PFVZjFg77ILAN+N6qYf7g4giSJ1l+ZjQ1zeegvA==}
     dependencies:
       '@types/retry': 0.12.0
     dev: true
