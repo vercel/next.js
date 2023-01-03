@@ -134,14 +134,12 @@ export function getUtils({
   basePath,
   rewrites,
   pageIsDynamic,
-  trailingSlash,
 }: {
   page: ServerlessHandlerCtx['page']
   i18n?: ServerlessHandlerCtx['i18n']
   basePath: ServerlessHandlerCtx['basePath']
   rewrites: ServerlessHandlerCtx['rewrites']
   pageIsDynamic: ServerlessHandlerCtx['pageIsDynamic']
-  trailingSlash?: boolean
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
   let dynamicRouteMatcher: RouteMatch | undefined
@@ -169,13 +167,9 @@ export function getUtils({
     }
 
     const checkRewrite = (rewrite: Rewrite): boolean => {
-      const matcher = getPathMatch(
-        rewrite.source + (trailingSlash ? '(/)?' : ''),
-        {
-          removeUnnamedParams: true,
-          strict: true,
-        }
-      )
+      const matcher = getPathMatch(removeTrailingSlash(rewrite.source), {
+        removeUnnamedParams: true,
+      })
       let params = matcher(parsedUrl.pathname)
 
       if ((rewrite.has || rewrite.missing) && params) {

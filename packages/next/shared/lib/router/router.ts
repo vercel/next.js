@@ -361,7 +361,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   const nextConfig = {
     basePath: options.router.basePath,
     i18n: { locales: options.router.locales },
-    trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+    trailingSlash: process.env.__NEXT_TRAILING_SLASH === 'true',
   }
   const rewriteHeader = response.headers.get('x-nextjs-rewrite')
 
