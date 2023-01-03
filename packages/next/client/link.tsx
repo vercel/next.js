@@ -498,6 +498,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
       rootMargin: '200px',
+      disabled: !p,
     })
 
     const setRef = React.useCallback(
