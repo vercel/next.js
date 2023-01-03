@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs-extra'
 import { NextInstance } from './base'
 import { spawn, SpawnOptions } from 'cross-spawn'
-import { Span } from 'next/trace'
+import { Span } from 'next/src/trace'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string

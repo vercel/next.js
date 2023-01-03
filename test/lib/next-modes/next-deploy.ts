@@ -9,7 +9,7 @@ import {
   TEST_TOKEN,
 } from '../../../scripts/reset-vercel-project.mjs'
 import fetch from 'node-fetch'
-import { Span } from 'next/trace'
+import { Span } from 'next/src/trace'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
