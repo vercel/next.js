@@ -40,7 +40,7 @@ Starting in Next.js 13, this new behavior is now the default for `next/image`.
 
 There are two codemods to help you migrate to the new Image Component:
 
-- [next-image-to-legacy-image](/docs/advanced-features/codemods.md#rename-instances-of-nextimage): This codemod will safely and automatically rename `next/image` imports to `next/legacy/image` to maintain the same behavior as Next.js 12. We recommend running this codemod to quickly update to Next.js 13 automatically.
+- [next-image-to-legacy-image](/docs/advanced-features/codemods.md#next-image-to-legacy-image): This codemod will safely and automatically rename `next/image` imports to `next/legacy/image` to maintain the same behavior as Next.js 12. We recommend running this codemod to quickly update to Next.js 13 automatically.
 - [next-image-experimental](/docs/advanced-features/codemods.md#next-image-experimental-experimental): After running the previous codemod, you can optionally run this experimental codemod to upgrade `next/legacy/image` to the new `next/image`, which will remove unused props and add inline styles. Please note this codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
 
 Alternatively, you can manually update by following the [migration guide](/docs/advanced-features/codemods.md#next-image-experimental-experimental) and also see the [legacy comparison](/docs/api-reference/next/legacy/image.md#comparison).

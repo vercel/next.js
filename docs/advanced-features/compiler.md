@@ -7,14 +7,14 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 <details open>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                                                            |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `v13.1.0` | Modularize Imports [stable](https://nextjs.org/blog/next-13-1#import-resolution-for-smaller-bundles).                              |
-| `v13.0.0` | SWC Minifier enabled by default.                                                                                                   |
-| `v12.3.0` | SWC Minifier [stable](https://nextjs.org/blog/next-12-3#swc-minifier-stable).                                                      |
-| `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                               |
-| `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
-| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
+| Version   | Changes                                                                                                                                                                                                  |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.1.0` | [Module Transpilation](https://nextjs.org/blog/next-13-1#built-in-module-transpilation-stable) and [Modularize Imports](https://nextjs.org/blog/next-13-1#import-resolution-for-smaller-bundles) stable. |
+| `v13.0.0` | SWC Minifier enabled by default.                                                                                                                                                                         |
+| `v12.3.0` | SWC Minifier [stable](https://nextjs.org/blog/next-12-3#swc-minifier-stable).                                                                                                                            |
+| `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                                                                                                     |
+| `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource.                                                                       |
+| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                                                                                          |
 
 </details>
 
@@ -262,6 +262,18 @@ If Terser is still needed for any reason this can be configured.
 
 module.exports = {
   swcMinify: false,
+}
+```
+
+### Module Transpilation
+
+Next.js can automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the `next-transpile-modules` package.
+
+```js
+// next.config.js
+
+module.exports = {
+  transpilePackages: ['@acme/ui', 'lodash-es'],
 }
 ```
 
