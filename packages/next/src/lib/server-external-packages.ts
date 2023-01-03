@@ -4,6 +4,7 @@ export const EXTERNAL_PACKAGES = [
   '@sentry/nextjs',
   '@sentry/node',
   'autoprefixer',
+  'aws-crt',
   'cypress',
   'eslint',
   'express',
@@ -23,5 +24,4 @@ export const EXTERNAL_PACKAGES = [
   'ts-node',
   'typescript',
   'webpack',
-  'aws-crt',
 ]
