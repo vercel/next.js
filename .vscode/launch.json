@@ -17,7 +17,7 @@
       }
     },
     {
-      "name": "Launch app development",
+      "name": "Launch development",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -29,7 +29,7 @@
       }
     },
     {
-      "name": "Launch app build",
+      "name": "Launch build",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -41,7 +41,7 @@
       }
     },
     {
-      "name": "Launch app production",
+      "name": "Launch production",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",

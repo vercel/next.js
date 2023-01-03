@@ -1057,7 +1057,8 @@ export async function renderToHTML(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
+  // In development the incrementalCache is not used so we short-circuit bypassing the html rendering.
+  if ((isDataReq && (!isSSG || dev)) || (renderOpts as any).isRedirect) {
     return RenderResult.fromStatic(JSON.stringify(props))
   }
 
