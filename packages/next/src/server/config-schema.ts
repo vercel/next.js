@@ -339,9 +339,6 @@ const configSchema = {
         pageEnv: {
           type: 'boolean',
         },
-        profiling: {
-          type: 'boolean',
-        },
         proxyTimeout: {
           minimum: 0,
           type: 'number',
