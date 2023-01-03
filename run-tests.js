@@ -20,6 +20,11 @@ const isTestJob = !!process.env.NEXT_TEST_JOB
 const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
 const TIMINGS_API_HEADERS = {
   Accept: 'application/vnd.github.v3+json',
+  ...(process.env.TEST_TIMINGS_TOKEN
+    ? {
+        Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
+      }
+    : {}),
 }
 
 const testFilters = {
@@ -463,7 +468,6 @@ async function main() {
           method: 'PATCH',
           headers: {
             ...TIMINGS_API_HEADERS,
-            Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
           },
           body: JSON.stringify({
             files: {

@@ -257,6 +257,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -317,7 +318,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -379,6 +380,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -429,7 +431,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -481,7 +483,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
