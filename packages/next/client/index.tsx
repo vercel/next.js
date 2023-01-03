@@ -28,7 +28,6 @@ import {
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
-import measureWebVitals from './performance-relayer'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
@@ -534,7 +533,9 @@ function Root({
   // We should ask to measure the Web Vitals after rendering completes so we
   // don't cause any hydration delay:
   React.useEffect(() => {
-    measureWebVitals(onPerfEntry)
+    if (process.env.__NEXT_ANALYTICS_ID) {
+      require('./performance-relayer')(onPerfEntry);
+    }
   }, [])
 
   if (process.env.__NEXT_TEST_MODE) {
