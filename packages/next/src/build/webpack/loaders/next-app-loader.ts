@@ -24,6 +24,10 @@ const PAGE_SEGMENT = 'page$'
 // TODO-APP: check if this can be narrowed.
 type ComponentModule = () => any
 type ModuleReference = [componentModule: ComponentModule, filePath: string]
+type PathResolver = (
+  pathname: string,
+  resolveDir?: boolean
+) => Promise<string | undefined>
 export type ComponentsType = {
   readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
@@ -36,10 +40,7 @@ async function createTreeCodeFromPath({
   resolveParallelSegments,
 }: {
   pagePath: string
-  resolve: (
-    pathname: string,
-    resolveDir?: boolean
-  ) => Promise<string | undefined>
+  resolve: PathResolver
   resolveParallelSegments: (
     pathname: string
   ) => [key: string, segment: string][]
@@ -163,6 +164,30 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   )
 }
 
+async function createCustomAppRouteCode({
+  pagePath,
+  resolver,
+}: {
+  pagePath: string
+  resolver: PathResolver
+}): Promise<string> {
+  // Split based on any specific path separators (both `/` and `\`)...
+  const splittedPath = pagePath.split(/[\\/]/)
+  // Then join all but the last part with the same separator, `/`...
+  const segmentPath = splittedPath.slice(0, -1).join('/')
+  // Then add the `/route` suffix...
+  const matchedPagePath = `${segmentPath}/route`
+  // This, when used with the resolver will give us the pathname to the built
+  // route handler file.
+  const resolvedPagePath = await resolver(matchedPagePath)
+
+  // TODO: verify if other methods need to be injected (like requestAsyncStorage)
+  // TODO: is there a way to test/validate that the outputted string template is type correct? Suggest adding type here to reference by the importer.
+  // TODO: validate that the handler exports at least one of the supported methods
+
+  return `export * as handlers from ${JSON.stringify(resolvedPagePath)}`
+}
+
 const nextAppLoader: webpack.LoaderDefinitionFunction<{
   name: string
   pagePath: string
@@ -200,7 +225,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
 
-  const resolver = async (pathname: string, resolveDir?: boolean) => {
+  const resolver: PathResolver = async (pathname, resolveDir) => {
     if (resolveDir) {
       return createAbsolutePath(appDir, pathname)
     }
@@ -223,14 +248,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   }
 
   if (name.endsWith('/route')) {
-    const splittedPath = pagePath.split(/[\\/]/)
-    const segmentPath = splittedPath.slice(0, -1).join('/')
-    const matchedPagePath = `${segmentPath}/route`
-    const resolvedPagePath = await resolver(matchedPagePath)
-
-    // TODO: verify if other methods need to be injected (like requestAsyncStorage)
-
-    return `export * from ${JSON.stringify(resolvedPagePath)}`
+    return createCustomAppRouteCode({ pagePath, resolver })
   }
 
   const resolveParallelSegments = (pathname: string) => {

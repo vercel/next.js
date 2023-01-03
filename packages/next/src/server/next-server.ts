@@ -1338,7 +1338,7 @@ export default class NextNodeServer extends BaseServer {
 
     // TODO: run any edge functions that should be ran for this invocation.
 
-    // Try to load the page module.
+    // Try to load the route module.
     const mod = await require(join(this.distDir, SERVER_DIRECTORY, path))
 
     // TODO: pull this list of supported methods to global scope
@@ -1348,7 +1348,7 @@ export default class NextNodeServer extends BaseServer {
     if (!methods.includes(req.method)) return false
 
     // Check to see if the requested method is available.
-    const handler: AppCustomRouteHandler | undefined = mod[req.method]
+    const handler: AppCustomRouteHandler | undefined = mod.handlers[req.method]
     if (!handler) return false
 
     // TODO: wrap the request object
