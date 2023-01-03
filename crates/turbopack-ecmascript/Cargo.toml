@@ -17,6 +17,7 @@ fxhash = "0.2.1"
 indexmap = { workspace = true }
 lazy_static = "1.4.0"
 next-font = { path = "../next-font" }
+next-transform-strip-page-exports = { path = "../next-transform-strip-page-exports" }
 once_cell = "1.13.0"
 pin-project-lite = "0.2.9"
 regex = "1.5.4"

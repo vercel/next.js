@@ -157,7 +157,9 @@ pub async fn add_next_transforms_to_pages(
             ]),
         ]),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJsPageSsr]),
+            EcmascriptInputTransformsVc::cell(vec![
+                EcmascriptInputTransform::NextJsStripPageDataExports,
+            ]),
         )],
     ));
     Ok(module_options_context.cell())

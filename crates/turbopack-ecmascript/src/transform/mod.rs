@@ -21,7 +21,6 @@ use turbo_tasks::primitives::{StringVc, StringsVc};
 use turbopack_core::environment::EnvironmentVc;
 
 use self::server_to_client_proxy::{create_proxy_module, is_client_module};
-mod next_ssg;
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
@@ -30,12 +29,13 @@ pub enum EcmascriptInputTransform {
     CommonJs,
     Custom,
     Emotion,
-    /// This enables the Next SSG transform, which will eliminate
-    /// `getStaticProps`/`getServerSideProps`/etc. exports from the output, as
-    /// well as any imports that are only used by those exports.
+    /// This enables the Next.js data transform, which will eliminate
+    /// `getStaticProps`, `getStaticPaths`, and `getServerSideProps` exports
+    /// from the output, as well as any imports exclusively used by those
+    /// exports.
     ///
     /// It also provides diagnostics for improper use of `getServerSideProps`.
-    NextJsPageSsr,
+    NextJsStripPageDataExports,
     NextJsFont(StringsVc),
     PresetEnv(EnvironmentVc),
     React {
@@ -174,13 +174,18 @@ impl EcmascriptInputTransform {
                     program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
                 }
             }
-            EcmascriptInputTransform::NextJsPageSsr => {
-                use next_ssg::next_ssg;
+            EcmascriptInputTransform::NextJsStripPageDataExports => {
+                use next_transform_strip_page_exports::{
+                    next_transform_strip_page_exports, ExportFilter,
+                };
                 let eliminated_packages = Default::default();
 
                 let module_program = unwrap_module_program(program);
 
-                *program = module_program.fold_with(&mut next_ssg(eliminated_packages));
+                *program = module_program.fold_with(&mut next_transform_strip_page_exports(
+                    ExportFilter::StripDataExports,
+                    eliminated_packages,
+                ));
             }
             EcmascriptInputTransform::NextJsFont(font_loaders_vc) => {
                 let mut font_loaders = vec![];
