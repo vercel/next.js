@@ -40,7 +40,6 @@ module.exports = function (plop) {
       }/${appDirPath}/test-template`
       let targetPath = `test/{{ type }}/${appDirPath}`
 
-      console.log(templatePath)
       return [
         {
           type: 'addMany',
