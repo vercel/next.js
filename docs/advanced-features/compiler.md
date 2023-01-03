@@ -281,7 +281,7 @@ module.exports = {
 
 Allows to modularize imports, similar to [babel-plugin-transform-imports](https://www.npmjs.com/package/babel-plugin-transform-imports).
 
-Transforms member style imports of packages that use “barrel files” (files that re-exports other modules):
+Transforms member style imports of packages that use a “barrel file” (a single file that re-exports other modules):
 
 ```js
 import { Row, Grid as MyGrid } from 'react-bootstrap'
@@ -388,6 +388,27 @@ import { MyModule } from 'my-library'
 
 // After
 import { MyModule } from 'my-library/MyModule'
+```
+
+#### Preventing full import
+
+If you use the `preventFullImport` option, the compiler will throw an error if you import a “barrel file” using default import. If you use the following config:
+
+```js
+// next.config.js
+module.exports = {
+  lodash: {
+    transform: 'lodash/{{member}}',
+    preventFullImport: true,
+  },
+}
+```
+
+The compiler will throw an error if you try to import the full `lodash` library (instead of using named imports):
+
+```js
+// Compiler error
+import lodash from 'lodash'
 ```
 
 ## Experimental Features
