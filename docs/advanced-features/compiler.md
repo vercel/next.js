@@ -319,17 +319,36 @@ module.exports = {
 }
 ```
 
-#### Handlebars templating
+#### Handlebars variables and helper functions
 
 This transform uses [handlebars](https://docs.rs/handlebars) to template the replacement import path in the `transform` field. These variables and helper functions are available:
 
-1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
-2. `member`: Has type `string`. The name of the member import.
-3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
+1. `member`: Has type `string`. The name of the member import.
+2. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
+3. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
 
-#### Using regular expressions
+For example, you can use the `kebabCase` helper like this:
 
-You can use regular expressions using Rust [regex](https://docs.rs/regex/latest/regex/) crate’s syntax:
+```js
+// next.config.js
+module.exports = {
+  'my-library': {
+    transform: 'my-library/{{ kebabCase member }}',
+  },
+}
+```
+
+The above config will transform your code as follows:
+
+```js
+// Before
+import { MyModule } from 'my-library'
+
+// After (`MyModule` was converted to `my-module`)
+import MyModule from 'my-library/my-module'
+```
+
+You can also use regular expressions using Rust [regex](https://docs.rs/regex/latest/regex/) crate’s syntax:
 
 ```js
 // next.config.js
@@ -367,7 +386,7 @@ By default, `modularizeImports` assumes that each module uses default exports. H
 export const MyModule = /* ... */
 
 // my-library/index.ts
-// Re-exports MyModule
+// Re-exports `MyModule`
 export { MyModule } from './MyModule'
 ```
 
