@@ -1293,7 +1293,9 @@ export default async function build(
                         if (
                           (!isDynamicRoute(page) ||
                             !workerResult.prerenderRoutes?.length) &&
-                          workerResult.appConfig?.revalidate !== 0
+                          workerResult.appConfig?.revalidate !== 0 &&
+                          // NOTE-APP-ROUTE-HANDLERS: (wyattjoh) this may be where we can enable prerendering for app handlers
+                          originalAppPath.endsWith('/page')
                         ) {
                           appStaticPaths.set(originalAppPath, [page])
                           appStaticPathsEncoded.set(originalAppPath, [page])

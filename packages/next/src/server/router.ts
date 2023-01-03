@@ -50,7 +50,11 @@ export type Route = {
   ) => Promise<RouteResult> | RouteResult
 }
 
-export type DynamicRoutes = Array<{ page: string; match: RouteMatch }>
+// TODO: document
+export type DynamicRoutes = Array<{
+  page: string
+  match: RouteMatch
+}>
 
 export type PageChecker = (pathname: string) => Promise<boolean>
 

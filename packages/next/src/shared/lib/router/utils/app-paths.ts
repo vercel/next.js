@@ -14,7 +14,10 @@ export function normalizeAppPath(pathname: string) {
       return acc
     }
 
-    if (segment === 'page' && index === segments.length - 1) {
+    if (
+      (segment === 'page' || segment === 'route') &&
+      index === segments.length - 1
+    ) {
       return acc
     }
 

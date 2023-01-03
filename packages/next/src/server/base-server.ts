@@ -173,6 +173,28 @@ type ResponsePayload = {
   revalidateOptions?: any
 }
 
+export type AppCustomRoute = {
+  /**
+   * `page` represents the requested page path, excluding any suffix.
+   */
+  page: string
+
+  /**
+   * `params` if provided is the dynamic route parameters that were parsed by
+   * the router.
+   */
+  params?: Params
+
+  /**
+   * `pathname` represents the pathname to the file (excluding any extension)
+   * that can be used to lookup the file on the filesystem.
+   */
+  pathname: string
+}
+
+// TODO: narrow type
+export type AppCustomRouteHandler = (req: any) => any
+
 export default abstract class Server<ServerOptions extends Options = Options> {
   protected dir: string
   protected quiet: boolean
@@ -803,26 +825,34 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   protected getDynamicRoutes(): Array<RoutingItem> {
-    const addedPages = new Set<string>()
+    const pages = new Set<string>()
 
-    return getSortedRoutes(
+    const sorted = getSortedRoutes(
       [
         ...Object.keys(this.appPathRoutes || {}),
-        ...Object.keys(this.pagesManifest!),
-      ].map(
-        (page) =>
-          normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
-      )
+        ...Object.keys(this.pagesManifest || {}),
+      ]
+        .map(
+          (page) =>
+            normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
+        )
+        .filter(isDynamicRoute)
     )
-      .map((page) => {
-        if (addedPages.has(page) || !isDynamicRoute(page)) return null
-        addedPages.add(page)
-        return {
-          page,
-          match: getRouteMatcher(getRouteRegex(page)),
-        }
+
+    const routes: DynamicRoutes = []
+
+    for (const page of sorted) {
+      if (pages.has(page)) continue
+
+      pages.add(page)
+
+      routes.push({
+        page,
+        match: getRouteMatcher(getRouteRegex(page)),
       })
-      .filter((item): item is RoutingItem => Boolean(item))
+    }
+
+    return routes
   }
 
   protected getAppPathRoutes(): Record<string, string[]> {
@@ -1658,16 +1688,56 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   // map the route to the actual bundle name
   protected getOriginalAppPaths(route: string) {
-    if (this.hasAppDir) {
-      const originalAppPath = this.appPathRoutes?.[route]
-
-      if (!originalAppPath) {
-        return null
-      }
-
-      return originalAppPath
+    if (!this.hasAppDir) {
+      return null
     }
-    return null
+
+    const originalAppPath = this.appPathRoutes?.[route]
+    if (!originalAppPath) {
+      return null
+    }
+
+    return originalAppPath
+  }
+
+  protected async matchAppCustomRoute(
+    pathname: string
+  ): Promise<AppCustomRoute | false> {
+    let appPaths = this.getOriginalAppPaths(pathname)
+    if (appPaths && appPaths[0]) {
+      return { page: pathname, pathname: appPaths[0] }
+    }
+
+    // TODO: handle case where a url is requested with the literal matching params like `/accounts/[id]`, similar to below
+    // // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
+    // // route correctly and not loaded immediately without parsing params.
+    // if (!isDynamicRoute(page)) {
+    //   const result = await this.renderPageComponent(ctx, bubbleNoFallback)
+    //   if (result !== false) return result
+    // }
+
+    // Check to see if the route is a dynamic route.
+    if (this.dynamicRoutes) {
+      for (const route of this.dynamicRoutes) {
+        // See if this route matches the inputted pathname.
+        const params = route.match(pathname)
+        if (!params) continue
+
+        // It did! So check if this route pathname is an app route.
+        appPaths = this.getOriginalAppPaths(route.page)
+        if (!appPaths || !appPaths[0]) continue
+        pathname = appPaths[0]
+
+        // It is! So check to see if this app path route is a custom route.
+        if (!pathname.endsWith('/route')) continue
+
+        // It is! We found the route, which was a dynamic custom route.
+        return { page: route.page, params, pathname }
+      }
+    }
+
+    // We couldn't find a suitable custom app route for this pathname.
+    return false
   }
 
   protected async renderPageComponent(

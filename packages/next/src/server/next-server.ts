@@ -74,6 +74,8 @@ import BaseServer, {
   RoutingItem,
   NoFallbackError,
   RequestContext,
+  AppCustomRoute,
+  AppCustomRouteHandler,
 } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -1212,6 +1214,22 @@ export default class NextNodeServer extends BaseServer {
           }
         }
 
+        const route = await this.matchAppCustomRoute(pathname)
+        if (route) {
+          // TODO: is this needed for this route?
+          delete query._nextBubbleNoFallback
+
+          const handled = await this.handleAppCustomRouteRequest(
+            req,
+            res,
+            route,
+            query
+          )
+          if (handled) {
+            return { finished: true }
+          }
+        }
+
         try {
           await this.render(req, res, pathname, query, parsedUrl, true)
 
@@ -1298,6 +1316,87 @@ export default class NextNodeServer extends BaseServer {
     }
 
     return this.runApi(req, res, query, params, page, builtPagePath)
+  }
+
+  protected async handleAppCustomRouteRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    route: AppCustomRoute,
+    query: ParsedUrlQuery
+  ): Promise<boolean> {
+    // TODO: ensure to "ensure" that the app custom route page is built, like this.ensureApiPage
+
+    if (!this.appPathsManifest) return false
+
+    // Get the underlying file to load for this pathname.
+    const path = this.appPathsManifest[route.pathname]
+    if (!path) {
+      throw new Error(
+        `could not find the path in the manifest, this shouldn't happen: ${route.pathname}`
+      )
+    }
+
+    // TODO: run any edge functions that should be ran for this invocation.
+
+    // Try to load the page module.
+    const mod = await require(join(this.distDir, SERVER_DIRECTORY, path))
+
+    // TODO: pull this list of supported methods to global scope
+    const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
+
+    // Ensure that the requested method is a valid method (to prevent RCE's).
+    if (!methods.includes(req.method)) return false
+
+    // Check to see if the requested method is available.
+    const handler: AppCustomRouteHandler | undefined = mod[req.method]
+    if (!handler) return false
+
+    // TODO: wrap the request object
+
+    // Use the requested handler to execute the request.
+    const response: Response = await handler(req)
+
+    // TODO: validate the correct handling behavior
+    if (!(response instanceof Response)) return false
+
+    // Copy over the response status.
+    res.statusCode = response.status
+    res.statusMessage = response.statusText
+
+    // Copy over the response headers.
+    response.headers.forEach((value, name) => {
+      // The append handling is special cased for `set-cookie`.
+      if (name.toLowerCase() === 'set-cookie') {
+        res.setHeader(name, value)
+      } else {
+        res.appendHeader(name, value)
+      }
+    })
+
+    /**
+     * The response can't be directly piped to the underlying response. The
+     * following is duplicated from the edge runtime handler.
+     *
+     * See packages/next/server/next-server.ts
+     */
+
+    const originalResponse = (res as NodeNextResponse).originalResponse
+    if (response.body) {
+      const { consumeUint8ArrayReadableStream } =
+        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
+      const iterator = consumeUint8ArrayReadableStream(response.body)
+      try {
+        for await (const chunk of iterator) {
+          originalResponse.write(chunk)
+        }
+      } finally {
+        originalResponse.end()
+      }
+    } else {
+      originalResponse.end()
+    }
+
+    return true
   }
 
   protected getCacheFilesystem(): CacheFs {
