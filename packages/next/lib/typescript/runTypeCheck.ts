@@ -89,12 +89,20 @@ export async function runTypeCheck(
   const allDiagnostics = ts
     .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)
+
+  const diagnosticsWithoutIgnoredFiles = allDiagnostics
     .filter((d) => !(d.file && regexIgnoredFile.test(d.file.fileName)))
 
+  if (allDiagnostics.length !== diagnosticsWithoutIgnoredFiles.length) {
+    warn(
+      'Some test files reported TypeScript type errors, proceeding anyway.'
+    )
+  }
+
   const firstError =
-    allDiagnostics.find(
+    diagnosticsWithoutIgnoredFiles.find(
       (d) => d.category === DiagnosticCategory.Error && Boolean(d.file)
-    ) ?? allDiagnostics.find((d) => d.category === DiagnosticCategory.Error)
+    ) ?? diagnosticsWithoutIgnoredFiles.find((d) => d.category === DiagnosticCategory.Error)
 
   if (firstError) {
     throw new CompileError(
@@ -109,7 +117,7 @@ export async function runTypeCheck(
   }
 
   const warnings = await Promise.all(
-    allDiagnostics
+    diagnosticsWithoutIgnoredFiles
       .filter((d) => d.category === DiagnosticCategory.Warning)
       .map((d) =>
         getFormattedDiagnostic(ts, baseDir, distDir, d, isAppDirEnabled)
