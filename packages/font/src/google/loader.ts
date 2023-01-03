@@ -197,6 +197,7 @@ const downloadGoogleFonts: FontLoader = async ({
     loaderContext.cacheable(false)
     if (isDev) {
       if (isServer) {
+        console.error(err)
         Log.error(
           `Failed to download \`${fontFamily}\` from Google Fonts. Using fallback font instead.`
         )
