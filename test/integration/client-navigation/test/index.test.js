@@ -262,6 +262,18 @@ describe('Client Navigation', () => {
       expect(text).toBe('This is the home.')
       await browser.close()
     })
+
+    it('should warn href attribute being defined in anchor tag', async () => {
+      const browser = await webdriver(context.appPort, '/nav/pass-href-prop')
+      const browserLogs = await browser.log('browser')
+      let found = false
+      browserLogs.forEach((log) => {
+        if (log.message.includes('next/link has anchor child with "href"')) {
+          found = true
+        }
+      })
+      expect(found).toEqual(true)
+    })
   })
 
   describe('with empty getInitialProps()', () => {

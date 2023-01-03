@@ -656,6 +656,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       },
     }
 
+    if (process.env.NODE_ENV === 'development') {
+      if (child.type === 'a' && 'href' in child.props) {
+        console.warn(
+          `next/link has anchor child with "href": ${child.props.href} which overrides next/link's handling for "href", this should be removed in favor of "passHref"`
+        )
+      }
+    }
+
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
     // defined, we specify the current 'href', so that repetition is not needed by the user
     if (

@@ -22,6 +22,12 @@ export default () => (
       <FakeA id="without-href">Will not redirect as an `a` tag</FakeA>
     </Link>
 
+    <Link href="/nav">
+      <FakeA href="/nav" id="duplicate-href">
+        Will not inherit basePath
+      </FakeA>
+    </Link>
+
     <p>This is the passHref prop page.</p>
   </div>
 )
