@@ -1348,7 +1348,17 @@ export default class NextNodeServer extends BaseServer {
     if (!methods.includes(req.method)) return false
 
     // Check to see if the requested method is available.
-    const handler: AppCustomRouteHandler | undefined = mod.handlers[req.method]
+    let handler: AppCustomRouteHandler | undefined = mod.handlers[req.method]
+
+    // If HEAD is not provided, but GET is, then we respond to HEAD using the
+    // GET handler without the body.
+    if (!handler && req.method === 'HEAD' && 'GET' in mod.handlers) {
+      handler = mod.handlers['GET']
+    }
+
+    // If OPTIONS is not provided then that’s automatically implemented.
+    // TODO: implement OPTIONS route handler
+
     if (!handler) return false
 
     // TODO: wrap the request object
@@ -1381,7 +1391,9 @@ export default class NextNodeServer extends BaseServer {
      */
 
     const originalResponse = (res as NodeNextResponse).originalResponse
-    if (response.body) {
+
+    // A response body must not be sent for HEAD requests. See https://httpwg.org/specs/rfc9110.html#HEAD
+    if (response.body && req.method !== 'HEAD') {
       const { consumeUint8ArrayReadableStream } =
         require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
       const iterator = consumeUint8ArrayReadableStream(response.body)

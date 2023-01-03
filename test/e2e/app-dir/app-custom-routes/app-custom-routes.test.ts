@@ -25,5 +25,13 @@ createNextDescribe(
         }
       )
     })
+
+    it('automatically implements HEAD on routes with GET already implemented', async () => {
+      const res = await next.fetch('/basic/hello', { method: 'HEAD' })
+
+      expect(res.ok).toBeTrue()
+      expect(await res.text()).toBeEmpty()
+      expect(res.headers.get('x-nextjs-requested-method')).toBe('HEAD')
+    })
   }
 )
