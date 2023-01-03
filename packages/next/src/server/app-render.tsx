@@ -47,6 +47,7 @@ import {
 } from '../client/components/app-router-headers'
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
 import { DefaultHead } from '../client/components/head'
+import { formatServerError } from '../lib/format-server-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -227,6 +228,7 @@ function createErrorHandler(
       return err.digest
     }
 
+    formatServerError(err)
     // Used for debugging error source
     // console.error(_source, err)
     console.error(err)
