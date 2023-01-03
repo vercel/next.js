@@ -354,6 +354,42 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 2. `member`: Has type `string`. The name of the member import.
 3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
 
+#### Using named imports
+
+By default, `modularizeImports` assumes that each module uses default exports. However, this may not always be the case — named exports may be used.
+
+```js
+// my-library/MyModule.ts
+// Using named export instead of default export
+export const MyModule = /* ... */
+
+// my-library/index.ts
+// Re-exports MyModule
+export { MyModule } from './MyModule'
+```
+
+In this case, you can use the `skipDefaultConversion` option to use named imports instead of default imports:
+
+```js
+// next.config.js
+module.exports = {
+  'my-library': {
+    transform: 'my-library/{{member}}',
+    skipDefaultConversion: true,
+  },
+}
+```
+
+The above config will transform your code as follows:
+
+```js
+// Before
+import { MyModule } from 'my-library'
+
+// After
+import { MyModule } from 'my-library/MyModule'
+```
+
 ## Experimental Features
 
 ### Minifier debug options
