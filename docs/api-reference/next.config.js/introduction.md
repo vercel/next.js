@@ -37,28 +37,42 @@ export default nextConfig
 You can also use a function:
 
 ```js
+/**
+ * @typedef NextConfig
+ * @type {import('next').NextConfig}
+ */
+
+/**
+ * @param {string} phase
+ * @param {object} options
+ * @param {NextConfig} options.defaultConfig
+ * @returns {NextConfig}
+ */
 module.exports = (phase, { defaultConfig }) => {
-  /**
-   * @type {import('next').NextConfig}
-   */
-  const nextConfig = {
+  return {
     /* config options here */
   }
-  return nextConfig
 }
 ```
 
 Since Next.js 12.1.0, you can use an async function:
 
 ```js
+/**
+ * @typedef NextConfig
+ * @type {import('next').NextConfig}
+ */
+
+/**
+ * @param {string} phase
+ * @param {object} options
+ * @param {NextConfig} options.defaultConfig
+ * @returns {Promise<NextConfig>}
+ */
 module.exports = async (phase, { defaultConfig }) => {
-  /**
-   * @type {import('next').NextConfig}
-   */
-  const nextConfig = {
+  return {
     /* config options here */
   }
-  return nextConfig
 }
 ```
 
