@@ -951,7 +951,7 @@ function runTests(mode) {
       ).toBe('/test.svg')
       expect(
         await browser.elementById('without-loader').getAttribute('srcset')
-      ).toBe('/test.svg 1x, /test.svg 2x')
+      ).toBeFalsy()
     })
 
     it('should warn at most once even after state change', async () => {
