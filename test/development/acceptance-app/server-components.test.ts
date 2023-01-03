@@ -163,7 +163,7 @@ describe('Error Overlay for server components', () => {
     })
   })
 
-  describe.only('React component hooks called in Server Component', () => {
+  describe('React component hooks called in Server Component', () => {
     it('should show error when React.<client-hook> is called', async () => {
       const { session, cleanup } = await sandbox(
         next,
