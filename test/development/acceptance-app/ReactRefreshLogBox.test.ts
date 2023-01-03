@@ -247,6 +247,88 @@ describe('ReactRefreshLogBox app', () => {
     await cleanup()
   })
 
+  test('server component can recover from syntax error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          `
+          export default function Page() {
+            return <p>Hello world</p>
+          }
+`,
+        ],
+      ])
+    )
+
+    // Add syntax error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p>Hello world</p>
+`
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Fix syntax error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p>Hello world 2</p>
+      }
+`
+    )
+
+    expect(await browser.waitForElementByCss('p').text()).toBe('Hello world 2')
+
+    await cleanup()
+  })
+
+  test('server component can recover from component error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          `
+          export default function Page() {
+            return <p>Hello world</p>
+          }
+`,
+        ],
+      ])
+    )
+
+    // Add component error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        throw new Error("boom")
+        return <p>Hello world</p>
+      }
+`
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Fix component error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p>Hello world 2</p>
+      }
+`
+    )
+
+    expect(await browser.waitForElementByCss('p').text()).toBe('Hello world 2')
+
+    await cleanup()
+  })
+
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
   test('render error not shown right after syntax error', async () => {
     const { session, cleanup } = await sandbox(next)
