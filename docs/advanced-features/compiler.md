@@ -279,6 +279,13 @@ module.exports = {
 
 ### Modularize Imports
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/blob/canary/examples/modularize-imports/">modularize-imports</a></li>
+  </ul>
+</details>
+
 Allows to modularize imports, similar to [babel-plugin-transform-imports](https://www.npmjs.com/package/babel-plugin-transform-imports).
 
 Transforms member style imports of packages that use a “barrel file” (a single file that re-exports other modules):
