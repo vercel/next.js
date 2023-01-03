@@ -25,8 +25,8 @@ const schema = createSchema({
 export const config = {
   api: {
     // Disable body parsing (required for file uploads)
-    bodyParser: false
-  }
+    bodyParser: false,
+  },
 }
 
 export default createYoga({
