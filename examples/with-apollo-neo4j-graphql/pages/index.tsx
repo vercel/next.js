@@ -3,10 +3,11 @@ import Link from 'next/link'
 import { gql, useQuery } from '@apollo/client'
 import Header from '../components/header'
 import Footer from '../components/footer'
+import type { Movies } from '../types'
 
 const GET_MOVIES = gql`
   query GetMovies {
-    getMovies {
+    movies {
       title
       tagline
       released
@@ -21,7 +22,7 @@ const GET_MOVIES = gql`
 `
 
 export default function Home() {
-  const { loading, error, data } = useQuery(GET_MOVIES)
+  const { loading, error, data } = useQuery<{ movies: Movies }>(GET_MOVIES)
 
   if (loading) return 'Loading...'
   if (error) return `Error! ${error.message}`
@@ -53,7 +54,7 @@ export default function Home() {
               </tr>
             </thead>
             <tbody>
-              {data.getMovies.map((movie, index) => (
+              {data.movies.map((movie, index) => (
                 <tr className="movie" key={movie.title}>
                   <th>{index + 1}</th>
                   <td>

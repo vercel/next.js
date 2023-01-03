@@ -4,10 +4,11 @@ import { useRouter } from 'next/router'
 import { gql, useQuery } from '@apollo/client'
 import Header from '../../components/header'
 import Footer from '../../components/footer'
+import type { Movies } from '../../types'
 
 const GET_MOVIE = gql`
   query GetMovie($movieTitle: String) {
-    getMovie(filter: { title: $movieTitle }) {
+    movies(where: { title: $movieTitle }) {
       title
       tagline
       released
@@ -24,8 +25,8 @@ const GET_MOVIE = gql`
 export default function Movie() {
   const router = useRouter()
   const { title } = router.query
-  const { loading, error, data } = useQuery(GET_MOVIE, {
-    movieTitle: title,
+  const { loading, error, data } = useQuery<{ movies: Movies }>(GET_MOVIE, {
+    variables: { movieTitle: title },
   })
 
   if (loading) return 'Loading...'
@@ -46,22 +47,22 @@ export default function Movie() {
             <h2>Information</h2>
             <div>
               <strong>Tagline: </strong>
-              {data.getMovie.tagline}
+              {data.movies[0].tagline}
             </div>
             <div>
               <strong>Released: </strong>
-              {data.getMovie.released}
+              {data.movies[0].released}
             </div>
           </div>
           <div className="actors">
             <h2>Actors</h2>
-            {data.getMovie.actors.map((actor) => (
+            {data.movies[0].actors.map((actor) => (
               <div key={actor.name}>{actor.name}</div>
             ))}
           </div>
           <div className="directors">
             <h2>Directors</h2>
-            {data.getMovie.directors.map((director) => (
+            {data.movies[0].directors.map((director) => (
               <div key={director.name}>{director.name}</div>
             ))}
           </div>
