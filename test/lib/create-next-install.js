@@ -212,7 +212,6 @@ async function createNextInstall({
             }
           })
       }
-      await new Promise(() => {})
 
       await fs.remove(tmpRepoDir)
       return installDir
