@@ -36,20 +36,23 @@ async function createNextInstall({
   return await parentSpan
     .traceChild('createNextInstall')
     .traceAsyncFn(async (rootSpan) => {
-      const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
       const origRepoDir = path.join(__dirname, '../../')
-      const installDir = path.join(
-        tmpDir,
-        `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
-      )
-      const tmpRepoDir = path.join(
-        tmpDir,
-        `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
-      )
 
-      require('console').log('Using following temporary directories:')
-      require('console').log(installDir)
-      require('console').log(tmpRepoDir)
+      // We need to build dependencies stable location so that change in paths doesn't break our cache
+      const testCacheDir = path.join(
+        origRepoDir,
+        'node_modules',
+        '.cache',
+        'tests'
+      )
+      const tmpRepoDir = path.join(testCacheDir, `next-repo`)
+      if (fs.existsSync(tmpRepoDir)) {
+        require('console').log(`'${tmpRepoDir}' already exists, removing.`)
+        await fs.remove(tmpRepoDir)
+      }
+
+      const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
+      const installDir = path.join(tmpDir, `next-install`)
 
       await rootSpan.traceChild(' enruse swc binary').traceAsyncFn(async () => {
         // ensure swc binary is present in the native folder if
@@ -214,7 +217,7 @@ async function createNextInstall({
           })
       }
 
-      await fs.remove(tmpRepoDir)
+      // await fs.remove(tmpRepoDir)
       return installDir
     })
 }

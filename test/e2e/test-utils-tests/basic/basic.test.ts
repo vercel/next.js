@@ -10,5 +10,11 @@ createNextDescribe(
       const res = await next.fetch('/')
       expect(await res.text()).toContain('Hello World')
     })
+
+    it('temporary test', async () => {
+      const $ = await next.render$('/')
+      console.log($('body').html())
+      expect($('#test').text()).toBe('arst3')
+    })
   }
 )

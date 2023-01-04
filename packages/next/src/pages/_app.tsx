@@ -41,6 +41,11 @@ export default class App<P = any, CP = {}, S = {}> extends React.Component<
   render() {
     const { Component, pageProps } = this.props as AppProps<CP>
 
-    return <Component {...pageProps} />
+    return (
+      <div>
+        <p id="test">arst3</p>
+        <Component {...pageProps} />
+      </div>
+    )
   }
 }

@@ -63,6 +63,28 @@ module.exports = (actionInfo) => {
         ? parentSpan.traceChild('linkPackages')
         : mockTrace()
 
+      let origRepo = path.join(__dirname, '..', '..', '..', '..', '..')
+
+      // stats-action runs this code without access to the original repo.
+      // So repoDir is the only version taht we have
+      if (origRepo === '/') {
+        origRepo = repoDir
+      }
+
+      const turboCacheLocation = path.join(
+        origRepo,
+        'node_modules',
+        '.cache',
+        'turbo'
+      )
+      const packedPkgsDir = path.join(
+        origRepo,
+        'node_modules',
+        '.cache',
+        'tests',
+        'packed-pkgs'
+      )
+
       return await rootSpan.traceAsyncFn(async () => {
         const pkgPaths = new Map()
         const pkgDatas = new Map()
@@ -81,9 +103,16 @@ module.exports = (actionInfo) => {
         await rootSpan
           .traceChild('prepare packages for packing')
           .traceAsyncFn(async () => {
+            await fs.ensureDir(packedPkgsDir)
+            const repoData = require(path.join(repoDir, 'package.json'))
+
             for (const pkg of pkgs) {
               const pkgPath = path.join(repoDir, 'packages', pkg)
-              const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
+              const pkgSrcPath = path.join(origRepo, 'packages', pkg)
+              const packedPkgPath = path.join(
+                packedPkgsDir,
+                `${pkg}-packed.tgz`
+              )
 
               const pkgDataPath = path.join(pkgPath, 'package.json')
               if (!fs.existsSync(pkgDataPath)) {
@@ -96,6 +125,7 @@ module.exports = (actionInfo) => {
                 pkgDataPath,
                 pkg,
                 pkgPath,
+                pkgSrcPath,
                 pkgData,
                 packedPkgPath,
               })
@@ -103,13 +133,19 @@ module.exports = (actionInfo) => {
             }
 
             for (const pkg of pkgDatas.keys()) {
-              const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
+              const {
+                pkgDataPath,
+                pkgData,
+                pkgPath,
+                packedPkgPath,
+                pkgSrcPath,
+              } = pkgDatas.get(pkg)
 
-              for (const pkg of pkgDatas.keys()) {
-                const { packedPkgPath } = pkgDatas.get(pkg)
-                if (!pkgData.dependencies || !pkgData.dependencies[pkg])
+              for (const depPkg of pkgDatas.keys()) {
+                const dep = pkgDatas.get(depPkg)
+                if (!pkgData.dependencies || !pkgData.dependencies[depPkg])
                   continue
-                pkgData.dependencies[pkg] = packedPkgPath
+                pkgData.dependencies[depPkg] = dep.packedPkgPath
               }
 
               // make sure native binaries are included in local linking
@@ -118,11 +154,10 @@ module.exports = (actionInfo) => {
                   pkgData.files = []
                 }
                 pkgData.files.push('native')
+                const binariesPath = path.join(pkgPath, 'native')
                 require('console').log(
                   'using swc binaries: ',
-                  await exec(
-                    `ls ${path.join(path.dirname(pkgDataPath), 'native')}`
-                  )
+                  await exec(`ls ${binariesPath}`)
                 )
               }
 
@@ -138,6 +173,36 @@ module.exports = (actionInfo) => {
                   }
                 }
               }
+
+              // Turbo requires package manager specification
+              pkgData.packageManager =
+                pkgData.packageManager || repoData.packageManager
+
+              pkgData.scripts = {
+                ...pkgData.scripts,
+                'test-pack': `yarn pack -f ${packedPkgPath}`,
+              }
+
+              const turboConfig = {
+                pipeline: {
+                  'test-pack': {
+                    outputs: [packedPkgPath],
+                    inputs: [pkgSrcPath],
+                  },
+                },
+              }
+              if (pkg === 'next') {
+                console.log(JSON.stringify(turboConfig, null, 2))
+
+                console.log(
+                  String(
+                    fs.readFileSync(path.join(pkgPath, 'src/pages/_app.tsx'))
+                  )
+                )
+              }
+              await fs.writeJSON(path.join(pkgPath, 'turbo.json'), turboConfig)
+              // Turbo requires pnpm-lock.yaml that is not empty
+              await fs.writeFile(path.join(pkgPath, 'pnpm-lock.yaml'), '')
 
               await fs.writeFile(
                 pkgDataPath,
@@ -157,11 +222,14 @@ module.exports = (actionInfo) => {
                 await packingSpan
                   .traceChild(`pack ${pkgName}`)
                   .traceAsyncFn(async () => {
-                    const { pkg, pkgPath } = pkgDatas.get(pkgName)
-                    await exec(
-                      `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
+                    const { pkgPath } = pkgDatas.get(pkgName)
+                    const result = await exec(
+                      `pnpm run --dir="${origRepo}" turbo run test-pack --cache-dir="${turboCacheLocation}" --cwd="${pkgPath}" -vvv`,
                       true
                     )
+                    if (pkgName === 'next') {
+                      console.log(result)
+                    }
                   })
               })
             )
