@@ -800,21 +800,12 @@ function clientReducer(
         }
 
         if (newTree !== null) {
-          // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
-          const flightDataPath = flightData[0]
-          const flightSegmentPath = flightDataPath.slice(
-            0,
-            -3
-          ) as unknown as FlightSegmentPath
           mutable.previousTree = state.tree
           mutable.patchedTree = newTree
           mutable.mpaNavigation = isNavigatingToNewRootLayout(
             state.tree,
             newTree
           )
-
-          // The one before last item is the router state tree patch
-          const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
           if (newTree === null) {
             throw new Error('SEGMENT MISMATCH')
@@ -831,14 +822,28 @@ function clientReducer(
             newTree
           )
 
-          if (flightDataPath.length === 3) {
-            cache.subTreeData = subTreeData
-            fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
+          // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
+          const flightDataPath = flightData[0]
+          const flightSegmentPath = flightDataPath.slice(
+            0,
+            -3
+          ) as unknown as FlightSegmentPath
+          // The one before last item is the router state tree patch
+          const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
+
+          // Handles case where prefetch only returns the router tree patch without rendered components.
+          if (subTreeData !== null) {
+            if (flightDataPath.length === 3) {
+              cache.subTreeData = subTreeData
+              fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
+            } else {
+              // Copy subTreeData for the root node of the cache.
+              cache.subTreeData = state.cache.subTreeData
+              // Create a copy of the existing cache with the subTreeData applied.
+              fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+            }
           } else {
-            // Copy subTreeData for the root node of the cache.
-            cache.subTreeData = state.cache.subTreeData
-            // Create a copy of the existing cache with the subTreeData applied.
-            fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+            mutable.useExistingCache = true
           }
 
           const hardNavigate =
