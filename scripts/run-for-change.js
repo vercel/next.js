@@ -18,6 +18,7 @@ const CHANGE_ITEM_GROUPS = {
     '.github/labeler.json',
     '.github/pull_request_template.md',
   ],
+  cna: ['packages/create-next-app'],
   'next-swc': ['packages/next-swc', 'scripts/normalize-version-bump.js'],
 }
 
@@ -64,6 +65,7 @@ async function main() {
   const typeIndex = process.argv.indexOf('--type')
   const type = typeIndex > -1 && process.argv[typeIndex + 1]
   const isNegated = process.argv.indexOf('--not') > -1
+  const alwaysCanary = process.argv.includes('--always-canary') > -1
 
   if (!type) {
     throw new Error(
@@ -91,6 +93,12 @@ async function main() {
     )
   }
   let changedFilesCount = 0
+
+  // always run for canary if flag is enabled
+  if (alwaysCanary && branchName === 'canary') {
+    changedFilesCount += 1
+    hasMatchingChange = true
+  }
 
   for (let file of changedFilesOutput.split('\n')) {
     file = file.trim().replace(/\\/g, '/')
