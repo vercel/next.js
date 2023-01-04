@@ -842,8 +842,6 @@ function clientReducer(
               // Create a copy of the existing cache with the subTreeData applied.
               fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
             }
-          } else {
-            mutable.useExistingCache = true
           }
 
           const hardNavigate =
@@ -865,6 +863,9 @@ function clientReducer(
               state.cache,
               flightSegmentPath
             )
+            // Ensure the existing cache value is used when the cache was not invalidated.
+          } else if (subTreeData === null) {
+            mutable.useExistingCache = true
           }
 
           const canonicalUrlOverrideHref = canonicalUrlOverride
