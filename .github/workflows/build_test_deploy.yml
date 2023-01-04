@@ -508,7 +508,7 @@ jobs:
       - run: echo "::set-output name=CNA_CHANGE::$(node scripts/run-for-change.js --type cna --always-canary --exec echo 'yup')"
         id: cna-change
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/create-next-app/**/*.test.ts >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/create-next-app/index.test.ts test/integration/create-next-app/templates.test.ts >> /proc/1/fd/1"
         if: ${{ needs.build.outputs.docsChange == 'nope' && steps.cna-change.outputs.CNA_CHANGE == 'yup' }}
 
       - name: Upload test trace
