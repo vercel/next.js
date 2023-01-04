@@ -27,6 +27,7 @@ module.exports = function (task) {
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
       minify: options.minify === false ? false : true,
+      assetBuilds: true,
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {
@@ -73,7 +74,7 @@ function writePackageManifest(packageName, main, bundleName, precompiled) {
 
   const compiledPackagePath = join(
     __dirname,
-    `${!precompiled ? 'dist/' : ''}compiled/${bundleName || packageName}`
+    `${!precompiled ? 'dist/' : ''}src/compiled/${bundleName || packageName}`
   )
 
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')

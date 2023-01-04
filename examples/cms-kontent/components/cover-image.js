@@ -1,5 +1,5 @@
 import cn from 'classnames'
-import Image from 'next/image'
+import Image from '../components/image'
 import Link from 'next/link'
 
 export default function CoverImage({ title, src, slug }) {
@@ -17,8 +17,8 @@ export default function CoverImage({ title, src, slug }) {
   return (
     <div className="sm:mx-0">
       {slug ? (
-        <Link href={slug}>
-          <a aria-label={title}>{image}</a>
+        <Link href={`/posts/${slug}`} aria-label={title}>
+          {image}
         </Link>
       ) : (
         image

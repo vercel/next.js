@@ -68,14 +68,14 @@ exports[`ReactRefreshLogBox logbox: can recover from a event handler error 1`] =
 
 exports[`ReactRefreshLogBox logbox: can recover from a syntax error without losing state 1`] = `
 "./index.js
-Error: error: Unexpected eof
- 
-  |
-1 | export default () => <div/
-  |                           ^
+Error: 
+  x Unexpected eof
+   ,----
+ 1 | export default () => <div/
+   \`----
 
 Caused by:
-    0: failed to process js file
+    0: failed to process input file
     1: Syntax Error"
 `;
 
@@ -103,6 +103,18 @@ exports[`ReactRefreshLogBox render error not shown right after syntax error 1`] 
   9 | }"
 `;
 
+exports[`ReactRefreshLogBox should strip whitespace correctly with newline 1`] = `
+"index.js (9:34) @ onClick
+
+   7 | 
+   8 | <a onClick={() => {
+>  9 |   throw new Error('idk')
+     |        ^
+  10 | }}>
+  11 |   click me
+  12 | </a>"
+`;
+
 exports[`ReactRefreshLogBox stuck error 1`] = `
 "Foo.js (4:10) @ Foo
 
@@ -115,7 +127,7 @@ exports[`ReactRefreshLogBox stuck error 1`] = `
 `;
 
 exports[`ReactRefreshLogBox syntax > runtime error 1`] = `
-"index.js (6:16) @ eval
+"index.js (6:16) @ Error
 
   4 | setInterval(() => {
   5 |   i++
@@ -128,39 +140,62 @@ exports[`ReactRefreshLogBox syntax > runtime error 1`] = `
 
 exports[`ReactRefreshLogBox syntax > runtime error 2`] = `
 "./index.js
-Error: error: Unexpected eof
- 
-  |
-8 |         export default function FunctionNamed() {
-  |                                                  ^
+Error: 
+  x Expected '}', got '<eof>'
+   ,-[5:1]
+ 5 |           i++
+ 6 |           throw Error('no ' + i)
+ 7 |         }, 1000)
+ 8 |         export default function FunctionNamed() {
+   :                                                 ^
+   \`----
 
 Caused by:
-    0: failed to process js file
-    1: Syntax Error"
+    0: failed to process input file
+    1: error was recoverable, but proceeding would result in wrong codegen
+    2: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox syntax > runtime error 3`] = `
 "./index.js
-Error: error: Unexpected eof
- 
-  |
-8 |         export default function FunctionNamed() {
-  |                                                  ^
+Error: 
+  x Expected '}', got '<eof>'
+   ,-[5:1]
+ 5 |           i++
+ 6 |           throw Error('no ' + i)
+ 7 |         }, 1000)
+ 8 |         export default function FunctionNamed() {
+   :                                                 ^
+   \`----
 
 Caused by:
-    0: failed to process js file
-    1: Syntax Error"
+    0: failed to process input file
+    1: error was recoverable, but proceeding would result in wrong codegen
+    2: Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox unterminated JSX 1`] = `
 "./index.js
-Error: error: Unexpected eof
- 
-  |
-9 |       
-  |       ^
+Error: 
+  x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+   ,-[5:1]
+ 5 |               <p>lol</p>
+ 6 |             div
+ 7 |           )
+ 8 |         }
+   :         ^
+ 9 |       
+   \`----
+
+  x Unexpected eof
+   ,-[6:1]
+ 6 |             div
+ 7 |           )
+ 8 |         }
+ 9 |       
+   \`----
 
 Caused by:
-    0: failed to process js file
+    0: failed to process input file
     1: Syntax Error"
 `;

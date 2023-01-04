@@ -1,13 +1,14 @@
 {
   "name": "@next/bundle-analyzer",
-  "version": "12.0.2-canary.8",
+  "version": "13.1.2-canary.0",
   "main": "index.js",
+  "types": "index.d.ts",
   "license": "MIT",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-bundle-analyzer"
   },
   "dependencies": {
-    "webpack-bundle-analyzer": "4.3.0"
+    "webpack-bundle-analyzer": "4.7.0"
   }
 }

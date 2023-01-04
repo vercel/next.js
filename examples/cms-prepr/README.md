@@ -4,10 +4,10 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-- **Live**: [https://next-blog-prepr.now.sh/](https://next-blog-prepr.now.sh/)
-- **Preview Mode**: [https://next-blog-prepr.now.sh/api/preview...](https://next-blog-prepr.now.sh/api/preview?secret=237864ihasdhj283768&slug=discover-enjoy-amsterdam)
+- **Live**: [https://next-blog-prepr.vercel.app/](https://next-blog-prepr.vercel.app/)
+- **Preview Mode**: [https://next-blog-prepr.vercel.app/api/preview...](https://next-blog-prepr.vercel.app/api/preview?secret=237864ihasdhj283768&slug=discover-enjoy-amsterdam)
 
-### [https://next-blog-prepr.now.sh/](https://next-blog-prepr.now.sh/)
+### [https://next-blog-prepr.vercel.app/](https://next-blog-prepr.vercel.app/)
 
 ### Related examples
 
@@ -26,6 +26,8 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
 - [Blog Starter](/examples/blog-starter)
+- [DotCMS](/examples/cms-dotcms)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## Getting Started
 
@@ -35,12 +37,18 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-prepr cms-prepr-app
-# or
+```
+
+```bash
 yarn create next-app --example cms-prepr cms-prepr-app
+```
+
+```bash
+pnpm create next-app --example cms-prepr cms-prepr-app
 ```
 
 ## Configuration

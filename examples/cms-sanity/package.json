@@ -3,20 +3,24 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "studio:dev": "npm --prefix studio run start",
+    "studio:deploy": "npx vercel env pull && npm --prefix studio run deploy"
   },
   "dependencies": {
-    "@sanity/block-content-to-react": "2.0.7",
-    "classnames": "2.3.1",
-    "date-fns": "2.22.1",
+    "@portabletext/react": "^1.0.6",
+    "@sanity/image-url": "^1.0.1",
+    "@sanity/webhook": "^2.0.0",
+    "classnames": "^2.3.1",
+    "date-fns": "^2.29.1",
     "next": "latest",
-    "next-sanity": "0.3.0",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "next-sanity": "^0.6.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "autoprefixer": "10.2.6",
-    "postcss": "8.3.5",
-    "tailwindcss": "^2.2.4"
+    "autoprefixer": "^10.4.8",
+    "postcss": "^8.4.14",
+    "tailwindcss": "^3.1.7"
   }
 }

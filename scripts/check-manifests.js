@@ -8,7 +8,7 @@ const glob = promisify(globOrig)
 
 function collectPaths(routes, paths = []) {
   for (const route of routes) {
-    if (route.path) {
+    if (route.path && !route.redirect) {
       paths.push(route.path)
     }
 

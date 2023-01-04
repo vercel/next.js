@@ -8,6 +8,7 @@ export async function getStaticProps({ params: { slug } }) {
   return {
     props: {
       slug,
+      time: Date.now(),
     },
     revalidate: 1,
   }
@@ -27,14 +28,15 @@ export async function getStaticPaths() {
   }
 }
 
-export default function Page({ slug }) {
+export default function Page({ slug, time }) {
   // Important to not check for `slug` existence (testing that build does not
   // render fallback version and error)
   return (
     <>
-      <p id="catchall">Hi {slug.join(' ')}</p>{' '}
-      <Link href="/">
-        <a id="home">to home</a>
+      <p id="catchall">Hi {slug.join(' ')}</p>
+      <p id="time">time: {time}</p>
+      <Link href="/" id="home">
+        to home
       </Link>
     </>
   )

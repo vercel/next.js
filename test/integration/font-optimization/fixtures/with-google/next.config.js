@@ -1,3 +1,1 @@
-module.exports = {
-  cleanDistDir: false,
-}
+module.exports = { cleanDistDir: false }

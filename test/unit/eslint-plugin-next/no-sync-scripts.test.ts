@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-sync-scripts'
+import rule from '@next/eslint-plugin-next/dist/rules/no-sync-scripts'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -58,7 +58,7 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message:
-            'External synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts.',
+            'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts',
           type: 'JSXOpeningElement',
         },
       ],
@@ -80,7 +80,7 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message:
-            'External synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts.',
+            'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts',
           type: 'JSXOpeningElement',
         },
       ],

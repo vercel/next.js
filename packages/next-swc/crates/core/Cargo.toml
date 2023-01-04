@@ -1,0 +1,37 @@
+[package]
+edition = "2018"
+name = "next-swc"
+version = "0.0.0"
+publish = false
+
+[features]
+plugin = ["next-binding/__swc_core_binding_napi_plugin"]
+
+[dependencies]
+chrono = "0.4"
+easy-error = "1.0.0"
+either = "1"
+fxhash = "0.2.1"
+once_cell = "1.13.0"
+pathdiff = "0.2.0"
+regex = "1.5"
+serde = "1"
+serde_json = "1"
+tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "079505baf1ce03707d28b6c0afb158dca601a11a", features = [
+  "__swc_core",
+  "__swc_core_next_core",
+  "__swc_transform_styled_jsx",
+  "__swc_transform_emotion",
+  "__swc_transform_styled_components",
+  "__swc_transform_modularize_imports",
+] }
+
+[dev-dependencies]
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "079505baf1ce03707d28b6c0afb158dca601a11a", features = [
+  "__swc_core_testing_transform",
+  "__swc_testing",
+] }
+
+walkdir = "2.3.2"

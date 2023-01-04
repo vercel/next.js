@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import url from 'url'
+import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -35,6 +36,72 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  if (ctx.basePath) {
+    it('should handle basePath like pathname', async () => {
+      const { basePath } = ctx
+
+      for (const pathname of [
+        `${basePath}extra`,
+        `/en${basePath}`,
+        `${basePath}extra/en`,
+        `${basePath}en`,
+        `/en${basePath}`,
+      ]) {
+        console.error('checking', pathname)
+        const res = await fetchViaHTTP(ctx.appPort, pathname, undefined, {
+          redirect: 'manual',
+        })
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('This page could not be found')
+      }
+    })
+  }
+
+  it('should 404 for locale prefixed static assets correctly', async () => {
+    const assets = glob.sync('**/*.js', {
+      cwd: join(ctx.appDir, '.next/static'),
+    })
+
+    for (const locale of locales) {
+      for (const asset of assets) {
+        // _next/static asset
+        const res = await fetchViaHTTP(
+          ctx.appPort,
+          `${ctx.basePath || ''}/${locale}/_next/static/${asset}`,
+          undefined,
+          { redirect: 'manual' }
+        )
+
+        if (locale !== 'en-US') {
+          expect(res.status).toBe(404)
+          expect(await res.text()).toContain('could not be found')
+        } else {
+          // We only 404 for non-default locale
+          expect(res.status).toBe(200)
+        }
+      }
+    }
+  })
+
+  it('should 404 for locale prefixed public folder files', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}/${locale}/files/texts/file.txt`,
+        undefined,
+        { redirect: 'manual' }
+      )
+
+      if (locale !== 'en-US') {
+        expect(res.status).toBe(404)
+        expect(await res.text()).toContain('could not be found')
+      } else {
+        // We only 404 for non-default locale
+        expect(res.status).toBe(200)
+      }
+    }
+  })
+
   it('should redirect external domain correctly', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,
@@ -337,6 +404,49 @@ export function runTests(ctx) {
       expect(href).toBe(
         `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
       )
+    }
+  })
+
+  // The page is accessible on subpath as well as on the domain url without subpath.
+  // Once this is not the case the test will need to be changed to access it via domain.
+  // Beware of the different expectations on dev and prod version since the pre-rendering on dev does not work with domain locales
+  it('should prerender with the correct href for locale domain', async () => {
+    let browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go`)
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      if (ctx.isDev) {
+        expect(href).toBe(`${ctx.basePath || ''}/go${pathname}`)
+      } else {
+        expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
+      }
+    }
+
+    browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go-BE`)
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      if (ctx.isDev) {
+        expect(href).toBe(`${ctx.basePath || ''}/go-BE${pathname}`)
+      } else {
+        expect(href).toBe(
+          `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
+        )
+      }
     }
   })
 
@@ -2312,12 +2422,9 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for fallback page that returned 404 on client transition', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/en`,
-      true,
-      true
-    )
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`, {
+      retryWaitHydration: true,
+    })
     await browser.eval(`(function() {
       next.router.push('/not-found/fallback/first')
     })()`)
@@ -2353,8 +2460,9 @@ export function runTests(ctx) {
     const browser = await webdriver(
       ctx.appPort,
       `${ctx.basePath}/en/not-found/fallback/first`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
     await browser.waitForElementByCss('h1')
     await browser.eval('window.beforeNav = 1')
@@ -2385,12 +2493,9 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for blocking fallback page that returned 404 on client transition', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/en`,
-      true,
-      true
-    )
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`, {
+      retryWaitHydration: true,
+    })
     await browser.eval(`(function() {
       next.router.push('/not-found/blocking-fallback/first')
     })()`)
@@ -2426,8 +2531,9 @@ export function runTests(ctx) {
     const browser = await webdriver(
       ctx.appPort,
       `${ctx.basePath}/en/not-found/blocking-fallback/first`,
-      true,
-      true
+      {
+        retryWaitHydration: true,
+      }
     )
     await browser.waitForElementByCss('h1')
     await browser.eval('window.beforeNav = 1')

@@ -5,6 +5,7 @@ import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
 import { join } from 'path'
+import WebSocket from 'ws'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
@@ -19,7 +20,6 @@ import {
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  initNextServerScript,
   nextExport,
   hasRedbox,
   check,
@@ -39,6 +39,45 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should successfully rewrite a WebSocket request', async () => {
+    const messages = []
+    const ws = await new Promise((resolve, reject) => {
+      let socket = new WebSocket(`ws://localhost:${appPort}/to-websocket`)
+      socket.on('message', (data) => {
+        messages.push(data.toString())
+      })
+      socket.on('open', () => resolve(socket))
+      socket.on('error', (err) => {
+        console.error(err)
+        socket.close()
+        reject()
+      })
+    })
+
+    await check(
+      () => (messages.length > 0 ? 'success' : JSON.stringify(messages)),
+      'success'
+    )
+    ws.close()
+    expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
+  })
+
+  it('should not rewrite for _next/data route when a match is found', async () => {
+    const initial = await fetchViaHTTP(appPort, '/overridden/first')
+    expect(initial.status).toBe(200)
+    expect(await initial.text()).toContain('this page is overridden')
+
+    const nextData = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/overridden/first.json`
+    )
+    expect(nextData.status).toBe(200)
+    expect(await nextData.json()).toEqual({
+      pageProps: { params: { slug: 'first' } },
+      __N_SSG: true,
+    })
+  })
+
   it('should handle has query encoding correctly', async () => {
     for (const expected of [
       {
@@ -79,6 +118,76 @@ const runTests = (isDev = false) => {
         })
       }
     }
+  })
+
+  it('should handle external beforeFiles rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/overridden')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('Example Domain')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.elementByCss('#to-before-files-overridden').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /Example Domain/
+    )
+  })
+
+  it('should handle beforeFiles rewrite to dynamic route correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/nfl')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('/_sport/[slug]')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-before-files-dynamic').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /_sport\/\[slug\]/
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'nfl',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe(
+      '/_sport/[slug]'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should handle beforeFiles rewrite to partly dynamic route correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/nfl')
+    const html = await res.text()
+
+    if (res.status !== 200) {
+      console.error('Invalid response', html)
+    }
+    expect(res.status).toBe(200)
+    expect(html).toContain('/_sport/[slug]')
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-before-files-dynamic-again').click()
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /_sport\/\[slug\]\/test/
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'nfl',
+    })
+    expect(await browser.elementByCss('#pathname').text()).toBe(
+      '/_sport/[slug]/test'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should support long URLs for rewrites', async () => {
@@ -159,7 +268,7 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
     await check(
       () => browser.eval(() => document.documentElement.innerHTML),
-      /auto-export hello/
+      /auto-export.*?hello/
     )
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       rewrite: '1',
@@ -690,6 +799,26 @@ const runTests = (isDev = false) => {
     expect(res.headers.get('refresh')).toBe(`0;url=/`)
   })
 
+  it('should have correctly encoded query in location and refresh headers', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      // Query unencoded is ?テスト=あ
+      '/redirect4?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(308)
+
+    expect(res.headers.get('location').split('?')[1]).toBe(
+      '%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
+    expect(res.headers.get('refresh')).toBe(
+      '0;url=/?%E3%83%86%E3%82%B9%E3%83%88=%E3%81%82'
+    )
+  })
+
   it('should handle basic api rewrite successfully', async () => {
     const data = await renderViaHTTP(appPort, '/api-hello')
     expect(JSON.parse(data)).toEqual({ query: {} })
@@ -784,6 +913,52 @@ const runTests = (isDev = false) => {
     )
   })
 
+  it('should match missing header rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-rewrite-1')
+    const $2 = cheerio.load(await res2.text())
+
+    expect(res2.status).toBe(200)
+    expect(JSON.parse($2('#query').text())).toEqual({})
+  })
+
+  it('should match missing query rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-2', {
+      'my-query': 'hellooo',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-rewrite-2')
+    const $2 = cheerio.load(await res2.text())
+    expect(res2.status).toBe(200)
+    expect(JSON.parse($2('#query').text())).toEqual({})
+  })
+
+  it('should match missing cookie rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-rewrite-3')
+    const $2 = cheerio.load(await res2.text())
+    expect(JSON.parse($2('#query').text())).toEqual({
+      authorized: '1',
+    })
+    expect(res2.status).toBe(200)
+  })
+
   it('should match has header rewrite correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-rewrite-1', undefined, {
       headers: {
@@ -856,7 +1031,7 @@ const runTests = (isDev = false) => {
       host: '1',
     })
 
-    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-3')
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-4')
     expect(res2.status).toBe(404)
   })
 
@@ -1177,6 +1352,18 @@ const runTests = (isDev = false) => {
               buildId
             )}/blog\\-catchall/(?<slug>.+?)\\.json$`,
             page: '/blog-catchall/[...slug]',
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/overridden\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/overridden/(?<slug>[^/]+?)\\.json$`,
+            page: '/overridden/[slug]',
             routeKeys: {
               slug: 'slug',
             },
@@ -1677,8 +1864,25 @@ const runTests = (isDev = false) => {
               ),
               source: '/old-blog/:path*',
             },
+            {
+              destination: 'https://example.vercel.sh',
+              regex: normalizeRegEx('^\\/overridden(?:\\/)?$'),
+              source: '/overridden',
+            },
+            {
+              destination: '/_sport/nfl/:path*',
+              regex: normalizeRegEx(
+                '^\\/nfl(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$'
+              ),
+              source: '/nfl/:path*',
+            },
           ],
           afterFiles: [
+            {
+              destination: `http://localhost:${externalServerPort}/_next/webpack-hmr?page=/about`,
+              regex: normalizeRegEx('^\\/to-websocket(?:\\/)?$'),
+              source: '/to-websocket',
+            },
             {
               destination: 'http://localhost:12233',
               regex: normalizeRegEx('^\\/to-nowhere(?:\\/)?$'),
@@ -1922,14 +2126,71 @@ const runTests = (isDev = false) => {
               source: '/has-rewrite-8',
             },
             {
+              destination: '/with-params',
+              missing: [
+                {
+                  key: 'x-my-header',
+                  type: 'header',
+                  value: '(?<myHeader>.*)',
+                },
+              ],
+              regex: normalizeRegEx('^\\/missing-rewrite-1(?:\\/)?$'),
+              source: '/missing-rewrite-1',
+            },
+            {
+              destination: '/with-params',
+              missing: [
+                {
+                  key: 'my-query',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/missing-rewrite-2(?:\\/)?$'),
+              source: '/missing-rewrite-2',
+            },
+            {
+              destination: '/with-params?authorized=1',
+              missing: [
+                {
+                  key: 'loggedIn',
+                  type: 'cookie',
+                  value: '(?<loggedIn>true)',
+                },
+              ],
+              regex: normalizeRegEx('^\\/missing-rewrite-3(?:\\/)?$'),
+              source: '/missing-rewrite-3',
+            },
+            {
               destination: '/hello',
               regex: normalizeRegEx('^\\/blog\\/about(?:\\/)?$'),
               source: '/blog/about',
+            },
+            {
+              destination: '/overridden',
+              regex:
+                '^\\/overridden(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$',
+              source: '/overridden/:path*',
             },
           ],
           fallback: [],
         },
         dynamicRoutes: [
+          {
+            namedRegex: '^/_sport/(?<slug>[^/]+?)(?:/)?$',
+            page: '/_sport/[slug]',
+            regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            namedRegex: '^/_sport/(?<slug>[^/]+?)/test(?:/)?$',
+            page: '/_sport/[slug]/test',
+            regex: normalizeRegEx('^\\/_sport\\/([^\\/]+?)\\/test(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
           {
             namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
             page: '/another/[id]',
@@ -1966,6 +2227,14 @@ const runTests = (isDev = false) => {
             namedRegex: '^/blog\\-catchall/(?<slug>.+?)(?:/)?$',
             page: '/blog-catchall/[...slug]',
             regex: normalizeRegEx('^\\/blog\\-catchall\\/(.+?)(?:\\/)?$'),
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            namedRegex: '^/overridden/(?<slug>[^/]+?)(?:/)?$',
+            page: '/overridden/[slug]',
+            regex: '^\\/overridden\\/([^\\/]+?)(?:\\/)?$',
             routeKeys: {
               slug: 'slug',
             },
@@ -2009,6 +2278,12 @@ const runTests = (isDev = false) => {
             routeKeys: {},
           },
           {
+            namedRegex: '^/overridden(?:/)?$',
+            page: '/overridden',
+            regex: '^/overridden(?:/)?$',
+            routeKeys: {},
+          },
+          {
             namedRegex: '^/redirect\\-override(?:/)?$',
             page: '/redirect-override',
             regex: '^/redirect\\-override(?:/)?$',
@@ -2021,6 +2296,10 @@ const runTests = (isDev = false) => {
             routeKeys: {},
           },
         ],
+        rsc: {
+          header: 'RSC',
+          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+        },
       })
     })
 
@@ -2069,6 +2348,14 @@ describe('Custom routes', () => {
       const externalHost = req.headers['host']
       res.end(`hi ${nextHost} from ${externalHost}`)
     })
+    const wsServer = new WebSocket.Server({ noServer: true })
+
+    externalServer.on('upgrade', (req, socket, head) => {
+      externalServerHits.add(req.url)
+      wsServer.handleUpgrade(req, socket, head, (client) => {
+        client.send('hello world')
+      })
+    })
     await new Promise((resolve, reject) => {
       externalServer.listen(externalServerPort, (error) => {
         if (error) return reject(error)
@@ -2078,7 +2365,7 @@ describe('Custom routes', () => {
     nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
     await fs.writeFile(
       nextConfigPath,
-      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/, externalServerPort)
+      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/g, externalServerPort)
     )
   })
   afterAll(async () => {
@@ -2132,7 +2419,7 @@ describe('Custom routes', () => {
       const browser = await webdriver(appPort, '/auto-export/my-slug')
       await check(
         () => browser.eval(() => document.documentElement.innerHTML),
-        /auto-export my-slug/
+        /auto-export.*?my-slug/
       )
     })
   })
@@ -2220,96 +2507,6 @@ describe('Custom routes', () => {
       expect(exportStderr).toContain(
         `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
       )
-    })
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace(/\/\/ target/, 'target'),
-        'utf8'
-      )
-      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
-        stdout: true,
-      })
-      stdout = buildStdout
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        onStdout: (msg) => {
-          stdout += msg
-        },
-      })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
-      await killApp(app)
-    })
-
-    runTests()
-  })
-
-  describe('raw serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace(/\/\/ target/, 'target'),
-        'utf8'
-      )
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await initNextServerScript(join(appDir, 'server.js'), /ready on/, {
-        ...process.env,
-        PORT: appPort,
-      })
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
-      await killApp(app)
-    })
-
-    it('should apply rewrites in lambda correctly for page route', async () => {
-      const html = await renderViaHTTP(appPort, '/query-rewrite/first/second')
-      const data = JSON.parse(cheerio.load(html)('p').text())
-      expect(data).toEqual({
-        first: 'first',
-        second: 'second',
-        section: 'first',
-        name: 'second',
-      })
-    })
-
-    it('should apply rewrites in lambda correctly for dynamic route', async () => {
-      const html = await renderViaHTTP(appPort, '/blog/post-1')
-      expect(html).toContain('post-2')
-    })
-
-    it('should apply rewrites in lambda correctly for API route', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(appPort, '/api-hello-param/first')
-      )
-      expect(data).toEqual({
-        query: {
-          name: 'first',
-          hello: 'first',
-        },
-      })
-    })
-
-    it('should apply rewrites in lambda correctly for dynamic API route', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(appPort, '/api-dynamic-param/first')
-      )
-      expect(data).toEqual({
-        query: {
-          slug: 'first',
-          hello: 'first',
-        },
-      })
     })
   })
 

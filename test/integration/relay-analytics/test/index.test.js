@@ -2,18 +2,9 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import {
-  File,
-  killApp,
-  findPort,
-  nextBuild,
-  nextStart,
-  check,
-} from 'next-test-utils'
+import { killApp, findPort, nextBuild, nextStart, check } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const customApp = new File(join(appDir, 'pages/_app.js'))
-const indexPage = new File(join(appDir, 'pages/index.js'))
 
 let appPort
 let server
@@ -33,31 +24,8 @@ async function killServer() {
 }
 
 describe('Analytics relayer with exported method', () => {
-  beforeAll(async () => {
-    // Keep app exported reporting and comment the hook one
-    indexPage.replace('///* useExperimentalWebVitalsReport', '/*')
-    indexPage.replace('// useExperimentalWebVitalsReport */', '*/')
-    await buildApp()
-  })
-  afterAll(async () => {
-    indexPage.restore()
-    await killServer()
-  })
-  runTest()
-})
-
-describe('Analytics relayer with hook', () => {
-  beforeAll(async () => {
-    // Keep hook reporting and comment the app exported one
-    customApp.replace('///* reportWebVitals', '/*')
-    customApp.replace('// reportWebVitals */', '*/')
-    await buildApp()
-  })
-
-  afterAll(async () => {
-    customApp.restore()
-    await killServer()
-  })
+  beforeAll(async () => await buildApp())
+  afterAll(async () => await killServer())
   runTest()
 })
 
@@ -139,5 +107,42 @@ function runTest() {
 
     expect(stdout).toMatch('Next.js Analytics')
     await browser.close()
+  })
+
+  it('reports INP metric', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('button').click()
+    await browser.waitForCondition(
+      'document.querySelector("button").textContent === "Press"'
+    )
+    // INP metric is only reported on pagehide or visibilitychange event, so refresh the page
+    await browser.refresh()
+    await check(async () => {
+      const INP = parseInt(
+        await browser.eval('localStorage.getItem("INP")'),
+        10
+      )
+      // We introduced a delay of 100ms, so INP duration should be >= 100
+      expect(INP).toBeGreaterThanOrEqual(100)
+      return 'success'
+    }, 'success')
+    await browser.close()
+  })
+
+  it('reports attribution', async () => {
+    const browser = await webdriver(appPort, '/')
+    // trigger paint
+    await browser.elementByCss('button').click()
+    await browser.waitForCondition(
+      `window.__metricsWithAttribution?.length > 0`
+    )
+    const str = await browser.eval(
+      `JSON.stringify(window.__metricsWithAttribution)`
+    )
+    const metrics = JSON.parse(str)
+    const LCP = metrics.find((m) => m.name === 'LCP')
+    expect(LCP).toBeDefined()
+    expect(LCP.attribution).toBeDefined()
+    expect(LCP.attribution.element).toBe('#__next>div>h1')
   })
 }

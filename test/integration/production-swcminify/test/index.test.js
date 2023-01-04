@@ -75,12 +75,12 @@ describe.skip('Production Usage with swcMinify', () => {
     expect(serverTrace.version).toBe(1)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/send-payload.js')
+        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
       )
     ).toBe(true)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/normalize-page-path.js')
+        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
       )
     ).toBe(true)
     expect(
@@ -103,9 +103,6 @@ describe.skip('Production Usage with swcMinify', () => {
       expect(
         serverTrace.files.some((file) => file.includes('node_modules/sharp'))
       ).toBe(false)
-      expect(
-        serverTrace.files.some((file) => file.includes('react.development.js'))
-      ).toBe(false)
     }
 
     const checks = [
@@ -117,7 +114,7 @@ describe.skip('Production Usage with swcMinify', () => {
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/\0/, /\?/, /!/],
       },
       {
         page: '/client-error',
@@ -127,13 +124,12 @@ describe.skip('Production Usage with swcMinify', () => {
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
-          /next\/dist\/pages\/_error\.js/,
           /next\/error\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/\0/, /\?/, /!/],
       },
       {
         page: '/dynamic',
@@ -143,11 +139,11 @@ describe.skip('Production Usage with swcMinify', () => {
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/\0/, /\?/, /!/],
       },
       {
         page: '/index',
@@ -157,17 +153,19 @@ describe.skip('Production Usage with swcMinify', () => {
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
+          /node_modules\/es5-ext\/array\/#\/clear\.js/,
         ],
         notTests: [
-          /node_modules\/react\/cjs\/react\.development\.js/,
-          /node_modules\/nanoid\/index\.cjs/,
           /next\/dist\/pages\/_error\.js/,
           /next\/error\.js/,
+          /\0/,
+          /\?/,
+          /!/,
         ],
       },
       {
@@ -178,11 +176,12 @@ describe.skip('Production Usage with swcMinify', () => {
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/react\/cjs\/react\.development\.js/,
+          /node_modules\/next/,
           /next\/router\.js/,
-          /next\/dist\/client\/router\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/node_modules\/react\/cjs\/react\.development\.js/],
+        notTests: [/\0/, /\?/, /!/],
       },
       {
         page: '/next-import',
@@ -192,11 +191,17 @@ describe.skip('Production Usage with swcMinify', () => {
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           /node_modules\/react\/cjs\/react\.production\.min\.js/,
+          /node_modules\/next/,
           /next\/link\.js/,
-          /next\/dist\/client\/link\.js/,
           /next\/dist\/shared\/lib\/router\/utils\/resolve-rewrites\.js/,
         ],
-        notTests: [/next\/dist\/server\/next\.js/, /next\/dist\/bin/],
+        notTests: [
+          /next\/dist\/server\/next\.js/,
+          /next\/dist\/bin/,
+          /\0/,
+          /\?/,
+          /!/,
+        ],
       },
     ]
 
@@ -207,14 +212,27 @@ describe.skip('Production Usage with swcMinify', () => {
       )
       const { version, files } = JSON.parse(contents)
       expect(version).toBe(1)
+      expect([...new Set(files)].length).toBe(files.length)
 
       expect(
-        check.tests.every((item) => files.some((file) => item.test(file)))
+        check.tests.every((item) => {
+          if (files.some((file) => item.test(file))) {
+            return true
+          }
+          console.error(`Failed to find ${item} in`, files)
+          return false
+        })
       ).toBe(true)
 
       if (sep === '/') {
         expect(
-          check.notTests.some((item) => files.some((file) => item.test(file)))
+          check.notTests.some((item) => {
+            if (files.some((file) => item.test(file))) {
+              console.error(`Found unexpected ${item} in`, files)
+              return true
+            }
+            return false
+          })
         ).toBe(false)
       }
     }
@@ -954,10 +972,6 @@ describe.skip('Production Usage with swcMinify', () => {
         await browser.close()
       }
     }
-  })
-
-  it('should not emit profiling events', async () => {
-    expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
   })
 
   it('should not emit stats', async () => {

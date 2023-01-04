@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-css-tags'
+import rule from '@next/eslint-plugin-next/dist/rules/no-css-tags'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -81,7 +81,7 @@ ruleTester.run('no-css-tags', rule, {
       errors: [
         {
           message:
-            'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags.',
+            'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags',
           type: 'JSXOpeningElement',
         },
       ],
@@ -94,7 +94,7 @@ ruleTester.run('no-css-tags', rule, {
       errors: [
         {
           message:
-            'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags.',
+            'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags',
           type: 'JSXOpeningElement',
         },
       ],

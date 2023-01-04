@@ -1,3 +1,1 @@
-export default function Foo() {
-  return 'foo'
-}
+export default () => 'foo'

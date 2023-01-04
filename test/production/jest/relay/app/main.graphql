@@ -1,0 +1,19 @@
+type Query {
+  viewer(after: String, before: String, first: Int, last: Int): Viewer!
+  node(id: ID!): Node
+}
+
+type Viewer implements Node {
+  id: ID!
+  user: User!
+}
+
+interface Node {
+  id: ID!
+}
+
+type User implements Node {
+  id: ID!
+  name: String!
+  title: String!
+}

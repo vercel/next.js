@@ -218,7 +218,7 @@ class CraTransform {
             return `${reactName}={\`${value.replace(
               /%([a-zA-Z0-9_]{0,})%/g,
               (subStr) => {
-                return `\${process.env.${subStr.substr(1, subStr.length - 2)}}`
+                return `\${process.env.${subStr.slice(1, -1)}}`
               }
             )}\`}`
           }
@@ -293,7 +293,7 @@ class CraTransform {
             : [...globalCssContext.cssImports]
                 .map((file) => {
                   if (!this.isCra) {
-                    file = file.startsWith('/') ? file.substr(1) : file
+                    file = file.startsWith('/') ? file.slice(1) : file
                   }
 
                   return `import '${

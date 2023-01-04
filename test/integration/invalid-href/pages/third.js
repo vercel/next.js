@@ -3,8 +3,8 @@ const invalidLink = 'https://'
 
 export default function Page() {
   return (
-    <Link href={invalidLink}>
-      <a id="click-me">invalid link :o</a>
+    <Link href={invalidLink} id="click-me">
+      invalid link :o
     </Link>
   )
 }

@@ -7,14 +7,6 @@ if (typeof window !== 'undefined') {
   StyleSheet.rehydrate(window.__REHYDRATE_IDS)
 }
 
-export default function Home() {
-  return (
-    <div className={css(styles.root)}>
-      <h1 className={css(styles.title)}>My page</h1>
-    </div>
-  )
-}
-
 const styles = StyleSheet.create({
   root: {
     width: 80,
@@ -34,3 +26,11 @@ const styles = StyleSheet.create({
     },
   },
 })
+
+export default function Home() {
+  return (
+    <div className={css(styles.root)}>
+      <h1 className={css(styles.title)}>My page</h1>
+    </div>
+  )
+}

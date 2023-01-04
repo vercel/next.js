@@ -1,8 +1,8 @@
 {
   "labels": {
-    "type: example": ["examples/**"],
-    "type: documentation": ["docs/**", "errors/**"],
-    "type: create-next-app": ["packages/create-next-app/**"],
+    "area: examples": ["examples/**"],
+    "area: documentation": ["docs/**", "errors/**"],
+    "area: create-next-app": ["packages/create-next-app/**"],
     "type: next": [
       "packages/next/**",
       "packages/react-dev-overlay/**",
@@ -10,7 +10,8 @@
       "packages/next-codemod/**",
       "packages/eslint-plugin-next/**",
       "packages/eslint-config-next/**",
-      "packages/next-env/**"
+      "packages/next-env/**",
+      "packages/next-swc/**"
     ],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "spanicker" },
@@ -30,7 +31,23 @@
       { "type": "user", "pattern": "styfle" },
       { "type": "user", "pattern": "leerob" },
       { "type": "user", "pattern": "kdy1" },
-      { "type": "user", "pattern": "timneutkens" }
+      { "type": "user", "pattern": "timneutkens" },
+      { "type": "user", "pattern": "sebmarkbage" },
+      { "type": "user", "pattern": "wyattjoh" },
+      { "type": "user", "pattern": "kwonoj" },
+      { "type": "user", "pattern": "gnoff" },
+      { "type": "user", "pattern": "padmaia" },
+      { "type": "user", "pattern": "Brooooooklyn" },
+      { "type": "user", "pattern": "ForsakenHarmony" },
+      { "type": "user", "pattern": "feedthejim" },
+      { "type": "user", "pattern": "JanKaifer" },
+      { "type": "user", "pattern": "balazsorban44" },
+      { "type": "user", "pattern": "hanneslund" }
+    ],
+    "created-by: Next.js docs team": [
+      { "type": "user", "pattern": "MaedahBatool" },
+      { "type": "user", "pattern": "molebox" },
+      { "type": "user", "pattern": "ismaelrumzan" }
     ]
   }
 }

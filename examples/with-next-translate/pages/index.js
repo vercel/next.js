@@ -24,31 +24,39 @@ export default function Home() {
         </p>
 
         <div className="grid">
-          <Link href="/" locale="en">
+          <Link href="/" locale="en" legacyBehavior>
             <div className="card">
               <h3>{t('home:english')}</h3>
-              <p>{t('home:change-english')}</p>
+              <p>
+                {t('home:change-to')} {t('home:english')}
+              </p>
             </div>
           </Link>
 
-          <Link href="/" locale="ca">
+          <Link href="/" locale="ca" legacyBehavior>
             <div className="card">
               <h3>{t('home:catalan')}</h3>
-              <p>{t('home:change-catalan')}</p>
+              <p>
+                {t('home:change-to')} {t('home:catalan')}
+              </p>
             </div>
           </Link>
 
-          <Link href="/" locale="ar">
+          <Link href="/" locale="ar" legacyBehavior>
             <div className="card">
               <h3>{t('home:arabic')}</h3>
-              <p>{t('home:change-arabic')}</p>
+              <p>
+                {t('home:change-to')} {t('home:arabic')}
+              </p>
             </div>
           </Link>
 
-          <Link href="/" locale="he">
+          <Link href="/" locale="he" legacyBehavior>
             <div className="card">
               <h3>{t('home:hebrew')}</h3>
-              <p>{t('home:change-hebrew')}</p>
+              <p>
+                {t('home:change-to')} {t('home:hebrew')}
+              </p>
             </div>
           </Link>
 

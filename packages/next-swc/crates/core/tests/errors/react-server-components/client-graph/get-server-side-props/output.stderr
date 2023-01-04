@@ -1,0 +1,7 @@
+
+  x NEXT_RSC_ERR_INVALID_API: getServerSideProps
+   ,-[input.js:1:1]
+ 1 | export function getServerSideProps (){
+   :                 ^^^^^^^^^^^^^^^^^^
+ 2 | }
+   `----

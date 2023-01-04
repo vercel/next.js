@@ -1,8 +1,17 @@
 #!/bin/bash
 
-cp node_modules/webpack5/lib/hmr/HotModuleReplacement.runtime.js packages/next/bundles/webpack/packages/
-cp node_modules/webpack5/lib/hmr/JavascriptHotModuleReplacement.runtime.js packages/next/bundles/webpack/packages/
-yarn --cwd packages/next ncc-compiled
+set -e
+
+cd packages/next
+
+cp node_modules/webpack/lib/hmr/HotModuleReplacement.runtime.js src/bundles/webpack/packages/
+cp node_modules/webpack/lib/hmr/JavascriptHotModuleReplacement.runtime.js src/bundles/webpack/packages/
+cp node_modules/webpack/hot/lazy-compilation-node.js src/bundles/webpack/packages/
+cp node_modules/webpack/hot/lazy-compilation-web.js src/bundles/webpack/packages/
+
+pnpm run ncc-compiled
+
+cd ../../
 
 # Make sure to exit with 1 if there are changes after running ncc-compiled
 # step to ensure we get any changes committed

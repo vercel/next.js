@@ -1,0 +1,26 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "npm-run-all init dev:init --parallel dev:server dev:client",
+    "build": "tsc && next build",
+    "init": "convex init",
+    "dev:server": "convex dev",
+    "dev:client": "next dev",
+    "dev:init": "convex dev --once",
+    "start": "next start"
+  },
+  "dependencies": {
+    "convex": "latest",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.11",
+    "@types/react": "^18.0.26",
+    "@types/react-dom": "^18.0.9",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.7.1",
+    "typescript": "^4.7.3"
+  }
+}

@@ -10,6 +10,7 @@ import {
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
+import https from 'https'
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 import fetch from 'node-fetch'
@@ -20,12 +21,6 @@ import treeKill from 'tree-kill'
 export const nextServer = server
 export const pkg = _pkg
 
-// polyfill Object.fromEntries for the test/integration/relay-analytics tests
-// on node 10, this can be removed after we no longer support node 10
-if (!Object.fromEntries) {
-  Object.fromEntries = require('core-js/features/object/from-entries')
-}
-
 export function initNextServerScript(
   scriptPath,
   successRegexp,
@@ -34,10 +29,20 @@ export function initNextServerScript(
   opts
 ) {
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['--no-deprecation', scriptPath], {
-      env,
-      cwd: opts && opts.cwd,
-    })
+    const instance = spawn(
+      'node',
+      [
+        ...((opts && opts.nodeArgs) || []),
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        scriptPath,
+      ],
+      {
+        env,
+        cwd: opts && opts.cwd,
+      }
+    )
 
     function handleStdout(data) {
       const message = data.toString()
@@ -78,6 +83,12 @@ export function initNextServerScript(
   })
 }
 
+/**
+ * @param {string | number} appPortOrUrl
+ * @param {string} [url]
+ * @param {string} [hostname]
+ * @returns
+ */
 export function getFullUrl(appPortOrUrl, url, hostname) {
   let fullUrl =
     typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
@@ -88,8 +99,13 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
     const parsedUrl = new URL(fullUrl)
     const parsedPathQuery = new URL(url, fullUrl)
 
+    parsedUrl.hash = parsedPathQuery.hash
     parsedUrl.search = parsedPathQuery.search
     parsedUrl.pathname = parsedPathQuery.pathname
+
+    if (hostname && parsedUrl.hostname === 'localhost') {
+      parsedUrl.hostname = hostname
+    }
     fullUrl = parsedUrl.toString()
   }
   return fullUrl
@@ -100,15 +116,41 @@ export function renderViaAPI(app, pathname, query) {
   return app.renderToHTML({ url }, {}, pathname, query)
 }
 
+/**
+ * @param {string | number} appPort
+ * @param {string} pathname
+ * @param {Record<string, any> | string | undefined} [query]
+ * @param {import('node-fetch').RequestInit} [opts]
+ * @returns {Promise<string>}
+ */
 export function renderViaHTTP(appPort, pathname, query, opts) {
   return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
 
+/**
+ * @param {string | number} appPort
+ * @param {string} pathname
+ * @param {Record<string, any> | string | undefined} [query]
+ * @param {import('node-fetch').RequestInit} [opts]
+ * @returns {Promise<Response & {buffer: any} & {headers: any}>}
+ */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `${pathname}${
     typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
   }`
-  return fetch(getFullUrl(appPort, url), opts)
+  return fetch(getFullUrl(appPort, url), {
+    // in node.js v17 fetch favors IPv6 but Next.js is
+    // listening on IPv4 by default so force IPv4 DNS resolving
+    agent: (parsedUrl) => {
+      if (parsedUrl.protocol === 'https:') {
+        return new https.Agent({ family: 4 })
+      }
+      if (parsedUrl.protocol === 'http:') {
+        return new http.Agent({ family: 4 })
+      }
+    },
+    ...opts,
+  })
 }
 
 export function findPort() {
@@ -122,16 +164,24 @@ export function runNextCommand(argv, options = {}) {
   // Let Next.js decide the environment
   const env = {
     ...process.env,
-    ...options.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
+    NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
+    ...options.env,
   }
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
+      [
+        ...(options.nodeArgs || []),
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         ...options.spawnOptions,
         cwd,
@@ -183,13 +233,18 @@ export function runNextCommand(argv, options = {}) {
         !options.stderr &&
         !options.stdout &&
         !options.ignoreFail &&
-        code !== 0
+        (code !== 0 || signal)
       ) {
         return reject(
-          new Error(`command failed with code ${code}\n${mergedStdio}`)
+          new Error(
+            `command failed with code ${code} signal ${signal}\n${mergedStdio}`
+          )
         )
       }
 
+      if (code || signal) {
+        console.error(`process exited with code ${code} and signal ${signal}`)
+      }
       resolve({
         code,
         signal,
@@ -221,7 +276,14 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
+      [
+        ...nodeArgs,
+        '-r',
+        require.resolve('./mocks-require-hook'),
+        '--no-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         cwd,
         env,
@@ -232,12 +294,15 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /compiled successfully/i,
+        dev: /compiled .*successfully/i,
+        turbo: /initial compilation/i,
         start: /started server/i,
       }
       if (
         (opts.bootupMarker && opts.bootupMarker.test(message)) ||
-        bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
+        bootupMarkers[
+          opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
+        ].test(message)
       ) {
         if (!didResolve) {
           didResolve = true
@@ -285,7 +350,19 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
 // Launch the app in dev mode.
 export function launchApp(dir, port, opts) {
-  return runNextCommandDev([dir, '-p', port], undefined, opts)
+  const options = opts ?? {}
+  const useTurbo = !!process.env.TEST_WASM
+    ? false
+    : options?.turbo ?? shouldRunTurboDevTest()
+
+  return runNextCommandDev(
+    [useTurbo ? '--turbo' : undefined, dir, '-p', port].filter(Boolean),
+    undefined,
+    {
+      ...options,
+      turbo: useTurbo,
+    }
+  )
 }
 
 export function nextBuild(dir, args = [], opts = {}) {
@@ -339,10 +416,9 @@ export function buildTS(args = [], cwd, env = {}) {
   })
 }
 
-// Kill a launched app
-export async function killApp(instance) {
+export async function killProcess(pid) {
   await new Promise((resolve, reject) => {
-    treeKill(instance.pid, (err) => {
+    treeKill(pid, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -365,7 +441,19 @@ export async function killApp(instance) {
   })
 }
 
+// Kill a launched app
+export async function killApp(instance) {
+  await killProcess(instance.pid)
+}
+
 export async function startApp(app) {
+  // force require usage instead of dynamic import in jest
+  // x-ref: https://github.com/nodejs/node/issues/35889
+  process.env.__NEXT_TEST_MODE = 'jest'
+
+  // TODO: tests that use this should be migrated to use
+  // the nextStart test function instead as it tests outside
+  // of jest's context
   await app.prepare()
   const handler = app.getRequestHandler()
   const server = http.createServer(handler)
@@ -546,7 +634,7 @@ export async function hasRedbox(browser, expected = true) {
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
             p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
             )
           )
       )
@@ -566,13 +654,13 @@ export async function getRedboxHeader(browser) {
       evaluate(browser, () => {
         const portal = [].slice
           .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-dialog-header]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('[data-nextjs-dialog-header]').innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxHeader'
   )
@@ -586,15 +674,15 @@ export async function getRedboxSource(browser) {
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
             p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
             )
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector(
+          '[data-nextjs-codeframe], [data-nextjs-terminal]'
+        ).innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxSource'
   )
@@ -610,9 +698,7 @@ export async function getRedboxDescription(browser) {
             p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('#nextjs__container_errors_desc')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('#nextjs__container_errors_desc').innerText
       }),
     3000,
     500,
@@ -694,4 +780,143 @@ export function getPageFileFromPagesManifest(dir, page) {
 export function readNextBuildServerPageFile(appDir, page) {
   const pageFile = getPageFileFromPagesManifest(appDir, page)
   return readFileSync(path.join(appDir, '.next', 'server', pageFile), 'utf8')
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {{env: 'prod' | 'dev', appDir: string}} context
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function}} options
+ */
+function runSuite(suiteName, context, options) {
+  const { appDir, env } = context
+  describe(`${suiteName} ${env}`, () => {
+    beforeAll(async () => {
+      options.beforeAll?.(env)
+      context.stderr = ''
+      const onStderr = (msg) => {
+        context.stderr += msg
+      }
+      context.stdout = ''
+      const onStdout = (msg) => {
+        context.stdout += msg
+      }
+      if (env === 'prod') {
+        context.appPort = await findPort()
+        const { stdout, stderr, code } = await nextBuild(appDir, [], {
+          stderr: true,
+          stdout: true,
+          env: options.env || {},
+          nodeArgs: options.nodeArgs,
+        })
+        context.stdout = stdout
+        context.stderr = stderr
+        context.code = code
+        context.server = await nextStart(context.appDir, context.appPort, {
+          onStderr,
+          onStdout,
+          env: options.env || {},
+          nodeArgs: options.nodeArgs,
+        })
+      } else if (env === 'dev') {
+        context.appPort = await findPort()
+        context.server = await launchApp(context.appDir, context.appPort, {
+          onStderr,
+          onStdout,
+          env: options.env || {},
+          nodeArgs: options.nodeArgs,
+        })
+      }
+    })
+    afterAll(async () => {
+      options.afterAll?.(env)
+      if (context.server) {
+        await killApp(context.server)
+      }
+    })
+    options.runTests(context, env)
+  })
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {string} appDir
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
+ */
+export function runDevSuite(suiteName, appDir, options) {
+  return runSuite(suiteName, { appDir, env: 'dev' }, options)
+}
+
+/**
+ *
+ * @param {string} suiteName
+ * @param {string} appDir
+ * @param {{beforeAll?: Function; afterAll?: Function; runTests: Function; env?: Record<string, string>}} options
+ */
+export function runProdSuite(suiteName, appDir, options) {
+  return runSuite(suiteName, { appDir, env: 'prod' }, options)
+}
+
+/**
+ * Parse the output and return all entries that match the provided `eventName`
+ * @param {string} output output of the console
+ * @param {string} eventName
+ * @returns {Array<{}>}
+ */
+export function findAllTelemetryEvents(output, eventName) {
+  const regex = /\[telemetry\] ({.+?^})/gms
+  // Pop the last element of each entry to retrieve contents of the capturing group
+  const events = [...output.matchAll(regex)].map((entry) =>
+    JSON.parse(entry.pop())
+  )
+  return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
+}
+
+/**
+ * Utility function to determine if a given test case needs to run with --turbo.
+ *
+ * This is primarily for the gradual test enablement with latest turbopack upstream changes.
+ *
+ * Note: it could be possible to dynamically create test cases itself (createDevTest(): it.each([...])), but
+ * it makes hard to conform with existing lint rules. Instead, starting off from manual fixture setup and
+ * update test cases accordingly as turbopack changes enable more test cases.
+ */
+export function shouldRunTurboDevTest() {
+  if (!!process.env.TEST_WASM) {
+    return false
+  }
+
+  const shouldRunTurboDev = !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_DEV
+  // short-circuit to run all the test with --turbo enabled skips glob matching costs
+  if (shouldRunTurboDev) {
+    console.log(
+      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_DEV`
+    )
+    return true
+  }
+
+  const shouldRunTurboDevWithMatches =
+    !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
+
+  // By default, we do not run any tests with `--turbo` flag.
+  if (!shouldRunTurboDevWithMatches) {
+    return false
+  }
+
+  const glob = require('glob')
+  const matches = glob.sync(
+    process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
+  )
+  const testPath = expect.getState().testPath
+  const isMatch = matches.some((match) => testPath.includes(match))
+
+  if (isMatch) {
+    console.log(
+      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH`
+    )
+  }
+
+  // If the test path matches the glob pattern, add additional case to run the test with `--turbo` flag.
+  return isMatch
 }

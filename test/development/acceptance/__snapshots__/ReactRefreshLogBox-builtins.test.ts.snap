@@ -11,6 +11,19 @@ Module not found: Can't resolve 'b'
 https://nextjs.org/docs/messages/module-not-found"
 `;
 
+exports[`ReactRefreshLogBox Module not found (missing global CSS) 1`] = `
+"./pages/_app.js:2:8
+Module not found: Can't resolve './non-existent.css'
+  1 | 
+> 2 |         import './non-existent.css'
+    |        ^
+  3 |         
+  4 |         export default function App({ Component, pageProps }) {
+  5 |           return <Component {...pageProps} />
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
 exports[`ReactRefreshLogBox Module not found 1`] = `
 "./index.js:1:0
 Module not found: Can't resolve 'b'

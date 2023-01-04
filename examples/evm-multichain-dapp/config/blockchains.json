@@ -1,0 +1,166 @@
+{
+  "1": {
+    "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+    "name": "Ethereum Mainnet"
+  },
+  "3": {
+    "nativeCurrency": {
+      "name": "Ropsten Ether",
+      "symbol": "ROP",
+      "decimals": 18
+    },
+    "name": "Ropsten"
+  },
+  "4": {
+    "nativeCurrency": {
+      "name": "Rinkeby Ether",
+      "symbol": "RIN",
+      "decimals": 18
+    },
+    "name": "Rinkeby"
+  },
+  "5": {
+    "nativeCurrency": {
+      "name": "Görli Ether",
+      "symbol": "GOR",
+      "decimals": 18
+    },
+    "name": "Görli"
+  },
+  "40": {
+    "nativeCurrency": { "name": "Telos", "symbol": "TLOS", "decimals": 18 },
+    "name": "Telos EVM Mainnet"
+  },
+  "42": {
+    "nativeCurrency": {
+      "name": "Kovan Ether",
+      "symbol": "KOV",
+      "decimals": 18
+    },
+    "name": "Kovan"
+  },
+  "56": {
+    "nativeCurrency": {
+      "name": "Binance Chain Native Token",
+      "symbol": "BNB",
+      "decimals": 18
+    },
+    "name": "Binance Smart Chain Mainnet"
+  },
+  "65": {
+    "nativeCurrency": {
+      "name": "OKExChain Global Utility Token in testnet",
+      "symbol": "OKT",
+      "decimals": 18
+    },
+    "name": "OKExChain Testnet"
+  },
+  "66": {
+    "nativeCurrency": {
+      "name": "OKXChain Global Utility Token",
+      "symbol": "OKT",
+      "decimals": 18
+    },
+    "name": "OKXChain Mainnet"
+  },
+  "97": {
+    "nativeCurrency": {
+      "name": "Binance Chain Native Token",
+      "symbol": "tBNB",
+      "decimals": 18
+    },
+    "name": "Binance Smart Chain Testnet"
+  },
+  "100": {
+    "nativeCurrency": { "name": "xDAI", "symbol": "xDAI", "decimals": 18 },
+    "name": "Gnosis Chain"
+  },
+  "122": {
+    "nativeCurrency": { "name": "Fuse", "symbol": "FUSE", "decimals": 18 },
+    "name": "Fuse Mainnet"
+  },
+  "128": {
+    "nativeCurrency": {
+      "name": "Huobi ECO Chain Native Token",
+      "symbol": "HT",
+      "decimals": 18
+    },
+    "name": "Huobi ECO Chain Mainnet"
+  },
+  "137": {
+    "nativeCurrency": { "name": "MATIC", "symbol": "MATIC", "decimals": 18 },
+    "name": "Polygon Mainnet"
+  },
+  "250": {
+    "nativeCurrency": { "name": "Fantom", "symbol": "FTM", "decimals": 18 },
+    "name": "Fantom Opera"
+  },
+  "256": {
+    "nativeCurrency": {
+      "name": "Huobi ECO Chain Test Native Token",
+      "symbol": "htt",
+      "decimals": 18
+    },
+    "name": "Huobi ECO Chain Testnet"
+  },
+  "1284": {
+    "nativeCurrency": { "name": "Glimmer", "symbol": "GLMR", "decimals": 18 },
+    "name": "Moonbeam"
+  },
+  "1285": {
+    "nativeCurrency": { "name": "Moonriver", "symbol": "MOVR", "decimals": 18 },
+    "name": "Moonriver"
+  },
+  "1287": {
+    "nativeCurrency": { "name": "Dev", "symbol": "DEV", "decimals": 18 },
+    "name": "Moonbase Alpha"
+  },
+  "4002": {
+    "nativeCurrency": { "name": "Fantom", "symbol": "FTM", "decimals": 18 },
+    "name": "Fantom Testnet"
+  },
+  "31337": {
+    "nativeCurrency": {
+      "name": "GoChain Coin",
+      "symbol": "GO",
+      "decimals": 18
+    },
+    "name": "GoChain Testnet"
+  },
+  "42161": {
+    "nativeCurrency": { "name": "Ether", "symbol": "ETH", "decimals": 18 },
+    "name": "Arbitrum One"
+  },
+  "42220": {
+    "nativeCurrency": { "name": "CELO", "symbol": "CELO", "decimals": 18 },
+    "name": "Celo Mainnet"
+  },
+  "43113": {
+    "nativeCurrency": { "name": "Avalanche", "symbol": "AVAX", "decimals": 18 },
+    "name": "Avalanche Fuji Testnet"
+  },
+  "43114": {
+    "nativeCurrency": { "name": "Avalanche", "symbol": "AVAX", "decimals": 18 },
+    "name": "Avalanche C-Chain"
+  },
+  "80001": {
+    "nativeCurrency": { "name": "MATIC", "symbol": "MATIC", "decimals": 18 },
+    "name": "Mumbai"
+  },
+  "1666600000": {
+    "nativeCurrency": { "name": "ONE", "symbol": "ONE", "decimals": 18 },
+    "name": "Harmony Mainnet Shard 0"
+  },
+  "1666700000": {
+    "nativeCurrency": { "name": "ONE", "symbol": "ONE", "decimals": 18 },
+    "name": "Harmony Testnet Shard 0"
+  },
+  "11297108109": {
+    "nativeCurrency": { "name": "PALM", "symbol": "PALM", "decimals": 18 },
+    "name": "Palm"
+  },
+  "11297108099": {
+    "nativeCurrency": { "name": "PALM", "symbol": "PALM", "decimals": 18 },
+    "name": "Palm Testnet"
+  }
+}

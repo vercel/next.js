@@ -1,144 +1,179 @@
 ---
-description: Deploy your Next.js app to production with Vercel and other hosting options.
+description: Learn how to deploy your Next.js app to production, either managed or self-hosted.
 ---
 
 # Deployment
 
-## Vercel (Recommended)
+Congratulations, you are ready to deploy your Next.js application to production. This document will show how to deploy either managed or self-hosted using the [Next.js Build API](#nextjs-build-api).
 
-The easiest way to deploy Next.js to production is to use the **[Vercel platform](https://vercel.com)** from the creators of Next.js. [Vercel](https://vercel.com) is a cloud platform for static sites, hybrid apps, and Serverless Functions.
+## Next.js Build API
 
-### Getting started
+`next build` generates an optimized version of your application for production. This standard output includes:
 
-If you haven’t already done so, push your Next.js app to a Git provider of your choice: [GitHub](https://github.com/), [GitLab](https://gitlab.com/), or [BitBucket](https://bitbucket.org/). Your repository can be private or public.
+- HTML files for pages using `getStaticProps` or [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md)
+- CSS files for global styles or for individually scoped styles
+- JavaScript for pre-rendering dynamic content from the Next.js server
+- JavaScript for interactivity on the client-side through React
 
-Then, follow these steps:
+This output is generated inside the `.next` folder:
 
-1. [Sign up to Vercel](https://vercel.com/signup) (no credit card is required).
-2. After signing up, you’ll arrive on the [“Import Project”](https://vercel.com/new) page. Under “From Git Repository”, choose the Git provider you use and set up an integration. (Instructions: [GitHub](https://vercel.com/docs/git/vercel-for-github) / [GitLab](https://vercel.com/docs/git/vercel-for-gitlab) / [BitBucket](https://vercel.com/docs/git/vercel-for-bitbucket)).
-3. Once that’s set up, click “Import Project From …” and import your Next.js app. It auto-detects that your app is using Next.js and sets up the build configuration for you. No need to change anything — everything should work fine!
-4. After importing, it’ll deploy your Next.js app and provide you with a deployment URL. Click “Visit” to see your app in production.
+- `.next/static/chunks/pages` – Each JavaScript file inside this folder relates to the route with the same name. For example, `.next/static/chunks/pages/about.js` would be the JavaScript file loaded when viewing the `/about` route in your application
+- `.next/static/media` – Statically imported images from `next/image` are hashed and copied here
+- `.next/static/css` – Global CSS files for all pages in your application
+- `.next/server/pages` – The HTML and JavaScript entry points prerendered from the server. The `.nft.json` files are created when [Output File Tracing](/docs/advanced-features/output-file-tracing.md) is enabled and contain all the file paths that depend on a given page.
+- `.next/server/chunks` – Shared JavaScript chunks used in multiple places throughout your application
+- `.next/cache` – Output for the build cache and cached images, responses, and pages from the Next.js server. Using a cache helps decrease build times and improve performance of loading images
 
-Congratulations! You’ve deployed your Next.js app! If you have questions, take a look at the [Vercel documentation](https://vercel.com/docs).
+All JavaScript code inside `.next` has been **compiled** and browser bundles have been **minified** to help achieve the best performance and support [all modern browsers](/docs/basic-features/supported-browsers-features.md).
 
-> If you’re using a [custom server](/docs/advanced-features/custom-server.md), we strongly recommend migrating away from it (for example, by using [dynamic routing](/docs/routing/dynamic-routes.md)). If you cannot migrate, consider [other hosting options](#other-hosting-options).
+## Managed Next.js with Vercel
 
-### DPS: Develop, Preview, Ship
+[Vercel](https://vercel.com?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) is the fastest way to deploy your Next.js application with zero configuration.
 
-Let’s talk about the workflow we recommend using. [Vercel](https://vercel.com) supports what we call the **DPS** workflow: **D**evelop, **P**review, and **S**hip:
+When deploying to Vercel, the platform [automatically detects Next.js](https://vercel.com/solutions/nextjs?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), runs `next build`, and optimizes the build output for you, including:
 
-- **Develop:** Write code in Next.js. Keep the development server running and take advantage of [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
-- **Preview:** Every time you push changes to a branch on GitHub / GitLab / BitBucket, Vercel automatically creates a new deployment with a unique URL. You can view them on GitHub when you open a pull request, or under “Preview Deployments” on your project page on Vercel. [Learn more about it here](https://vercel.com/features/deployment-previews).
-- **Ship:** When you’re ready to ship, merge the pull request to your default branch (e.g. `main`). Vercel will automatically create a production deployment.
+- Persisting cached assets across deployments if unchanged
+- [Immutable deployments](https://vercel.com/features/previews?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) with a unique URL for every commit
+- [Pages](/docs/basic-features/pages.md) are automatically statically optimized, if possible
+- Assets (JavaScript, CSS, images, fonts) are compressed and served from a [Global Edge Network](https://vercel.com/features/infrastructure?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- [API Routes](/docs/api-routes/introduction.md) are automatically optimized as isolated [Serverless Functions](https://vercel.com/features/infrastructure?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that can scale infinitely
+- [Middleware](/docs/middleware.md) are automatically optimized as [Edge Functions](https://vercel.com/features/edge-functions?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that have zero cold starts and boot instantly
 
-By using the DPS workflow, in addition to doing _code reviews_, you can do _deployment previews_. Each deployment creates a unique URL that can be shared or used for integration tests.
+In addition, Vercel provides features like:
 
-### Optimized for Next.js
+- Automatic performance monitoring with [Next.js Analytics](https://vercel.com/analytics?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- Automatic HTTPS and SSL certificates
+- Automatic CI/CD (through GitHub, GitLab, Bitbucket, etc.)
+- Support for [Environment Variables](https://vercel.com/docs/environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- Support for [Custom Domains](https://vercel.com/docs/custom-domains?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- Support for [Image Optimization](/docs/basic-features/image-optimization.md) with `next/image`
+- Instant global deployments via `git push`
 
-[Vercel](https://vercel.com) is made by the creators of Next.js and has first-class support for Next.js.
+[Deploy a Next.js application to Vercel](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=next-site&utm_medium=docs&utm_campaign=next-website) for free to try it out.
 
-For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully supported out of the box.
+## Self-Hosting
 
-- Every page can either use [Static Generation](/docs/basic-features/pages.md#static-generation) or [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering).
-- Pages that use [Static Generation](/docs/basic-features/pages.md#static-generation) and assets (JS, CSS, images, fonts, etc) will automatically be served from [Vercel's Edge Network](https://vercel.com/docs/edge-network/overview), which is blazingly fast.
-- Pages that use [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) and [API routes](/docs/api-routes/introduction.md) will automatically become isolated Serverless Functions. This allows page rendering and API requests to scale infinitely.
-
-### Custom Domains, Environment Variables, Automatic HTTPS, and more
-
-- **Custom Domains:** Once deployed on [Vercel](https://vercel.com), you can assign a custom domain to your Next.js app. Take a look at [our documentation here](https://vercel.com/docs/custom-domains).
-- **Environment Variables:** You can also set environment variables on Vercel. Take a look at [our documentation here](https://vercel.com/docs/environment-variables). You can then [use those environment variables](/docs/api-reference/next.config.js/environment-variables.md) in your Next.js app.
-- **Automatic HTTPS:** HTTPS is enabled by default (including custom domains) and doesn't require extra configuration. We auto-renew SSL certificates.
-- **More:** [Read our documentation](https://vercel.com/docs) to learn more about the Vercel platform.
-
-## Automatic Updates
-
-When you deploy your Next.js application, you want to see the latest version without needing to reload.
-
-Next.js will automatically load the latest version of your application in the background when routing. For client-side navigation, `next/link` will temporarily function as a normal `<a>` tag.
-
-**Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Then, after either a full page refresh or multiple client-side page transitions, Next.js will show the latest version.
-
-## Other hosting options
+You can self-host Next.js with support for all features using Node.js or Docker. You can also do a Static HTML Export, which [has some limitations](/docs/advanced-features/static-html-export.md).
 
 ### Node.js Server
 
-Next.js can be deployed to any hosting provider that supports Node.js. Make sure your `package.json` has the `"build"` and `"start"` scripts:
+Next.js can be deployed to any hosting provider that supports Node.js. For example, [AWS EC2](https://aws.amazon.com/ec2/) or a [DigitalOcean Droplet](https://www.digitalocean.com/products/droplets/).
+
+First, ensure your `package.json` has the `"build"` and `"start"` scripts:
 
 ```json
 {
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   }
 }
 ```
 
-`next build` builds the production application in the `.next` folder. After building, `next start` starts a Node.js server that supports [hybrid pages](/docs/basic-features/pages.md), serving both statically generated and server-side rendered pages.
+Then, run `next build` to build your application. Finally, run `next start` to start the Node.js server. This server supports all features of Next.js.
 
-If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding `sharp` for more performant [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory.
+> If you are using [`next/image`](/docs/basic-features/image-optimization.md), consider adding `sharp` for more performant [Image Optimization](/docs/basic-features/image-optimization.md) in your production environment by running `npm install sharp` in your project directory. On Linux platforms, `sharp` may require [additional configuration](https://sharp.pixelplumbing.com/install#linux-memory-allocator) to prevent excessive memory usage.
 
 ### Docker Image
 
-<details open>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-docker">with-docker</a></li>
-  </ul>
-</details>
-
 Next.js can be deployed to any hosting provider that supports [Docker](https://www.docker.com/) containers. You can use this approach when deploying to container orchestrators such as [Kubernetes](https://kubernetes.io/) or [HashiCorp Nomad](https://www.nomadproject.io/), or when running inside a single node in any cloud provider.
 
-Here is a multi-stage `Dockerfile` using `node:alpine` that you can use:
+1. [Install Docker](https://docs.docker.com/get-docker/) on your machine
+1. Clone the [with-docker](https://github.com/vercel/next.js/tree/canary/examples/with-docker) example
+1. Build your container: `docker build -t nextjs-docker .`
+1. Run your container: `docker run -p 3000:3000 nextjs-docker`
 
-```Dockerfile
-# Install dependencies only when needed
-FROM node:alpine AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
-
-# Rebuild the source code only when needed
-FROM node:alpine AS builder
-WORKDIR /app
-COPY . .
-COPY --from=deps /app/node_modules ./node_modules
-RUN yarn build && yarn install --production --ignore-scripts --prefer-offline
-
-# Production image, copy all the files and run next
-FROM node:alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV production
-
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
-
-# You only need to copy next.config.js if you are NOT using the default configuration
-# COPY --from=builder /app/next.config.js ./
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-
-USER nextjs
-
-EXPOSE 3000
-
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry.
-# ENV NEXT_TELEMETRY_DISABLED 1
-
-CMD ["yarn", "start"]
-```
-
-Make sure to place this Dockerfile in the root folder of your project.
-
-You can build your container with `docker build . -t my-next-js-app` and run it with `docker run -p 3000:3000 my-next-js-app`.
+If you need to use different Environment Variables across multiple environments, check out our [with-docker-multi-env](https://github.com/vercel/next.js/tree/canary/examples/with-docker-multi-env) example.
 
 ### Static HTML Export
 
-If you’d like to do a static HTML export of your Next.js app, follow the directions on [our documentation](/docs/advanced-features/static-html-export.md).
+If you’d like to do a static HTML export of your Next.js app, follow the directions on our [Static HTML Export documentation](/docs/advanced-features/static-html-export.md).
+
+## Other Services
+
+The following services support Next.js `v12+`. Below, you’ll find examples or guides to deploy Next.js to each service.
+
+### Managed Server
+
+- [AWS Copilot](https://aws.github.io/copilot-cli/)
+- [Digital Ocean App Platform](https://docs.digitalocean.com/tutorials/app-nextjs-deploy/)
+- [Google Cloud Run](https://github.com/vercel/next.js/tree/canary/examples/with-docker)
+- [Heroku](https://elements.heroku.com/buildpacks/mars/heroku-nextjs)
+- [Railway](https://railway.app/new/starters/nextjs-prisma)
+- [Render](https://render.com/docs/deploy-nextjs-app)
+
+> **Note:** There are also managed platforms that allow you to use a Dockerfile as shown in the [example above](/docs/deployment.md#docker-image).
+
+### Static Only
+
+The following services only support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
+
+- [GitHub Pages](https://github.com/vercel/next.js/tree/canary/examples/github-pages)
+
+You can also manually deploy the [`next export`](/docs/advanced-features/static-html-export.md) output to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
+
+### Serverless
+
+- [AWS Amplify](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-Amplify-support.html)
+- [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
+- [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/nextjs)
+- [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
+- [Firebase](https://firebase.google.com/docs/hosting/nextjs)
+- [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
+- [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
+
+> **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
+
+## Automatic Updates
+
+When you deploy your Next.js application, you want to see the latest version without needing to reload.
+
+Next.js will automatically load the latest version of your application in the background when routing. For client-side navigations, `next/link` will temporarily function as a normal `<a>` tag.
+
+**Note:** If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Navigating to a page that has _not_ been prefetched (and is not cached at the CDN level) will load the latest version.
+
+## Manual Graceful shutdowns
+
+Sometimes you might want to run some cleanup code on process signals like `SIGTERM` or `SIGINT`.
+
+You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file. Please note that you need to register env variable directly in the system env variable, not in the `.env` file.
+
+```json
+// package.json
+{
+  "scripts": {
+    "dev": "NEXT_MANUAL_SIG_HANDLE=true next dev",
+    "build": "next build",
+    "start": "NEXT_MANUAL_SIG_HANDLE=true next start"
+  }
+}
+```
+
+```js
+// pages/_document.js
+
+if (process.env.NEXT_MANUAL_SIG_HANDLE) {
+  // this should be added in your custom _document
+  process.on('SIGTERM', () => {
+    console.log('Received SIGTERM: ', 'cleaning up')
+    process.exit(0)
+  })
+
+  process.on('SIGINT', () => {
+    console.log('Received SIGINT: ', 'cleaning up')
+    process.exit(0)
+  })
+}
+```
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/going-to-production.md">
+    <b>Going to Production:</b>
+    <small>Ensure the best performance and user experience.</small>
+  </a>
+</div>

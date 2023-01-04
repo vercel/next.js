@@ -43,6 +43,24 @@ describe('parseRelativeUrl', () => {
       'http://example.com:3210/someA/pathB?fooC=barD#hashE',
       './someF/pathG?fooH=barI#hashJ',
       {
+        pathname: '/someA/someF/pathG',
+        search: '?fooH=barI',
+        hash: '#hashJ',
+      }
+    )
+    check(
+      'http://example.com:3210/someA/pathB',
+      '../someF/pathG?fooH=barI#hashJ',
+      {
+        pathname: '/someF/pathG',
+        search: '?fooH=barI',
+        hash: '#hashJ',
+      }
+    )
+    check(
+      'http://example.com:3210/someA/pathB',
+      '../../someF/pathG?fooH=barI#hashJ',
+      {
         pathname: '/someF/pathG',
         search: '?fooH=barI',
         hash: '#hashJ',

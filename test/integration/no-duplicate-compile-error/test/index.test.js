@@ -54,8 +54,7 @@ describe('no duplicate compile error output', () => {
       return (str.match(regex) || []).length
     }
 
-    const correctMessagesRegex =
-      /error - [^\r\n]+\r?\n[^\r\n]+Unexpected token/g
+    const correctMessagesRegex = /Caused by:/g
     const totalMessagesRegex = /Unexpected token/g
 
     const correctMessages = getRegexCount(stderr, correctMessagesRegex)

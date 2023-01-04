@@ -1,12 +1,20 @@
-import { ApolloServer } from 'apollo-server-micro'
-import { schema } from '../../lib/schema'
+import { createSchema, createYoga } from 'graphql-yoga'
+import gql from 'graphql-tag'
 
-const apolloServer = new ApolloServer({ schema })
+import resolvers from 'lib/resolvers'
+import typeDefs from 'lib/schema'
+import { NextApiRequest, NextApiResponse } from 'next'
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
+const schema = createSchema({
+  typeDefs: gql(typeDefs),
+  resolvers,
+})
 
-export default apolloServer.createHandler({ path: '/api/graphql' })
+export default createYoga<{
+  req: NextApiRequest
+  res: NextApiResponse
+}>({
+  schema,
+  // Needed to be defined explicitly because our endpoint lives at a different path other than `/graphql`
+  graphqlEndpoint: '/api/graphql',
+})

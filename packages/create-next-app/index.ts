@@ -6,9 +6,10 @@ import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
 import { createApp, DownloadError } from './create-app'
-import { shouldUseYarn } from './helpers/should-use-yarn'
+import { getPkgManager } from './helpers/get-pkg-manager'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
+import ciInfo from 'ci-info'
 
 let projectPath: string = ''
 
@@ -23,7 +24,28 @@ const program = new Commander.Command(packageJson.name)
     '--ts, --typescript',
     `
 
-  Initialize as a TypeScript project.
+  Initialize as a TypeScript project. (default)
+`
+  )
+  .option(
+    '--js, --javascript',
+    `
+
+  Initialize as a JavaScript project.
+`
+  )
+  .option(
+    '--eslint',
+    `
+
+  Initialize with eslint config.
+`
+  )
+  .option(
+    '--experimental-app',
+    `
+
+  Initialize as a \`app/\` directory project.
 `
   )
   .option(
@@ -31,6 +53,13 @@ const program = new Commander.Command(packageJson.name)
     `
 
   Explicitly tell the CLI to bootstrap the app using npm
+`
+  )
+  .option(
+    '--use-pnpm',
+    `
+
+  Explicitly tell the CLI to bootstrap the app using pnpm
 `
   )
   .option(
@@ -54,6 +83,12 @@ const program = new Commander.Command(packageJson.name)
   )
   .allowUnknownOption()
   .parse(process.argv)
+
+const packageManager = !!program.useNpm
+  ? 'npm'
+  : !!program.usePnpm
+  ? 'pnpm'
+  : getPkgManager()
 
 async function run(): Promise<void> {
   if (typeof projectPath === 'string') {
@@ -81,17 +116,14 @@ async function run(): Promise<void> {
   }
 
   if (!projectPath) {
-    console.log()
-    console.log('Please specify the project directory:')
     console.log(
-      `  ${chalk.cyan(program.name())} ${chalk.green('<project-directory>')}`
-    )
-    console.log()
-    console.log('For example:')
-    console.log(`  ${chalk.cyan(program.name())} ${chalk.green('my-next-app')}`)
-    console.log()
-    console.log(
-      `Run ${chalk.cyan(`${program.name()} --help`)} to see all options.`
+      '\nPlease specify the project directory:\n' +
+        `  ${chalk.cyan(program.name())} ${chalk.green(
+          '<project-directory>'
+        )}\n` +
+        'For example:\n' +
+        `  ${chalk.cyan(program.name())} ${chalk.green('my-next-app')}\n\n` +
+        `Run ${chalk.cyan(`${program.name()} --help`)} to see all options.`
     )
     process.exit(1)
   }
@@ -116,17 +148,81 @@ async function run(): Promise<void> {
       'Please provide an example name or url, otherwise remove the example option.'
     )
     process.exit(1)
-    return
   }
 
   const example = typeof program.example === 'string' && program.example.trim()
+
+  /**
+   * If the user does not provide the necessary flags, prompt them for whether
+   * to use TS or JS.
+   */
+  if (!example) {
+    if (!program.typescript && !program.javascript) {
+      if (ciInfo.isCI) {
+        // default to JavaScript in CI as we can't prompt to
+        // prevent breaking setup flows
+        program.typescript = false
+        program.javascript = true
+      } else {
+        const styledTypeScript = chalk.hex('#007acc')('TypeScript')
+        const { typescript } = await prompts(
+          {
+            type: 'toggle',
+            name: 'typescript',
+            message: `Would you like to use ${styledTypeScript} with this project?`,
+            initial: true,
+            active: 'Yes',
+            inactive: 'No',
+          },
+          {
+            /**
+             * User inputs Ctrl+C or Ctrl+D to exit the prompt. We should close the
+             * process and not write to the file system.
+             */
+            onCancel: () => {
+              console.error('Exiting.')
+              process.exit(1)
+            },
+          }
+        )
+        /**
+         * Depending on the prompt response, set the appropriate program flags.
+         */
+        program.typescript = Boolean(typescript)
+        program.javascript = !Boolean(typescript)
+      }
+    }
+
+    if (
+      !process.argv.includes('--eslint') &&
+      !process.argv.includes('--no-eslint')
+    ) {
+      if (ciInfo.isCI) {
+        program.eslint = true
+      } else {
+        const styledEslint = chalk.hex('#007acc')('ESLint')
+        const { eslint } = await prompts({
+          type: 'toggle',
+          name: 'eslint',
+          message: `Would you like to use ${styledEslint} with this project?`,
+          initial: true,
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.eslint = Boolean(eslint)
+      }
+    }
+  }
+
   try {
     await createApp({
       appPath: resolvedProjectPath,
-      useNpm: !!program.useNpm,
+      packageManager,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      eslint: program.eslint,
+      experimentalApp: program.experimentalApp,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -147,8 +243,10 @@ async function run(): Promise<void> {
 
     await createApp({
       appPath: resolvedProjectPath,
-      useNpm: !!program.useNpm,
+      packageManager,
       typescript: program.typescript,
+      eslint: program.eslint,
+      experimentalApp: program.experimentalApp,
     })
   }
 }
@@ -159,21 +257,20 @@ async function notifyUpdate(): Promise<void> {
   try {
     const res = await update
     if (res?.latest) {
-      const isYarn = shouldUseYarn()
+      const updateMessage =
+        packageManager === 'yarn'
+          ? 'yarn global add create-next-app'
+          : packageManager === 'pnpm'
+          ? 'pnpm add -g create-next-app'
+          : 'npm i -g create-next-app'
 
-      console.log()
       console.log(
-        chalk.yellow.bold('A new version of `create-next-app` is available!')
+        chalk.yellow.bold('A new version of `create-next-app` is available!') +
+          '\n' +
+          'You can update by running: ' +
+          chalk.cyan(updateMessage) +
+          '\n'
       )
-      console.log(
-        'You can update by running: ' +
-          chalk.cyan(
-            isYarn
-              ? 'yarn global add create-next-app'
-              : 'npm i -g create-next-app'
-          )
-      )
-      console.log()
     }
     process.exit()
   } catch {
@@ -189,8 +286,10 @@ run()
     if (reason.command) {
       console.log(`  ${chalk.cyan(reason.command)} has failed.`)
     } else {
-      console.log(chalk.red('Unexpected error. Please report it as a bug:'))
-      console.log(reason)
+      console.log(
+        chalk.red('Unexpected error. Please report it as a bug:') + '\n',
+        reason
+      )
     }
     console.log()
 

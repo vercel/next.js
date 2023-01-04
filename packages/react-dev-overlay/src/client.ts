@@ -11,6 +11,12 @@ function onUnhandledError(ev: ErrorEvent) {
     return
   }
 
+  if (
+    error.message.match(/(hydration|content does not match|did not match)/i)
+  ) {
+    error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
+  }
+
   const e = error
   Bus.emit({
     type: Bus.TYPE_UNHANDLED_ERROR,
@@ -80,9 +86,21 @@ function onBuildError(message: string) {
 }
 
 function onRefresh() {
-  Bus.emit({ type: Bus.TYPE_REFFRESH })
+  Bus.emit({ type: Bus.TYPE_REFRESH })
 }
 
-export { getNodeError } from './internal/helpers/nodeStackFrames'
+function onBeforeRefresh() {
+  Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH })
+}
+
+export { getErrorByType } from './internal/helpers/getErrorByType'
+export { getServerError } from './internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
-export { onBuildOk, onBuildError, register, unregister, onRefresh }
+export {
+  onBuildOk,
+  onBuildError,
+  register,
+  unregister,
+  onBeforeRefresh,
+  onRefresh,
+}

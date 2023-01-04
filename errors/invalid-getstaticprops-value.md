@@ -8,14 +8,18 @@ In one of the page's `getStaticProps` the return value had the incorrect shape.
 
 Make sure to return the following shape from `getStaticProps`:
 
-```js
+```ts
 export async function getStaticProps(ctx: {
-  params?: ParsedUrlQuery
-  preview?: boolean
-  previewData?: PreviewData
+    params?: ParsedUrlQuery;
+    preview?: boolean;
+    previewData?: PreviewData;
 }) {
-  return {
-    props: { [key: string]: any }
-  }
+    return {
+        props: { [key: string]: any }
+    }
 }
 ```
+
+### Useful Links
+
+- [`getStaticProps` Documentation](https://nextjs.org/docs/api-reference/data-fetching/get-static-props)

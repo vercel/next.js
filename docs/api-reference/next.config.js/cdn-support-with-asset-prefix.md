@@ -20,7 +20,7 @@ const isProd = process.env.NODE_ENV === 'production'
 
 module.exports = {
   // Use the CDN in production and localhost for development.
-  assetPrefix: isProd ? 'https://cdn.mydomain.com' : '',
+  assetPrefix: isProd ? 'https://cdn.mydomain.com' : undefined,
 }
 ```
 
@@ -42,7 +42,7 @@ While `assetPrefix` covers requests to `_next/static`, it does not influence the
 
 - Files in the [public](/docs/basic-features/static-file-serving.md) folder; if you want to serve those assets over a CDN, you'll have to introduce the prefix yourself
 - `/_next/data/` requests for `getServerSideProps` pages. These requests will always be made against the main domain since they're not static.
-- `/_next/data/` requests for `getStaticProps` pages. These requests will always be made against the main domain to support [Incremental Static Generation](/docs/basic-features/data-fetching.md#incremental-static-regeneration), even if you're not using it (for consistency).
+- `/_next/data/` requests for `getStaticProps` pages. These requests will always be made against the main domain to support [Incremental Static Generation](/docs/basic-features/data-fetching/incremental-static-regeneration.md), even if you're not using it (for consistency).
 
 ## Related
 

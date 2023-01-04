@@ -1,4 +1,4 @@
-import { BrowserInterface } from './base'
+import { BrowserInterface, Event } from './base'
 import fs from 'fs-extra'
 import {
   chromium,
@@ -8,6 +8,7 @@ import {
   BrowserContext,
   Page,
   ElementHandle,
+  devices,
 } from 'playwright-chromium'
 import path from 'path'
 
@@ -15,6 +16,7 @@ let page: Page
 let browser: Browser
 let context: BrowserContext
 let pageLogs: Array<{ source: string; message: string }> = []
+let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
@@ -25,28 +27,66 @@ export async function quit() {
   browser = undefined
 }
 
-class Playwright extends BrowserInterface {
+export class Playwright extends BrowserInterface {
   private activeTrace?: string
+  private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
+    request: new Set(),
+  }
 
-  async setup(browserName: string) {
+  on(event: Event, cb: (...args: any[]) => void) {
+    if (!this.eventCallbacks[event]) {
+      throw new Error(
+        `Invalid event passed to browser.on, received ${event}. Valid events are ${Object.keys(
+          event
+        )}`
+      )
+    }
+    this.eventCallbacks[event]?.add(cb)
+  }
+  off(event: Event, cb: (...args: any[]) => void) {
+    this.eventCallbacks[event]?.delete(cb)
+  }
+
+  async setup(browserName: string, locale?: string) {
     if (browser) return
     const headless = !!process.env.HEADLESS
+    let device
 
-    if (browserName === 'safari') {
-      browser = await webkit.launch({ headless })
-    } else if (browserName === 'firefox') {
-      browser = await firefox.launch({ headless })
-    } else {
-      browser = await chromium.launch({ headless, devtools: !headless })
+    if (process.env.DEVICE_NAME) {
+      device = devices[process.env.DEVICE_NAME]
+
+      if (!device) {
+        throw new Error(
+          `Invalid playwright device name ${process.env.DEVICE_NAME}`
+        )
+      }
     }
-    context = await browser.newContext()
+
+    browser = await this.launchBrowser(browserName, { headless })
+    context = await browser.newContext({ locale, ...device })
+  }
+
+  async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
+    if (browserName === 'safari') {
+      return await webkit.launch(launchOptions)
+    } else if (browserName === 'firefox') {
+      return await firefox.launch(launchOptions)
+    } else {
+      return await chromium.launch({
+        devtools: !launchOptions.headless,
+        ...launchOptions,
+      })
+    }
   }
 
   async get(url: string): Promise<void> {
     return page.goto(url) as any
   }
 
-  async loadPage(url: string) {
+  async loadPage(
+    url: string,
+    opts?: { disableCache: boolean; beforePageLoad?: (...args: any[]) => void }
+  ) {
     if (this.activeTrace) {
       const traceDir = path.join(__dirname, '../../traces')
       const traceOutputPath = path.join(
@@ -71,6 +111,7 @@ class Playwright extends BrowserInterface {
     }
     page = await context.newPage()
     pageLogs = []
+    websocketFrames = []
 
     page.on('console', (msg) => {
       console.log('browser log:', msg)
@@ -82,26 +123,42 @@ class Playwright extends BrowserInterface {
     page.on('pageerror', (error) => {
       console.error('page error', error)
     })
+    page.on('request', (req) => {
+      this.eventCallbacks.request.forEach((cb) => cb(req))
+    })
 
-    if (tracePlaywright) {
-      page.on('websocket', (ws) => {
+    if (opts?.disableCache) {
+      // TODO: this doesn't seem to work (dev tools does not check the box as expected)
+      const session = await context.newCDPSession(page)
+      session.send('Network.setCacheDisabled', { cacheDisabled: true })
+    }
+
+    page.on('websocket', (ws) => {
+      if (tracePlaywright) {
         page
           .evaluate(`console.log('connected to ws at ${ws.url()}')`)
           .catch(() => {})
+
         ws.on('close', () =>
           page
             .evaluate(`console.log('closed websocket ${ws.url()}')`)
             .catch(() => {})
         )
-        ws.on('framereceived', (frame) => {
+      }
+      ws.on('framereceived', (frame) => {
+        websocketFrames.push({ payload: frame.payload })
+
+        if (tracePlaywright) {
           if (!frame.payload.includes('pong')) {
             page
               .evaluate(`console.log('received ws message ${frame.payload}')`)
               .catch(() => {})
           }
-        })
+        }
       })
-    }
+    })
+
+    opts?.beforePageLoad?.(page)
 
     if (tracePlaywright) {
       await context.tracing.start({
@@ -150,6 +207,10 @@ class Playwright extends BrowserInterface {
   }
   deleteCookies(): BrowserInterface {
     return this.chain(async () => context.clearCookies())
+  }
+
+  focusPage() {
+    return this.chain(() => page.bringToFront())
   }
 
   private wrapElement(el: ElementHandle, selector: string) {
@@ -220,13 +281,31 @@ class Playwright extends BrowserInterface {
     return this.chain((el) => el.getAttribute(attr))
   }
 
-  async hasElementByCssSelector(selector: string) {
-    return this.eval(`!!document.querySelector('${selector}')`) as any
+  hasElementByCssSelector(selector: string) {
+    return this.eval<boolean>(`!!document.querySelector('${selector}')`)
+  }
+
+  keydown(key: string): BrowserInterface {
+    return this.chain((el) => {
+      return page.keyboard.down(key).then(() => el)
+    })
+  }
+
+  keyup(key: string): BrowserInterface {
+    return this.chain((el) => {
+      return page.keyboard.up(key).then(() => el)
+    })
   }
 
   click() {
     return this.chain((el) => {
       return el.click().then(() => el)
+    })
+  }
+
+  touchStart() {
+    return this.chain((el: ElementHandle) => {
+      return el.dispatchEvent('touchstart').then(() => el)
     })
   }
 
@@ -261,28 +340,23 @@ class Playwright extends BrowserInterface {
 
   waitForCondition(condition, timeout) {
     return this.chain(() => {
-      return page.waitForFunction(
-        `function() {
-        return ${condition}
-      }`,
-        { timeout }
-      )
+      return page.waitForFunction(condition, { timeout })
     })
   }
 
-  async eval(snippet) {
-    // TODO: should this and evalAsync be chained? Might lead
-    // to bad chains
-    return page
-      .evaluate(snippet)
-      .catch((err) => {
-        console.error('eval error:', err)
-        return null
-      })
-      .then(async (val) => {
-        await page.waitForLoadState()
-        return val
-      })
+  eval<T = any>(snippet): Promise<T> {
+    return this.chainWithReturnValue(() =>
+      page
+        .evaluate(snippet)
+        .catch((err) => {
+          console.error('eval error:', err)
+          return null
+        })
+        .then(async (val) => {
+          await page.waitForLoadState()
+          return val as T
+        })
+    )
   }
 
   async evalAsync(snippet) {
@@ -310,9 +384,11 @@ class Playwright extends BrowserInterface {
     return this.chain(() => pageLogs) as any
   }
 
+  async websocketFrames() {
+    return this.chain(() => websocketFrames) as any
+  }
+
   async url() {
     return this.chain(() => page.evaluate('window.location.href')) as any
   }
 }
-
-export default Playwright

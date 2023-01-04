@@ -15,12 +15,18 @@ If you are having issues, feel free to tag @jthegedus in the [issue you create o
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
-# or
+```
+
+```bash
 yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
+```
+
+```bash
+pnpm create next-app --example with-firebase-hosting with-firebase-hosting-app
 ```
 
 **Important:** Update `.firebaserc` and add your firebase project ID.
@@ -41,9 +47,9 @@ npm run deploy
 yarn deploy
 ```
 
-## Typescript
+## TypeScript
 
-To use Typescript, simply follow [Typescript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
+To use TypeScript, simply follow [TypeScript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
 
 i.e: `npm install --save-dev typescript @types/react @types/node`
 
@@ -68,7 +74,7 @@ The crucial files for the setup:
 - `firebase.json`
 - `firebaseFunctions.js`
 - `src/next.config.js`
-- In `package.json`: `firebase-*` packages.
+- In `package.json`: `firebase-*` packages, `main` property defining the entry point as `firebaseFunctions.js`
 
 ## References
 

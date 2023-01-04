@@ -15,6 +15,36 @@ describe('ReactRefreshLogBox', () => {
   })
   afterAll(() => next.destroy())
 
+  test('should strip whitespace correctly with newline', async () => {
+    const { session, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'index.js',
+      `
+        export default function Page() {
+          return (
+            <>
+            
+                          <p>index page</p>
+
+                          <a onClick={() => {
+                            throw new Error('idk')
+                          }}>
+                            click me
+                          </a>
+            </>
+          )
+        }
+      `
+    )
+    await session.evaluate(() => document.querySelector('a').click())
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchSnapshot()
+
+    await cleanup()
+  })
+
   test('logbox: can recover from a syntax error without losing state', async () => {
     const { session, cleanup } = await sandbox(next)
 
@@ -328,11 +358,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    if (process.platform === 'win32') {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-    } else {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-    }
+    expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
   })
@@ -900,6 +926,115 @@ describe('ReactRefreshLogBox', () => {
           ).href
       )
     ).toMatchSnapshot()
+
+    await cleanup()
+  })
+
+  test('non-Error errors are handled properly', async () => {
+    const { session, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          throw {'a': 1, 'b': 'x'};
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Error: {\\"a\\":1,\\"b\\":\\"x\\"}"`
+    )
+
+    // fix previous error
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(false)).toBe(false)
+    await session.patch(
+      'index.js',
+      `
+        class Hello {}
+        
+        export default () => {
+          throw Hello
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toContain(
+      `Error: class Hello {`
+    )
+
+    // fix previous error
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(false)).toBe(false)
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          throw "string error"
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Error: string error"`
+    )
+
+    // fix previous error
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(false)).toBe(false)
+    await session.patch(
+      'index.js',
+      `
+        export default () => {
+          throw null
+          return (
+            <div>hello</div>
+          )
+        }
+      `
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxDescription()).toContain(
+      `Error: A null error was thrown`
+    )
 
     await cleanup()
   })

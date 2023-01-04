@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { Connection, WorkflowClient } from '@temporalio/client'
-import { Order } from '../../../temporal/src/interfaces/workflows'
+import { WorkflowClient } from '@temporalio/client'
+import { order } from '../../../temporal/src/workflows'
 
 export type Data = {
   result: string
@@ -25,11 +25,14 @@ export default async function handler(
   const { itemId, quantity } = JSON.parse(req.body)
 
   // Connect to our Temporal Server running locally in Docker
-  const connection = new Connection()
-  const client = new WorkflowClient(connection.service)
-  const example = client.stub<Order>('order', { taskQueue: 'orders' })
+  const client = new WorkflowClient()
 
-  // Execute the Order workflow and wait for it to finish
-  const result = await example.execute(userId, itemId, quantity)
+  // Execute the order Workflow and wait for it to finish
+  const result = await client.execute(order, {
+    taskQueue: 'my-nextjs-project',
+    workflowId: 'my-business-id',
+    args: [userId, itemId, quantity],
+  })
+
   return res.status(200).json({ result })
 }

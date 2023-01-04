@@ -1,5 +1,7 @@
 # Next Script for Google Analytics
 
+> Prefer `next/script` component when using the inline script for Google Analytics.
+
 ### Why This Error Occurred
 
 An inline script was used for Google analytics which might impact your webpage's performance.
@@ -13,9 +15,9 @@ If you are using the [gtag.js](https://developers.google.com/analytics/devguides
 ```jsx
 import Script from 'next/script'
 
-const Home = () => {
+function Home() {
   return (
-    <div class="container">
+    <div className="container">
       <!-- Global site tag (gtag.js) - Google Analytics -->
       <Script
         src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"
@@ -44,9 +46,9 @@ If you are using the [analytics.js](https://developers.google.com/analytics/devg
 ```jsx
 import Script from 'next/script'
 
-const Home = () => {
+function Home() {
   return (
-    <div class="container">
+    <div className="container">
       <Script id="google-analytics" strategy="afterInteractive">
         {`
           (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -70,9 +72,9 @@ If you are using the [alternative async variant](https://developers.google.com/a
 ```jsx
 import Script from 'next/script'
 
-const Home = () => {
+function Home() {
   return (
-    <div class="container">
+    <div className="container">
       <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;

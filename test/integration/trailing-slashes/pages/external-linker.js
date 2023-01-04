@@ -14,8 +14,8 @@ export default function ExternalLinker({ href }) {
   }
   return (
     <div>
-      <Link href={href}>
-        <a id="link">link to {href}</a>
+      <Link href={href} id="link">
+        link to{href}
       </Link>
       <button id="route-pusher" onClick={pushRoute}>
         push route {href}

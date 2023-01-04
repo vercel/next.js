@@ -6,9 +6,7 @@ const DynamicComponent = dynamic(() => import('../components/hello'))
 export default () => (
   <div id="dynamic-imports-page">
     <div>
-      <Link href="/">
-        <a>Go Back</a>
-      </Link>
+      <Link href="/">Go Back</Link>
     </div>
     <DynamicComponent />
   </div>

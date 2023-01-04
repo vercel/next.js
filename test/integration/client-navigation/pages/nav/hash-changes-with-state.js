@@ -16,8 +16,8 @@ export default class SelfReload extends Component {
       '/nav/hash-changes-with-state',
       '/nav/hash-changes-with-state#hello' + Math.random(),
       {
-        historyCount: (window.history.state.options.historyCount || 0) + 1,
-        shallowHistoryCount: window.history.state.options.shallowHistoryCount,
+        historyCount: (window.history.state?.options?.historyCount || 0) + 1,
+        shallowHistoryCount: window.history.state?.options?.shallowHistoryCount,
       }
     )
   }
@@ -28,9 +28,9 @@ export default class SelfReload extends Component {
       '/nav/hash-changes-with-state#hello' + Math.random(),
       {
         shallow: true,
-        historyCount: window.history.state.options.historyCount,
+        historyCount: window.history.state?.options?.historyCount,
         shallowHistoryCount:
-          (window.history.state.options.shallowHistoryCount || 0) + 1,
+          (window.history.state?.options?.shallowHistoryCount || 0) + 1,
       }
     )
   }
@@ -45,7 +45,7 @@ export default class SelfReload extends Component {
         <div id="history-count">
           HISTORY COUNT:{' '}
           {typeof window !== 'undefined' &&
-            window.history.state.options.historyCount}
+            window.history.state?.options?.historyCount}
         </div>
         <a
           id="increment-shallow-history-count"
@@ -56,7 +56,7 @@ export default class SelfReload extends Component {
         <div id="shallow-history-count">
           SHALLOW HISTORY COUNT:{' '}
           {typeof window !== 'undefined' &&
-            window.history.state.options.shallowHistoryCount}
+            window.history.state?.options?.shallowHistoryCount}
         </div>
       </div>
     )

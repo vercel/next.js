@@ -4,7 +4,7 @@ description: Configure the build id, which is used to identify the current build
 
 # Configuring the Build ID
 
-Next.js uses a constant id generated at build time to identify which version of your application is being served. This can cause problems in multi-server deployments when `next build` is ran on every server. In order to keep a static build id between builds you can provide your own build id.
+Next.js uses a constant id generated at build time to identify which version of your application is being served. This can cause problems in multi-server deployments when `next build` is run on every server. In order to keep a consistent build id between builds you can provide your own build id.
 
 Open `next.config.js` and add the `generateBuildId` function:
 

@@ -14,7 +14,11 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   const formattedFrame = React.useMemo<string>(() => {
     const lines = codeFrame.split(/\r?\n/g)
     const prefixLength = lines
-      .map((line) => /^>? +\d+ +\| ( *)/.exec(stripAnsi(line)))
+      .map((line) =>
+        /^>? +\d+ +\| [ ]+/.exec(stripAnsi(line)) === null
+          ? null
+          : /^>? +\d+ +\| ( *)/.exec(stripAnsi(line))
+      )
       .filter(Boolean)
       .map((v) => v!.pop()!)
       .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
@@ -55,7 +59,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       .then(
         () => {},
         () => {
-          // TODO: report error
+          console.error('There was an issue opening this code in your editor.')
         }
       )
   }, [stackFrame])

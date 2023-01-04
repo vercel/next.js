@@ -1,3 +1,6 @@
-# material-ui example
+# Material UI examples
 
-This example have been moved here: [mui-org/material-ui](https://github.com/mui-org/material-ui/blob/master/examples/nextjs)
+**Note:** These examples are maintained outside of the Next.js repository:
+
+1. Official [TypeScript example](https://github.com/mui/material-ui/tree/master/examples/nextjs-with-typescript)
+2. Official [JavaScript example](https://github.com/mui/material-ui/tree/master/examples/nextjs)

@@ -36,4 +36,4 @@ export default YourEntryComponent
 
 ### Useful Links
 
-- [Fetching data and component lifecycle](https://nextjs.org/docs/api-reference/data-fetching/getInitialProps)
+- [Fetching data and component lifecycle](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props)

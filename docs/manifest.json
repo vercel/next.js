@@ -4,7 +4,10 @@
       "title": "Documentation",
       "heading": true,
       "routes": [
-        { "title": "Getting Started", "path": "/docs/getting-started.md" },
+        {
+          "title": "Getting Started",
+          "path": "/docs/getting-started.md"
+        },
         {
           "title": "Basic Features",
           "open": true,
@@ -15,7 +18,44 @@
             },
             {
               "title": "Data Fetching",
-              "path": "/docs/basic-features/data-fetching.md"
+              "routes": [
+                {
+                  "path": "/docs/basic-features/data-fetching",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview"
+                  }
+                },
+                {
+                  "path": "/docs/basic-features/data-fetching/index",
+                  "redirect": {
+                    "destination": "/docs/basic-features/data-fetching/overview"
+                  }
+                },
+                {
+                  "title": "Overview",
+                  "path": "/docs/basic-features/data-fetching/overview.md"
+                },
+                {
+                  "title": "getServerSideProps",
+                  "path": "/docs/basic-features/data-fetching/get-server-side-props.md"
+                },
+                {
+                  "title": "getStaticPaths",
+                  "path": "/docs/basic-features/data-fetching/get-static-paths.md"
+                },
+                {
+                  "title": "getStaticProps",
+                  "path": "/docs/basic-features/data-fetching/get-static-props.md"
+                },
+                {
+                  "title": "Incremental Static Regeneration",
+                  "path": "/docs/basic-features/data-fetching/incremental-static-regeneration.md"
+                },
+                {
+                  "title": "Client side",
+                  "path": "/docs/basic-features/data-fetching/client-side.md"
+                }
+              ]
             },
             {
               "title": "Built-in CSS Support",
@@ -32,10 +72,6 @@
             {
               "title": "Font Optimization",
               "path": "/docs/basic-features/font-optimization.md"
-            },
-            {
-              "title": "Script Optimization",
-              "path": "/docs/basic-features/script.md"
             },
             {
               "title": "Static File Serving",
@@ -60,6 +96,10 @@
             {
               "title": "Supported Browsers and Features",
               "path": "/docs/basic-features/supported-browsers-features.md"
+            },
+            {
+              "title": "Handling Scripts",
+              "path": "/docs/basic-features/script.md"
             }
           ]
         },
@@ -88,6 +128,13 @@
           "title": "API Routes",
           "routes": [
             {
+              "path": "/docs/api-routes/api-middlewares",
+              "redirect": {
+                "destination": "/docs/api-routes/request-helpers",
+                "permanent": true
+              }
+            },
+            {
               "title": "Introduction",
               "path": "/docs/api-routes/introduction.md"
             },
@@ -96,18 +143,25 @@
               "path": "/docs/api-routes/dynamic-api-routes.md"
             },
             {
-              "title": "API Middlewares",
-              "path": "/docs/api-routes/api-middlewares.md"
+              "title": "Request Helpers",
+              "path": "/docs/api-routes/request-helpers.md"
             },
             {
               "title": "Response Helpers",
               "path": "/docs/api-routes/response-helpers.md"
+            },
+            {
+              "title": "Edge API Routes",
+              "path": "/docs/api-routes/edge-api-routes.md"
             }
           ]
         },
         {
-          "title": "Middleware",
-          "path": "/docs/middleware.md"
+          "path": "/docs/middleware",
+          "redirect": {
+            "destination": "/docs/advanced-features/middleware",
+            "permanent": true
+          }
         },
         {
           "title": "Going to Production",
@@ -126,8 +180,29 @@
           "path": "/docs/testing.md"
         },
         {
+          "title": "Accessibility",
+          "path": "/docs/accessibility.md"
+        },
+        {
+          "title": "Guides",
+          "routes": [
+            {
+              "title": "Building Forms",
+              "path": "/docs/guides/building-forms.md"
+            }
+          ]
+        },
+        {
           "title": "Advanced Features",
           "routes": [
+            {
+              "title": "Next.js Compiler",
+              "path": "/docs/advanced-features/compiler.md"
+            },
+            {
+              "title": "Turbopack",
+              "path": "/docs/advanced-features/turbopack.md"
+            },
             {
               "title": "Preview Mode",
               "path": "/docs/advanced-features/preview-mode.md"
@@ -147,6 +222,10 @@
             {
               "title": "Absolute Imports and Module Path Aliases",
               "path": "/docs/advanced-features/module-path-aliases.md"
+            },
+            {
+              "title": "Using MDX",
+              "path": "/docs/advanced-features/using-mdx.md"
             },
             {
               "title": "AMP Support",
@@ -202,6 +281,10 @@
               "path": "/docs/advanced-features/src-directory.md"
             },
             {
+              "title": "CI Build Caching",
+              "path": "/docs/advanced-features/ci-build-caching.md"
+            },
+            {
               "title": "Multi Zones",
               "path": "/docs/advanced-features/multi-zones.md"
             },
@@ -210,8 +293,16 @@
               "path": "/docs/advanced-features/measuring-performance.md"
             },
             {
+              "title": "Middleware",
+              "path": "/docs/advanced-features/middleware.md"
+            },
+            {
               "title": "Debugging",
               "path": "/docs/advanced-features/debugging.md"
+            },
+            {
+              "title": "Error Handling",
+              "path": "/docs/advanced-features/error-handling.md"
             },
             {
               "title": "Source Maps",
@@ -235,7 +326,30 @@
             },
             {
               "title": "React 18",
-              "path": "/docs/advanced-features/react-18.md"
+              "routes": [
+                {
+                  "path": "/docs/advanced-features/react-18",
+                  "redirect": {
+                    "destination": "/docs/advanced-features/react-18/overview"
+                  }
+                },
+                {
+                  "title": "Overview",
+                  "path": "/docs/advanced-features/react-18/overview.md"
+                },
+                {
+                  "title": "Streaming SSR",
+                  "path": "/docs/advanced-features/react-18/streaming.md"
+                },
+                {
+                  "title": "React Server Components",
+                  "path": "/docs/advanced-features/react-18/server-components.md"
+                },
+                {
+                  "title": "Switchable Runtime",
+                  "path": "/docs/advanced-features/react-18/switchable-runtime.md"
+                }
+              ]
             }
           ]
         },
@@ -264,14 +378,20 @@
             }
           ]
         },
-        { "title": "FAQ", "path": "/docs/faq.md" }
+        {
+          "title": "FAQ",
+          "path": "/docs/faq.md"
+        }
       ]
     },
     {
       "title": "API Reference",
       "heading": true,
       "routes": [
-        { "title": "CLI", "path": "/docs/api-reference/cli.md" },
+        {
+          "title": "CLI",
+          "path": "/docs/api-reference/cli.md"
+        },
         {
           "title": "Create Next App",
           "path": "/docs/api-reference/create-next-app.md"
@@ -289,6 +409,10 @@
           "path": "/docs/api-reference/next/image.md"
         },
         {
+          "title": "next/script",
+          "path": "/docs/api-reference/next/script.md"
+        },
+        {
           "title": "next/head",
           "path": "/docs/api-reference/next/head.md"
         },
@@ -301,6 +425,26 @@
           "path": "/docs/api-reference/next/server.md"
         },
         {
+          "title": "@next/font",
+          "path": "/docs/api-reference/next/font.md"
+        },
+        {
+          "path": "/docs/api-reference/next/streaming",
+          "redirect": {
+            "destination": "/docs/advanced-features/react-18"
+          }
+        },
+        {
+          "path": "/docs/api-reference/next/future/image",
+          "redirect": {
+            "destination": "/docs/api-reference/next/image"
+          }
+        },
+        {
+          "title": "next/legacy/image",
+          "path": "/docs/api-reference/next/legacy/image.md"
+        },
+        {
           "title": "Edge Runtime",
           "path": "/docs/api-reference/edge-runtime.md"
         },
@@ -309,7 +453,19 @@
           "routes": [
             {
               "title": "getInitialProps",
-              "path": "/docs/api-reference/data-fetching/getInitialProps.md"
+              "path": "/docs/api-reference/data-fetching/get-initial-props.md"
+            },
+            {
+              "title": "getServerSideProps",
+              "path": "/docs/api-reference/data-fetching/get-server-side-props.md"
+            },
+            {
+              "title": "getStaticPaths",
+              "path": "/docs/api-reference/data-fetching/get-static-paths.md"
+            },
+            {
+              "title": "getStaticProps",
+              "path": "/docs/api-reference/data-fetching/get-static-props.md"
             }
           ]
         },
@@ -411,6 +567,10 @@
             {
               "title": "URL Imports",
               "path": "/docs/api-reference/next.config.js/url-imports.md"
+            },
+            {
+              "title": "Build indicator",
+              "path": "/docs/api-reference/next.config.js/build-indicator.md"
             }
           ]
         }

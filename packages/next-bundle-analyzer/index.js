@@ -1,5 +1,5 @@
 module.exports =
-  ({ enabled = true } = {}) =>
+  ({ enabled = true, openAnalyzer = true } = {}) =>
   (nextConfig = {}) => {
     return Object.assign({}, nextConfig, {
       webpack(config, options) {
@@ -8,9 +8,12 @@ module.exports =
           config.plugins.push(
             new BundleAnalyzerPlugin({
               analyzerMode: 'static',
-              reportFilename: options.isServer
-                ? '../analyze/server.html'
-                : './analyze/client.html',
+              openAnalyzer,
+              reportFilename: !options.nextRuntime
+                ? `./analyze/client.html`
+                : `../${options.nextRuntime === 'nodejs' ? '../' : ''}analyze/${
+                    options.nextRuntime
+                  }.html`,
             })
           )
         }

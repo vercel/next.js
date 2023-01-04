@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import Image from '../components/image'
 
 export default function Avatar({ name, picture }) {
   return (

@@ -4,21 +4,28 @@ This example shows how you can use `@auth0/nextjs-auth` to easily add authentica
 
 - Signing in
 - Signing out
-- Loading the user on the server side and adding it as part of SSR ([`pages/advanced/ssr-profile.js`](pages/advanced/ssr-profile.js))
-- Loading the user on the client side and using fast/cached SSR pages ([`pages/index.js`](pages/index.js))
-- API Routes which can load the current user ([`pages/api/me.js`](pages/api/me.js))
-- Using hooks to make the user available throughout the application ([`lib/user.js`](lib/user.js))
+- Loading the user on the server side and adding it as part of SSR ([`pages/advanced/ssr-profile.tsx`](pages/advanced/ssr-profile.tsx))
+- Loading the user on the client side and using fast/cached SSR pages ([`pages/index.tsx`](pages/index.tsx))
+- Loading the user on the client side and checking authentication CSR pages ([`pages/profile.tsx`](pages/profile.tsx))
+- Loading the user on the client side by accessing API (Serverless function) CSR pages ([`pages/advanced/api-profile.tsx`](pages/advanced/api-profile.tsx))
+- Creates route handlers under the hood that perform different parts of the authentication flow ([`pages/auth/[...auth0].tsx`](pages/auth/[...auth0].tsx))
 
 Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example auth0 auth0-app
-# or
+```
+
+```bash
 yarn create next-app --example auth0 auth0-app
+```
+
+```bash
+pnpm create next-app --example auth0 auth0-app
 ```
 
 ## Configuring Auth0
@@ -27,7 +34,7 @@ yarn create next-app --example auth0 auth0-app
 2. Go to the settings page of the application
 3. Configure the following settings:
 
-- _Allowed Callback URLs_: Should be set to `http://localhost:3000/api/callback` when testing locally or typically to `https://myapp.com/api/callback` when deploying your application.
+- _Allowed Callback URLs_: Should be set to `http://localhost:3000/api/auth/callback` when testing locally or typically to `https://myapp.com/api/auth/callback` when deploying your application.
 - _Allowed Logout URLs_: Should be set to `http://localhost:3000/` when testing locally or typically to `https://myapp.com/` when deploying your application.
 
 4. Save the settings
@@ -44,14 +51,11 @@ cp .env.local.example .env.local
 
 Then, open `.env.local` and add the missing environment variables:
 
-- `NEXT_PUBLIC_AUTH0_DOMAIN` - Can be found in the Auth0 dashboard under `settings`. (Should be prefixed with `https://`)
-- `NEXT_PUBLIC_AUTH0_CLIENT_ID` - Can be found in the Auth0 dashboard under `settings`.
+- `AUTH0_ISSUER_BASE_URL` - Can be found in the Auth0 dashboard under `settings`. (Should be prefixed with `https://`)
+- `AUTH0_CLIENT_ID` - Can be found in the Auth0 dashboard under `settings`.
 - `AUTH0_CLIENT_SECRET` - Can be found in the Auth0 dashboard under `settings`.
-- `NEXT_PUBLIC_BASE_URL` - The base url of the application.
-- `NEXT_PUBLIC_REDIRECT_URI` - The relative url path where Auth0 redirects back to.
-- `NEXT_PUBLIC_POST_LOGOUT_REDIRECT_URI` - Where to redirect after logging out.
-- `SESSION_COOKIE_SECRET` - A unique secret used to encrypt the cookies, has to be at least 32 characters. You can use [this generator](https://generate-secret.vercel.app/32) to generate a value.
-- `SESSION_COOKIE_LIFETIME` - How long a session lasts in seconds. The default is 2 hours.
+- `AUTH0_BASE_URL` - The base url of the application.
+- `AUTH0_SECRET` - Has to be at least 32 characters. You can use [this generator](https://generate-secret.vercel.app/32) to generate a value.
 
 ## Deploy on Vercel
 

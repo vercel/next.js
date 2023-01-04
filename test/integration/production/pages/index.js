@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from 'next/link?loaderQuery'
 
 if (typeof window === 'undefined') {
   try {

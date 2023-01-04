@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-unwanted-polyfillio'
+import rule from '@next/eslint-plugin-next/dist/rules/no-unwanted-polyfillio'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -67,7 +67,7 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. WeakSet, Promise, Promise.prototype.finally, es2015, es5, es6 are already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.',
+            'No duplicate polyfills from Polyfill.io are allowed. WeakSet, Promise, Promise.prototype.finally, es2015, es5, es6 are already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
           type: 'JSXOpeningElement',
         },
       ],
@@ -87,7 +87,7 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.',
+            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
           type: 'JSXOpeningElement',
         },
       ],
@@ -106,8 +106,28 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.',
+            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
           type: 'JSXOpeningElement',
+        },
+      ],
+    },
+    {
+      code: `import {Head} from 'next/document';
+
+        export class ES2019Features extends Head {
+          render() {
+            return (
+              <div>
+                <h1>Hello title</h1>
+                <script src='https://polyfill.io/v3/polyfill.min.js?features=Object.fromEntries'></script>
+              </div>
+            );
+          }
+      }`,
+      errors: [
+        {
+          message:
+            'No duplicate polyfills from Polyfill.io are allowed. Object.fromEntries is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
         },
       ],
     },

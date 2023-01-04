@@ -1,0 +1,21 @@
+{
+  "ban-element-innerhtml-assignments": [
+    "packages/next/src/client/head-manager.ts",
+    "packages/next/src/client/script.tsx",
+    "packages/next/src/client/dev/dev-build-watcher.ts",
+    "packages/next/src/client/app-bootstrap.ts"
+  ],
+  "ban-element-setattribute": [
+    "packages/next/src/client/head-manager.ts",
+    "packages/next/src/client/script.tsx",
+    "packages/next/src/build/webpack/loaders/next-style-loader/runtime/injectStylesIntoLinkTag.ts",
+    "packages/next/src/build/webpack/loaders/next-style-loader/runtime/injectStylesIntoStyleTag.ts",
+    "packages/next/src/client/app-bootstrap.ts"
+  ],
+  "ban-script-content-assignments": ["packages/next/src/client/script.tsx"],
+  "ban-script-src-assignments": [
+    "packages/next/src/client/script.tsx",
+    "packages/next/src/client/app-bootstrap.ts"
+  ],
+  "ban-trustedtypes-createpolicy": ["packages/next/src/client/trusted-types.ts"]
+}

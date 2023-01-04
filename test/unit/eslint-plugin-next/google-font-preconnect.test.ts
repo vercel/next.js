@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/google-font-preconnect'
+import rule from '@next/eslint-plugin-next/dist/rules/google-font-preconnect'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -42,7 +42,7 @@ ruleTester.run('google-font-preconnect', rule, {
       errors: [
         {
           message:
-            'Preconnect is missing. See https://nextjs.org/docs/messages/google-font-preconnect.',
+            '`rel="preconnect"` is missing from Google Font. See: https://nextjs.org/docs/messages/google-font-preconnect',
           type: 'JSXOpeningElement',
         },
       ],
@@ -58,7 +58,7 @@ ruleTester.run('google-font-preconnect', rule, {
       errors: [
         {
           message:
-            'Preconnect is missing. See https://nextjs.org/docs/messages/google-font-preconnect.',
+            '`rel="preconnect"` is missing from Google Font. See: https://nextjs.org/docs/messages/google-font-preconnect',
           type: 'JSXOpeningElement',
         },
       ],

@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom'
 
 export type ShadowPortalProps = {
   children: React.ReactNode
+  globalOverlay?: boolean
 }
 
 export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
   children,
+  globalOverlay,
 }) {
   let mountNode = React.useRef<HTMLDivElement | null>(null)
   let portalNode = React.useRef<HTMLElement | null>(null)
@@ -14,7 +16,9 @@ export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
   let [, forceUpdate] = React.useState<{} | undefined>()
 
   React.useLayoutEffect(() => {
-    const ownerDocument = mountNode.current!.ownerDocument!
+    const ownerDocument = globalOverlay
+      ? document
+      : mountNode.current!.ownerDocument!
     portalNode.current = ownerDocument.createElement('nextjs-portal')
     shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })
     ownerDocument.body.appendChild(portalNode.current)
@@ -24,11 +28,11 @@ export const ShadowPortal: React.FC<ShadowPortalProps> = function Portal({
         portalNode.current.ownerDocument.body.removeChild(portalNode.current)
       }
     }
-  }, [])
+  }, [globalOverlay])
 
   return shadowNode.current ? (
     createPortal(children, shadowNode.current as any)
-  ) : (
+  ) : globalOverlay ? null : (
     <span ref={mountNode} />
   )
 }

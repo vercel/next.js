@@ -12,24 +12,26 @@ export default function ({ app }, suiteName, render, fetch) {
 
   describe(suiteName, () => {
     describe('_document', () => {
-      test('It has a custom html class', async () => {
+      test('should include required elements in rendered html', async () => {
         const $ = await get$('/')
+        // It has a custom html class
         expect($('html').hasClass('test-html-props')).toBe(true)
-      })
-
-      test('It has a custom body class', async () => {
-        const $ = await get$('/')
+        // It has a custom body class
         expect($('body').hasClass('custom_class')).toBe(true)
-      })
-
-      test('It injects custom head tags', async () => {
-        const $ = await get$('/')
+        // It injects custom head tags
         expect($('head').text()).toMatch('body { margin: 0 }')
+        // It has __NEXT_DATA__ script tag
+        expect($('script#__NEXT_DATA__')).toBeTruthy()
+        // It passes props from Document.getInitialProps to Document
+        expect($('#custom-property').text()).toBe('Hello Document')
       })
 
-      test('It passes props from Document.getInitialProps to Document', async () => {
-        const $ = await get$('/')
-        expect($('#custom-property').text()).toBe('Hello Document')
+      it('Document.getInitialProps returns html prop representing app shell', async () => {
+        // Extract css-in-js-class from the rendered HTML, which is returned by Document.getInitialProps
+        const $index = await get$('/')
+        const $about = await get$('/about')
+        expect($index('#css-in-cjs-count').text()).toBe('2')
+        expect($about('#css-in-cjs-count').text()).toBe('0')
       })
 
       test('It adds nonces to all scripts and preload links', async () => {

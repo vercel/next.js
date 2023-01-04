@@ -8,7 +8,7 @@ class MyLink extends React.Component {
 }
 
 export default () => (
-  <Link href="/" passHref>
+  <Link href="/" passHref legacyBehavior>
     <MyLink />
   </Link>
 )

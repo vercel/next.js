@@ -4,10 +4,14 @@ import Layout from '../components/Layout'
 
 const IndexPage = () => {
   useEffect(() => {
+    const handleMessage = (_event, args) => alert(args)
+
     // add a listener to 'message' channel
-    global.ipcRenderer.addListener('message', (_event, args) => {
-      alert(args)
-    })
+    global.ipcRenderer.addListener('message', handleMessage)
+
+    return () => {
+      global.ipcRenderer.removeListener('message', handleMessage)
+    }
   }, [])
 
   const onSayHiClick = () => {
@@ -19,9 +23,7 @@ const IndexPage = () => {
       <h1>Hello Next.js 👋</h1>
       <button onClick={onSayHiClick}>Say hi to electron</button>
       <p>
-        <Link href="/about">
-          <a>About</a>
-        </Link>
+        <Link href="/about">About</Link>
       </p>
     </Layout>
   )

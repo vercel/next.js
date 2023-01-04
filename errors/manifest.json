@@ -5,6 +5,14 @@
       "heading": true,
       "routes": [
         {
+          "title": "middleware-upgrade-guide",
+          "path": "/errors/middleware-upgrade-guide.md"
+        },
+        {
+          "title": "react-hydration-error",
+          "path": "/errors/react-hydration-error.md"
+        },
+        {
           "title": "beta-middleware",
           "path": "/errors/beta-middleware.md"
         },
@@ -28,14 +36,23 @@
           "title": "404-get-initial-props",
           "path": "/errors/404-get-initial-props.md"
         },
-        { "title": "amp-bind-jsx-alt", "path": "/errors/amp-bind-jsx-alt.md" },
+        {
+          "title": "amp-bind-jsx-alt",
+          "path": "/errors/amp-bind-jsx-alt.md"
+        },
         {
           "title": "amp-export-validation",
           "path": "/errors/amp-export-validation.md"
         },
         {
-          "title": "api-routes-body-size-limit",
-          "path": "/errors/api-routes-body-size-limit.md"
+          "path": "/errors/api-routes-body-size-limit.md",
+          "redirect": {
+            "destination": "/docs/messages/api-routes-response-size-limit"
+          }
+        },
+        {
+          "title": "api-routes-response-size-limit",
+          "path": "/errors/api-routes-response-size-limit.md"
         },
         {
           "title": "api-routes-static-export",
@@ -85,9 +102,18 @@
           "title": "conflicting-ssg-paths",
           "path": "/errors/conflicting-ssg-paths.md"
         },
-        { "title": "css-global", "path": "/errors/css-global.md" },
-        { "title": "css-modules-npm", "path": "/errors/css-modules-npm.md" },
-        { "title": "css-npm", "path": "/errors/css-npm.md" },
+        {
+          "title": "css-global",
+          "path": "/errors/css-global.md"
+        },
+        {
+          "title": "css-modules-npm",
+          "path": "/errors/css-modules-npm.md"
+        },
+        {
+          "title": "css-npm",
+          "path": "/errors/css-npm.md"
+        },
         {
           "title": "custom-error-no-custom-404",
           "path": "/errors/custom-error-no-custom-404.md"
@@ -96,7 +122,10 @@
           "title": "doc-crossorigin-deprecated",
           "path": "/errors/doc-crossorigin-deprecated.md"
         },
-        { "title": "duplicate-sass", "path": "/errors/duplicate-sass.md" },
+        {
+          "title": "duplicate-sass",
+          "path": "/errors/duplicate-sass.md"
+        },
         {
           "title": "empty-configuration",
           "path": "/errors/empty-configuration.md"
@@ -117,7 +146,10 @@
           "title": "export-all-in-page",
           "path": "/errors/export-all-in-page.md"
         },
-        { "title": "export-image-api", "path": "/errors/export-image-api.md" },
+        {
+          "title": "export-image-api",
+          "path": "/errors/export-image-api.md"
+        },
         {
           "title": "export-no-custom-routes",
           "path": "/errors/export-no-custom-routes.md"
@@ -150,7 +182,10 @@
           "title": "gssp-component-member",
           "path": "/errors/gssp-component-member.md"
         },
-        { "title": "gssp-export", "path": "/errors/gssp-export.md" },
+        {
+          "title": "gssp-export",
+          "path": "/errors/gssp-export.md"
+        },
         {
           "title": "gssp-mixed-not-found-redirect",
           "path": "/errors/gssp-mixed-not-found-redirect.md"
@@ -159,12 +194,18 @@
           "title": "gssp-no-mutating-res",
           "path": "/errors/gssp-no-mutating-res.md"
         },
-        { "title": "head-build-id", "path": "/errors/head-build-id.md" },
+        {
+          "title": "head-build-id",
+          "path": "/errors/head-build-id.md"
+        },
         {
           "title": "href-interpolation-failed",
           "path": "/errors/href-interpolation-failed.md"
         },
-        { "title": "improper-devtool", "path": "/errors/improper-devtool.md" },
+        {
+          "title": "improper-devtool",
+          "path": "/errors/improper-devtool.md"
+        },
         {
           "title": "incompatible-href-as",
           "path": "/errors/incompatible-href-as.md"
@@ -173,8 +214,14 @@
           "title": "inline-script-id",
           "path": "/errors/inline-script-id.md"
         },
-        { "title": "install-sass", "path": "/errors/install-sass.md" },
-        { "title": "install-sharp", "path": "/errors/install-sharp.md" },
+        {
+          "title": "install-sass",
+          "path": "/errors/install-sass.md"
+        },
+        {
+          "title": "install-sharp",
+          "path": "/errors/install-sharp.md"
+        },
         {
           "title": "invalid-assetprefix",
           "path": "/errors/invalid-assetprefix.md"
@@ -247,7 +294,10 @@
           "title": "link-passhref",
           "path": "/errors/link-passhref.md"
         },
-        { "title": "manifest.json", "path": "/errors/manifest.json" },
+        {
+          "title": "manifest.json",
+          "path": "/errors/manifest.json"
+        },
         {
           "title": "minification-disabled",
           "path": "/errors/minification-disabled.md"
@@ -260,7 +310,10 @@
           "title": "missing-env-value",
           "path": "/errors/missing-env-value.md"
         },
-        { "title": "multi-tabs", "path": "/errors/multi-tabs.md" },
+        {
+          "title": "multi-tabs",
+          "path": "/errors/multi-tabs.md"
+        },
         {
           "title": "nested-reserved-page",
           "path": "/errors/nested-reserved-page.md"
@@ -294,6 +347,10 @@
           "path": "/errors/next-image-unconfigured-host.md"
         },
         {
+          "title": "next-image-upgrade-to-13",
+          "path": "/errors/next-image-upgrade-to-13.md"
+        },
+        {
           "title": "next-script-for-ga",
           "path": "/errors/next-script-for-ga.md"
         },
@@ -301,8 +358,14 @@
           "title": "next-start-serverless",
           "path": "/errors/next-start-serverless.md"
         },
-        { "title": "no-cache", "path": "/errors/no-cache.md" },
-        { "title": "no-css-tags", "path": "/errors/no-css-tags.md" },
+        {
+          "title": "no-cache",
+          "path": "/errors/no-cache.md"
+        },
+        {
+          "title": "no-css-tags",
+          "path": "/errors/no-css-tags.md"
+        },
         {
           "title": "no-document-import-in-page",
           "path": "/errors/no-document-import-in-page.md"
@@ -340,6 +403,14 @@
           "path": "/errors/no-router-instance.md"
         },
         {
+          "title": "no-server-import-in-page",
+          "path": "/errors/no-server-import-in-page.md"
+        },
+        {
+          "title": "no-styled-jsx-in-document",
+          "path": "/errors/no-styled-jsx-in-document.md"
+        },
+        {
           "title": "no-sync-scripts",
           "path": "/errors/no-sync-scripts.md"
         },
@@ -371,17 +442,26 @@
           "title": "popstate-state-empty",
           "path": "/errors/popstate-state-empty.md"
         },
-        { "title": "postcss-function", "path": "/errors/postcss-function.md" },
+        {
+          "title": "postcss-function",
+          "path": "/errors/postcss-function.md"
+        },
         {
           "title": "postcss-ignored-plugin",
           "path": "/errors/postcss-ignored-plugin.md"
         },
-        { "title": "postcss-shape", "path": "/errors/postcss-shape.md" },
+        {
+          "title": "postcss-shape",
+          "path": "/errors/postcss-shape.md"
+        },
         {
           "title": "prefetch-true-deprecated",
           "path": "/errors/prefetch-true-deprecated.md"
         },
-        { "title": "prerender-error", "path": "/errors/prerender-error.md" },
+        {
+          "title": "prerender-error",
+          "path": "/errors/prerender-error.md"
+        },
         {
           "title": "production-start-no-build-id",
           "path": "/errors/production-start-no-build-id.md"
@@ -394,7 +474,10 @@
           "title": "public-next-folder-conflict",
           "path": "/errors/public-next-folder-conflict.md"
         },
-        { "title": "react-version", "path": "/errors/react-version.md" },
+        {
+          "title": "react-version",
+          "path": "/errors/react-version.md"
+        },
         {
           "title": "render-no-starting-slash",
           "path": "/errors/render-no-starting-slash.md"
@@ -419,13 +502,22 @@
           "title": "static-dir-deprecated",
           "path": "/errors/static-dir-deprecated.md"
         },
-        { "title": "threw-undefined", "path": "/errors/threw-undefined.md" },
+        {
+          "title": "threw-undefined",
+          "path": "/errors/threw-undefined.md"
+        },
         {
           "title": "undefined-webpack-config",
           "path": "/errors/undefined-webpack-config.md"
         },
-        { "title": "url-deprecated", "path": "/errors/url-deprecated.md" },
-        { "title": "webpack5", "path": "/errors/webpack5.md" },
+        {
+          "title": "url-deprecated",
+          "path": "/errors/url-deprecated.md"
+        },
+        {
+          "title": "webpack5",
+          "path": "/errors/webpack5.md"
+        },
         {
           "title": "client-side-exception-occurred",
           "path": "/errors/client-side-exception-occurred.md"
@@ -435,10 +527,21 @@
           "path": "/errors/future-webpack5-moved-to-webpack5.md"
         },
         {
+          "title": "link-no-children",
+          "path": "/errors/link-no-children.md"
+        },
+        {
           "title": "link-multiple-children",
           "path": "/errors/link-multiple-children.md"
         },
-        { "title": "no-img-element", "path": "/errors/no-img-element.md" },
+        {
+          "title": "no-img-element",
+          "path": "/errors/no-img-element.md"
+        },
+        {
+          "title": "no-head-element",
+          "path": "/errors/no-head-element.md"
+        },
         {
           "title": "non-dynamic-getstaticpaths-usage",
           "path": "/errors/non-dynamic-getstaticpaths-usage.md"
@@ -468,12 +571,42 @@
           "path": "/errors/sharp-version-avif.md"
         },
         {
-          "title": "script-in-document-page",
-          "path": "/errors/no-script-in-document-page.md"
+          "path": "/errors/no-script-in-document-page.md",
+          "redirect": {
+            "destination": "/docs/messages/no-script-in-document"
+          }
         },
         {
-          "title": "script-in-head-component",
-          "path": "/errors/no-script-in-head-component.md"
+          "title": "no-script-in-document",
+          "path": "/errors/no-script-in-document.md"
+        },
+        {
+          "title": "before-interactive-script-outside-document",
+          "path": "/errors/no-before-interactive-script-outside-document.md"
+        },
+        {
+          "path": "/errors/no-script-in-head-component.md",
+          "redirect": {
+            "destination": "/errors/no-script-component-in-head"
+          }
+        },
+        {
+          "path": "/errors/no-script-component-in-head-component.md",
+          "redirect": {
+            "destination": "/errors/no-script-component-in-head"
+          }
+        },
+        {
+          "title": "no-script-component-in-head",
+          "path": "/errors/no-script-component-in-head.md"
+        },
+        {
+          "title": "script-tags-in-head-component",
+          "path": "/errors/no-script-tags-in-head-component.md"
+        },
+        {
+          "title": "stylesheets-in-head-component",
+          "path": "/errors/no-stylesheets-in-head-component.md"
         },
         {
           "title": "max-custom-routes-reached",
@@ -506,6 +639,144 @@
         {
           "title": "middleware-new-signature",
           "path": "/errors/middleware-new-signature.md"
+        },
+        {
+          "title": "experimental-jest-transformer",
+          "path": "/errors/experimental-jest-transformer.md"
+        },
+        {
+          "title": "invalid-dynamic-options-type",
+          "path": "/errors/invalid-dynamic-options-type.md"
+        },
+        {
+          "title": "invalid-styled-jsx-children",
+          "path": "/errors/invalid-styled-jsx-children.md"
+        },
+        {
+          "title": "middleware-relative-urls",
+          "path": "/errors/middleware-relative-urls.md"
+        },
+        {
+          "title": "nested-middleware",
+          "path": "/errors/nested-middleware.md"
+        },
+        {
+          "title": "deleting-query-params-in-middlewares",
+          "path": "/errors/deleting-query-params-in-middlewares.md"
+        },
+        {
+          "title": "ignored-compiler-options",
+          "path": "/errors/ignored-compiler-options.md"
+        },
+        {
+          "title": "opening-an-issue",
+          "path": "/errors/opening-an-issue.md"
+        },
+        {
+          "title": "import-next",
+          "path": "/errors/import-next.md"
+        },
+        {
+          "path": "/errors/invalid-getserversideprops-return-value.md",
+          "redirect": {
+            "destination": "/docs/messages/invalid-getserversideprops-value"
+          }
+        },
+        {
+          "title": "invalid-getserversideprops-value",
+          "path": "/errors/invalid-getserversideprops-value.md"
+        },
+        {
+          "title": "no-assign-module-variable",
+          "path": "/errors/no-assign-module-variable.md"
+        },
+        {
+          "title": "invalid-script",
+          "path": "/errors/invalid-script.md"
+        },
+        {
+          "title": "nested-styled-jsx-tags",
+          "path": "/errors/nested-styled-jsx-tags.md"
+        },
+        {
+          "title": "invalid-new-link-with-extra-anchor",
+          "path": "/errors/invalid-new-link-with-extra-anchor.md"
+        },
+        {
+          "title": "returning-response-body-in-middleware",
+          "path": "/errors/returning-response-body-in-middleware.md"
+        },
+        {
+          "title": "middleware-request-page.md",
+          "path": "/errors/middleware-request-page.md"
+        },
+        {
+          "title": "middleware-user-agent.md",
+          "path": "/errors/middleware-user-agent.md"
+        },
+        {
+          "title": "get-initial-props-export",
+          "path": "/errors/get-initial-props-export.md"
+        },
+        {
+          "title": "middleware-dynamic-wasm-compilation",
+          "path": "/errors/middleware-dynamic-wasm-compilation.md"
+        },
+        {
+          "title": "edge-dynamic-code-evaluation",
+          "path": "/errors/edge-dynamic-code-evaluation.md"
+        },
+        {
+          "title": "node-module-in-edge-runtime",
+          "path": "/errors/node-module-in-edge-runtime.md"
+        },
+        {
+          "title": "invalid-next-config",
+          "path": "/errors/invalid-next-config.md"
+        },
+        {
+          "title": "failed-to-fetch-devpagesmanifest",
+          "path": "/errors/failed-to-fetch-devpagesmanifest.md"
+        },
+        {
+          "title": "middleware-parse-user-agent",
+          "path": "/errors/middleware-parse-user-agent.md"
+        },
+        {
+          "title": "nonce-contained-invalid-characters",
+          "path": "/errors/nonce-contained-invalid-characters.md"
+        },
+        {
+          "title": "babel-font-loader-conflict",
+          "path": "/errors/babel-font-loader-conflict.md"
+        },
+        {
+          "title": "google-fonts-missing-subsets",
+          "path": "/errors/google-fonts-missing-subsets.md"
+        },
+        {
+          "title": "invalid-segment-export",
+          "path": "/errors/invalid-segment-export.md"
+        },
+        {
+          "title": "next-router-not-mounted",
+          "path": "/errors/next-router-not-mounted.md"
+        },
+        {
+          "title": "experimental-app-dir-config",
+          "path": "/errors/experimental-app-dir-config.md"
+        },
+        {
+          "title": "app-dir-dynamic-href",
+          "path": "/errors/app-dir-dynamic-href.md"
+        },
+        {
+          "title": "fast-refresh-reload",
+          "path": "/errors/fast-refresh-reload.md"
+        },
+        {
+          "title": "context-in-server-component",
+          "path": "/errors/context-in-server-component.md"
         }
       ]
     }
