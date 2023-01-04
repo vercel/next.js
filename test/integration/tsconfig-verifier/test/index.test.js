@@ -312,6 +312,53 @@ describe('tsconfig.json verifier', () => {
     `)
   })
 
+  it('allows you to set target mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(tsConfig, `{ "compilerOptions": { "target": "es2022" } }`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('target')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"target\\": \\"es2022\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
   it('allows you to extend another configuration file', async () => {
     expect(await exists(tsConfig)).toBe(false)
     expect(await exists(tsConfigBase)).toBe(false)
