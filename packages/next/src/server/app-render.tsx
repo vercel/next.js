@@ -228,7 +228,10 @@ function createErrorHandler(
       return err.digest
     }
 
-    formatServerError(err)
+    // Format server errors in development to add more helpful error messages
+    if (process.env.NODE_ENV !== 'production') {
+      formatServerError(err)
+    }
     // Used for debugging error source
     // console.error(_source, err)
     console.error(err)
