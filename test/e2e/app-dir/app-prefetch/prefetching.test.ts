@@ -50,13 +50,14 @@ createNextDescribe(
     })
 
     it('should not fetch again when a static page was prefetched', async () => {
-      const browser = await next.browser('/')
+      const browser = await next.browser('/', { waitHydration: false })
       let requests: string[] = []
 
       browser.on('request', (req) => {
         requests.push(new URL(req.url()).pathname)
       })
 
+      await waitFor(3000)
       await browser.eval('window.nd.router.prefetch("/static-page")')
       await waitFor(3000)
 
