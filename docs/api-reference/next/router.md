@@ -41,9 +41,9 @@ export default ActiveLink
 
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
-- `pathname`: `String` - Current route. That is the path of the page in `/pages`, the configured `basePath` or `locale` is not included.
+- `pathname`: `String` - The path for current route file that comes after `/pages`. Therefore, `basePath`, `locale` and trailing slash (`trailingSlash: true`) are not included.
 - `query`: `Object` - The query string parsed to an object, including [dynamic route](/docs/routing/dynamic-routes.md) parameters. It will be an empty object during prerendering if the page doesn't use [Server-side Rendering](/docs/basic-features/data-fetching/get-server-side-props.md). Defaults to `{}`
-- `asPath`: `String` - The path (including the query) shown in the browser without the configured `basePath` or `locale`.
+- `asPath`: `String` - The path as shown in the browser including the search params and respecting the `trailingSlash` configuration. `basePath` and `locale` are not included.
 - `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/api-reference/data-fetching/get-static-paths.md#fallback-pages).
 - `basePath`: `String` - The active [basePath](/docs/api-reference/next.config.js/basepath.md) (if enabled).
 - `locale`: `String` - The active locale (if enabled).
@@ -156,11 +156,7 @@ export default function Page(props) {
       <h1>Page: {router.query.slug}</h1>
       <p>Count: {count}</p>
       <button onClick={() => setCount(count + 1)}>Increase count</button>
-      <Link href="/one">
-        <a>one</a>
-      </Link> <Link href="/two">
-        <a>two</a>
-      </Link>
+      <Link href="/one">one</Link> <Link href="/two">two</Link>
     </div>
   )
 }
@@ -248,14 +244,16 @@ export default function Page() {
 
 Prefetch pages for faster client-side transitions. This method is only useful for navigations without [`next/link`](/docs/api-reference/next/link.md), as `next/link` takes care of prefetching pages automatically.
 
-> This is a production only feature. Next.js doesn't prefetch pages on development.
+> This is a production only feature. Next.js doesn't prefetch pages in development.
 
 ```jsx
-router.prefetch(url, as)
+router.prefetch(url, as, options)
 ```
 
 - `url` - The URL to prefetch, including explicit routes (e.g. `/dashboard`) and dynamic routes (e.g. `/product/[id]`)
 - `as` - Optional decorator for `url`. Before Next.js 9.5.3 this was used to prefetch dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
+- `options` - Optional object with the following allowed fields:
+  - `locale` - allows providing a different locale from the active one. If `false`, `url` has to include the locale as the active locale won't be used.
 
 #### Usage
 

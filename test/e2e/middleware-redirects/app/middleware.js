@@ -10,7 +10,7 @@ export async function middleware(request) {
 
   if (url.pathname === '/old-home') {
     if (url.searchParams.get('override') === 'external') {
-      return Response.redirect('https://example.com')
+      return Response.redirect('https://example.vercel.sh')
     } else {
       url.pathname = '/new-home'
       return Response.redirect(url)
@@ -74,5 +74,10 @@ export async function middleware(request) {
     url.pathname = url.searchParams.get('pathname')
     url.searchParams.delete('pathname')
     return Response.redirect(url)
+  }
+
+  if (url.pathname === '/with-fragment') {
+    console.log(String(new URL('/new-home#fragment', url)))
+    return Response.redirect(new URL('/new-home#fragment', url))
   }
 }

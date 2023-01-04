@@ -1,8 +1,8 @@
-use swc_atoms::JsWord;
-use swc_ecmascript::ast::{
-    Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement,
+use next_binding::swc::core::{
+    ecma::ast::{Ident, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement},
+    ecma::atoms::JsWord,
+    ecma::visit::Fold,
 };
-use swc_ecmascript::visit::Fold;
 
 pub fn amp_attributes() -> impl Fold {
     AmpAttributePatcher::default()

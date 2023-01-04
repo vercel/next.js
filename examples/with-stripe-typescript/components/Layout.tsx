@@ -31,10 +31,8 @@ const Layout = ({
     <div className="container">
       <header>
         <div className="header-content">
-          <Link href="/">
-            <a className="logo">
-              <img src="/logo.png" />
-            </a>
+          <Link href="/" className="logo">
+            <img src="/logo.png" />
           </Link>
           <h1>
             <span className="light">Stripe Sample</span>

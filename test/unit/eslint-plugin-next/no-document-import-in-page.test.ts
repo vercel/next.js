@@ -1,6 +1,6 @@
 import path from 'path'
 
-import rule from '@next/eslint-plugin-next/lib/rules/no-document-import-in-page'
+import rule from '@next/eslint-plugin-next/dist/rules/no-document-import-in-page'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

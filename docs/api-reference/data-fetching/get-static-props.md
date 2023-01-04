@@ -18,6 +18,10 @@ description: API reference for `getStaticProps`. Learn how to use `getStaticProp
 
 </details>
 
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals) at the component level, using the new React `use` hook and an extended `fetch` Web API.
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+
 Exporting a function called `getStaticProps` will pre-render a page at build time using the props returned from the function:
 
 ```jsx
@@ -81,7 +85,7 @@ export async function getStaticProps() {
 }
 ```
 
-Learn more about [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md)
+Learn more about [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md).
 
 The cache status of a page leveraging ISR can be determined by reading the value of the `x-nextjs-cache` response header. The possible values are the following:
 
@@ -91,7 +95,7 @@ The cache status of a page leveraging ISR can be determined by reading the value
 
 ### `notFound`
 
-The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/advanced-features/custom-error-page.md#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use cases like user-generated content getting removed by its author. Note, `notFound` follows the same `revalidate` behavior [described here](/docs/api-reference/data-fetching/get-static-props.md#revalidate)
+The `notFound` boolean allows the page to return a `404` status and [404 Page](/docs/advanced-features/custom-error-page.md#404-page). With `notFound: true`, the page will return a `404` even if there was a successfully generated page before. This is meant to support use cases like user-generated content getting removed by its author. Note, `notFound` follows the same `revalidate` behavior [described here](/docs/api-reference/data-fetching/get-static-props.md#revalidate).
 
 ```js
 export async function getStaticProps(context) {
@@ -147,7 +151,7 @@ Files can be read directly from the filesystem in `getStaticProps`.
 
 In order to do so you have to get the full path to a file.
 
-Since Next.js compiles your code into a separate directory you can't use `__dirname` as the path it will return will be different from the pages directory.
+Since Next.js compiles your code into a separate directory you can't use `__dirname` as the path it returns will be different from the pages directory.
 
 Instead you can use `process.cwd()` which gives you the directory where Next.js is being executed.
 
@@ -202,17 +206,59 @@ export default Blog
 
 ## getStaticProps with TypeScript
 
-You can use the `GetStaticProps` type from `next` to type the function:
+The type of `getStaticProps` can be specified using `GetStaticProps` from `next`:
 
 ```ts
 import { GetStaticProps } from 'next'
 
-export const getStaticProps: GetStaticProps = async (context) => {
-  // ...
+type Post = {
+  author: string
+  content: string
+}
+
+export const getStaticProps: GetStaticProps<{ posts: Post[] }> = async (
+  context
+) => {
+  const res = await fetch('https://.../posts')
+  const posts: Post[] = await res.json()
+
+  return {
+    props: {
+      posts,
+    },
+  }
 }
 ```
 
 If you want to get inferred typings for your props, you can use `InferGetStaticPropsType<typeof getStaticProps>`:
+
+```tsx
+import type { InferGetStaticPropsType, GetStaticProps } from 'next'
+
+type Post = {
+  author: string
+  content: string
+}
+
+export const getStaticProps: GetStaticProps<{ posts: Post[] }> = async () => {
+  const res = await fetch('https://.../posts')
+  const posts: Post[] = await res.json()
+
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+
+function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
+  // will resolve posts to type Post[]
+}
+
+export default Blog
+```
+
+Implicit typing for `getStaticProps` will also work properly:
 
 ```tsx
 import { InferGetStaticPropsType } from 'next'

@@ -7,11 +7,14 @@ description: Learn about the Next.js Compiler, written in Rust, which transforms
 <details open>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                                                                            |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                               |
-| `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource. |
-| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                    |
+| Version   | Changes                                                                                                                                                                                                  |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.1.0` | [Module Transpilation](https://nextjs.org/blog/next-13-1#built-in-module-transpilation-stable) and [Modularize Imports](https://nextjs.org/blog/next-13-1#import-resolution-for-smaller-bundles) stable. |
+| `v13.0.0` | SWC Minifier enabled by default.                                                                                                                                                                         |
+| `v12.3.0` | SWC Minifier [stable](https://nextjs.org/blog/next-12-3#swc-minifier-stable).                                                                                                                            |
+| `v12.2.0` | [SWC Plugins](#swc-plugins-Experimental) experimental support added.                                                                                                                                     |
+| `v12.1.0` | Added support for Styled Components, Jest, Relay, Remove React Properties, Legacy Decorators, Remove Console, and jsxImportSource.                                                                       |
+| `v12.0.0` | Next.js Compiler [introduced](https://nextjs.org/blog/next-12).                                                                                                                                          |
 
 </details>
 
@@ -66,15 +69,16 @@ module.exports = {
       transpileTemplateLiterals?: boolean,
       // Not supported yet.
       pure?: boolean,
+    },
   },
 }
 ```
 
-Currently, only the `ssr` and `displayName` transforms have been implemented. These two transforms are the main requirement for using `styled-components` in Next.js.
+`minify`, `transpileTemplateLiterals` and `pure` are not yet implemented. You can follow the progress [here](https://github.com/vercel/next.js/issues/30802). `ssr` and `displayName` transforms are the main requirement for using `styled-components` in Next.js.
 
 ### Jest
 
-Jest support not only includes the transformation previously provided by Babel, but also simplifies configuring Jest together with Next.js including:
+The Next.js Compiler transpiles your tests and simplifies configuring Jest together with Next.js including:
 
 - Auto mocking of `.css`, `.module.css` (and their `.scss` variants), and image imports
 - Automatically sets up `transform` using SWC
@@ -195,14 +199,14 @@ First, update to the latest version of Next.js: `npm install next@latest`. Then,
 
 ### importSource
 
-Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like Theme UI.
+Next.js will automatically detect `jsxImportSource` in `jsconfig.json` or `tsconfig.json` and apply that. This is commonly used with libraries like [Theme UI](https://theme-ui.com).
 
 First, update to the latest version of Next.js: `npm install next@latest`. Then, update your `jsconfig.json` or `tsconfig.json` file:
 
 ```js
 {
   "compilerOptions": {
-    "jsxImportSource": 'preact'
+    "jsxImportSource": "theme-ui"
   }
 }
 ```
@@ -230,51 +234,48 @@ module.exports = {
       // The format is defined via string where variable parts are enclosed in square brackets [].
       // For example labelFormat: "my-classname--[local]", where [local] will be replaced with the name of the variable the result is assigned to.
       labelFormat?: string,
-    },
-  },
-}
-```
-
-Only `importMap` in `@emotion/babel-plugin` is not supported for now.
-
-## Experimental Features
-
-### Minification
-
-You can opt-in to using the Next.js compiler for minification. This is 7x faster than Terser.
-
-```js
-// next.config.js
-
-module.exports = {
-  swcMinify: true,
-}
-```
-
-If you have feedback about `swcMinify`, please share it on the [feedback discussion](https://github.com/vercel/next.js/discussions/30237).
-
-### Minifier debug options
-
-While the minifier is experimental, we are making the following options available for debugging purposes. They will not be available once the minifier is made stable.
-
-```js
-// next.config.js
-
-module.exports = {
-  experimental: {
-    swcMinifyDebugOptions: {
-      compress: {
-        defaults: true,
-        side_effects: false,
+      // default is undefined.
+      // This option allows you to tell the compiler what imports it should
+      // look at to determine what it should transform so if you re-export
+      // Emotion's exports, you can still use transforms.
+      importMap?: {
+        [packageName: string]: {
+          [exportName: string]: {
+            canonicalImport?: [string, string],
+            styledBaseImport?: [string, string],
+          }
+        }
       },
     },
   },
-  swcMinify: true,
 }
 ```
 
-If your app works with the options above, it means `side_effects` is the problematic option.
-See [the SWC documentation](https://swc.rs/docs/configuration/minification#jscminifycompress) for detailed options.
+### Minification
+
+Next.js' swc compiler is used for minification by default since v13. This is 7x faster than Terser.
+
+If Terser is still needed for any reason this can be configured.
+
+```js
+// next.config.js
+
+module.exports = {
+  swcMinify: false,
+}
+```
+
+### Module Transpilation
+
+Next.js can automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the `next-transpile-modules` package.
+
+```js
+// next.config.js
+
+module.exports = {
+  transpilePackages: ['@acme/ui', 'lodash-es'],
+}
+```
 
 ### Modularize Imports
 
@@ -300,14 +301,12 @@ Config for the above transform:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
-    modularizeImports: {
-      'react-bootstrap': {
-        transform: 'react-bootstrap/lib/{{member}}',
-      },
-      lodash: {
-        transform: 'lodash/{{member}}',
-      },
+  modularizeImports: {
+    'react-bootstrap': {
+      transform: 'react-bootstrap/lib/{{member}}',
+    },
+    lodash: {
+      transform: 'lodash/{{member}}',
     },
   },
 }
@@ -324,11 +323,9 @@ The config:
 ```js
 // next.config.js
 module.exports = {
-  experimental: {
-    modularizeImports: {
-      'my-library/?(((\\w*)?/?)*)': {
-        transform: 'my-library/{{ matches.[1] }}/{{member}}',
-      },
+  modularizeImports: {
+    'my-library/?(((\\w*)?/?)*)': {
+      transform: 'my-library/{{ matches.[1] }}/{{member}}',
     },
   },
 }
@@ -357,7 +354,31 @@ This transform uses [handlebars](https://docs.rs/handlebars) to template the rep
 
 1. `matches`: Has type `string[]`. All groups matched by the regular expression. `matches.[0]` is the full match.
 2. `member`: Has type `string`. The name of the member import.
-3. `lowerCase`, `upperCase`, `camelCase`: Helper functions to convert a string to lower, upper or camel cases.
+3. `lowerCase`, `upperCase`, `camelCase`, `kebabCase`: Helper functions to convert a string to lower, upper, camel or kebab cases.
+
+## Experimental Features
+
+### Minifier debug options
+
+While the minifier is experimental, we are making the following options available for debugging purposes. They will not be available once the minifier is made stable.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    swcMinifyDebugOptions: {
+      compress: {
+        defaults: true,
+        side_effects: false,
+      },
+    },
+  },
+}
+```
+
+If your app works with the options above, it means `side_effects` is the problematic option.
+See [the SWC documentation](https://swc.rs/docs/configuration/minification#jscminifycompress) for detailed options.
 
 ### SWC Trace profiling
 
@@ -385,11 +406,14 @@ You can configure swc's transform to use SWC's experimental plugin support writt
 module.exports = {
   experimental: {
     swcPlugins: [
-      ['plugin', {
-        ..pluginOptions
-      }]
-    ]
-  }
+      [
+        'plugin',
+        {
+          ...pluginOptions,
+        },
+      ],
+    ],
+  },
 }
 ```
 

@@ -6,6 +6,7 @@ import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
+import escapeStringRegexp from 'escape-string-regexp'
 
 describe('Middleware Rewrite', () => {
   let next: NextInstance
@@ -21,11 +22,122 @@ describe('Middleware Rewrite', () => {
     })
   })
 
-  tests()
-  testsWithLocale()
-  testsWithLocale('/fr')
-
   function tests() {
+    it('should handle static dynamic rewrite from middleware correctly', async () => {
+      const browser = await webdriver(next.url, '/rewrite-to-static')
+
+      await check(() => browser.eval('next.router.query.slug'), 'post-1')
+      expect(await browser.elementByCss('#page').text()).toBe(
+        '/static-ssg/[slug]'
+      )
+      expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+        slug: 'post-1',
+      })
+      expect(await browser.elementByCss('#pathname').text()).toBe(
+        '/static-ssg/[slug]'
+      )
+      expect(await browser.elementByCss('#as-path').text()).toBe(
+        '/rewrite-to-static'
+      )
+    })
+
+    it('should handle static rewrite from next.config.js correctly', async () => {
+      const browser = await webdriver(
+        next.url,
+        '/config-rewrite-to-dynamic-static/post-2'
+      )
+
+      await check(() => browser.eval('next.router.query.rewriteSlug'), 'post-2')
+      expect(
+        JSON.parse(await browser.eval('JSON.stringify(next.router.query)'))
+      ).toEqual({
+        rewriteSlug: 'post-2',
+      })
+      expect(await browser.eval('next.router.pathname')).toBe('/ssg')
+      expect(await browser.eval('next.router.asPath')).toBe(
+        '/config-rewrite-to-dynamic-static/post-2'
+      )
+    })
+
+    it('should not have un-necessary data request on rewrite', async () => {
+      const browser = await webdriver(next.url, '/to-blog/first', {
+        waitHydration: false,
+      })
+      let requests = []
+
+      browser.on('request', (req) => {
+        requests.push(new URL(req.url()).pathname)
+      })
+
+      await check(
+        () => browser.eval(`next.router.isReady ? "yup" : "nope"`),
+        'yup'
+      )
+
+      expect(
+        requests.filter((url) => url === '/fallback-true-blog/first.json')
+          .length
+      ).toBeLessThan(2)
+    })
+
+    it('should not mix component cache when navigating between dynamic routes', async () => {
+      const browser = await webdriver(next.url, '/param-1')
+
+      expect(await browser.eval('next.router.pathname')).toBe('/[param]')
+      expect(await browser.eval('next.router.query.param')).toBe('param-1')
+
+      await browser.eval(`next.router.push("/fallback-true-blog/first")`)
+      await check(
+        () => browser.eval('next.router.pathname'),
+        '/fallback-true-blog/[slug]'
+      )
+      expect(await browser.eval('next.router.query.slug')).toBe('first')
+      expect(await browser.eval('next.router.asPath')).toBe(
+        '/fallback-true-blog/first'
+      )
+
+      await browser.back()
+      await check(() => browser.eval('next.router.pathname'), '/[param]')
+      expect(await browser.eval('next.router.query.param')).toBe('param-1')
+      expect(await browser.eval('next.router.asPath')).toBe('/param-1')
+    })
+
+    it('should have props for afterFiles rewrite to SSG page', async () => {
+      let browser = await webdriver(next.url, '/')
+      await browser.eval(`next.router.push("/afterfiles-rewrite-ssg")`)
+
+      await check(
+        () => browser.eval('next.router.isReady ? "yup": "nope"'),
+        'yup'
+      )
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"slug":"first"/
+      )
+
+      browser = await webdriver(next.url, '/afterfiles-rewrite-ssg')
+      await check(
+        () => browser.eval('next.router.isReady ? "yup": "nope"'),
+        'yup'
+      )
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /"slug":"first"/
+      )
+    })
+
+    it('should hard navigate on 404 for data request', async () => {
+      const browser = await webdriver(next.url, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval(`next.router.push("/to/some/404/path")`)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /custom 404 page/
+      )
+      expect(await browser.eval('location.pathname')).toBe('/to/some/404/path')
+      expect(await browser.eval('window.beforeNav')).not.toBe(1)
+    })
+
     // TODO: middleware effect headers aren't available here
     it.skip('includes the locale in rewrites by default', async () => {
       const res = await fetchViaHTTP(next.url, `/rewrite-me-to-about`)
@@ -200,21 +312,14 @@ describe('Middleware Rewrite', () => {
     })
 
     if (!(global as any).isNextDev) {
-      it('should cache data requests correctly', async () => {
+      it('should not prefetch non-SSG routes', async () => {
         const browser = await webdriver(next.url, '/')
 
         await check(async () => {
           const hrefs = await browser.eval(
             `Object.keys(window.next.router.sdc)`
           )
-          for (const url of [
-            '/en/about.json?override=external',
-            '/en/about.json?override=internal',
-            '/en/rewrite-me-external-twice.json',
-            '/en/rewrite-me-to-about.json?override=internal',
-            '/en/rewrite-me-to-vercel.json',
-            '/en/rewrite-to-ab-test.json',
-          ]) {
+          for (const url of ['/en/ssg.json']) {
             if (!hrefs.some((href) => href.includes(url))) {
               return JSON.stringify(hrefs, null, 2)
             }
@@ -311,10 +416,199 @@ describe('Middleware Rewrite', () => {
         `/rewrite-to-afterfiles-rewrite`
       )
     })
+
+    it('should have correct query info for dynamic route after query hydration', async () => {
+      const browser = await webdriver(
+        next.url,
+        '/fallback-true-blog/first?hello=world'
+      )
+
+      await check(
+        () =>
+          browser.eval(
+            'next.router.query.hello === "world" ? "success" : JSON.stringify(next.router.query)'
+          ),
+        'success'
+      )
+
+      expect(await browser.eval('next.router.query')).toEqual({
+        slug: 'first',
+        hello: 'world',
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/first'
+      )
+      expect(await browser.eval('location.search')).toBe('?hello=world')
+    })
+
+    it('should handle shallow navigation correctly (non-dynamic page)', async () => {
+      const browser = await webdriver(next.url, '/about')
+      const requests = []
+
+      browser.on('request', (req) => {
+        const url = req.url()
+        if (url.includes('_next/data')) requests.push(url)
+      })
+
+      await browser.eval(
+        `next.router.push('/about?hello=world', undefined, { shallow: true })`
+      )
+      await check(() => browser.eval(`next.router.query.hello`), 'world')
+
+      expect(await browser.eval(`next.router.pathname`)).toBe('/about')
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({ hello: 'world' })
+      expect(await browser.eval('location.pathname')).toBe('/about')
+      expect(await browser.eval('location.search')).toBe('?hello=world')
+
+      await browser.eval(
+        `next.router.push('/about', undefined, { shallow: true })`
+      )
+      await check(
+        () => browser.eval(`next.router.query.hello || 'empty'`),
+        'empty'
+      )
+
+      expect(await browser.eval(`next.router.pathname`)).toBe('/about')
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({})
+      expect(await browser.eval('location.pathname')).toBe('/about')
+      expect(await browser.eval('location.search')).toBe('')
+    })
+
+    it('should handle shallow navigation correctly (dynamic page)', async () => {
+      const browser = await webdriver(next.url, '/fallback-true-blog/first')
+
+      await check(async () => {
+        await browser.elementByCss('#to-query-shallow').click()
+        return browser.eval('location.search')
+      }, '?hello=world')
+
+      expect(await browser.eval(`next.router.pathname`)).toBe(
+        '/fallback-true-blog/[slug]'
+      )
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({ hello: 'world', slug: 'first' })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/first'
+      )
+      expect(await browser.eval('location.search')).toBe('?hello=world')
+
+      await browser.elementByCss('#to-no-query-shallow').click()
+      await check(() => browser.eval(`next.router.query.slug`), 'second')
+
+      expect(await browser.eval(`next.router.pathname`)).toBe(
+        '/fallback-true-blog/[slug]'
+      )
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({
+        slug: 'second',
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/second'
+      )
+      expect(await browser.eval('location.search')).toBe('')
+    })
+
+    it('should resolve dynamic route after rewrite correctly', async () => {
+      const browser = await webdriver(next.url, '/fallback-true-blog/first', {
+        waitHydration: false,
+      })
+      let requests = []
+
+      browser.on('request', (req) => {
+        const url = new URL(
+          req
+            .url()
+            .replace(new RegExp(escapeStringRegexp(next.buildId)), 'BUILD_ID')
+        ).pathname
+
+        if (url.includes('_next/data')) requests.push(url)
+      })
+
+      // wait for initial query update request
+      await check(async () => {
+        const didReq = await browser.eval('next.router.isReady')
+        if (requests.length > 0 || didReq) {
+          requests = []
+          return 'yup'
+        }
+      }, 'yup')
+
+      expect(await browser.eval(`next.router.pathname`)).toBe(
+        '/fallback-true-blog/[slug]'
+      )
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({
+        slug: 'first',
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/first'
+      )
+      expect(await browser.eval('location.search')).toBe('')
+
+      await browser.eval(`next.router.push('/fallback-true-blog/rewritten')`)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /About Page/
+      )
+
+      expect(await browser.eval(`next.router.pathname`)).toBe('/about')
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({})
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/rewritten'
+      )
+      expect(await browser.eval('location.search')).toBe('')
+      expect(
+        requests.some(
+          (req) =>
+            req === `/_next/data/BUILD_ID/en/fallback-true-blog/rewritten.json`
+        )
+      ).toBe(true)
+
+      await browser.eval(`next.router.push('/fallback-true-blog/second')`)
+      await check(
+        () => browser.eval(`next.router.pathname`),
+        '/fallback-true-blog/[slug]'
+      )
+
+      expect(await browser.eval(`next.router.pathname`)).toBe(
+        '/fallback-true-blog/[slug]'
+      )
+      expect(
+        JSON.parse(await browser.eval(`JSON.stringify(next.router.query)`))
+      ).toEqual({
+        slug: 'second',
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/fallback-true-blog/second'
+      )
+      expect(await browser.eval('location.search')).toBe('')
+    })
   }
 
   function testsWithLocale(locale = '') {
     const label = locale ? `${locale} ` : ``
+
+    function getCookieFromResponse(res, cookieName) {
+      // node-fetch bundles the cookies as string in the Response
+      const cookieArray = res.headers.raw()['set-cookie']
+      for (const cookie of cookieArray) {
+        let individualCookieParams = cookie.split(';')
+        let individualCookie = individualCookieParams[0].split('=')
+        if (individualCookie[0] === cookieName) {
+          return individualCookie[1]
+        }
+      }
+      return -1
+    }
 
     it(`${label}should add a cookie and rewrite to a/b test`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/rewrite-to-ab-test`)
@@ -499,18 +793,14 @@ describe('Middleware Rewrite', () => {
         logs.every((log) => log.source === 'log' || log.source === 'info')
       ).toEqual(true)
     })
+
+    it('should not have unexpected errors', async () => {
+      expect(next.cliOutput).not.toContain('unhandledRejection')
+      expect(next.cliOutput).not.toContain('ECONNRESET')
+    })
   }
 
-  function getCookieFromResponse(res, cookieName) {
-    // node-fetch bundles the cookies as string in the Response
-    const cookieArray = res.headers.raw()['set-cookie']
-    for (const cookie of cookieArray) {
-      let individualCookieParams = cookie.split(';')
-      let individualCookie = individualCookieParams[0].split('=')
-      if (individualCookie[0] === cookieName) {
-        return individualCookie[1]
-      }
-    }
-    return -1
-  }
+  tests()
+  testsWithLocale()
+  testsWithLocale('/fr')
 })

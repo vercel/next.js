@@ -5,7 +5,7 @@ import { join } from 'path'
 describe('Middleware validation during build', () => {
   const appDir = join(__dirname, '..')
   const middlewareFile = join(appDir, 'middleware.js')
-  const middlewareError = 'Your middleware is returning a response body'
+  const middlewareError = 'Middleware is returning a response body'
 
   beforeEach(() => remove(join(appDir, '.next')))
 
@@ -53,13 +53,13 @@ describe('Middleware validation during build', () => {
   ])('given a middleware $title', ({ code }) => {
     beforeAll(() => writeFile(middlewareFile, code))
 
-    it('throws an error', async () => {
+    it('does not throw an error', async () => {
       const { stderr, code } = await nextBuild(appDir, [], {
         stderr: true,
         stdout: true,
       })
-      expect(stderr).toMatch(middlewareError)
-      expect(code).toBe(1)
+      expect(stderr).not.toMatch(middlewareError)
+      expect(code).toBe(0)
     })
   })
 

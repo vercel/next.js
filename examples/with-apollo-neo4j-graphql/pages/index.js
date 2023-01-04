@@ -62,6 +62,7 @@ export default function Home() {
                       as={{
                         pathname: `/movie/${encodeURIComponent(movie.title)}`,
                       }}
+                      legacyBehavior
                     >
                       <a className="link">{movie.title}</a>
                     </Link>
@@ -86,6 +87,7 @@ export default function Home() {
                                 actor.name
                               )}`,
                             }}
+                            legacyBehavior
                           >
                             <a className="link">{actor.name}</a>
                           </Link>

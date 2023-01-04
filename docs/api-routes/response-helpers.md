@@ -2,7 +2,7 @@
 description: API Routes include a set of Express.js-like methods for the response to help you creating new API endpoints. Learn how it works here.
 ---
 
-# Response Helpers
+# API Routes Response Helpers
 
 The [Server Response object](https://nodejs.org/api/http.html#http_class_http_serverresponse), (often abbreviated as `res`) includes a set of Express.js-like helper methods to improve the developer experience and increase the speed of creating new API endpoints.
 
@@ -97,6 +97,8 @@ export default function handler(
   res.status(200).json({ message: 'Hello from Next.js!' })
 }
 ```
+
+> Note: The body of `NextApiRequest` is `any` because the client may include any payload. You should validate the type/shape of the body at runtime before using it.
 
 To view more examples using types, check out the [TypeScript documentation](/docs/basic-features/typescript.md#api-routes).
 

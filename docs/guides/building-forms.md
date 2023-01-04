@@ -135,7 +135,7 @@ The below example shows using the `pattern` attribute on an `input` element:
     type="password"
     id="pswrd"
     name="pswrd"
-    pattern="[a-z]{0,9}"
+    pattern="[a-z0-9]{1,15}"
     title="Password should be digits (0 to 9) or alphabets (a to z)."
   />
 

@@ -1,3 +1,4 @@
+/** @type {import('next').NextConfig} */
 module.exports = {
   webpack: (configuration) => {
     configuration.module.rules.push({

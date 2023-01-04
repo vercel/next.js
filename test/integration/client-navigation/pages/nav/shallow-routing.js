@@ -42,10 +42,8 @@ export default withRouter(
     render() {
       return (
         <div className="shallow-routing">
-          <Link href="/nav">
-            <a id="home-link" style={linkStyle}>
-              Home
-            </a>
+          <Link href="/nav" id="home-link" style={linkStyle}>
+            Home
           </Link>
           <div id="counter" style={{ marginBottom: 4000 }}>
             Counter: {this.getCurrentCounter()}

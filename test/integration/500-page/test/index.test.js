@@ -21,11 +21,9 @@ const appDir = join(__dirname, '../')
 const pages500 = join(appDir, 'pages/500.js')
 const pagesApp = join(appDir, 'pages/_app.js')
 const pagesError = join(appDir, 'pages/_error.js')
-const nextConfig = join(appDir, 'next.config.js')
 const gip500Err =
   /`pages\/500` can not have getInitialProps\/getServerSideProps/
 
-let nextConfigContent
 let appPort
 let app
 
@@ -83,30 +81,6 @@ describe('500 Page Support', () => {
     afterAll(() => killApp(app))
 
     runTests('server')
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless'
-        }
-      `
-      )
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, nextConfigContent)
-      await killApp(app)
-    })
-
-    runTests('serverless')
   })
 
   it('does not build 500 statically with getInitialProps in _app', async () => {

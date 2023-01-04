@@ -18,9 +18,7 @@ export default function Home() {
       <p>
         Click the link below to navigate to another page.
         <br />
-        <Link href="/navigation">
-          <a>Navigation page</a>
-        </Link>
+        <Link href="/navigation">Navigation page</Link>
       </p>
     </div>
   )

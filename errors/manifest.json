@@ -347,6 +347,10 @@
           "path": "/errors/next-image-unconfigured-host.md"
         },
         {
+          "title": "next-image-upgrade-to-13",
+          "path": "/errors/next-image-upgrade-to-13.md"
+        },
+        {
           "title": "next-script-for-ga",
           "path": "/errors/next-script-for-ga.md"
         },
@@ -673,8 +677,14 @@
           "path": "/errors/import-next.md"
         },
         {
-          "title": "invalid-getserversideprops-return-value",
-          "path": "/errors/invalid-getserversideprops-return-value.md"
+          "path": "/errors/invalid-getserversideprops-return-value.md",
+          "redirect": {
+            "destination": "/docs/messages/invalid-getserversideprops-value"
+          }
+        },
+        {
+          "title": "invalid-getserversideprops-value",
+          "path": "/errors/invalid-getserversideprops-value.md"
         },
         {
           "title": "no-assign-module-variable",
@@ -687,6 +697,10 @@
         {
           "title": "nested-styled-jsx-tags",
           "path": "/errors/nested-styled-jsx-tags.md"
+        },
+        {
+          "title": "invalid-new-link-with-extra-anchor",
+          "path": "/errors/invalid-new-link-with-extra-anchor.md"
         },
         {
           "title": "returning-response-body-in-middleware",
@@ -707,6 +721,66 @@
         {
           "title": "middleware-dynamic-wasm-compilation",
           "path": "/errors/middleware-dynamic-wasm-compilation.md"
+        },
+        {
+          "title": "edge-dynamic-code-evaluation",
+          "path": "/errors/edge-dynamic-code-evaluation.md"
+        },
+        {
+          "title": "node-module-in-edge-runtime",
+          "path": "/errors/node-module-in-edge-runtime.md"
+        },
+        {
+          "title": "invalid-next-config",
+          "path": "/errors/invalid-next-config.md"
+        },
+        {
+          "title": "failed-to-fetch-devpagesmanifest",
+          "path": "/errors/failed-to-fetch-devpagesmanifest.md"
+        },
+        {
+          "title": "middleware-parse-user-agent",
+          "path": "/errors/middleware-parse-user-agent.md"
+        },
+        {
+          "title": "nonce-contained-invalid-characters",
+          "path": "/errors/nonce-contained-invalid-characters.md"
+        },
+        {
+          "title": "babel-font-loader-conflict",
+          "path": "/errors/babel-font-loader-conflict.md"
+        },
+        {
+          "title": "google-fonts-missing-subsets",
+          "path": "/errors/google-fonts-missing-subsets.md"
+        },
+        {
+          "title": "invalid-segment-export",
+          "path": "/errors/invalid-segment-export.md"
+        },
+        {
+          "title": "next-router-not-mounted",
+          "path": "/errors/next-router-not-mounted.md"
+        },
+        {
+          "title": "experimental-app-dir-config",
+          "path": "/errors/experimental-app-dir-config.md"
+        },
+        {
+          "title": "app-dir-dynamic-href",
+          "path": "/errors/app-dir-dynamic-href.md"
+        },
+        {
+          "title": "fast-refresh-reload",
+          "path": "/errors/fast-refresh-reload.md"
+        },
+        {
+          "title": "context-in-server-component",
+          "path": "/errors/context-in-server-component.md"
+        },
+        {
+          "title": "react-client-hook-in-server-component",
+          "path": "/errors/react-client-hook-in-server-component.md"
         }
       ]
     }

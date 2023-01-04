@@ -1,6 +1,6 @@
 # React Remove Properties Example
 
-This example shows how to use the `reactRemoveProperties` config option to remove React properties.
+This example shows how to use the Next.js [reactRemoveProperties](https://nextjs.org/docs/advanced-features/compiler#remove-react-properties) config option to remove React properties.
 
 ## Deploy your own
 
@@ -14,9 +14,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example react-remove-properties react-remove-properties-app
-# or
+```
+
+```bash
 yarn create next-app --example react-remove-properties react-remove-properties-app
-# or
+```
+
+```bash
 pnpm create next-app --example react-remove-properties react-remove-properties-app
 ```
 

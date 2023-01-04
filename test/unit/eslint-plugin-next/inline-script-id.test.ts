@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/inline-script-id'
+import rule from '@next/eslint-plugin-next/dist/rules/inline-script-id'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

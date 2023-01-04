@@ -97,6 +97,36 @@ describe('basePath', () => {
   afterAll(() => next.destroy())
 
   const runTests = (isDev = false, isDeploy = false) => {
+    it('should navigate to /404 correctly client-side', async () => {
+      const browser = await webdriver(next.url, `${basePath}/slug-1`)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /slug-1/
+      )
+
+      await browser.eval('next.router.push("/404", "/slug-2")')
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /page could not be found/
+      )
+      expect(await browser.eval('location.pathname')).toBe(`${basePath}/slug-2`)
+    })
+
+    it('should navigate to /_error correctly client-side', async () => {
+      const browser = await webdriver(next.url, `${basePath}/slug-1`)
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /slug-1/
+      )
+
+      await browser.eval('next.router.push("/_error", "/slug-2")')
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /page could not be found/
+      )
+      expect(await browser.eval('location.pathname')).toBe(`${basePath}/slug-2`)
+    })
+
     it('should navigate to external site and back', async () => {
       const browser = await webdriver(next.url, `${basePath}/external-and-back`)
       const initialText = await browser.elementByCss('p').text()
@@ -119,6 +149,40 @@ describe('basePath', () => {
       // we can investigate testing more cases below if desired
       return
     }
+
+    it.each([
+      { hash: '#hello?' },
+      { hash: '#?' },
+      { hash: '##' },
+      { hash: '##?' },
+      { hash: '##hello?' },
+      { hash: '##hello' },
+      { hash: '#hello?world' },
+      { search: '?hello=world', hash: '#a', query: { hello: 'world' } },
+      { search: '?hello', hash: '#a', query: { hello: '' } },
+      { search: '?hello=', hash: '#a', query: { hello: '' } },
+    ])(
+      'should handle query/hash correctly during query updating $hash $search',
+      async ({ hash, search, query }) => {
+        const browser = await webdriver(
+          next.url,
+          `${basePath}${search || ''}${hash || ''}`
+        )
+
+        await check(
+          () =>
+            browser.eval('window.next.router.isReady ? "ready" : "not ready"'),
+          'ready'
+        )
+        expect(await browser.eval('window.location.pathname')).toBe(basePath)
+        expect(await browser.eval('window.location.search')).toBe(search || '')
+        expect(await browser.eval('window.location.hash')).toBe(hash || '')
+        expect(await browser.eval('next.router.pathname')).toBe('/')
+        expect(
+          JSON.parse(await browser.eval('JSON.stringify(next.router.query)'))
+        ).toEqual(query || {})
+      }
+    )
 
     it('should navigate back correctly to a dynamic route', async () => {
       const browser = await webdriver(next.url, `${basePath}`)
@@ -595,8 +659,10 @@ describe('basePath', () => {
         },
       })
 
-      const html = await browser.eval('document.documentElement.innerHTML')
-      expect(html).toContain('This page could not be found')
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /This page could not be found/
+      )
     })
 
     it('should 404 when manually adding basePath with router.push', async () => {

@@ -2,24 +2,24 @@
 description: Get started with Next.js in the official documentation, and learn more about all our features!
 ---
 
+> Next.js 13 was recently released, [learn more](https://nextjs.org/blog/next-13) and see the [upgrade guide](https://nextjs.org/docs/upgrading#upgrading-from-12-to-13). Version 13 also introduces beta features like the [`app` directory](https://beta.nextjs.org/docs/app-directory-roadmap) that works alongside the `pages` directory (stable) for incremental adoption. You can continue using `pages` in Next.js 13, but if you want to try the new `app` features, [see the new beta docs](https://beta.nextjs.org/docs).
+
 # Getting Started
 
 Welcome to the Next.js documentation!
 
-If you're new to Next.js, we recommend starting with the [learn course](https://nextjs.org/learn/basics/create-nextjs-app).
-
-The interactive course with quizzes will guide you through everything you need to know to use Next.js.
+If you're new to Next.js, we recommend starting with the [learn course](https://nextjs.org/learn/basics/create-nextjs-app). The interactive course with quizzes will guide you through everything you need to know to use Next.js.
 
 If you have questions about anything related to Next.js, you're always welcome to ask our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
 
 #### System Requirements
 
-- [Node.js 12.22.0](https://nodejs.org/) or later
+- [Node.js 14.6.0](https://nodejs.org/) or newer
 - MacOS, Windows (including WSL), and Linux are supported
 
 ## Automatic Setup
 
-We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
+We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. (You don't need to create an empty directory. `create-next-app` will make one for you.) To create a project, run:
 
 ```bash
 npx create-next-app@latest
@@ -84,7 +84,7 @@ Create two directories `pages` and `public` at the root of your application:
 
 Next.js is built around the concept of [pages](/docs/basic-features/pages.md). A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory. You can even add [dynamic route](/docs/routing/dynamic-routes) parameters with the filename.
 
-Inside the `pages` directory add the `index.js` file to get started. This is the page that is rendered when the user visits the root of your application
+Inside the `pages` directory add the `index.js` file to get started. This is the page that is rendered when the user visits the root of your application.
 
 Populate `pages/index.js` with the following contents:
 

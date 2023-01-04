@@ -59,8 +59,9 @@ describe('Middleware Runtime trailing slash', () => {
             name: 'middleware',
             env: [],
             page: '/',
-            regexp: '^/.*$',
+            matchers: [{ regexp: '^/.*$' }],
             wasm: [],
+            assets: [],
           },
         })
       })
@@ -119,8 +120,8 @@ describe('Middleware Runtime trailing slash', () => {
       await check(() => browser.elementByCss('body').text(), /\/to-ssg/)
 
       expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-        slug: 'hello',
         from: 'middleware',
+        slug: 'hello',
       })
       expect(
         JSON.parse(await browser.elementByCss('#props').text()).params
@@ -132,7 +133,11 @@ describe('Middleware Runtime trailing slash', () => {
     })
 
     it('should have correct dynamic route params on client-transition to dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/blog/first")')
       await browser.waitForElementByCss('#blog')
@@ -170,7 +175,11 @@ describe('Middleware Runtime trailing slash', () => {
     })
 
     it('should have correct dynamic route params for middleware rewrite to dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-to-dynamic")')
       await browser.waitForElementByCss('#blog')
@@ -193,7 +202,11 @@ describe('Middleware Runtime trailing slash', () => {
     })
 
     it('should have correct route params for chained rewrite from middleware to config rewrite', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval(
         'window.next.router.push("/rewrite-to-config-rewrite")'
@@ -219,7 +232,11 @@ describe('Middleware Runtime trailing slash', () => {
     })
 
     it('should have correct route params for rewrite from config dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "no"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-3")')
       await browser.waitForElementByCss('#blog')
@@ -240,7 +257,7 @@ describe('Middleware Runtime trailing slash', () => {
     })
 
     it('should have correct route params for rewrite from config non-dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-1")')
 
@@ -276,7 +293,11 @@ describe('Middleware Runtime trailing slash', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('Hello World')
 
-      const browser = await webdriver(next.url, `/`)
+      const browser = await webdriver(next.url, `/404`)
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval(`next.router.push('/rewrite-1')`)
       await check(async () => {

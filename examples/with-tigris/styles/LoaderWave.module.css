@@ -1,0 +1,52 @@
+.holder {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  padding: 50px;
+  background-color: rgba(255, 255, 255, 0);
+  z-index: 1;
+  border-radius: 8px;
+}
+
+.l1 {
+  animation: load7 1s infinite ease-in-out;
+}
+.l2 {
+  animation: load7 1s infinite ease-in-out;
+  animation-delay: 0.13s;
+}
+.l3 {
+  animation: load7 1s infinite ease-in-out;
+  animation-delay: 0.35s;
+}
+
+.loader {
+  display: inline-block;
+  color: #4b4821;
+  font-size: 8px;
+  width: 14px;
+  height: 14px;
+  background-color: #9a9c9f;
+  transform: scale(0);
+  text-indent: -9999em;
+  border-radius: 50%;
+}
+
+@keyframes load7 {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  60% {
+    transform: scale(0.8);
+  }
+  80% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(0);
+  }
+}

@@ -58,12 +58,12 @@ describe('middlewares', () => {
     {
       title: 'populating response with an async function call',
       code: `export default async function middleware(request) {
-              return new Response(await fetch('https://example.com'));
+              return new Response(await fetch('https://example.vercel.sh'));
             }`,
     },
-  ])('warns when $title', async ({ code }) => {
+  ])('does not warn when $title', async ({ code }) => {
     ;({ cleanup } = await sandbox(next, new Map([[middlewarePath, code]])))
-    expect(next.cliOutput).toMatch(middlewareWarning)
+    expect(next.cliOutput).not.toMatch(middlewareWarning)
   })
 
   it.each([

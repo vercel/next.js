@@ -5,6 +5,7 @@ import url from 'url'
 import stripAnsi from 'strip-ansi'
 import fs from 'fs-extra'
 import { join } from 'path'
+import WebSocket from 'ws'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
@@ -19,7 +20,6 @@ import {
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  initNextServerScript,
   nextExport,
   hasRedbox,
   check,
@@ -39,6 +39,45 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should successfully rewrite a WebSocket request', async () => {
+    const messages = []
+    const ws = await new Promise((resolve, reject) => {
+      let socket = new WebSocket(`ws://localhost:${appPort}/to-websocket`)
+      socket.on('message', (data) => {
+        messages.push(data.toString())
+      })
+      socket.on('open', () => resolve(socket))
+      socket.on('error', (err) => {
+        console.error(err)
+        socket.close()
+        reject()
+      })
+    })
+
+    await check(
+      () => (messages.length > 0 ? 'success' : JSON.stringify(messages)),
+      'success'
+    )
+    ws.close()
+    expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
+  })
+
+  it('should not rewrite for _next/data route when a match is found', async () => {
+    const initial = await fetchViaHTTP(appPort, '/overridden/first')
+    expect(initial.status).toBe(200)
+    expect(await initial.text()).toContain('this page is overridden')
+
+    const nextData = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/overridden/first.json`
+    )
+    expect(nextData.status).toBe(200)
+    expect(await nextData.json()).toEqual({
+      pageProps: { params: { slug: 'first' } },
+      __N_SSG: true,
+    })
+  })
+
   it('should handle has query encoding correctly', async () => {
     for (const expected of [
       {
@@ -874,6 +913,52 @@ const runTests = (isDev = false) => {
     )
   })
 
+  it('should match missing header rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-rewrite-1')
+    const $2 = cheerio.load(await res2.text())
+
+    expect(res2.status).toBe(200)
+    expect(JSON.parse($2('#query').text())).toEqual({})
+  })
+
+  it('should match missing query rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-2', {
+      'my-query': 'hellooo',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-rewrite-2')
+    const $2 = cheerio.load(await res2.text())
+    expect(res2.status).toBe(200)
+    expect(JSON.parse($2('#query').text())).toEqual({})
+  })
+
+  it('should match missing cookie rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-rewrite-3')
+    const $2 = cheerio.load(await res2.text())
+    expect(JSON.parse($2('#query').text())).toEqual({
+      authorized: '1',
+    })
+    expect(res2.status).toBe(200)
+  })
+
   it('should match has header rewrite correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-rewrite-1', undefined, {
       headers: {
@@ -946,7 +1031,7 @@ const runTests = (isDev = false) => {
       host: '1',
     })
 
-    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-3')
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-4')
     expect(res2.status).toBe(404)
   })
 
@@ -1267,6 +1352,18 @@ const runTests = (isDev = false) => {
               buildId
             )}/blog\\-catchall/(?<slug>.+?)\\.json$`,
             page: '/blog-catchall/[...slug]',
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/overridden\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/overridden/(?<slug>[^/]+?)\\.json$`,
+            page: '/overridden/[slug]',
             routeKeys: {
               slug: 'slug',
             },
@@ -1782,6 +1879,11 @@ const runTests = (isDev = false) => {
           ],
           afterFiles: [
             {
+              destination: `http://localhost:${externalServerPort}/_next/webpack-hmr?page=/about`,
+              regex: normalizeRegEx('^\\/to-websocket(?:\\/)?$'),
+              source: '/to-websocket',
+            },
+            {
               destination: 'http://localhost:12233',
               regex: normalizeRegEx('^\\/to-nowhere(?:\\/)?$'),
               source: '/to-nowhere',
@@ -2024,9 +2126,50 @@ const runTests = (isDev = false) => {
               source: '/has-rewrite-8',
             },
             {
+              destination: '/with-params',
+              missing: [
+                {
+                  key: 'x-my-header',
+                  type: 'header',
+                  value: '(?<myHeader>.*)',
+                },
+              ],
+              regex: normalizeRegEx('^\\/missing-rewrite-1(?:\\/)?$'),
+              source: '/missing-rewrite-1',
+            },
+            {
+              destination: '/with-params',
+              missing: [
+                {
+                  key: 'my-query',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/missing-rewrite-2(?:\\/)?$'),
+              source: '/missing-rewrite-2',
+            },
+            {
+              destination: '/with-params?authorized=1',
+              missing: [
+                {
+                  key: 'loggedIn',
+                  type: 'cookie',
+                  value: '(?<loggedIn>true)',
+                },
+              ],
+              regex: normalizeRegEx('^\\/missing-rewrite-3(?:\\/)?$'),
+              source: '/missing-rewrite-3',
+            },
+            {
               destination: '/hello',
               regex: normalizeRegEx('^\\/blog\\/about(?:\\/)?$'),
               source: '/blog/about',
+            },
+            {
+              destination: '/overridden',
+              regex:
+                '^\\/overridden(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?(?:\\/)?$',
+              source: '/overridden/:path*',
             },
           ],
           fallback: [],
@@ -2088,6 +2231,14 @@ const runTests = (isDev = false) => {
               slug: 'slug',
             },
           },
+          {
+            namedRegex: '^/overridden/(?<slug>[^/]+?)(?:/)?$',
+            page: '/overridden/[slug]',
+            regex: '^\\/overridden\\/([^\\/]+?)(?:\\/)?$',
+            routeKeys: {
+              slug: 'slug',
+            },
+          },
         ],
         staticRoutes: [
           {
@@ -2145,6 +2296,10 @@ const runTests = (isDev = false) => {
             routeKeys: {},
           },
         ],
+        rsc: {
+          header: 'RSC',
+          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+        },
       })
     })
 
@@ -2193,6 +2348,14 @@ describe('Custom routes', () => {
       const externalHost = req.headers['host']
       res.end(`hi ${nextHost} from ${externalHost}`)
     })
+    const wsServer = new WebSocket.Server({ noServer: true })
+
+    externalServer.on('upgrade', (req, socket, head) => {
+      externalServerHits.add(req.url)
+      wsServer.handleUpgrade(req, socket, head, (client) => {
+        client.send('hello world')
+      })
+    })
     await new Promise((resolve, reject) => {
       externalServer.listen(externalServerPort, (error) => {
         if (error) return reject(error)
@@ -2202,7 +2365,7 @@ describe('Custom routes', () => {
     nextConfigRestoreContent = await fs.readFile(nextConfigPath, 'utf8')
     await fs.writeFile(
       nextConfigPath,
-      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/, externalServerPort)
+      nextConfigRestoreContent.replace(/__EXTERNAL_PORT__/g, externalServerPort)
     )
   })
   afterAll(async () => {
@@ -2344,96 +2507,6 @@ describe('Custom routes', () => {
       expect(exportStderr).toContain(
         `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
       )
-    })
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace(/\/\/ target/, 'target'),
-        'utf8'
-      )
-      const { stdout: buildStdout } = await nextBuild(appDir, ['-d'], {
-        stdout: true,
-      })
-      stdout = buildStdout
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {
-        onStdout: (msg) => {
-          stdout += msg
-        },
-      })
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
-      await killApp(app)
-    })
-
-    runTests()
-  })
-
-  describe('raw serverless mode', () => {
-    beforeAll(async () => {
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace(/\/\/ target/, 'target'),
-        'utf8'
-      )
-      await nextBuild(appDir)
-
-      appPort = await findPort()
-      app = await initNextServerScript(join(appDir, 'server.js'), /ready on/, {
-        ...process.env,
-        PORT: appPort,
-      })
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent, 'utf8')
-      await killApp(app)
-    })
-
-    it('should apply rewrites in lambda correctly for page route', async () => {
-      const html = await renderViaHTTP(appPort, '/query-rewrite/first/second')
-      const data = JSON.parse(cheerio.load(html)('p').text())
-      expect(data).toEqual({
-        first: 'first',
-        second: 'second',
-        section: 'first',
-        name: 'second',
-      })
-    })
-
-    it('should apply rewrites in lambda correctly for dynamic route', async () => {
-      const html = await renderViaHTTP(appPort, '/blog/post-1')
-      expect(html).toContain('post-2')
-    })
-
-    it('should apply rewrites in lambda correctly for API route', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(appPort, '/api-hello-param/first')
-      )
-      expect(data).toEqual({
-        query: {
-          name: 'first',
-          hello: 'first',
-        },
-      })
-    })
-
-    it('should apply rewrites in lambda correctly for dynamic API route', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(appPort, '/api-dynamic-param/first')
-      )
-      expect(data).toEqual({
-        query: {
-          slug: 'first',
-          hello: 'first',
-        },
-      })
     })
   })
 

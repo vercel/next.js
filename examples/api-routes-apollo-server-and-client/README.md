@@ -1,6 +1,6 @@
 # Apollo Server and Client Example
 
-[Apollo](https://www.apollographql.com/client/) is a GraphQL client that allows you to easily query the exact data you need from a GraphQL server. In addition to fetching and mutating data, Apollo analyzes your queries and their results to construct a client-side cache of your data, which is kept up to date as further queries and mutations are run.
+[Apollo](https://www.apollographql.com/client/) is a GraphQL client that allows you to easily query the exact data you need from a GraphQL server. In addition to fetching and mutating data, Apollo analyzes your queries and their results to construct a client-side cache of your data, which is kept up to date as further queries and mutations are run. The integration with Next and Apollo Server is implemented using the [apollo-server-integration-next](https://github.com/apollo-server-integrations/apollo-server-integration-next) community package.
 
 In this simple example, we integrate Apollo seamlessly with [Next.js data fetching methods](https://nextjs.org/docs/basic-features/data-fetching) to fetch queries in the server and hydrate them in the browser.
 
@@ -16,9 +16,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example api-routes-apollo-server-and-client api-routes-apollo-server-and-client-app
-# or
+```
+
+```bash
 yarn create next-app --example api-routes-apollo-server-and-client api-routes-apollo-server-and-client-app
-# or
+```
+
+```bash
 pnpm create next-app --example api-routes-apollo-server-and-client api-routes-apollo-server-and-client-app
 ```
 

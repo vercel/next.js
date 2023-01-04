@@ -23,6 +23,8 @@ import {
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
+
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'
 
@@ -37,6 +39,9 @@ declare module 'react' {
   interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
     nonce?: string
   }
+
+  function use<T>(promise: Promise<T> | React.Context<T>): T
+  function cache<T extends Function>(fn: T): T
 }
 
 export type Redirect =
@@ -56,6 +61,22 @@ export type Redirect =
  */
 export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
 
+export type FileSizeSuffix = `${
+  | 'k'
+  | 'K'
+  | 'm'
+  | 'M'
+  | 'g'
+  | 'G'
+  | 't'
+  | 'T'
+  | 'p'
+  | 'P'}${'b' | 'B'}`
+
+export type SizeLimit = number | `${number}${FileSizeSuffix}`
+
+export type ResponseLimit = SizeLimit | boolean
+
 /**
  * `Config` type, use it for export const config
  */
@@ -67,12 +88,16 @@ export type PageConfig = {
      * any string format supported by `bytes`, for example `1000`, `'500kb'` or
      * `'3mb'`.
      */
-    responseLimit?: number | string | boolean
+    responseLimit?: ResponseLimit
     /**
      * The byte limit of the body. This is the number of bytes or any string
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
-    bodyParser?: { sizeLimit?: number | string } | false
+    bodyParser?:
+      | {
+          sizeLimit?: SizeLimit
+        }
+      | false
     /**
      * Flag to disable warning "API page resolved
      * without sending a response", due to explicitly
@@ -81,6 +106,7 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
+  runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   unstable_includeFiles?: string[]
@@ -122,13 +148,10 @@ export type GetStaticProps<
   context: GetStaticPropsContext<Q, D>
 ) => Promise<GetStaticPropsResult<P>> | GetStaticPropsResult<P>
 
-export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
-  ? P
-  : T extends (
-      context?: GetStaticPropsContext<any>
-    ) => Promise<GetStaticPropsResult<infer P>> | GetStaticPropsResult<infer P>
-  ? P
-  : never
+export type InferGetStaticPropsType<T extends (args: any) => any> = Extract<
+  Awaited<ReturnType<T>>,
+  { props: any }
+>['props']
 
 export type GetStaticPathsContext = {
   locales?: string[]
@@ -175,16 +198,9 @@ export type GetServerSideProps<
   context: GetServerSidePropsContext<Q, D>
 ) => Promise<GetServerSidePropsResult<P>>
 
-export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
-  infer P,
-  any
+export type InferGetServerSidePropsType<T extends (args: any) => any> = Awaited<
+  Extract<Awaited<ReturnType<T>>, { props: any }>['props']
 >
-  ? P
-  : T extends (
-      context?: GetServerSidePropsContext<any>
-    ) => Promise<GetServerSidePropsResult<infer P>>
-  ? P
-  : never
 
 declare global {
   interface Crypto {

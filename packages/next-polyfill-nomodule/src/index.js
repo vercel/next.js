@@ -1,4 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
+// Keep in sync with eslint no-unwanted-polyfillio rule: https://github.com/vercel/next.js/blob/master/packages/eslint-plugin-next/lib/rules/no-unwanted-polyfillio.js
 import 'core-js/features/array/copy-within'
 import 'core-js/features/array/fill'
 import 'core-js/features/array/find'

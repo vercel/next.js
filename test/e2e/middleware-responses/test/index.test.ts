@@ -18,10 +18,6 @@ describe('Middleware Responses', () => {
       },
     })
   })
-
-  testsWithLocale()
-  testsWithLocale('/fr')
-
   function testsWithLocale(locale = '') {
     const label = locale ? `${locale} ` : ``
 
@@ -33,29 +29,23 @@ describe('Middleware Responses', () => {
       ])
     })
 
-    it(`${label}should fail when returning a stream`, async () => {
+    it(`${label}should not fail when returning a stream`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/stream-a-response`)
-      expect(res.status).toBe(500)
+      expect(res.status).toBe(200)
 
-      if ((global as any).isNextDeploy) {
-        expect(await res.text()).toContain('EDGE_FUNCTION_INVOCATION_FAILED')
-      } else {
-        expect(await res.text()).toEqual('Internal Server Error')
-        expect(next.cliOutput).toContain(
+      if (!(global as any).isNextDeploy) {
+        expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
       }
     })
 
-    it(`${label}should fail when returning a text body`, async () => {
+    it(`${label}should not fail when returning a text body`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/send-response`)
-      expect(res.status).toBe(500)
+      expect(res.status).toBe(200)
 
-      if ((global as any).isNextDeploy) {
-        expect(await res.text()).toContain('EDGE_FUNCTION_INVOCATION_FAILED')
-      } else {
-        expect(await res.text()).toEqual('Internal Server Error')
-        expect(next.cliOutput).toContain(
+      if (!(global as any).isNextDeploy) {
+        expect(next.cliOutput).not.toContain(
           `A middleware can not alter response's body. Learn more: https://nextjs.org/docs/messages/returning-response-body-in-middleware`
         )
       }
@@ -92,4 +82,6 @@ describe('Middleware Responses', () => {
       expect(res.headers.raw()['set-cookie']).toEqual(['bar=chocochip'])
     })
   }
+  testsWithLocale()
+  testsWithLocale('/fr')
 })

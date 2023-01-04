@@ -1,5 +1,4 @@
-/* global URLPattern */
-import { NextResponse } from 'next/server'
+import { NextResponse, URLPattern } from 'next/server'
 
 export async function middleware(request) {
   const url = request.nextUrl

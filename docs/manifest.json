@@ -128,6 +128,13 @@
           "title": "API Routes",
           "routes": [
             {
+              "path": "/docs/api-routes/api-middlewares",
+              "redirect": {
+                "destination": "/docs/api-routes/request-helpers",
+                "permanent": true
+              }
+            },
+            {
               "title": "Introduction",
               "path": "/docs/api-routes/introduction.md"
             },
@@ -136,15 +143,15 @@
               "path": "/docs/api-routes/dynamic-api-routes.md"
             },
             {
-              "title": "API Middlewares",
-              "path": "/docs/api-routes/api-middlewares.md"
+              "title": "Request Helpers",
+              "path": "/docs/api-routes/request-helpers.md"
             },
             {
               "title": "Response Helpers",
               "path": "/docs/api-routes/response-helpers.md"
             },
             {
-              "title": "Edge API Routes (Beta)",
+              "title": "Edge API Routes",
               "path": "/docs/api-routes/edge-api-routes.md"
             }
           ]
@@ -173,6 +180,10 @@
           "path": "/docs/testing.md"
         },
         {
+          "title": "Accessibility",
+          "path": "/docs/accessibility.md"
+        },
+        {
           "title": "Guides",
           "routes": [
             {
@@ -187,6 +198,10 @@
             {
               "title": "Next.js Compiler",
               "path": "/docs/advanced-features/compiler.md"
+            },
+            {
+              "title": "Turbopack",
+              "path": "/docs/advanced-features/turbopack.md"
             },
             {
               "title": "Preview Mode",
@@ -410,12 +425,24 @@
           "path": "/docs/api-reference/next/server.md"
         },
         {
-          "title": "next/streaming",
-          "path": "/docs/api-reference/next/streaming.md"
+          "title": "@next/font",
+          "path": "/docs/api-reference/next/font.md"
         },
         {
-          "title": "next/future/image (experimental)",
-          "path": "/docs/api-reference/next/future/image.md"
+          "path": "/docs/api-reference/next/streaming",
+          "redirect": {
+            "destination": "/docs/advanced-features/react-18"
+          }
+        },
+        {
+          "path": "/docs/api-reference/next/future/image",
+          "redirect": {
+            "destination": "/docs/api-reference/next/image"
+          }
+        },
+        {
+          "title": "next/legacy/image",
+          "path": "/docs/api-reference/next/legacy/image.md"
         },
         {
           "title": "Edge Runtime",

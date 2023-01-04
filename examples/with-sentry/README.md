@@ -1,13 +1,10 @@
 # Sentry
 
-_Note: Currently, the minimum Next.js supported version of `@sentry/nextjs` is 10.0.8._
-
 This is an example showing how to use [Sentry](https://sentry.io) to catch and report errors and monitor the performance of both the front and back ends, using the [official Sentry SDK for Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/). This example contains the following:
 
 - `sentry.server.config.js` and `sentry.client.config.js` are used to configure and initialize Sentry
 - `next.config.js` automatically injects Sentry into your app using `withSentryConfig`
 - `_error.js` (which is rendered by Next.js when handling certain types of exceptions) is overridden so those exceptions can be passed along to Sentry
-- Each API route is handled with `withSentry`
 
 ## Preview
 
@@ -78,3 +75,5 @@ git push
 ```
 
 This will trigger a deployment in Vercel. Head over to your [Vercel dashboard](https://vercel.com/dashboard), click on your project, and then click "Visit" to see the results!
+
+_Note: The `@sentry/nextjs` SDK is only intended to be used with Next.js versions 10.0.8 and higher_

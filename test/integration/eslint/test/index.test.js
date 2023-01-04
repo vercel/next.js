@@ -19,6 +19,7 @@ const dirPluginCoreWebVitalsConfig = join(
   '../plugin-core-web-vitals-config'
 )
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
+const dirBaseDirectories = join(__dirname, '../base-directories')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
 const dirInvalidOlderEslintVersion = join(
@@ -33,6 +34,7 @@ const dirNoConfig = join(__dirname, '../no-config')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
+const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -77,6 +79,33 @@ describe('ESLint', () => {
       expect(output).not.toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
+    })
+
+    test('base directories are linted by default during builds', async () => {
+      const { stdout, stderr } = await nextBuild(dirBaseDirectories, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+
+      expect(output).toContain('Failed to compile')
+      expect(output).toContain(
+        'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
+      )
+      expect(output).toContain(
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+      )
+      expect(output).toContain('Warning: Do not include stylesheets manually')
+      expect(output).toContain(
+        'Warning: Synchronous scripts should not be used'
+      )
+
+      // Files in pages, components, lib, and src directories are linted
+      expect(output).toContain('pages/_document.js')
+      expect(output).toContain('components/bar.js')
+      expect(output).toContain('lib/foo.js')
+      expect(output).toContain('src/index.js')
     })
 
     test('custom directories', async () => {
@@ -287,6 +316,31 @@ describe('ESLint', () => {
       )
     })
 
+    test('base directories are linted by default', async () => {
+      const { stdout, stderr } = await nextLint(dirBaseDirectories, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
+      )
+      expect(output).toContain(
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
+      )
+      expect(output).toContain('Warning: Do not include stylesheets manually')
+      expect(output).toContain(
+        'Warning: Synchronous scripts should not be used'
+      )
+
+      // Files in pages, components, lib, and src directories are linted
+      expect(output).toContain('pages/_document.js')
+      expect(output).toContain('components/bar.js')
+      expect(output).toContain('lib/foo.js')
+      expect(output).toContain('src/index.js')
+    })
+
     test('shows warnings and errors with next/core-web-vitals config', async () => {
       const { stdout, stderr } = await nextLint(dirWebVitalsConfig, [], {
         stdout: true,
@@ -295,7 +349,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -331,7 +385,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -604,11 +658,137 @@ describe('ESLint', () => {
 
       expect(output).toContain('pages/bar.js')
       expect(output).toContain(
-        'Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
 
       expect(output).not.toContain('pages/index.js')
       expect(output).not.toContain('Synchronous scripts should not be used.')
+    })
+
+    test('output flag create a file respecting the chosen format', async () => {
+      const filePath = `${__dirname}/output/output.json`
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--format', 'json', '--output-file', filePath],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const cliOutput = stdout + stderr
+      const fileOutput = await fs.readJSON(filePath)
+
+      expect(cliOutput).toContain(
+        `The output file has been created: ${filePath}`
+      )
+
+      if (fileOutput && fileOutput.length) {
+        fileOutput.forEach((file) => {
+          expect(file).toHaveProperty('filePath')
+          expect(file).toHaveProperty('messages')
+          expect(file).toHaveProperty('errorCount')
+          expect(file).toHaveProperty('warningCount')
+          expect(file).toHaveProperty('fixableErrorCount')
+          expect(file).toHaveProperty('fixableWarningCount')
+          expect(file).toHaveProperty('source')
+          expect(file).toHaveProperty('usedDeprecatedRules')
+        })
+
+        expect(fileOutput[0].messages).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message:
+                'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.',
+            }),
+            expect.objectContaining({
+              message:
+                'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element',
+            }),
+          ])
+        )
+
+        expect(fileOutput[1].messages).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              message:
+                'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts',
+            }),
+          ])
+        )
+      }
+    })
+
+    test('output flag create a file respecting the chosen format', async () => {
+      const filePath = `${__dirname}/output/output.txt`
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--format', 'compact', '--output-file', filePath],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const cliOutput = stdout + stderr
+      const fileOutput = fs.readFileSync(filePath, 'utf8')
+
+      expect(cliOutput).toContain(
+        `The output file has been created: ${filePath}`
+      )
+
+      expect(fileOutput).toContain('file-linting/pages/bar.js')
+      expect(fileOutput).toContain(
+        'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
+      )
+      expect(fileOutput).toContain(
+        'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element'
+      )
+
+      expect(fileOutput).toContain('file-linting/pages/index.js')
+      expect(fileOutput).toContain(
+        'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts'
+      )
+    })
+
+    test('show error message when the file path is a directory', async () => {
+      const filePath = `${__dirname}`
+      const { stdout, stderr } = await nextLint(
+        dirFileLinting,
+        ['--format', 'compact', '--output-file', filePath],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+
+      const cliOutput = stdout + stderr
+
+      expect(cliOutput).toContain(
+        `Cannot write to output file path, it is a directory: ${filePath}`
+      )
+    })
+
+    test('lint files with cjs and mjs file extension', async () => {
+      const { stdout, stderr } = await nextLint(mjsCjsLinting, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+
+      expect(output).toContain('pages/bar.mjs')
+      expect(output).toContain(
+        'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
+      )
+      expect(output).toContain(
+        'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element'
+      )
+
+      expect(output).toContain('pages/index.cjs')
+      expect(output).toContain(
+        'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts'
+      )
     })
   })
 })

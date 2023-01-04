@@ -15,6 +15,36 @@ describe('ReactRefreshLogBox', () => {
   })
   afterAll(() => next.destroy())
 
+  test('should strip whitespace correctly with newline', async () => {
+    const { session, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'index.js',
+      `
+        export default function Page() {
+          return (
+            <>
+            
+                          <p>index page</p>
+
+                          <a onClick={() => {
+                            throw new Error('idk')
+                          }}>
+                            click me
+                          </a>
+            </>
+          )
+        }
+      `
+    )
+    await session.evaluate(() => document.querySelector('a').click())
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchSnapshot()
+
+    await cleanup()
+  })
+
   test('logbox: can recover from a syntax error without losing state', async () => {
     const { session, cleanup } = await sandbox(next)
 
@@ -328,11 +358,7 @@ describe('ReactRefreshLogBox', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    if (process.platform === 'win32') {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-    } else {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
-    }
+    expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
   })

@@ -43,7 +43,7 @@ This header controls DNS prefetching, allowing browsers to proactively perform d
 
 This header informs browsers it should only be accessed using HTTPS, instead of using HTTP. Using the configuration below, all present and future subdomains will use HTTPS for a `max-age` of 2 years. This blocks access to pages or subdomains that can only be served over HTTP.
 
-If you're deploying to [Vercel](https://vercel.com/docs/edge-network/headers#strict-transport-security), this header is not necessary as it's automatically added to all deployments unless you declare [`headers`](/docs/api-reference/next.config.js/headers.md) in your `next.config.js`.
+If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/headers#strict-transport-security?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this header is not necessary as it's automatically added to all deployments unless you declare [`headers`](/docs/api-reference/next.config.js/headers.md) in your `next.config.js`.
 
 ```jsx
 {
@@ -81,7 +81,7 @@ This header allows you to control which features and APIs can be used in the bro
 ```jsx
 {
   key: 'Permissions-Policy',
-  value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+  value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()'
 }
 ```
 
@@ -130,9 +130,9 @@ const ContentSecurityPolicy = `
 
 When a directive uses a keyword such as `self`, wrap it in single quotes `''`.
 
-In the header's value, replace the new line with an empty string.
+In the header's value, replace the new line with a space.
 
-```jsx
+```js
 {
   key: 'Content-Security-Policy',
   value: ContentSecurityPolicy.replace(/\s{2,}/g, ' ').trim()

@@ -10,7 +10,8 @@ export const serverClient = new faunadb.Client({
 // Used for any authed requests.
 export const faunaClient = (secret) =>
   new faunadb.Client({
-    secret,
+    secret: secret,
+    domain: process.env.FAUNA_DB_DOMAIN ?? 'db.fauna.com',
   })
 
 export const serializeFaunaCookie = (userSecret) => {

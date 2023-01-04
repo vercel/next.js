@@ -2,7 +2,7 @@
 
 For every page you can inject elements into the page head. This way you can add stylesheets, JS scripts, meta tags, a custom title or whatever you think is convenient to add inside the `<head>` of your page.
 
-This example shows in `pages/index.js` how to add a title and a couple of meta tags.
+This example shows in `pages/index.tsx` how to add a title and a couple of meta tags.
 
 ## Deploy your own
 
@@ -16,9 +16,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example head-elements head-elements-app
-# or
+```
+
+```bash
 yarn create next-app --example head-elements head-elements-app
-# or
+```
+
+```bash
 pnpm create next-app --example head-elements head-elements-app
 ```
 

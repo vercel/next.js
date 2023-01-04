@@ -1,45 +1,74 @@
-# Welcome to your functions directory
+# Welcome to your Convex functions directory!
 
-Write your convex functions in this directory.
+Write your Convex functions here. See
+https://docs.convex.dev/using/writing-convex-functions for more.
 
-A query function (how you read data) looks like this:
+A query function that takes two arguments looks like:
 
 ```typescript
-// getCounter.ts
+// myQueryFunction.ts
 import { query } from './_generated/server'
 
-export default query(async ({ db }): Promise<number> => {
-  const counterDoc = await db.table('counter_table').first()
-  console.log('Got stuff')
-  if (counterDoc === null) {
-    return 0
+export default query(async ({ db }, first: number, second: string) => {
+  // Validate arguments here.
+  if (typeof first !== 'number' || first < 0) {
+    throw new Error('First argument is not a non-negative number.')
   }
-  return counterDoc.counter
+  if (typeof second !== 'string' || second.length > 1000) {
+    throw new Error('Second argument is not a string of length 1000 or less.')
+  }
+
+  // Query the database as many times as you need here.
+  // See https://docs.convex.dev/using/database-queries to learn how to write queries.
+  const documents = await db.query('tablename').collect()
+
+  // Write arbitrary JavaScript here: filter, aggregate, build derived data,
+  // remove non-public properties, or create new objects.
+  return documents
 })
 ```
 
-A mutation function (how you write data) looks like this:
+Using this query function in a React component looks like:
 
 ```typescript
-// incrementCounter.ts
+const data = useQuery('myQueryFunction', 10, 'hello')
+```
+
+A mutation function looks like:
+
+```typescript
+// myMutationFunction.ts
 import { mutation } from './_generated/server'
 
-export default mutation(async ({ db }, increment: number) => {
-  let counterDoc = await db.table('counter_table').first()
-  if (counterDoc === null) {
-    counterDoc = {
-      counter: increment,
-    }
-    db.insert('counter_table', counterDoc)
-  } else {
-    counterDoc.counter += increment
-    db.replace(counterDoc._id, counterDoc)
+export default mutation(async ({ db }, first: string, second: string) => {
+  // Validate arguments here.
+  if (typeof first !== 'string' || typeof second !== 'string') {
+    throw new Error('Both arguments must be strings')
   }
-  // Like console.log but relays log messages from the server to client.
-  console.log(`Value of counter is now ${counterDoc.counter}`)
+
+  // Insert or modify documents in the database here.
+  // Mutations can also read from the database like queries.
+  const message = { body: first, author: second }
+  const id = await db.insert('messages', message)
+
+  // Optionally, return a value from your mutation.
+  return await db.get(id)
 })
 ```
 
-The convex cli is your friend. See everything it can do by running
+Using this mutation function in a React component looks like:
+
+```typescript
+const mutation = useMutation('myMutationFunction')
+function handleButtonPress() {
+  // fire and forget, the most common way to use mutations
+  mutation('Hello!', 'me')
+  // OR
+  // use the result once the mutation has completed
+  mutation('Hello!', 'me').then((result) => console.log(result))
+}
+```
+
+The Convex CLI is your friend. See everything it can do by running
 `npx convex -h` in your project root directory. To learn more, launch the docs
 with `npx convex docs`.

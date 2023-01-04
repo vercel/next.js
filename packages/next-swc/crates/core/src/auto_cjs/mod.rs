@@ -1,6 +1,6 @@
-use swc_ecmascript::{
-    ast::*,
-    visit::{Visit, VisitWith},
+use next_binding::swc::core::{
+    ecma::ast::*,
+    ecma::visit::{Visit, VisitWith},
 };
 
 pub(crate) fn contains_cjs(m: &Module) -> bool {
@@ -29,5 +29,11 @@ impl Visit for CjsFinder {
 
         e.obj.visit_with(self);
         e.prop.visit_with(self);
+    }
+
+    fn visit_str(&mut self, s: &Str) {
+        if s.value.contains("__esModule") {
+            self.found = true;
+        }
     }
 }

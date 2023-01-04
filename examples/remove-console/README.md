@@ -1,6 +1,6 @@
 # Remove Console Example
 
-This example shows how to use the `removeConsole` config option to remove all `console.*` calls.
+This example shows how to use the Next.js [removeConsole](https://nextjs.org/docs/advanced-features/compiler#remove-console) config option to remove all `console.*` calls except `console.error`, or suppress all logs.
 
 ## Deploy your own
 
@@ -14,9 +14,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example remove-console remove-console-app
-# or
+```
+
+```bash
 yarn create next-app --example remove-console remove-console-app
-# or
+```
+
+```bash
 pnpm create next-app --example remove-console remove-console-app
 ```
 

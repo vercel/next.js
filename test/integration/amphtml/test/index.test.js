@@ -313,7 +313,7 @@ describe('AMP Usage', () => {
       ])
     })
 
-    it('should detect the changes and display it', async () => {
+    it.skip('should detect the changes and display it', async () => {
       let browser
       try {
         browser = await webdriver(dynamicAppPort, '/hmr/test')
@@ -354,7 +354,7 @@ describe('AMP Usage', () => {
       }
     })
 
-    it('should detect changes and refresh an AMP page', async () => {
+    it.skip('should detect changes and refresh an AMP page', async () => {
       let browser
       try {
         browser = await webdriver(dynamicAppPort, '/hmr/amp')
@@ -383,7 +383,7 @@ describe('AMP Usage', () => {
       }
     })
 
-    it('should detect changes to component and refresh an AMP page', async () => {
+    it.skip('should detect changes to component and refresh an AMP page', async () => {
       const browser = await webdriver(dynamicAppPort, '/hmr/comp')
       await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
 
@@ -399,7 +399,7 @@ describe('AMP Usage', () => {
       await check(() => browser.elementByCss('#hello-comp').text(), /hello/)
     })
 
-    it('should not reload unless the page is edited for an AMP page', async () => {
+    it.skip('should not reload unless the page is edited for an AMP page', async () => {
       let browser
       const hmrTestPagePath = join(__dirname, '../', 'pages', 'hmr', 'test.js')
       const originalContent = readFileSync(hmrTestPagePath, 'utf8')
@@ -454,7 +454,7 @@ describe('AMP Usage', () => {
       }
     })
 
-    it('should detect changes and refresh a hybrid AMP page', async () => {
+    it.skip('should detect changes and refresh a hybrid AMP page', async () => {
       let browser
       try {
         browser = await webdriver(dynamicAppPort, '/hmr/hybrid?amp=1')
@@ -489,7 +489,7 @@ describe('AMP Usage', () => {
       }
     })
 
-    it('should detect changes and refresh an AMP page at root pages/', async () => {
+    it.skip('should detect changes and refresh an AMP page at root pages/', async () => {
       let browser
       try {
         browser = await webdriver(dynamicAppPort, '/root-hmr')

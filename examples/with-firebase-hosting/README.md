@@ -19,9 +19,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
-# or
+```
+
+```bash
 yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-firebase-hosting with-firebase-hosting-app
 ```
 
@@ -70,7 +74,7 @@ The crucial files for the setup:
 - `firebase.json`
 - `firebaseFunctions.js`
 - `src/next.config.js`
-- In `package.json`: `firebase-*` packages.
+- In `package.json`: `firebase-*` packages, `main` property defining the entry point as `firebaseFunctions.js`
 
 ## References
 

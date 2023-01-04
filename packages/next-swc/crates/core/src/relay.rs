@@ -2,17 +2,20 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use swc_atoms::JsWord;
-use swc_common::errors::HANDLER;
-use swc_common::FileName;
-use swc_ecmascript::ast::*;
-use swc_ecmascript::utils::{quote_ident, ExprFactory};
-use swc_ecmascript::visit::{Fold, FoldWith};
+
+use next_binding::swc::core::{
+    common::{errors::HANDLER, FileName},
+    ecma::ast::*,
+    ecma::atoms::JsWord,
+    ecma::utils::{quote_ident, ExprFactory},
+    ecma::visit::{Fold, FoldWith},
+};
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RelayLanguageConfig {
     TypeScript,
+    JavaScript,
     Flow,
 }
 
@@ -24,7 +27,7 @@ impl Default for RelayLanguageConfig {
 
 struct Relay<'a> {
     root_dir: PathBuf,
-    pages_dir: PathBuf,
+    pages_dir: Option<PathBuf>,
     file_name: FileName,
     config: &'a Config,
 }
@@ -97,11 +100,18 @@ impl<'a> Relay<'a> {
             RelayLanguageConfig::TypeScript => {
                 format!("{}.graphql.ts", definition_name)
             }
+            RelayLanguageConfig::JavaScript => {
+                format!("{}.graphql.js", definition_name)
+            }
         };
 
         if let Some(artifact_directory) = &self.config.artifact_directory {
             Ok(self.root_dir.join(artifact_directory).join(filename))
-        } else if real_file_name.starts_with(&self.pages_dir) {
+        } else if self
+            .pages_dir
+            .as_ref()
+            .map_or(false, |pages_dir| real_file_name.starts_with(pages_dir))
+        {
             Err(BuildRequirePathError::ArtifactDirectoryExpected {
                 file_name: real_file_name.display().to_string(),
             })
@@ -171,15 +181,11 @@ impl<'a> Relay<'a> {
     }
 }
 
-pub fn relay<'a>(
-    config: &'a Config,
-    file_name: FileName,
-    pages_dir: Option<PathBuf>,
-) -> impl Fold + '_ {
+pub fn relay(config: &Config, file_name: FileName, pages_dir: Option<PathBuf>) -> impl Fold + '_ {
     Relay {
         root_dir: std::env::current_dir().unwrap(),
         file_name,
-        pages_dir: pages_dir.unwrap_or_else(|| panic!("pages_dir is expected.")),
+        pages_dir,
         config,
     }
 }

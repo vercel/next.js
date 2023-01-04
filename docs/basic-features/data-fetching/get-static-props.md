@@ -30,6 +30,8 @@ You should use `getStaticProps` if:
 `getStaticProps` always runs on the server and never on the client. You can validate code written inside `getStaticProps` is removed from the client-side bundle [with this tool](https://next-code-elimination.vercel.app/).
 
 - `getStaticProps` always runs during `next build`
+- `getStaticProps` runs in the background when using [`fallback: true`](/docs/api-reference/data-fetching/get-static-paths#fallback-true)
+- `getStaticProps` is called before initial render when using [`fallback: blocking`](/docs/api-reference/data-fetching/get-static-paths#fallback-blocking)
 - `getStaticProps` runs in the background when using `revalidate`
 - `getStaticProps` runs on-demand in the background when using [`revalidate()`](/docs/basic-features/data-fetching/incremental-static-regeneration.md#on-demand-revalidation)
 
@@ -85,7 +87,7 @@ This means that instead of fetching an **API route** from `getStaticProps` (that
 Take the following example. An API route is used to fetch some data from a CMS. That API route is then called directly from `getStaticProps`. This produces an additional call, reducing performance. Instead, the logic for fetching the data from the CMS can be shared by using a `lib/` directory. Then it can be shared with `getStaticProps`.
 
 ```jsx
-// lib/fetch-posts.js
+// lib/load-posts.js
 
 // The following function is shared
 // with getStaticProps and API routes
@@ -126,11 +128,13 @@ When using Incremental Static Generation, `getStaticProps` will be executed in t
 
 ## Where can I use getStaticProps
 
-`getStaticProps` can only be exported from a **page**. You **cannot** export it from non-page files.
+`getStaticProps` can only be exported from a **page**. You **cannot** export it from non-page files, `_app`, `_document`, or `_error`.
 
 One of the reasons for this restriction is that React needs to have all the required data before the page is rendered.
 
 Also, you must use export `getStaticProps` as a standalone function — it will **not** work if you add `getStaticProps` as a property of the page component.
+
+> Note: if you have created a [custom app](/docs/advanced-features/custom-app.md), ensure you are passing the `pageProps` to the page component as shown in the linked document, otherwise the props will be empty.
 
 ## Runs on every request in development
 
