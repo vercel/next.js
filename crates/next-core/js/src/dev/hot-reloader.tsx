@@ -3,7 +3,7 @@
 import type React from "react";
 import { useRouter, usePathname } from "next/dist/client/components/navigation";
 import { useEffect } from "react";
-import { onUpdate } from "./hmr-client";
+import { subscribeToUpdate } from "./hmr-client";
 import { ReactDevOverlay } from "./client";
 
 type HotReloadProps = React.PropsWithChildren<{
@@ -15,7 +15,7 @@ export default function HotReload({ assetPrefix, children }: HotReloadProps) {
   const path = usePathname()!.slice(1);
 
   useEffect(() => {
-    const unsubscribe = onUpdate(
+    const unsubscribe = subscribeToUpdate(
       {
         path,
         headers: {

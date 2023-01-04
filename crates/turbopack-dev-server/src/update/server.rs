@@ -61,6 +61,9 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                             let stream = UpdateStream::new(resource.clone(), TransientInstance::new(Box::new(get_content))).await?;
                             streams.insert(resource, stream);
                         }
+                        Some(ClientMessage::Unsubscribe { resource }) => {
+                            streams.remove(&resource);
+                        }
                         None => {
                             // WebSocket was closed, stop sending updates
                             break;

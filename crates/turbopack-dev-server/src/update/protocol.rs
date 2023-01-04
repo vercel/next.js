@@ -22,6 +22,10 @@ pub enum ClientMessage {
         #[serde(flatten)]
         resource: ResourceIdentifier,
     },
+    Unsubscribe {
+        #[serde(flatten)]
+        resource: ResourceIdentifier,
+    },
 }
 
 #[derive(Serialize)]

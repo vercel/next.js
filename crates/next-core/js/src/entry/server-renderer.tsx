@@ -8,7 +8,6 @@ import "@vercel/turbopack-next/internal/shims";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { renderToHTML, RenderOpts } from "next/dist/server/render";
-import RenderResult from "next/dist/server/render-result";
 import type { BuildManifest } from "next/dist/server/get-page-files";
 
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
@@ -102,16 +101,25 @@ async function runOperation(
     ampFirstPages: [],
   };
 
+  // When rendering a data request, the default component export is eliminated
+  // by the Next.js strip export transform. The following checks for this case
+  // and replaces the default export with a dummy component instead.
+  const comp =
+    typeof Component === "undefined" ||
+    (typeof Component === "object" && Object.keys(Component).length === 0)
+      ? () => {}
+      : Component;
+
   const renderOpts: RenderOpts = {
     /* LoadComponentsReturnType */
-    Component,
+    Component: comp,
     App,
     Document,
     pageConfig: {},
     buildManifest,
     reactLoadableManifest: {},
     ComponentMod: {
-      default: Component,
+      default: comp,
       ...otherExports,
     },
     pathname: renderData.path,

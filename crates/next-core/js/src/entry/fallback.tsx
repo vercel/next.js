@@ -6,11 +6,11 @@ import {
   initializeHMR,
   ReactDevOverlay,
 } from "@vercel/turbopack-next/dev/client";
-import { onUpdate } from "@vercel/turbopack-next/dev/hmr-client";
+import { subscribeToUpdate } from "@vercel/turbopack-next/dev/hmr-client";
 
 const pageChunkPath = location.pathname.slice(1);
 
-onUpdate(
+subscribeToUpdate(
   {
     path: pageChunkPath,
     headers: {

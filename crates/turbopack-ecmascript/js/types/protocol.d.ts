@@ -39,9 +39,15 @@ type ResourceIdentifier = {
   headers?: { [string]: string };
 };
 
-export type ClientMessage = {
+export type ClientMessageSubscribe = {
   type: "subscribe";
 } & ResourceIdentifier;
+
+export type ClientMessageUnsubscribe = {
+  type: "unsubscribe";
+} & ResourceIdentifier;
+
+export type ClientMessage = ClientMessageSubscribe | ClientMessageUnsubscribe;
 
 export type IssueSeverity =
   | "bug"

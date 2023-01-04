@@ -47,20 +47,25 @@ export function connect({ assetPrefix }: ClientOptions) {
   }
   globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS = {
     push: ([chunkPath, callback]: [ChunkPath, UpdateCallback]) => {
-      onChunkUpdate(chunkPath, callback);
+      subscribeToChunkUpdate(chunkPath, callback);
     },
   };
 
   if (Array.isArray(queued)) {
     for (const [chunkPath, callback] of queued) {
-      onChunkUpdate(chunkPath, callback);
+      subscribeToChunkUpdate(chunkPath, callback);
     }
   }
 
   subscribeToInitialCssChunksUpdates(assetPrefix);
 }
 
-const updateCallbacks: Map<ResourceKey, Set<UpdateCallback>> = new Map();
+type UpdateCallbackSet = {
+  callbacks: Set<UpdateCallback>;
+  unsubscribe: () => void;
+};
+
+const updateCallbackSets: Map<ResourceKey, UpdateCallbackSet> = new Map();
 
 function sendJSON(message: ClientMessage) {
   sendMessage(JSON.stringify(message));
@@ -75,15 +80,22 @@ function resourceKey(resource: ResourceIdentifier): ResourceKey {
   });
 }
 
-function subscribeToUpdates(resource: ResourceIdentifier) {
+function subscribeToUpdates(resource: ResourceIdentifier): () => void {
   sendJSON({
     type: "subscribe",
     ...resource,
   });
+
+  return () => {
+    sendJSON({
+      type: "unsubscribe",
+      ...resource,
+    });
+  };
 }
 
 function handleSocketConnected() {
-  for (const key of updateCallbacks.keys()) {
+  for (const key of updateCallbackSets.keys()) {
     subscribeToUpdates(JSON.parse(key));
   }
 }
@@ -249,8 +261,11 @@ function handleSocketMessage(msg: ServerMessage) {
   }
 }
 
-export function onChunkUpdate(chunkPath: ChunkPath, callback: UpdateCallback) {
-  onUpdate(
+export function subscribeToChunkUpdate(
+  chunkPath: ChunkPath,
+  callback: UpdateCallback
+): () => void {
+  return subscribeToUpdate(
     {
       path: chunkPath,
     },
@@ -258,33 +273,43 @@ export function onChunkUpdate(chunkPath: ChunkPath, callback: UpdateCallback) {
   );
 }
 
-export function onUpdate(
+export function subscribeToUpdate(
   resource: ResourceIdentifier,
   callback: UpdateCallback
 ) {
   const key = resourceKey(resource);
-  let callbacks = updateCallbacks.get(key);
-  if (!callbacks) {
-    subscribeToUpdates(resource);
-    updateCallbacks.set(key, (callbacks = new Set([callback])));
+  let callbackSet: UpdateCallbackSet;
+  const existingCallbackSet = updateCallbackSets.get(key);
+  if (!existingCallbackSet) {
+    callbackSet = {
+      callbacks: new Set([callback]),
+      unsubscribe: subscribeToUpdates(resource),
+    };
+    updateCallbackSets.set(key, callbackSet);
   } else {
-    callbacks.add(callback);
+    existingCallbackSet.callbacks.add(callback);
+    callbackSet = existingCallbackSet;
   }
 
   return () => {
-    callbacks!.delete(callback);
+    callbackSet.callbacks.delete(callback);
+
+    if (callbackSet.callbacks.size === 0) {
+      callbackSet.unsubscribe();
+      updateCallbackSets.delete(key);
+    }
   };
 }
 
 function triggerUpdate(msg: ServerMessage) {
   const key = resourceKey(msg.resource);
-  const callbacks = updateCallbacks.get(key);
-  if (!callbacks) {
+  const callbackSet = updateCallbackSets.get(key);
+  if (!callbackSet) {
     return;
   }
 
   try {
-    for (const callback of callbacks) {
+    for (const callback of callbackSet.callbacks) {
       callback(msg);
     }
   } catch (err) {
@@ -324,7 +349,7 @@ export function subscribeToCssChunkUpdates(
   }
 
   const chunkPath = pathname.slice(cssChunkPrefix.length);
-  onChunkUpdate(chunkPath, (update) => {
+  subscribeToChunkUpdate(chunkPath, (update) => {
     switch (update.type) {
       case "restart": {
         console.info(`Reloading CSS chunk \`${chunkPath}\``);

@@ -3,6 +3,8 @@ mod server_to_client_proxy;
 use std::{path::Path, sync::Arc};
 
 use anyhow::Result;
+use next_transform_strip_page_exports::{next_transform_strip_page_exports, ExportFilter};
+use serde::{Deserialize, Serialize};
 use swc_core::{
     base::SwcComments,
     common::{chain, util::take::Take, FileName, Mark, SourceMap},
@@ -17,10 +19,33 @@ use swc_core::{
         visit::{FoldWith, VisitMutWith},
     },
 };
-use turbo_tasks::primitives::{StringVc, StringsVc};
+use turbo_tasks::{
+    primitives::{StringVc, StringsVc},
+    trace::TraceRawVcs,
+};
 use turbopack_core::environment::EnvironmentVc;
 
 use self::server_to_client_proxy::{create_proxy_module, is_client_module};
+
+#[derive(
+    Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize, TraceRawVcs,
+)]
+pub enum NextJsPageExportFilter {
+    /// Strip all data exports (getServerSideProps,
+    /// getStaticProps, getStaticPaths exports.) and their unique dependencies.
+    StripDataExports,
+    /// Strip default export and all its unique dependencies.
+    StripDefaultExport,
+}
+
+impl From<NextJsPageExportFilter> for ExportFilter {
+    fn from(val: NextJsPageExportFilter) -> Self {
+        match val {
+            NextJsPageExportFilter::StripDataExports => ExportFilter::StripDataExports,
+            NextJsPageExportFilter::StripDefaultExport => ExportFilter::StripDefaultExport,
+        }
+    }
+}
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Debug, Copy, Clone)]
@@ -29,13 +54,12 @@ pub enum EcmascriptInputTransform {
     CommonJs,
     Custom,
     Emotion,
-    /// This enables the Next.js data transform, which will eliminate
-    /// `getStaticProps`, `getStaticPaths`, and `getServerSideProps` exports
-    /// from the output, as well as any imports exclusively used by those
+    /// This enables a Next.js transform which will eliminate some exports
+    /// from a page file, as well as any imports exclusively used by these
     /// exports.
     ///
     /// It also provides diagnostics for improper use of `getServerSideProps`.
-    NextJsStripPageDataExports,
+    NextJsStripPageExports(NextJsPageExportFilter),
     NextJsFont(StringsVc),
     PresetEnv(EnvironmentVc),
     React {
@@ -174,16 +198,14 @@ impl EcmascriptInputTransform {
                     program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
                 }
             }
-            EcmascriptInputTransform::NextJsStripPageDataExports => {
-                use next_transform_strip_page_exports::{
-                    next_transform_strip_page_exports, ExportFilter,
-                };
+            EcmascriptInputTransform::NextJsStripPageExports(export_type) => {
+                // TODO(alexkirsz) Connect the eliminated_packages to telemetry.
                 let eliminated_packages = Default::default();
 
                 let module_program = unwrap_module_program(program);
 
                 *program = module_program.fold_with(&mut next_transform_strip_page_exports(
-                    ExportFilter::StripDataExports,
+                    export_type.into(),
                     eliminated_packages,
                 ));
             }
@@ -192,7 +214,6 @@ impl EcmascriptInputTransform {
                 for loader in &(*font_loaders_vc.await?) {
                     font_loaders.push(std::convert::Into::<JsWord>::into(&**loader));
                 }
-
                 let mut next_font = next_font::next_font_loaders(next_font::Config {
                     font_loaders,
                     relative_file_path_from_root: file_name_str.into(),

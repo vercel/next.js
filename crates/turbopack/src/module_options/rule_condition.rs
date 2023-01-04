@@ -9,6 +9,7 @@ pub enum ModuleRuleCondition {
     Any(Vec<ModuleRuleCondition>),
     Not(Box<ModuleRuleCondition>),
     ReferenceType(ReferenceType),
+    ResourcePathEquals(FileSystemPathReadRef),
     ResourcePathHasNoExtension,
     ResourcePathEndsWith(String),
     ResourcePathInDirectory(String),
@@ -41,6 +42,7 @@ impl ModuleRuleCondition {
                 conditions.iter().any(|c| c.matches(path, reference_type))
             }
             ModuleRuleCondition::Not(condition) => !condition.matches(path, reference_type),
+            ModuleRuleCondition::ResourcePathEquals(other) => path == &**other,
             ModuleRuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
             ModuleRuleCondition::ResourcePathHasNoExtension => {
                 if let Some(i) = path.path.rfind('.') {
