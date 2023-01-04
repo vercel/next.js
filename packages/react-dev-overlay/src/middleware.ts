@@ -29,6 +29,7 @@ export type OverlayMiddlewareOptions = {
 export type OriginalStackFrameResponse = {
   originalStackFrame: StackFrame
   originalCodeFrame: string | null
+  sourcePackage?: string
 }
 
 type Source = { map: () => RawSourceMap } | null
@@ -121,10 +122,22 @@ function findOriginalSourcePositionAndContentFromCompilation(
   return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
 }
 
+function findCallStackFramePackage(
+  id: string,
+  compilation?: webpack.Compilation
+): string | undefined {
+  if (!compilation) {
+    return undefined
+  }
+  const module = getModuleById(id, compilation)
+  return (module as any)?.resourceResolveData?.descriptionFileData?.name
+}
+
 export async function createOriginalStackFrame({
   line,
   column,
   source,
+  sourcePackage,
   moduleId,
   modulePath,
   rootDirectory,
@@ -137,6 +150,7 @@ export async function createOriginalStackFrame({
   line: number
   column: number | null
   source: any
+  sourcePackage?: string
   moduleId?: string
   modulePath?: string
   rootDirectory: string
@@ -241,6 +255,7 @@ export async function createOriginalStackFrame({
   return {
     originalStackFrame: originalFrame,
     originalCodeFrame,
+    sourcePackage,
   }
 }
 
@@ -325,6 +340,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       )
 
       let source: Source = null
+      let sourcePackage: string | undefined = undefined
       const clientCompilation = options.stats()?.compilation
       const serverCompilation = options.serverStats()?.compilation
       const edgeCompilation = options.edgeServerStats()?.compilation
@@ -338,6 +354,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
             moduleId,
             clientCompilation
           )
+          sourcePackage = findCallStackFramePackage(moduleId, clientCompilation)
         }
         // Try Server Compilation
         // In `pages` this could be something imported in getServerSideProps/getStaticProps as the code for those is tree-shaken.
@@ -348,6 +365,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
             moduleId,
             serverCompilation
           )
+          sourcePackage = findCallStackFramePackage(moduleId, serverCompilation)
         }
         // Try Edge Server Compilation
         // Both cases are the same as Server Compilation, main difference is that it covers `runtime: 'edge'` pages/app routes.
@@ -357,6 +375,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
             moduleId,
             edgeCompilation
           )
+          sourcePackage = findCallStackFramePackage(moduleId, edgeCompilation)
         }
       } catch (err) {
         console.log('Failed to get source map:', err)
@@ -385,6 +404,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           line: frameLine,
           column: frameColumn,
           source,
+          sourcePackage,
           frame,
           moduleId,
           modulePath,
