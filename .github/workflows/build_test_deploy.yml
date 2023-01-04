@@ -492,21 +492,21 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: echo "::set-output name=CNA_CHANGE::$(node scripts/run-for-change.js --type cna --always-canary --exec echo 'yup')"
-        id: cna-change
-
       - uses: actions/cache@v3
-        if: ${{ needs.build.outputs.docsChange == 'nope' && steps.cna-change.outputs.CNA_CHANGE == 'yup' }}
+        if: ${{ needs.build.outputs.docsChange == 'nope' }}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
       - uses: actions/download-artifact@v3
-        if: ${{ needs.build.outputs.docsChange == 'nope' && steps.cna-change.outputs.CNA_CHANGE == 'yup' }}
+        if: ${{ needs.build.outputs.docsChange == 'nope' }}
         with:
           name: next-swc-test-binary
           path: packages/next-swc/native
+
+      - run: echo "::set-output name=CNA_CHANGE::$(node scripts/run-for-change.js --type cna --always-canary --exec echo 'yup')"
+        id: cna-change
 
       - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/create-next-app/**/*.test.ts >> /proc/1/fd/1"
         if: ${{ needs.build.outputs.docsChange == 'nope' && steps.cna-change.outputs.CNA_CHANGE == 'yup' }}
