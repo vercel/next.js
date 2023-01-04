@@ -122,7 +122,7 @@ describe('Configurable runtime for pages and API routes', () => {
         expect(output.code).toBe(1)
         expect(output.stderr).not.toContain(`Build failed`)
         expect(output.stderr).toContain(
-          `error - Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
+          `Error: Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
         )
       })
     })
