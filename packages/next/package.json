@@ -80,7 +80,8 @@
     "@swc/helpers": "0.4.14",
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
-    "styled-jsx": "5.1.1"
+    "styled-jsx": "5.1.1",
+    "v8-profiler-next": "1.9.0"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
