@@ -7,12 +7,14 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
-use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
+use turbopack::{
+    module_options::ModuleOptionsContextVc, transition::TransitionsByNameVc, ModuleAssetContextVc,
+};
 use turbopack_core::{
     asset::AssetVc,
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
     context::AssetContextVc,
-    environment::ServerAddrVc,
+    environment::{EnvironmentVc, ServerAddrVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
@@ -45,9 +47,9 @@ use crate::{
     fallback::get_fallback_page,
     next_client::{
         context::{
-            add_next_transforms_to_pages, get_client_assets_path, get_client_chunking_context,
-            get_client_environment, get_client_module_options_context,
-            get_client_resolve_options_context, get_client_runtime_entries, ContextType,
+            get_client_assets_path, get_client_chunking_context, get_client_environment,
+            get_client_module_options_context, get_client_resolve_options_context,
+            get_client_runtime_entries, ContextType,
         },
         NextClientTransition,
     },
@@ -56,14 +58,64 @@ use crate::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
+    next_shared::transforms::{add_next_transforms_to_pages, PageTransformType},
     page_loader::create_page_loader,
     util::{get_asset_path_from_route, pathname_for_path, regular_expression_for_path},
 };
 
+#[turbo_tasks::function]
+fn get_page_client_module_options_context(
+    project_path: FileSystemPathVc,
+    execution_context: ExecutionContextVc,
+    client_environment: EnvironmentVc,
+    ty: Value<ContextType>,
+) -> Result<ModuleOptionsContextVc> {
+    let client_module_options_context =
+        get_client_module_options_context(project_path, execution_context, client_environment, ty);
+
+    let client_module_options_context = match ty.into_value() {
+        ContextType::Pages { pages_dir } => add_next_transforms_to_pages(
+            client_module_options_context,
+            pages_dir,
+            Value::new(PageTransformType::Client),
+        ),
+        _ => client_module_options_context,
+    };
+
+    Ok(client_module_options_context)
+}
+
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
+pub enum PageSsrType {
+    Ssr,
+    SsrData,
+}
+
+#[turbo_tasks::function]
+fn get_page_server_module_options_context(
+    project_path: FileSystemPathVc,
+    execution_context: ExecutionContextVc,
+    pages_dir: FileSystemPathVc,
+    ssr_ty: Value<PageSsrType>,
+) -> ModuleOptionsContextVc {
+    let server_ty = Value::new(ServerContextType::Pages { pages_dir });
+    let server_module_options_context =
+        get_server_module_options_context(project_path, execution_context, server_ty);
+
+    match ssr_ty.into_value() {
+        PageSsrType::Ssr => server_module_options_context,
+        PageSsrType::SsrData => {
+            let transform_ty = Value::new(PageTransformType::SsrData);
+            add_next_transforms_to_pages(server_module_options_context, pages_dir, transform_ty)
+        }
+    }
+}
+
 /// Create a content source serving the `pages` or `src/pages` directory as
 /// Next.js pages folder.
 #[turbo_tasks::function]
-pub async fn create_server_rendered_source(
+pub async fn create_page_source(
     project_root: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     output_path: FileSystemPathVc,
@@ -89,10 +141,17 @@ pub async fn create_server_rendered_source(
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
 
     let client_environment = get_client_environment(browserslist_query);
-    let client_module_options_context =
-        get_client_module_options_context(project_path, execution_context, client_environment, ty);
-    let client_module_options_context =
-        add_next_transforms_to_pages(client_module_options_context, pages_dir);
+    let client_module_options_context = get_page_client_module_options_context(
+        project_path,
+        execution_context,
+        client_environment,
+        ty,
+    );
+    let client_module_options_context = add_next_transforms_to_pages(
+        client_module_options_context,
+        pages_dir,
+        Value::new(PageTransformType::Client),
+    );
     let client_resolve_options_context = get_client_resolve_options_context(project_path, ty);
     let client_context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
@@ -118,13 +177,42 @@ pub async fn create_server_rendered_source(
     .cell()
     .into();
 
-    let mut transitions = HashMap::new();
-    transitions.insert("next-client".to_string(), next_client_transition);
-    let context: AssetContextVc = ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(transitions),
-        get_server_environment(server_ty, env, server_addr),
-        get_server_module_options_context(project_path, execution_context, server_ty),
-        get_server_resolve_options_context(project_path, server_ty, next_config),
+    let server_environment = get_server_environment(server_ty, env, server_addr);
+    let server_resolve_options_context =
+        get_server_resolve_options_context(project_path, server_ty, next_config);
+
+    let server_module_options_context = get_page_server_module_options_context(
+        project_path,
+        execution_context,
+        pages_dir,
+        Value::new(PageSsrType::Ssr),
+    );
+    let server_transitions = TransitionsByNameVc::cell(
+        [("next-client".to_string(), next_client_transition)]
+            .into_iter()
+            .collect(),
+    );
+
+    let server_context: AssetContextVc = ModuleAssetContextVc::new(
+        server_transitions,
+        server_environment,
+        server_module_options_context,
+        server_resolve_options_context,
+    )
+    .into();
+
+    let server_data_module_options_context = get_page_server_module_options_context(
+        project_path,
+        execution_context,
+        pages_dir,
+        Value::new(PageSsrType::SsrData),
+    );
+
+    let server_data_context: AssetContextVc = ModuleAssetContextVc::new(
+        TransitionsByNameVc::cell(HashMap::new()),
+        server_environment,
+        server_data_module_options_context,
+        server_resolve_options_context,
     )
     .into();
 
@@ -143,9 +231,10 @@ pub async fn create_server_rendered_source(
         next_config,
     );
 
-    let server_rendered_source = create_server_rendered_source_for_directory(
+    let page_source = create_page_source_for_directory(
         project_path,
-        context,
+        server_context,
+        server_data_context,
         client_context,
         pages_dir,
         SpecificityVc::exact(),
@@ -162,7 +251,7 @@ pub async fn create_server_rendered_source(
         AssetGraphContentSourceVc::new_eager(server_root, fallback_page.as_asset());
 
     Ok(CombinedContentSource {
-        sources: vec![server_rendered_source.into(), fallback_source.into()],
+        sources: vec![page_source.into(), fallback_source.into()],
     }
     .cell()
     .into())
@@ -170,9 +259,10 @@ pub async fn create_server_rendered_source(
 
 /// Handles a single page file in the pages directory
 #[turbo_tasks::function]
-async fn create_server_rendered_source_for_file(
+async fn create_page_source_for_file(
     context_path: FileSystemPathVc,
-    context: AssetContextVc,
+    server_context: AssetContextVc,
+    server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
     specificity: SpecificityVc,
@@ -185,15 +275,29 @@ async fn create_server_rendered_source_for_file(
     intermediate_output_path: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {
     let source_asset = SourceAssetVc::new(page_file).into();
-    let entry_asset = context.process(
+    let entry_asset = server_context.process(
+        source_asset,
+        Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+    );
+    let data_asset = server_data_context.process(
         source_asset,
         Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
     );
 
-    let chunking_context = DevChunkingContextVc::builder(
+    let server_chunking_context = DevChunkingContextVc::builder(
         context_path,
         intermediate_output_path,
         intermediate_output_path.join("chunks"),
+        get_client_assets_path(server_root, Value::new(ContextType::Pages { pages_dir })),
+    )
+    .build();
+
+    let data_intermediate_output_path = intermediate_output_path.join("data");
+
+    let server_data_chunking_context = DevChunkingContextVc::builder(
+        context_path,
+        data_intermediate_output_path,
+        data_intermediate_output_path.join("chunks"),
         get_client_assets_path(server_root, Value::new(ContextType::Pages { pages_dir })),
     )
     .build();
@@ -214,10 +318,10 @@ async fn create_server_rendered_source_for_file(
             pathname,
             path_regex,
             SsrEntry {
-                context,
+                context: server_context,
                 entry_asset,
                 is_api_path,
-                chunking_context,
+                chunking_context: server_chunking_context,
                 intermediate_output_path,
             }
             .cell()
@@ -225,18 +329,28 @@ async fn create_server_rendered_source_for_file(
             runtime_entries,
         )
     } else {
-        let data_pathname = format!(
+        let data_pathname = StringVc::cell(format!(
             "_next/data/development/{}",
             get_asset_path_from_route(&pathname.await?, ".json")
-        );
-        let data_path_regex = regular_expression_for_path(StringVc::cell(data_pathname));
+        ));
+        let data_path_regex = regular_expression_for_path(data_pathname);
 
         let ssr_entry = SsrEntry {
-            context,
+            context: server_context,
             entry_asset,
             is_api_path,
-            chunking_context,
+            chunking_context: server_chunking_context,
             intermediate_output_path,
+        }
+        .cell()
+        .into();
+
+        let ssr_data_entry = SsrEntry {
+            context: server_data_context,
+            entry_asset: data_asset,
+            is_api_path,
+            chunking_context: server_data_chunking_context,
+            intermediate_output_path: data_intermediate_output_path,
         }
         .cell()
         .into();
@@ -254,9 +368,9 @@ async fn create_server_rendered_source_for_file(
             create_node_rendered_source(
                 specificity,
                 server_root,
-                pathname,
+                data_pathname,
                 data_path_regex,
-                ssr_entry,
+                ssr_data_entry,
                 runtime_entries,
                 fallback_page,
             ),
@@ -274,11 +388,12 @@ async fn create_server_rendered_source_for_file(
 
 /// Handles a directory in the pages directory (or the pages directory itself).
 /// Calls itself recursively for sub directories or the
-/// [create_server_rendered_source_for_file] method for files.
+/// [create_page_source_for_file] method for files.
 #[turbo_tasks::function]
-async fn create_server_rendered_source_for_directory(
+async fn create_page_source_for_directory(
     context_path: FileSystemPathVc,
-    context: AssetContextVc,
+    server_context: AssetContextVc,
+    server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
     specificity: SpecificityVc,
@@ -331,9 +446,10 @@ async fn create_server_rendered_source_for_directory(
                                     };
                                 sources.push((
                                     name,
-                                    create_server_rendered_source_for_file(
+                                    create_page_source_for_file(
                                         context_path,
-                                        context,
+                                        server_context,
+                                        server_data_context,
                                         client_context,
                                         pages_dir,
                                         specificity,
@@ -354,9 +470,10 @@ async fn create_server_rendered_source_for_directory(
                 DirectoryEntry::Directory(dir) => {
                     sources.push((
                         name,
-                        create_server_rendered_source_for_directory(
+                        create_page_source_for_directory(
                             context_path,
-                            context,
+                            server_context,
+                            server_data_context,
                             client_context,
                             pages_dir,
                             specificity,

@@ -137,35 +137,6 @@ pub async fn get_client_module_options_context(
 }
 
 #[turbo_tasks::function]
-pub async fn add_next_transforms_to_pages(
-    module_options_context: ModuleOptionsContextVc,
-    pages_dir: FileSystemPathVc,
-) -> Result<ModuleOptionsContextVc> {
-    let mut module_options_context = module_options_context.await?.clone_value();
-    // Apply the Next SSG tranform to all pages.
-    module_options_context.custom_rules.push(ModuleRule::new(
-        ModuleRuleCondition::all(vec![
-            ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
-            ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(ReferenceType::Url(
-                UrlReferenceSubType::Undefined,
-            ))),
-            ModuleRuleCondition::any(vec![
-                ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-            ]),
-        ]),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![
-                EcmascriptInputTransform::NextJsStripPageDataExports,
-            ]),
-        )],
-    ));
-    Ok(module_options_context.cell())
-}
-
-#[turbo_tasks::function]
 pub async fn add_next_font_transform(
     module_options_context: ModuleOptionsContextVc,
 ) -> Result<ModuleOptionsContextVc> {
