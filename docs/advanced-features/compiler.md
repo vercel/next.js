@@ -386,7 +386,7 @@ By default, `modularizeImports` assumes that each module uses default exports. H
 export const MyModule = /* ... */
 
 // my-library/index.ts
-// Re-exports `MyModule`
+// The “barrel file” that re-exports `MyModule`
 export { MyModule } from './MyModule'
 ```
 
