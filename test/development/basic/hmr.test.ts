@@ -699,7 +699,7 @@ describe('basic HMR', () => {
           | js
 
           Import trace for requested module:
-          ./pages/hmr/about8.js"
+          ./components/parse-error.xyz"
         `)
 
         await next.patchFile(aboutPage, aboutContent)
@@ -748,20 +748,22 @@ describe('basic HMR', () => {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./components/parse-error.js
           Error: 
-            x Unexpected token \`}\`. Expected this, import, async, function, [ for array literal, { for object literal, @ for decorator, function, class, null, true, false, number, bigint, string, regexp, \`
-            | for template literal, (, or an identifier
-             ,----
+            x Expression expected
+             ,-[1:1]
+           1 | This
+           2 | is
            3 | }}}
              : ^
+           4 | invalid
+           5 | js
              \`----
 
           Caused by:
               0: failed to process input file
-              1: Syntax Error"
-
+              1: Syntax Error
 
           Import trace for requested module:
-          ./pages/hmr/about9.js"
+          ./components/parse-error.js"
         `)
 
         await next.patchFile(aboutPage, aboutContent)
