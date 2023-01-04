@@ -48,5 +48,26 @@ createNextDescribe(
       expect(next.cliOutput).not.toContain('ReferenceError')
       expect(next.cliOutput).not.toContain('is not defined')
     })
+
+    it('should not fetch again when a static page was prefetched', async () => {
+      const browser = await next.browser('/')
+      let requests: string[] = []
+
+      browser.on('request', (req) => {
+        requests.push(new URL(req.url()).pathname)
+      })
+
+      await browser.eval('window.nd.router.prefetch("/static-page")')
+      await waitFor(3000)
+
+      await browser
+        .elementByCss('#to-static-page')
+        .click()
+        .waitForElementByCss('#static-page')
+
+      expect(
+        requests.filter((request) => request === '/static-page').length
+      ).toBe(1)
+    })
   }
 )
