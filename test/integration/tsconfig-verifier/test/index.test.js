@@ -26,7 +26,6 @@ describe('tsconfig.json verifier', () => {
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
         \\"compilerOptions\\": {
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -75,7 +74,6 @@ describe('tsconfig.json verifier', () => {
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
         \\"compilerOptions\\": {
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -143,7 +141,6 @@ describe('tsconfig.json verifier', () => {
           \\"module\\": \\"esnext\\" // should not be umd
           // end-object comment
           ,
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -192,7 +189,6 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"module\\": \\"commonjs\\",
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -238,7 +234,6 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"module\\": \\"es2020\\",
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -288,7 +283,6 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"moduleResolution\\": \\"node16\\",
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -327,7 +321,6 @@ describe('tsconfig.json verifier', () => {
       `
       {
         "compilerOptions": {
-          "target": "es5",
           "lib": [
             "dom",
             "dom.iterable",
@@ -383,7 +376,6 @@ describe('tsconfig.json verifier', () => {
       `
       {
         "compilerOptions": {
-          "target": "es5",
           "lib": [
             "dom",
             "dom.iterable",
