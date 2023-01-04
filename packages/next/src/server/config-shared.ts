@@ -92,7 +92,6 @@ export interface ExperimentalConfig {
   swcFileReading?: boolean
   cpus?: number
   sharedPool?: boolean
-  profiling?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
@@ -582,7 +581,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     sharedPool: true,
-    profiling: false,
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,

@@ -10,6 +10,7 @@ export type OriginalStackFrame =
       sourceStackFrame: StackFrame
       originalStackFrame: null
       originalCodeFrame: null
+      sourcePackage?: string
     }
   | {
       error: false
@@ -19,6 +20,7 @@ export type OriginalStackFrame =
       sourceStackFrame: StackFrame
       originalStackFrame: StackFrame
       originalCodeFrame: string | null
+      sourcePackage?: string
     }
   | {
       error: false
@@ -28,6 +30,7 @@ export type OriginalStackFrame =
       sourceStackFrame: StackFrame
       originalStackFrame: null
       originalCodeFrame: null
+      sourcePackage?: string
     }
 
 export function getOriginalStackFrame(
@@ -77,6 +80,7 @@ export function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
+      sourcePackage: body.sourcePackage,
     }
   }
 
