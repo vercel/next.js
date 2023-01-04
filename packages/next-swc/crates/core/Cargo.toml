@@ -19,7 +19,7 @@ serde = "1"
 serde_json = "1"
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 
-next-binding = { git = "https://github.com/vercel/turbo.git", rev = "c7b627c67c072b99f0d2fa578a6404db0be633c5", features = [
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "079505baf1ce03707d28b6c0afb158dca601a11a", features = [
   "__swc_core",
   "__swc_core_next_core",
   "__swc_transform_styled_jsx",
@@ -29,7 +29,7 @@ next-binding = { git = "https://github.com/vercel/turbo.git", rev = "c7b627c67c0
 ] }
 
 [dev-dependencies]
-next-binding = { git = "https://github.com/vercel/turbo.git", rev = "c7b627c67c072b99f0d2fa578a6404db0be633c5", features = [
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "079505baf1ce03707d28b6c0afb158dca601a11a", features = [
   "__swc_core_testing_transform",
   "__swc_testing",
 ] }

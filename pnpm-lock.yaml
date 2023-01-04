@@ -125,7 +125,7 @@ importers:
       isomorphic-unfetch: 3.0.0
       jest: 27.0.6
       jest-extended: 1.2.1
-      json5: 2.2.1
+      json5: 2.2.3
       ky: 0.19.1
       ky-universal: 0.6.0
       lerna: 4.0.0
@@ -301,7 +301,7 @@ importers:
       isomorphic-unfetch: 3.0.0
       jest: 27.0.6
       jest-extended: 1.2.1
-      json5: 2.2.1
+      json5: 2.2.3
       ky: 0.19.1
       ky-universal: 0.6.0_ky@0.19.1
       lerna: 4.0.0
@@ -434,7 +434,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.0.8-canary.1
+      '@next/eslint-plugin-next': 13.1.2-canary.0
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint-import-resolver-node: ^0.3.6
@@ -502,12 +502,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.13.3
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.0.8-canary.1
-      '@next/polyfill-module': 13.0.8-canary.1
-      '@next/polyfill-nomodule': 13.0.8-canary.1
-      '@next/react-dev-overlay': 13.0.8-canary.1
-      '@next/react-refresh-utils': 13.0.8-canary.1
-      '@next/swc': 13.0.8-canary.1
+      '@next/env': 13.1.2-canary.0
+      '@next/polyfill-module': 13.1.2-canary.0
+      '@next/polyfill-nomodule': 13.1.2-canary.0
+      '@next/react-dev-overlay': 13.1.2-canary.0
+      '@next/react-refresh-utils': 13.1.2-canary.0
+      '@next/swc': 13.1.2-canary.0
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
@@ -549,7 +549,7 @@ importers:
       '@types/webpack-sources1': npm:@types/webpack-sources@0.1.5
       '@types/ws': 8.2.0
       '@vercel/ncc': 0.34.0
-      '@vercel/nft': 0.22.1
+      '@vercel/nft': 0.22.6
       acorn: 8.5.0
       ajv: 8.11.0
       amphtml-validator: 1.0.35
@@ -599,7 +599,7 @@ importers:
       is-docker: 2.0.0
       is-wsl: 2.2.0
       jest-worker: 27.0.0-next.5
-      json5: 2.2.1
+      json5: 2.2.3
       jsonwebtoken: 8.5.1
       loader-utils2: npm:loader-utils@2.0.0
       loader-utils3: npm:loader-utils@3.1.3
@@ -745,7 +745,7 @@ importers:
       '@types/webpack-sources1': /@types/webpack-sources/0.1.5
       '@types/ws': 8.2.0
       '@vercel/ncc': 0.34.0
-      '@vercel/nft': 0.22.1
+      '@vercel/nft': 0.22.6
       acorn: 8.5.0
       ajv: 8.11.0
       amphtml-validator: 1.0.35
@@ -794,7 +794,7 @@ importers:
       is-docker: 2.0.0
       is-wsl: 2.2.0
       jest-worker: 27.0.0-next.5
-      json5: 2.2.1
+      json5: 2.2.3
       jsonwebtoken: 8.5.1
       loader-utils2: /loader-utils/2.0.0
       loader-utils3: /loader-utils/3.1.3
@@ -1100,7 +1100,7 @@ packages:
       convert-source-map: 1.7.0
       debug: 4.3.4
       gensync: 1.0.0-beta.2
-      json5: 2.2.1
+      json5: 2.2.3
       semver: 6.3.0
     transitivePeerDependencies:
       - supports-color
@@ -5819,7 +5819,7 @@ packages:
       nopt: 5.0.0
       npmlog: 4.1.2
       rimraf: 3.0.2
-      semver: 7.3.7
+      semver: 7.3.8
       tar: 6.1.11
     transitivePeerDependencies:
       - encoding
@@ -6385,6 +6385,14 @@ packages:
       estree-walker: 1.0.1
       picomatch: 2.2.3
       rollup: 2.35.1
+    dev: true
+
+  /@rollup/pluginutils/4.2.1:
+    resolution: {integrity: sha512-iKnFXr7NkdZAIHiIWE+BX5ULi/ucVFYWD6TbAV+rZctiRTY2PL6tsIKhoIOaoskiWAkgu+VsbXgUVDNLHf+InQ==}
+    engines: {node: '>= 8.0.0'}
+    dependencies:
+      estree-walker: 2.0.2
+      picomatch: 2.2.3
     dev: true
 
   /@rushstack/eslint-patch/1.1.3:
@@ -7641,21 +7649,22 @@ packages:
     hasBin: true
     dev: true
 
-  /@vercel/nft/0.22.1:
-    resolution: {integrity: sha512-lYYZIoxRurqDOSoVIdBicGnpUIpfyaS5qVjdPq+EfI285WqtZK3NK/dyCkiyBul+X2U2OEhRyeMdXPCHGJbohw==}
+  /@vercel/nft/0.22.6:
+    resolution: {integrity: sha512-gTsFnnT4mGxodr4AUlW3/urY+8JKKB452LwF3m477RFUJTAaDmcz2JqFuInzvdybYIeyIv1sSONEJxsxnbQ5JQ==}
+    engines: {node: '>=14'}
     hasBin: true
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.5
+      '@rollup/pluginutils': 4.2.1
       acorn: 8.8.0
       async-sema: 3.1.1
       bindings: 1.5.0
       estree-walker: 2.0.2
       glob: 7.2.0
-      graceful-fs: 4.2.9
+      graceful-fs: 4.2.10
       micromatch: 4.0.4
       node-gyp-build: 4.2.3
       resolve-from: 5.0.0
-      rollup-pluginutils: 2.8.2
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -9821,7 +9830,7 @@ packages:
     dev: true
 
   /concat-map/0.0.1:
-    resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
+    resolution: {integrity: sha1-2Klr13/Wjfd5OnMDajug1UBdR3s=}
 
   /concat-stream/1.6.2:
     resolution: {integrity: sha512-27HBghJxjiZtIk3Ycvn/4kbJk/1uZuJFfuPEns6LaEvpvG1f0hTea8lilrouyo9mVc2GWdcEZ8OLoGmSADlrCw==}
@@ -15714,6 +15723,12 @@ packages:
     resolution: {integrity: sha512-1hqLFMSrGHRHxav9q9gNjJ5EXznIxGVO09xQRrwplcS8qs28pZ8s8hupZAmqDwZUmVZ2Qb2jnyPOWcDH8m8dlA==}
     engines: {node: '>=6'}
     hasBin: true
+    dev: true
+
+  /json5/2.2.3:
+    resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
+    engines: {node: '>=6'}
+    hasBin: true
 
   /jsonata/1.8.6:
     resolution: {integrity: sha512-ZH2TPYdNP2JecOl/HvrH47Xc+9imibEMQ4YqKy/F/FrM+2a6vfbGxeCX23dB9Fr6uvGwv+ghf1KxWB3iZk09wA==}
@@ -16183,7 +16198,7 @@ packages:
     dependencies:
       big.js: 5.2.2
       emojis-list: 3.0.0
-      json5: 2.2.1
+      json5: 2.2.3
     dev: true
 
   /loader-utils/3.1.3:

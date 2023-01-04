@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "13.0.8-canary.1",
+  "version": "13.1.2-canary.0",
   "private": true,
   "scripts": {
     "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin,rustls-tls --js false native",
