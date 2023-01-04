@@ -408,7 +408,7 @@ The above config will transform your code as follows:
 // Before
 import { MyModule } from 'my-library'
 
-// After
+// After (imports `MyModule` using named import)
 import { MyModule } from 'my-library/MyModule'
 ```
 
