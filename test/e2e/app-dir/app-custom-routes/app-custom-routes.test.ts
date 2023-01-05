@@ -14,7 +14,7 @@ createNextDescribe(
       describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
         'made via a %s request',
         (method) => {
-          it.each(['/basic/hello', '/basic/vercel/hello'])(
+          it.each(['/basic/endpoint', '/basic/vercel/endpoint'])(
             'responds correctly on %s',
             async (path) => {
               const res = await next.fetch(path, { method })
@@ -28,6 +28,37 @@ createNextDescribe(
           )
         }
       )
+
+      describe('route groups', () => {
+        it('routes to the correct handler', async () => {
+          const res = await next.fetch('/basic/endpoint/nested')
+
+          expect(res.ok).toBeTrue()
+
+          const meta = getRequestMeta(res.headers)
+          expect(meta.pathname).toEqual('/basic/endpoint/nested')
+        })
+      })
+    })
+
+    describe('context', () => {
+      it('provides params to routes with dynamic parameters', async () => {
+        const res = await next.fetch('/basic/vercel/endpoint')
+
+        expect(res.ok).toBeTrue()
+
+        const meta = getRequestMeta(res.headers)
+        expect(meta.params).toEqual({ tenantID: 'vercel' })
+      })
+
+      it('does not provide params to routes without dynamic parameters', async () => {
+        const res = await next.fetch('/basic/endpoint')
+
+        expect(res.ok).toBeTrue()
+
+        const meta = getRequestMeta(res.headers)
+        expect(meta.params).toEqual(null)
+      })
     })
 
     describe('error conditions', () => {

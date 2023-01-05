@@ -76,6 +76,7 @@ import BaseServer, {
   RequestContext,
   AppCustomRoute,
   AppCustomRouteHandler,
+  AppCustomRouteContext,
 } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -1414,11 +1415,12 @@ export default class NextNodeServer extends BaseServer {
     // Get the route handler.
     const handler = await this.getAppCustomRouteHandler(req, res, route)
 
-    let response: Response
+    const ctx: AppCustomRouteContext = { params: route.params }
 
+    let response: Response
     try {
       // Use the requested handler to execute the request.
-      response = await handler(req)
+      response = await handler(req, ctx)
 
       if (!(response instanceof Response)) {
         // TODO: validate the correct handling behavior

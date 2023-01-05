@@ -192,8 +192,16 @@ export type AppCustomRoute = {
   pathname: string
 }
 
+// TODO: document
+export type AppCustomRouteContext = {
+  params?: Params
+}
+
 // TODO: narrow type
-export type AppCustomRouteHandler = (req: any) => any
+export type AppCustomRouteHandler = (
+  req: any,
+  ctx: AppCustomRouteContext
+) => any
 
 export default abstract class Server<ServerOptions extends Options = Options> {
   protected dir: string
