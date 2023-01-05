@@ -77,13 +77,6 @@ module.exports = (actionInfo) => {
         '.cache',
         'turbo'
       )
-      const packedPkgsDir = path.join(
-        origRepo,
-        'node_modules',
-        '.cache',
-        'tests',
-        'packed-pkgs'
-      )
 
       return await rootSpan.traceAsyncFn(async () => {
         const pkgPaths = new Map()
@@ -103,16 +96,12 @@ module.exports = (actionInfo) => {
         await rootSpan
           .traceChild('prepare packages for packing')
           .traceAsyncFn(async () => {
-            await fs.ensureDir(packedPkgsDir)
             const repoData = require(path.join(repoDir, 'package.json'))
 
             for (const pkg of pkgs) {
               const pkgPath = path.join(repoDir, 'packages', pkg)
               const pkgSrcPath = path.join(origRepo, 'packages', pkg)
-              const packedPkgPath = path.join(
-                packedPkgsDir,
-                `${pkg}-packed.tgz`
-              )
+              const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
               const pkgDataPath = path.join(pkgPath, 'package.json')
               if (!fs.existsSync(pkgDataPath)) {
