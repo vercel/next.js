@@ -63,6 +63,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--use-bun',
+    `
+
+  Explicitly tell the CLI to bootstrap the app using bun
+`
+  )
+  .option(
     '-e, --example [name]|[github-url]',
     `
 
@@ -88,6 +95,8 @@ const packageManager = !!program.useNpm
   ? 'npm'
   : !!program.usePnpm
   ? 'pnpm'
+  : !!program.useBun
+  ? 'bun'
   : getPkgManager()
 
 async function run(): Promise<void> {
@@ -262,6 +271,8 @@ async function notifyUpdate(): Promise<void> {
           ? 'yarn global add create-next-app'
           : packageManager === 'pnpm'
           ? 'pnpm add -g create-next-app'
+          : packageManager === 'bun'
+          ? 'bun install -g create-next-app'
           : 'npm i -g create-next-app'
 
       console.log(

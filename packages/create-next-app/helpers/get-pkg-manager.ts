@@ -1,4 +1,4 @@
-export type PackageManager = 'npm' | 'pnpm' | 'yarn'
+export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
 export function getPkgManager(): PackageManager {
   const userAgent = process.env.npm_config_user_agent
@@ -8,6 +8,8 @@ export function getPkgManager(): PackageManager {
       return 'yarn'
     } else if (userAgent.startsWith('pnpm')) {
       return 'pnpm'
+    } else if (userAgent.startsWith('bun')) {
+      return 'bun'
     } else {
       return 'npm'
     }

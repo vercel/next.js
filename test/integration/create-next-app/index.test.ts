@@ -436,6 +436,29 @@ describe('create next app', () => {
     })
   })
 
+  it('should use bun as the package manager on supplying --use-bun', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-bun'
+      const res = await run([projectName, '--js', '--eslint', '--use-bun'], {
+        cwd,
+      })
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: [
+          'package.json',
+          'pages/index.js',
+          '.gitignore',
+          '.eslintrc.json',
+          'bun.lockb',
+          'node_modules/next',
+        ],
+      })
+    })
+  })
+
   it('should use pnpm as the package manager on supplying --use-pnpm with example', async () => {
     try {
       await execa('pnpm', ['--version'])
@@ -467,6 +490,43 @@ describe('create next app', () => {
           'pages/index.tsx',
           '.gitignore',
           'pnpm-lock.yaml',
+          'node_modules/next',
+        ],
+      })
+    })
+  })
+
+  it('should use bun as the package manager on supplying --use-bun with example', async () => {
+    try {
+      await execa('bun', ['--version'])
+    } catch (_) {
+      // install bun if not available
+      await execa('curl', ['-fsSL', 'https://bun.sh/install | bash'])
+    }
+
+    await useTempDir(async (cwd) => {
+      const projectName = 'use-bun'
+      const res = await run(
+        [
+          projectName,
+          '--js',
+          '--eslint',
+          '--use-bun',
+          '--example',
+          `${exampleRepo}/${examplePath}`,
+        ],
+        { cwd }
+      )
+
+      expect(res.exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: [
+          'package.json',
+          'pages/index.tsx',
+          '.gitignore',
+          'bun.lockb',
           'node_modules/next',
         ],
       })

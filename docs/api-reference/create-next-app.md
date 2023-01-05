@@ -65,6 +65,10 @@ Options:
 
     Explicitly tell the CLI to bootstrap the app using pnpm
 
+  --use-bun
+
+    Explicitly tell the CLI to bootstrap the app using bun
+
   -e, --example [name]|[github-url]
 
     An example to bootstrap the app with. You can use an example name
