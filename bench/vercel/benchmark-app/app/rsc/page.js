@@ -18,7 +18,3 @@ export default function page() {
 
   return <div>{previous ? 'HOT' : 'COLD'}</div>
 }
-
-// export const config = {
-//   runtime: 'experimental-edge',
-// }
