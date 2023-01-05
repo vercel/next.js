@@ -333,8 +333,14 @@ const configSchema = {
           minLength: 1,
           type: 'string',
         },
+        outputFileTracingExcludes: {
+          type: 'object',
+        },
         outputFileTracingIgnores: {
           type: 'array',
+        },
+        outputFileTracingIncludes: {
+          type: 'object',
         },
         pageEnv: {
           type: 'boolean',

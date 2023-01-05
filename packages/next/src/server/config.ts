@@ -285,6 +285,25 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     )
   }
 
+  // TODO: remove after next minor (current v13.1.1)
+  if (Array.isArray(result.experimental?.outputFileTracingIgnores)) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes) {
+      result.experimental.outputFileTracingExcludes = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes['**/*']) {
+      result.experimental.outputFileTracingExcludes['**/*'] = []
+    }
+    result.experimental.outputFileTracingExcludes['**/*'].push(
+      ...(result.experimental.outputFileTracingIgnores || [])
+    )
+    Log.warn(
+      `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
+    )
+  }
+
   if (result.experimental?.appDir) {
     result.experimental.enableUndici = true
   }

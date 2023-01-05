@@ -1166,8 +1166,6 @@ export default async function build(
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
       const appDefaultConfigs = new Map<string, AppConfig>()
-      const pageTraceIncludes = new Map<string, Array<string>>()
-      const pageTraceExcludes = new Map<string, Array<string>>()
       const pageInfos = new Map<string, PageInfo>()
       const pagesManifest = JSON.parse(
         await promises.readFile(manifestPath, 'utf8')
@@ -1519,17 +1517,6 @@ export default async function build(
                         workerResult.hasStaticProps = false
                       }
 
-                      if (config.outputFileTracing) {
-                        pageTraceIncludes.set(
-                          page,
-                          workerResult.traceIncludes || []
-                        )
-                        pageTraceExcludes.set(
-                          page,
-                          workerResult.traceExcludes || []
-                        )
-                      }
-
                       if (
                         workerResult.isStatic === false &&
                         (workerResult.isHybridAmp || workerResult.isAmpOnly)
@@ -1711,6 +1698,14 @@ export default async function build(
         const includeExcludeSpan = nextBuildSpan.traceChild(
           'apply-include-excludes'
         )
+        const resolvedTraceIncludes = new Map<string, string[]>()
+        const {
+          outputFileTracingIncludes = {},
+          outputFileTracingExcludes = {},
+        } = config.experimental
+
+        const includeGlobKeys = Object.keys(outputFileTracingIncludes)
+        const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
 
         await includeExcludeSpan.traceAsyncFn(async () => {
           const globOrig =
@@ -1726,65 +1721,84 @@ export default async function build(
             })
           }
 
-          for (let page of pageKeys.pages) {
-            await includeExcludeSpan
-              .traceChild('include-exclude', { page })
-              .traceAsyncFn(async () => {
-                const includeGlobs = pageTraceIncludes.get(page)
-                const excludeGlobs = pageTraceExcludes.get(page)
-                page = normalizePagePath(page)
+          if (config.outputFileTracing) {
+            for (let page of pageKeys.pages) {
+              const combinedIncludes = new Set<string>()
+              const combinedExcludes = new Set<string>()
 
-                if (!includeGlobs?.length && !excludeGlobs?.length) {
-                  return
+              page = normalizePagePath(page)
+
+              for (const glob of includeGlobKeys) {
+                if (isMatch(page, [glob])) {
+                  outputFileTracingIncludes[glob].forEach((include) => {
+                    combinedIncludes.add(include)
+                  })
                 }
+              }
 
-                const traceFile = path.join(
-                  distDir,
-                  'server/pages',
-                  `${page}.js.nft.json`
-                )
-                const pageDir = path.dirname(traceFile)
-                const traceContent = JSON.parse(
-                  await promises.readFile(traceFile, 'utf8')
-                )
-                let includes: string[] = []
+              for (const glob of excludeGlobKeys) {
+                if (isMatch(page, [glob])) {
+                  outputFileTracingExcludes[glob].forEach((exclude) => {
+                    combinedExcludes.add(exclude)
+                  })
+                }
+              }
 
-                if (includeGlobs?.length) {
-                  for (const includeGlob of includeGlobs) {
+              if (!combinedIncludes?.size && !combinedExcludes?.size) {
+                return
+              }
+
+              const traceFile = path.join(
+                distDir,
+                'server/pages',
+                `${page}.js.nft.json`
+              )
+              const pageDir = path.dirname(traceFile)
+              const traceContent = JSON.parse(
+                await promises.readFile(traceFile, 'utf8')
+              )
+              let includes: string[] = []
+
+              if (combinedIncludes?.size) {
+                await Promise.all(
+                  [...combinedIncludes].map(async (includeGlob) => {
                     const results = await glob(includeGlob)
-                    includes.push(
+                    const resolvedInclude = resolvedTraceIncludes.get(
+                      includeGlob
+                    ) || [
                       ...results.map((file) => {
                         return path.relative(pageDir, path.join(dir, file))
-                      })
-                    )
-                  }
-                }
-                const combined = new Set([...traceContent.files, ...includes])
-
-                if (excludeGlobs?.length) {
-                  const resolvedGlobs = excludeGlobs.map((exclude) =>
-                    path.join(dir, exclude)
-                  )
-                  combined.forEach((file) => {
-                    if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
-                      combined.delete(file)
-                    }
-                  })
-                }
-
-                await promises.writeFile(
-                  traceFile,
-                  JSON.stringify({
-                    version: traceContent.version,
-                    files: [...combined],
+                      }),
+                    ]
+                    includes.push(...resolvedInclude)
+                    resolvedTraceIncludes.set(includeGlob, resolvedInclude)
                   })
                 )
-              })
+              }
+              const combined = new Set([...traceContent.files, ...includes])
+
+              if (combinedExcludes?.size) {
+                const resolvedGlobs = [...combinedExcludes].map((exclude) =>
+                  path.join(dir, exclude)
+                )
+                combined.forEach((file) => {
+                  if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+                    combined.delete(file)
+                  }
+                })
+              }
+
+              await promises.writeFile(
+                traceFile,
+                JSON.stringify({
+                  version: traceContent.version,
+                  files: [...combined],
+                })
+              )
+            }
           }
         })
 
-        // TODO: move this inside of webpack so it can be cached
-        // between builds. Should only need to be re-run on lockfile change
         await nextBuildSpan
           .traceChild('trace-next-server')
           .traceAsyncFn(async () => {
@@ -1866,6 +1880,16 @@ export default async function build(
                 showAll: config.experimental.turbotrace.logAll,
               })
             } else {
+              const additionalIgnores = new Set<string>()
+
+              for (const glob of excludeGlobKeys) {
+                if (isMatch('next-server', glob)) {
+                  outputFileTracingExcludes[glob].forEach((exclude) => {
+                    additionalIgnores.add(exclude)
+                  })
+                }
+              }
+
               const ignores = [
                 '**/next/dist/pages/**/*',
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
@@ -1882,7 +1906,7 @@ export default async function build(
                 ...(!hasSsrAmpPages
                   ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
                   : []),
-                ...(config.experimental.outputFileTracingIgnores || []),
+                ...additionalIgnores,
               ]
               const ignoreFn = (pathname: string) => {
                 return isMatch(pathname, ignores, { contains: true, dot: true })

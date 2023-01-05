@@ -1452,6 +1452,13 @@ export async function isPageStatic({
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
       const config: PageConfig = componentsResult.pageConfig
+
+      if (config.unstable_includeFiles || config.unstable_excludeFiles) {
+        Log.warn(
+          `unstable_includeFiles/unstable_excludeFiles has been removed in favor of the option in next.config.js.\nSee more info here: https://nextjs.org/docs/advanced-features/output-file-tracing#caveats`
+        )
+      }
+
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
@@ -1462,8 +1469,6 @@ export async function isPageStatic({
         hasStaticProps,
         hasServerProps,
         isNextImageImported,
-        traceIncludes: config.unstable_includeFiles || [],
-        traceExcludes: config.unstable_excludeFiles || [],
         appConfig,
       }
     })
