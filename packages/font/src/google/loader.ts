@@ -3,8 +3,6 @@ import type { AdjustFontFallback, FontLoader } from 'next/font'
 import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
 // @ts-ignore
 import * as Log from 'next/dist/build/output/log'
-// @ts-ignore
-import chalk from 'next/dist/compiled/chalk'
 import {
   fetchCSSFromGoogleFonts,
   fetchFontFile,
