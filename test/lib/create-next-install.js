@@ -217,7 +217,7 @@ async function createNextInstall({
           })
       }
 
-      // await fs.remove(tmpRepoDir)
+      await fs.remove(tmpRepoDir)
       return installDir
     })
 }

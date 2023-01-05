@@ -191,16 +191,8 @@ module.exports = (actionInfo) => {
                   },
                 },
               }
-              if (pkg === 'next') {
-                console.log(JSON.stringify(turboConfig, null, 2))
-
-                console.log(
-                  String(
-                    fs.readFileSync(path.join(pkgPath, 'src/pages/_app.tsx'))
-                  )
-                )
-              }
               await fs.writeJSON(path.join(pkgPath, 'turbo.json'), turboConfig)
+
               // Turbo requires pnpm-lock.yaml that is not empty
               await fs.writeFile(path.join(pkgPath, 'pnpm-lock.yaml'), '')
 
@@ -227,9 +219,6 @@ module.exports = (actionInfo) => {
                       `pnpm run --dir="${origRepo}" turbo run test-pack --cache-dir="${turboCacheLocation}" --cwd="${pkgPath}" -vvv`,
                       true
                     )
-                    if (pkgName === 'next') {
-                      console.log(result)
-                    }
                   })
               })
             )
