@@ -3,7 +3,6 @@ const path = require('path')
 const execa = require('execa')
 const fs = require('fs-extra')
 const childProcess = require('child_process')
-const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
