@@ -484,6 +484,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
+      NEXT_TEST_CNA: 1
 
     steps:
       - run: echo ${{needs.build.outputs.docsChange}}
