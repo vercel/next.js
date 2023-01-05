@@ -375,6 +375,24 @@ describe('@next/font/google loader', () => {
               Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`"
             `)
     })
+
+    test('Missing subsets in config and call', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: {},
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Missing selected subsets for font \`Inter\`. Please specify subsets in the function call or in your \`next.config.js\`. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets"`
+      )
+    })
   })
 
   it('should not send duplicate requests when several font variants use the same font file', async () => {
