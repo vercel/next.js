@@ -189,12 +189,22 @@ async function createNextInstall({
                 'pnpm-lock.yaml',
               ]
 
-              if (
-                await fs
-                  .access(cacheDir)
-                  .then(() => true)
-                  .catch(() => false)
-              ) {
+              const checkIfThereIsNewCache = async () => {
+                try {
+                  const { mtimeMs } = await fs.stat(cacheDir)
+                  const currentTimeMs = Date.now()
+                  // We need to refresh the package lock frequently so that we don't have stale lock file.
+                  // Cache miss is not very expensive so we can do it frequently.
+                  // The lock file will be invalidated anyway on each code change because lock file contains hash chechsums.
+                  // So It shouldn't run stale code.
+                  const timeoutMs = 2 * 60 * 60 * 1000
+                  return currentTimeMs < mtimeMs + timeoutMs
+                } catch {
+                  return false
+                }
+              }
+
+              if (await checkIfThereIsNewCache()) {
                 require('console').log(
                   'We are able to prepopulate pnpm install from cache'
                 )
