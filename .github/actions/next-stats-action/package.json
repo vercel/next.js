@@ -1,9 +1,6 @@
 {
   "private": true,
   "main": "src/index.js",
-  "scripts": {
-    "turbo": "turbo"
-  },
   "dependencies": {
     "async-sema": "^3.1.0",
     "fs-extra": "^8.1.0",
@@ -15,7 +12,6 @@
     "prettier": "^1.18.2",
     "pretty-bytes": "^5.3.0",
     "pretty-ms": "^5.0.0",
-    "semver": "7.3.4",
-    "turbo": "1.6.3"
+    "semver": "7.3.4"
   }
 }

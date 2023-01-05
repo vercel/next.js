@@ -183,7 +183,8 @@ async function createNextInstall({
               const cachedFiles = [
                 // We can't cache node-modules because .pnpm store must be on the same mount - we can't move it between mountpoints
                 // 'node_modules',
-                'pnpm-lock.yaml',
+                // FIXME: caching lock file caused itssues and It's not possible when we don't use turbo which we had to disable temporarily
+                // 'pnpm-lock.yaml',
               ]
 
               if (
