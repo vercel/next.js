@@ -51,6 +51,18 @@ createNextDescribe(
         expect(meta.params).toEqual({ tenantID: 'vercel' })
       })
 
+      it('provides params to routes with catch-all routes', async () => {
+        const res = await next.fetch('/basic/vercel/some/other/resource')
+
+        expect(res.ok).toBeTrue()
+
+        const meta = getRequestMeta(res.headers)
+        expect(meta.params).toEqual({
+          tenantID: 'vercel',
+          resource: ['some', 'other', 'resource'],
+        })
+      })
+
       it('does not provide params to routes without dynamic parameters', async () => {
         const res = await next.fetch('/basic/endpoint')
 

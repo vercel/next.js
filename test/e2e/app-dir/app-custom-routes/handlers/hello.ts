@@ -3,7 +3,7 @@ import { withRequestMeta } from '../helpers'
 
 export const helloHandler = async (
   request: NextRequest,
-  ctx: { params?: Record<string, string> }
+  ctx: { params?: Record<string, string | string[]> }
 ): Promise<Response> => {
   return new Response('hello, world', {
     headers: withRequestMeta({
