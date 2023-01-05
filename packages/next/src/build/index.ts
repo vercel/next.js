@@ -1745,7 +1745,7 @@ export default async function build(
               }
 
               if (!combinedIncludes?.size && !combinedExcludes?.size) {
-                return
+                continue
               }
 
               const traceFile = path.join(
