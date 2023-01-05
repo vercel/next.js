@@ -175,7 +175,7 @@ module.exports = (actionInfo) => {
               const turboConfig = {
                 pipeline: {
                   'test-pack': {
-                    outputs: [packedPkgPath],
+                    outputs: [path.basename(packedPkgPath)],
                     inputs: [pkgSrcPath],
                   },
                 },
