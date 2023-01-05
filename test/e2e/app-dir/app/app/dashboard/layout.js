@@ -9,3 +9,8 @@ export default function DashboardLayout(props) {
     </div>
   )
 }
+
+export const metadata = {
+  title: 'Hello !!! 123',
+  description: 'Dashboard layout',
+}

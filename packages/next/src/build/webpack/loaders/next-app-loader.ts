@@ -7,6 +7,7 @@ import { sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
+import { resolveFileBaseMetadataForLoader } from '../../../lib/metadata/resolve-metadata'
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -36,7 +37,10 @@ async function createTreeCodeFromPath({
   resolveParallelSegments,
 }: {
   pagePath: string
-  resolve: (pathname: string) => Promise<string | undefined>
+  resolve: (
+    pathname: string,
+    resolveDir?: boolean
+  ) => Promise<string | undefined>
   resolveParallelSegments: (
     pathname: string
   ) => [key: string, segment: string][]
@@ -44,12 +48,13 @@ async function createTreeCodeFromPath({
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
+
   let rootLayout: string | undefined
   let globalError: string | undefined
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
-  ): Promise<string> {
+  ): Promise<[string, string]> {
     const segmentPath = segments.join('/')
 
     // Existing tree are the children of the current segment
@@ -63,11 +68,20 @@ async function createTreeCodeFromPath({
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
 
+    let metadataCode = ''
+
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
         const resolvedPagePath = await resolve(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
+
+        metadataCode += `{
+          type: 'page',
+          mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+            resolvedPagePath
+          )}),
+        },`
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {
@@ -78,10 +92,9 @@ async function createTreeCodeFromPath({
       }
 
       const parallelSegmentPath = segmentPath + '/' + parallelSegment
-      const subtree = await createSubtreePropsFromSegmentPath([
-        ...segments,
-        parallelSegment,
-      ])
+
+      const [subtreeCode, subtreeMetadataCode] =
+        await createSubtreePropsFromSegmentPath([...segments, parallelSegment])
 
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
@@ -93,10 +106,26 @@ async function createTreeCodeFromPath({
         })
       )
 
+      const layout = filePaths.find(
+        ([type, path]) => type === 'layout' && !!path
+      )?.[1]
+
+      // Collect metadata for the layout
+      if (layout) {
+        metadataCode += `{
+          type: 'layout',
+          mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+            layout
+          )}),
+        },`
+      }
+      metadataCode += await resolveFileBaseMetadataForLoader(
+        (await resolve(`${appDirPrefix}${parallelSegmentPath}/`, true))!
+      )
+      metadataCode += subtreeMetadataCode
+
       if (!rootLayout) {
-        rootLayout = filePaths.find(
-          ([type, path]) => type === 'layout' && !!path
-        )?.[1]
+        rootLayout = layout
       }
 
       if (!globalError) {
@@ -107,7 +136,7 @@ async function createTreeCodeFromPath({
 
       props[parallelKey] = `[
         '${parallelSegment}',
-        ${subtree},
+        ${subtreeCode},
         {
           ${filePaths
             .filter(([, filePath]) => filePath !== undefined)
@@ -124,15 +153,25 @@ async function createTreeCodeFromPath({
       ]`
     }
 
-    return `{
+    return [
+      `{
       ${Object.entries(props)
         .map(([key, value]) => `${key}: ${value}`)
         .join(',\n')}
-    }`
+    }`,
+      metadataCode,
+    ]
   }
 
-  const tree = await createSubtreePropsFromSegmentPath([])
-  return [`const tree = ${tree}.children;`, pages, rootLayout, globalError]
+  const [tree, metadataCode] = await createSubtreePropsFromSegmentPath([])
+
+  return [
+    `const tree = ${tree}.children;`,
+    `const metadata = [${metadataCode}];`,
+    `const pages = ${JSON.stringify(pages)};`,
+    rootLayout,
+    globalError,
+  ]
 }
 
 function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
@@ -202,7 +241,11 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     return Object.entries(matched)
   }
 
-  const resolver = async (pathname: string) => {
+  const resolver = async (pathname: string, resolveDir?: boolean) => {
+    if (resolveDir) {
+      return createAbsolutePath(appDir, pathname)
+    }
+
     try {
       const resolved = await resolve(this.rootContext, pathname)
       this.addDependency(resolved)
@@ -220,7 +263,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  const [treeCode, pages, rootLayout, globalError] =
+  const [treeCode, metadataCode, pageListCode, rootLayout, globalError] =
     await createTreeCodeFromPath({
       pagePath,
       resolve: resolver,
@@ -253,7 +296,8 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
   const result = `
     export ${treeCode}
-    export const pages = ${JSON.stringify(pages)}
+    export ${metadataCode}
+    export ${pageListCode}
 
     export { default as AppRouter } from 'next/dist/client/components/app-router'
     export { default as LayoutRouter } from 'next/dist/client/components/layout-router'

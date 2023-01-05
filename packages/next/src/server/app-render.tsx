@@ -48,6 +48,10 @@ import {
 import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
 import { DefaultHead } from '../client/components/head'
 import { formatServerError } from '../lib/format-server-error'
+import {
+  elementsFromResolvedMetadata,
+  resolveMetadata,
+} from '../lib/metadata/resolve-metadata'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -938,6 +942,12 @@ export async function renderToHTMLOrFlight(
      */
     const loaderTree: LoaderTree = ComponentMod.tree
 
+    /**
+     * The metadata items array created in next-app-loader with all relevant information
+     * that we need to resolve the final metadata.
+     */
+    const metadataItems = ComponentMod.metadata
+
     stripInternalQueries(query)
 
     const LayoutRouter =
@@ -1688,6 +1698,7 @@ export async function renderToHTMLOrFlight(
           parentParams: {},
           firstItem: true,
         })
+
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
         return (
@@ -1744,10 +1755,16 @@ export async function renderToHTMLOrFlight(
           integrity: subresourceIntegrityManifest?.[polyfill],
         }))
 
+      const metadata = elementsFromResolvedMetadata(
+        await resolveMetadata(metadataItems)
+      )
       const content = (
-        <InsertedHTML>
-          <ServerComponentsRenderer />
-        </InsertedHTML>
+        <>
+          {metadata}
+          <InsertedHTML>
+            <ServerComponentsRenderer />
+          </InsertedHTML>
+        </>
       )
 
       let polyfillsFlushed = false
