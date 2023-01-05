@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { getRequestMeta } from './app/helpers'
+import { getRequestMeta } from './helpers'
 
 createNextDescribe(
   'app-custom-routes',
@@ -19,11 +19,10 @@ createNextDescribe(
             async (path) => {
               const res = await next.fetch(path, { method })
 
-              expect(res.ok).toBeTrue()
+              expect(res.status).toEqual(200)
               expect(await res.text()).toContain('hello, world')
 
               const meta = getRequestMeta(res.headers)
-              expect(meta).not.toBeNull()
               expect(meta.method).toEqual(method)
             }
           )
@@ -31,30 +30,47 @@ createNextDescribe(
       )
     })
 
-    it('responds with 405 (Method Not Allowed) when method is not implemented', async () => {
-      const res = await next.fetch('/basic/head', { method: 'POST' })
+    describe('error conditions', () => {
+      it('responds with 400 (Bad Request) when the requested method is not a valid HTTP method', async () => {
+        const res = await next.fetch('/status/405', { method: 'HEADER' })
 
-      expect(res.ok).toBeFalse()
-      expect(res.status).toBe(405)
-      expect(await res.text()).toBeEmpty()
+        expect(res.status).toEqual(400)
+        expect(await res.text()).toBeEmpty()
+      })
+
+      it('responds with 405 (Method Not Allowed) when method is not implemented', async () => {
+        const res = await next.fetch('/status/405', { method: 'POST' })
+
+        expect(res.status).toEqual(405)
+        expect(await res.text()).toBeEmpty()
+      })
+
+      it('responds with 500 (Internal Server Error) when the handler throws an error', async () => {
+        const res = await next.fetch('/status/500')
+
+        expect(res.status).toEqual(500)
+        expect(await res.text()).toBeEmpty()
+      })
     })
 
-    it('automatically implements HEAD on routes with GET already implemented', async () => {
-      const res = await next.fetch('/basic/head', { method: 'HEAD' })
+    describe('automatic implementations', () => {
+      it('implements HEAD on routes with GET already implemented', async () => {
+        const res = await next.fetch('/methods/head', { method: 'HEAD' })
 
-      expect(res.ok).toBeTrue()
-      expect(await res.text()).toBeEmpty()
-    })
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toBeEmpty()
+      })
 
-    it('automatically implements OPTIONS on routes', async () => {
-      const res = await next.fetch('/basic/options', { method: 'OPTIONS' })
+      it('implements OPTIONS on routes', async () => {
+        const res = await next.fetch('/methods/options', { method: 'OPTIONS' })
 
-      expect(res.ok).toBeTrue()
-      expect(res.status).toEqual(204)
-      expect(await res.text()).toBeEmpty()
+        expect(res.status).toEqual(204)
+        expect(await res.text()).toBeEmpty()
 
-      const allow = res.headers.get('allow')
-      expect(allow).toEqual('DELETE, GET, POST')
+        expect(res.headers.get('allow')).toEqual(
+          'DELETE, GET, HEAD, OPTIONS, POST'
+        )
+      })
     })
   }
 )

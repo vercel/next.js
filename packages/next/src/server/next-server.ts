@@ -107,6 +107,7 @@ import {
   handleInternalServerErrorResponse,
   handleMethodNotAllowedResponse,
 } from './api-utils/handlers'
+import { HTTP_METHOD, isHTTPMethod } from './web/http'
 
 export * from './base-server'
 
@@ -1347,17 +1348,19 @@ export default class NextNodeServer extends BaseServer {
     // Try to load the route module.
     const mod = await require(join(this.distDir, SERVER_DIRECTORY, path))
 
-    // TODO: pull this list of supported methods to global scope
-    const methods = ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'DELETE', 'PATCH']
-
     // Ensure that the requested method is a valid method (to prevent RCE's).
-    if (!methods.includes(req.method)) return handleBadRequestResponse
+
+    if (!isHTTPMethod(req.method)) return handleBadRequestResponse
 
     // Check to see if the requested method is available.
     const handler: AppCustomRouteHandler | undefined = mod.handlers[req.method]
-    if (handler) {
-      return handler
-    }
+    if (handler) return handler
+
+    /**
+     * If the request got here, then it means that there was not a handler for
+     * the requested method. We'll try to automatically setup some methods if
+     * there's enough information to do so.
+     */
 
     // If HEAD is not provided, but GET is, then we respond to HEAD using the
     // GET handler without the body.
@@ -1365,15 +1368,30 @@ export default class NextNodeServer extends BaseServer {
       return mod.handlers['GET']
     }
 
-    // If OPTIONS is not provided then that’s automatically implemented.
+    // If OPTIONS is not provided then implement it.
     if (req.method === 'OPTIONS') {
       // TODO: check if HEAD is implemented, if so, use it to add more headers
 
-      // Get all the methods that are implemented.
-      const allow = Object.keys(mod.handlers)
-        .filter((method) => methods.includes(method))
-        .sort()
-        .join(', ')
+      // Get all the handler methods from the list of handlers.
+      const methods = Object.keys(mod.handlers).filter((method) =>
+        isHTTPMethod(method)
+      ) as HTTP_METHOD[]
+
+      // If the list of methods doesn't include OPTIONS, add it, as it's
+      // automatically implemented.
+      if (!methods.includes('OPTIONS')) {
+        methods.push('OPTIONS')
+      }
+
+      // If the list of methods doesn't include HEAD, but it includes GET, then
+      // add HEAD as it's automatically implemented.
+      if (!methods.includes('HEAD') && methods.includes('GET')) {
+        methods.push('HEAD')
+      }
+
+      // Sort and join the list with commas to create the `Allow` header. See:
+      // https://httpwg.org/specs/rfc9110.html#field.allow
+      const allow = methods.sort().join(', ')
 
       return () =>
         new Response(null, { status: 204, headers: { Allow: allow } })
@@ -1396,10 +1414,17 @@ export default class NextNodeServer extends BaseServer {
     // Get the route handler.
     const handler = await this.getAppCustomRouteHandler(req, res, route)
 
-    // Use the requested handler to execute the request.
-    let response: Response = await handler(req)
+    let response: Response
 
-    if (!(response instanceof Response)) {
+    try {
+      // Use the requested handler to execute the request.
+      response = await handler(req)
+
+      if (!(response instanceof Response)) {
+        // TODO: validate the correct handling behavior
+        response = handleInternalServerErrorResponse()
+      }
+    } catch {
       // TODO: validate the correct handling behavior
       response = handleInternalServerErrorResponse()
     }
