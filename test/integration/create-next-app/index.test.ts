@@ -29,6 +29,11 @@ const run = (args: string[], options: execa.Options) =>
   execa('node', [cli].concat(args), options)
 
 describe('create next app', () => {
+  if (!process.env.NEXT_TEST_CNA) {
+    it('should skip when env is not set', () => {})
+    return
+  }
+
   it('non-empty directory', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'non-empty-directory'
