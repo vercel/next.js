@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 
 createNextDescribe(
   'app dir prefetching',
@@ -57,9 +57,12 @@ createNextDescribe(
         requests.push(new URL(req.url()).pathname)
       })
 
-      await waitFor(3000)
       await browser.eval('window.nd.router.prefetch("/static-page")')
-      await waitFor(3000)
+      await check(() => {
+        return requests.some((req) => req.includes('static-page'))
+          ? 'success'
+          : JSON.stringify(requests)
+      }, 'success')
 
       await browser
         .elementByCss('#to-static-page')
