@@ -204,8 +204,8 @@ module.exports = (actionInfo) => {
                   .traceChild(`pack ${pkgName}`)
                   .traceAsyncFn(async () => {
                     const { pkgPath } = pkgDatas.get(pkgName)
-                    const result = await exec(
-                      `pnpm run --dir="${origRepo}" turbo run test-pack --cache-dir="${turboCacheLocation}" --cwd="${pkgPath}" -vvv`,
+                    await exec(
+                      `pnpm run --dir="${origRepo}" turbo run test-pack --cache-dir="${turboCacheLocation}" --cwd="${pkgPath}"`,
                       true
                     )
                   })
