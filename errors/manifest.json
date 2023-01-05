@@ -781,6 +781,10 @@
         {
           "title": "navigation-context-missing",
           "path": "/errors/navigation-context-missing.md"
+        },
+        {
+          "title": "react-client-hook-in-server-component",
+          "path": "/errors/react-client-hook-in-server-component.md"
         }
       ]
     }
