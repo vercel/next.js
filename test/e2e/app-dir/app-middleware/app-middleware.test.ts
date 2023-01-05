@@ -2,6 +2,7 @@
 import { createNextDescribe, FileRef } from 'e2e-utils'
 import cheerio from 'cheerio'
 import path from 'path'
+import { withQuery } from 'next-test-utils'
 
 createNextDescribe(
   'app-dir with middleware',
@@ -31,7 +32,7 @@ createNextDescribe(
       },
     ])('Mutate request headers for $title', ({ path, toJson }) => {
       it(`Adds new headers`, async () => {
-        const res = await next.fetch(path, null, {
+        const res = await next.fetch(path, {
           headers: {
             'x-from-client': 'hello-from-client',
           },
@@ -44,10 +45,9 @@ createNextDescribe(
 
       it(`Deletes headers`, async () => {
         const res = await next.fetch(
-          path,
-          {
+          withQuery(path, {
             'remove-headers': 'x-from-client1,x-from-client2',
-          },
+          }),
           {
             headers: {
               'x-from-client1': 'hello-from-client',
@@ -78,11 +78,10 @@ createNextDescribe(
 
       it(`Updates headers`, async () => {
         const res = await next.fetch(
-          path,
-          {
+          withQuery(path, {
             'update-headers':
               'x-from-client1=new-value1,x-from-client2=new-value2',
-          },
+          }),
           {
             headers: {
               'x-from-client1': 'old-value1',
