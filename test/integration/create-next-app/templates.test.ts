@@ -18,6 +18,11 @@ import {
 import { useTempDir } from '../../../test/lib/use-temp-dir'
 
 describe('create-next-app templates', () => {
+  if (!process.env.NEXT_TEST_CNA) {
+    it('should skip when env is not set', () => {})
+    return
+  }
+
   it('should prompt user to choose if --ts or --js is not provided', async () => {
     useTempDir(async (cwd) => {
       const projectName = 'choose-ts-js'
@@ -100,6 +105,11 @@ describe('create-next-app templates', () => {
 })
 
 describe('create-next-app --experimental-app-dir', () => {
+  if (!process.env.NEXT_TEST_CNA) {
+    it('should skip when env is not set', () => {})
+    return
+  }
+
   it('should create TS appDir projects with --ts', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'appdir-test'
