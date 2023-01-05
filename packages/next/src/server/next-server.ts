@@ -102,6 +102,11 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
+import {
+  handleBadRequestResponse,
+  handleInternalServerErrorResponse,
+  handleMethodNotAllowedResponse,
+} from './api-utils/handlers'
 
 export * from './base-server'
 
@@ -1318,15 +1323,16 @@ export default class NextNodeServer extends BaseServer {
     return this.runApi(req, res, query, params, page, builtPagePath)
   }
 
-  protected async handleAppCustomRouteRequest(
+  private async getAppCustomRouteHandler(
     req: BaseNextRequest,
     res: BaseNextResponse,
-    route: AppCustomRoute,
-    query: ParsedUrlQuery
-  ): Promise<boolean> {
-    // TODO: ensure to "ensure" that the app custom route page is built, like this.ensureApiPage
-
-    if (!this.appPathsManifest) return false
+    route: AppCustomRoute
+  ): Promise<AppCustomRouteHandler> {
+    if (!this.appPathsManifest) {
+      throw new Error(
+        'could not find app paths manifest, unable to lookup route file'
+      )
+    }
 
     // Get the underlying file to load for this pathname.
     const path = this.appPathsManifest[route.pathname]
@@ -1336,7 +1342,7 @@ export default class NextNodeServer extends BaseServer {
       )
     }
 
-    // TODO: run any edge functions that should be ran for this invocation.
+    // TODO: ensure to "ensure" that the app custom route page is built, like this.ensureApiPage
 
     // Try to load the route module.
     const mod = await require(join(this.distDir, SERVER_DIRECTORY, path))
@@ -1345,29 +1351,58 @@ export default class NextNodeServer extends BaseServer {
     const methods = ['GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'DELETE', 'PATCH']
 
     // Ensure that the requested method is a valid method (to prevent RCE's).
-    if (!methods.includes(req.method)) return false
+    if (!methods.includes(req.method)) return handleBadRequestResponse
 
     // Check to see if the requested method is available.
-    let handler: AppCustomRouteHandler | undefined = mod.handlers[req.method]
+    const handler: AppCustomRouteHandler | undefined = mod.handlers[req.method]
+    if (handler) {
+      return handler
+    }
 
     // If HEAD is not provided, but GET is, then we respond to HEAD using the
     // GET handler without the body.
-    if (!handler && req.method === 'HEAD' && 'GET' in mod.handlers) {
-      handler = mod.handlers['GET']
+    if (req.method === 'HEAD' && 'GET' in mod.handlers) {
+      return mod.handlers['GET']
     }
 
     // If OPTIONS is not provided then that’s automatically implemented.
-    // TODO: implement OPTIONS route handler
+    if (req.method === 'OPTIONS') {
+      // TODO: check if HEAD is implemented, if so, use it to add more headers
 
-    if (!handler) return false
+      // Get all the methods that are implemented.
+      const allow = Object.keys(mod.handlers)
+        .filter((method) => methods.includes(method))
+        .sort()
+        .join(', ')
 
+      return () =>
+        new Response(null, { status: 204, headers: { Allow: allow } })
+    }
+
+    // A handler for the requested method was not found, so we should respond
+    // with the method not allowed handler.
+    return handleMethodNotAllowedResponse
+  }
+
+  protected async handleAppCustomRouteRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    route: AppCustomRoute,
+    query: ParsedUrlQuery
+  ): Promise<true> {
+    // TODO: run any edge functions that should be ran for this invocation.
     // TODO: wrap the request object
 
-    // Use the requested handler to execute the request.
-    const response: Response = await handler(req)
+    // Get the route handler.
+    const handler = await this.getAppCustomRouteHandler(req, res, route)
 
-    // TODO: validate the correct handling behavior
-    if (!(response instanceof Response)) return false
+    // Use the requested handler to execute the request.
+    let response: Response = await handler(req)
+
+    if (!(response instanceof Response)) {
+      // TODO: validate the correct handling behavior
+      response = handleInternalServerErrorResponse()
+    }
 
     // Copy over the response status.
     res.statusCode = response.status

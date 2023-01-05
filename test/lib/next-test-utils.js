@@ -154,7 +154,7 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
  * @param {string} pathname
  * @param {Record<string, any> | string | null | undefined} [query]
  * @param {import('node-fetch').RequestInit} [opts]
- * @returns {Promise<Response & {buffer: any} & {headers: any}>}
+ * @returns {Promise<Response & {buffer: any}>}
  */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = query ? withQuery(pathname, query) : pathname
