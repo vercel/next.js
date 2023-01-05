@@ -231,7 +231,7 @@ function getMiddlewareConfig(
   return result
 }
 
-let apiRouteWarnings = new Set()
+const apiRouteWarnings = new Set()
 function warnAboutExperimentalEdge(apiRoute: string | null) {
   if (apiRouteWarnings.has(apiRoute)) {
     return
