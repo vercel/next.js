@@ -1728,17 +1728,17 @@ export default async function build(
 
               page = normalizePagePath(page)
 
-              for (const glob of includeGlobKeys) {
-                if (isMatch(page, [glob])) {
-                  outputFileTracingIncludes[glob].forEach((include) => {
+              for (const curGlob of includeGlobKeys) {
+                if (isMatch(page, [curGlob])) {
+                  outputFileTracingIncludes[curGlob].forEach((include) => {
                     combinedIncludes.add(include)
                   })
                 }
               }
 
-              for (const glob of excludeGlobKeys) {
-                if (isMatch(page, [glob])) {
-                  outputFileTracingExcludes[glob].forEach((exclude) => {
+              for (const curGlob of excludeGlobKeys) {
+                if (isMatch(page, [curGlob])) {
+                  outputFileTracingExcludes[curGlob].forEach((exclude) => {
                     combinedExcludes.add(exclude)
                   })
                 }
