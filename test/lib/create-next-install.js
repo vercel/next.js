@@ -175,12 +175,7 @@ async function createNextInstall({
             if (!areGenericDependencies(combinedDependencies)) {
               await runInstall()
             } else {
-              const cacheDir = path.join(
-                origRepoDir,
-                'test',
-                'tmp',
-                'genericInstallCache'
-              )
+              const cacheDir = path.join(testCacheDir, 'generic-install-cache')
 
               const cachedFiles = [
                 // We can't cache node-modules because .pnpm store must be on the same mount - we can't move it between mountpoints
