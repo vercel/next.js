@@ -266,14 +266,6 @@ function patchFetch(ComponentMod: any) {
       )
     }
 
-    const {
-      isStaticGeneration,
-      fetchRevalidate,
-      pathname,
-      incrementalCache,
-      isRevalidate,
-    } = staticGenerationStore
-
     let revalidate: number | undefined | boolean
 
     if (typeof init?.next?.revalidate === 'number') {
@@ -297,7 +289,7 @@ function patchFetch(ComponentMod: any) {
     const doOriginalFetch = async () => {
       return originFetch(input, init).then(async (res) => {
         if (
-          incrementalCache &&
+          staticGenerationStore.incrementalCache &&
           cacheKey &&
           typeof revalidate === 'number' &&
           revalidate > 0
@@ -318,7 +310,7 @@ function patchFetch(ComponentMod: any) {
             )
           }
 
-          await incrementalCache.set(
+          await staticGenerationStore.incrementalCache.set(
             cacheKey,
             {
               kind: 'FETCH',
@@ -338,14 +330,24 @@ function patchFetch(ComponentMod: any) {
       })
     }
 
-    if (incrementalCache && typeof revalidate === 'number' && revalidate > 0) {
-      cacheKey = await incrementalCache?.fetchCacheKey(input.toString(), init)
-      const entry = await incrementalCache.get(cacheKey, true)
+    if (
+      staticGenerationStore.incrementalCache &&
+      typeof revalidate === 'number' &&
+      revalidate > 0
+    ) {
+      cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
+        input.toString(),
+        init
+      )
+      const entry = await staticGenerationStore.incrementalCache.get(
+        cacheKey,
+        true
+      )
 
       if (entry?.value && entry.value.kind === 'FETCH') {
         // when stale and is revalidating we wait for fresh data
         // so the revalidated entry has the updated data
-        if (!isRevalidate || !entry.isStale) {
+        if (!staticGenerationStore.isRevalidate || !entry.isStale) {
           if (entry.isStale) {
             if (!staticGenerationStore.pendingRevalidates) {
               staticGenerationStore.pendingRevalidates = []
@@ -373,7 +375,7 @@ function patchFetch(ComponentMod: any) {
       }
     }
 
-    if (staticGenerationStore && isStaticGeneration) {
+    if (staticGenerationStore.isStaticGeneration) {
       if (init && typeof init === 'object') {
         const cache = init.cache
         // Delete `cache` property as Cloudflare Workers will throw an error
@@ -385,7 +387,11 @@ function patchFetch(ComponentMod: any) {
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `no-store fetch ${input}${pathname ? ` ${pathname}` : ''}`
+            `no-store fetch ${input}${
+              staticGenerationStore.pathname
+                ? ` ${staticGenerationStore.pathname}`
+                : ''
+            }`
           )
         }
 
@@ -393,8 +399,8 @@ function patchFetch(ComponentMod: any) {
         const next = init.next || {}
         if (
           typeof next.revalidate === 'number' &&
-          (typeof fetchRevalidate === 'undefined' ||
-            next.revalidate < fetchRevalidate)
+          (typeof staticGenerationStore.fetchRevalidate === 'undefined' ||
+            next.revalidate < staticGenerationStore.fetchRevalidate)
         ) {
           const forceDynamic = staticGenerationStore.forceDynamic
 
@@ -405,7 +411,9 @@ function patchFetch(ComponentMod: any) {
           if (!forceDynamic && next.revalidate === 0) {
             throw new DynamicServerError(
               `revalidate: ${next.revalidate} fetch ${input}${
-                pathname ? ` ${pathname}` : ''
+                staticGenerationStore.pathname
+                  ? ` ${staticGenerationStore.pathname}`
+                  : ''
               }`
             )
           }
@@ -413,6 +421,7 @@ function patchFetch(ComponentMod: any) {
         if (hasNextConfig) delete init.next
       }
     }
+
     return doOriginalFetch()
   }
 }
