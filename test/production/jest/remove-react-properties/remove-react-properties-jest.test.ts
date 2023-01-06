@@ -49,7 +49,7 @@ describe('next/jest', () => {
   afterAll(() => next.destroy())
 
   it('data-testid should be removed in production', async () => {
-    const html = await renderViaHTTP(next.appPort, '/')
+    const html = await renderViaHTTP(next.url, '/')
 
     expect(html).not.toContain('data-testid')
   })

@@ -1,4 +1,4 @@
-export const config = { runtime: 'experimental-edge' }
+export const config = { runtime: 'edge' }
 
 /**
  * @param {import('next/server').NextRequest} req

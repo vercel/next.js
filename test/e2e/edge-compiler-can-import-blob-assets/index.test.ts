@@ -4,7 +4,7 @@ import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { readJson } from 'fs-extra'
-import type { MiddlewareManifest } from 'next/build/webpack/plugins/middleware-plugin'
+import type { MiddlewareManifest } from 'next/src/build/webpack/plugins/middleware-plugin'
 
 describe('Edge Compiler can import asset assets', () => {
   let next: NextInstance
