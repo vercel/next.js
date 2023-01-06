@@ -82,6 +82,7 @@ export interface ExperimentalConfig {
   fetchCache?: boolean
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
+  preCompiledNextServer?: boolean
   legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
@@ -568,6 +569,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    preCompiledNextServer: false,
     fetchCache: false,
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
