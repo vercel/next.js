@@ -155,7 +155,7 @@ export async function ncc_next_server(task, opts) {
           '$1@ampproject/toolbox-optimizer',
       },
     })
-    .target('compiled/next-server')
+    .target('src/compiled/next-server')
 }
 
 // eslint-disable-next-line camelcase
