@@ -36,7 +36,7 @@ describe('basic HMR', () => {
         const newContactPagePath = join('pages', 'hmr', '_contact.js')
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/hmr/contact')
+          browser = await webdriver(next.url, '/docs/hmr/contact')
           const text = await browser.elementByCss('p').text()
           expect(text).toBe('This is the contact page.')
 
@@ -71,7 +71,7 @@ describe('basic HMR', () => {
       it('should detect the changes and display it', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/hmr/about')
+          browser = await webdriver(next.url, '/docs/hmr/about')
           const text = await browser.elementByCss('p').text()
           expect(text).toBe('This is the about page.')
 
@@ -106,7 +106,7 @@ describe('basic HMR', () => {
       it('should not reload unrelated pages', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/hmr/counter')
+          browser = await webdriver(next.url, '/docs/hmr/counter')
           const text = await browser
             .elementByCss('button')
             .click()
@@ -146,7 +146,7 @@ describe('basic HMR', () => {
       it('should update styles correctly', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/docs/hmr/style')
+          browser = await webdriver(next.url, '/docs/hmr/style')
           const pTag = await browser.elementByCss('.hmr-style-page p')
           const initialFontSize = await pTag.getComputedCss('font-size')
 
@@ -186,7 +186,7 @@ describe('basic HMR', () => {
         const originalContent = await next.readFile(pagePath)
         try {
           browser = await webdriver(
-            next.appPort,
+            next.url,
             '/docs/hmr/style-stateful-component'
           )
           const pTag = await browser.elementByCss('.hmr-style-page p')
@@ -220,7 +220,7 @@ describe('basic HMR', () => {
         const originalContent = await next.readFile(pagePath)
         try {
           browser = await webdriver(
-            next.appPort,
+            next.url,
             '/docs/hmr/style-dynamic-component'
           )
           const div = await browser.elementByCss('#dynamic-component')
@@ -230,7 +230,7 @@ describe('basic HMR', () => {
           expect(initialFontSize).toBe('100px')
 
           const initialHtml = await renderViaHTTP(
-            next.appPort,
+            next.url,
             '/docs/hmr/style-dynamic-component'
           )
           expect(initialHtml.includes('100px')).toBeTruthy()
@@ -250,7 +250,7 @@ describe('basic HMR', () => {
           await waitFor(5000)
 
           secondBrowser = await webdriver(
-            next.appPort,
+            next.url,
             '/docs/hmr/style-dynamic-component'
           )
           // Check whether the this page has reloaded or not.
@@ -268,7 +268,7 @@ describe('basic HMR', () => {
           expect(browserHtml.includes('font-size:100px')).toBe(false)
 
           const editedHtml = await renderViaHTTP(
-            next.appPort,
+            next.url,
             '/docs/hmr/style-dynamic-component'
           )
           expect(editedHtml.includes('200px')).toBeTruthy()
@@ -300,7 +300,7 @@ describe('basic HMR', () => {
       const newPage = join('pages', 'hmr', 'new-page.js')
 
       try {
-        browser = await webdriver(next.appPort, '/docs/hmr/new-page')
+        browser = await webdriver(next.url, '/docs/hmr/new-page')
 
         expect(await browser.elementByCss('body').text()).toMatch(
           /This page could not be found/
@@ -335,7 +335,7 @@ describe('basic HMR', () => {
       const aboutPage = join('pages', 'hmr', 'about2.js')
       const aboutContent = await next.readFile(aboutPage)
       try {
-        browser = await webdriver(next.appPort, '/docs/hmr/about2')
+        browser = await webdriver(next.url, '/docs/hmr/about2')
         await check(() => getBrowserBodyText(browser), /This is the about page/)
 
         await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
@@ -368,14 +368,14 @@ describe('basic HMR', () => {
       const aboutContent = await next.readFile(aboutPage)
       let browser
       try {
-        await renderViaHTTP(next.appPort, '/docs/hmr/about2')
+        await renderViaHTTP(next.url, '/docs/hmr/about2')
 
         await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
         // Ensure dev server has time to break:
         await new Promise((resolve) => setTimeout(resolve, 2000))
 
-        browser = await webdriver(next.appPort, '/docs/hmr/contact')
+        browser = await webdriver(next.url, '/docs/hmr/contact')
 
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
@@ -408,7 +408,7 @@ describe('basic HMR', () => {
       const aboutPage = join('pages', 'hmr', 'about3.js')
       const aboutContent = await next.readFile(aboutPage)
       try {
-        browser = await webdriver(next.appPort, '/docs/hmr/about3')
+        browser = await webdriver(next.url, '/docs/hmr/about3')
         await check(() => getBrowserBodyText(browser), /This is the about page/)
 
         await next.patchFile(
@@ -435,7 +435,7 @@ describe('basic HMR', () => {
       const aboutPage = join('pages', 'hmr', 'about4.js')
       const aboutContent = await next.readFile(aboutPage)
       try {
-        browser = await webdriver(next.appPort, '/docs/hmr/about4')
+        browser = await webdriver(next.url, '/docs/hmr/about4')
         await check(() => getBrowserBodyText(browser), /This is the about page/)
 
         await next.patchFile(
@@ -474,7 +474,7 @@ describe('basic HMR', () => {
       const aboutPage = join('pages', 'hmr', 'about5.js')
       const aboutContent = await next.readFile(aboutPage)
       try {
-        browser = await webdriver(next.appPort, '/docs/hmr/about5')
+        browser = await webdriver(next.url, '/docs/hmr/about5')
         await check(() => getBrowserBodyText(browser), /This is the about page/)
 
         await next.patchFile(
@@ -521,7 +521,7 @@ describe('basic HMR', () => {
       const aboutPage = join('pages', 'hmr', 'about6.js')
       const aboutContent = await next.readFile(aboutPage)
       try {
-        browser = await webdriver(next.appPort, '/docs/hmr/about6')
+        browser = await webdriver(next.url, '/docs/hmr/about6')
         await check(() => getBrowserBodyText(browser), /This is the about page/)
 
         await next.patchFile(
@@ -532,19 +532,10 @@ describe('basic HMR', () => {
           )
         )
 
-        const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
-
         expect(await hasRedbox(browser)).toBe(true)
         // TODO: Replace this when webpack 5 is the default
-        expect(
-          (await getRedboxHeader(browser)).replace(
-            '__WEBPACK_DEFAULT_EXPORT__',
-            'Unknown'
-          )
-        ).toMatch(
-          `Objects are not valid as a React child (found: ${
-            isReact17 ? '/search/' : '[object RegExp]'
-          }). If you meant to render a collection of children, use an array instead.`
+        expect(await getRedboxHeader(browser)).toMatch(
+          `Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.`
         )
 
         await next.patchFile(aboutPage, aboutContent)
@@ -574,7 +565,7 @@ describe('basic HMR', () => {
 
       const aboutContent = await next.readFile(aboutPage)
       try {
-        browser = await webdriver(next.appPort, '/docs/hmr/about7')
+        browser = await webdriver(next.url, '/docs/hmr/about7')
         await check(() => getBrowserBodyText(browser), /This is the about page/)
 
         await next.patchFile(
@@ -622,7 +613,7 @@ describe('basic HMR', () => {
       const erroredPage = join('pages', 'hmr', 'error-in-gip.js')
       const errorContent = await next.readFile(erroredPage)
       try {
-        browser = await webdriver(next.appPort, '/docs/hmr')
+        browser = await webdriver(next.url, '/docs/hmr')
         await browser.elementByCss('#error-in-gip-link').click()
 
         expect(await hasRedbox(browser)).toBe(true)
@@ -667,7 +658,7 @@ describe('basic HMR', () => {
       const erroredPage = join('pages', 'hmr', 'error-in-gip.js')
       const errorContent = await next.readFile(erroredPage)
       try {
-        browser = await webdriver(next.appPort, '/docs/hmr/error-in-gip')
+        browser = await webdriver(next.url, '/docs/hmr/error-in-gip')
 
         expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`

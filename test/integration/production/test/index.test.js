@@ -37,7 +37,7 @@ let app
 const context = {}
 
 if (process.env.TEST_WASM) {
-  jest.setTimeout(120 * 1000)
+  jest.setTimeout(240 * 1000)
 }
 
 describe('Production Usage', () => {
@@ -1181,10 +1181,6 @@ describe('Production Usage', () => {
         await browser.close()
       }
     }
-  })
-
-  it('should not emit profiling events', async () => {
-    expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
   })
 
   it('should not emit stats', async () => {

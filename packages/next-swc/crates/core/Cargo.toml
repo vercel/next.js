@@ -5,9 +5,7 @@ version = "0.0.0"
 publish = false
 
 [features]
-plugin = [
-  "swc_core/plugin_transform_host_native"
-]
+plugin = ["next-binding/__swc_core_binding_napi_plugin"]
 
 [dependencies]
 chrono = "0.4"
@@ -19,32 +17,21 @@ pathdiff = "0.2.0"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
-swc_emotion = "0.28.2"
-styled_components = "0.52.5"
-styled_jsx = "0.29.5"
-modularize_imports = "0.25.5"
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 
-swc_core = { features = [
-  "common_concurrent",
-  "ecma_ast",
-  "ecma_visit",
-  "ecma_loader_node",
-  "ecma_loader_lru",
-  "ecma_utils",
-  "ecma_minifier",
-  "ecma_transforms",
-  "__ecma_transforms",
-  "ecma_transforms_react",
-  "ecma_transforms_typescript",
-  "ecma_transforms_optimization",
-  "ecma_parser",
-  "ecma_parser_typescript",
-  "cached",
-  "base"
-], version = "0.43.23" }
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "079505baf1ce03707d28b6c0afb158dca601a11a", features = [
+  "__swc_core",
+  "__swc_core_next_core",
+  "__swc_transform_styled_jsx",
+  "__swc_transform_emotion",
+  "__swc_transform_styled_components",
+  "__swc_transform_modularize_imports",
+] }
 
 [dev-dependencies]
-swc_core = { features = ["testing_transform"], version = "0.43.23" }
-testing = "0.31.14"
+next-binding = { git = "https://github.com/vercel/turbo.git", rev = "079505baf1ce03707d28b6c0afb158dca601a11a", features = [
+  "__swc_core_testing_transform",
+  "__swc_testing",
+] }
+
 walkdir = "2.3.2"

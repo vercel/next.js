@@ -9,6 +9,22 @@ These are the steps you should follow when creating a bug report:
 - If you think the issue is not in Next.js, the best place to ask for help is our [Discord community](https://nextjs.org/discord) or [GitHub discussions](https://github.com/vercel/next.js/discussions). Our community is welcoming and can often answer a project-related question faster than the Next.js core team.
 - Make the reproduction as minimal as possible. Try to exclude any code that does not help reproducing the issue. E.g. if you experience problems with Routing, including ESLint configurations or API routes aren't necessary. The less lines of code is to read through, the easier it is for the Next.js team to investigate. It may also help catching bugs in your codebase before publishing an issue.
 
+## How to use this template
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+
+```bash
+npx create-next-app --example reproduction-template reproduction-app
+```
+
+```bash
+yarn create next-app --example reproduction-template reproduction-app
+```
+
+```bash
+pnpm create next-app --example reproduction-template reproduction-app
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

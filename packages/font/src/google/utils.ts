@@ -1,6 +1,7 @@
 import fs from 'fs'
 // @ts-ignore
 import fetch from 'next/dist/compiled/node-fetch'
+import { nextFontError } from '../utils'
 import fontData from './font-data.json'
 const allowedDisplayValues = ['auto', 'block', 'swap', 'fallback', 'optional']
 
@@ -17,30 +18,53 @@ type FontOptions = {
   fallback?: string[]
   adjustFontFallback: boolean
   variable?: string
-  subsets?: string[]
+  subsets: string[]
 }
-export function validateData(functionName: string, data: any): FontOptions {
+export function validateData(
+  functionName: string,
+  data: any,
+  config: any
+): FontOptions {
   let {
     weight,
     style,
-    display = 'optional',
     preload = true,
+    display = preload ? 'optional' : 'swap',
     axes,
     fallback,
     adjustFontFallback = true,
     variable,
-    subsets,
+    subsets: callSubsets,
   } = data[0] || ({} as any)
+  const subsets = callSubsets ?? config?.subsets ?? []
+
   if (functionName === '') {
-    throw new Error(`@next/font/google has no default export`)
+    nextFontError(`@next/font/google has no default export`)
   }
 
   const fontFamily = functionName.replace(/_/g, ' ')
-
   const fontFamilyData = (fontData as any)[fontFamily]
-  const fontWeights = fontFamilyData?.weights
+
+  if (preload && !callSubsets && !config?.subsets) {
+    nextFontError(
+      `Missing selected subsets for font \`${fontFamily}\`. Please specify subsets in the function call or in your \`next.config.js\`. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets`
+    )
+  }
+
+  const availableSubsets = fontFamilyData.subsets
+  subsets.forEach((subset: string) => {
+    if (!availableSubsets.includes(subset)) {
+      nextFontError(
+        `Unknown subset \`${subset}\` for font \`${fontFamily}\`.\nAvailable subsets: ${formatValues(
+          availableSubsets
+        )}`
+      )
+    }
+  })
+
+  const fontWeights = fontFamilyData.weights
   if (!fontWeights) {
-    throw new Error(`Unknown font \`${fontFamily}\``)
+    nextFontError(`Unknown font \`${fontFamily}\``)
   }
   const fontStyles = fontFamilyData.styles
 
@@ -56,7 +80,7 @@ export function validateData(functionName: string, data: any): FontOptions {
     if (fontWeights.includes('variable')) {
       weights.push('variable')
     } else {
-      throw new Error(
+      nextFontError(
         `Missing weight for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
           fontWeights
         )}`
@@ -65,14 +89,14 @@ export function validateData(functionName: string, data: any): FontOptions {
   }
 
   if (weights.length > 1 && weights.includes('variable')) {
-    throw new Error(
+    nextFontError(
       `Unexpected \`variable\` in weight array for font \`${fontFamily}\`. You only need \`variable\`, it includes all available weights.`
     )
   }
 
   weights.forEach((selectedWeight) => {
     if (!fontWeights.includes(selectedWeight)) {
-      throw new Error(
+      nextFontError(
         `Unknown weight \`${selectedWeight}\` for font \`${fontFamily}\`.\nAvailable weights: ${formatValues(
           fontWeights
         )}`
@@ -90,7 +114,7 @@ export function validateData(functionName: string, data: any): FontOptions {
 
   styles.forEach((selectedStyle) => {
     if (!fontStyles.includes(selectedStyle)) {
-      throw new Error(
+      nextFontError(
         `Unknown style \`${selectedStyle}\` for font \`${fontFamily}\`.\nAvailable styles: ${formatValues(
           fontStyles
         )}`
@@ -99,7 +123,7 @@ export function validateData(functionName: string, data: any): FontOptions {
   })
 
   if (!allowedDisplayValues.includes(display)) {
-    throw new Error(
+    nextFontError(
       `Invalid display value \`${display}\` for font \`${fontFamily}\`.\nAvailable display values: ${formatValues(
         allowedDisplayValues
       )}`
@@ -107,7 +131,7 @@ export function validateData(functionName: string, data: any): FontOptions {
   }
 
   if (weights[0] !== 'variable' && axes) {
-    throw new Error('Axes can only be defined for variable fonts')
+    nextFontError('Axes can only be defined for variable fonts')
   }
 
   return {
@@ -191,7 +215,7 @@ export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
     const mockFile = require(process.env.NEXT_FONT_GOOGLE_MOCKED_RESPONSES)
     mockedResponse = mockFile[url]
     if (!mockedResponse) {
-      throw new Error('Missing mocked response for URL: ' + url)
+      nextFontError('Missing mocked response for URL: ' + url)
     }
   }
 
@@ -208,7 +232,7 @@ export async function fetchCSSFromGoogleFonts(url: string, fontFamily: string) {
     })
 
     if (!res.ok) {
-      throw new Error(`Failed to fetch font  \`${fontFamily}\`.\nURL: ${url}`)
+      nextFontError(`Failed to fetch font  \`${fontFamily}\`.\nURL: ${url}`)
     }
 
     cssResponse = await res.text()
@@ -252,10 +276,10 @@ export function getFontAxes(
         .map(({ tag }) => tag)
         .filter((tag) => tag !== 'wght')
       if (defineAbleAxes.length === 0) {
-        throw new Error(`Font \`${fontFamily}\` has no definable \`axes\``)
+        nextFontError(`Font \`${fontFamily}\` has no definable \`axes\``)
       }
       if (!Array.isArray(selectedVariableAxes)) {
-        throw new Error(
+        nextFontError(
           `Invalid axes value for font \`${fontFamily}\`, expected an array of axes.\nAvailable axes: ${formatValues(
             defineAbleAxes
           )}`
@@ -263,7 +287,7 @@ export function getFontAxes(
       }
       selectedVariableAxes.forEach((key) => {
         if (!defineAbleAxes.some((tag) => tag === key)) {
-          throw new Error(
+          nextFontError(
             `Invalid axes value \`${key}\` for font \`${fontFamily}\`.\nAvailable axes: ${formatValues(
               defineAbleAxes
             )}`

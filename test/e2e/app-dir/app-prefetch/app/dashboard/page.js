@@ -1,5 +1,3 @@
-import { use } from 'react'
-
 export const revalidate = 0
 
 async function getData() {
@@ -8,8 +6,8 @@ async function getData() {
     message: 'Welcome to the dashboard',
   }
 }
-export default function DashboardPage(props) {
-  const { message } = use(getData())
+export default async function DashboardPage(props) {
+  const { message } = await getData()
 
   return (
     <>

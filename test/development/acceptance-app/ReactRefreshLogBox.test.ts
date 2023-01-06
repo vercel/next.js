@@ -6,11 +6,6 @@ import { check } from 'next-test-utils'
 import path from 'path'
 
 describe('ReactRefreshLogBox app', () => {
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
-
   let next: NextInstance
 
   beforeAll(async () => {
@@ -49,7 +44,7 @@ describe('ReactRefreshLogBox app', () => {
     )
     await session.evaluate(() => document.querySelector('a').click())
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
@@ -114,8 +109,7 @@ describe('ReactRefreshLogBox app', () => {
     await cleanup()
   })
 
-  // TODO-APP: re-enable when error recovery doesn't reload the page.
-  test.skip('logbox: can recover from a event handler error', async () => {
+  test('logbox: can recover from a event handler error', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -147,7 +141,7 @@ describe('ReactRefreshLogBox app', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
     if (process.platform === 'win32') {
       expect(await session.getRedboxSource()).toMatchSnapshot()
     } else {
@@ -173,6 +167,7 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasErrorToast()).toBe(false)
 
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
@@ -183,6 +178,7 @@ describe('ReactRefreshLogBox app', () => {
     ).toBe('Count: 2')
 
     expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasErrorToast()).toBe(false)
 
     await cleanup()
   })
@@ -247,6 +243,88 @@ describe('ReactRefreshLogBox app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello')
+
+    await cleanup()
+  })
+
+  test('server component can recover from syntax error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          `
+          export default function Page() {
+            return <p>Hello world</p>
+          }
+`,
+        ],
+      ])
+    )
+
+    // Add syntax error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p>Hello world</p>
+`
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Fix syntax error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p>Hello world 2</p>
+      }
+`
+    )
+
+    expect(await browser.waitForElementByCss('p').text()).toBe('Hello world 2')
+
+    await cleanup()
+  })
+
+  test('server component can recover from component error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          `
+          export default function Page() {
+            return <p>Hello world</p>
+          }
+`,
+        ],
+      ])
+    )
+
+    // Add component error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        throw new Error("boom")
+        return <p>Hello world</p>
+      }
+`
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Fix component error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p>Hello world 2</p>
+      }
+`
+    )
+
+    expect(await browser.waitForElementByCss('p').text()).toBe('Hello world 2')
 
     await cleanup()
   })
@@ -326,6 +404,12 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
     expect(await session.hasRedbox(true)).toBe(true)
+
+    await check(async () => {
+      const source = await session.getRedboxSource()
+      return source?.length > 1 ? 'success' : source
+    }, 'success')
+
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
@@ -475,7 +559,7 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
     if (process.platform === 'win32') {
       expect(await session.getRedboxSource()).toMatchSnapshot()
     } else {
@@ -562,7 +646,7 @@ describe('ReactRefreshLogBox app', () => {
       `export default function FunctionDefault() { throw new Error('no'); }`
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
     expect(await session.getRedboxSource()).toMatchSnapshot()
     expect(
       await session.evaluate(() => document.querySelector('h2').textContent)
@@ -764,9 +848,8 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const header = await session.getRedboxDescription()
     expect(header).toMatchSnapshot()
@@ -810,9 +893,8 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const header2 = await session.getRedboxDescription()
     expect(header2).toMatchSnapshot()
@@ -856,9 +938,8 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const header3 = await session.getRedboxDescription()
     expect(header3).toMatchSnapshot()
@@ -902,9 +983,8 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.waitForAndOpenRuntimeError()
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toMatchInlineSnapshot(
@@ -1053,6 +1133,211 @@ describe('ReactRefreshLogBox app', () => {
     expect(await session.getRedboxDescription()).toContain(
       `Error: A null error was thrown`
     )
+
+    await cleanup()
+  })
+
+  test('Should not show __webpack_exports__ when exporting anonymous arrow function', async () => {
+    const { session, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'index.js',
+      `
+       export default () => {
+        if (typeof window !== 'undefined') {
+          throw new Error('test')
+        }
+
+        return null
+       }
+
+      `
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.getRedboxSource()).toMatchSnapshot()
+
+    await cleanup()
+  })
+
+  test('Unhandled errors and rejections opens up in the minimized state', async () => {
+    const { session, browser, cleanup } = await sandbox(next)
+
+    const file = `
+    export default function Index() {
+      //
+      setTimeout(() => {
+        throw new Error('Unhandled error')
+      }, 0)
+      setTimeout(() => {
+        Promise.reject(new Error('Undhandled rejection'))
+      }, 0)
+      return (
+        <>
+          <button
+            id="unhandled-error"
+            onClick={() => {
+              throw new Error('Unhandled error')
+            }}
+          >
+            Unhandled error
+          </button>
+          <button
+            id="unhandled-rejection"
+            onClick={() => {
+              Promise.reject(new Error('Undhandled rejection'))
+            }}
+          >
+            Unhandled rejection
+          </button>
+        </>
+      )
+    }
+    `
+
+    await session.patch('index.js', file)
+
+    // Unhandled error and rejection in setTimeout
+    expect(
+      await browser.waitForElementByCss('.nextjs-toast-errors').text()
+    ).toBe('2 errors')
+
+    // Unhandled error in event handler
+    await browser.elementById('unhandled-error').click()
+    await check(
+      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      /3 errors/
+    )
+
+    // Unhandled rejection in event handler
+    await browser.elementById('unhandled-rejection').click()
+    await check(
+      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      /4 errors/
+    )
+    expect(await session.hasRedbox()).toBe(false)
+
+    // Add Component error
+    await session.patch(
+      'index.js',
+      file.replace(
+        '//',
+        "if (typeof window !== 'undefined') throw new Error('Component error')"
+      )
+    )
+
+    // Render error should "win" and show up in fullscreen
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    await cleanup()
+  })
+
+  test.each([['server'], ['client']])(
+    'Call stack count is correct for %s error',
+    async (pageType: string) => {
+      const fixture =
+        pageType === 'server'
+          ? new Map([
+              [
+                'app/page.js',
+                `
+        export default function Page() {
+          throw new Error('Server error')
+        }
+`,
+              ],
+            ])
+          : new Map([
+              [
+                'app/page.js',
+                `
+        'use client'
+        export default function Page() {
+          if (typeof window !== 'undefined') {
+            throw new Error('Client error')
+          }
+          return null
+        }
+`,
+              ],
+            ])
+
+      const { session, browser, cleanup } = await sandbox(next, fixture)
+
+      const getCallStackCount = async () =>
+        (await browser.elementsByCss('[data-nextjs-call-stack-frame]')).length
+
+      expect(await session.hasRedbox(true)).toBe(true)
+
+      // Open full Call Stack
+      await browser
+        .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
+        .click()
+
+      const collapsedFrameworkGroups = await browser.elementsByCss(
+        "[data-nextjs-call-stack-framework-button][data-state='closed']"
+      )
+      for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
+        // Open the collapsed framework groups, the callstack count should increase with each opened group
+        const callStackCountBeforeGroupOpened = await getCallStackCount()
+        await collapsedFrameworkButton.click()
+        expect(await getCallStackCount()).toBeGreaterThan(
+          callStackCountBeforeGroupOpened
+        )
+      }
+
+      // Expect more than the default amount of frames
+      // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+      expect(await getCallStackCount()).toBeGreaterThan(9)
+
+      await cleanup()
+    }
+  )
+
+  test('Server component errors should open up in fullscreen', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        // Start with error
+        [
+          'app/page.js',
+          `
+        export default function Page() {
+          throw new Error('Server component error')
+          return <p id="text">Hello world</p>
+        }
+        `,
+        ],
+      ])
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Remove error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p id="text">Hello world</p>
+      }
+      `
+    )
+    expect(await browser.waitForElementByCss('#text').text()).toBe(
+      'Hello world'
+    )
+    expect(await session.hasRedbox()).toBe(false)
+
+    // Re-add error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        throw new Error('Server component error!')
+        return <p id="text">Hello world</p>
+      }
+      `
+    )
+
+    expect(await session.hasRedbox(true)).toBe(true)
 
     await cleanup()
   })
