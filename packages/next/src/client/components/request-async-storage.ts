@@ -1,20 +1,17 @@
-import type { AsyncLocalStorage } from 'async_hooks'
+import { PreviewData } from '../../../types'
 import type {
   ReadonlyHeaders,
   ReadonlyRequestCookies,
 } from '../../server/app-render'
+import { AsyncLocalStorageAdapter } from '../../server/async-local-storage-adapter'
 
 export interface RequestStore {
-  headers: ReadonlyHeaders
-  cookies: ReadonlyRequestCookies
-  previewData: any
+  readonly headers: ReadonlyHeaders
+  readonly cookies: ReadonlyRequestCookies
+  readonly previewData: PreviewData
 }
 
-export let requestAsyncStorage: AsyncLocalStorage<RequestStore> | RequestStore =
-  {} as any
+export type RequestAsyncStorage = AsyncLocalStorageAdapter<RequestStore>
 
-// @ts-expect-error we provide this on globalThis in
-// the edge and node runtime
-if (globalThis.AsyncLocalStorage) {
-  requestAsyncStorage = new (globalThis as any).AsyncLocalStorage()
-}
+export const requestAsyncStorage: RequestAsyncStorage =
+  new AsyncLocalStorageAdapter()
