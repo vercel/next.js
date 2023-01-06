@@ -1,13 +1,13 @@
 import Image from 'next/image'
 import { Inter } from '@next/font/google'
 import styles from './page.module.css'
-import Content from './blog.mdx'
+import Content from './message.mdx'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export default function Home() {
   return (
-    <main className={styles.main}>
+    <main className={`${styles.main} ${inter.className}`}>
       <div className={styles.description}>
         <p>
           Get started by editing&nbsp;
@@ -45,12 +45,10 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <h2 className={inter.className}>
+          <h2>
             Docs <span>-&gt;</span>
           </h2>
-          <p className={inter.className}>
-            Find in-depth information about Next.js features and API.
-          </p>
+          <p>Find in-depth information about Next.js features and API.</p>
         </a>
 
         <a
@@ -59,10 +57,10 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <h2 className={inter.className}>
+          <h2>
             Templates <span>-&gt;</span>
           </h2>
-          <p className={inter.className}>Explore the Next.js 13 playground.</p>
+          <p>Explore the Next.js 13 playground.</p>
         </a>
 
         <a
@@ -71,10 +69,10 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          <h2 className={inter.className}>
+          <h2>
             Deploy <span>-&gt;</span>
           </h2>
-          <p className={inter.className}>
+          <p>
             Instantly deploy your Next.js site to a shareable URL with Vercel.
           </p>
         </a>
