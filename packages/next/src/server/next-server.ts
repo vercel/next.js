@@ -109,6 +109,8 @@ import {
   handleMethodNotAllowedResponse,
 } from './api-utils/handlers'
 import { HTTP_METHOD, isHTTPMethod } from './web/http'
+import { RequestAsyncStorage } from '../client/components/request-async-storage'
+import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 
 export * from './base-server'
 
@@ -1326,35 +1328,17 @@ export default class NextNodeServer extends BaseServer {
   }
 
   private async getAppCustomRouteHandler(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    route: AppCustomRoute
+    CustomRouteMod: any,
+    req: BaseNextRequest
   ): Promise<AppCustomRouteHandler> {
-    if (!this.appPathsManifest) {
-      throw new Error(
-        'could not find app paths manifest, unable to lookup route file'
-      )
-    }
-
-    // Get the underlying file to load for this pathname.
-    const path = this.appPathsManifest[route.pathname]
-    if (!path) {
-      throw new Error(
-        `could not find the path in the manifest, this shouldn't happen: ${route.pathname}`
-      )
-    }
-
-    // TODO: ensure to "ensure" that the app custom route page is built, like this.ensureApiPage
-
-    // Try to load the route module.
-    const mod = await require(join(this.distDir, SERVER_DIRECTORY, path))
-
     // Ensure that the requested method is a valid method (to prevent RCE's).
-
     if (!isHTTPMethod(req.method)) return handleBadRequestResponse
 
+    // Pull out the handlers from the custom route module.
+    const { handlers } = CustomRouteMod
+
     // Check to see if the requested method is available.
-    const handler: AppCustomRouteHandler | undefined = mod.handlers[req.method]
+    const handler: AppCustomRouteHandler | undefined = handlers[req.method]
     if (handler) return handler
 
     /**
@@ -1365,8 +1349,8 @@ export default class NextNodeServer extends BaseServer {
 
     // If HEAD is not provided, but GET is, then we respond to HEAD using the
     // GET handler without the body.
-    if (req.method === 'HEAD' && 'GET' in mod.handlers) {
-      return mod.handlers['GET']
+    if (req.method === 'HEAD' && 'GET' in handlers) {
+      return handlers['GET']
     }
 
     // If OPTIONS is not provided then implement it.
@@ -1374,7 +1358,7 @@ export default class NextNodeServer extends BaseServer {
       // TODO: check if HEAD is implemented, if so, use it to add more headers
 
       // Get all the handler methods from the list of handlers.
-      const methods = Object.keys(mod.handlers).filter((method) =>
+      const methods = Object.keys(CustomRouteMod.handlers).filter((method) =>
         isHTTPMethod(method)
       ) as HTTP_METHOD[]
 
@@ -1409,24 +1393,61 @@ export default class NextNodeServer extends BaseServer {
     route: AppCustomRoute,
     query: ParsedUrlQuery
   ): Promise<true> {
+    if (!this.appPathsManifest) {
+      throw new Error(
+        'could not find app paths manifest, unable to lookup route file'
+      )
+    }
+
+    // Get the underlying file to load for this pathname.
+    const path = this.appPathsManifest[route.pathname]
+    if (!path) {
+      throw new Error(
+        `could not find the path in the manifest, this shouldn't happen: ${route.pathname}`
+      )
+    }
+
+    // TODO: ensure to "ensure" that the app custom route page is built, like this.ensureApiPage
+
+    // Try to load the route module.
+    const CustomRouteMod = await require(join(
+      this.distDir,
+      SERVER_DIRECTORY,
+      path
+    ))
+
+    // TODO: patch fetch
+
+    const requestAsyncStorage: RequestAsyncStorage =
+      CustomRouteMod.requestAsyncStorage
+
     // TODO: run any edge functions that should be ran for this invocation.
     // TODO: wrap the request object
-
-    // Get the route handler.
-    const handler = await this.getAppCustomRouteHandler(req, res, route)
 
     const ctx: AppCustomRouteContext = { params: route.params }
 
     let response: Response
     try {
+      // Get the route handler.
+      const handler = await this.getAppCustomRouteHandler(CustomRouteMod, req)
+
       // Use the requested handler to execute the request.
-      response = await handler(req, ctx)
+      response = await runWithRequestAsyncStorage(
+        requestAsyncStorage,
+        {
+          req: (req as NodeNextRequest).originalRequest,
+          res: (res as NodeNextResponse).originalResponse,
+        },
+        () => handler(req, ctx)
+      )
 
       if (!(response instanceof Response)) {
         // TODO: validate the correct handling behavior
         response = handleInternalServerErrorResponse()
       }
-    } catch {
+    } catch (err) {
+      Log.error(err)
+
       // TODO: validate the correct handling behavior
       response = handleInternalServerErrorResponse()
     }

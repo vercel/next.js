@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { getRequestMeta } from './helpers'
+import { withRequestMeta, getRequestMeta } from './helpers'
 
 createNextDescribe(
   'app-custom-routes',
@@ -33,8 +33,7 @@ createNextDescribe(
         it('routes to the correct handler', async () => {
           const res = await next.fetch('/basic/endpoint/nested')
 
-          expect(res.ok).toBeTrue()
-
+          expect(res.status).toEqual(200)
           const meta = getRequestMeta(res.headers)
           expect(meta.pathname).toEqual('/basic/endpoint/nested')
         })
@@ -45,8 +44,7 @@ createNextDescribe(
       it('provides params to routes with dynamic parameters', async () => {
         const res = await next.fetch('/basic/vercel/endpoint')
 
-        expect(res.ok).toBeTrue()
-
+        expect(res.status).toEqual(200)
         const meta = getRequestMeta(res.headers)
         expect(meta.params).toEqual({ tenantID: 'vercel' })
       })
@@ -54,8 +52,7 @@ createNextDescribe(
       it('provides params to routes with catch-all routes', async () => {
         const res = await next.fetch('/basic/vercel/some/other/resource')
 
-        expect(res.ok).toBeTrue()
-
+        expect(res.status).toEqual(200)
         const meta = getRequestMeta(res.headers)
         expect(meta.params).toEqual({
           tenantID: 'vercel',
@@ -70,6 +67,21 @@ createNextDescribe(
 
         const meta = getRequestMeta(res.headers)
         expect(meta.params).toEqual(null)
+      })
+    })
+
+    describe('hooks', () => {
+      describe('headers', () => {
+        it('gets the correct values', async () => {
+          const res = await next.fetch('/hooks/headers', {
+            headers: withRequestMeta({ ping: 'pong' }),
+          })
+
+          expect(res.status).toEqual(200)
+
+          const meta = getRequestMeta(res.headers)
+          expect(meta.ping).toEqual('pong')
+        })
       })
     })
 

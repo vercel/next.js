@@ -11,8 +11,8 @@ const KEY = 'x-request-meta'
  */
 export function withRequestMeta(
   meta: Record<string, any>,
-  headers: HeadersInit = {}
-): HeadersInit {
+  headers: Record<string, string> = {}
+): Record<string, string> {
   return {
     ...headers,
     [KEY]: JSON.stringify(meta),

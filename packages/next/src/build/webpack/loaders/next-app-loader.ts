@@ -181,11 +181,15 @@ async function createCustomAppRouteCode({
   // route handler file.
   const resolvedPagePath = await resolver(matchedPagePath)
 
-  // TODO: verify if other methods need to be injected (like requestAsyncStorage)
+  // TODO: verify if other methods need to be injected
   // TODO: is there a way to test/validate that the outputted string template is type correct? Suggest adding type here to reference by the importer.
   // TODO: validate that the handler exports at least one of the supported methods
 
-  return `export * as handlers from ${JSON.stringify(resolvedPagePath)}`
+  return `
+    export * as handlers from ${JSON.stringify(resolvedPagePath)}
+
+    export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
+  `
 }
 
 const nextAppLoader: webpack.LoaderDefinitionFunction<{
