@@ -34,10 +34,10 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const appDirPath = data.appDir ? 'app-dir' : ''
+      const appDirPath = data.appDir ? 'app-dir/' : ''
       let templatePath = `test/${
         data.type === 'unit' ? 'unit' : 'e2e'
-      }/${appDirPath}/test-template`
+      }/${appDirPath}test-template`
       let targetPath = `test/{{ type }}/${appDirPath}`
 
       return [
