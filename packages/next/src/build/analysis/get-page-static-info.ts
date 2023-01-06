@@ -2,6 +2,7 @@ import type { NextConfig } from '../../server/config-shared'
 import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
+import LRUCache from 'next/dist/compiled/lru-cache'
 import { matcher } from 'next/dist/compiled/micromatch'
 import { ServerRuntime } from 'next/types'
 import {
@@ -231,7 +232,7 @@ function getMiddlewareConfig(
   return result
 }
 
-const apiRouteWarnings = new Set()
+const apiRouteWarnings = new LRUCache({ max: 250 })
 function warnAboutExperimentalEdge(apiRoute: string | null) {
   if (apiRouteWarnings.has(apiRoute)) {
     return
@@ -241,7 +242,7 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
       ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
       : `You are using an experimental edge runtime, the API might change.`
   )
-  apiRouteWarnings.add(apiRoute)
+  apiRouteWarnings.set(apiRoute, 1)
 }
 
 const warnedUnsupportedValueMap = new Map<string, boolean>()
