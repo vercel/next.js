@@ -9,7 +9,7 @@ type RunWithStaticGenerationAsyncStorageContext = {
   renderOpts: RenderOpts
 }
 
-export async function runWithStaticGenerationAsyncStorage<Result>(
+export function runWithStaticGenerationAsyncStorage<Result>(
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage,
   { pathname, renderOpts }: RunWithStaticGenerationAsyncStorageContext,
   callback: () => Promise<Result>
@@ -37,5 +37,5 @@ export async function runWithStaticGenerationAsyncStorage<Result>(
     isRevalidate: renderOpts.isRevalidate,
   }
 
-  return await staticGenerationAsyncStorage.run(store, callback)
+  return staticGenerationAsyncStorage.run(store, callback)
 }

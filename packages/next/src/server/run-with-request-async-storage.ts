@@ -25,7 +25,7 @@ type RunWithRequestAsyncStorageContext = {
   renderOpts?: RenderOpts
 }
 
-export async function runWithRequestAsyncStorage<Result>(
+export function runWithRequestAsyncStorage<Result>(
   requestAsyncStorage: RequestAsyncStorage,
   { req, res, renderOpts }: RunWithRequestAsyncStorageContext,
   callback: () => Promise<Result>
@@ -73,5 +73,5 @@ export async function runWithRequestAsyncStorage<Result>(
     previewData,
   }
 
-  return await requestAsyncStorage.run(store, callback)
+  return requestAsyncStorage.run(store, callback)
 }
