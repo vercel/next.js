@@ -1,8 +1,8 @@
-import {
+import type {
   StaticGenerationStore,
   StaticGenerationAsyncStorage,
 } from '../client/components/static-generation-async-storage'
-import { RenderOpts } from './app-render'
+import type { RenderOpts } from './app-render'
 
 type RunWithStaticGenerationAsyncStorageContext = {
   pathname: string

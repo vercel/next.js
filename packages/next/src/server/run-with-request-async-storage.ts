@@ -1,14 +1,14 @@
-import { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
-import { PreviewData } from 'next/types'
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
+import type { PreviewData } from 'next/types'
 import { FLIGHT_PARAMETERS } from '../client/components/app-router-headers'
-import {
+import type {
   RequestStore,
   RequestAsyncStorage,
 } from '../client/components/request-async-storage'
 import {
   ReadonlyHeaders,
   ReadonlyRequestCookies,
-  RenderOpts,
+  type RenderOpts,
 } from './app-render'
 
 function headersWithoutFlight(headers: IncomingHttpHeaders) {
