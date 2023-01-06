@@ -166,7 +166,9 @@ describe('@next/font/google loader', () => {
           variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"Cannot read properties of undefined (reading 'subsets')"`
+        process.version.startsWith('v14')
+          ? `"Cannot read property 'subsets' of undefined"`
+          : `"Cannot read properties of undefined (reading 'subsets')"`
       )
     })
 

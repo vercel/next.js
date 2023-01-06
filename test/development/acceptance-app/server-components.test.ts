@@ -291,5 +291,47 @@ createNextDescribe(
         await cleanup()
       })
     })
+
+    describe('Next.js component hooks called in Server Component', () => {
+      it.each([
+        // TODO-APP: add test for useParams
+        // ["useParams"],
+        ['useRouter'],
+        ['useSearchParams'],
+        ['useSelectedLayoutSegment'],
+        ['useSelectedLayoutSegments'],
+        ['usePathname'],
+      ])('should show error when %s is called', async (hook: string) => {
+        const { session, cleanup } = await sandbox(
+          next,
+          new Map([
+            [
+              'app/page.js',
+              `
+        import { ${hook} } from 'next/navigation'
+        export default function Page() {
+          ${hook}() 
+          return "Hello world" 
+        }`,
+            ],
+          ])
+        )
+
+        expect(await session.hasRedbox(true)).toBe(true)
+
+        await check(async () => {
+          expect(await session.getRedboxSource(true)).toContain(
+            `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
+          )
+          return 'success'
+        }, 'success')
+
+        expect(next.cliOutput).toContain(
+          `${hook} only works in Client Components`
+        )
+
+        await cleanup()
+      })
+    })
   }
 )
