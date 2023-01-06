@@ -260,10 +260,12 @@ function patchFetch(ComponentMod: any) {
   const originFetch = globalThis.fetch
   globalThis.fetch = async (input, init) => {
     const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+
+    // If the staticGenerationStore is not available, we can't do any special
+    // treatment of fetch, therefore fallback to the original fetch
+    // implementation.
     if (!staticGenerationStore) {
-      throw new Error(
-        `Invariant: Fetch expects to run within the render to have staticGenerationAsyncStorage, none found`
-      )
+      return originFetch(input, init)
     }
 
     let revalidate: number | undefined | boolean
