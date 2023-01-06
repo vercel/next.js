@@ -107,6 +107,7 @@ pub fn check_for_updates(
     current_version: &str,
     timeout: Option<Duration>,
     interval: Option<Duration>,
+    is_global_turbo: bool,
 ) -> Result<(), UpdateNotifierError> {
     // bail early if the user has disabled update notifications
     if should_skip_notification() {
@@ -128,6 +129,13 @@ pub fn check_for_updates(
         .interval(interval);
     if let Ok(Some(version)) = informer.check_version() {
         let latest_version = version.to_string();
+        // TODO: make this package manager aware
+        let update_cmd = if is_global_turbo {
+            "npm i -g turbo".cyan().bold()
+        } else {
+            "npm i turbo".cyan().bold()
+        };
+
         let msg = format!(
             "
             Update available {version_prefix}{current_version} ≫ {latest_version}
@@ -138,8 +146,7 @@ pub fn check_for_updates(
             current_version = current_version.dimmed(),
             latest_version = latest_version.green().bold(),
             github_repo = github_repo,
-            // TODO: make this package manager aware
-            update_cmd = "npm i -g turbo".cyan().bold(),
+            update_cmd = update_cmd
         );
 
         if let Some(footer) = footer {
