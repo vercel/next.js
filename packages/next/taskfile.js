@@ -155,7 +155,7 @@ export async function ncc_next_server(task, opts) {
           '$1@ampproject/toolbox-optimizer',
       },
     })
-    .target('src/compiled/next-server')
+    .target('dist/compiled/next-server')
 }
 
 // eslint-disable-next-line camelcase
@@ -1967,7 +1967,6 @@ export async function ncc(task, opts) {
     .clear('compiled')
     .parallel(
       [
-        'ncc_next_server',
         'ncc_node_html_parser',
         'ncc_watchpack',
         'ncc_chalk',
@@ -2129,7 +2128,11 @@ export async function compile(task, opts) {
     ],
     opts
   )
-  await task.serial(['ncc_react_refresh_utils', 'ncc_next__react_dev_overlay'])
+  await task.serial([
+    'ncc_react_refresh_utils',
+    'ncc_next__react_dev_overlay',
+    'ncc_next_server',
+  ])
 }
 
 export async function bin(task, opts) {
