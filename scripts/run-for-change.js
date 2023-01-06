@@ -65,7 +65,7 @@ async function main() {
   const typeIndex = process.argv.indexOf('--type')
   const type = typeIndex > -1 && process.argv[typeIndex + 1]
   const isNegated = process.argv.indexOf('--not') > -1
-  const alwaysCanary = process.argv.includes('--always-canary') > -1
+  const alwaysCanary = process.argv.indexOf('--always-canary') > -1
 
   if (!type) {
     throw new Error(

@@ -24,7 +24,7 @@ describe('next/jest', () => {
           import localFont from "@next/font/local";
           import { Inter } from "@next/font/google";
 
-          const inter = Inter();
+          const inter = Inter({ subsets: ["latin"] });
           const myFont = localFont({ src: "./my-font.woff2" });
 
           const Comp = dynamic(() => import("../components/comp"), {
