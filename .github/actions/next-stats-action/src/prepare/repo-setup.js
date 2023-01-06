@@ -4,6 +4,7 @@ const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
 const semver = require('semver')
+const execa = require('execa')
 
 const mockTrace = () => ({
   traceAsyncFn: (fn) => fn(mockTrace()),
@@ -70,6 +71,26 @@ module.exports = (actionInfo) => {
 
         try {
           pkgs = await fs.readdir(path.join(repoDir, 'packages'))
+          pkgs.forEach((pkgDirname) => {
+            execa.sync('pnpm', [
+              'ts-node',
+              ' --esm',
+              '--transpile-only',
+              path.join(repoDir, 'scripts', 'test-pack-package.ts'),
+              pkgDirname,
+            ])
+            const { name } = require(paph.join(
+              repoDir,
+              'packages',
+              pkgDirname,
+              'package.json'
+            ))
+            pkgPaths.set(
+              name,
+              path.join(repoDir, 'test', 'tmp', `packed-${pkgDirname}.tgz`)
+            )
+          })
+          return pkgPaths
         } catch (err) {
           if (err.code === 'ENOENT') {
             require('console').log('no packages to link')

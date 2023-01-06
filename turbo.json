@@ -29,6 +29,10 @@
       "dependsOn": ["^dev"],
       "outputs": ["dist/**"]
     },
-    "typescript": {}
+    "typescript": {},
+    "test-pack": {
+      "dependsOn": ["^test-pack"],
+      "outputs": ["packed-*.tgz"]
+    }
   }
 }

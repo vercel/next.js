@@ -8,7 +8,8 @@
     "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --js false native",
     "build-native-no-plugin-woa": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --cargo-flags=--no-default-features --features native-tls --js false native",
     "build-wasm": "wasm-pack build crates/wasm --scope=next",
-    "cache-build-native": "echo $(ls native)"
+    "cache-build-native": "echo $(ls native)",
+    "test-pack": "cd ../../ && pnpm test-pack next-swc"
   },
   "napi": {
     "name": "next-swc",

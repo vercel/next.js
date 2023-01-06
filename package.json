@@ -23,6 +23,7 @@
     "test": "pnpm testheadless",
     "testonly": "pnpm jest --runInBand",
     "testheadless": "cross-env HEADLESS=true pnpm testonly",
+    "test-pack": "ts-node --transpile-only scripts/test-pack-package.ts",
     "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",

@@ -25,7 +25,8 @@
     "prerelease": "rimraf ./dist/",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "prepublishOnly": "cd ../../ && turbo run build",
-    "build": "pnpm release"
+    "build": "pnpm release",
+    "test-pack": "cd ../../ && pnpm test-pack create-next-app"
   },
   "devDependencies": {
     "@types/async-retry": "1.4.2",

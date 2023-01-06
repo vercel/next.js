@@ -22,7 +22,8 @@
     "build": "pnpm tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm tsc -d -w -p tsconfig.json",
-    "test": "jest"
+    "test": "jest",
+    "test-pack": "cd ../../ && pnpm test-pack next-codemod"
   },
   "bin": "./bin/next-codemod.js",
   "devDependencies": {
