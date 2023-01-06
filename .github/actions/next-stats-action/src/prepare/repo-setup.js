@@ -70,24 +70,31 @@ module.exports = (actionInfo) => {
         let pkgs
 
         try {
-          pkgs = await fs.readdir(path.join(repoDir, 'packages'))
+          let origRepo = path.join(__dirname, '..', '..', '..', '..', '..')
+          if (origRepo === '/') {
+            // When we don't have acces in CI
+            origRepo = repoDir
+          }
+          pkgs = await fs.readdir(path.join(origRepo, 'packages'))
+          execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
+            cwd: origRepo,
+          })
+
           pkgs.forEach((pkgDirname) => {
-            execa.sync('pnpm', [
-              'ts-node',
-              ' --esm',
-              '--transpile-only',
-              path.join(repoDir, 'scripts', 'test-pack-package.ts'),
-              pkgDirname,
-            ])
-            const { name } = require(paph.join(
-              repoDir,
+            const { name } = require(path.join(
+              origRepo,
               'packages',
               pkgDirname,
               'package.json'
             ))
             pkgPaths.set(
               name,
-              path.join(repoDir, 'test', 'tmp', `packed-${pkgDirname}.tgz`)
+              path.join(
+                origRepo,
+                'packages',
+                pkgDirname,
+                `packed-${pkgDirname}.tgz`
+              )
             )
           })
           return pkgPaths
