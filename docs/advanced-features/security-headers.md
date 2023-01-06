@@ -76,7 +76,7 @@ This header indicates whether the site should be allowed to be displayed within 
 
 ### [Permissions-Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy)
 
-This header allows you to control which features and APIs can be used in the browser. It was previously named `Feature-Policy`. You can view the full list of permission options [here](https://www.w3.org/TR/permissions-policy-1/).
+This header allows you to control which features and APIs can be used in the browser. It was previously named `Feature-Policy`. You can view the full list of permission options [here](https://github.com/w3c/webappsec-permissions-policy/blob/main/features.md).
 
 ```jsx
 {
