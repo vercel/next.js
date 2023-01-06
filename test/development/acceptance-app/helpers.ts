@@ -20,7 +20,7 @@ export async function sandbox(
     }
   }
   await next.start()
-  const browser = await webdriver(next.appPort, '/')
+  const browser = await webdriver(next.url, '/')
   return {
     browser,
     session: {
@@ -99,6 +99,15 @@ export async function sandbox(
       },
       async hasRedbox(expected = false) {
         return hasRedbox(browser, expected)
+      },
+      async hasErrorToast() {
+        return browser.eval(() => {
+          return Boolean(
+            Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+              p.shadowRoot.querySelector('[data-nextjs-toast]')
+            )
+          )
+        })
       },
       async getRedboxDescription() {
         return getRedboxDescription(browser)

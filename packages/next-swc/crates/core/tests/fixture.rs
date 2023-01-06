@@ -1,3 +1,12 @@
+use next_binding::swc::{
+    core::{
+        common::{chain, comments::SingleThreadedComments, FileName, Mark},
+        ecma::parser::{EsConfig, Syntax},
+        ecma::transforms::react::jsx,
+        ecma::transforms::testing::{test, test_fixture},
+    },
+    testing::fixture,
+};
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
@@ -11,13 +20,6 @@ use next_swc::{
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use std::path::PathBuf;
-use swc_core::{
-    common::{chain, comments::SingleThreadedComments, FileName, Mark},
-    ecma::parser::{EsConfig, Syntax},
-    ecma::transforms::react::jsx,
-    ecma::transforms::testing::{test, test_fixture},
-};
-use testing::fixture;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
@@ -49,6 +51,7 @@ fn next_dynamic_fixture(input: PathBuf) {
             next_dynamic(
                 true,
                 false,
+                false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -61,6 +64,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_dynamic(
+                false,
                 false,
                 false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
@@ -77,6 +81,7 @@ fn next_dynamic_fixture(input: PathBuf) {
             next_dynamic(
                 false,
                 true,
+                false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
@@ -97,7 +102,7 @@ fn next_ssg_fixture(input: PathBuf) {
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
-                swc_core::ecma::transforms::react::Options {
+                next_binding::swc::core::ecma::transforms::react::Options {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),

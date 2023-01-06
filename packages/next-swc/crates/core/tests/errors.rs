@@ -1,3 +1,13 @@
+use next_binding::swc::{
+    core::{
+        common::FileName,
+        ecma::{
+            parser::{EsConfig, Syntax},
+            transforms::testing::{test_fixture, FixtureTestConfig},
+        },
+    },
+    testing::fixture,
+};
 use next_swc::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
     next_dynamic::next_dynamic,
@@ -6,14 +16,6 @@ use next_swc::{
     react_server_components::server_components,
 };
 use std::path::PathBuf;
-use swc_core::{
-    common::FileName,
-    ecma::{
-        parser::{EsConfig, Syntax},
-        transforms::testing::{test_fixture, FixtureTestConfig},
-    },
-};
-use testing::fixture;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
@@ -45,6 +47,7 @@ fn next_dynamic_errors(input: PathBuf) {
         &|_tr| {
             next_dynamic(
                 true,
+                false,
                 false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),

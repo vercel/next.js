@@ -94,7 +94,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -327,7 +327,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -349,7 +349,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -385,7 +385,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -658,7 +658,7 @@ describe('ESLint', () => {
 
       expect(output).toContain('pages/bar.js')
       expect(output).toContain(
-        'Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
 
       expect(output).not.toContain('pages/index.js')
@@ -703,7 +703,7 @@ describe('ESLint', () => {
             }),
             expect.objectContaining({
               message:
-                'Do not use `<img>` element. Use `<Image />` from `next/image` instead. See: https://nextjs.org/docs/messages/no-img-element',
+                'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element',
             }),
           ])
         )
@@ -742,7 +742,7 @@ describe('ESLint', () => {
         'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
       )
       expect(fileOutput).toContain(
-        'Do not use `<img>` element. Use `<Image />` from `next/image` instead. See: https://nextjs.org/docs/messages/no-img-element'
+        'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element'
       )
 
       expect(fileOutput).toContain('file-linting/pages/index.js')
@@ -782,7 +782,7 @@ describe('ESLint', () => {
         'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
       )
       expect(output).toContain(
-        'Do not use `<img>` element. Use `<Image />` from `next/image` instead. See: https://nextjs.org/docs/messages/no-img-element'
+        'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element'
       )
 
       expect(output).toContain('pages/index.cjs')

@@ -7,7 +7,7 @@ on:
 name: Build, test, and deploy
 
 env:
-  NAPI_CLI_VERSION: 2.12.0
+  NAPI_CLI_VERSION: 2.13.3
   TURBO_VERSION: 1.6.3
   RUST_TOOLCHAIN: nightly-2022-11-04
   PNPM_VERSION: 7.3.0
@@ -257,6 +257,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -317,7 +318,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -379,6 +380,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -429,7 +431,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -473,6 +475,53 @@ jobs:
       #     public: true
       #     filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
+  testCNA:
+    name: Test Create Next App
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
+      NEXT_TEST_CNA: 1
+
+    steps:
+      - run: echo ${{needs.build.outputs.docsChange}}
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        if: ${{ needs.build.outputs.docsChange == 'nope' }}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{ needs.build.outputs.docsChange == 'nope' }}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: echo "::set-output name=CNA_CHANGE::$(node scripts/run-for-change.js --type cna --always-canary --exec echo 'yup')"
+        id: cna-change
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/create-next-app/index.test.ts test/integration/create-next-app/templates.test.ts >> /proc/1/fd/1"
+        if: ${{ needs.build.outputs.docsChange == 'nope' && steps.cna-change.outputs.CNA_CHANGE == 'yup' }}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
   testIntegration:
     name: Test Integration
     runs-on: ubuntu-latest
@@ -481,7 +530,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -812,7 +861,7 @@ jobs:
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
         name: Run test/e2e (deploy)
 
       - name: Upload test trace
@@ -1128,7 +1177,7 @@ jobs:
             target: 'aarch64-pc-windows-msvc'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
+              turbo run build-native-no-plugin-woa -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
     if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && needs.build.outputs.turboToken != 'empty') }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
