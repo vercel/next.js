@@ -480,6 +480,10 @@ describe('Telemetry CLI', () => {
 
       expect(event1).toMatch(/"pagesDir": true/)
       expect(event1).toMatch(/"turboFlag": true/)
+
+      expect(await fs.pathExists(path.join(appDir, '.next/_events.json'))).toBe(
+        false
+      )
     } finally {
       await teardown()
     }
@@ -516,6 +520,10 @@ describe('Telemetry CLI', () => {
       expect(event1).toMatch(/"turboFlag": false/)
       expect(event1).toMatch(/"pagesDir": true/)
       expect(event1).toMatch(/"appDir": true/)
+
+      expect(await fs.pathExists(path.join(appDir, '.next/_events.json'))).toBe(
+        false
+      )
     } finally {
       await teardown()
     }

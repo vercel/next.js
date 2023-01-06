@@ -1762,6 +1762,7 @@ const server = http.createServer(async (req, res) => {
   }
 })
 const currentPort = parseInt(process.env.PORT, 10) || 3000
+const hostname = process.env.HOSTNAME || 'localhost'
 
 server.listen(currentPort, (err) => {
   if (err) {
@@ -1769,7 +1770,7 @@ server.listen(currentPort, (err) => {
     process.exit(1)
   }
   const nextServer = new NextServer({
-    hostname: 'localhost',
+    hostname,
     port: currentPort,
     dir: path.join(__dirname),
     dev: false,

@@ -64,7 +64,7 @@ function formatMessage(
       (message.file ? stripAnsi(message.file) + '\n' : '') +
       body +
       (message.details && verbose ? '\n' + message.details : '') +
-      (filteredModuleTrace && filteredModuleTrace.length && verbose
+      (filteredModuleTrace && filteredModuleTrace.length
         ? (importTraceNote || '\n\nImport trace for requested module:') +
           filteredModuleTrace
             .map((trace: any) => `\n${trace.moduleName}`)
@@ -161,6 +161,12 @@ function formatMessage(
       ''
     ) // at ... ...:x:y
     message = message.replace(/^\s*at\s<anonymous>(\n|$)/gm, '') // at <anonymous>
+
+    message = message.replace(
+      /File was processed with these loaders:\n(.+[\\/](next[\\/]dist[\\/].+|@next[\\/]react-refresh-utils[\\/]loader)\.js\n)*You may need an additional loader to handle the result of these loaders.\n/g,
+      ''
+    )
+
     lines = message.split('\n')
   }
 

@@ -667,6 +667,127 @@ describe('basic HMR', () => {
       }
     })
 
+    it('should recover after webpack parse error in an imported file', async () => {
+      let browser
+      const aboutPage = join('pages', 'hmr', 'about8.js')
+
+      const aboutContent = await next.readFile(aboutPage)
+      try {
+        browser = await webdriver(next.appPort, '/hmr/about8')
+        await check(() => getBrowserBodyText(browser), /This is the about page/)
+
+        await next.patchFile(
+          aboutPage,
+          aboutContent.replace(
+            'export default',
+            'import "../../components/parse-error.xyz"\nexport default'
+          )
+        )
+
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
+          `"Failed to compile"`
+        )
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "./components/parse-error.xyz
+          Module parse failed: Unexpected token (3:0)
+          You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+          | This
+          | is
+          > }}}
+          | invalid
+          | js
+
+          Import trace for requested module:
+          ./components/parse-error.xyz"
+        `)
+
+        await next.patchFile(aboutPage, aboutContent)
+
+        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        expect(await hasRedbox(browser, false)).toBe(false)
+      } catch (err) {
+        await next.patchFile(aboutPage, aboutContent)
+
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the about page/
+          )
+        }
+
+        throw err
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should recover after loader parse error in an imported file', async () => {
+      let browser
+      const aboutPage = join('pages', 'hmr', 'about9.js')
+
+      const aboutContent = await next.readFile(aboutPage)
+      try {
+        browser = await webdriver(next.appPort, '/hmr/about9')
+        await check(() => getBrowserBodyText(browser), /This is the about page/)
+
+        await next.patchFile(
+          aboutPage,
+          aboutContent.replace(
+            'export default',
+            'import "../../components/parse-error.js"\nexport default'
+          )
+        )
+
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
+          `"Failed to compile"`
+        )
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "./components/parse-error.js
+          Error: 
+            x Expression expected
+             ,-[1:1]
+           1 | This
+           2 | is
+           3 | }}}
+             : ^
+           4 | invalid
+           5 | js
+             \`----
+
+          Caused by:
+              0: failed to process input file
+              1: Syntax Error
+
+          Import trace for requested module:
+          ./components/parse-error.js"
+        `)
+
+        await next.patchFile(aboutPage, aboutContent)
+
+        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        expect(await hasRedbox(browser, false)).toBe(false)
+      } catch (err) {
+        await next.patchFile(aboutPage, aboutContent)
+
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the about page/
+          )
+        }
+
+        throw err
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
     it('should recover from errors in getInitialProps in client', async () => {
       let browser
       const erroredPage = join('pages', 'hmr', 'error-in-gip.js')
