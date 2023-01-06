@@ -18,7 +18,7 @@ use crate::{
     embed_js::wrap_with_next_js_fs,
     next_client::context::{
         get_client_asset_context, get_client_chunking_context, get_client_runtime_entries,
-        ContextType,
+        ClientContextType,
     },
     next_config::NextConfigVc,
 };
@@ -36,7 +36,7 @@ pub async fn create_web_entry_source(
 ) -> Result<ContentSourceVc> {
     let project_root = wrap_with_next_js_fs(project_root);
 
-    let ty = Value::new(ContextType::Other);
+    let ty = Value::new(ClientContextType::Other);
     let context = get_client_asset_context(project_root, execution_context, browserslist_query, ty);
     let chunking_context = get_client_chunking_context(project_root, server_root, ty);
     let entries = get_client_runtime_entries(project_root, env, ty, next_config);

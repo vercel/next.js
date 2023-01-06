@@ -50,9 +50,9 @@ use crate::{
     next_client::{
         context::{
             get_client_chunking_context, get_client_environment, get_client_module_options_context,
-            get_client_resolve_options_context, get_client_runtime_entries, ContextType,
+            get_client_resolve_options_context, get_client_runtime_entries, ClientContextType,
         },
-        NextClientTransition,
+        transition::NextClientTransition,
     },
     next_client_component::{
         client_chunks_transition::NextClientChunksTransition,
@@ -60,7 +60,7 @@ use crate::{
         ssr_client_module_transition::NextSSRClientModuleTransition,
     },
     next_config::NextConfigVc,
-    next_server::{
+    next_server::context::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
@@ -75,7 +75,7 @@ fn next_client_chunks_transition(
     server_root: FileSystemPathVc,
     browserslist_query: &str,
 ) -> TransitionVc {
-    let ty = Value::new(ContextType::App { app_dir });
+    let ty = Value::new(ClientContextType::App { app_dir });
     let client_chunking_context = get_client_chunking_context(project_path, server_root, ty);
     let client_environment = get_client_environment(browserslist_query);
 
@@ -102,7 +102,7 @@ async fn next_client_transition(
     browserslist_query: &str,
     next_config: NextConfigVc,
 ) -> Result<TransitionVc> {
-    let ty = Value::new(ContextType::App { app_dir });
+    let ty = Value::new(ClientContextType::App { app_dir });
     let client_chunking_context = get_client_chunking_context(project_path, server_root, ty);
     let client_environment = get_client_environment(browserslist_query);
     let client_module_options_context =

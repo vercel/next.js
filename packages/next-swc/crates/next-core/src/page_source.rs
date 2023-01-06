@@ -49,12 +49,12 @@ use crate::{
         context::{
             get_client_assets_path, get_client_chunking_context, get_client_environment,
             get_client_module_options_context, get_client_resolve_options_context,
-            get_client_runtime_entries, ContextType,
+            get_client_runtime_entries, ClientContextType,
         },
-        NextClientTransition,
+        transition::NextClientTransition,
     },
     next_config::NextConfigVc,
-    next_server::{
+    next_server::context::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
@@ -68,13 +68,13 @@ fn get_page_client_module_options_context(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     client_environment: EnvironmentVc,
-    ty: Value<ContextType>,
+    ty: Value<ClientContextType>,
 ) -> Result<ModuleOptionsContextVc> {
     let client_module_options_context =
         get_client_module_options_context(project_path, execution_context, client_environment, ty);
 
     let client_module_options_context = match ty.into_value() {
-        ContextType::Pages { pages_dir } => add_next_transforms_to_pages(
+        ClientContextType::Pages { pages_dir } => add_next_transforms_to_pages(
             client_module_options_context,
             pages_dir,
             Value::new(PageTransformType::Client),
@@ -137,7 +137,7 @@ pub async fn create_page_source(
         return Ok(NoContentSourceVc::new().into());
     };
 
-    let ty = Value::new(ContextType::Pages { pages_dir });
+    let ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
 
     let client_environment = get_client_environment(browserslist_query);
@@ -288,7 +288,10 @@ async fn create_page_source_for_file(
         context_path,
         intermediate_output_path,
         intermediate_output_path.join("chunks"),
-        get_client_assets_path(server_root, Value::new(ContextType::Pages { pages_dir })),
+        get_client_assets_path(
+            server_root,
+            Value::new(ClientContextType::Pages { pages_dir }),
+        ),
     )
     .build();
 
@@ -298,14 +301,17 @@ async fn create_page_source_for_file(
         context_path,
         data_intermediate_output_path,
         data_intermediate_output_path.join("chunks"),
-        get_client_assets_path(server_root, Value::new(ContextType::Pages { pages_dir })),
+        get_client_assets_path(
+            server_root,
+            Value::new(ClientContextType::Pages { pages_dir }),
+        ),
     )
     .build();
 
     let client_chunking_context = get_client_chunking_context(
         context_path,
         server_root,
-        Value::new(ContextType::Pages { pages_dir }),
+        Value::new(ClientContextType::Pages { pages_dir }),
     );
 
     let pathname = pathname_for_path(server_root, server_path, true);
