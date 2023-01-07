@@ -495,12 +495,12 @@ module.exports = {
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
   `,
-  'https://fonts.googleapis.com/css2?family=Fraunces:wght@400&display=optional': `/* vietnamese */
+  'https://fonts.googleapis.com/css2?family=Fraunces:wght@400&display=swap': `/* vietnamese */
   @font-face {
     font-family: 'Fraunces';
     font-style: normal;
     font-weight: 400;
-    font-display: optional;
+    font-display: swap;
     src: url(${path.join(
       __dirname,
       './fonts/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxuTBv7Tp05GNyXkb24.woff2'
@@ -512,7 +512,7 @@ module.exports = {
     font-family: 'Fraunces';
     font-style: normal;
     font-weight: 400;
-    font-display: optional;
+    font-display: swap;
     src: url(${path.join(
       __dirname,
       './fonts/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxuTB_7Tp05GNyXkb24.woff2'
@@ -524,19 +524,19 @@ module.exports = {
     font-family: 'Fraunces';
     font-style: normal;
     font-weight: 400;
-    font-display: optional;
+    font-display: swap;
     src: url(${path.join(
       __dirname,
       './fonts/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIctxuTCf7Tp05GNyXk.woff2'
     )}) format('woff2');
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
   }`,
-  'https://fonts.googleapis.com/css2?family=Indie+Flower:wght@400&display=optional': `/* latin */
+  'https://fonts.googleapis.com/css2?family=Indie+Flower:wght@400&display=swap': `/* latin */
   @font-face {
     font-family: 'Indie Flower';
     font-style: normal;
     font-weight: 400;
-    font-display: optional;
+    font-display: swap;
     src: url(${path.join(
       __dirname,
       './fonts/m8JVjfNVeKWVnh3QMuKkFcZVaUuH99GUDg.woff2'

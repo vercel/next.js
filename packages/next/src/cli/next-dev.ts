@@ -61,9 +61,10 @@ const handleSessionStop = async () => {
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
-      })
+      }),
+      true
     )
-    await telemetry.flush()
+    telemetry.flushDetached('dev', dir)
   } catch (err) {
     console.error(err)
   }
