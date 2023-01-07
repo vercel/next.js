@@ -1,4 +1,5 @@
 import type { AsyncLocalStorage } from 'async_hooks'
+import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
@@ -16,7 +17,5 @@ export interface StaticGenerationStore {
 export type StaticGenerationAsyncStorage =
   AsyncLocalStorage<StaticGenerationStore>
 
-// AsyncLocalStorage is polyfilled in runtimes without AsyncLocalStorage.
-export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage = new (
-  globalThis as any
-).AsyncLocalStorage()
+export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
+  createAsyncLocalStorage()

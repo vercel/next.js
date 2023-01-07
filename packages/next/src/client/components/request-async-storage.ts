@@ -4,6 +4,7 @@ import type {
   ReadonlyHeaders,
   ReadonlyRequestCookies,
 } from '../../server/app-render'
+import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface RequestStore {
   readonly headers: ReadonlyHeaders
@@ -13,7 +14,5 @@ export interface RequestStore {
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>
 
-// AsyncLocalStorage is polyfilled in runtimes without AsyncLocalStorage.
-export const requestAsyncStorage: RequestAsyncStorage = new (
-  globalThis as any
-).AsyncLocalStorage()
+export const requestAsyncStorage: RequestAsyncStorage =
+  createAsyncLocalStorage()
