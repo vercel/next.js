@@ -10,9 +10,8 @@ class FakeAsyncLocalStorage<Store extends {}>
   }
 
   getStore(): Store | undefined {
-    throw new Error(
-      'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
-    )
+    // This fake implementation of AsyncLocalStorage always returns `undefined`.
+    return undefined
   }
 
   run<R>(): R {
