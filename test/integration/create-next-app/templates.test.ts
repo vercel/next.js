@@ -18,7 +18,7 @@ import {
 import { useTempDir } from '../../../test/lib/use-temp-dir'
 
 describe('create-next-app templates', () => {
-  if (!process.env.NEXT_TEST_CNA) {
+  if (!process.env.NEXT_TEST_CNA && process.env.CI) {
     it('should skip when env is not set', () => {})
     return
   }
@@ -30,7 +30,10 @@ describe('create-next-app templates', () => {
       /**
        * Start the create-next-app call.
        */
-      const childProcess = createNextApp([projectName, '--eslint'], { cwd })
+      const childProcess = createNextApp(
+        [projectName, '--eslint', '--no-src-dir', '--no-experimental-app'],
+        { cwd }
+      )
       /**
        * Wait for the prompt to display.
        */
@@ -62,13 +65,43 @@ describe('create-next-app templates', () => {
   it('should create TS projects with --ts, --typescript', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'typescript-test'
-      const childProcess = createNextApp([projectName, '--ts', '--eslint'], {
-        cwd,
-      })
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+        ],
+        {
+          cwd,
+        }
+      )
       const exitCode = await spawnExitPromise(childProcess)
 
       expect(exitCode).toBe(0)
       shouldBeTypescriptProject({ cwd, projectName, template: 'default' })
+    })
+  })
+
+  it('should create TS projects with --ts, --typescript --src-dir', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'typescript-test'
+      const childProcess = createNextApp(
+        [projectName, '--ts', '--eslint', '--src-dir', '--no-experimental-app'],
+        {
+          cwd,
+        }
+      )
+      const exitCode = await spawnExitPromise(childProcess)
+
+      expect(exitCode).toBe(0)
+      shouldBeTypescriptProject({
+        cwd,
+        projectName,
+        template: 'default',
+        srcDir: true,
+      })
     })
   })
 
@@ -93,19 +126,49 @@ describe('create-next-app templates', () => {
   it('should create JS projects with --js, --javascript', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'javascript-test'
-      const childProcess = createNextApp([projectName, '--js', '--eslint'], {
-        cwd,
-      })
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--js',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+        ],
+        {
+          cwd,
+        }
+      )
       const exitCode = await spawnExitPromise(childProcess)
 
       expect(exitCode).toBe(0)
       shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
     })
   })
+
+  it('should create JS projects with --js, --javascript --src-dir', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'javascript-test'
+      const childProcess = createNextApp(
+        [projectName, '--js', '--eslint', '--src-dir', '--no-experimental-app'],
+        {
+          cwd,
+        }
+      )
+      const exitCode = await spawnExitPromise(childProcess)
+
+      expect(exitCode).toBe(0)
+      shouldBeJavascriptProject({
+        cwd,
+        projectName,
+        template: 'default',
+        srcDir: true,
+      })
+    })
+  })
 })
 
 describe('create-next-app --experimental-app-dir', () => {
-  if (!process.env.NEXT_TEST_CNA) {
+  if (!process.env.NEXT_TEST_CNA && process.env.CI) {
     it('should skip when env is not set', () => {})
     return
   }
@@ -114,7 +177,14 @@ describe('create-next-app --experimental-app-dir', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'appdir-test'
       const childProcess = createNextApp(
-        [projectName, '--ts', '--experimental-app', '--eslint'],
+        [
+          projectName,
+          '--ts',
+          '--experimental-app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+        ],
         {
           cwd,
         }
@@ -130,7 +200,14 @@ describe('create-next-app --experimental-app-dir', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'appdir-test'
       const childProcess = createNextApp(
-        [projectName, '--js', '--experimental-app', '--eslint'],
+        [
+          projectName,
+          '--js',
+          '--experimental-app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+        ],
         {
           cwd,
         }
@@ -139,6 +216,29 @@ describe('create-next-app --experimental-app-dir', () => {
       const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'js' })
+    })
+  })
+
+  it('should create JS appDir projects with --js --src-dir', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'appdir-test'
+      const childProcess = createNextApp(
+        [projectName, '--js', '--experimental-app', '--eslint', '--src-dir'],
+        {
+          cwd,
+          stdio: 'inherit',
+        }
+      )
+
+      const exitCode = await spawnExitPromise(childProcess)
+      expect(exitCode).toBe(0)
+      shouldBeTemplateProject({
+        cwd,
+        projectName,
+        template: 'app',
+        mode: 'js',
+        srcDir: true,
+      })
     })
   })
 })
