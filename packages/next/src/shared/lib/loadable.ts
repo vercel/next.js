@@ -259,7 +259,7 @@ Loadable.preloadAll = () => {
   })
 }
 
-Loadable.preloadReady = (ids?: (string | number)[]): Promise<void> => {
+Loadable.preloadReady = (ids: (string | number)[] = []): Promise<void> => {
   return new Promise<void>((resolvePreload) => {
     const res = () => {
       initialized = true
