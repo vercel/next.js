@@ -75,11 +75,6 @@ module.exports = (actionInfo) => {
       }
 
       console.log(
-        execa.sync('ls', ['-la'], {
-          cwd: origRepo,
-        })
-      )
-      console.log(
         execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
           cwd: origRepo,
         })
