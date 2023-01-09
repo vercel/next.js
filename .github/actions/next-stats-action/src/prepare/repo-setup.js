@@ -74,17 +74,9 @@ module.exports = (actionInfo) => {
         throw err
       }
 
-      console.log(
-        execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
-          cwd: origRepo,
-        })
-      )
-      console.log(origRepo)
-      console.log(
-        execa.sync('ls', ['-la'], {
-          cwd: '/work/packages/next/',
-        })
-      )
+      execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
+        cwd: origRepo,
+      })
 
       pkgs.forEach((pkgDirname) => {
         const { name } = require(path.join(
