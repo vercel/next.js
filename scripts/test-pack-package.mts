@@ -3,8 +3,10 @@ import fs from 'fs-extra'
 import os from 'os'
 import execa from 'execa'
 import { randomBytes } from 'crypto'
+import { fileURLToPath } from 'url'
 
 const main = async () => {
+  const __dirname = fileURLToPath(new URL('.', import.meta.url))
   const repoRoot = path.dirname(__dirname)
   const pkgsDir = path.join(repoRoot, 'packages')
   const currentPkgDirname = process.argv[2]
