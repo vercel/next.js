@@ -26,9 +26,16 @@ const main = async () => {
     `${currentPkgDirname}-${randomBytes(32).toString('hex')}`
   )
 
-  const packageJson = await fs.readJson(getPackageJsonPath(currentPkgDirname))
+  const packageJsonPath = getPackageJsonPath(currentPkgDirname)
+  const packageJson = await fs.readJson(packageJsonPath)
   const dependencies = packageJson.dependencies
 
+  // @next/swc is devDependency in next, but we want to include it anyway
+  if (currentPkgDirname === 'next') {
+    dependencies['@next/swc'] = '*'
+  }
+
+  // Modify dependencies to point to packed packages
   if (dependencies) {
     await Promise.all(
       allPkgDirnames.map(async (depPkgDirname) => {
@@ -39,6 +46,15 @@ const main = async () => {
           dependencies[depPkgName] = getPackedPkgPath(depPkgDirname)
         }
       })
+    )
+  }
+
+  // Ensure that we bundle binaries with swc
+  if (currentPkgDirname === 'next-swc') {
+    packageJson.files = [...packageJson.files, 'native']
+    console.log(
+      'using swc binaries: ',
+      await execa('ls', [path.join(path.dirname(packageJsonPath), 'native')])
     )
   }
 

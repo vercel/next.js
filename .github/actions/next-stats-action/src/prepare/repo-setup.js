@@ -6,11 +6,6 @@ const logger = require('../util/logger')
 const semver = require('semver')
 const execa = require('execa')
 
-const mockTrace = () => ({
-  traceAsyncFn: (fn) => fn(mockTrace()),
-  traceChild: () => mockTrace(),
-})
-
 module.exports = (actionInfo) => {
   return {
     async cloneRepo(repoPath = '', dest = '') {
@@ -59,144 +54,48 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages({ repoDir = '', nextSwcPkg, parentSpan }) {
-      const rootSpan = parentSpan
-        ? parentSpan.traceChild('linkPackages')
-        : mockTrace()
+    async linkPackages({ repoDir = '', nextSwcPkg }) {
+      const pkgPaths = new Map()
+      let pkgs
 
-      return await rootSpan.traceAsyncFn(async () => {
-        const pkgPaths = new Map()
-        const pkgDatas = new Map()
-        let pkgs
+      let origRepo = path.join(__dirname, '..', '..', '..', '..', '..')
+      if (origRepo === '/') {
+        // When we don't have acces in CI
+        origRepo = repoDir
+      }
 
-        try {
-          let origRepo = path.join(__dirname, '..', '..', '..', '..', '..')
-          if (origRepo === '/') {
-            // When we don't have acces in CI
-            origRepo = repoDir
-          }
-          pkgs = await fs.readdir(path.join(origRepo, 'packages'))
-          execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
-            cwd: origRepo,
-          })
-
-          pkgs.forEach((pkgDirname) => {
-            const { name } = require(path.join(
-              origRepo,
-              'packages',
-              pkgDirname,
-              'package.json'
-            ))
-            pkgPaths.set(
-              name,
-              path.join(
-                origRepo,
-                'packages',
-                pkgDirname,
-                `packed-${pkgDirname}.tgz`
-              )
-            )
-          })
+      try {
+        pkgs = await fs.readdir(path.join(origRepo, 'packages'))
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          require('console').log('no packages to link')
           return pkgPaths
-        } catch (err) {
-          if (err.code === 'ENOENT') {
-            require('console').log('no packages to link')
-            return pkgPaths
-          }
-          throw err
         }
+        throw err
+      }
 
-        await rootSpan
-          .traceChild('prepare packages for packing')
-          .traceAsyncFn(async () => {
-            for (const pkg of pkgs) {
-              const pkgPath = path.join(repoDir, 'packages', pkg)
-              const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
-
-              const pkgDataPath = path.join(pkgPath, 'package.json')
-              if (!fs.existsSync(pkgDataPath)) {
-                require('console').log(`Skipping ${pkgDataPath}`)
-                continue
-              }
-              const pkgData = require(pkgDataPath)
-              const { name } = pkgData
-              pkgDatas.set(name, {
-                pkgDataPath,
-                pkg,
-                pkgPath,
-                pkgData,
-                packedPkgPath,
-              })
-              pkgPaths.set(name, packedPkgPath)
-            }
-
-            for (const pkg of pkgDatas.keys()) {
-              const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
-
-              for (const pkg of pkgDatas.keys()) {
-                const { packedPkgPath } = pkgDatas.get(pkg)
-                if (!pkgData.dependencies || !pkgData.dependencies[pkg])
-                  continue
-                pkgData.dependencies[pkg] = packedPkgPath
-              }
-
-              // make sure native binaries are included in local linking
-              if (pkg === '@next/swc') {
-                if (!pkgData.files) {
-                  pkgData.files = []
-                }
-                pkgData.files.push('native')
-                require('console').log(
-                  'using swc binaries: ',
-                  await exec(
-                    `ls ${path.join(path.dirname(pkgDataPath), 'native')}`
-                  )
-                )
-              }
-
-              if (pkg === 'next') {
-                if (nextSwcPkg) {
-                  Object.assign(pkgData.dependencies, nextSwcPkg)
-                } else {
-                  if (pkgDatas.get('@next/swc')) {
-                    pkgData.dependencies['@next/swc'] =
-                      pkgDatas.get('@next/swc').packedPkgPath
-                  } else {
-                    pkgData.files.push('native')
-                  }
-                }
-              }
-
-              await fs.writeFile(
-                pkgDataPath,
-                JSON.stringify(pkgData, null, 2),
-                'utf8'
-              )
-            }
-          })
-
-        // wait to pack packages until after dependency paths have been updated
-        // to the correct versions
-        await rootSpan
-          .traceChild('packing packages')
-          .traceAsyncFn(async (packingSpan) => {
-            await Promise.all(
-              Array.from(pkgDatas.keys()).map(async (pkgName) => {
-                await packingSpan
-                  .traceChild(`pack ${pkgName}`)
-                  .traceAsyncFn(async () => {
-                    const { pkg, pkgPath } = pkgDatas.get(pkgName)
-                    await exec(
-                      `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
-                      true
-                    )
-                  })
-              })
-            )
-          })
-
-        return pkgPaths
+      execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
+        cwd: origRepo,
       })
+
+      pkgs.forEach((pkgDirname) => {
+        const { name } = require(path.join(
+          origRepo,
+          'packages',
+          pkgDirname,
+          'package.json'
+        ))
+        pkgPaths.set(
+          name,
+          path.join(
+            origRepo,
+            'packages',
+            pkgDirname,
+            `packed-${pkgDirname}.tgz`
+          )
+        )
+      })
+      return pkgPaths
     },
   }
 }

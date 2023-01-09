@@ -107,10 +107,14 @@ async function createNextInstall({
       let combinedDependencies = dependencies
 
       if (!(packageJson && packageJson.nextPrivateSkipLocalDeps)) {
-        const pkgPaths = await linkPackages({
-          repoDir: tmpRepoDir,
-          parentSpan: rootSpan,
-        })
+        const pkgPaths = await rootSpan
+          .traceChild('linkPackages')
+          .traceAsyncFn(() =>
+            linkPackages({
+              repoDir: tmpRepoDir,
+              parentSpan: rootSpan,
+            })
+          )
         combinedDependencies = {
           next: pkgPaths.get('next'),
           ...Object.keys(dependencies).reduce((prev, pkg) => {
