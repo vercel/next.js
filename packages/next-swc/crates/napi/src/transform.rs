@@ -72,8 +72,8 @@ impl Task for TransformTask {
                 try_with_handler(
                     self.c.cm.clone(),
                     next_binding::swc::core::base::HandlerOpts {
-                        color: ColorConfig::Never,
-                        skip_filename: true,
+                        color: ColorConfig::Always,
+                        skip_filename: false,
                     },
                     |handler| {
                         self.c.run(|| {
