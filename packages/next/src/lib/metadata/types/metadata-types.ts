@@ -18,7 +18,6 @@ export type AbsoluteTemplateString = {
 export type AbsoluteString = {
   absolute: string
 }
-export type AbsoluteTemplateTitle = string
 
 export type Author = {
   // renders as <link rel="author"...

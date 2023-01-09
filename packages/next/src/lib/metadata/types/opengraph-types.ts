@@ -132,7 +132,7 @@ type OGVideoDescriptor = {
   height?: string | number
 }
 
-type ResolvedOpenGraph =
+export type ResolvedOpenGraph =
   | ResolvedOpenGraphWebsite
   | ResolvedOpenGraphArticle
   | ResolvedOpenGraphBook

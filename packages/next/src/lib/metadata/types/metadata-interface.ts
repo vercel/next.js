@@ -9,7 +9,7 @@ import type {
   ItunesApp,
 } from './extra-types'
 import type {
-  AbsoluteTemplateTitle,
+  AbsoluteTemplateString,
   Author,
   ColorSchemeEnum,
   Icon,
@@ -19,7 +19,7 @@ import type {
   TemplateString,
   Verification,
 } from './metadata-types'
-import type { OpenGraph } from './opengraph-types'
+import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
 import { Twitter } from './twitter-types'
 
 export interface Metadata {
@@ -57,7 +57,7 @@ export interface Metadata {
   // to get more specific about rel types
   icons?: null | Array<Icon> | Icons
 
-  opengraph?: null | OpenGraph
+  openGraph?: null | OpenGraph
 
   twitter?: null | Twitter
 
@@ -117,7 +117,7 @@ export interface ResolvedMetadata {
   metadataBase: null | URL
 
   // The Document title and template if defined
-  title: null | AbsoluteTemplateTitle
+  title: null | AbsoluteTemplateString
 
   // The Document description, and optionally the opengraph and twitter descriptions
   description: null | string
@@ -146,7 +146,7 @@ export interface ResolvedMetadata {
   // to get more specific about rel types
   icons: null | Icons
 
-  opengraph: null | OpenGraph
+  openGraph: null | ResolvedOpenGraph
 
   twitter: null | Twitter
 

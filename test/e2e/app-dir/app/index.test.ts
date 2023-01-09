@@ -2590,6 +2590,13 @@ createNextDescribe(
             )
           ).toBe('this is the layout description')
         })
+
+        it('should support title template', async () => {
+          const browser = await next.browser(
+            '/dashboard/metadata/title-template'
+          )
+          expect(await browser.eval(`document.title`)).toBe('Page | Layout')
+        })
       }
     })
   }
