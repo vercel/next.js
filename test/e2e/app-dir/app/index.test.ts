@@ -2575,5 +2575,22 @@ createNextDescribe(
         expect(await browser.elementByCss('p').text()).toBe('item count 128000')
       })
     })
+
+    describe('metadata', () => {
+      if (!isNextDeploy) {
+        it('should support title and description', async () => {
+          const browser = await next.browser('/dashboard/metadata/title')
+
+          expect(await browser.eval(`document.title`)).toBe(
+            'this is the page title'
+          )
+          expect(
+            await browser.eval(
+              `document.querySelector('meta[name="description"]').content`
+            )
+          ).toBe('this is the layout description')
+        })
+      }
+    })
   }
 )

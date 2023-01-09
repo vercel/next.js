@@ -11,6 +11,6 @@ export default function DashboardLayout(props) {
 }
 
 export const metadata = {
-  title: 'Hello !!! 123',
-  description: 'Dashboard layout',
+  title: 'this is the layout title',
+  description: 'this is the layout description',
 }
