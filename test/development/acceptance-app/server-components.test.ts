@@ -327,7 +327,7 @@ createNextDescribe(
         await cleanup()
       })
 
-      it('should show error when React.Component is rendered in external package', async () => {
+      it('should show error when React.PureComponent is rendered in external package', async () => {
         const { session, cleanup } = await sandbox(
           next,
           new Map([
@@ -335,7 +335,7 @@ createNextDescribe(
               'node_modules/my-package/index.js',
               `
           const React = require('react')
-          module.exports = class extends React.Component {
+          module.exports = class extends React.PureComponent {
             render() {
               return "Hello world"
             } 
