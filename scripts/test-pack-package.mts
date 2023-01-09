@@ -1,8 +1,8 @@
-const path = require('path')
-const fs = require('fs-extra')
-const os = require('os')
-const execa = require('execa')
-const { randomBytes } = require('crypto')
+import path from 'path'
+import fs from 'fs-extra'
+import os from 'os'
+import execa from 'execa'
+import { randomBytes } from 'crypto'
 
 const main = async () => {
   const repoRoot = path.dirname(__dirname)
