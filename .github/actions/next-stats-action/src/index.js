@@ -137,6 +137,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
         repoDir: dir,
+        // TODO: nextSwcPkg is currently ignored, we need to provide it as env var to it can be cached with turbo
         nextSwcPkg: isMainRepo ? mainNextSwcVersion : undefined,
       })
 
