@@ -222,16 +222,15 @@ impl State {
     }
 
     fn should_retain_export_type(&self, export_type: ExportType) -> bool {
-        match (self.filter, export_type) {
+        !matches!(
+            (self.filter, export_type),
             (
                 ExportFilter::StripDataExports,
                 ExportType::GetServerSideProps
-                | ExportType::GetStaticProps
-                | ExportType::GetStaticPaths,
-            ) => false,
-            (ExportFilter::StripDefaultExport, ExportType::Default) => false,
-            _ => true,
-        }
+                    | ExportType::GetStaticProps
+                    | ExportType::GetStaticPaths,
+            ) | (ExportFilter::StripDefaultExport, ExportType::Default)
+        )
     }
 
     fn should_retain_id(&self, id: &Id) -> bool {
@@ -880,9 +879,9 @@ impl Fold for NextSsg {
                         return Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
-                Pat::Expr(expr) => match &**expr {
-                    Expr::Member(member_expr) => match find_member_root_id(member_expr) {
-                        Some(id) => {
+                Pat::Expr(expr) => {
+                    if let Expr::Member(member_expr) = &**expr {
+                        if let Some(id) = find_member_root_id(member_expr) {
                             if self.should_remove(&id) {
                                 self.state.should_run_again = true;
                                 tracing::trace!(
@@ -895,10 +894,8 @@ impl Fold for NextSsg {
                                 return Pat::Invalid(Invalid { span: DUMMY_SP });
                             }
                         }
-                        None => {}
-                    },
-                    _ => {}
-                },
+                    }
+                }
                 _ => {}
             }
         }
@@ -1011,7 +1008,7 @@ impl Fold for NextSsg {
 /// e.g. `a.b.c` => `a`
 fn find_member_root_id(member_expr: &MemberExpr) -> Option<Id> {
     match &*member_expr.obj {
-        Expr::Member(member) => find_member_root_id(&member),
+        Expr::Member(member) => find_member_root_id(member),
         Expr::Ident(ident) => Some(ident.to_id()),
         _ => None,
     }
