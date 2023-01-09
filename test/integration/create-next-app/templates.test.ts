@@ -18,7 +18,7 @@ import {
 import { useTempDir } from '../../../test/lib/use-temp-dir'
 
 describe('create-next-app templates', () => {
-  if (!process.env.NEXT_TEST_CNA && process.env.CI) {
+  if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
   }
@@ -168,7 +168,7 @@ describe('create-next-app templates', () => {
 })
 
 describe('create-next-app --experimental-app-dir', () => {
-  if (!process.env.NEXT_TEST_CNA && process.env.CI) {
+  if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
   }
