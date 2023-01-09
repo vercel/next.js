@@ -70,9 +70,10 @@ function checkExports(swcAST: any): {
           node.type === 'ExportDeclaration' &&
           node.declaration?.type === 'VariableDeclaration'
         ) {
-          const id = node.declaration?.declarations[0]?.id.value
-          if (id === 'runtime') {
-            runtime = node.declaration?.declarations[0]?.init.value
+          for (const declaration of node.declaration?.declarations) {
+            if (declaration.id.value === 'runtime') {
+              runtime = declaration.init.value
+            }
           }
         }
 
