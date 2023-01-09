@@ -32,10 +32,10 @@ import {
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
 import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
-import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
+import { isRedirectError } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
-import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
+import { isNotFoundError } from '../client/components/not-found'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import { Writable } from 'stream'
@@ -236,9 +236,9 @@ function createErrorHandler(
     if (
       err &&
       (err.digest === DYNAMIC_ERROR_CODE ||
-        err.digest === NOT_FOUND_ERROR_CODE ||
+        isNotFoundError(err) ||
         err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-        err.digest?.startsWith(REDIRECT_ERROR_CODE))
+        isRedirectError(err))
     ) {
       return err.digest
     }
@@ -1973,8 +1973,9 @@ export async function renderToHTMLOrFlight(
 
         return result
       } catch (err: any) {
-        const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
-        if (err.digest === NOT_FOUND_ERROR_CODE) {
+        const shouldNotIndex = isNotFoundError(err)
+
+        if (isNotFoundError(err)) {
           res.statusCode = 404
         }
 

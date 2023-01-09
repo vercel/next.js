@@ -1,5 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
-import { withRequestMeta, getRequestMeta } from './helpers'
+import {
+  withRequestMeta,
+  getRequestMeta,
+  cookieWithRequestMeta,
+} from './helpers'
 
 createNextDescribe(
   'app-custom-routes',
@@ -81,6 +85,42 @@ createNextDescribe(
 
           const meta = getRequestMeta(res.headers)
           expect(meta.ping).toEqual('pong')
+        })
+      })
+
+      describe('cookies', () => {
+        it('gets the correct values', async () => {
+          const res = await next.fetch('/hooks/cookies', {
+            headers: cookieWithRequestMeta({ ping: 'pong' }),
+          })
+
+          expect(res.status).toEqual(200)
+
+          const meta = getRequestMeta(res.headers)
+          expect(meta.ping).toEqual('pong')
+        })
+      })
+
+      describe('redirect', () => {
+        it('can respond correctly', async () => {
+          const res = await next.fetch('/hooks/redirect', {
+            // "Manually" perform the redirect, we want to inspect the
+            // redirection response, so don't actually follow it.
+            redirect: 'manual',
+          })
+
+          expect(res.status).toEqual(302)
+          expect(res.headers.get('location')).toEqual('https://nextjs.org/')
+          expect(await res.text()).toBeEmpty()
+        })
+      })
+
+      describe('notFound', () => {
+        it('can respond correctly', async () => {
+          const res = await next.fetch('/hooks/not-found')
+
+          expect(res.status).toEqual(404)
+          expect(await res.text()).toBeEmpty()
         })
       })
     })

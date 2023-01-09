@@ -107,10 +107,17 @@ import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
   handleMethodNotAllowedResponse,
+  handleNotFoundResponse,
+  handleTemporaryRedirectResponse,
 } from './api-utils/handlers'
 import { HTTP_METHOD, isHTTPMethod } from './web/http'
 import { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
+import {
+  getURLFromRedirectError,
+  isRedirectError,
+} from '../client/components/redirect'
+import { isNotFoundError } from '../client/components/not-found'
 
 export * from './base-server'
 
@@ -1446,10 +1453,23 @@ export default class NextNodeServer extends BaseServer {
         response = handleInternalServerErrorResponse()
       }
     } catch (err) {
-      Log.error(err)
+      if (isRedirectError(err)) {
+        const redirect = getURLFromRedirectError(err)
+        if (!redirect) {
+          throw new Error('Invariant: Unexpected redirect url format')
+        }
 
-      // TODO: validate the correct handling behavior
-      response = handleInternalServerErrorResponse()
+        // This is a redirect error! Send the redirect response.
+        response = handleTemporaryRedirectResponse(redirect)
+      } else if (isNotFoundError(err)) {
+        // This is a not found error! Send the not found response.
+        response = handleNotFoundResponse()
+      } else {
+        Log.error(err)
+
+        // TODO: validate the correct handling behavior
+        response = handleInternalServerErrorResponse()
+      }
     }
 
     // Copy over the response status.
