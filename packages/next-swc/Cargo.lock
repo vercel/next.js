@@ -123,7 +123,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "serde",
 ]
@@ -2297,7 +2297,7 @@ checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
 [[package]]
 name = "next-binding"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "mdxjs",
  "modularize_imports",
@@ -2313,7 +2313,7 @@ dependencies = [
 [[package]]
 name = "next-core"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -2341,7 +2341,7 @@ dependencies = [
 [[package]]
 name = "next-dev"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "futures",
@@ -2366,7 +2366,7 @@ dependencies = [
 [[package]]
 name = "next-font"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "fxhash",
  "serde",
@@ -2417,7 +2417,7 @@ dependencies = [
 [[package]]
 name = "next-transform-strip-page-exports"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "fxhash",
  "swc_core 0.53.0",
@@ -2427,7 +2427,7 @@ dependencies = [
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "clap",
@@ -5446,7 +5446,7 @@ dependencies = [
 [[package]]
 name = "turbo-malloc"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "mimalloc",
 ]
@@ -5454,7 +5454,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -5483,7 +5483,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -5495,7 +5495,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "dotenvy",
@@ -5509,7 +5509,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -5527,7 +5527,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -5552,7 +5552,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "base16",
  "hex",
@@ -5564,7 +5564,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "convert_case 0.5.0",
@@ -5578,7 +5578,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5588,7 +5588,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -5609,7 +5609,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "lazy_static",
@@ -5633,7 +5633,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "clap",
@@ -5649,7 +5649,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5675,7 +5675,7 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5694,7 +5694,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "futures",
@@ -5723,7 +5723,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5758,7 +5758,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "serde",
@@ -5773,7 +5773,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "serde",
@@ -5788,7 +5788,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -5803,7 +5803,7 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "futures",
@@ -5826,7 +5826,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "anyhow",
  "serde",
@@ -5842,7 +5842,7 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
+source = "git+https://github.com/kdy1/turbo.git?rev=749f350bde90ae71a578c091b1e54ba911b544f4#749f350bde90ae71a578c091b1e54ba911b544f4"
 dependencies = [
  "swc_core 0.53.0",
  "turbo-tasks",
