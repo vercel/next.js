@@ -121,7 +121,7 @@ export class FlightClientEntryPlugin {
   }
 
   async createClientEntries(compiler: any, compilation: any) {
-    const promises: Array<
+    const addClientEntryAndSSRModulesList: Array<
       ReturnType<typeof this.injectClientEntryAndSSRModules>
     > = []
 
@@ -210,7 +210,7 @@ export class FlightClientEntryPlugin {
           relativeRequest.replace(/\.(js|ts)x?$/, '').replace(/^src[\\/]/, '')
         )
 
-        promises.push(
+        addClientEntryAndSSRModulesList.push(
           this.injectClientEntryAndSSRModules({
             compiler,
             compilation,
@@ -222,7 +222,7 @@ export class FlightClientEntryPlugin {
       }
 
       // Create internal app
-      promises.push(
+      addClientEntryAndSSRModulesList.push(
         this.injectClientEntryAndSSRModules({
           compiler,
           compilation,
@@ -366,14 +366,25 @@ export class FlightClientEntryPlugin {
       }
     )
 
-    const res = await Promise.all(promises)
-
     // Invalidate in development to trigger recompilation
     const invalidator = getInvalidator()
     // Check if any of the entry injections need an invalidation
-    if (invalidator && res.includes(true)) {
+    if (
+      invalidator &&
+      addClientEntryAndSSRModulesList.some(
+        ([shouldInvalidate]) => shouldInvalidate === true
+      )
+    ) {
       invalidator.invalidate([COMPILER_NAMES.client])
     }
+
+    // Client compiler is invalidated before awaiting the compilation of the SSR client component entries
+    // so that the client compiler is running in parallel to the server compiler.
+    await Promise.all(
+      addClientEntryAndSSRModulesList.map(
+        (addClientEntryAndSSRModules) => addClientEntryAndSSRModules[1]
+      )
+    )
   }
 
   collectClientComponentsAndCSSForDependency({
@@ -475,7 +486,7 @@ export class FlightClientEntryPlugin {
     return [clientComponentImports, serverCSSImports]
   }
 
-  async injectClientEntryAndSSRModules({
+  injectClientEntryAndSSRModules({
     compiler,
     compilation,
     entryName,
@@ -487,7 +498,7 @@ export class FlightClientEntryPlugin {
     entryName: string
     clientComponentImports: ClientComponentImports
     bundlePath: string
-  }): Promise<boolean> {
+  }): [shouldInvalidate: boolean, addEntryPromise: Promise<void>] {
     let shouldInvalidate = false
 
     const loaderOptions: NextFlightClientEntryLoaderOptions = {
@@ -549,22 +560,25 @@ export class FlightClientEntryPlugin {
       }
     )
 
-    // Add the dependency to the server compiler.
-    await this.addEntry(
-      compilation,
-      // Reuse compilation context.
-      compiler.context,
-      clientComponentEntryDep,
-      {
-        // By using the same entry name
-        name: entryName,
-        // Layer should be client for the SSR modules
-        // This ensures the client components are bundled on client layer
-        layer: WEBPACK_LAYERS.client,
-      }
-    )
-
-    return shouldInvalidate
+    return [
+      shouldInvalidate,
+      // Add the dependency to the server compiler.
+      // This promise is awaited later using `Promise.all` in order to parallelize adding the entries.
+      // It ensures we can parallelize the SSR and Client compiler entries.
+      this.addEntry(
+        compilation,
+        // Reuse compilation context.
+        compiler.context,
+        clientComponentEntryDep,
+        {
+          // By using the same entry name
+          name: entryName,
+          // Layer should be client for the SSR modules
+          // This ensures the client components are bundled on client layer
+          layer: WEBPACK_LAYERS.client,
+        }
+      ),
+    ]
   }
 
   addEntry(
