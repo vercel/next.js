@@ -62,6 +62,11 @@ const main = async () => {
     )
   }
 
+  // Allow overriding nateve swc version in next
+  if (currentPkgDirname === 'next' && process.env.NEXT_SWC_VERSION) {
+    dependencies['@next/swc-linux-x64-gnu'] = process.env.NEXT_SWC_VERSION
+  }
+
   try {
     await fs.copy(currentPkgDir, tmpPkgPath)
     await fs.writeJson(path.join(tmpPkgPath, 'package.json'), packageJson)

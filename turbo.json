@@ -32,7 +32,8 @@
     "typescript": {},
     "test-pack": {
       "dependsOn": ["^test-pack"],
-      "outputs": ["packed-*.tgz"]
+      "outputs": ["packed-*.tgz"],
+      "env": ["NEXT_SWC_VERSION"]
     }
   }
 }

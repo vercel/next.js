@@ -54,7 +54,7 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages({ repoDir = '', nextSwcPkg }) {
+    async linkPackages({ repoDir = '', nextSwcVersion }) {
       const pkgPaths = new Map()
       let pkgs
 
@@ -76,6 +76,7 @@ module.exports = (actionInfo) => {
 
       execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
         cwd: origRepo,
+        env: { NEXT_SWC_VERSION: nextSwcVersion },
       })
 
       pkgs.forEach((pkgDirname) => {

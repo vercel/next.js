@@ -85,7 +85,6 @@ async function createNextInstall({
           .traceAsyncFn(() =>
             linkPackages({
               repoDir: origRepoDir,
-              parentSpan: rootSpan,
             })
           )
         combinedDependencies = {
