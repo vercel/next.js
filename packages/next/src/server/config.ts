@@ -833,7 +833,10 @@ export default async function loadConfig(
   rawConfig?: boolean
 ): Promise<NextConfigComplete> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  loadWebpackHook()
+
+  if (!customConfig) {
+    loadWebpackHook()
+  }
 
   let configFileName = 'next.config.js'
 

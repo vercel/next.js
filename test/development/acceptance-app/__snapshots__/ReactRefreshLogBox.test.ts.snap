@@ -88,7 +88,11 @@ Error:
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: Syntax Error
+
+Import trace for requested module:
+./index.js
+./app/page.js"
 `;
 
 exports[`ReactRefreshLogBox app module init error not shown 1`] = `
@@ -165,7 +169,11 @@ Error:
 Caused by:
     0: failed to process input file
     1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error"
+    2: Syntax Error
+
+Import trace for requested module:
+./index.js
+./app/page.js"
 `;
 
 exports[`ReactRefreshLogBox app syntax > runtime error 3`] = `
@@ -183,7 +191,11 @@ Error:
 Caused by:
     0: failed to process input file
     1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error"
+    2: Syntax Error
+
+Import trace for requested module:
+./index.js
+./app/page.js"
 `;
 
 exports[`ReactRefreshLogBox app unterminated JSX 1`] = `
@@ -209,5 +221,9 @@ Error:
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: Syntax Error
+
+Import trace for requested module:
+./index.js
+./app/page.js"
 `;
