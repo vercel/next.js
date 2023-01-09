@@ -31,7 +31,7 @@ wasm-bindgen-futures = "0.4.8"
 getrandom = { version = "0.2.5", optional = true, default-features = false }
 js-sys = "0.3.59"
 serde-wasm-bindgen = "0.4.3"
-next-binding = { git = "https://github.com/kdy1/turbo.git", rev = "4225078610d6b8d37ed8f0ac4bba170530b06882", features = [
+next-binding = { git = "https://github.com/kdy1/turbo.git", rev = "9f5a94e21467514ed656609b229d8a8c9d2ffa59", features = [
   "__swc_core_binding_wasm",
   "__feature_mdx_rs",
 ] }
