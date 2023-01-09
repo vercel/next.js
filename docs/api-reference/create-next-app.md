@@ -33,7 +33,7 @@ You can also pass command line arguments to set up a new project
 non-interactively. See `create-next-app --help`:
 
 ```bash
-create-next-app <project-directory> [options]
+Usage: create-next-app <project-directory> [options]
 
 Options:
   -V, --version                      output the version number
@@ -49,13 +49,13 @@ Options:
 
     Initialize with eslint config.
 
-  --no-eslint
-
-    Initialize without eslint config.
-
   --experimental-app
 
     Initialize as a `app/` directory project.
+
+  --src-dir
+
+    Initialize inside a `src/` directory.
 
   --use-npm
 
@@ -77,6 +77,8 @@ Options:
     a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
     In this case, you must specify the path to the example separately:
     --example-path foo/bar
+
+  -h, --help                         output usage information
 ```
 
 ### Why use Create Next App?
