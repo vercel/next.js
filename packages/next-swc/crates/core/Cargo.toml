@@ -19,7 +19,7 @@ serde = "1"
 serde_json = "1"
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 
-next-binding = { git = "https://github.com/kdy1/turbo.git", rev = "9f5a94e21467514ed656609b229d8a8c9d2ffa59", features = [
+next-binding = { git = "https://github.com/kdy1/turbo.git", rev = "749f350bde90ae71a578c091b1e54ba911b544f4", features = [
   "__swc_core",
   "__swc_core_next_core",
   "__swc_transform_styled_jsx",
@@ -29,7 +29,7 @@ next-binding = { git = "https://github.com/kdy1/turbo.git", rev = "9f5a94e214675
 ] }
 
 [dev-dependencies]
-next-binding = { git = "https://github.com/kdy1/turbo.git", rev = "9f5a94e21467514ed656609b229d8a8c9d2ffa59", features = [
+next-binding = { git = "https://github.com/kdy1/turbo.git", rev = "749f350bde90ae71a578c091b1e54ba911b544f4", features = [
   "__swc_core_testing_transform",
   "__swc_testing",
 ] }

@@ -39,7 +39,7 @@ tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
-next-binding = { git = "https://github.com/kdy1/turbo.git", rev = "9f5a94e21467514ed656609b229d8a8c9d2ffa59", features = [
+next-binding = { git = "https://github.com/kdy1/turbo.git", rev = "749f350bde90ae71a578c091b1e54ba911b544f4", features = [
   "__swc_core_binding_napi",
   "__turbo_next_dev_server",
   "__turbo_node_file_trace",
