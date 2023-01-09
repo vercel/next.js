@@ -75,7 +75,7 @@ module.exports = (actionInfo) => {
       }
 
       console.log(
-        execa.sync('ls -la', {
+        execa.sync('ls', ['-la'], {
           cwd: origRepo,
         })
       )
