@@ -292,6 +292,144 @@ createNextDescribe(
       })
     })
 
+    describe('Class component used in Server Component', () => {
+      it('should show error when Class Component is used', async () => {
+        const { session, cleanup } = await sandbox(
+          next,
+          new Map([
+            [
+              'app/page.js',
+              `
+        import React from 'react'
+        export default class Page extends React.Component {
+          render() {
+            return <p>Hello world</p>
+          }
+        }
+        `,
+            ],
+          ])
+        )
+
+        expect(await session.hasRedbox(true)).toBe(true)
+
+        await check(async () => {
+          expect(await session.getRedboxSource(true)).toContain(
+            'This might be caused by a React Class component being rendered in a server component, React Class components only works in client components. Read more: https://nextjs.org/docs/messages/class-component-in-server-component'
+          )
+          return 'success'
+        }, 'success')
+
+        expect(next.cliOutput).toContain(
+          'This might be caused by a React Class component being rendered in a server component'
+        )
+
+        await cleanup()
+      })
+
+      it('should show error when React.Component is rendered in external package', async () => {
+        const { session, cleanup } = await sandbox(
+          next,
+          new Map([
+            [
+              'node_modules/my-package/index.js',
+              `
+          const React = require('react')
+          module.exports = class extends React.Component {
+            render() {
+              return "Hello world"
+            } 
+          }
+        `,
+            ],
+            [
+              'node_modules/my-package/package.json',
+              `
+          {
+            "name": "my-package",
+            "version": "0.0.1"
+          }
+        `,
+            ],
+            [
+              'app/page.js',
+              `
+        import Component from 'my-package'
+        export default function Page() {
+          return <Component />
+        }`,
+            ],
+          ])
+        )
+
+        expect(await session.hasRedbox(true)).toBe(true)
+
+        await check(async () => {
+          expect(await session.getRedboxSource(true)).toContain(
+            'This might be caused by a React Class component being rendered in a server component, React Class components only works in client components. Read more: https://nextjs.org/docs/messages/class-component-in-server-component'
+          )
+          return 'success'
+        }, 'success')
+
+        expect(next.cliOutput).toContain(
+          'This might be caused by a React Class component being rendered in a server component'
+        )
+
+        await cleanup()
+      })
+
+      it('should show error when Component is rendered in external package', async () => {
+        const { session, cleanup } = await sandbox(
+          next,
+          new Map([
+            [
+              'node_modules/my-package/index.js',
+              `
+          const { Component } = require('react')
+          module.exports = class extends Component {
+            render() {
+              return "Hello world"
+            }
+          }
+        `,
+            ],
+            [
+              'node_modules/my-package/package.json',
+              `
+          {
+            "name": "my-package",
+            "version": "0.0.1"
+          }
+        `,
+            ],
+            [
+              'app/page.js',
+              `
+            import Component from 'my-package'
+            export default function Page() {
+              return <Component />
+            }`,
+            ],
+          ])
+        )
+
+        expect(await session.hasRedbox(true)).toBe(true)
+
+        await check(async () => {
+          expect(await session.getRedboxSource(true)).toContain(
+            'This might be caused by a React Class component being rendered in a server component, React Class components only works in client components. Read more: https://nextjs.org/docs/messages/class-component-in-server-component'
+          )
+          return 'success'
+        }, 'success')
+
+        expect(next.cliOutput).toContain(
+          'This might be caused by a React Class component being rendered in a server component'
+        )
+
+        await cleanup()
+      })
+    })
+
     describe('Next.js component hooks called in Server Component', () => {
       it.each([
         // TODO-APP: add test for useParams
