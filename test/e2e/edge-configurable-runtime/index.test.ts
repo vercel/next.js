@@ -51,7 +51,7 @@ describe('Configurable runtime for pages and API routes', () => {
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(next.cliOutput).toInclude(
-          'warn  - You are using an experimental edge runtime, the API might change.'
+          `warn  - /pages/api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
         )
       })
       it('warns about page using edge runtime', async () => {
@@ -67,7 +67,7 @@ describe('Configurable runtime for pages and API routes', () => {
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(next.cliOutput).toInclude(
-          'warn  - You are using an experimental edge runtime, the API might change.'
+          `warn  - You are using an experimental edge runtime, the API might change.`
         )
       })
 
@@ -122,7 +122,7 @@ describe('Configurable runtime for pages and API routes', () => {
         expect(output.code).toBe(1)
         expect(output.stderr).not.toContain(`Build failed`)
         expect(output.stderr).toContain(
-          `error - Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
+          `Error: Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
         )
       })
     })

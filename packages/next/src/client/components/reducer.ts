@@ -285,61 +285,6 @@ function invalidateCacheBelowFlightSegmentPath(
 }
 
 /**
- * Fill cache with subTreeData based on flightDataPath that was prefetched
- * This operation is append-only to the existing cache.
- */
-function fillCacheWithPrefetchedSubTreeData(
-  existingCache: CacheNode,
-  flightDataPath: FlightDataPath
-): void {
-  const isLastEntry = flightDataPath.length <= 5
-  const [parallelRouteKey, segment] = flightDataPath
-
-  const segmentForCache = Array.isArray(segment) ? segment[1] : segment
-
-  const existingChildSegmentMap =
-    existingCache.parallelRoutes.get(parallelRouteKey)
-
-  if (!existingChildSegmentMap) {
-    // Bailout because the existing cache does not have the path to the leaf node
-    return
-  }
-
-  const existingChildCacheNode = existingChildSegmentMap.get(segmentForCache)
-
-  if (isLastEntry) {
-    if (!existingChildCacheNode) {
-      const childCacheNode: CacheNode = {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: flightDataPath[3],
-        parallelRoutes: new Map(),
-      }
-
-      fillLazyItemsTillLeafWithHead(
-        childCacheNode,
-        existingChildCacheNode,
-        flightDataPath[2],
-        flightDataPath[4]
-      )
-      existingChildSegmentMap.set(segmentForCache, childCacheNode)
-    }
-
-    return
-  }
-
-  if (!existingChildCacheNode) {
-    // Bailout because the existing cache does not have the path to the leaf node
-    return
-  }
-
-  fillCacheWithPrefetchedSubTreeData(
-    existingChildCacheNode,
-    flightDataPath.slice(2)
-  )
-}
-
-/**
  * Kick off fetch based on the common layout between two routes. Fill cache with data property holding the in-progress fetch.
  */
 function fillCacheWithDataProperty(
@@ -747,7 +692,7 @@ type AppRouterState = {
   prefetchCache: Map<
     string,
     {
-      flightSegmentPath: FlightSegmentPath
+      flightData: FlightData
       tree: FlightRouterState
       canonicalUrlOverride: URL | undefined
     }
@@ -835,10 +780,24 @@ function clientReducer(
       if (prefetchValues) {
         // The one before last item is the router state tree patch
         const {
-          flightSegmentPath,
+          flightData,
           tree: newTree,
           canonicalUrlOverride,
         } = prefetchValues
+
+        // Handle case when navigating to page in `pages` from `app`
+        if (typeof flightData === 'string') {
+          return {
+            canonicalUrl: flightData,
+            // Enable mpaNavigation
+            pushRef: { pendingPush: true, mpaNavigation: true },
+            // Don't apply scroll and focus management.
+            focusAndScrollRef: { apply: false },
+            cache: state.cache,
+            prefetchCache: state.prefetchCache,
+            tree: state.tree,
+          }
+        }
 
         if (newTree !== null) {
           mutable.previousTree = state.tree
@@ -847,6 +806,43 @@ function clientReducer(
             state.tree,
             newTree
           )
+
+          if (newTree === null) {
+            throw new Error('SEGMENT MISMATCH')
+          }
+
+          const canonicalUrlOverrideHrefVal = canonicalUrlOverride
+            ? createHrefFromUrl(canonicalUrlOverride)
+            : undefined
+          if (canonicalUrlOverrideHrefVal) {
+            mutable.canonicalUrlOverride = canonicalUrlOverrideHrefVal
+          }
+          mutable.mpaNavigation = isNavigatingToNewRootLayout(
+            state.tree,
+            newTree
+          )
+
+          // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
+          const flightDataPath = flightData[0]
+          const flightSegmentPath = flightDataPath.slice(
+            0,
+            -3
+          ) as unknown as FlightSegmentPath
+          // The one before last item is the router state tree patch
+          const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
+
+          // Handles case where prefetch only returns the router tree patch without rendered components.
+          if (subTreeData !== null) {
+            if (flightDataPath.length === 3) {
+              cache.subTreeData = subTreeData
+              fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
+            } else {
+              // Copy subTreeData for the root node of the cache.
+              cache.subTreeData = state.cache.subTreeData
+              // Create a copy of the existing cache with the subTreeData applied.
+              fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+            }
+          }
 
           const hardNavigate =
             // TODO-APP: Revisit if this is correct.
@@ -867,7 +863,8 @@ function clientReducer(
               state.cache,
               flightSegmentPath
             )
-          } else {
+            // Ensure the existing cache value is used when the cache was not invalidated.
+          } else if (subTreeData === null) {
             mutable.useExistingCache = true
           }
 
@@ -1324,13 +1321,7 @@ function clientReducer(
       const flightDataPath = flightData[0]
 
       // The one before last item is the router state tree patch
-      const [treePatch, subTreeData] = flightDataPath.slice(-3)
-
-      // TODO-APP: Verify if `null` can't be returned from user code.
-      // If subTreeData is null the prefetch did not provide a component tree.
-      if (subTreeData !== null) {
-        fillCacheWithPrefetchedSubTreeData(state.cache, flightDataPath)
-      }
+      const [treePatch] = flightDataPath.slice(-3)
 
       const flightSegmentPath = flightDataPath.slice(0, -3)
 
@@ -1348,8 +1339,7 @@ function clientReducer(
 
       // Create new tree based on the flightSegmentPath and router state patch
       state.prefetchCache.set(href, {
-        // Path without the last segment, router state, and the subTreeData
-        flightSegmentPath,
+        flightData,
         // Create new tree based on the flightSegmentPath and router state patch
         tree: newTree,
         canonicalUrlOverride,

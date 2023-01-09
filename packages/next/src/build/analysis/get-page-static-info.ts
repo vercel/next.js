@@ -2,6 +2,7 @@ import type { NextConfig } from '../../server/config-shared'
 import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
+import LRUCache from 'next/dist/compiled/lru-cache'
 import { matcher } from 'next/dist/compiled/micromatch'
 import { ServerRuntime } from 'next/types'
 import {
@@ -231,13 +232,17 @@ function getMiddlewareConfig(
   return result
 }
 
-let warnedAboutExperimentalEdge = false
-function warnAboutExperimentalEdge() {
-  if (warnedAboutExperimentalEdge) {
+const apiRouteWarnings = new LRUCache({ max: 250 })
+function warnAboutExperimentalEdge(apiRoute: string | null) {
+  if (apiRouteWarnings.has(apiRoute)) {
     return
   }
-  Log.warn(`You are using an experimental edge runtime, the API might change.`)
-  warnedAboutExperimentalEdge = true
+  Log.warn(
+    apiRoute
+      ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
+      : `You are using an experimental edge runtime, the API might change.`
+  )
+  apiRouteWarnings.set(apiRoute, 1)
 }
 
 const warnedUnsupportedValueMap = new Map<string, boolean>()
@@ -313,21 +318,20 @@ export async function getPageStaticInfo(params: {
       !isEdgeRuntime(resolvedRuntime)
     ) {
       const options = Object.values(SERVER_RUNTIME).join(', ')
-      if (typeof resolvedRuntime !== 'string') {
-        Log.error(
-          `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
-        )
+      const message =
+        typeof resolvedRuntime !== 'string'
+          ? `The \`runtime\` config must be a string. Please leave it empty or choose one of: ${options}`
+          : `Provided runtime "${resolvedRuntime}" is not supported. Please leave it empty or choose one of: ${options}`
+      if (isDev) {
+        Log.error(message)
       } else {
-        Log.error(
-          `Provided runtime "${resolvedRuntime}" is not supported. Please leave it empty or choose one of: ${options}`
-        )
-      }
-      if (!isDev) {
-        process.exit(1)
+        throw new Error(message)
       }
     }
 
     const requiresServerRuntime = ssr || ssg || pageType === 'app'
+
+    const isAnAPIRoute = isAPIRoute(page?.replace(/^\/pages\//, '/'))
 
     resolvedRuntime = isEdgeRuntime(resolvedRuntime)
       ? resolvedRuntime
@@ -336,20 +340,20 @@ export async function getPageStaticInfo(params: {
       : undefined
 
     if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
-      warnAboutExperimentalEdge()
+      warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)
     }
 
     if (
       resolvedRuntime === SERVER_RUNTIME.edge &&
       pageType === 'pages' &&
       page &&
-      !isAPIRoute(page.replace(/^\/pages\//, '/'))
+      !isAnAPIRoute
     ) {
       const message = `Page ${page} provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
-      Log.error(message)
-
-      if (!isDev) {
-        process.exit(1)
+      if (isDev) {
+        Log.error(message)
+      } else {
+        throw new Error(message)
       }
     }
 

@@ -339,7 +339,7 @@ const configSchema = {
         pageEnv: {
           type: 'boolean',
         },
-        profiling: {
+        preCompiledNextServer: {
           type: 'boolean',
         },
         proxyTimeout: {

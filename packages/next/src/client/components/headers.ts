@@ -7,19 +7,24 @@ export function headers() {
     return new Headers({})
   }
 
-  const requestStore =
-    requestAsyncStorage && 'getStore' in requestAsyncStorage
-      ? requestAsyncStorage.getStore()!
-      : requestAsyncStorage
+  const requestStore = requestAsyncStorage.getStore()
+  if (!requestStore) {
+    throw new Error(
+      `Invariant: Method expects to have requestAsyncStorage, none available`
+    )
+  }
 
   return requestStore.headers
 }
 
 export function previewData() {
-  const requestStore =
-    requestAsyncStorage && 'getStore' in requestAsyncStorage
-      ? requestAsyncStorage.getStore()!
-      : requestAsyncStorage
+  const requestStore = requestAsyncStorage.getStore()
+  if (!requestStore) {
+    throw new Error(
+      `Invariant: Method expects to have requestAsyncStorage, none available`
+    )
+  }
+
   return requestStore.previewData
 }
 
@@ -27,10 +32,13 @@ export function cookies() {
   if (staticGenerationBailout('cookies')) {
     return new RequestCookies(new Headers({}))
   }
-  const requestStore =
-    requestAsyncStorage && 'getStore' in requestAsyncStorage
-      ? requestAsyncStorage.getStore()!
-      : requestAsyncStorage
+
+  const requestStore = requestAsyncStorage.getStore()
+  if (!requestStore) {
+    throw new Error(
+      `Invariant: Method expects to have requestAsyncStorage, none available`
+    )
+  }
 
   return requestStore.cookies
 }

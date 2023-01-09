@@ -82,6 +82,7 @@ export interface ExperimentalConfig {
   fetchCache?: boolean
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
+  preCompiledNextServer?: boolean
   legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
@@ -92,7 +93,6 @@ export interface ExperimentalConfig {
   swcFileReading?: boolean
   cpus?: number
   sharedPool?: boolean
-  profiling?: boolean
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
@@ -569,6 +569,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    preCompiledNextServer: false,
     fetchCache: false,
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
@@ -582,7 +583,6 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     sharedPool: true,
-    profiling: false,
     isrFlushToDisk: true,
     workerThreads: false,
     pageEnv: false,
