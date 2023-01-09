@@ -123,7 +123,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "serde",
 ]
@@ -190,9 +190,9 @@ dependencies = [
 
 [[package]]
 name = "binding_macros"
-version = "0.27.9"
+version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6efc1ee47db492fd15cf400fcfd0d284855e115471aa02b99abb4c9f8b5a2f6"
+checksum = "a57b29c61b937d9a77bbcf726ef573f171871957ad1a62ba8d705ff51cfb7b24"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -2297,7 +2297,7 @@ checksum = "e4a24736216ec316047a1fc4252e27dabb04218aa4a3f37c6e7ddbf1f9782b54"
 [[package]]
 name = "next-binding"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "mdxjs",
  "modularize_imports",
@@ -2305,7 +2305,7 @@ dependencies = [
  "node-file-trace",
  "styled_components",
  "styled_jsx",
- "swc_core 0.52.9",
+ "swc_core 0.53.0",
  "swc_emotion",
  "testing",
 ]
@@ -2313,7 +2313,7 @@ dependencies = [
 [[package]]
 name = "next-core"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -2341,7 +2341,7 @@ dependencies = [
 [[package]]
 name = "next-dev"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "futures",
@@ -2366,12 +2366,12 @@ dependencies = [
 [[package]]
 name = "next-font"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "fxhash",
  "serde",
  "serde_json",
- "swc_core 0.52.9",
+ "swc_core 0.53.0",
 ]
 
 [[package]]
@@ -2417,17 +2417,17 @@ dependencies = [
 [[package]]
 name = "next-transform-strip-page-exports"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "fxhash",
- "swc_core 0.52.9",
+ "swc_core 0.53.0",
  "tracing",
 ]
 
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "clap",
@@ -3909,9 +3909,9 @@ dependencies = [
 
 [[package]]
 name = "swc"
-version = "0.238.13"
+version = "0.239.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9840eecdde14c9b58b816ad63075e1d80648072c1a8b908f6ff4ba175db94326"
+checksum = "8b525173bc40337783f4bc0433770607473882a99ee4ead4d0e5b7dfbd39651f"
 dependencies = [
  "ahash",
  "anyhow",
@@ -4102,20 +4102,44 @@ version = "0.52.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4f3a1842506d6721944ce528867e1ee8a61429e421fde56c5ae63251643b500"
 dependencies = [
+ "swc_atoms",
+ "swc_cached",
+ "swc_common",
+ "swc_css_ast 0.133.2",
+ "swc_css_codegen 0.143.2",
+ "swc_css_parser 0.142.2",
+ "swc_css_prefixer",
+ "swc_css_visit 0.132.2",
+ "swc_ecma_ast",
+ "swc_ecma_codegen",
+ "swc_ecma_minifier",
+ "swc_ecma_parser",
+ "swc_ecma_transforms_base",
+ "swc_ecma_utils",
+ "swc_ecma_visit",
+ "swc_trace_macro",
+ "vergen",
+]
+
+[[package]]
+name = "swc_core"
+version = "0.53.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de0626aa233b7b966907f6d8aaa10de39c14f7e71d6ff26bad8bb9cfd6e146f7"
+dependencies = [
  "binding_macros",
  "swc",
  "swc_atoms",
  "swc_bundler",
  "swc_cached",
  "swc_common",
- "swc_css_ast",
- "swc_css_codegen",
+ "swc_css_ast 0.134.0",
+ "swc_css_codegen 0.144.0",
  "swc_css_compat",
  "swc_css_modules",
- "swc_css_parser",
- "swc_css_prefixer",
- "swc_css_utils",
- "swc_css_visit",
+ "swc_css_parser 0.143.0",
+ "swc_css_utils 0.131.0",
+ "swc_css_visit 0.133.0",
  "swc_ecma_ast",
  "swc_ecma_codegen",
  "swc_ecma_loader",
@@ -4135,7 +4159,6 @@ dependencies = [
  "swc_nodejs_common",
  "swc_plugin_proxy",
  "swc_plugin_runner",
- "swc_trace_macro",
  "testing",
  "vergen",
  "wasmer",
@@ -4156,6 +4179,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "swc_css_ast"
+version = "0.134.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "986ee78a7f8904f955370a23a8fefa5188686cf826d356f3e2c8bde9600a3920"
+dependencies = [
+ "is-macro",
+ "serde",
+ "string_enum",
+ "swc_atoms",
+ "swc_common",
+]
+
+[[package]]
 name = "swc_css_codegen"
 version = "0.143.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4167,9 +4203,26 @@ dependencies = [
  "serde",
  "swc_atoms",
  "swc_common",
- "swc_css_ast",
+ "swc_css_ast 0.133.2",
  "swc_css_codegen_macros",
- "swc_css_utils",
+ "swc_css_utils 0.130.2",
+]
+
+[[package]]
+name = "swc_css_codegen"
+version = "0.144.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c53ffd764b54fc452309115aa439999f05baccfdbc86377eb6e21ffc3609de87"
+dependencies = [
+ "auto_impl",
+ "bitflags",
+ "rustc-hash",
+ "serde",
+ "swc_atoms",
+ "swc_common",
+ "swc_css_ast 0.134.0",
+ "swc_css_codegen_macros",
+ "swc_css_utils 0.131.0",
 ]
 
 [[package]]
@@ -4187,9 +4240,9 @@ dependencies = [
 
 [[package]]
 name = "swc_css_compat"
-version = "0.19.2"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c4a849c449cc98af64127c18b0dfd22c04090642e00cca5ff80042265f6bb4d"
+checksum = "e9f623d32abaa34b8f58270c0e045c598d7b0db4056cd0dd4d18bf5ce7f964cc"
 dependencies = [
  "bitflags",
  "once_cell",
@@ -4197,25 +4250,25 @@ dependencies = [
  "serde_json",
  "swc_atoms",
  "swc_common",
- "swc_css_ast",
- "swc_css_utils",
- "swc_css_visit",
+ "swc_css_ast 0.134.0",
+ "swc_css_utils 0.131.0",
+ "swc_css_visit 0.133.0",
 ]
 
 [[package]]
 name = "swc_css_modules"
-version = "0.20.2"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28e27b57ce4622248519983cb658970cfe916e8af0765092270bf8436e124319"
+checksum = "46248794dc219d80857550d872b71feee00b53da7770a01ae10aa63c23668cfb"
 dependencies = [
  "rustc-hash",
  "serde",
  "swc_atoms",
  "swc_common",
- "swc_css_ast",
- "swc_css_codegen",
- "swc_css_parser",
- "swc_css_visit",
+ "swc_css_ast 0.134.0",
+ "swc_css_codegen 0.144.0",
+ "swc_css_parser 0.143.0",
+ "swc_css_visit 0.133.0",
 ]
 
 [[package]]
@@ -4229,7 +4282,21 @@ dependencies = [
  "serde",
  "swc_atoms",
  "swc_common",
- "swc_css_ast",
+ "swc_css_ast 0.133.2",
+]
+
+[[package]]
+name = "swc_css_parser"
+version = "0.143.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "088d9454d24ddce2114c25be9d98ff836699d98a1aba789fd42c81d8203a1442"
+dependencies = [
+ "bitflags",
+ "lexical",
+ "serde",
+ "swc_atoms",
+ "swc_common",
+ "swc_css_ast 0.134.0",
 ]
 
 [[package]]
@@ -4244,9 +4311,9 @@ dependencies = [
  "serde_json",
  "swc_atoms",
  "swc_common",
- "swc_css_ast",
- "swc_css_utils",
- "swc_css_visit",
+ "swc_css_ast 0.133.2",
+ "swc_css_utils 0.130.2",
+ "swc_css_visit 0.132.2",
 ]
 
 [[package]]
@@ -4260,8 +4327,23 @@ dependencies = [
  "serde_json",
  "swc_atoms",
  "swc_common",
- "swc_css_ast",
- "swc_css_visit",
+ "swc_css_ast 0.133.2",
+ "swc_css_visit 0.132.2",
+]
+
+[[package]]
+name = "swc_css_utils"
+version = "0.131.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8b480c3f8c47ed457683da8f9b7c51b4b685bea8a7d177799ca2b5e8e1d723f"
+dependencies = [
+ "once_cell",
+ "serde",
+ "serde_json",
+ "swc_atoms",
+ "swc_common",
+ "swc_css_ast 0.134.0",
+ "swc_css_visit 0.133.0",
 ]
 
 [[package]]
@@ -4273,7 +4355,20 @@ dependencies = [
  "serde",
  "swc_atoms",
  "swc_common",
- "swc_css_ast",
+ "swc_css_ast 0.133.2",
+ "swc_visit",
+]
+
+[[package]]
+name = "swc_css_visit"
+version = "0.133.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcf7dfd2c886ff153a0b51f92d7289d34908deaf6c39bbc2974e8554142d3fdc"
+dependencies = [
+ "serde",
+ "swc_atoms",
+ "swc_common",
+ "swc_css_ast 0.134.0",
  "swc_visit",
 ]
 
@@ -4917,9 +5012,9 @@ dependencies = [
 
 [[package]]
 name = "swc_plugin_runner"
-version = "0.83.3"
+version = "0.84.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac7bdd87ad3b89ce79e8ec05378082ddd389628fbf5aa6c9223cfb8944172449"
+checksum = "ac8ab6ebc9c92c993791d287d13cebbc41f967d12c3e1befe4eddcaabbad1d25"
 dependencies = [
  "anyhow",
  "enumset",
@@ -5446,7 +5541,7 @@ dependencies = [
 [[package]]
 name = "turbo-malloc"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "mimalloc",
 ]
@@ -5454,7 +5549,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -5483,7 +5578,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -5495,7 +5590,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "dotenvy",
@@ -5509,7 +5604,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -5527,7 +5622,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -5552,7 +5647,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "base16",
  "hex",
@@ -5564,7 +5659,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "convert_case 0.5.0",
@@ -5578,7 +5673,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5588,7 +5683,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -5609,7 +5704,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "lazy_static",
@@ -5633,7 +5728,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "clap",
@@ -5649,7 +5744,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5664,7 +5759,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sourcemap",
- "swc_core 0.52.9",
+ "swc_core 0.53.0",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-env",
@@ -5675,13 +5770,13 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "async-trait",
  "indexmap",
  "serde",
- "swc_core 0.52.9",
+ "swc_core 0.53.0",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
@@ -5694,7 +5789,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "futures",
@@ -5723,7 +5818,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5742,7 +5837,7 @@ dependencies = [
  "serde_qs",
  "styled_components",
  "styled_jsx",
- "swc_core 0.52.9",
+ "swc_core 0.53.0",
  "swc_emotion",
  "tokio",
  "tracing",
@@ -5758,7 +5853,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "serde",
@@ -5773,7 +5868,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "serde",
@@ -5788,7 +5883,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -5803,7 +5898,7 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "futures",
@@ -5826,7 +5921,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
  "anyhow",
  "serde",
@@ -5842,9 +5937,9 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-source = "git+https://github.com/kdy1/turbo.git?rev=4225078610d6b8d37ed8f0ac4bba170530b06882#4225078610d6b8d37ed8f0ac4bba170530b06882"
+source = "git+https://github.com/kdy1/turbo.git?rev=9f5a94e21467514ed656609b229d8a8c9d2ffa59#9f5a94e21467514ed656609b229d8a8c9d2ffa59"
 dependencies = [
- "swc_core 0.52.9",
+ "swc_core 0.53.0",
  "turbo-tasks",
  "turbo-tasks-build",
  "turbopack-core",
@@ -5863,9 +5958,9 @@ dependencies = [
 
 [[package]]
 name = "typed-arena"
-version = "2.0.1"
+version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0685c84d5d54d1c26f7d3eb96cd41550adb97baed141a761cf335d3d33bcd0ae"
+checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
 
 [[package]]
 name = "typenum"
