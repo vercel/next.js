@@ -1,3 +1,5 @@
+require('./profiler').startProfiler()
+
 import './initialize-require-hook'
 import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
@@ -100,8 +102,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
-// const v8Profiler = require('v8-profiler-next')
-import v8Profiler from 'v8-profiler-next'
+import { maybeStartProfiler } from './profiler'
 
 export * from './base-server'
 
@@ -1324,64 +1325,12 @@ export default class NextNodeServer extends BaseServer {
   public getRequestHandler(): NodeRequestHandler {
     const handler = super.getRequestHandler()
     return async (req, res, parsedUrl) => {
-      if (req.headers['x-nextjs-trace']) {
-        v8Profiler.setGenerateType(1)
-        v8Profiler.setSamplingInterval(250)
-        v8Profiler.startProfiling('foo', true, 1)
-        const newReq = this.normalizeReq(req)
-        const newRes = this.normalizeRes(res) as NodeNextResponse
-        // const originalWrite = newRes.originalResponse.write
-        const originalEnd = newRes.originalResponse.end.bind(
-          newRes.originalResponse
-        )
-        const originalResponse = newRes.originalResponse
-        originalResponse.setHeader('x-nextjs-trace', 'true')
-        // @ts-ignore
-        // newRes.originalResponse.write = (...args) => {
-        //   // noop
-        // }
-
-        const originalWrite = newRes.originalResponse.write.bind(
-          newRes.originalResponse
-        )
-
-        // @ts-ignore
-        newRes.originalResponse.write = (...args) => {
-          // noop
-        }
-
-        originalResponse.setHeader = (...args) => {
-          // noop
-        }
-
-        // @ts-ignore
-        newRes.originalResponse.end = (...args) => {
-          v8Profiler.stopProfiling('foo').export((_err, result) => {
-            // originalWrite('feedthejim')
-            originalEnd(result)
-          })
-        }
-
-        // make sure that the response is a noop
-
-        return await handler(newReq, newRes, parsedUrl)
-
-        // return new Promise((resolve) => {
-        //   v8Profiler
-        //     .stopProfiling('foo')
-        //     // @ts-ignore
-        //     .export((_err: Error | undefined, result: string) => {
-        //       const randomPath = path.join(
-        //         require('os').tmpdir(),
-        //         `nextjs-${Math.random()}.cpuprofile`
-        //       )
-        //       fs.writeFileSync(randomPath, result)
-        //       console.log(`Wrote profile to ${randomPath}`)
-        //       resolve()
-        //     })
-        // })
-      }
-
+      const normalizedReq = this.normalizeReq(req)
+      const normalizedRes = this.normalizeRes(res)
+      maybeStartProfiler(
+        normalizedReq as NodeNextRequest,
+        normalizedRes as NodeNextResponse
+      )
       return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
     }
   }
