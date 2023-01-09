@@ -53,7 +53,9 @@ const main = async () => {
 
   // Ensure that we bundle binaries with swc
   if (currentPkgDirname === 'next-swc') {
-    packageJson.files = [...packageJson.files, 'native']
+    packageJson.files = packageJson.files ?? []
+    packageJson.files.push('native')
+
     console.log(
       'using swc binaries: ',
       await execa('ls', [path.join(path.dirname(packageJsonPath), 'native')])
