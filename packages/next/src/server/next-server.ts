@@ -1,5 +1,5 @@
-import { maybeStartProfiling, maybeStartProfilingRequest } from './profiler'
-maybeStartProfiling()
+import { maybeStartProfiler, maybeStartProfilingRequest } from './profiler'
+maybeStartProfiler()
 
 import './initialize-require-hook'
 import './node-polyfill-fetch'

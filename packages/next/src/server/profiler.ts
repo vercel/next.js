@@ -2,8 +2,10 @@ import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
 import type { Session } from 'inspector'
 
 let session: Session | null = null
-const PROFILING_ENABLED = !!process.env.NEXTJS_PROFILING
-const SAMPLING_INTERVAL = process.env.NEXTJS_PROFILING_INTERVAL || 100
+const PROFILER_ENABLED = !!process.env.NEXTJS_PROFILER_ENABLED
+const SAMPLING_INTERVAL = process.env.NEXTJS_PROFILER_INTERVAL
+  ? parseInt(process.env.NEXTJS_PROFILER_INTERVAL, 10)
+  : 100
 
 function patchResponseObject(res: NodeNextResponse) {
   const originalEnd = res.originalResponse.end.bind(res.originalResponse)
@@ -16,27 +18,22 @@ function patchResponseObject(res: NodeNextResponse) {
 
   // @ts-ignore
   res.originalResponse.end = () => {
-    maybeStopProfiling().then((result) => {
+    maybeStopProfiler().then((result) => {
       originalEnd(result)
     })
   }
 }
 
-function promisify<T>(
+const promisify = <T>(
   fn: (cb: (err: Error | null, result?: T) => void) => void
-) {
-  return new Promise<T>((resolve, reject) => {
+) =>
+  new Promise<T>((resolve, reject) => {
     fn((err, result) => {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(result!)
-      }
+      err ? reject(err) : resolve(result!)
     })
   })
-}
 
-async function maybeStopProfiling() {
+async function maybeStopProfiler() {
   if (!session) {
     return
   }
@@ -53,7 +50,7 @@ async function maybeStopProfiling() {
   return JSON.stringify(profile)
 }
 
-async function startProfiling() {
+async function startProfiler() {
   if (session) {
     return
   }
@@ -76,17 +73,13 @@ async function startProfiling() {
   await promisify((cb) => session!.post('Profiler.start', cb))
 
   setTimeout(() => {
-    maybeStopProfiling()
+    maybeStopProfiler()
   }, 5000)
 }
 
-export async function maybeStartProfiling() {
-  if (PROFILING_ENABLED) {
-    try {
-      await startProfiling()
-    } catch (err) {
-      console.error(err)
-    }
+export async function maybeStartProfiler() {
+  if (PROFILER_ENABLED) {
+    await startProfiler()
   }
 }
 
@@ -94,16 +87,16 @@ export async function maybeStartProfilingRequest(
   req: NodeNextRequest,
   res: NodeNextResponse
 ) {
-  if (!PROFILING_ENABLED) {
+  if (!PROFILER_ENABLED) {
     return
   }
 
   if (req.headers['x-nextjs-trace']) {
     res.setHeader('x-nextjs-trace', '1')
-    await startProfiling()
+    await startProfiler()
     patchResponseObject(res)
   } else {
-    // we want to disable profiling incase it was started on server start
-    await maybeStopProfiling()
+    // we want to disable profiler incase it was started on server start
+    await maybeStopProfiler()
   }
 }
