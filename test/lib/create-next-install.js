@@ -7,24 +7,6 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
-/**
- * These are simple dependencies provided by default. We want to optimize this special case.
- */
-const areGenericDependencies = (dependencies) =>
-  Object.keys(dependencies).length === 6 &&
-  Object.entries(dependencies).every(([dep, version]) => {
-    if (dep === 'next') return true
-    return (
-      [
-        'react',
-        'react-dom',
-        'typescript',
-        '@types/react',
-        '@types/node',
-      ].includes(dep) && version === 'latest'
-    )
-  })
-
 async function createNextInstall({
   parentSpan,
   dependencies,
