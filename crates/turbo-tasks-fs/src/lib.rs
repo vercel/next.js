@@ -264,8 +264,13 @@ impl DiskFileSystem {
     }
 
     pub async fn to_sys_path(&self, fs_path: FileSystemPathVc) -> Result<PathBuf> {
-        let path = Path::new(&self.root).join(&*unix_to_sys(&fs_path.await?.path));
-        Ok(path)
+        let path = Path::new(&self.root);
+        let fs_path = fs_path.await?;
+        Ok(if fs_path.path.is_empty() {
+            path.to_path_buf()
+        } else {
+            path.join(&*unix_to_sys(&fs_path.path))
+        })
     }
 }
 
