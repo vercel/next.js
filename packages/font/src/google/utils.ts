@@ -44,6 +44,9 @@ export function validateData(
 
   const fontFamily = functionName.replace(/_/g, ' ')
   const fontFamilyData = (fontData as any)[fontFamily]
+  if (!fontFamilyData) {
+    nextFontError(`Unknown font \`${fontFamily}\``)
+  }
 
   if (preload && !callSubsets && !config?.subsets) {
     nextFontError(
@@ -63,9 +66,6 @@ export function validateData(
   })
 
   const fontWeights = fontFamilyData.weights
-  if (!fontWeights) {
-    nextFontError(`Unknown font \`${fontFamily}\``)
-  }
   const fontStyles = fontFamilyData.styles
 
   const weights = !weight

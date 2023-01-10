@@ -19,6 +19,8 @@ export const getTemplateFile = ({
   return path.join(__dirname, template, mode, file)
 }
 
+export const SRC_DIR_NAMES = ['app', 'pages', 'styles']
+
 /**
  * Install a Next.js internal template to a given `root` directory.
  */
@@ -30,6 +32,7 @@ export const installTemplate = async ({
   template,
   mode,
   eslint,
+  srcDir,
 }: InstallTemplateArgs) => {
   console.log(chalk.bold(`Using ${packageManager}.`))
 
@@ -119,6 +122,31 @@ export const installTemplate = async ({
       }
     },
   })
+
+  if (srcDir) {
+    await fs.promises.mkdir(path.join(root, 'src'), { recursive: true })
+    await Promise.all(
+      SRC_DIR_NAMES.map(async (file) => {
+        await fs.promises
+          .rename(path.join(root, file), path.join(root, 'src', file))
+          .catch((err) => {
+            if (err.code !== 'ENOENT') {
+              throw err
+            }
+          })
+      })
+    )
+    const tsconfigFile = path.join(
+      root,
+      mode === 'js' ? 'jsconfig.json' : 'tsconfig.json'
+    )
+    await fs.promises.writeFile(
+      tsconfigFile,
+      (
+        await fs.promises.readFile(tsconfigFile, 'utf8')
+      ).replace(`"@/*": ["./*"]`, `"@/*": ["./src/*"]`)
+    )
+  }
 
   if (!eslint) {
     // remove un-necessary template file if eslint is not desired
