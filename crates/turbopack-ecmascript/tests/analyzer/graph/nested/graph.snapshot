@@ -83,7 +83,7 @@
         "f",
         Variable(
             (
-                Atom('e' type=inline),
+                Atom('e' type=static),
                 #7,
             ),
         ),
@@ -233,7 +233,7 @@
         "z#8",
         Variable(
             (
-                Atom('e' type=inline),
+                Atom('e' type=static),
                 #7,
             ),
         ),

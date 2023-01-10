@@ -95,7 +95,7 @@
         "ee",
         Variable(
             (
-                Atom('e' type=inline),
+                Atom('e' type=static),
                 #1,
             ),
         ),

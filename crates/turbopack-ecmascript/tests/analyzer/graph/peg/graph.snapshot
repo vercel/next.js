@@ -1126,7 +1126,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('ch' type=inline),
+                                    Atom('ch' type=static),
                                     #13,
                                 ),
                             ),
@@ -1159,7 +1159,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('ch' type=inline),
+                                    Atom('ch' type=static),
                                     #14,
                                 ),
                             ),
@@ -1192,7 +1192,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('ch' type=inline),
+                                    Atom('ch' type=static),
                                     #16,
                                 ),
                             ),
@@ -1225,7 +1225,7 @@
                         [
                             Variable(
                                 (
-                                    Atom('ch' type=inline),
+                                    Atom('ch' type=static),
                                     #17,
                                 ),
                             ),
@@ -3197,7 +3197,7 @@
                         KeyValue(
                             Constant(
                                 StrWord(
-                                    Atom('column' type=inline),
+                                    Atom('column' type=static),
                                 ),
                             ),
                             Member(
@@ -3210,7 +3210,7 @@
                                 ),
                                 Constant(
                                     StrWord(
-                                        Atom('column' type=inline),
+                                        Atom('column' type=static),
                                     ),
                                 ),
                             ),
@@ -3564,7 +3564,7 @@
                         4,
                         Variable(
                             (
-                                Atom('ch' type=inline),
+                                Atom('ch' type=static),
                                 #11,
                             ),
                         ),
@@ -7374,7 +7374,7 @@
                                 KeyValue(
                                     Constant(
                                         StrWord(
-                                            Atom('column' type=inline),
+                                            Atom('column' type=static),
                                         ),
                                     ),
                                     Member(
@@ -7387,7 +7387,7 @@
                                         ),
                                         Constant(
                                             StrWord(
-                                                Atom('column' type=inline),
+                                                Atom('column' type=static),
                                             ),
                                         ),
                                     ),
@@ -7441,7 +7441,7 @@
                                 KeyValue(
                                     Constant(
                                         StrWord(
-                                            Atom('column' type=inline),
+                                            Atom('column' type=static),
                                         ),
                                     ),
                                     Member(
@@ -7454,7 +7454,7 @@
                                         ),
                                         Constant(
                                             StrWord(
-                                                Atom('column' type=inline),
+                                                Atom('column' type=static),
                                             ),
                                         ),
                                     ),
@@ -9543,7 +9543,7 @@
                         KeyValue(
                             Constant(
                                 StrWord(
-                                    Atom('column' type=inline),
+                                    Atom('column' type=static),
                                 ),
                             ),
                             Constant(

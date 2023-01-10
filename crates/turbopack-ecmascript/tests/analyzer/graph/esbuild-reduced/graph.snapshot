@@ -59,7 +59,7 @@
             Some(
                 Variable(
                     (
-                        Atom('e' type=inline),
+                        Atom('e' type=static),
                         #5,
                     ),
                 ),
