@@ -17,7 +17,7 @@ createNextDescribe(
   ({ next }) => {
     describe('createContext called in Server Component', () => {
       it('should show error when React.createContext is called', async () => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -38,22 +38,26 @@ createNextDescribe(
           ])
         )
 
-        expect(await session.hasRedbox(true)).toBe(true)
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
-            `TypeError: createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component`
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
+            'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
           )
           return 'success'
         }, 'success')
+
         expect(next.cliOutput).toContain(
-          'createContext only works in Client Components'
+          'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
         )
 
         await cleanup()
       })
 
       it('should show error when React.createContext is called in external package', async () => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -89,24 +93,26 @@ createNextDescribe(
           ])
         )
 
-        expect(await session.hasRedbox(true)).toBe(true)
-
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
-            `TypeError: createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component`
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
+            'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
           )
           return 'success'
         }, 'success')
 
         expect(next.cliOutput).toContain(
-          'createContext only works in Client Components'
+          'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
         )
 
         await cleanup()
       })
 
       it('should show error when createContext is called in external package', async () => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -141,26 +147,28 @@ createNextDescribe(
             ],
           ])
         )
-
-        expect(await session.hasRedbox(true)).toBe(true)
-
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
-            `TypeError: createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component`
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
+            'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
           )
           return 'success'
         }, 'success')
 
         expect(next.cliOutput).toContain(
-          'createContext only works in Client Components'
+          'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
         )
+
         await cleanup()
       })
     })
 
     describe('React component hooks called in Server Component', () => {
       it('should show error when React.<client-hook> is called', async () => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -175,24 +183,26 @@ createNextDescribe(
           ])
         )
 
-        expect(await session.hasRedbox(true)).toBe(true)
-
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
-            `Error: useRef only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
+            'useRef only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
           )
           return 'success'
         }, 'success')
 
         expect(next.cliOutput).toContain(
-          'useRef only works in Client Components'
+          'useRef only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
 
         await cleanup()
       })
 
       it('should show error when React.<client-hook> is called in external package', async () => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -225,24 +235,26 @@ createNextDescribe(
           ])
         )
 
-        expect(await session.hasRedbox(true)).toBe(true)
-
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
-            `Error: useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
+            'useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
           )
           return 'success'
         }, 'success')
 
         expect(next.cliOutput).toContain(
-          'useState only works in Client Components'
+          'useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
 
         await cleanup()
       })
 
       it('should show error when React client hook is called in external package', async () => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -275,17 +287,19 @@ createNextDescribe(
           ])
         )
 
-        expect(await session.hasRedbox(true)).toBe(true)
-
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
-            `Error: useEffect only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
+            'useEffect only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
           )
           return 'success'
         }, 'success')
 
         expect(next.cliOutput).toContain(
-          'useEffect only works in Client Components'
+          'useEffect only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
         )
 
         await cleanup()
@@ -294,7 +308,7 @@ createNextDescribe(
 
     describe('Class component used in Server Component', () => {
       it('should show error when Class Component is used', async () => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -311,11 +325,13 @@ createNextDescribe(
           ])
         )
 
-        expect(await session.hasRedbox(true)).toBe(true)
-
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
-            'This might be caused by a React Class component being rendered in a server component, React Class components only works in Client Components. Read more: https://nextjs.org/docs/messages/class-component-in-server-component'
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
+            'This might be caused by a React Class component being rendered in a server component'
           )
           return 'success'
         }, 'success')
@@ -328,7 +344,7 @@ createNextDescribe(
       })
 
       it('should show error when React.PureComponent is rendered in external package', async () => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -362,11 +378,13 @@ createNextDescribe(
           ])
         )
 
-        expect(await session.hasRedbox(true)).toBe(true)
-
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
-            'This might be caused by a React Class component being rendered in a server component, React Class components only works in Client Components. Read more: https://nextjs.org/docs/messages/class-component-in-server-component'
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
+            'This might be caused by a React Class component being rendered in a server component'
           )
           return 'success'
         }, 'success')
@@ -379,7 +397,7 @@ createNextDescribe(
       })
 
       it('should show error when Component is rendered in external package', async () => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -413,11 +431,13 @@ createNextDescribe(
           ])
         )
 
-        expect(await session.hasRedbox(true)).toBe(true)
-
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
-            'This might be caused by a React Class component being rendered in a server component, React Class components only works in client components. Read more: https://nextjs.org/docs/messages/class-component-in-server-component'
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
+            'This might be caused by a React Class component being rendered in a server component'
           )
           return 'success'
         }, 'success')
@@ -440,7 +460,7 @@ createNextDescribe(
         ['useSelectedLayoutSegments'],
         ['usePathname'],
       ])('should show error when %s is called', async (hook: string) => {
-        const { session, cleanup } = await sandbox(
+        const { browser, cleanup } = await sandbox(
           next,
           new Map([
             [
@@ -455,17 +475,19 @@ createNextDescribe(
           ])
         )
 
-        expect(await session.hasRedbox(true)).toBe(true)
-
         await check(async () => {
-          expect(await session.getRedboxSource(true)).toContain(
+          expect(
+            await browser
+              .waitForElementByCss('#nextjs__container_errors_desc')
+              .text()
+          ).toContain(
             `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
           )
           return 'success'
         }, 'success')
 
         expect(next.cliOutput).toContain(
-          `${hook} only works in Client Components`
+          `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
         )
 
         await cleanup()
