@@ -11,6 +11,7 @@ export interface DefaultTemplateOptions {
 export interface CustomTemplateOptions extends DefaultTemplateOptions {
   mode: TemplateMode
   template: TemplateType
+  srcDir?: boolean
 }
 
 export interface ProjectFiles extends DefaultTemplateOptions {
