@@ -64,7 +64,9 @@ pub struct TransformTask {
 #[inline]
 fn skip_filename() -> bool {
     #[cfg(debug_assertions)]
-    if std::env::var("NEXT_TEST").unwrap_or_default() == "1" {
+    if std::env::var("NEXT_TEST").unwrap_or_default() == "1"
+        || std::env::var("CI").unwrap_or_default() == "1"
+    {
         return true;
     }
 
