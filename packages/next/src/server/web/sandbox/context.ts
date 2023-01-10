@@ -216,7 +216,15 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
           return result
         }
 
-      const __fetch = context.fetch
+      const __fetch__ = context.fetch
+      const __fetch: typeof __fetch__ = async (...args) => {
+        try {
+          return await __fetch__(...args)
+        } catch (err: any) {
+          Error.captureStackTrace(err, context.fetch)
+          throw err
+        }
+      }
       context.fetch = async (input, init = {}) => {
         const assetResponse = await fetchInlineAsset({
           input,
@@ -239,7 +247,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         }
 
         if (typeof input === 'object' && 'url' in input) {
-          return __fetch(input.url, {
+          return await __fetch(input.url, {
             ...pick(input, [
               'method',
               'body',
@@ -261,7 +269,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
           })
         }
 
-        return __fetch(String(input), init)
+        return await __fetch(String(input), init)
       }
 
       const __Request = context.Request
