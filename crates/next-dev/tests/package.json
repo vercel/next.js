@@ -1,4 +1,5 @@
 {
+  "name": "next-dev-tests",
   "private": true,
   "devDependencies": {
     "@turbo/pack-test-harness": "*",
