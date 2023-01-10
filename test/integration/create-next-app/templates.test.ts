@@ -22,8 +22,8 @@ describe('create-next-app templates', () => {
     it('should skip when env is not set', () => {})
     return
   } else {
-    console.error(`NOT SKIPPING`, process.env, '\n\n')
-    process.exit(1)
+    require('console').error(`NOT SKIPPING`, process.env, '\n\n')
+    setTimeout(() => process.exit(1), 100)
   }
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {

@@ -33,8 +33,8 @@ describe('create next app', () => {
     it('should skip when env is not set', () => {})
     return
   } else {
-    console.error(`NOT SKIPPING`, process.env, '\n\n')
-    process.exit(1)
+    require('console').error(`NOT SKIPPING`, process.env, '\n\n')
+    setTimeout(() => process.exit(1), 100)
   }
 
   it('non-empty directory', async () => {
