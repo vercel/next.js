@@ -12,7 +12,6 @@ async function createNextInstall({
   dependencies,
   installCommand,
   packageJson = {},
-  packageLockPath = '',
   dirSuffix = '',
 }) {
   return await parentSpan
@@ -92,13 +91,6 @@ async function createNextInstall({
           2
         )
       )
-
-      if (packageLockPath) {
-        await fs.copy(
-          packageLockPath,
-          path.join(installDir, path.basename(packageLockPath))
-        )
-      }
 
       if (installCommand) {
         const installString =
