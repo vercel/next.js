@@ -1,3 +1,4 @@
+//
 const { promisify } = require('util')
 const { exec: execOrig, spawn } = require('child_process')
 
@@ -19,7 +20,11 @@ const CHANGE_ITEM_GROUPS = {
     '.github/pull_request_template.md',
   ],
   cna: ['packages/create-next-app'],
-  'next-swc': ['packages/next-swc', 'scripts/normalize-version-bump.js'],
+  'next-swc': [
+    'packages/next-swc',
+    'scripts/normalize-version-bump.js',
+    'scripts/run-for-change.js',
+  ],
 }
 
 async function main() {
