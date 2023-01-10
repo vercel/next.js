@@ -8,13 +8,16 @@ export async function getServerSideProps() {
   const wasHot = Math.hot
   Math.hot = true
 
+  // crash the server after responding
+  if (process.env.CRASH_FUNCTION) {
+    setTimeout(() => {
+      throw new Error('crash')
+    }, 700)
+  }
+
   return {
     props: {
       hot: wasHot,
     },
   }
-}
-
-export const config = {
-  runtime: 'experimental-edge',
 }

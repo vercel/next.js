@@ -247,6 +247,88 @@ describe('ReactRefreshLogBox app', () => {
     await cleanup()
   })
 
+  test('server component can recover from syntax error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          `
+          export default function Page() {
+            return <p>Hello world</p>
+          }
+`,
+        ],
+      ])
+    )
+
+    // Add syntax error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p>Hello world</p>
+`
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Fix syntax error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p>Hello world 2</p>
+      }
+`
+    )
+
+    expect(await browser.waitForElementByCss('p').text()).toBe('Hello world 2')
+
+    await cleanup()
+  })
+
+  test('server component can recover from component error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          `
+          export default function Page() {
+            return <p>Hello world</p>
+          }
+`,
+        ],
+      ])
+    )
+
+    // Add component error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        throw new Error("boom")
+        return <p>Hello world</p>
+      }
+`
+    )
+    expect(await session.hasRedbox(true)).toBe(true)
+
+    // Fix component error
+    await session.patch(
+      'app/page.js',
+      `
+      export default function Page() {
+        return <p>Hello world 2</p>
+      }
+`
+    )
+
+    expect(await browser.waitForElementByCss('p').text()).toBe('Hello world 2')
+
+    await cleanup()
+  })
+
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
   test('render error not shown right after syntax error', async () => {
     const { session, cleanup } = await sandbox(next)
@@ -1150,73 +1232,67 @@ describe('ReactRefreshLogBox app', () => {
     await cleanup()
   })
 
-  test('Call stack count is correct for server error', async () => {
-    const { session, browser, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'app/page.js',
-          `
-          export default function Page() {
-            throw new Error('Server error')
-          }
+  test.each([['server'], ['client']])(
+    'Call stack count is correct for %s error',
+    async (pageType: string) => {
+      const fixture =
+        pageType === 'server'
+          ? new Map([
+              [
+                'app/page.js',
+                `
+        export default function Page() {
+          throw new Error('Server error')
+        }
 `,
-        ],
-      ])
-    )
-
-    expect(await session.hasRedbox(true)).toBe(true)
-
-    // Open full Call Stack
-    await browser
-      .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
-      .click()
-    const callStackCount = (
-      await browser.elementsByCss('[data-nextjs-call-stack-frame]')
-    ).length
-
-    // Expect more than the default amount of frames
-    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
-    expect(callStackCount).toBeGreaterThan(9)
-
-    await cleanup()
-  })
-
-  test('Call stack count is correct for client error', async () => {
-    const { session, browser, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'app/page.js',
-          `
-          'use client'
-          export default function Page() {
-            if (typeof window !== 'undefined') {
-              throw new Error('Client error')
-            }
-            return null
+              ],
+            ])
+          : new Map([
+              [
+                'app/page.js',
+                `
+        'use client'
+        export default function Page() {
+          if (typeof window !== 'undefined') {
+            throw new Error('Client error')
           }
+          return null
+        }
 `,
-        ],
-      ])
-    )
+              ],
+            ])
 
-    expect(await session.hasRedbox(true)).toBe(true)
+      const { session, browser, cleanup } = await sandbox(next, fixture)
 
-    // Open full Call Stack
-    await browser
-      .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
-      .click()
-    const callStackCount = (
-      await browser.elementsByCss('[data-nextjs-call-stack-frame]')
-    ).length
+      const getCallStackCount = async () =>
+        (await browser.elementsByCss('[data-nextjs-call-stack-frame]')).length
 
-    // Expect more than the default amount of frames
-    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
-    expect(callStackCount).toBeGreaterThan(9)
+      expect(await session.hasRedbox(true)).toBe(true)
 
-    await cleanup()
-  })
+      // Open full Call Stack
+      await browser
+        .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
+        .click()
+
+      const collapsedFrameworkGroups = await browser.elementsByCss(
+        "[data-nextjs-call-stack-framework-button][data-state='closed']"
+      )
+      for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
+        // Open the collapsed framework groups, the callstack count should increase with each opened group
+        const callStackCountBeforeGroupOpened = await getCallStackCount()
+        await collapsedFrameworkButton.click()
+        expect(await getCallStackCount()).toBeGreaterThan(
+          callStackCountBeforeGroupOpened
+        )
+      }
+
+      // Expect more than the default amount of frames
+      // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+      expect(await getCallStackCount()).toBeGreaterThan(9)
+
+      await cleanup()
+    }
+  )
 
   test('Server component errors should open up in fullscreen', async () => {
     const { session, browser, cleanup } = await sandbox(
@@ -1262,6 +1338,26 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
+
+    await cleanup()
+  })
+
+  test('Hydration errors should get error link', async () => {
+    const { session, browser, cleanup } = await sandbox(next)
+
+    await session.patch(
+      'app/page.js',
+      `
+    "use client"
+    export default function Page() {
+      return <p>{typeof window === 'undefined' ? "hello" : "world"}</p>
+    }
+    `
+    )
+
+    await browser.refresh()
+    await session.waitForAndOpenRuntimeError()
+    expect(await session.getRedboxDescription()).toMatchSnapshot()
 
     await cleanup()
   })

@@ -7,6 +7,24 @@ const { randomBytes } = require('crypto')
 const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
+/**
+ * These are simple dependencies provided by default. We want to optimize this special case.
+ */
+const areGenericDependencies = (dependencies) =>
+  Object.keys(dependencies).length === 6 &&
+  Object.entries(dependencies).every(([dep, version]) => {
+    if (dep === 'next') return true
+    return (
+      [
+        'react',
+        'react-dom',
+        'typescript',
+        '@types/react',
+        '@types/node',
+      ].includes(dep) && version === 'latest'
+    )
+  })
+
 async function createNextInstall({
   parentSpan,
   dependencies,
@@ -28,6 +46,10 @@ async function createNextInstall({
         tmpDir,
         `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
       )
+
+      require('console').log('Using following temporary directories:')
+      require('console').log(installDir)
+      require('console').log(tmpRepoDir)
 
       await rootSpan.traceChild(' enruse swc binary').traceAsyncFn(async () => {
         // ensure swc binary is present in the native folder if
@@ -137,15 +159,58 @@ async function createNextInstall({
         await rootSpan
           .traceChild('run generic install command')
           .traceAsyncFn(async () => {
-            await execa(
-              'pnpm',
-              ['install', '--strict-peer-dependencies=false'],
-              {
-                cwd: installDir,
-                stdio: ['ignore', 'inherit', 'inherit'],
-                env: process.env,
+            const runInstall = async () =>
+              await execa(
+                'pnpm',
+                ['install', '--strict-peer-dependencies=false'],
+                {
+                  cwd: installDir,
+                  stdio: ['ignore', 'inherit', 'inherit'],
+                  env: process.env,
+                }
+              )
+
+            if (!areGenericDependencies(combinedDependencies)) {
+              await runInstall()
+            } else {
+              const cacheDir = path.join(
+                origRepoDir,
+                'test',
+                'tmp',
+                'genericInstallCache'
+              )
+
+              const cachedFiles = [
+                // We can't cache node-modules because .pnpm store must be on the same mount - we can't move it between mountpoints
+                // 'node_modules',
+                // FIXME: caching lock file caused itssues and It's not possible when we don't use turbo which we had to disable temporarily
+                // 'pnpm-lock.yaml',
+              ]
+
+              if (
+                await fs
+                  .access(cacheDir)
+                  .then(() => true)
+                  .catch(() => false)
+              ) {
+                require('console').log(
+                  'We are able to prepopulate pnpm install from cache'
+                )
+                cachedFiles.forEach((file) => {
+                  fs.copy(
+                    path.join(cacheDir, file),
+                    path.join(installDir, file)
+                  )
+                })
               }
-            )
+
+              await runInstall()
+
+              await fs.ensureDir(cacheDir)
+              cachedFiles.forEach((file) => {
+                fs.copy(path.join(installDir, file), path.join(cacheDir, file))
+              })
+            }
           })
       }
 
