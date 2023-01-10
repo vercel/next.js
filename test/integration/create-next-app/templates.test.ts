@@ -21,6 +21,8 @@ describe('create-next-app templates', () => {
   if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
+  } else {
+    console.error(`NOT SKIPPING`, process.env, '\n\n')
   }
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {
