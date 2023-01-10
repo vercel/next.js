@@ -135,58 +135,15 @@ async function createNextInstall({
         await rootSpan
           .traceChild('run generic install command')
           .traceAsyncFn(async () => {
-            const runInstall = async () =>
-              await execa(
-                'pnpm',
-                ['install', '--strict-peer-dependencies=false'],
-                {
-                  cwd: installDir,
-                  stdio: ['ignore', 'inherit', 'inherit'],
-                  env: process.env,
-                }
-              )
-
-            if (!areGenericDependencies(combinedDependencies)) {
-              await runInstall()
-            } else {
-              const cacheDir = path.join(
-                origRepoDir,
-                'test',
-                'tmp',
-                'genericInstallCache'
-              )
-
-              const cachedFiles = [
-                // We can't cache node-modules because .pnpm store must be on the same mount - we can't move it between mountpoints
-                // 'node_modules',
-                // FIXME: caching lock file caused itssues and It's not possible when we don't use turbo which we had to disable temporarily
-                // 'pnpm-lock.yaml',
-              ]
-
-              if (
-                await fs
-                  .access(cacheDir)
-                  .then(() => true)
-                  .catch(() => false)
-              ) {
-                require('console').log(
-                  'We are able to prepopulate pnpm install from cache'
-                )
-                cachedFiles.forEach((file) => {
-                  fs.copy(
-                    path.join(cacheDir, file),
-                    path.join(installDir, file)
-                  )
-                })
+            await execa(
+              'pnpm',
+              ['install', '--strict-peer-dependencies=false'],
+              {
+                cwd: installDir,
+                stdio: ['ignore', 'inherit', 'inherit'],
+                env: process.env,
               }
-
-              await runInstall()
-
-              await fs.ensureDir(cacheDir)
-              cachedFiles.forEach((file) => {
-                fs.copy(path.join(installDir, file), path.join(cacheDir, file))
-              })
-            }
+            )
           })
       }
 
