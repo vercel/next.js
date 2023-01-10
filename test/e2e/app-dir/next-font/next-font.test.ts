@@ -338,6 +338,15 @@ createNextDescribe(
             expect($('link[as="font"]').length).toBe(0)
           }
         )
+
+        it('should not preconnect when css is used but no fonts', async () => {
+          const $ = await next.render$('/no-preconnect')
+
+          // Preconnect
+          expect($('link[rel="preconnect"]').length).toBe(0)
+          // Preload
+          expect($('link[as="font"]').length).toBe(0)
+        })
       })
     }
 
