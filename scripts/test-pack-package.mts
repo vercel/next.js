@@ -4,7 +4,6 @@ import os from 'os'
 import execa from 'execa'
 import { randomBytes } from 'crypto'
 import { fileURLToPath } from 'url'
-import { exec } from 'child_process'
 
 const main = async () => {
   const __dirname = fileURLToPath(new URL('.', import.meta.url))
@@ -89,11 +88,16 @@ const main = async () => {
     await execa('pnpm', ['pack'], {
       cwd: tmpPkgPath,
     })
-    exec(`mv *.tgz '${getPackedPkgPath(currentPkgDirname)}'`, {
-      cwd: tmpPkgPath,
-    })
+    // Copied from pnpm source: https://github.com/pnpm/pnpm/blob/5a5512f14c47f4778b8d2b6d957fb12c7ef40127/releasing/plugin-commands-publishing/src/pack.ts#L96
+    const tmpTarball = path.join(
+      tmpPkgPath,
+      `${packageJson.name.replace('@', '').replace('/', '-')}-${
+        packageJson.version
+      }.tgz`
+    )
+    await fs.copyFile(tmpTarball, getPackedPkgPath(currentPkgDirname))
   } finally {
-    fs.remove(tmpPkgPath).catch()
+    await fs.remove(tmpPkgPath).catch()
   }
 }
 
