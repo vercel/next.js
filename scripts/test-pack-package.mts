@@ -4,6 +4,7 @@ import os from 'os'
 import execa from 'execa'
 import { randomBytes } from 'crypto'
 import { fileURLToPath } from 'url'
+import { exec } from 'child_process'
 
 const main = async () => {
   const __dirname = fileURLToPath(new URL('.', import.meta.url))
@@ -31,6 +32,13 @@ const main = async () => {
   const packageJsonPath = getPackageJsonPath(currentPkgDirname)
   const packageJson = await fs.readJson(packageJsonPath)
   const dependencies = packageJson.dependencies
+
+  if (packageJson?.scripts?.prepublishOnly) {
+    // There's a bug in `pnpm pack` where it will run
+    // the prepublishOnly script and that will fail.
+    // See https://github.com/pnpm/pnpm/issues/2941
+    delete packageJson.scripts.prepublishOnly
+  }
 
   // @next/swc is devDependency in next, but we want to include it anyway
   if (currentPkgDirname === 'next') {
@@ -78,7 +86,10 @@ const main = async () => {
         (currentPkgDirname !== 'next-swc' || !/target/.test(item)),
     })
     await fs.writeJson(path.join(tmpPkgPath, 'package.json'), packageJson)
-    execa.sync('yarn', ['pack', '-f', getPackedPkgPath(currentPkgDirname)], {
+    await execa('pnpm', ['pack'], {
+      cwd: tmpPkgPath,
+    })
+    exec(`mv *.tgz '${getPackedPkgPath(currentPkgDirname)}'`, {
       cwd: tmpPkgPath,
     })
   } finally {
