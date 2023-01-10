@@ -49,6 +49,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--src-dir',
+    `
+
+  Initialize inside a \`src/\` directory.
+`
+  )
+  .option(
     '--use-npm',
     `
 
@@ -212,6 +219,48 @@ async function run(): Promise<void> {
         program.eslint = Boolean(eslint)
       }
     }
+
+    if (
+      !process.argv.includes('--src-dir') &&
+      !process.argv.includes('--no-src-dir')
+    ) {
+      if (ciInfo.isCI) {
+        program.srcDir = false
+      } else {
+        const styledSrcDir = chalk.hex('#007acc')('`src/` directory')
+        const { srcDir } = await prompts({
+          type: 'toggle',
+          name: 'srcDir',
+          message: `Would you like to use ${styledSrcDir} with this project?`,
+          initial: false,
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.srcDir = Boolean(srcDir)
+      }
+    }
+
+    if (
+      !process.argv.includes('--experimental-app') &&
+      !process.argv.includes('--no-experimental-app')
+    ) {
+      if (ciInfo.isCI) {
+        program.experimentalAll = false
+      } else {
+        const styledAppDir = chalk.hex('#007acc')(
+          'experimental `app/` directory'
+        )
+        const { appDir } = await prompts({
+          type: 'toggle',
+          name: 'appDir',
+          message: `Would you like to use ${styledAppDir} with this project?`,
+          initial: false,
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.experimentalApp = Boolean(appDir)
+      }
+    }
   }
 
   try {
@@ -223,6 +272,7 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       eslint: program.eslint,
       experimentalApp: program.experimentalApp,
+      srcDir: program.srcDir,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -247,6 +297,7 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       eslint: program.eslint,
       experimentalApp: program.experimentalApp,
+      srcDir: program.srcDir,
     })
   }
 }
