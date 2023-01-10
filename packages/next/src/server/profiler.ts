@@ -7,23 +7,6 @@ const SAMPLING_INTERVAL = process.env.NEXTJS_PROFILER_INTERVAL
   ? parseInt(process.env.NEXTJS_PROFILER_INTERVAL, 10)
   : 100
 
-function patchResponseObject(res: NodeNextResponse) {
-  const originalEnd = res.originalResponse.end.bind(res.originalResponse)
-  res.originalResponse.setHeader('x-nextjs-trace', '1')
-
-  // @ts-ignore
-  res.originalResponse.write = () => {}
-
-  res.originalResponse.setHeader = () => {}
-
-  // @ts-ignore
-  res.originalResponse.end = () => {
-    maybeStopProfiler().then((result) => {
-      originalEnd(result)
-    })
-  }
-}
-
 const promisify = <T>(
   fn: (cb: (err: Error | null, result?: T) => void) => void
 ) =>
@@ -48,6 +31,23 @@ async function maybeStopProfiler() {
   session = null
 
   return JSON.stringify(profile)
+}
+
+function patchResponseObject(res: NodeNextResponse) {
+  const originalEnd = res.originalResponse.end.bind(res.originalResponse)
+  res.originalResponse.setHeader('x-nextjs-trace', '1')
+
+  // @ts-ignore
+  res.originalResponse.write = () => {}
+
+  res.originalResponse.setHeader = () => {}
+
+  // @ts-ignore
+  res.originalResponse.end = () => {
+    maybeStopProfiler().then((result) => {
+      originalEnd(result)
+    })
+  }
 }
 
 async function startProfiler() {

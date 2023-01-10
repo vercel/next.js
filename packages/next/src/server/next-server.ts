@@ -31,7 +31,7 @@ import type { NextConfig } from './config-shared'
 import type { DynamicRoutes, PageChecker } from './router'
 
 import fs from 'fs'
-import path, { join, relative, resolve, sep } from 'path'
+import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import { isAPIRoute } from '../lib/is-api-route'
