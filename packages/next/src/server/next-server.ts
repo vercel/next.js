@@ -1,4 +1,5 @@
-require('./profiler').startProfiler()
+import { maybeStartProfiling, maybeStartProfilingRequest } from './profiler'
+maybeStartProfiling()
 
 import './initialize-require-hook'
 import './node-polyfill-fetch'
@@ -102,7 +103,6 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
-import { maybeStartProfiler } from './profiler'
 
 export * from './base-server'
 
@@ -1327,7 +1327,7 @@ export default class NextNodeServer extends BaseServer {
     return async (req, res, parsedUrl) => {
       const normalizedReq = this.normalizeReq(req)
       const normalizedRes = this.normalizeRes(res)
-      maybeStartProfiler(
+      await maybeStartProfilingRequest(
         normalizedReq as NodeNextRequest,
         normalizedRes as NodeNextResponse
       )

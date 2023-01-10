@@ -1,41 +1,9 @@
-import v8Profiler from 'v8-profiler-next'
-import { NodeNextRequest, NodeNextResponse } from './base-http/node'
+import type { NodeNextRequest, NodeNextResponse } from './base-http/node'
+import type { Session } from 'inspector'
 
-let traceInFlight = false
-const TRACE_ID = 'nextjs-trace'
-
-export function startProfiler() {
-  if (traceInFlight) {
-    return
-  }
-
-  v8Profiler.deleteAllProfiles()
-  v8Profiler.setGenerateType(1)
-  v8Profiler.setSamplingInterval(10)
-  v8Profiler.startProfiling(TRACE_ID, true, 1)
-  traceInFlight = true
-  setTimeout(() => {
-    maybeStopProfiler()
-  }, 10000)
-}
-
-async function maybeStopProfiler() {
-  if (!traceInFlight) {
-    return
-  }
-
-  const profile = v8Profiler.stopProfiling(TRACE_ID)
-  traceInFlight = false
-  return new Promise((resolve, reject) => {
-    profile.export((err, result) => {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(result)
-      }
-    })
-  })
-}
+let session: Session | null = null
+const PROFILING_ENABLED = !!process.env.NEXTJS_PROFILING
+const SAMPLING_INTERVAL = process.env.NEXTJS_PROFILING_INTERVAL || 100
 
 function patchResponseObject(res: NodeNextResponse) {
   const originalEnd = res.originalResponse.end.bind(res.originalResponse)
@@ -48,20 +16,94 @@ function patchResponseObject(res: NodeNextResponse) {
 
   // @ts-ignore
   res.originalResponse.end = () => {
-    maybeStopProfiler().then((result) => {
+    maybeStopProfiling().then((result) => {
       originalEnd(result)
     })
   }
 }
 
-export function maybeStartProfiler(
+function promisify<T>(
+  fn: (cb: (err: Error | null, result?: T) => void) => void
+) {
+  return new Promise<T>((resolve, reject) => {
+    fn((err, result) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(result!)
+      }
+    })
+  })
+}
+
+async function maybeStopProfiling() {
+  if (!session) {
+    return
+  }
+
+  const { profile } = await promisify<{
+    profile: any
+  }>((cb) => session!.post('Profiler.stop', cb))
+  await promisify((cb) => session!.post('Profiler.disable', cb))
+
+  // not sure of the cost of keeping a session around, but it's best to clean up
+  session!.disconnect()
+  session = null
+
+  return JSON.stringify(profile)
+}
+
+async function startProfiling() {
+  if (session) {
+    return
+  }
+
+  const inspector = await import('inspector')
+
+  session = new inspector.Session()
+  session.connect()
+
+  await promisify((cb) =>
+    session!.post(
+      'Profiler.setSamplingInterval',
+      {
+        interval: SAMPLING_INTERVAL,
+      },
+      cb
+    )
+  )
+  await promisify((cb) => session!.post('Profiler.enable', cb))
+  await promisify((cb) => session!.post('Profiler.start', cb))
+
+  setTimeout(() => {
+    maybeStopProfiling()
+  }, 5000)
+}
+
+export async function maybeStartProfiling() {
+  if (PROFILING_ENABLED) {
+    try {
+      await startProfiling()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+}
+
+export async function maybeStartProfilingRequest(
   req: NodeNextRequest,
   res: NodeNextResponse
 ) {
+  if (!PROFILING_ENABLED) {
+    return
+  }
+
   if (req.headers['x-nextjs-trace']) {
-    startProfiler()
+    res.setHeader('x-nextjs-trace', '1')
+    await startProfiling()
     patchResponseObject(res)
   } else {
-    maybeStopProfiler()
+    // we want to disable profiling incase it was started on server start
+    await maybeStopProfiling()
   }
 }
