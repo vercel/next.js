@@ -36,25 +36,18 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.name)
+      const appDirPath = data.appDir ? 'app-dir/' : ''
+      let templatePath = `test/${
+        data.type === 'unit' ? 'unit' : 'e2e'
+      }/${appDirPath}test-template`
+      let targetPath = `test/{{ type }}/${appDirPath}`
+
       return [
         {
-          type: 'add',
-          templateFile: `test/${
-            data.type === 'unit' ? 'unit' : 'e2e'
-          }/example.txt`,
-          path: `test/{{type}}/${
-            data.appDir ? 'app-dir/' : ''
-          }${fileName}/${fileName}.test.ts`,
-        },
-        {
-          type: 'add',
-          templateFile: `test/${
-            data.type === 'unit' ? 'unit' : 'e2e'
-          }/example-file.txt`,
-          path: `test/{{type}}/${
-            data.appDir ? 'app-dir/' : ''
-          }${fileName}/pages/index.js`,
+          type: 'addMany',
+          templateFiles: `${templatePath}/**/*`,
+          base: templatePath,
+          destination: targetPath,
         },
       ]
     },

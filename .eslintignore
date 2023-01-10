@@ -36,3 +36,4 @@ bench/nested-deps/pages/**
 bench/nested-deps/components/**
 packages/next-bundle-analyzer/index.d.ts
 examples/with-typescript-graphql/lib/gql/
+test/development/basic/hmr/components/parse-error.js

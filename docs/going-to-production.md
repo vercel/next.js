@@ -100,7 +100,7 @@ Each file inside your `pages/` directory will automatically be code split into i
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/Logflare/next-pino-logflare-logging-example">with-logging</a></li>
+    <li><a href="https://github.com/Logflare/next-pino-logflare-logging-example">Pino and Logflare Example</a></li>
   </ul>
 </details>
 
@@ -142,7 +142,6 @@ Once you are able to measure the loading performance, use the following strategi
   - Setting up your Code Editor to view import costs and sizes
   - Finding alternative smaller packages
   - Dynamically loading components and dependencies
-  - For more in-depth information, review this [guide](https://papyrus.dev/@PapyrusBlog/how-we-reduced-next.js-page-size-by-3.5x-and-achieved-a-98-lighthouse-score) and this [performance checklist](https://dev.to/endymion1818/nextjs-performance-checklist-5gjb).
 
 ## Related
 

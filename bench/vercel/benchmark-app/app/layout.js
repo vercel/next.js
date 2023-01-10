@@ -8,7 +8,3 @@ export default function Root({ children }) {
     </html>
   )
 }
-
-export const config = {
-  runtime: 'experimental-edge',
-}

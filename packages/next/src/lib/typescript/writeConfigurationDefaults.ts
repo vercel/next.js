@@ -23,7 +23,6 @@ function getDesiredCompilerOptions(
   const o: DesiredCompilerOptionsShape = {
     // These are suggested values and will be set when not present in the
     // tsconfig.json
-    target: { suggested: 'es5' },
     lib: { suggested: ['dom', 'dom.iterable', 'esnext'] },
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },

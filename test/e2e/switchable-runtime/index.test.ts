@@ -530,6 +530,13 @@ describe('Switchable runtime', () => {
         })
       })
 
+      it('should build /app-valid-runtime as a dynamic page with the edge runtime', async () => {
+        await testRoute(context.appPort, '/app-valid-runtime', {
+          isStatic: false,
+          isEdge: true,
+        })
+      })
+
       // FIXME: rsc hydration
       it.skip('should build /node-rsc-ssr as a dynamic page with the nodejs runtime', async () => {
         await testRoute(context.appPort, '/node-rsc-ssr', {

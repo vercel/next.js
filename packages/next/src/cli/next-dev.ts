@@ -13,6 +13,7 @@ import path from 'path'
 import type { NextConfig } from '../../types'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
+import { isIPv6 } from 'net'
 import cluster from 'cluster'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
@@ -60,9 +61,10 @@ const handleSessionStop = async () => {
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
-      })
+      }),
+      true
     )
-    await telemetry.flush()
+    telemetry.flushDetached('dev', dir)
   } catch (err) {
     console.error(err)
   }
@@ -402,7 +404,11 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       startServer(devServerOptions)
         .then(async (app) => {
           const appUrl = `http://${app.hostname}:${app.port}`
-          startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
+          const hostname = host || '0.0.0.0'
+          startedDevelopmentServer(
+            appUrl,
+            `${isIPv6(hostname) ? `[${hostname}]` : hostname}:${app.port}`
+          )
           // Start preflight after server is listening and ignore errors:
           preflight().catch(() => {})
           // Finalize server bootup:
