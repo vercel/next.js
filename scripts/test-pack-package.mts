@@ -27,6 +27,7 @@ const main = async () => {
     os.tmpdir(),
     `${currentPkgDirname}-${randomBytes(32).toString('hex')}`
   )
+  console.log(`Packing '${currentPkgDirname}' in '${tmpPkgPath}'.`)
 
   const packageJsonPath = getPackageJsonPath(currentPkgDirname)
   const packageJson = await fs.readJson(packageJsonPath)
