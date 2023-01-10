@@ -1,5 +1,5 @@
 import Image from "next/image";
-import img from "../public/triangle-black.png";
+import { img } from "../components/img";
 import { useEffect } from "react";
 
 import { Deferred } from "@turbo/pack-test-harness/deferred";

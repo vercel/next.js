@@ -1,8 +1,8 @@
+use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
-    condition::ContextCondition,
     module_options::{ModuleOptionsContext, ModuleOptionsContextVc, PostCssTransformOptions},
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
 };
@@ -17,6 +17,7 @@ use crate::{
     next_client::context::add_next_font_transform,
     next_config::NextConfigVc,
     next_import_map::{get_next_build_import_map, get_next_server_import_map},
+    util::foreign_code_context_condition,
 };
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -28,13 +29,13 @@ pub enum ServerContextType {
 }
 
 #[turbo_tasks::function]
-pub fn get_server_resolve_options_context(
+pub async fn get_server_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ServerContextType>,
     next_config: NextConfigVc,
-) -> ResolveOptionsContextVc {
+) -> Result<ResolveOptionsContextVc> {
     let next_server_import_map = get_next_server_import_map(project_path, ty, next_config);
-    match ty.into_value() {
+    Ok(match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::AppSSR { .. } => {
             let resolve_options_context = ResolveOptionsContext {
                 enable_node_modules: true,
@@ -49,7 +50,7 @@ pub fn get_server_resolve_options_context(
                 enable_typescript: true,
                 enable_react: true,
                 rules: vec![(
-                    ContextCondition::InDirectory("node_modules".to_string()),
+                    foreign_code_context_condition(next_config).await?,
                     resolve_options_context.clone().cell(),
                 )],
                 ..resolve_options_context
@@ -69,14 +70,14 @@ pub fn get_server_resolve_options_context(
                 enable_typescript: true,
                 enable_react: true,
                 rules: vec![(
-                    ContextCondition::InDirectory("node_modules".to_string()),
+                    foreign_code_context_condition(next_config).await?,
                     resolve_options_context.clone().cell(),
                 )],
                 ..resolve_options_context
             }
         }
     }
-    .cell()
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -98,11 +99,12 @@ pub fn get_server_environment(
 }
 
 #[turbo_tasks::function]
-pub fn get_server_module_options_context(
+pub async fn get_server_module_options_context(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     ty: Value<ServerContextType>,
-) -> ModuleOptionsContextVc {
+    next_config: NextConfigVc,
+) -> Result<ModuleOptionsContextVc> {
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } => {
             let module_options_context = ModuleOptionsContext {
@@ -118,7 +120,7 @@ pub fn get_server_module_options_context(
                 }),
                 enable_typescript_transform: true,
                 rules: vec![(
-                    ContextCondition::InDirectory("node_modules".to_string()),
+                    foreign_code_context_condition(next_config).await?,
                     module_options_context.clone().cell(),
                 )],
                 ..module_options_context
@@ -138,7 +140,7 @@ pub fn get_server_module_options_context(
                 }),
                 enable_typescript_transform: true,
                 rules: vec![(
-                    ContextCondition::InDirectory("node_modules".to_string()),
+                    foreign_code_context_condition(next_config).await?,
                     module_options_context.clone().cell(),
                 )],
                 ..module_options_context
@@ -160,7 +162,7 @@ pub fn get_server_module_options_context(
                 }),
                 enable_typescript_transform: true,
                 rules: vec![(
-                    ContextCondition::InDirectory("node_modules".to_string()),
+                    foreign_code_context_condition(next_config).await?,
                     module_options_context.clone().cell(),
                 )],
                 ..module_options_context
@@ -169,7 +171,7 @@ pub fn get_server_module_options_context(
     }
     .cell();
 
-    add_next_font_transform(module_options_context)
+    Ok(add_next_font_transform(module_options_context))
 }
 
 #[turbo_tasks::function]

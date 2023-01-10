@@ -74,17 +74,27 @@ fn next_client_chunks_transition(
     app_dir: FileSystemPathVc,
     server_root: FileSystemPathVc,
     browserslist_query: &str,
+    next_config: NextConfigVc,
 ) -> TransitionVc {
     let ty = Value::new(ClientContextType::App { app_dir });
     let client_chunking_context = get_client_chunking_context(project_path, server_root, ty);
     let client_environment = get_client_environment(browserslist_query);
 
-    let client_module_options_context =
-        get_client_module_options_context(project_path, execution_context, client_environment, ty);
+    let client_module_options_context = get_client_module_options_context(
+        project_path,
+        execution_context,
+        client_environment,
+        ty,
+        next_config,
+    );
     NextClientChunksTransition {
         client_chunking_context,
         client_module_options_context,
-        client_resolve_options_context: get_client_resolve_options_context(project_path, ty),
+        client_resolve_options_context: get_client_resolve_options_context(
+            project_path,
+            ty,
+            next_config,
+        ),
         client_environment,
         server_root,
     }
@@ -105,10 +115,16 @@ async fn next_client_transition(
     let ty = Value::new(ClientContextType::App { app_dir });
     let client_chunking_context = get_client_chunking_context(project_path, server_root, ty);
     let client_environment = get_client_environment(browserslist_query);
-    let client_module_options_context =
-        get_client_module_options_context(project_path, execution_context, client_environment, ty);
+    let client_module_options_context = get_client_module_options_context(
+        project_path,
+        execution_context,
+        client_environment,
+        ty,
+        next_config,
+    );
     let client_runtime_entries = get_client_runtime_entries(project_path, env, ty, next_config);
-    let client_resolve_options_context = get_client_resolve_options_context(project_path, ty);
+    let client_resolve_options_context =
+        get_client_resolve_options_context(project_path, ty, next_config);
 
     Ok(NextClientTransition {
         is_app: true,
@@ -138,6 +154,7 @@ fn next_ssr_client_module_transition(
             project_path,
             execution_context,
             ty,
+            next_config,
         ),
         ssr_resolve_options_context: get_server_resolve_options_context(
             project_path,
@@ -165,7 +182,7 @@ fn next_layout_entry_transition(
     let rsc_resolve_options_context =
         get_server_resolve_options_context(project_path, ty, next_config);
     let rsc_module_options_context =
-        get_server_module_options_context(project_path, execution_context, ty);
+        get_server_module_options_context(project_path, execution_context, ty, next_config);
 
     NextLayoutEntryTransition {
         rsc_environment,
@@ -229,6 +246,7 @@ fn app_context(
             app_dir,
             server_root,
             browserslist_query,
+            next_config,
         ),
     );
     transitions.insert(
@@ -247,7 +265,7 @@ fn app_context(
     ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
         get_server_environment(ssr_ty, env, server_addr),
-        get_server_module_options_context(project_path, execution_context, ssr_ty),
+        get_server_module_options_context(project_path, execution_context, ssr_ty, next_config),
         get_server_resolve_options_context(project_path, ssr_ty, next_config),
     )
     .into()

@@ -37,7 +37,13 @@ pub async fn create_web_entry_source(
     let project_root = wrap_with_next_js_fs(project_root);
 
     let ty = Value::new(ClientContextType::Other);
-    let context = get_client_asset_context(project_root, execution_context, browserslist_query, ty);
+    let context = get_client_asset_context(
+        project_root,
+        execution_context,
+        browserslist_query,
+        ty,
+        next_config,
+    );
     let chunking_context = get_client_chunking_context(project_root, server_root, ty);
     let entries = get_client_runtime_entries(project_root, env, ty, next_config);
 

@@ -78,7 +78,7 @@ async fn base_resolve_options(
 ) -> Result<ResolveOptionsVc> {
     let parent = context.parent().resolve().await?;
     if parent != context {
-        return Ok(resolve_options(parent, options_context));
+        return Ok(base_resolve_options(parent, options_context));
     }
     let context_value = context.await?;
     let opt = options_context.await?;

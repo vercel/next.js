@@ -6,7 +6,6 @@ use turbo_tasks::{primitives::StringsVc, Value};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
-    condition::ContextCondition,
     module_options::{
         module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
         ModuleRule, ModuleRuleCondition, ModuleRuleEffect, PostCssTransformOptions,
@@ -37,6 +36,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     react_refresh::assert_can_resolve_react_refresh,
+    util::foreign_code_context_condition,
 };
 
 #[turbo_tasks::function]
@@ -65,10 +65,11 @@ pub enum ClientContextType {
 }
 
 #[turbo_tasks::function]
-pub fn get_client_resolve_options_context(
+pub async fn get_client_resolve_options_context(
     project_path: FileSystemPathVc,
     ty: Value<ClientContextType>,
-) -> ResolveOptionsContextVc {
+    next_config: NextConfigVc,
+) -> Result<ResolveOptionsContextVc> {
     let next_client_import_map = get_next_client_import_map(project_path, ty);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path);
@@ -82,16 +83,16 @@ pub fn get_client_resolve_options_context(
         module: true,
         ..Default::default()
     };
-    ResolveOptionsContext {
+    Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         rules: vec![(
-            ContextCondition::InDirectory("node_modules".to_string()),
+            foreign_code_context_condition(next_config).await?,
             module_options_context.clone().cell(),
         )],
         ..module_options_context
     }
-    .cell()
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -100,8 +101,9 @@ pub async fn get_client_module_options_context(
     execution_context: ExecutionContextVc,
     env: EnvironmentVc,
     ty: Value<ClientContextType>,
+    next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
-    let resolve_options_context = get_client_resolve_options_context(project_path, ty);
+    let resolve_options_context = get_client_resolve_options_context(project_path, ty, next_config);
     let enable_react_refresh =
         assert_can_resolve_react_refresh(project_path, resolve_options_context)
             .await?
@@ -127,7 +129,7 @@ pub async fn get_client_module_options_context(
         }),
         enable_typescript_transform: true,
         rules: vec![(
-            ContextCondition::InDirectory("node_modules".to_string()),
+            foreign_code_context_condition(next_config).await?,
             module_options_context.clone().cell(),
         )],
         ..module_options_context
@@ -174,11 +176,17 @@ pub fn get_client_asset_context(
     execution_context: ExecutionContextVc,
     browserslist_query: &str,
     ty: Value<ClientContextType>,
+    next_config: NextConfigVc,
 ) -> AssetContextVc {
     let environment = get_client_environment(browserslist_query);
-    let resolve_options_context = get_client_resolve_options_context(project_path, ty);
-    let module_options_context =
-        get_client_module_options_context(project_path, execution_context, environment, ty);
+    let resolve_options_context = get_client_resolve_options_context(project_path, ty, next_config);
+    let module_options_context = get_client_module_options_context(
+        project_path,
+        execution_context,
+        environment,
+        ty,
+        next_config,
+    );
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
@@ -232,7 +240,7 @@ pub async fn get_client_runtime_entries(
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
 ) -> Result<RuntimeEntriesVc> {
-    let resolve_options_context = get_client_resolve_options_context(project_root, ty);
+    let resolve_options_context = get_client_resolve_options_context(project_root, ty, next_config);
     let enable_react_refresh =
         assert_can_resolve_react_refresh(project_root, resolve_options_context)
             .await?
