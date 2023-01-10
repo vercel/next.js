@@ -325,6 +325,20 @@ createNextDescribe(
           })
         })
       })
+
+      describe('preconnect', () => {
+        it.each([['page'], ['layout'], ['component']])(
+          'should add preconnect when preloading is disabled in %s',
+          async (type: string) => {
+            const $ = await next.render$(`/preconnect-${type}`)
+
+            // Preconnect
+            expect($('link[rel="preconnect"]').length).toBe(1)
+            // Preload
+            expect($('link[as="font"]').length).toBe(0)
+          }
+        )
+      })
     }
 
     if (isDev) {
