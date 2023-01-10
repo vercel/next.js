@@ -50,29 +50,5 @@
   ],
 
   // Disable TypeScript surveys.
-  "typescript.surveys.enabled": false,
-  "workbench.colorCustomizations": {
-    "activityBar.activeBackground": "#ab307e",
-    "activityBar.background": "#ab307e",
-    "activityBar.foreground": "#e7e7e7",
-    "activityBar.inactiveForeground": "#e7e7e799",
-    "activityBarBadge.background": "#25320e",
-    "activityBarBadge.foreground": "#e7e7e7",
-    "commandCenter.border": "#e7e7e799",
-    "editorGroup.border": "#ab307e",
-    "panel.border": "#ab307e",
-    "sash.hoverBorder": "#ab307e",
-    "sideBar.border": "#ab307e",
-    "statusBar.background": "#832561",
-    "statusBar.foreground": "#e7e7e7",
-    "statusBarItem.hoverBackground": "#ab307e",
-    "statusBarItem.remoteBackground": "#832561",
-    "statusBarItem.remoteForeground": "#e7e7e7",
-    "tab.activeBorder": "#ab307e",
-    "titleBar.activeBackground": "#832561",
-    "titleBar.activeForeground": "#e7e7e7",
-    "titleBar.inactiveBackground": "#83256199",
-    "titleBar.inactiveForeground": "#e7e7e799"
-  },
-  "peacock.color": "#832561"
+  "typescript.surveys.enabled": false
 }
