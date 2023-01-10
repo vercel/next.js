@@ -61,6 +61,16 @@ pub struct TransformTask {
     pub options: Buffer,
 }
 
+#[inline]
+fn skip_filename() -> bool {
+    #[cfg(debug_assertions)]
+    if std::env::var("NEXT_TEST").unwrap_or_default() == "1" {
+        return true;
+    }
+
+    false
+}
+
 impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<String>);
     type JsValue = Object;
@@ -73,7 +83,7 @@ impl Task for TransformTask {
                     self.c.cm.clone(),
                     next_binding::swc::core::base::HandlerOpts {
                         color: ColorConfig::Always,
-                        skip_filename: false,
+                        skip_filename: skip_filename(),
                     },
                     |handler| {
                         self.c.run(|| {
