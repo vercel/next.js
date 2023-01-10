@@ -69,9 +69,15 @@ fn get_page_client_module_options_context(
     execution_context: ExecutionContextVc,
     client_environment: EnvironmentVc,
     ty: Value<ClientContextType>,
+    next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
-    let client_module_options_context =
-        get_client_module_options_context(project_path, execution_context, client_environment, ty);
+    let client_module_options_context = get_client_module_options_context(
+        project_path,
+        execution_context,
+        client_environment,
+        ty,
+        next_config,
+    );
 
     let client_module_options_context = match ty.into_value() {
         ClientContextType::Pages { pages_dir } => add_next_transforms_to_pages(
@@ -98,10 +104,11 @@ fn get_page_server_module_options_context(
     execution_context: ExecutionContextVc,
     pages_dir: FileSystemPathVc,
     ssr_ty: Value<PageSsrType>,
+    next_config: NextConfigVc,
 ) -> ModuleOptionsContextVc {
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
     let server_module_options_context =
-        get_server_module_options_context(project_path, execution_context, server_ty);
+        get_server_module_options_context(project_path, execution_context, server_ty, next_config);
 
     match ssr_ty.into_value() {
         PageSsrType::Ssr => server_module_options_context,
@@ -146,13 +153,15 @@ pub async fn create_page_source(
         execution_context,
         client_environment,
         ty,
+        next_config,
     );
     let client_module_options_context = add_next_transforms_to_pages(
         client_module_options_context,
         pages_dir,
         Value::new(PageTransformType::Client),
     );
-    let client_resolve_options_context = get_client_resolve_options_context(project_path, ty);
+    let client_resolve_options_context =
+        get_client_resolve_options_context(project_path, ty, next_config);
     let client_context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
         client_environment,
@@ -177,6 +186,8 @@ pub async fn create_page_source(
     .cell()
     .into();
 
+    let mut transitions = HashMap::new();
+    transitions.insert("next-client".to_string(), next_client_transition);
     let server_environment = get_server_environment(server_ty, env, server_addr);
     let server_resolve_options_context =
         get_server_resolve_options_context(project_path, server_ty, next_config);
@@ -186,6 +197,7 @@ pub async fn create_page_source(
         execution_context,
         pages_dir,
         Value::new(PageSsrType::Ssr),
+        next_config,
     );
     let server_transitions = TransitionsByNameVc::cell(
         [("next-client".to_string(), next_client_transition)]
@@ -206,6 +218,7 @@ pub async fn create_page_source(
         execution_context,
         pages_dir,
         Value::new(PageSsrType::SsrData),
+        next_config,
     );
 
     let server_data_context: AssetContextVc = ModuleAssetContextVc::new(

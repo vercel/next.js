@@ -1,7 +1,10 @@
 use anyhow::{anyhow, bail, Result};
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
+use turbopack::condition::ContextCondition;
 use turbopack_node::path_regex::{PathRegexBuilder, PathRegexVc};
+
+use crate::next_config::NextConfigVc;
 
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
@@ -91,4 +94,22 @@ pub fn get_asset_path_from_route(route: &str, ext: &str) -> String {
     } else {
         format!("{}{}", route, ext)
     }
+}
+
+pub async fn foreign_code_context_condition(next_config: NextConfigVc) -> Result<ContextCondition> {
+    let transpile_packages = next_config.transpile_packages().await?;
+    let result = if transpile_packages.is_empty() {
+        ContextCondition::InDirectory("node_modules".to_string())
+    } else {
+        ContextCondition::all(vec![
+            ContextCondition::InDirectory("node_modules".to_string()),
+            ContextCondition::not(ContextCondition::any(
+                transpile_packages
+                    .iter()
+                    .map(|package| ContextCondition::InDirectory(format!("node_modules/{package}")))
+                    .collect(),
+            )),
+        ])
+    };
+    Ok(result)
 }

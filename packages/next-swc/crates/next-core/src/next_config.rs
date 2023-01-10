@@ -41,6 +41,7 @@ pub struct NextConfig {
     pub env: Option<HashMap<String, String>>,
     pub compiler: Option<CompilerConfig>,
     pub images: ImageConfig,
+    pub transpile_packages: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -200,6 +201,13 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn image_config(self) -> Result<ImageConfigVc> {
         Ok(self.await?.images.clone().cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn transpile_packages(self) -> Result<StringsVc> {
+        Ok(StringsVc::cell(
+            self.await?.transpile_packages.clone().unwrap_or_default(),
+        ))
     }
 }
 
