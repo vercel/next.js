@@ -1725,6 +1725,7 @@ export async function copyTracedFiles(
     path.relative(tracingRoot, dir),
     'server.js'
   )
+  await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
   await fs.writeFile(
     serverOutputPath,
     `${
