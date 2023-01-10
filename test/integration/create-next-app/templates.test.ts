@@ -18,12 +18,12 @@ import {
 import { useTempDir } from '../../../test/lib/use-temp-dir'
 
 describe('create-next-app templates', () => {
+  require('console').error(`NOT SKIPPING`, process.env, '\n\n')
+  setTimeout(() => process.exit(1), 100)
+
   if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
-  } else {
-    require('console').error(`NOT SKIPPING`, process.env, '\n\n')
-    setTimeout(() => process.exit(1), 100)
   }
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {

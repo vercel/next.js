@@ -29,12 +29,12 @@ const run = (args: string[], options: execa.Options) =>
   execa('node', [cli].concat(args), options)
 
 describe('create next app', () => {
+  require('console').error(`NOT SKIPPING`, process.env, '\n\n')
+  setTimeout(() => process.exit(1), 100)
+
   if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
-  } else {
-    require('console').error(`NOT SKIPPING`, process.env, '\n\n')
-    setTimeout(() => process.exit(1), 100)
   }
 
   it('non-empty directory', async () => {
