@@ -201,7 +201,7 @@ export type AppCustomRouteContext = {
 export type AppCustomRouteHandler = (
   req: any,
   ctx: AppCustomRouteContext
-) => any
+) => Response
 
 export default abstract class Server<ServerOptions extends Options = Options> {
   protected dir: string

@@ -28,8 +28,8 @@ type RunWithRequestAsyncStorageContext = {
 export function runWithRequestAsyncStorage<Result>(
   requestAsyncStorage: RequestAsyncStorage,
   { req, res, renderOpts }: RunWithRequestAsyncStorageContext,
-  callback: () => Promise<Result>
-): Promise<Result> {
+  callback: () => Promise<Result> | Result
+): Promise<Result> | Result {
   const tryGetPreviewData =
     process.env.NEXT_RUNTIME === 'edge'
       ? () => false
