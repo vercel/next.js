@@ -23,6 +23,7 @@ describe('create-next-app templates', () => {
     return
   } else {
     console.error(`NOT SKIPPING`, process.env, '\n\n')
+    process.exit(1)
   }
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {

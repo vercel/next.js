@@ -34,6 +34,7 @@ describe('create next app', () => {
     return
   } else {
     console.error(`NOT SKIPPING`, process.env, '\n\n')
+    process.exit(1)
   }
 
   it('non-empty directory', async () => {
