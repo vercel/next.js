@@ -74,7 +74,7 @@ module.exports = (actionInfo) => {
         throw err
       }
 
-      execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
+      execa.sync('pnpm', ['turbo', 'run', '--force', 'test-pack'], {
         cwd: origRepo,
         env: { NEXT_SWC_VERSION: nextSwcVersion },
       })
