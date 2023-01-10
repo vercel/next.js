@@ -332,8 +332,10 @@ For example, you can use the `kebabCase` helper like this:
 ```js
 // next.config.js
 module.exports = {
-  'my-library': {
-    transform: 'my-library/{{ kebabCase member }}',
+  modularizeImports: {
+    'my-library': {
+      transform: 'my-library/{{ kebabCase member }}',
+    },
   },
 }
 ```
@@ -395,9 +397,11 @@ In this case, you can use the `skipDefaultConversion` option to use named import
 ```js
 // next.config.js
 module.exports = {
-  'my-library': {
-    transform: 'my-library/{{member}}',
-    skipDefaultConversion: true,
+  modularizeImports: {
+    'my-library': {
+      transform: 'my-library/{{member}}',
+      skipDefaultConversion: true,
+    },
   },
 }
 ```
@@ -419,9 +423,11 @@ If you use the `preventFullImport` option, the compiler will throw an error if y
 ```js
 // next.config.js
 module.exports = {
-  lodash: {
-    transform: 'lodash/{{member}}',
-    preventFullImport: true,
+  modularizeImports: {
+    lodash: {
+      transform: 'lodash/{{member}}',
+      preventFullImport: true,
+    },
   },
 }
 ```

@@ -9,7 +9,11 @@ import { existsSync } from 'fs'
 import { resolve } from 'path'
 import glob from 'glob'
 
-import { getProjectSetting, projectSpecification } from './specification'
+import {
+  getProjectSetting,
+  mapSrcFiles,
+  projectSpecification,
+} from './specification'
 import { CustomTemplateOptions, ProjectDeps, ProjectFiles } from './types'
 
 const cli = require.resolve('create-next-app/dist/index.js')
@@ -110,17 +114,21 @@ export const shouldBeTemplateProject = ({
   projectName,
   template,
   mode,
+  srcDir,
 }: CustomTemplateOptions) => {
   projectFilesShouldExist({
     cwd,
     projectName,
-    files: getProjectSetting({ template, mode, setting: 'files' }),
+    files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
   projectFilesShouldNotExist({
     cwd,
     projectName,
-    files: projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
+    files: mapSrcFiles(
+      projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
+      srcDir
+    ),
   })
 
   projectDepsShouldBe({
@@ -142,14 +150,16 @@ export const shouldBeJavascriptProject = ({
   cwd,
   projectName,
   template,
+  srcDir,
 }: Omit<CustomTemplateOptions, 'mode'>) => {
-  shouldBeTemplateProject({ cwd, projectName, template, mode: 'js' })
+  shouldBeTemplateProject({ cwd, projectName, template, mode: 'js', srcDir })
 }
 
 export const shouldBeTypescriptProject = ({
   cwd,
   projectName,
   template,
+  srcDir,
 }: Omit<CustomTemplateOptions, 'mode'>) => {
-  shouldBeTemplateProject({ cwd, projectName, template, mode: 'ts' })
+  shouldBeTemplateProject({ cwd, projectName, template, mode: 'ts', srcDir })
 }
