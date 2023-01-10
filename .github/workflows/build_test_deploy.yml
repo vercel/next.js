@@ -65,7 +65,7 @@ jobs:
       - run: echo "TURBO_TOKEN=$(echo ${TURBO_TOKEN:-empty})" >> $GITHUB_OUTPUT
         id: turbo-token
 
-      - run: echo ${{steps.swc-change.outputs.SWC_CHANGE}}
+      - run: echo "${{steps.swc-change.outputs.SWC_CHANGE}}"
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
@@ -137,7 +137,7 @@ jobs:
       - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: swc-change
 
-      - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
+      - run: echo "${{ steps.swc-change.outputs.SWC_CHANGE }}"
 
       - name: Install
         uses: actions-rs/toolchain@v1
@@ -264,7 +264,7 @@ jobs:
         node: [16, 18]
         group: [1, 2, 3, 4]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -325,7 +325,7 @@ jobs:
         node: [16, 18]
         group: [1, 2, 3, 4, 5, 6, 7]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -387,7 +387,7 @@ jobs:
         node: [16, 18]
         group: [1, 2, 3]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -438,7 +438,7 @@ jobs:
         node: [16, 18]
         group: [1, 2, 3, 4, 5, 6, 7]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -487,7 +487,7 @@ jobs:
       NEXT_TEST_CNA: 1
 
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -563,7 +563,7 @@ jobs:
             25,
           ]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -1005,7 +1005,7 @@ jobs:
       - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: swc-change
 
-      - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
+      - run: echo "${{ steps.swc-change.outputs.SWC_CHANGE }}"
 
       - name: Install
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
@@ -1311,7 +1311,7 @@ jobs:
         run: if [ -f packages/next-swc/native/next-swc.freebsd-x64.node ]; then echo "BUILD_EXISTS=yes" >> $GITHUB_OUTPUT; else echo "BUILD_EXISTS=no" >> $GITHUB_OUTPUT; fi
         id: build-exists
 
-      - run: echo ${{steps.build-exists.outputs.BUILD_EXISTS}}
+      - run: echo "${{steps.build-exists.outputs.BUILD_EXISTS}}"
 
       - name: Build
         id: build
