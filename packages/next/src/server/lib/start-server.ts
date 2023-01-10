@@ -2,8 +2,10 @@ import type { NextServerOptions, NextServer, RequestHandler } from '../next'
 import { warn } from '../../build/output/log'
 import http from 'http'
 import next from '../next'
+import { isIPv6 } from 'net'
 import cluster from 'cluster'
 import v8 from 'v8'
+
 interface StartServerOptions extends NextServerOptions {
   allowRetry?: boolean
   keepAliveTimeout?: number
@@ -60,10 +62,13 @@ export function startServer(opts: StartServerOptions) {
 
     server.on('listening', () => {
       const addr = server.address()
-      const hostname =
+      let hostname =
         !opts.hostname || opts.hostname === '0.0.0.0'
           ? 'localhost'
           : opts.hostname
+      if (isIPv6(hostname)) {
+        hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
+      }
 
       const app = next({
         ...opts,
