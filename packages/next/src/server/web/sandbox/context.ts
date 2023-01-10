@@ -15,6 +15,7 @@ import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
+import { runInContext } from 'vm'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -351,27 +352,31 @@ export async function getModuleContext(options: ModuleContextOptions): Promise<{
   paths: Map<string, string>
   warnedEvals: Set<string>
 }> {
-  let moduleContext:
+  let lazyModuleContext:
     | UnwrapPromise<ReturnType<typeof getModuleContextShared>>
     | undefined
 
   if (options.useCache) {
-    moduleContext =
+    lazyModuleContext =
       moduleContexts.get(options.moduleName) ||
       (await getModuleContextShared(options))
   }
 
-  if (!moduleContext) {
-    moduleContext = await createModuleContext(options)
-    moduleContexts.set(options.moduleName, moduleContext)
+  if (!lazyModuleContext) {
+    lazyModuleContext = await createModuleContext(options)
+    moduleContexts.set(options.moduleName, lazyModuleContext)
   }
 
+  const moduleContext = lazyModuleContext
+
   const evaluateInContext = (filepath: string) => {
-    if (!moduleContext!.paths.has(filepath)) {
+    if (!moduleContext.paths.has(filepath)) {
       const content = readFileSync(filepath, 'utf-8')
       try {
-        moduleContext?.runtime.evaluate(content)
-        moduleContext!.paths.set(filepath, content)
+        runInContext(content, moduleContext.runtime.context, {
+          filename: filepath,
+        })
+        moduleContext.paths.set(filepath, content)
       } catch (error) {
         if (options.useCache) {
           moduleContext?.paths.delete(options.moduleName)
