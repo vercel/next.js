@@ -9,7 +9,9 @@ import React from 'react'
 import fs from 'fs-extra'
 import path from 'path'
 import { DEFAULT_METADATA } from './constant'
-import { Twitter } from './types/twitter-types'
+import { resolveOpenGraph } from './resolve-opengraph'
+import { resolveTitle } from './resolve-title'
+import { elementsFromResolvedOpenGraph } from './generate/opengraph'
 
 type Item = {
   type: 'layout' | 'page'
@@ -20,62 +22,6 @@ type Item = {
       parent: ResolvingMetadata
     ) => Promise<Metadata>
   }>
-}
-
-function resolveTitleTemplate(template: string, title: string) {
-  return template.replace(/%s/g, title)
-}
-
-function mergeTitle(stashed: AbsoluteTemplateString, title: Metadata['title']) {
-  if (typeof title === 'string') {
-    stashed.absolute = resolveTitleTemplate(stashed.template, title)
-  } else if (title) {
-    if ('default' in title) {
-      stashed.absolute = resolveTitleTemplate(stashed.template, title.default)
-    }
-    if ('absolute' in title) {
-      stashed.absolute = resolveTitleTemplate(stashed.template, title.absolute)
-    }
-    if (title && 'template' in title) {
-      stashed.template = title.template
-    }
-  }
-}
-
-function resolveOpenGraph(
-  openGraph: Metadata['openGraph']
-): ResolvedMetadata['openGraph'] {
-  const emails =
-    typeof openGraph?.emails === 'string'
-      ? [openGraph.emails]
-      : openGraph?.emails
-  const phoneNumbers =
-    typeof openGraph?.phoneNumbers === 'string'
-      ? [openGraph.phoneNumbers]
-      : openGraph?.phoneNumbers
-  const faxNumbers =
-    typeof openGraph?.faxNumbers === 'string'
-      ? [openGraph.faxNumbers]
-      : openGraph?.faxNumbers
-  const alternateLocale =
-    typeof openGraph?.alternateLocale === 'string'
-      ? [openGraph.alternateLocale]
-      : openGraph?.alternateLocale
-  const images =
-    typeof openGraph?.images === 'string'
-      ? [openGraph.images]
-      : openGraph?.images
-
-  return {
-    ...openGraph,
-    emails,
-    phoneNumbers,
-    faxNumbers,
-    alternateLocale,
-    // @ts-ignore
-    images,
-    title: undefined,
-  }
 }
 
 // Merge the source metadata into the resolved target metadata.
@@ -89,10 +35,10 @@ function merge(source: Metadata, target: ResolvedMetadata) {
     absolute: '',
     template: '%s',
   }
-  // const stashedTwitterTitle: AbsoluteTemplateString = target.twitter?.title || {
-  //   absolute: '',
-  //   template: '%s',
-  // }
+  const stashedTwitterTitle: AbsoluteTemplateString = {
+    absolute: '',
+    template: '%s',
+  }
 
   for (const key_ in source) {
     const key = key_ as keyof Metadata
@@ -100,11 +46,11 @@ function merge(source: Metadata, target: ResolvedMetadata) {
     if (key === 'other') {
       target.other = { ...target.other, ...source.other }
     } else if (key === 'title') {
-      mergeTitle(stashedTitle, source.title)
+      resolveTitle(stashedTitle, source.title)
       target.title = stashedTitle
     } else if (key === 'openGraph') {
       if (source.openGraph && 'title' in source.openGraph) {
-        mergeTitle(stashedOpenGraphTitle, source.openGraph.title)
+        resolveTitle(stashedOpenGraphTitle, source.openGraph.title)
       }
       if (typeof source.openGraph !== 'undefined') {
         target.openGraph = {
@@ -114,15 +60,15 @@ function merge(source: Metadata, target: ResolvedMetadata) {
       } else {
         target.openGraph = null
       }
-      // } else if (key === 'twitter') {
-      //   if (source.twitter && 'title' in source.twitter) {
-      //     mergeTitle(stashedTwitterTitle, source.twitter.title)
-      //   }
-      //   if (typeof source.twitter !== 'undefined') {
-      //     target.twitter = { ...source.twitter, title: stashedTwitterTitle }
-      //   } else {
-      //     target.twitter = null
-      //   }
+    } else if (key === 'twitter') {
+      if (source.twitter && 'title' in source.twitter) {
+        resolveTitle(stashedTwitterTitle, source.twitter.title)
+      }
+      if (typeof source.twitter !== 'undefined') {
+        target.twitter = { ...source.twitter, title: stashedTwitterTitle }
+      } else {
+        target.twitter = null
+      }
     } else {
       // TODO: Make sure the type is correct.
       // @ts-ignore
@@ -171,6 +117,9 @@ export function elementsFromResolvedMetadata(metadata: ResolvedMetadata) {
       {metadata.description !== null ? (
         <meta name="description" content={metadata.description} />
       ) : null}
+      {metadata.openGraph !== null
+        ? elementsFromResolvedOpenGraph(metadata.openGraph)
+        : null}
     </>
   )
 }
