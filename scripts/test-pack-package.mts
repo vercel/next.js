@@ -68,7 +68,18 @@ const main = async () => {
   }
 
   try {
-    await fs.copy(currentPkgDir, tmpPkgPath)
+    await fs.copy(currentPkgDir, tmpPkgPath, {
+      filter: (item) => {
+        return (
+          !item.includes('node_modules') &&
+          !item.includes('.DS_Store') &&
+          // Exclude Rust compilation files
+          (currentPkgDirname !== 'next' ||
+            !/build[\\/]swc[\\/]target/.test(item)) &&
+          (currentPkgDirname !== 'next-swc' || !/target/.test(item))
+        )
+      },
+    })
     await fs.writeJson(path.join(tmpPkgPath, 'package.json'), packageJson)
     execa.sync('yarn', ['pack', '-f', getPackedPkgPath(currentPkgDirname)], {
       cwd: tmpPkgPath,
