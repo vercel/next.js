@@ -54,15 +54,15 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - name: Check non-docs only change
-        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
+        run: echo "DOCS_CHANGE=$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT
         id: docs-change
 
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      - run: echo "SWC_CHANGE=$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT
         id: swc-change
 
-      - run: echo "::set-output name=TURBO_TOKEN::$(echo ${TURBO_TOKEN:-empty})"
+      - run: echo "TURBO_TOKEN=$(echo ${TURBO_TOKEN:-empty})" >> $GITHUB_OUTPUT
         id: turbo-token
 
       - run: echo ${{steps.swc-change.outputs.SWC_CHANGE}}
@@ -70,7 +70,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
 
       - id: get-store-path
-        run: echo ::set-output name=STORE_PATH::$(pnpm store path)
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v3
         id: cache-pnpm-store
@@ -89,13 +89,13 @@ jobs:
         run: |
           if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
             then
-              echo "::set-output name=IS_RELEASE::true"
+              echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
             else
-              echo "::set-output name=IS_RELEASE::false"
+              echo "IS_RELEASE=false" >> $GITHUB_OUTPUT
           fi
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
-        run: echo ::set-output name=WEEK::$(date +%U)
+        run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v3
         id: cache-build
@@ -134,7 +134,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      - run: echo "SWC_CHANGE=$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT
         id: swc-change
 
       - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
@@ -506,7 +506,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: echo "::set-output name=CNA_CHANGE::$(node scripts/run-for-change.js --type cna --always-canary --exec echo 'yup')"
+      - run: echo "CNA_CHANGE=$(node scripts/run-for-change.js --type cna --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT
         id: cna-change
 
       - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/create-next-app/index.test.ts test/integration/create-next-app/templates.test.ts >> /proc/1/fd/1"
@@ -915,7 +915,7 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
+      - run: echo "DOCS_CHANGE=$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT
         id: docs-change
 
       - name: Cache cargo registry
@@ -934,7 +934,7 @@ jobs:
 
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
-        run: echo ::set-output name=WEEK::$(date +%U)
+        run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
       - name: Turbo Cache
         id: turbo-cache
@@ -1002,7 +1002,7 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      - run: echo "SWC_CHANGE=$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT
         id: swc-change
 
       - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
@@ -1308,7 +1308,7 @@ jobs:
       - run: node ./scripts/pull-freebsd-cache.js
 
       - name: check build exists
-        run: if [ -f packages/next-swc/native/next-swc.freebsd-x64.node ]; then echo "::set-output name=BUILD_EXISTS::yes"; else echo "::set-output name=BUILD_EXISTS::no"; fi
+        run: if [ -f packages/next-swc/native/next-swc.freebsd-x64.node ]; then echo "BUILD_EXISTS=yes" >> $GITHUB_OUTPUT; else echo "BUILD_EXISTS=no" >> $GITHUB_OUTPUT; fi
         id: build-exists
 
       - run: echo ${{steps.build-exists.outputs.BUILD_EXISTS}}
@@ -1482,7 +1482,7 @@ jobs:
         env:
           TRACE_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
         if: "${{ env.TRACE_API_KEY != '' }}"
-        run: echo "::set-output name=defined::true"
+        run: echo "defined=true" >> $GITHUB_OUTPUT
 
   build-performance-metrics:
     name: Performance Metrics for Release Build
