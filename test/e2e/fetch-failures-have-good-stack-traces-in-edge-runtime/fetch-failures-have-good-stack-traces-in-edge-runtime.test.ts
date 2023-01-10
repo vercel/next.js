@@ -6,7 +6,7 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    it('should work with fetch', async () => {
+    it('when awaiting `fetch` using an unknown domain, stack traces are preserved', async () => {
       const res = await next.fetch('/api/unknown-domain')
       expect(res.status).toBe(500)
       const html = await res.text()
