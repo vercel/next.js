@@ -22,7 +22,7 @@ export const DEFAULT_METADATA: ResolvedMetadata = {
     languages: {},
   },
   icons: null,
-  opengraph: null,
+  openGraph: null,
   twitter: null,
   verification: {},
   appleWebApp: null,

@@ -2577,18 +2577,28 @@ createNextDescribe(
     })
 
     describe('metadata', () => {
+      async function checkMeta(browser, name, content, property = 'property') {
+        const values = await browser.eval(
+          `[...document.querySelectorAll('meta[${property}="${name}"]')].map((el) => el.content)`
+        )
+        if (Array.isArray(content)) {
+          expect(values).toEqual(content)
+        }
+        expect(values[0]).toContain(content)
+      }
+
       if (!isNextDeploy) {
         it('should support title and description', async () => {
           const browser = await next.browser('/dashboard/metadata/title')
-
           expect(await browser.eval(`document.title`)).toBe(
             'this is the page title'
           )
-          expect(
-            await browser.eval(
-              `document.querySelector('meta[name="description"]').content`
-            )
-          ).toBe('this is the layout description')
+          await checkMeta(
+            browser,
+            'description',
+            'this is the layout description',
+            'name'
+          )
         })
 
         it('should support title template', async () => {
@@ -2596,6 +2606,25 @@ createNextDescribe(
             '/dashboard/metadata/title-template'
           )
           expect(await browser.eval(`document.title`)).toBe('Page | Layout')
+        })
+
+        describe('opengraph', () => {
+          it('should support opengraph tags', async () => {
+            const browser = await next.browser('/dashboard/metadata/opengraph')
+            await checkMeta(browser, 'og:title', 'My custom title')
+            await checkMeta(browser, 'og:description', 'My custom description')
+            await checkMeta(browser, 'og:url', 'https://example.com')
+            await checkMeta(browser, 'og:site_name', 'My custom site name')
+            await checkMeta(browser, 'og:locale', 'en-US')
+            await checkMeta(browser, 'og:type', 'website')
+            await checkMeta(browser, 'og:image:url', [
+              'https://example.com/image.png',
+              'https://example.com/image2.png',
+            ])
+            await checkMeta(browser, 'og:image:width', [800, 1800])
+            await checkMeta(browser, 'og:image:height', [600, 1600])
+            await checkMeta(browser, 'og:image:alt', 'My custom alt')
+          })
         })
       }
     })

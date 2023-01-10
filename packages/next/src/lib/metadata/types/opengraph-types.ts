@@ -198,37 +198,37 @@ type ResolvedOpenGraphMusicSong = ResolvedOpenGraphMetadata & {
 }
 type ResolvedOpenGraphMusicAlbum = ResolvedOpenGraphMetadata & {
   type: 'music.album'
-  songs?: null | string | URL | OGSong | Array<string | URL | OGSong>
-  musicians?: null | string | URL | Array<string | URL>
-  releaseDate?: null | string //datetime
+  songs?: Array<string | URL | OGSong>
+  musicians?: Array<string | URL>
+  releaseDate?: string //datetime
 }
 type ResolvedOpenGraphMusicPlaylist = ResolvedOpenGraphMetadata & {
   type: 'music.playlist'
-  songs?: null | string | URL | OGSong | Array<string | URL | OGSong>
-  creators?: null | string | URL | Array<string | URL>
+  songs?: Array<string | URL | OGSong>
+  creators?: Array<string | URL>
 }
 type ResolvedOpenGraphRadioStation = ResolvedOpenGraphMetadata & {
   type: 'music.radio_station'
-  creators?: null | string | URL | Array<string | URL>
+  creators?: Array<string | URL>
 }
 type ResolvedOpenGraphVideoMovie = ResolvedOpenGraphMetadata & {
   type: 'video.movie'
-  actors?: null | string | URL | OGActor | Array<string | URL | OGActor>
-  directors?: null | string | URL | Array<string | URL>
-  writers?: null | string | URL | Array<string | URL>
-  duration?: null | number
-  releaseDate?: null | string // datetime
-  tags?: null | string | Array<string>
+  actors?: Array<string | URL | OGActor>
+  directors?: Array<string | URL>
+  writers?: Array<string | URL>
+  duration?: number
+  releaseDate?: string // datetime
+  tags?: Array<string>
 }
 type ResolvedOpenGraphVideoEpisode = ResolvedOpenGraphMetadata & {
   type: 'video.episode'
-  actors?: null | string | URL | OGActor | Array<string | URL | OGActor>
-  directors?: null | string | URL | Array<string | URL>
-  writers?: null | string | URL | Array<string | URL>
-  duration?: null | number
-  releaseDate?: null | string // datetime
-  tags?: null | string | Array<string>
-  series?: null | string | URL
+  actors?: Array<string | URL | OGActor>
+  directors?: Array<string | URL>
+  writers?: Array<string | URL>
+  duration?: number
+  releaseDate?: string // datetime
+  tags?: Array<string>
+  series?: string | URL
 }
 type ResolvedOpenGraphVideoTVShow = ResolvedOpenGraphMetadata & {
   type: 'video.tv_show'
