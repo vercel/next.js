@@ -31,10 +31,6 @@ pub(crate) fn get_font_axes(
         .context("Font family not found")?
         .axes;
 
-    let Some(defineable_axes) = all_axes else {
-        bail!("Font {} has no definable `axes`", font_family);
-    };
-
     let ital = {
         let has_italic = styles.contains("italic");
         let has_normal = styles.contains("normal");
@@ -50,6 +46,10 @@ pub(crate) fn get_font_axes(
 
     match weights {
         FontWeights::Variable => {
+            let Some(defineable_axes) = all_axes else {
+                bail!("Font {} has no definable `axes`", font_family);
+            };
+
             if let Some(selected_variable_axes) = selected_variable_axes {
                 let definable_axes_tags = defineable_axes
                     .iter()
@@ -367,6 +367,44 @@ mod tests {
     }
 
     #[test]
+    fn test_no_variable() -> Result<()> {
+        let data: FontData = serde_json::from_str(
+            r#"
+            {
+                "Hind": {
+                    "weights": [
+                        "300",
+                        "400",
+                        "500",
+                        "600",
+                        "700"
+                    ],
+                    "styles": [
+                        "normal"
+                    ]
+                }
+            }
+  "#,
+        )?;
+
+        assert_eq!(
+            get_font_axes(
+                &data,
+                "Hind",
+                &FontWeights::Fixed(indexset! {500}),
+                &indexset! {},
+                &None
+            )?,
+            FontAxes {
+                wght: indexset! {"500".to_owned()},
+                ital: indexset! {},
+                variable_axes: None
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
     fn test_stylesheet_url_no_axes() -> Result<()> {
         assert_eq!(
             get_stylesheet_url(
@@ -433,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn test_variable_font_without_wgth_axis() -> Result<()> {
+    fn test_stylesheet_url_variable_font_without_wgth_axis() -> Result<()> {
         assert_eq!(
             get_stylesheet_url(
                 GOOGLE_FONTS_STYLESHEET_URL,
@@ -449,6 +487,25 @@ mod tests {
                 "optional"
             )?,
             "https://fonts.googleapis.com/css2?family=Nabla:EDPT,EHLT@0..200,0..24&display=optional"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_stylesheet_url_no_variable() -> Result<()> {
+        assert_eq!(
+            get_stylesheet_url(
+                GOOGLE_FONTS_STYLESHEET_URL,
+                "Hind",
+                &FontAxes {
+                    wght: indexset! {"500".to_owned()},
+                    ital: indexset! {},
+                    variable_axes: None
+                },
+                "optional"
+            )?,
+            "https://fonts.googleapis.com/css2?family=Hind:wght@500&display=optional"
         );
 
         Ok(())
