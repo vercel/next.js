@@ -775,17 +775,24 @@ function getPreloadedFontFilesInlineLinkTags(
   }
 
   const fontFiles = new Set<string>()
+  // If we find an entry in the manifest but it's empty, add a preconnect tag
+  let foundFontUsage = false
 
   for (const css of layoutOrPageCss) {
     // We only include the CSS if it is used by this entrypoint.
     if (serverCSSForEntries.includes(css)) {
       const preloadedFontFiles = fontLoaderManifest.app[css]
       if (preloadedFontFiles) {
+        foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
           fontFiles.add(fontFile)
         }
       }
     }
+  }
+
+  if (!foundFontUsage) {
+    return null
   }
 
   return [...fontFiles]
