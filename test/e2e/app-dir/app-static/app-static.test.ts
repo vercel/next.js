@@ -43,6 +43,8 @@ createNextDescribe(
           'dynamic-error.rsc',
           'dynamic-error/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
+          'dynamic-no-gen-params/[slug].html',
+          'dynamic-no-gen-params/[slug].rsc',
           'dynamic-no-gen-params/[slug]/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
@@ -200,6 +202,16 @@ createNextDescribe(
             dataRouteRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)\\.rsc$'),
             fallback: false,
             routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
+          },
+          '/dynamic-no-gen-params/[slug]': {
+            dataRoute: '/dynamic-no-gen-params/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
           '/hooks/use-pathname/[slug]': {
             dataRoute: '/hooks/use-pathname/[slug].rsc',
