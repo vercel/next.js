@@ -73,9 +73,9 @@ The behavior of [`next/script`](/docs/api-reference/next/script.md) has been upd
 
 ### Font Optimization
 
-Previously, Next.js helped you optimize fonts by inlining font CSS. Version 13 introduces the new [`next/font`](/docs/basic-features/font-optimization.md) module which gives you the ability to customize your font loading experience while still ensuring great performance and privacy.
+Previously, Next.js helped you optimize fonts by inlining font CSS. Version 13 introduces the new [`@next/font`](/docs/basic-features/font-optimization.md) module which gives you the ability to customize your font loading experience while still ensuring great performance and privacy.
 
-See [Optimizing Fonts](/docs/basic-features/font-optimization.md) to learn how to use `next/font`.
+See [Optimizing Fonts](/docs/basic-features/font-optimization.md) to learn how to use `@next/font`.
 
 ## Upgrading to 12.2
 

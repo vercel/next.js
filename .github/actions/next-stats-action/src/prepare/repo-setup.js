@@ -10,18 +10,6 @@ const mockTrace = () => ({
   traceChild: () => mockTrace(),
 })
 
-let turboRepoRoot = path.join(__dirname, '..', '..', '..', '..', '..')
-
-// stats-action runs this code without access to the original repo.
-// In that case we just use the temporary directory (everything is temporary anyway in CI)
-if (turboRepoRoot === '/') {
-  turboRepoRoot = path.join(__dirname, '..', '..')
-}
-
-/** Save turbo cache to persistent storage */
-const turboCacheLocation = path.join(turboRepoRoot, 'node_modules/.cache/turbo')
-const packedPkgsDir = path.join(turboRepoRoot, 'test/tmp/packedPkgs')
-
 module.exports = (actionInfo) => {
   return {
     async cloneRepo(repoPath = '', dest = '') {
@@ -84,7 +72,7 @@ module.exports = (actionInfo) => {
           pkgs = await fs.readdir(path.join(repoDir, 'packages'))
         } catch (err) {
           if (err.code === 'ENOENT') {
-            console.log('no packages to link')
+            require('console').log('no packages to link')
             return pkgPaths
           }
           throw err
@@ -93,19 +81,13 @@ module.exports = (actionInfo) => {
         await rootSpan
           .traceChild('prepare packages for packing')
           .traceAsyncFn(async () => {
-            await fs.ensureDir(packedPkgsDir)
-            const repoData = require(path.join(repoDir, 'package.json'))
-
             for (const pkg of pkgs) {
               const pkgPath = path.join(repoDir, 'packages', pkg)
-              const packedPkgPath = path.join(
-                packedPkgsDir,
-                `${pkg}-packed.tgz`
-              )
+              const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
               const pkgDataPath = path.join(pkgPath, 'package.json')
               if (!fs.existsSync(pkgDataPath)) {
-                console.log(`Skipping ${pkgDataPath}`)
+                require('console').log(`Skipping ${pkgDataPath}`)
                 continue
               }
               const pkgData = require(pkgDataPath)
@@ -121,8 +103,7 @@ module.exports = (actionInfo) => {
             }
 
             for (const pkg of pkgDatas.keys()) {
-              const { pkgDataPath, pkgData, pkgPath, packedPkgPath } =
-                pkgDatas.get(pkg)
+              const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
 
               for (const pkg of pkgDatas.keys()) {
                 const { packedPkgPath } = pkgDatas.get(pkg)
@@ -137,7 +118,7 @@ module.exports = (actionInfo) => {
                   pkgData.files = []
                 }
                 pkgData.files.push('native')
-                console.log(
+                require('console').log(
                   'using swc binaries: ',
                   await exec(
                     `ls ${path.join(path.dirname(pkgDataPath), 'native')}`
@@ -158,27 +139,6 @@ module.exports = (actionInfo) => {
                 }
               }
 
-              // Turbo requires package manager specification
-              pkgData.packageManager =
-                pkgData.packageManager || repoData.packageManager
-
-              pkgData.scripts = {
-                ...pkgData.scripts,
-                'test-pack': `yarn pack -f ${packedPkgPath}`,
-              }
-
-              await fs.writeJSON(path.join(pkgPath, 'turbo.json'), {
-                pipeline: {
-                  'test-pack': {
-                    outputs: [packedPkgPath],
-                    inputs: ['*', '!node_modules/', '!.turbo/'],
-                  },
-                },
-              })
-
-              // Turbo requires pnpm-lock.yaml that is not empty
-              await fs.writeFile(path.join(pkgPath, 'pnpm-lock.yaml'), '')
-
               await fs.writeFile(
                 pkgDataPath,
                 JSON.stringify(pkgData, null, 2),
@@ -197,9 +157,9 @@ module.exports = (actionInfo) => {
                 await packingSpan
                   .traceChild(`pack ${pkgName}`)
                   .traceAsyncFn(async () => {
-                    const { pkgPath } = pkgDatas.get(pkgName)
+                    const { pkg, pkgPath } = pkgDatas.get(pkgName)
                     await exec(
-                      `pnpm run --dir="${turboRepoRoot}" turbo run test-pack --cache-dir="${turboCacheLocation}" --cwd="${pkgPath}"`,
+                      `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
                       true
                     )
                   })

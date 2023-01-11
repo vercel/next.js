@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
+import { check, waitFor } from 'next-test-utils'
 
 createNextDescribe(
   'app dir prefetching',
@@ -47,6 +47,31 @@ createNextDescribe(
       await browser.eval('window.nd.router.push("/dashboard/123")')
       expect(next.cliOutput).not.toContain('ReferenceError')
       expect(next.cliOutput).not.toContain('is not defined')
+    })
+
+    it('should not fetch again when a static page was prefetched', async () => {
+      const browser = await next.browser('/', { waitHydration: false })
+      let requests: string[] = []
+
+      browser.on('request', (req) => {
+        requests.push(new URL(req.url()).pathname)
+      })
+
+      await browser.eval('window.nd.router.prefetch("/static-page")')
+      await check(() => {
+        return requests.some((req) => req.includes('static-page'))
+          ? 'success'
+          : JSON.stringify(requests)
+      }, 'success')
+
+      await browser
+        .elementByCss('#to-static-page')
+        .click()
+        .waitForElementByCss('#static-page')
+
+      expect(
+        requests.filter((request) => request === '/static-page').length
+      ).toBe(1)
     })
   }
 )
