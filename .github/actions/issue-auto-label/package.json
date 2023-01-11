@@ -4,7 +4,7 @@
   "scripts": {
     "types": "tsc",
     "pack": "ncc -m -o . build src/index.mjs --license licenses.txt",
-    "build": "pnpm types && pnpm pack"
+    "build": "npm run types && npm run pack"
   },
   "devDependencies": {
     "@types/node": "^18.11.0",
