@@ -1342,7 +1342,6 @@ export async function renderToHTMLOrFlight(
                   notFound={NotFound ? <NotFound /> : undefined}
                   notFoundStyles={notFoundStyles}
                   childProp={childProp}
-                  rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
                 />,
               ]
             }
