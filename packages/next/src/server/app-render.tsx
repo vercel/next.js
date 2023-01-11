@@ -762,30 +762,37 @@ function getPreloadedFontFilesInlineLinkTags(
   fontLoaderManifest: FontLoaderManifest | undefined,
   serverCSSForEntries: string[],
   filePath?: string
-): string[] {
+): string[] | null {
   if (!fontLoaderManifest || !filePath) {
-    return []
+    return null
   }
   const layoutOrPageCss =
     serverCSSManifest[filePath] ||
     serverComponentManifest.__client_css_manifest__?.[filePath]
 
   if (!layoutOrPageCss) {
-    return []
+    return null
   }
 
   const fontFiles = new Set<string>()
+  // If we find an entry in the manifest but it's empty, add a preconnect tag
+  let foundFontUsage = false
 
   for (const css of layoutOrPageCss) {
     // We only include the CSS if it is used by this entrypoint.
     if (serverCSSForEntries.includes(css)) {
       const preloadedFontFiles = fontLoaderManifest.app[css]
       if (preloadedFontFiles) {
+        foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
           fontFiles.add(fontFile)
         }
       }
     }
+  }
+
+  if (!foundFontUsage) {
+    return null
   }
 
   return [...fontFiles]
@@ -1422,19 +1429,24 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           return (
             <>
-              {preloadedFontFiles.map((fontFile) => {
-                const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
-                return (
-                  <link
-                    key={fontFile}
-                    rel="preload"
-                    href={`${assetPrefix}/_next/${fontFile}`}
-                    as="font"
-                    type={`font/${ext}`}
-                    crossOrigin="anonymous"
-                  />
-                )
-              })}
+              {preloadedFontFiles?.length === 0 ? (
+                <link rel="preconnect" href="/" crossOrigin="anonymous" />
+              ) : null}
+              {preloadedFontFiles
+                ? preloadedFontFiles.map((fontFile) => {
+                    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+                    return (
+                      <link
+                        key={fontFile}
+                        rel="preload"
+                        href={`${assetPrefix}/_next/${fontFile}`}
+                        as="font"
+                        type={`font/${ext}`}
+                        crossOrigin="anonymous"
+                      />
+                    )
+                  })
+                : null}
               {stylesheets
                 ? stylesheets.map((href, index) => (
                     <link
