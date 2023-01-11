@@ -86,9 +86,6 @@ const main = async () => {
         (currentPkgDirname !== 'next-swc' || !/target/.test(item)),
     })
     await fs.writeJson(path.join(tmpPkgPath, 'package.json'), packageJson)
-    await execa('pnpm', ['pack'], {
-      cwd: tmpPkgPath,
-    })
     // Copied from pnpm source: https://github.com/pnpm/pnpm/blob/5a5512f14c47f4778b8d2b6d957fb12c7ef40127/releasing/plugin-commands-publishing/src/pack.ts#L96
     const tmpTarball = path.join(
       tmpPkgPath,
@@ -96,6 +93,9 @@ const main = async () => {
         packageJson.version
       }.tgz`
     )
+    await execa('yarn', ['pack', '-f', tmpTarball], {
+      cwd: tmpPkgPath,
+    })
     await fs.copyFile(tmpTarball, getPackedPkgPath(currentPkgDirname))
   } finally {
     await fs.remove(tmpPkgPath).catch()
