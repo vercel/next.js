@@ -92,10 +92,28 @@
       "400",
       "500",
       "600",
-      "700"
+      "700",
+      "800",
+      "900",
+      "variable"
     ],
     "styles": [
-      "normal"
+      "normal",
+      "italic"
+    ],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 100,
+        "max": 200,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
     ]
   },
   "Aguafina Script": {
@@ -11627,6 +11645,14 @@
       "normal"
     ]
   },
+  "Noto Sans SignWriting": {
+    "weights": [
+      "400"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
   "Noto Sans Sinhala": {
     "weights": [
       "100",
@@ -11875,6 +11901,26 @@
     ],
     "styles": [
       "normal"
+    ]
+  },
+  "Noto Sans Tangsa": {
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
     ]
   },
   "Noto Sans Telugu": {
@@ -12794,6 +12840,26 @@
       }
     ]
   },
+  "Noto Serif Toto": {
+    "weights": [
+      "400",
+      "500",
+      "600",
+      "700",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Noto Serif Yezidi": {
     "weights": [
       "400",
@@ -13356,6 +13422,14 @@
     "weights": [
       "400",
       "700"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
+  "Padyakke Expanded One": {
+    "weights": [
+      "400"
     ],
     "styles": [
       "normal"
@@ -14295,6 +14369,12 @@
       "normal"
     ],
     "axes": [
+      {
+        "tag": "HEXP",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
       {
         "tag": "wght",
         "min": 160,
@@ -15908,6 +15988,110 @@
     ],
     "styles": [
       "normal"
+    ]
+  },
+  "Sofia Sans": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal",
+      "italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Sofia Sans Condensed": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal",
+      "italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Sofia Sans Extra Condensed": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal",
+      "italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
+  "Sofia Sans Semi Condensed": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal",
+      "italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
     ]
   },
   "Solway": {
