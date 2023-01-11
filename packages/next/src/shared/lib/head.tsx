@@ -41,6 +41,9 @@ function onlyReactElement(
           ) {
             return fragmentList
           }
+          if (fragmentChild.type === React.Fragment) {
+            return onlyReactElement(fragmentList, fragmentChild)
+          }
           return fragmentList.concat(fragmentChild)
         },
         []
