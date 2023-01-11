@@ -5,10 +5,9 @@ on:
     types: [labeled]
 
 jobs:
-  validate:
+  auto-label:
     runs-on: ubuntu-latest
     steps:
-      - name: 'Label issues'
-        uses: ./.github/actions/issue-auto-label
+      - uses: ./.github/actions/issue-auto-label
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

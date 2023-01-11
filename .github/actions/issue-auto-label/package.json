@@ -1,6 +1,6 @@
 {
   "private": true,
-  "exports": "./index.mjs",
+  "exports": "./index.js",
   "files": [
     "src"
   ],
