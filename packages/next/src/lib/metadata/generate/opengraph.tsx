@@ -105,7 +105,7 @@ export function elementsFromResolvedOpenGraph(
             <Meta property="book:isbn" content={openGraph.isbn} />
             <Meta
               property="book:release_date"
-              content={openGraph.releaseDate?.toString()}
+              content={openGraph.releaseDate}
             />
             <MultiMeta
               propertyPrefix="book:author"

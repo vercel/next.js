@@ -2625,6 +2625,25 @@ createNextDescribe(
             await checkMeta(browser, 'og:image:height', [600, 1600])
             await checkMeta(browser, 'og:image:alt', 'My custom alt')
           })
+
+          it('should support opengraph with article type', async () => {
+            const browser = await next.browser(
+              '/dashboard/metadata/opengraph/article'
+            )
+            await checkMeta(browser, 'og:title', 'My custom title')
+            await checkMeta(browser, 'og:description', 'My custom description')
+            await checkMeta(browser, 'og:type', 'article')
+            await checkMeta(
+              browser,
+              'article:published_time',
+              '2023-01-01T00:00:00.000Z'
+            )
+            await checkMeta(browser, 'article:author', [
+              'author1',
+              'author2',
+              'author3',
+            ])
+          })
         })
       }
     })
