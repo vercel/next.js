@@ -28,6 +28,31 @@ export function elementsFromResolvedBasic(metadata: ResolvedMetadata) {
       <Meta name="creator" content={metadata.creator} />
       <Meta name="publisher" content={metadata.publisher} />
       <Meta name="robots" content={metadata.robots} />
+      <Meta name="abstract" content={metadata.abstract} />
+      {metadata.archives
+        ? metadata.archives.map((archive) => (
+            <link rel="archives" href={archive} key={archive} />
+          ))
+        : null}
+      {metadata.assets
+        ? metadata.assets.map((asset) => (
+            <link rel="assets" href={asset} key={asset} />
+          ))
+        : null}
+      {metadata.bookmarks
+        ? metadata.bookmarks.map((bookmark) => (
+            <link rel="bookmarks" href={bookmark} key={bookmark} />
+          ))
+        : null}
+      <Meta name="category" content={metadata.category} />
+      <Meta name="classification" content={metadata.classification} />
+      {Object.entries(metadata.other).map(([name, content]) => (
+        <Meta
+          key={name}
+          name={name}
+          content={Array.isArray(content) ? content.join(',') : content}
+        />
+      ))}
     </>
   )
 }

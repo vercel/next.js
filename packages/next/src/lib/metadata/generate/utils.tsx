@@ -1,5 +1,3 @@
-import type { ResolvedMetadata } from '../types/metadata-interface'
-
 import React from 'react'
 
 export function Meta({
@@ -30,7 +28,12 @@ export function MultiMeta({
   propertyPrefix?: string
   namePrefix?: string
   contents:
-    | (Record<string, undefined | string | URL | number> | string | URL)[]
+    | (
+        | Record<string, undefined | string | URL | number>
+        | string
+        | URL
+        | number
+      )[]
     | null
     | undefined
 }) {
@@ -42,7 +45,11 @@ export function MultiMeta({
   return (
     <>
       {contents.map((content, index) => {
-        if (typeof content === 'string') {
+        if (
+          typeof content === 'string' ||
+          typeof content === 'number' ||
+          content instanceof URL
+        ) {
           return (
             <Meta
               key={keyPrefix + '_' + index}
@@ -56,7 +63,7 @@ export function MultiMeta({
           return (
             <React.Fragment key={keyPrefix + '_' + index}>
               {Object.entries(content).map(([k, v]) => {
-                return (
+                return typeof v === 'undefined' ? null : (
                   <Meta
                     key={keyPrefix + ':' + k + '_' + index}
                     {...(propertyPrefix
