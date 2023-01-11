@@ -46,7 +46,7 @@ function MultiMeta({
           )
         } else {
           return (
-            <>
+            <React.Fragment key={propertyPrefix + '_' + index}>
               {Object.entries(content).map(([k, v]) => {
                 return (
                   <Meta
@@ -56,7 +56,7 @@ function MultiMeta({
                   />
                 )
               })}
-            </>
+            </React.Fragment>
           )
         }
       })}
