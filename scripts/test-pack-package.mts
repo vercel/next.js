@@ -64,10 +64,10 @@ const main = async () => {
     packageJson.files = packageJson.files ?? []
     packageJson.files.push('native')
 
-    console.log(
-      'using swc binaries: ',
-      await execa('ls', [path.join(path.dirname(packageJsonPath), 'native')])
-    )
+    console.log('using swc binaries:')
+    await execa('ls', [
+      path.join(path.dirname(packageJsonPath), 'native'),
+    ]).stdout?.pipe(process.stdout)
   }
 
   // Allow overriding nateve swc version in next
