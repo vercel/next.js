@@ -1,68 +1,7 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
-
-function Meta({
-  property,
-  content,
-}: {
-  property: string
-  content: string | number | URL | null | undefined
-}): React.ReactElement | null {
-  if (typeof content !== 'undefined' && content !== null) {
-    return (
-      <meta
-        property={property}
-        content={typeof content === 'string' ? content : content.toString()}
-      />
-    )
-  }
-  return null
-}
-
-function MultiMeta({
-  propertyPrefix,
-  contents,
-}: {
-  propertyPrefix: string
-  contents:
-    | (Record<string, undefined | string | URL | number> | string | URL)[]
-    | null
-    | undefined
-}) {
-  if (typeof contents === 'undefined' || contents === null) {
-    return null
-  }
-  return (
-    <>
-      {contents.map((content, index) => {
-        if (typeof content === 'string') {
-          return (
-            <Meta
-              key={propertyPrefix + '_' + index}
-              property={propertyPrefix}
-              content={content}
-            />
-          )
-        } else {
-          return (
-            <React.Fragment key={propertyPrefix + '_' + index}>
-              {Object.entries(content).map(([k, v]) => {
-                return (
-                  <Meta
-                    key={propertyPrefix + ':' + k + '_' + index}
-                    property={propertyPrefix + ':' + k}
-                    content={typeof v === 'string' ? v : v.toString()}
-                  />
-                )
-              })}
-            </React.Fragment>
-          )
-        }
-      })}
-    </>
-  )
-}
+import { Meta, MultiMeta } from './utils'
 
 export function elementsFromResolvedOpenGraph(
   openGraph: Exclude<ResolvedMetadata['openGraph'], null>

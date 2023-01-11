@@ -2577,9 +2577,16 @@ createNextDescribe(
     })
 
     describe('metadata', () => {
-      async function checkMeta(browser, name, content, property = 'property') {
+      async function checkMeta(
+        browser,
+        name,
+        content,
+        property = 'property',
+        tag = 'meta',
+        field = 'content'
+      ) {
         const values = await browser.eval(
-          `[...document.querySelectorAll('meta[${property}="${name}"]')].map((el) => el.content)`
+          `[...document.querySelectorAll('${tag}[${property}="${name}"]')].map((el) => el.${field})`
         )
         if (Array.isArray(content)) {
           expect(values).toEqual(content)
@@ -2588,24 +2595,95 @@ createNextDescribe(
       }
 
       if (!isNextDeploy) {
-        it('should support title and description', async () => {
-          const browser = await next.browser('/dashboard/metadata/title')
-          expect(await browser.eval(`document.title`)).toBe(
-            'this is the page title'
-          )
-          await checkMeta(
-            browser,
-            'description',
-            'this is the layout description',
-            'name'
-          )
-        })
+        describe('basic', () => {
+          it('should support title and description', async () => {
+            const browser = await next.browser('/dashboard/metadata/title')
+            expect(await browser.eval(`document.title`)).toBe(
+              'this is the page title'
+            )
+            await checkMeta(
+              browser,
+              'description',
+              'this is the layout description',
+              'name'
+            )
+          })
 
-        it('should support title template', async () => {
-          const browser = await next.browser(
-            '/dashboard/metadata/title-template'
-          )
-          expect(await browser.eval(`document.title`)).toBe('Page | Layout')
+          it('should support title template', async () => {
+            const browser = await next.browser(
+              '/dashboard/metadata/title-template'
+            )
+            expect(await browser.eval(`document.title`)).toBe('Page | Layout')
+          })
+
+          it('should support other basic tags', async () => {
+            const browser = await next.browser('/dashboard/metadata/basic')
+            await checkMeta(browser, 'generator', 'next.js', 'name')
+            await checkMeta(browser, 'application-name', 'test', 'name')
+            await checkMeta(browser, 'referrer', 'https://example.com', 'name')
+            await checkMeta(
+              browser,
+              'keywords',
+              'next.js,react,javascript',
+              'name'
+            )
+            await checkMeta(browser, 'author', 'John Doe,Jane Doe', 'name')
+            await checkMeta(browser, 'theme-color', 'cyan', 'name')
+            await checkMeta(browser, 'color-scheme', 'dark', 'name')
+            await checkMeta(
+              browser,
+              'viewport',
+              'width=device-width, initial-scale=1, shrink-to-fit=no',
+              'name'
+            )
+            await checkMeta(browser, 'creator', 'shu', 'name')
+            await checkMeta(browser, 'publisher', 'vercel', 'name')
+            await checkMeta(browser, 'robots', 'index, follow', 'name')
+          })
+
+          it('should support alternate tags', async () => {
+            const browser = await next.browser('/dashboard/metadata/alternate')
+            await checkMeta(
+              browser,
+              'canonical',
+              'https://example.com',
+              'rel',
+              'link',
+              'href'
+            )
+            await checkMeta(
+              browser,
+              'en-US',
+              'https://example.com/en-US',
+              'hreflang',
+              'link',
+              'href'
+            )
+            await checkMeta(
+              browser,
+              'de-DE',
+              'https://example.com/de-DE',
+              'hreflang',
+              'link',
+              'href'
+            )
+            await checkMeta(
+              browser,
+              'only screen and (max-width: 600px)',
+              'https://example.com/mobile',
+              'media',
+              'link',
+              'href'
+            )
+            await checkMeta(
+              browser,
+              'application/rss+xml',
+              'https://example.com/rss',
+              'type',
+              'link',
+              'href'
+            )
+          })
         })
 
         describe('opengraph', () => {

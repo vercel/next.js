@@ -12,6 +12,8 @@ import { DEFAULT_METADATA } from './constant'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { resolveTitle } from './resolve-title'
 import { elementsFromResolvedOpenGraph } from './generate/opengraph'
+import { elementsFromResolvedBasic } from './generate/basic'
+import { elementsFromResolvedAlternates } from './generate/alternate'
 
 type Item = {
   type: 'layout' | 'page'
@@ -107,16 +109,8 @@ export async function resolveMetadata(metadataItems: Item[]) {
 export function elementsFromResolvedMetadata(metadata: ResolvedMetadata) {
   return (
     <>
-      {metadata.title !== null ? (
-        <title>
-          {typeof metadata.title === 'string'
-            ? metadata.title
-            : metadata.title.absolute}
-        </title>
-      ) : null}
-      {metadata.description !== null ? (
-        <meta name="description" content={metadata.description} />
-      ) : null}
+      {elementsFromResolvedBasic(metadata)}
+      {elementsFromResolvedAlternates(metadata)}
       {metadata.openGraph !== null
         ? elementsFromResolvedOpenGraph(metadata.openGraph)
         : null}
