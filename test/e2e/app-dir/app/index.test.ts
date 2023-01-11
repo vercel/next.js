@@ -2616,6 +2616,15 @@ createNextDescribe(
             expect(await browser.eval(`document.title`)).toBe('Page | Layout')
           })
 
+          it('should support client page and layout', async () => {
+            const browser = await next.browser(
+              '/dashboard/metadata/title-template/client'
+            )
+            expect(await browser.eval(`document.title`)).toBe(
+              'Client Page | Client Layout'
+            )
+          })
+
           it('should support other basic tags', async () => {
             const browser = await next.browser('/dashboard/metadata/basic')
             await checkMeta(browser, 'generator', 'next.js', 'name')
