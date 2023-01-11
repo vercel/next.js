@@ -1,9 +1,12 @@
 {
   "private": true,
   "exports": "./index.mjs",
+  "files": [
+    "src"
+  ],
   "scripts": {
     "types": "tsc",
-    "pack": "ncc -m -o . build src/index.mjs --license licenses.txt",
+    "pack": "ncc -m -o . build lib/index.js --license licenses.txt",
     "build": "npm run types && npm run pack"
   },
   "devDependencies": {
