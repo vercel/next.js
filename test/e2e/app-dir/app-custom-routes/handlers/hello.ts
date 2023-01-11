@@ -3,14 +3,15 @@ import { withRequestMeta } from '../helpers'
 
 export const helloHandler = async (
   request: NextRequest,
-  ctx: { params?: Record<string, string | string[]> }
+  { params }: { params?: Record<string, string | string[]> }
 ): Promise<Response> => {
+  const { pathname } = new URL(request.url)
+
   return new Response('hello, world', {
     headers: withRequestMeta({
       method: request.method,
-      params: ctx.params ?? null,
-      // TODO: update when we wrap the request object
-      pathname: request.url,
+      params: params ?? null,
+      pathname,
     }),
   })
 }

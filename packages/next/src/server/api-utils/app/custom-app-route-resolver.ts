@@ -21,16 +21,40 @@ import {
   handleTemporaryRedirectResponse,
 } from './handlers'
 import * as Log from '../../../build/output/log'
+import { getRequestMeta } from '../../request-meta'
+import { NextRequest } from '../../web/spec-extension/request'
+import { fromNodeHeaders } from '../../web/utils'
 
+// TODO: document
+export type CustomRouteMod = {
+  /**
+   * Contains all the exported userland code.
+   */
+  handlers: Record<HTTP_METHOD, AppCustomRouteHandler>
+
+  /**
+   * The exported async storage object for this worker/module.
+   */
+  requestAsyncStorage: RequestAsyncStorage
+}
+
+/**
+ * Returns the handler for the given request based on the available methods on
+ * the compiled route module.
+ *
+ * @param req the request method
+ * @param mod the compiled route module
+ * @returns the custom route handler for the current request
+ */
 function getAppCustomRouteHandler(
-  CustomRouteMod: any,
-  req: BaseNextRequest
+  req: Pick<BaseNextRequest, 'method'>,
+  mod: CustomRouteMod
 ): AppCustomRouteHandler {
   // Ensure that the requested method is a valid method (to prevent RCE's).
   if (!isHTTPMethod(req.method)) return handleBadRequestResponse
 
   // Pull out the handlers from the custom route module.
-  const { handlers } = CustomRouteMod
+  const { handlers } = mod
 
   // Check to see if the requested method is available.
   const handler: AppCustomRouteHandler | undefined = handlers[req.method]
@@ -53,7 +77,7 @@ function getAppCustomRouteHandler(
     // TODO: check if HEAD is implemented, if so, use it to add more headers
 
     // Get all the handler methods from the list of handlers.
-    const methods = Object.keys(CustomRouteMod.handlers).filter((method) =>
+    const methods = Object.keys(mod.handlers).filter((method) =>
       isHTTPMethod(method)
     ) as HTTP_METHOD[]
 
@@ -147,22 +171,40 @@ async function sendResponse(
   }
 }
 
+function adaptRequest(req: BaseNextRequest): Request {
+  const { originalRequest } = req as NodeNextRequest
+
+  const url = getRequestMeta(originalRequest, '__NEXT_INIT_URL')
+  if (!url) throw new Error('Invariant: missing url on request')
+
+  // HEAD and GET requests can not have a body.
+  const body: BodyInit | null | undefined =
+    req.method !== 'GET' && req.method !== 'HEAD' && req.body ? req.body : null
+
+  return new NextRequest(url, {
+    body,
+    // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
+    duplex: 'half',
+    method: req.method,
+    headers: fromNodeHeaders(req.headers),
+  })
+}
+
 type CustomAppRouteResolver = {
   req: BaseNextRequest
   res: BaseNextResponse
   route: AppCustomRoute
-  CustomRouteMod: any
+  mod: CustomRouteMod
 }
 
 export async function customAppRouteResolver({
   req,
   res,
   route,
-  CustomRouteMod,
+  mod,
 }: CustomAppRouteResolver): Promise<void> {
   // This is added by the webpack loader, we load it directly from the module.
-  const requestAsyncStorage: RequestAsyncStorage =
-    CustomRouteMod.requestAsyncStorage
+  const { requestAsyncStorage } = mod
 
   // TODO: run any edge functions that should be ran for this invocation.
 
@@ -170,7 +212,7 @@ export async function customAppRouteResolver({
 
   try {
     // Get the route handler.
-    const handler = getAppCustomRouteHandler(CustomRouteMod, req)
+    const handler = getAppCustomRouteHandler(req, mod)
 
     // Use the requested handler to execute the request.
     let response = await runWithRequestAsyncStorage(
@@ -179,7 +221,7 @@ export async function customAppRouteResolver({
         req: (req as NodeNextRequest).originalRequest,
         res: (res as NodeNextResponse).originalResponse,
       },
-      () => handler(req, ctx)
+      () => handler(adaptRequest(req), ctx)
     )
 
     // Validate that the response sent was the correct type.

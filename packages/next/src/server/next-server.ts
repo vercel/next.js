@@ -101,7 +101,10 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
-import { customAppRouteResolver } from './api-utils/app/custom-app-route-resolver'
+import {
+  customAppRouteResolver,
+  CustomRouteMod,
+} from './api-utils/app/custom-app-route-resolver'
 
 export * from './base-server'
 
@@ -1342,15 +1345,13 @@ export default class NextNodeServer extends BaseServer {
     // TODO: ensure to "ensure" that the app custom route page is built, like this.ensureApiPage
 
     // Try to load the route module.
-    const CustomRouteMod = await require(join(
+    const mod: CustomRouteMod = await require(join(
       this.distDir,
       SERVER_DIRECTORY,
       routeFilePath
     ))
 
-    // TODO: wrap the request object
-
-    await customAppRouteResolver({ req, res, route, CustomRouteMod })
+    await customAppRouteResolver({ req, res, route, mod })
 
     return true
   }
