@@ -1,0 +1,14 @@
+name: Label issues - custom
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Label issues'
+        uses: ./.github/actions/issue-auto-label
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
