@@ -466,6 +466,8 @@ function applyRouterStatePatchToTree(
       ...parallelRoutes,
       [parallelRouteKey]: parallelRoutePatch,
     },
+    null,
+    null,
   ]
 
   // Current segment is the root layout
@@ -834,9 +836,11 @@ function clientReducer(
           // Handles case where prefetch only returns the router tree patch without rendered components.
           if (subTreeData !== null) {
             if (flightDataPath.length === 3) {
+              cache.status = CacheStates.READY
               cache.subTreeData = subTreeData
               fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
             } else {
+              cache.status = CacheStates.READY
               // Copy subTreeData for the root node of the cache.
               cache.subTreeData = state.cache.subTreeData
               // Create a copy of the existing cache with the subTreeData applied.
@@ -855,6 +859,7 @@ function clientReducer(
             )
 
           if (hardNavigate) {
+            cache.status = CacheStates.READY
             // Copy subTreeData for the root node of the cache.
             cache.subTreeData = state.cache.subTreeData
 
@@ -914,7 +919,8 @@ function clientReducer(
           href
         )
 
-        // Copy subTreeData for the root node of the cache.
+        // Copy subTreeData for the root node of the cache.              cache.status = CacheStates.READY
+        cache.status = CacheStates.READY
         cache.subTreeData = state.cache.subTreeData
 
         // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
@@ -1012,10 +1018,12 @@ function clientReducer(
       mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
 
       if (flightDataPath.length === 3) {
+        cache.status = CacheStates.READY
         cache.subTreeData = subTreeData
         fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
       } else {
         // Copy subTreeData for the root node of the cache.
+        cache.status = CacheStates.READY
         cache.subTreeData = state.cache.subTreeData
         // Create a copy of the existing cache with the subTreeData applied.
         fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
@@ -1137,10 +1145,12 @@ function clientReducer(
 
       // Root refresh
       if (flightDataPath.length === 3) {
+        cache.status = CacheStates.READY
         cache.subTreeData = subTreeData
         fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
       } else {
         // Copy subTreeData for the root node of the cache.
+        cache.status = CacheStates.READY
         cache.subTreeData = state.cache.subTreeData
         fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
       }
@@ -1288,6 +1298,7 @@ function clientReducer(
       mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
 
       // Set subTreeData for the root node of the cache.
+      cache.status = CacheStates.READY
       cache.subTreeData = subTreeData
       fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
 
