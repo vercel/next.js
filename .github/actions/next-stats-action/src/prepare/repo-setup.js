@@ -54,46 +54,25 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages({ repoDir = '', nextSwcVersion }) {
-      const pkgPaths = new Map()
-      let pkgs
-
-      let origRepo = path.join(__dirname, '..', '..', '..', '..', '..')
-      if (origRepo === '/') {
-        // When we don't have acces in CI
-        origRepo = repoDir
-      }
-
-      try {
-        pkgs = await fs.readdir(path.join(origRepo, 'packages'))
-      } catch (err) {
-        if (err.code === 'ENOENT') {
-          require('console').log('no packages to link')
-          return pkgPaths
-        }
-        throw err
-      }
-
+    async linkPackages({ repoDir, nextSwcVersion }) {
       execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
-        cwd: origRepo,
+        cwd: repoDir,
         env: { NEXT_SWC_VERSION: nextSwcVersion },
       })
 
+      const pkgPaths = new Map()
+      const pkgs = await fs.readdir(path.join(repoDir, 'packages'))
+
       pkgs.forEach((pkgDirname) => {
         const { name } = require(path.join(
-          origRepo,
+          repoDir,
           'packages',
           pkgDirname,
           'package.json'
         ))
         pkgPaths.set(
           name,
-          path.join(
-            origRepo,
-            'packages',
-            pkgDirname,
-            `packed-${pkgDirname}.tgz`
-          )
+          path.join(repoDir, 'packages', pkgDirname, `packed-${pkgDirname}.tgz`)
         )
       })
       return pkgPaths
