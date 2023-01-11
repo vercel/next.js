@@ -466,8 +466,6 @@ function applyRouterStatePatchToTree(
       ...parallelRoutes,
       [parallelRouteKey]: parallelRoutePatch,
     },
-    null,
-    null,
   ]
 
   // Current segment is the root layout
