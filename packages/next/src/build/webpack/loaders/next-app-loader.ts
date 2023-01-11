@@ -7,7 +7,7 @@ import { sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
-import { resolveFileBaseMetadataForLoader } from '../../../lib/metadata/resolve-metadata'
+import { resolveFileBasedMetadataForLoader } from '../../../lib/metadata/resolve-metadata'
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -119,7 +119,7 @@ async function createTreeCodeFromPath({
           )}),
         },`
       }
-      metadataCode += await resolveFileBaseMetadataForLoader(
+      metadataCode += await resolveFileBasedMetadataForLoader(
         (await resolve(`${appDirPrefix}${parallelSegmentPath}/`, true))!
       )
       metadataCode += subtreeMetadataCode

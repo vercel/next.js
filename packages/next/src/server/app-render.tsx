@@ -1756,7 +1756,15 @@ export async function renderToHTMLOrFlight(
         }))
 
       const metadata = elementsFromResolvedMetadata(
-        await resolveMetadata(metadataItems)
+        await resolveMetadata(metadataItems, (filepath: string) => {
+          if (!serverComponentManifest) {
+            throw new Error('Missing flight manifest.')
+          }
+          const clientId = serverComponentManifest[filepath][''].id
+          const ssrId =
+            serverComponentManifest.__ssr_module_mapping__[clientId][''].id
+          return ComponentMod.__next_app_webpack_require__(ssrId)
+        })
       )
       const content = (
         <>

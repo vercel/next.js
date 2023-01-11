@@ -8,7 +8,7 @@ import type { AbsoluteTemplateString } from './types/metadata-types'
 import React from 'react'
 import fs from 'fs-extra'
 import path from 'path'
-import { DEFAULT_METADATA } from './constant'
+import { createResolvedMetadata } from './constant'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { resolveTitle } from './resolve-title'
 import { elementsFromResolvedOpenGraph } from './generate/opengraph'
@@ -79,15 +79,23 @@ function merge(source: Metadata, target: ResolvedMetadata) {
   }
 }
 
-export async function resolveMetadata(metadataItems: Item[]) {
-  // TODO: Use `structuredClone` here.
-  let resolvedMetadata: ResolvedMetadata = { ...DEFAULT_METADATA }
+export async function resolveMetadata(
+  metadataItems: Item[],
+  resolveClientMod: (filepath: string) => any
+) {
+  let resolvedMetadata = createResolvedMetadata()
 
   for (const item of metadataItems) {
     if (item.type === 'layout' || item.type === 'page') {
-      const layerMod = await item.mod()
+      let layerMod = await item.mod()
+
+      // Layer is a client component, we need to resolve it via flight manifest.
+      if ('$$typeof' in layerMod) {
+        layerMod = resolveClientMod((layerMod as any).filepath)
+      }
 
       if (layerMod.metadata && layerMod.generateMetadata) {
+        console.log(layerMod)
         // TODO: Attach error message link and actual filepath.
         throw new Error(
           'It is not allowed to export both `metadata` and `generateMetadata`.'
@@ -118,7 +126,7 @@ export function elementsFromResolvedMetadata(metadata: ResolvedMetadata) {
   )
 }
 
-export async function resolveFileBaseMetadataForLoader(dir: string) {
+export async function resolveFileBasedMetadataForLoader(dir: string) {
   let metadataCode = ''
 
   const files = await fs.readdir(path.normalize(dir))
