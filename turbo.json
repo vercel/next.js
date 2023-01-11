@@ -32,6 +32,11 @@
     "typescript": {},
     "test-pack": {
       "dependsOn": ["^test-pack"],
+      "inputs": [
+        "*",
+        "../../scripts/test-pack-package.mts",
+        "../../package.json"
+      ],
       "outputs": ["packed-*.tgz"],
       "env": ["NEXT_SWC_VERSION"]
     }
