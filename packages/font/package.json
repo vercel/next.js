@@ -5,6 +5,7 @@
     "url": "vercel/next.js",
     "directory": "packages/font"
   },
+  "types": "dist/types.d.ts",
   "files": [
     "dist",
     "google",
