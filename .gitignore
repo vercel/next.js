@@ -30,6 +30,7 @@ test/**/tsconfig.json
 /e2e-tests
 test/tmp/**
 test/.trace
+test/traces
 
 # Editors
 **/.idea
