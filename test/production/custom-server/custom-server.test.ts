@@ -4,10 +4,6 @@ createNextDescribe(
   'custom server',
   {
     files: __dirname,
-    dependencies: {
-      http: 'latest',
-      url: 'latest',
-    },
     startCommand: 'node server.js',
   },
   ({ next }) => {
