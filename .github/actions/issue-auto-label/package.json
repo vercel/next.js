@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "exports": "./index.mjs",
+  "scripts": {
+    "types": "tsc",
+    "pack": "ncc -m -o . build src/index.mjs --license licenses.txt",
+    "build": "pnpm types && pnpm pack"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.0",
+    "@vercel/ncc": "0.34.0",
+    "typescript": "^4.4.4"
+  },
+  "dependencies": {
+    "@actions/core": "1.10.0",
+    "@actions/github": "5.1.1"
+  }
+}
