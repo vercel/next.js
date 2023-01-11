@@ -61,11 +61,6 @@ pub struct TransformTask {
     pub options: Buffer,
 }
 
-#[inline]
-fn skip_filename() -> bool {
-    cfg!(debug_assertions)
-}
-
 impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<String>);
     type JsValue = Object;
@@ -77,8 +72,8 @@ impl Task for TransformTask {
                 try_with_handler(
                     self.c.cm.clone(),
                     next_binding::swc::core::base::HandlerOpts {
-                        color: ColorConfig::Always,
-                        skip_filename: skip_filename(),
+                        color: ColorConfig::Never,
+                        skip_filename: true,
                     },
                     |handler| {
                         self.c.run(|| {
