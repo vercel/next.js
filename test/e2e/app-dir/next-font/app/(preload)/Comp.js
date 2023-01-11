@@ -1,4 +1,4 @@
-import { font3 } from '../fonts'
+import { font3 } from '../../fonts'
 
 export default function Component() {
   return (
