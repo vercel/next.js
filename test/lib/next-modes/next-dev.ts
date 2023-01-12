@@ -35,6 +35,7 @@ export class NextDevInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    console.log('running', startArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
