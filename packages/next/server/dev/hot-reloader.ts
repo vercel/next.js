@@ -427,7 +427,9 @@ export default class HotReloader {
         const installed = require('next/package.json').version
         const installedParsed = semver.parse(installed)
 
-        const res = await fetch('TODO')
+        const res = await fetch(
+          'https://registry.npmjs.org/-/package/next/dist-tags'
+        )
 
         if (!res.ok) return { installed, staleness: 'unknown' }
 
