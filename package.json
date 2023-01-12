@@ -46,7 +46,7 @@
     "clean-trace-jaeger": "rm -rf test/integration/basic/.next && TRACE_TARGET=JAEGER pnpm next build test/integration/basic",
     "debug": "cross-env NEXT_TELEMETRY_DISABLED=1 node --inspect packages/next/dist/bin/next",
     "postinstall": "git config feature.manyFiles true && node scripts/install-native.mjs",
-    "version": "npx pnpm@7.3.0 install && git add pnpm-lock.yaml",
+    "version": "npx pnpm@7.24.3 install && git add pnpm-lock.yaml",
     "prepare": "husky install"
   },
   "devDependencies": {
@@ -237,5 +237,5 @@
   "engines": {
     "node": ">=14.6.0"
   },
-  "packageManager": "pnpm@7.3.0"
+  "packageManager": "pnpm@7.24.3"
 }
