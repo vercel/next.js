@@ -1,4 +1,4 @@
-# Version staleness
+# Version Staleness
 
 #### Why This Error Occurred
 
