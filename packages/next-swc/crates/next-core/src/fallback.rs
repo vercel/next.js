@@ -44,7 +44,8 @@ pub async fn get_fallback_page(
         ty,
         next_config,
     );
-    let chunking_context = get_client_chunking_context(project_path, dev_server_root, ty);
+    let chunking_context =
+        get_client_chunking_context(project_path, dev_server_root, environment, ty);
     let entries = get_client_runtime_entries(project_path, env, ty, next_config);
 
     let mut import_map = ImportMap::empty();

@@ -170,7 +170,8 @@ pub async fn create_page_source(
     )
     .into();
 
-    let client_chunking_context = get_client_chunking_context(project_path, server_root, ty);
+    let client_chunking_context =
+        get_client_chunking_context(project_path, server_root, client_environment, ty);
 
     let client_runtime_entries = get_client_runtime_entries(project_path, env, ty, next_config);
 
@@ -305,6 +306,7 @@ async fn create_page_source_for_file(
             server_root,
             Value::new(ClientContextType::Pages { pages_dir }),
         ),
+        server_context.environment(),
     )
     .build();
 
@@ -318,12 +320,14 @@ async fn create_page_source_for_file(
             server_root,
             Value::new(ClientContextType::Pages { pages_dir }),
         ),
+        server_context.environment(),
     )
     .build();
 
     let client_chunking_context = get_client_chunking_context(
         context_path,
         server_root,
+        client_context.environment(),
         Value::new(ClientContextType::Pages { pages_dir }),
     );
 
