@@ -23,6 +23,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
+import { NoSSR } from './dynamic-no-ssr'
 import { LoadableContext } from './loadable-context'
 
 const ALL_INITIALIZERS: any[] = []
@@ -62,6 +63,7 @@ function createLoadableComponent(loadFn: any, options: any) {
       timeout: null,
       webpack: null,
       modules: null,
+      ssr: true,
     },
     options
   )
@@ -117,25 +119,28 @@ function createLoadableComponent(loadFn: any, options: any) {
       })
     }
   }
+
   function LoadableComponent(props: any) {
     useLoadableModule()
 
-    const fallbackElement = React.createElement(opts.loading, {
-      isLoading: true,
-      pastDelay: true,
-      error: null,
-    })
+    const Loading = opts.loading
+    const fallbackElement = (
+      <Loading isLoading={true} pastDelay={true} error={null} />
+    )
 
-    return React.createElement(
-      React.Suspense,
-      {
-        fallback: fallbackElement,
-      },
-      React.createElement(opts.lazy, props)
+    const Wrap = opts.ssr ? React.Fragment : NoSSR
+    const Lazy = opts.lazy
+
+    return (
+      <React.Suspense fallback={fallbackElement}>
+        <Wrap>
+          <Lazy {...props} />
+        </Wrap>
+      </React.Suspense>
     )
   }
 
-  LoadableComponent.preload = () => init()
+  LoadableComponent.preload = () => opts.ssr && init()
   LoadableComponent.displayName = 'LoadableComponent'
 
   return LoadableComponent
