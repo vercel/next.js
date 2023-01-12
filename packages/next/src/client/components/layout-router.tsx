@@ -157,7 +157,6 @@ export function InnerLayoutRouter({
   // TODO-APP: implement `<Offscreen>` when available.
   // isActive,
   path,
-  rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   url: string
@@ -167,7 +166,6 @@ export function InnerLayoutRouter({
   tree: FlightRouterState
   isActive: boolean
   path: string
-  rootLayoutIncluded: boolean
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
@@ -295,12 +293,10 @@ export function InnerLayoutRouter({
   )
 
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
-  return rootLayoutIncluded ? (
+  return (
     <ScrollAndFocusHandler focusAndScrollRef={focusAndScrollRef}>
       {subtree}
     </ScrollAndFocusHandler>
-  ) : (
-    subtree
   )
 }
 
@@ -455,7 +451,6 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
-  rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -469,7 +464,6 @@ export default function OuterLayoutRouter({
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
-  rootLayoutIncluded: boolean
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -546,7 +540,6 @@ export default function OuterLayoutRouter({
                         segmentPath={segmentPath}
                         path={preservedSegment}
                         isActive={currentChildSegment === preservedSegment}
-                        rootLayoutIncluded={rootLayoutIncluded}
                       />
                     </RedirectBoundary>
                   </NotFoundBoundary>

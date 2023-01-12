@@ -2285,6 +2285,30 @@ createNextDescribe(
           expect($('#category-id').text()).toBe('electronicsabc')
         }
       })
+      it('should handle router.refresh without resetting state', async () => {
+        const browser = await next.browser(
+          '/navigation/refresh/navigate-then-refresh-bug'
+        )
+        await browser
+          .elementByCss('#to-route')
+          // Navigate to the page
+          .click()
+          // Wait for new page to be loaded
+          .waitForElementByCss('#refresh-page')
+          // Click the refresh button to trigger a refresh
+          .click()
+
+        // Wait for element that is shown when refreshed and verify text
+        expect(await browser.waitForElementByCss('#refreshed').text()).toBe(
+          'Refreshed page successfully!'
+        )
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+          )
+        ).toBe('rgb(34, 139, 34)')
+      })
       it('should handle as on next/link', async () => {
         const browser = await next.browser('/link-with-as')
         expect(
