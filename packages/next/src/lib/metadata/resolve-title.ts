@@ -16,7 +16,7 @@ export function resolveTitle(
       stashed.absolute = resolveTitleTemplate(stashed.template, title.default)
     }
     if ('absolute' in title) {
-      stashed.absolute = resolveTitleTemplate(stashed.template, title.absolute)
+      stashed.absolute = title.absolute
     }
     if (title && 'template' in title) {
       stashed.template = title.template
