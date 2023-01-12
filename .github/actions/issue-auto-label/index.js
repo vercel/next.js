@@ -52,20 +52,24 @@
       Object.defineProperty(p, '__esModule', { value: true })
       const s = r(a(5438))
       const i = r(a(2186))
-      const o = { LINEAR: 'linear', KIND_BUG: 'kind: bug' }
+      const o = {
+        LINEAR: 'linear',
+        KIND_BUG: 'kind: bug',
+        NEEDS_INVESTIGAGION: 'type: needs investigation',
+      }
+      const n = [o.KIND_BUG, o.NEEDS_INVESTIGAGION]
       async function run() {
         try {
           const { payload: e, repo: p } = s.context
           const {
             issue: a,
-            pull_request: d,
-            label: { name: t },
+            label: { name: d },
           } = e
-          if (d || !a?.body || !process.env.GITHUB_TOKEN) return
-          const r = s.getOctokit(process.env.GITHUB_TOKEN).rest
-          const i = { ...p, issue_number: a.number }
-          if (t === o.KIND_BUG) {
-            r.issues.addLabels({ ...i, labels: [o.LINEAR] })
+          if (!a || !process.env.GITHUB_TOKEN) return
+          const t = s.getOctokit(process.env.GITHUB_TOKEN).rest
+          const r = { ...p, issue_number: a.number }
+          if (n.includes(d)) {
+            t.issues.addLabels({ ...r, labels: [o.LINEAR] })
           }
         } catch (e) {
           i.setFailed(e.message)
@@ -6240,8 +6244,8 @@
       AbortError.prototype.constructor = AbortError
       AbortError.prototype.name = 'AbortError'
       const A = r.URL || s.URL
-      const k = d.PassThrough
-      const N = function isDomainOrSubdomain(e, p) {
+      const N = d.PassThrough
+      const k = function isDomainOrSubdomain(e, p) {
         const a = new A(p).hostname
         const d = new A(e).hostname
         return a === d || (a[a.length - d.length - 1] === '.' && a.endsWith(d))
@@ -6374,7 +6378,7 @@
                     timeout: s.timeout,
                     size: s.size,
                   }
-                  if (!N(s.url, t)) {
+                  if (!k(s.url, t)) {
                     for (const e of [
                       'authorization',
                       'www-authenticate',
@@ -6415,7 +6419,7 @@
             e.once('end', function () {
               if (m) m.removeEventListener('abort', v)
             })
-            let d = e.pipe(new k())
+            let d = e.pipe(new N())
             const t = {
               url: s.url,
               status: e.statusCode,
@@ -6445,7 +6449,7 @@
               return
             }
             if (i == 'deflate' || i == 'x-deflate') {
-              const p = e.pipe(new k())
+              const p = e.pipe(new N())
               p.once('data', function (e) {
                 if ((e[0] & 15) === 8) {
                   d = d.pipe(o.createInflate())
