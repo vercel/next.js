@@ -1,4 +1,4 @@
-name: Label issues - custom
+name: On issue label
 
 on:
   issues:
@@ -9,6 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/issue-auto-label
+      - uses: ./.github/actions/issue-on-label
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
