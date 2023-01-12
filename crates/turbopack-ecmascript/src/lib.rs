@@ -318,6 +318,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 for visitor in root_visitors {
                     program.visit_mut_with(&mut visitor.create());
                 }
+                program.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
                 program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
             });
 
