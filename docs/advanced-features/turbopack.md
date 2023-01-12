@@ -1,12 +1,12 @@
 ---
-description: Turbopack (alpha) can be used inside Next.js 13 for 700x faster updatse.
+description: Turbopack, an incremental bundler built with Rust, can be used with Next.js 13 using the --turbo flag for faster local development.
 ---
 
 # Turbopack (alpha)
 
 [Turbopack](https://turbo.build/pack) is an incremental bundler optimized for JavaScript and TypeScript, written in Rust, and built into Next.js 13.
 
-On large applications Turbopack updates 10x faster than Vite and 700x faster than Webpack. For the biggest applications, the difference is even larger with updates up to 20x faster than Vite.
+On large applications, Turbopack updates 700x faster than Webpack.
 
 ## Usage
 

@@ -2,11 +2,11 @@ import os from 'os'
 import path from 'path'
 import fs from 'fs-extra'
 import treeKill from 'tree-kill'
-import { NextConfig } from 'next'
+import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
-import { Span } from 'next/trace'
+import { Span } from 'next/src/trace'
 import webdriver from 'next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
@@ -414,12 +414,17 @@ export class NextInstance {
   }
 
   /**
-   * Fetch the HTML for the provided page.
+   * Performs a fetch request to the NextInstance with the options provided.
+   *
+   * @param pathname the pathname on the NextInstance to fetch
+   * @param opts the optional options to pass to the underlying fetch
+   * @returns the fetch response
    */
   public async fetch(
-    ...args: Parameters<OmitFirstArgument<typeof fetchViaHTTP>>
+    pathname: string,
+    opts?: import('node-fetch').RequestInit
   ) {
-    return fetchViaHTTP(this.url, ...args)
+    return fetchViaHTTP(this.url, pathname, null, opts)
   }
 
   public on(event: Event, cb: (...args: any[]) => any) {

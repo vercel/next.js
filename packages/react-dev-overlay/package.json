@@ -1,6 +1,6 @@
 {
   "name": "@next/react-dev-overlay",
-  "version": "13.0.8-canary.2",
+  "version": "13.1.2-canary.5",
   "description": "A development-only overlay for developing React applications.",
   "repository": {
     "url": "vercel/next.js",

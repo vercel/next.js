@@ -779,6 +779,14 @@
           "path": "/errors/context-in-server-component.md"
         },
         {
+          "title": "react-client-hook-in-server-component",
+          "path": "/errors/react-client-hook-in-server-component.md"
+        },
+        {
+          "title": "class-component-in-server-component",
+          "path": "/errors/class-component-in-server-component.md"
+        },
+        {
           "title": "version-staleness",
           "path": "/errors/version-staleness.md"
         }

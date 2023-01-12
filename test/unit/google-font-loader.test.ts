@@ -337,6 +337,62 @@ describe('@next/font/google loader', () => {
         `"Unexpected \`variable\` in weight array for font \`Inter\`. You only need \`variable\`, it includes all available weights."`
       )
     })
+
+    test('Invalid subset in call', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'], subsets: ['latin', 'oops'] }],
+          config: { subsets: ['ignored'] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Unknown subset \`oops\` for font \`Inter\`.
+              Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`"
+            `)
+    })
+
+    test('Invalid subset in config', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: { subsets: ['whoops'] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Unknown subset \`whoops\` for font \`Inter\`.
+              Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`"
+            `)
+    })
+
+    test('Missing subsets in config and call', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: {},
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Missing selected subsets for font \`Inter\`. Please specify subsets in the function call or in your \`next.config.js\`. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets"`
+      )
+    })
   })
 
   it('should not send duplicate requests when several font variants use the same font file', async () => {

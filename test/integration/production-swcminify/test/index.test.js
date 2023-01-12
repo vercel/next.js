@@ -974,10 +974,6 @@ describe.skip('Production Usage with swcMinify', () => {
     }
   })
 
-  it('should not emit profiling events', async () => {
-    expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
-  })
-
   it('should not emit stats', async () => {
     expect(existsSync(join(appDir, '.next', 'next-stats.json'))).toBe(false)
   })
