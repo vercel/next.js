@@ -2,7 +2,6 @@
 #![feature(trait_alias)]
 #![feature(array_chunks)]
 
-pub mod fs;
 pub mod html;
 pub mod introspect;
 pub mod source;

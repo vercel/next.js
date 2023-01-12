@@ -1,13 +1,17 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{BoolVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
-use turbopack::evaluate_context::node_evaluate_asset_context;
+use turbopack::{
+    evaluate_context::node_evaluate_asset_context,
+    module_options::{WebpackLoadersOptions, WebpackLoadersOptionsVc},
+};
 use turbopack_core::{
     asset::Asset,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -127,11 +131,12 @@ pub enum RemotePatternProtocal {
     Https,
 }
 
-#[derive(Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
     pub server_components_external_packages: Option<Vec<String>>,
     pub app_dir: Option<bool>,
+    pub turbopack_webpack_loaders: Option<IndexMap<String, Vec<String>>>,
 }
 
 #[derive(Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -208,6 +213,23 @@ impl NextConfigVc {
         Ok(StringsVc::cell(
             self.await?.transpile_packages.clone().unwrap_or_default(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn webpack_loaders_options(self) -> Result<WebpackLoadersOptionsVc> {
+        let this = self.await?;
+        let Some(turbopack_webpack_loaders) = this.experimental.as_ref().and_then(|experimental| experimental.turbopack_webpack_loaders.as_ref()) else {
+            return Ok(WebpackLoadersOptionsVc::cell(WebpackLoadersOptions::default()));
+        };
+        let mut extension_to_loaders = IndexMap::new();
+        for (ext, loaders) in turbopack_webpack_loaders {
+            extension_to_loaders.insert(ext.clone(), StringsVc::cell(loaders.clone()));
+        }
+        Ok(WebpackLoadersOptions {
+            extension_to_loaders,
+            ..Default::default()
+        }
+        .cell())
     }
 }
 

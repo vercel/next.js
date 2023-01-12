@@ -14,7 +14,7 @@ use turbopack_core::{
 };
 use turbopack_css::{CssInputTransform, CssInputTransformsVc};
 use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
-use turbopack_node::transforms::postcss::PostCssTransformVc;
+use turbopack_node::transforms::{postcss::PostCssTransformVc, webpack::WebpackLoadersVc};
 
 use crate::evaluate_context::node_evaluate_asset_context;
 
@@ -56,6 +56,7 @@ impl ModuleOptionsVc {
             enable_types,
             enable_typescript_transform,
             ref enable_postcss_transform,
+            ref enable_webpack_loaders,
             preset_env_versions,
             ref custom_ecmascript_app_transforms,
             ref custom_ecmascript_transforms,
@@ -236,6 +237,28 @@ impl ModuleOptionsVc {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
             ),
         ];
+
+        if let Some(webpack_loaders_options) = enable_webpack_loaders {
+            let execution_context = execution_context
+                .context("execution_context is required for webpack_loaders")?
+                .join("webpack_loaders");
+            for (ext, loaders) in webpack_loaders_options.extension_to_loaders.iter() {
+                rules.push(ModuleRule::new(
+                    ModuleRuleCondition::ResourcePathEndsWith(ext.to_string()),
+                    vec![
+                        ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(app_transforms)),
+                        ModuleRuleEffect::SourceTransforms(SourceTransformsVc::cell(vec![
+                            WebpackLoadersVc::new(
+                                node_evaluate_asset_context(None),
+                                execution_context,
+                                *loaders,
+                            )
+                            .into(),
+                        ])),
+                    ],
+                ));
+            }
+        }
 
         rules.extend(custom_rules.iter().cloned());
 

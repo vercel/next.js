@@ -15,6 +15,7 @@ bench_against_node_nft = []
 
 [dependencies]
 anyhow = "1.0.47"
+indexmap = { workspace = true, features = ["serde"] }
 lazy_static = "1.4.0"
 regex = "1.5.4"
 serde = "1.0.136"

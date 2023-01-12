@@ -6,36 +6,36 @@ use turbo_tasks_fs::{
 };
 
 #[turbo_tasks::value]
-pub struct DevServerFileSystem {}
+pub struct ServerFileSystem {}
 
 #[turbo_tasks::value_impl]
-impl DevServerFileSystemVc {
+impl ServerFileSystemVc {
     #[turbo_tasks::function]
     pub fn new() -> Self {
-        Self::cell(DevServerFileSystem {})
+        Self::cell(ServerFileSystem {})
     }
 }
 
 #[turbo_tasks::value_impl]
-impl FileSystem for DevServerFileSystem {
+impl FileSystem for ServerFileSystem {
     #[turbo_tasks::function]
     fn read(&self, _fs_path: FileSystemPathVc) -> Result<FileContentVc> {
-        bail!("Reading is not possible from the virtual filesystem for the dev server")
+        bail!("Reading is not possible from the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
     fn read_link(&self, _fs_path: FileSystemPathVc) -> Result<LinkContentVc> {
-        bail!("Reading is not possible from the virtual filesystem for the dev server")
+        bail!("Reading is not possible from the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
     fn read_dir(&self, _fs_path: FileSystemPathVc) -> Result<DirectoryContentVc> {
-        bail!("Reading is not possible from the virtual filesystem for the dev server")
+        bail!("Reading is not possible from the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
     fn write(&self, _fs_path: FileSystemPathVc, _content: FileContentVc) -> Result<CompletionVc> {
-        bail!("Writing is not possible to the virtual filesystem for the dev server")
+        bail!("Writing is not possible to the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
@@ -44,19 +44,19 @@ impl FileSystem for DevServerFileSystem {
         _fs_path: FileSystemPathVc,
         _target: LinkContentVc,
     ) -> Result<CompletionVc> {
-        bail!("Writing is not possible to the virtual filesystem for the dev server")
+        bail!("Writing is not possible to the marker filesystem for the  server")
     }
 
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: FileSystemPathVc) -> Result<FileMetaVc> {
-        bail!("Reading is not possible from the virtual filesystem for the dev server")
+        bail!("Reading is not possible from the marker filesystem for the  server")
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for DevServerFileSystem {
+impl ValueToString for ServerFileSystem {
     #[turbo_tasks::function]
     fn to_string(&self) -> StringVc {
-        StringVc::cell("root of the dev server".to_string())
+        StringVc::cell("root of the server".to_string())
     }
 }

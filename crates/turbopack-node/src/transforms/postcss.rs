@@ -1,8 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     TryJoinIterExt, Value,
@@ -22,19 +21,12 @@ use turbopack_ecmascript::{
     EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
 };
 
+use super::util::{emitted_assets_to_virtual_assets, EmittedAsset};
 use crate::{
     embed_js::embed_file,
     evaluate::{evaluate, JavaScriptValue},
     execution_context::{ExecutionContext, ExecutionContextVc},
 };
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-struct PostCssEmittedAsset {
-    file: String,
-    content: String,
-    source_map: Option<JsonValue>,
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -43,7 +35,7 @@ struct PostCssProcessingResult {
     css: String,
     map: Option<String>,
     #[turbo_tasks(trace_ignore)]
-    assets: Option<Vec<PostCssEmittedAsset>>,
+    assets: Option<Vec<EmittedAsset>>,
 }
 
 #[turbo_tasks::function]
@@ -244,30 +236,9 @@ impl PostCssTransformedAssetVc {
         };
         let processed_css: PostCssProcessingResult = serde_json::from_reader(val.read())
             .context("Unable to deserializate response from PostCSS transform operation")?;
-        let file = File::from(processed_css.css);
         // TODO handle SourceMap
-        let assets = processed_css
-            .assets
-            .into_iter()
-            .flatten()
-            .map(
-                |PostCssEmittedAsset {
-                     file,
-                     content,
-                     source_map,
-                 }| (file, (content, source_map)),
-            )
-            // Sort it to make it determinstic
-            .collect::<BTreeMap<_, _>>()
-            .into_iter()
-            .map(|(file, (content, _source_map))| {
-                // TODO handle SourceMap
-                VirtualAssetVc::new(
-                    project_root.join(&file),
-                    AssetContent::File(FileContent::Content(File::from(content)).cell()).cell(),
-                )
-            })
-            .collect();
+        let file = File::from(processed_css.css);
+        let assets = emitted_assets_to_virtual_assets(processed_css.assets);
         let content = AssetContent::File(FileContent::Content(file).cell()).cell();
         Ok(ProcessPostCssResult { content, assets }.cell())
     }

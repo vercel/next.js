@@ -15,6 +15,7 @@ pub mod issue;
 pub mod reference;
 pub mod reference_type;
 pub mod resolve;
+pub mod server_fs;
 pub mod source_asset;
 pub mod source_map;
 pub mod source_pos;

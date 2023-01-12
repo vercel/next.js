@@ -35,9 +35,9 @@ use turbopack_core::{
     environment::ServerAddr,
     issue::IssueSeverity,
     resolve::{parse::RequestVc, pattern::QueryMapVc},
+    server_fs::ServerFileSystemVc,
 };
 use turbopack_dev_server::{
-    fs::DevServerFileSystemVc,
     introspect::IntrospectionSource,
     source::{
         combined::CombinedContentSourceVc, router::RouterContentSource,
@@ -279,7 +279,7 @@ async fn source(
     let output_root = output_fs.root().join(".next/server");
     let server_addr = ServerAddr::new(*server_addr).cell();
 
-    let dev_server_fs = DevServerFileSystemVc::new().as_file_system();
+    let dev_server_fs = ServerFileSystemVc::new().as_file_system();
     let dev_server_root = dev_server_fs.root();
     let entry_requests = entry_requests
         .iter()
