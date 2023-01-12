@@ -265,8 +265,9 @@ async fn source(
     let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
     let project_relative = project_relative
         .strip_prefix(MAIN_SEPARATOR)
-        .unwrap_or(project_relative);
-    let project_path = fs.root().join(project_relative);
+        .unwrap_or(project_relative)
+        .replace(MAIN_SEPARATOR, "/");
+    let project_path = fs.root().join(&project_relative);
 
     let env = load_env(project_path);
     let build_output_root = output_fs.root().join(".next/build");
