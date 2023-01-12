@@ -1191,7 +1191,10 @@ export async function buildAppStaticPaths({
     if (!hadGenerateParams) {
       return {
         paths: undefined,
-        fallback: undefined,
+        fallback:
+          process.env.NODE_ENV === 'production' && isDynamicRoute(page)
+            ? true
+            : undefined,
         encodedPaths: undefined,
       }
     }
