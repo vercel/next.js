@@ -917,7 +917,7 @@ function clientReducer(
           href
         )
 
-        // Copy subTreeData for the root node of the cache.              cache.status = CacheStates.READY
+        // Copy subTreeData for the root node of the cache.
         cache.status = CacheStates.READY
         cache.subTreeData = state.cache.subTreeData
 
