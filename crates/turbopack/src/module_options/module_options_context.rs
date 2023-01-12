@@ -1,5 +1,6 @@
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{primitives::StringsVc, trace::TraceRawVcs};
 use turbopack_core::{environment::EnvironmentVc, resolve::options::ImportMappingVc};
 use turbopack_ecmascript::EcmascriptInputTransform;
 use turbopack_node::execution_context::ExecutionContextVc;
@@ -14,6 +15,27 @@ pub struct PostCssTransformOptions {
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Default, Clone, Debug)]
+pub struct WebpackLoadersOptions {
+    pub extension_to_loaders: IndexMap<String, StringsVc>,
+    pub placeholder_for_future_extensions: (),
+}
+
+impl WebpackLoadersOptions {
+    pub fn is_empty(&self) -> bool {
+        self.extension_to_loaders.is_empty()
+    }
+
+    pub fn clone_if(&self) -> Option<WebpackLoadersOptions> {
+        if self.is_empty() {
+            None
+        } else {
+            Some(self.clone())
+        }
+    }
+}
+
+#[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ModuleOptionsContext {
     pub enable_jsx: bool,
@@ -22,6 +44,7 @@ pub struct ModuleOptionsContext {
     pub enable_styled_components: bool,
     pub enable_styled_jsx: bool,
     pub enable_postcss_transform: Option<PostCssTransformOptions>,
+    pub enable_webpack_loaders: Option<WebpackLoadersOptions>,
     pub enable_types: bool,
     pub enable_typescript_transform: bool,
     pub preset_env_versions: Option<EnvironmentVc>,
