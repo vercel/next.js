@@ -63,7 +63,10 @@ type IpcOutgoingMessage = {
       type: "result",
       result: {
         contentType: isDataReq ? "application/json" : undefined,
-        body: isDataReq ? JSON.stringify(res.pageData) : res.html,
+        body:
+          isDataReq && res.pageData != null
+            ? JSON.stringify(res.pageData)
+            : res.html,
       },
     });
   }

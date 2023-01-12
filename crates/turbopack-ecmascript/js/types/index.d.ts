@@ -17,21 +17,17 @@ interface Exports {
 
 export type ChunkModule = () => void;
 export type Runnable = (...args: any[]) => boolean;
-export declare type ChunkRegistration = [
+export type ChunkRegistration = [
   chunkPath: ChunkPath,
   chunkModules: ChunkModule[],
   ...run: Runnable[]
 ];
 
-export interface ChunkRegistrations {
-  push: (registration: ChunkRegistration) => void;
-}
-
 interface Module {
   exports: Exports;
   loaded: boolean;
   id: ModuleId;
-  hot: Hot;
+  hot?: Hot;
   children: ModuleId[];
   parents: ModuleId[];
   interopNamespace?: EsmInteropNamespace;
@@ -79,20 +75,37 @@ interface Runtime {
   instantiateRuntimeModule: (moduleId: ModuleId) => Module;
 }
 
+interface RuntimeBackend {
+  loadChunk: (chunkPath: ChunkPath, from: ModuleId) => Promise<void>;
+
+  restart: () => void;
+}
+
 export type UpdateCallback = (update: ServerMessage) => void;
 export type ChunkUpdateProvider = {
   push: (registration: [ChunkPath, UpdateCallback]) => void;
 };
 
 export interface TurbopackGlobals {
-  TURBOPACK?: ChunkRegistrations | ChunkRegistration[];
+  TURBOPACK?: ChunkRegistration[];
   TURBOPACK_CHUNK_UPDATE_LISTENERS?:
     | ChunkUpdateProvider
     | [ChunkPath, UpdateCallback][];
 }
 
+export type GetFirstModuleChunk = (moduleId: ModuleId) => ChunkPath | null;
+
 declare global {
-  interface Window extends TurbopackGlobals, RefreshRuntimeGlobals {}
+  var TURBOPACK: ChunkRegistration[];
+  var TURBOPACK_CHUNK_UPDATE_LISTENERS:
+    | ChunkUpdateProvider
+    | [ChunkPath, UpdateCallback][]
+    | undefined;
+
+  var $RefreshHelpers$: RefreshRuntimeGlobals["$RefreshHelpers$"];
+  var $RefreshReg$: RefreshRuntimeGlobals["$RefreshReg$"];
+  var $RefreshSig$: RefreshRuntimeGlobals["$RefreshSig$"];
+  var $RefreshInterceptModuleExecution$: RefreshRuntimeGlobals["$RefreshInterceptModuleExecution$"];
 
   interface NodeModule {
     hot: Hot;

@@ -18,6 +18,7 @@ use turbo_tasks_hash::DeterministicHash;
 use self::optimize::optimize;
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
+    environment::EnvironmentVc,
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::{ResolveResult, ResolveResultVc},
 };
@@ -48,6 +49,8 @@ pub struct ModuleIds(Vec<ModuleIdVc>);
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
     fn output_root(&self) -> FileSystemPathVc;
+
+    fn environment(&self) -> EnvironmentVc;
 
     fn chunk_path(&self, path: FileSystemPathVc, extension: &str) -> FileSystemPathVc;
 

@@ -63,6 +63,17 @@ impl Rendering {
     }
 }
 
+#[derive(Default)]
+#[turbo_tasks::value]
+pub enum ChunkLoading {
+    #[default]
+    None,
+    /// CommonJS in Node.js
+    NodeJs,
+    /// <script> and <link> tags in the browser
+    Dom,
+}
+
 #[turbo_tasks::value]
 pub struct Environment {
     // members must be private to avoid leaking non-custom types
@@ -229,6 +240,18 @@ impl EnvironmentVc {
             }
             ExecutionEnvironment::Browser(_) => Rendering::Client.cell(),
             _ => Rendering::None.cell(),
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn chunk_loading(self) -> Result<ChunkLoadingVc> {
+        let env = self.await?;
+        Ok(match env.execution {
+            ExecutionEnvironment::NodeJsBuildTime(_)
+            | ExecutionEnvironment::NodeJsLambda(_)
+            | ExecutionEnvironment::EdgeFunction(_) => ChunkLoading::NodeJs.cell(),
+            ExecutionEnvironment::Browser(_) => ChunkLoading::Dom.cell(),
+            _ => ChunkLoading::None.cell(),
         })
     }
 }

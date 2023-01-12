@@ -77,8 +77,9 @@ fn next_client_chunks_transition(
     next_config: NextConfigVc,
 ) -> TransitionVc {
     let ty = Value::new(ClientContextType::App { app_dir });
-    let client_chunking_context = get_client_chunking_context(project_path, server_root, ty);
     let client_environment = get_client_environment(browserslist_query);
+    let client_chunking_context =
+        get_client_chunking_context(project_path, server_root, client_environment, ty);
 
     let client_module_options_context = get_client_module_options_context(
         project_path,
@@ -113,8 +114,9 @@ async fn next_client_transition(
     next_config: NextConfigVc,
 ) -> Result<TransitionVc> {
     let ty = Value::new(ClientContextType::App { app_dir });
-    let client_chunking_context = get_client_chunking_context(project_path, server_root, ty);
     let client_environment = get_client_environment(browserslist_query);
+    let client_chunking_context =
+        get_client_chunking_context(project_path, server_root, client_environment, ty);
     let client_module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
@@ -642,6 +644,7 @@ import BOOTSTRAP from {};
             intermediate_output_path,
             intermediate_output_path.join("chunks"),
             this.server_root.join("_next/static/assets"),
+            context.environment(),
         )
         .layer("ssr")
         .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
