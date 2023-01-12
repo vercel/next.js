@@ -1494,7 +1494,8 @@ export default async function build(
                           isSsg = true
                         }
                         if (
-                          !isDynamicRoute(page) &&
+                          (!isDynamicRoute(page) ||
+                            !workerResult.prerenderRoutes?.length) &&
                           workerResult.appConfig?.revalidate !== 0
                         ) {
                           appStaticPaths.set(originalAppPath, [page])
@@ -2360,6 +2361,8 @@ export default async function build(
             let hasDynamicData = appConfig.revalidate === 0
 
             routes.forEach((route) => {
+              if (isDynamicRoute(page) && route === page) return
+
               let revalidate = exportConfig.initialPageRevalidationMap[route]
 
               if (typeof revalidate === 'undefined') {
