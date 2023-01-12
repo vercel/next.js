@@ -95,12 +95,12 @@ impl CodeGenerateable for EsmBinding {
                 Some(swc_core::ecma::visit::AstParentKind::Prop(PropField::Shorthand)) => {
                     ast_path.pop();
                     visitors.push(
-                        create_visitor!(ast_path, visit_mut_prop(prop: &mut Prop) {
+                        create_visitor!(exact ast_path, visit_mut_prop(prop: &mut Prop) {
                             if let Prop::Shorthand(ident) = prop {
-                              // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
-                              if let Some(imported_ident) = imported_module.as_deref() {
-                                *prop = Prop::KeyValue(KeyValueProp { key: PropName::Ident(ident.clone()), value: box make_expr(imported_ident, this.export.as_deref())});
-                              }
+                                // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
+                                if let Some(imported_ident) = imported_module.as_deref() {
+                                    *prop = Prop::KeyValue(KeyValueProp { key: PropName::Ident(ident.clone()), value: box make_expr(imported_ident, this.export.as_deref())});
+                                }
                             }
                         }),
                     );
