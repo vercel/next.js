@@ -30,8 +30,6 @@ export function tryGitInit(root: string): boolean {
     execSync('git init', { stdio: 'ignore' })
     didInit = true
 
-    execSync('git checkout -b main', { stdio: 'ignore' })
-
     execSync('git add -A', { stdio: 'ignore' })
     execSync('git commit -m "Initial commit from Create Next App"', {
       stdio: 'ignore',
