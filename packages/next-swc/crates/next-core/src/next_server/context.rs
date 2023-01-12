@@ -118,6 +118,7 @@ pub async fn get_server_module_options_context(
                     postcss_package: Some(get_postcss_package_mapping(project_path)),
                     ..Default::default()
                 }),
+                enable_webpack_loaders: next_config.webpack_loaders_options().await?.clone_if(),
                 enable_typescript_transform: true,
                 rules: vec![(
                     foreign_code_context_condition(next_config).await?,
@@ -138,6 +139,7 @@ pub async fn get_server_module_options_context(
                     postcss_package: Some(get_postcss_package_mapping(project_path)),
                     ..Default::default()
                 }),
+                enable_webpack_loaders: next_config.webpack_loaders_options().await?.clone_if(),
                 enable_typescript_transform: true,
                 rules: vec![(
                     foreign_code_context_condition(next_config).await?,
@@ -160,6 +162,7 @@ pub async fn get_server_module_options_context(
                     postcss_package: Some(get_postcss_package_mapping(project_path)),
                     ..Default::default()
                 }),
+                enable_webpack_loaders: next_config.webpack_loaders_options().await?.clone_if(),
                 enable_typescript_transform: true,
                 rules: vec![(
                     foreign_code_context_condition(next_config).await?,
