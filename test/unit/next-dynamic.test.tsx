@@ -9,6 +9,7 @@ describe('next/dynamic', () => {
   it('test dynamic with jest', () => {
     const App = dynamic(() => import('./fixtures/stub-components/hello'))
 
+    // @ts-ignore
     expect(App.preload).toBeDefined()
 
     act(() => {
