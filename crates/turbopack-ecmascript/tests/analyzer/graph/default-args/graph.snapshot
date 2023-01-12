@@ -1,0 +1,70 @@
+[
+    (
+        "*arrow function 105*",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('value' type=inline),
+                    #3,
+                ),
+            ),
+        ),
+    ),
+    (
+        "Fun",
+        Function(
+            2,
+            Variable(
+                (
+                    Atom('value' type=inline),
+                    #2,
+                ),
+            ),
+        ),
+    ),
+    (
+        "Fun2",
+        Variable(
+            (
+                Atom('*arrow function 105*' type=dynamic),
+                #0,
+            ),
+        ),
+    ),
+    (
+        "value",
+        Alternatives(
+            7,
+            [
+                Member(
+                    3,
+                    Argument(
+                        0,
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('value' type=inline),
+                        ),
+                    ),
+                ),
+                Member(
+                    3,
+                    Module(
+                        ModuleValue {
+                            module: Atom('./module.js' type=dynamic),
+                            annotations: ImportAnnotations {
+                                map: {},
+                            },
+                        },
+                    ),
+                    Constant(
+                        StrWord(
+                            Atom('named' type=inline),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

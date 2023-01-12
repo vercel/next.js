@@ -1,0 +1,58 @@
+[
+    Call {
+        func: Variable(
+            (
+                Atom('c' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Constant(
+                StrWord(
+                    Atom('1' type=inline),
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('2' type=inline),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                72,
+            ),
+            hi: BytePos(
+                83,
+            ),
+            ctxt: #0,
+        },
+    },
+]

@@ -1,0 +1,173 @@
+[
+    ImportedBinding {
+        esm_reference_index: 0,
+        export: Some(
+            "named",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                Import,
+            ),
+            ImportDecl(
+                Specifiers(
+                    0,
+                ),
+            ),
+            ImportSpecifier(
+                Named,
+            ),
+            ImportNamedSpecifier(
+                Local,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                10,
+            ),
+            hi: BytePos(
+                15,
+            ),
+            ctxt: #1,
+        },
+    },
+    ImportedBinding {
+        esm_reference_index: 0,
+        export: Some(
+            "named",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Params(
+                    0,
+                ),
+            ),
+            Param(
+                Pat,
+            ),
+            Pat(
+                Object,
+            ),
+            ObjectPat(
+                Props(
+                    0,
+                ),
+            ),
+            ObjectPatProp(
+                Assign,
+            ),
+            AssignPatProp(
+                Value,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                62,
+            ),
+            hi: BytePos(
+                67,
+            ),
+            ctxt: #1,
+        },
+    },
+    ImportedBinding {
+        esm_reference_index: 0,
+        export: Some(
+            "named",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Arrow,
+            ),
+            ArrowExpr(
+                Params(
+                    0,
+                ),
+            ),
+            Pat(
+                Object,
+            ),
+            ObjectPat(
+                Props(
+                    0,
+                ),
+            ),
+            ObjectPatProp(
+                Assign,
+            ),
+            AssignPatProp(
+                Value,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                116,
+            ),
+            hi: BytePos(
+                121,
+            ),
+            ctxt: #1,
+        },
+    },
+]

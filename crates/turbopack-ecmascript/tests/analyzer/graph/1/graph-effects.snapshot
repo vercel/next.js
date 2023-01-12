@@ -1,0 +1,66 @@
+[
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('x' type=static),
+                    #1,
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                ExportDecl,
+            ),
+            ExportDecl(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                54,
+            ),
+            hi: BytePos(
+                64,
+            ),
+            ctxt: #0,
+        },
+    },
+]

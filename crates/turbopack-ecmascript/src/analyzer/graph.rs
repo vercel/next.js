@@ -883,7 +883,7 @@ impl VisitAstPath for Analyzer<'_> {
         let value = self.current_value.take();
         for (index, p) in n.iter().enumerate() {
             self.current_value = Some(JsValue::Argument(index));
-            p.visit_children_with_path(self, ast_path);
+            ast_path.with_index(index, |ast_path| p.visit_children_with_path(self, ast_path));
         }
         self.current_value = value;
     }
@@ -1102,6 +1102,7 @@ impl VisitAstPath for Analyzer<'_> {
                 match &value {
                     Some(current_value) => {
                         self.visit_pat_with_value(pat, obj, current_value, ast_path);
+
                         // We should not call visit_children_with
                         return;
                     }
