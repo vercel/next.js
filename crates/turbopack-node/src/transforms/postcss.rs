@@ -132,6 +132,59 @@ struct ProcessPostCssResult {
     assets: Vec<VirtualAssetVc>,
 }
 
+#[turbo_tasks::function]
+async fn extra_configs(
+    context: AssetContextVc,
+    postcss_config_path: FileSystemPathVc,
+) -> Result<EcmascriptChunkPlaceablesVc> {
+    let config_paths = [postcss_config_path.parent().join("tailwind.config.js")];
+    let configs = config_paths
+        .into_iter()
+        .map(|path| async move {
+            Ok(
+                matches!(&*path.get_type().await?, FileSystemEntryType::File).then(|| {
+                    EcmascriptModuleAssetVc::new(
+                        SourceAssetVc::new(path).into(),
+                        context,
+                        Value::new(EcmascriptModuleAssetType::Ecmascript),
+                        EcmascriptInputTransformsVc::cell(vec![]),
+                        context.environment(),
+                    )
+                    .as_ecmascript_chunk_placeable()
+                }),
+            )
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+    Ok(EcmascriptChunkPlaceablesVc::cell(configs))
+}
+
+#[turbo_tasks::function]
+fn postcss_executor(context: AssetContextVc, postcss_config_path: FileSystemPathVc) -> AssetVc {
+    let config_asset = context.process(
+        SourceAssetVc::new(postcss_config_path).into(),
+        Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+    );
+
+    EcmascriptModuleAssetVc::new_with_inner_assets(
+        VirtualAssetVc::new(
+            postcss_config_path.join("transform.js"),
+            AssetContent::File(embed_file("transforms/postcss.ts")).cell(),
+        )
+        .into(),
+        context,
+        Value::new(EcmascriptModuleAssetType::Typescript),
+        EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
+        context.environment(),
+        InnerAssetsVc::cell(HashMap::from([("CONFIG".to_string(), config_asset)])),
+    )
+    .into()
+}
+
 #[turbo_tasks::value_impl]
 impl PostCssTransformedAssetVc {
     #[turbo_tasks::function]
@@ -161,57 +214,21 @@ impl PostCssTransformedAssetVc {
         };
         let content = content.content().to_str()?;
         let context = this.evaluate_context;
+
         // TODO this is a hack to get these files watched.
-        let config_paths = [config_path.parent().join("tailwind.config.js")];
-        let configs = config_paths
-            .into_iter()
-            .map(|path| async move {
-                Ok(
-                    matches!(&*path.get_type().await?, FileSystemEntryType::File).then(|| {
-                        EcmascriptModuleAssetVc::new(
-                            SourceAssetVc::new(path).into(),
-                            context,
-                            Value::new(EcmascriptModuleAssetType::Ecmascript),
-                            EcmascriptInputTransformsVc::cell(vec![]),
-                            context.environment(),
-                        )
-                        .as_ecmascript_chunk_placeable()
-                    }),
-                )
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
+        let extra_configs = extra_configs(context, config_path);
 
-        let config_asset = context.process(
-            SourceAssetVc::new(config_path).into(),
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-        );
-
-        let postcss_executor = EcmascriptModuleAssetVc::new_with_inner_assets(
-            VirtualAssetVc::new(
-                config_path.join("transform.js"),
-                AssetContent::File(embed_file("transforms/postcss.ts")).cell(),
-            )
-            .into(),
-            context,
-            Value::new(EcmascriptModuleAssetType::Typescript),
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
-            context.environment(),
-            InnerAssetsVc::cell(HashMap::from([("CONFIG".to_string(), config_asset)])),
-        );
+        let postcss_executor = postcss_executor(context, config_path);
         let css_fs_path = this.source.path().await?;
         let css_path = css_fs_path.path.as_str();
         let config_value = evaluate(
             project_root,
-            postcss_executor.into(),
+            postcss_executor,
             project_root,
             this.source.path(),
             context,
             intermediate_output_path,
-            Some(EcmascriptChunkPlaceablesVc::cell(configs)),
+            Some(extra_configs),
             vec![
                 JsonValueVc::cell(content.into()),
                 JsonValueVc::cell(css_path.into()),
