@@ -1346,7 +1346,7 @@ jobs:
             whoami
             env
             freebsd-version
-            pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
+            GITHUB_EVENT_PATH='' pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
 
