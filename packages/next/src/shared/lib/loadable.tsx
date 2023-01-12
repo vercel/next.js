@@ -140,7 +140,7 @@ function createLoadableComponent(loadFn: any, options: any) {
     )
   }
 
-  LoadableComponent.preload = () => opts.ssr && init()
+  LoadableComponent.preload = () => init()
   LoadableComponent.displayName = 'LoadableComponent'
 
   return LoadableComponent
