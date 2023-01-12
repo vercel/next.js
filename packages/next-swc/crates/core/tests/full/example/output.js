@@ -13,8 +13,8 @@ import r from "other";
             var u = [], l = !0, i = !1;
             try {
                 for(o = o.call(t); !(l = (n = o.next()).done) && (u.push(n.value), !r || u.length !== r); l = !0);
-            } catch (a) {
-                i = !0, e = a;
+            } catch (t) {
+                i = !0, e = t;
             } finally{
                 try {
                     l || null == o.return || o.return();
