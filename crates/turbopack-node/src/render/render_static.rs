@@ -91,7 +91,11 @@ async fn static_error(
     operation: Option<NodeJsOperation>,
     fallback_page: DevHtmlAssetVc,
 ) -> Result<AssetContentVc> {
-    let message = format!("{error:?}");
+    let message = format!("{error:?}")
+        // TODO this is pretty inefficient
+        .replace('&', "&amp;")
+        .replace('>', "&gt;")
+        .replace('<', "&lt;");
     let status = match operation {
         Some(operation) => Some(operation.wait_or_kill().await?),
         None => None,
