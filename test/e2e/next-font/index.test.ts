@@ -384,6 +384,27 @@ describe('@next/font/google', () => {
         '/_next/static/media/fb68b4558e2a718e.p.woff2',
       ])
     })
+
+    test('font without preloadable subsets', async () => {
+      const html = await renderViaHTTP(
+        next.url,
+        '/font-without-preloadable-subsets'
+      )
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      // From _app
+      expect($('link[as="font"]').length).toBe(1)
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+      })
+    })
   })
 
   describe('Fallback fontfaces', () => {
