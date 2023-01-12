@@ -7,15 +7,15 @@ const IndexPage = () => {
     const handleMessage = (_event, args) => alert(args)
 
     // listen to the 'message' channel
-    window.electron.receiveHello(handleMessage);
+    window.electron.receiveHello(handleMessage)
 
     return () => {
-      window.electron.stopReceivingHello(handleMessage);
+      window.electron.stopReceivingHello(handleMessage)
     }
   }, [])
 
   const onSayHiClick = () => {
-    window.electron.sayHello();
+    window.electron.sayHello()
   }
 
   return (
