@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-In the error overlay, a message was shown that the detected Next.js version was out of date or outdated.
+In the error overlay, a message was shown that the detected Next.js version was out-of-date.
 
 To get the newest features and bug fixes, it is recommended to stay up to date.
 
