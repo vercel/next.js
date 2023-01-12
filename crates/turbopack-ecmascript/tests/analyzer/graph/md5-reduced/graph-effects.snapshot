@@ -1,0 +1,4742 @@
+[
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Unknown(
+            None,
+            "unsupported expression",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Left,
+            ),
+            PatOrExpr(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                138,
+            ),
+            hi: BytePos(
+                149,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Unknown(
+                    None,
+                    "unsupported expression",
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            14.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Left,
+            ),
+            PatOrExpr(
+                Pat,
+            ),
+            Pat(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                173,
+            ),
+            hi: BytePos(
+                206,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('length' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Test,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                380,
+            ),
+            hi: BytePos(
+                388,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                3,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        7.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    4,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                466,
+            ),
+            hi: BytePos(
+                504,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Variable(
+            (
+                Atom('i' type=static),
+                #2,
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    4,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                484,
+            ),
+            hi: BytePos(
+                488,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        12.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    5,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                514,
+            ),
+            hi: BytePos(
+                557,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    5,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                532,
+            ),
+            hi: BytePos(
+                540,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    2.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        17.0,
+                    ),
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        606105819.0,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    6,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                567,
+            ),
+            hi: BytePos(
+                609,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    6,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                585,
+            ),
+            hi: BytePos(
+                593,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    3.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        22.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    7,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                619,
+            ),
+            hi: BytePos(
+                663,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            3.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    7,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                637,
+            ),
+            hi: BytePos(
+                645,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    4.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        7.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    8,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                673,
+            ),
+            hi: BytePos(
+                715,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            4.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    8,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                691,
+            ),
+            hi: BytePos(
+                699,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    5.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        12.0,
+                    ),
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1200080426.0,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    9,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                725,
+            ),
+            hi: BytePos(
+                768,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    9,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                743,
+            ),
+            hi: BytePos(
+                751,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    6.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        17.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    10,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                778,
+            ),
+            hi: BytePos(
+                822,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            6.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    10,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                796,
+            ),
+            hi: BytePos(
+                804,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        22.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                832,
+            ),
+            hi: BytePos(
+                874,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            7.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                850,
+            ),
+            hi: BytePos(
+                858,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    8.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        7.0,
+                    ),
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1770035416.0,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    12,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                884,
+            ),
+            hi: BytePos(
+                926,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            8.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    12,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                902,
+            ),
+            hi: BytePos(
+                910,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    9.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        12.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    13,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                936,
+            ),
+            hi: BytePos(
+                980,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            9.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    13,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                954,
+            ),
+            hi: BytePos(
+                962,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    10.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        17.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    14,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                990,
+            ),
+            hi: BytePos(
+                1030,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            10.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    14,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1008,
+            ),
+            hi: BytePos(
+                1017,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    11.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        22.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    15,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1040,
+            ),
+            hi: BytePos(
+                1085,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            11.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    15,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1058,
+            ),
+            hi: BytePos(
+                1067,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    12.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        7.0,
+                    ),
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1804603682.0,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    16,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1095,
+            ),
+            hi: BytePos(
+                1138,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            12.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    16,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1113,
+            ),
+            hi: BytePos(
+                1122,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    13.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        12.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    17,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1148,
+            ),
+            hi: BytePos(
+                1191,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            13.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    17,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1166,
+            ),
+            hi: BytePos(
+                1175,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    14.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        17.0,
+                    ),
+                ),
+            ),
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    18,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1201,
+            ),
+            hi: BytePos(
+                1246,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            14.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    18,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1219,
+            ),
+            hi: BytePos(
+                1228,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('c' type=inline),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('d' type=static),
+                    #2,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #2,
+                ),
+            ),
+            Member(
+                5,
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #2,
+                    ),
+                ),
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('i' type=static),
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    15.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        22.0,
+                    ),
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1236535329.0,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    19,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1256,
+            ),
+            hi: BytePos(
+                1300,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('x' type=static),
+                #2,
+            ),
+        ),
+        prop: Add(
+            3,
+            [
+                Variable(
+                    (
+                        Atom('i' type=static),
+                        #2,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            15.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    11,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    19,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1274,
+            ),
+            hi: BytePos(
+                1283,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Other(
+                Atom('safeAdd' type=inline),
+            ),
+        ),
+        args: [
+            Call(
+                13,
+                FreeVar(
+                    Other(
+                        Atom('bitRotateLeft' type=dynamic),
+                    ),
+                ),
+                [
+                    Call(
+                        10,
+                        FreeVar(
+                            Other(
+                                Atom('safeAdd' type=inline),
+                            ),
+                        ),
+                        [
+                            Call(
+                                4,
+                                FreeVar(
+                                    Other(
+                                        Atom('safeAdd' type=inline),
+                                    ),
+                                ),
+                                [
+                                    Variable(
+                                        (
+                                            Atom('a' type=static),
+                                            #3,
+                                        ),
+                                    ),
+                                    Variable(
+                                        (
+                                            Atom('q' type=static),
+                                            #3,
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            Call(
+                                4,
+                                FreeVar(
+                                    Other(
+                                        Atom('safeAdd' type=inline),
+                                    ),
+                                ),
+                                [
+                                    Variable(
+                                        (
+                                            Atom('x' type=static),
+                                            #3,
+                                        ),
+                                    ),
+                                    Variable(
+                                        (
+                                            Atom('t' type=inline),
+                                            #3,
+                                        ),
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                    Variable(
+                        (
+                            Atom('s' type=static),
+                            #3,
+                        ),
+                    ),
+                ],
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #3,
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1459,
+            ),
+            hi: BytePos(
+                1526,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Other(
+                Atom('bitRotateLeft' type=dynamic),
+            ),
+        ),
+        args: [
+            Call(
+                10,
+                FreeVar(
+                    Other(
+                        Atom('safeAdd' type=inline),
+                    ),
+                ),
+                [
+                    Call(
+                        4,
+                        FreeVar(
+                            Other(
+                                Atom('safeAdd' type=inline),
+                            ),
+                        ),
+                        [
+                            Variable(
+                                (
+                                    Atom('a' type=static),
+                                    #3,
+                                ),
+                            ),
+                            Variable(
+                                (
+                                    Atom('q' type=static),
+                                    #3,
+                                ),
+                            ),
+                        ],
+                    ),
+                    Call(
+                        4,
+                        FreeVar(
+                            Other(
+                                Atom('safeAdd' type=inline),
+                            ),
+                        ),
+                        [
+                            Variable(
+                                (
+                                    Atom('x' type=static),
+                                    #3,
+                                ),
+                            ),
+                            Variable(
+                                (
+                                    Atom('t' type=inline),
+                                    #3,
+                                ),
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            Variable(
+                (
+                    Atom('s' type=static),
+                    #3,
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1467,
+            ),
+            hi: BytePos(
+                1522,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Other(
+                Atom('safeAdd' type=inline),
+            ),
+        ),
+        args: [
+            Call(
+                4,
+                FreeVar(
+                    Other(
+                        Atom('safeAdd' type=inline),
+                    ),
+                ),
+                [
+                    Variable(
+                        (
+                            Atom('a' type=static),
+                            #3,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('q' type=static),
+                            #3,
+                        ),
+                    ),
+                ],
+            ),
+            Call(
+                4,
+                FreeVar(
+                    Other(
+                        Atom('safeAdd' type=inline),
+                    ),
+                ),
+                [
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #3,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('t' type=inline),
+                            #3,
+                        ),
+                    ),
+                ],
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1481,
+            ),
+            hi: BytePos(
+                1518,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Other(
+                Atom('safeAdd' type=inline),
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #3,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('q' type=static),
+                    #3,
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1489,
+            ),
+            hi: BytePos(
+                1502,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Other(
+                Atom('safeAdd' type=inline),
+            ),
+        ),
+        args: [
+            Variable(
+                (
+                    Atom('x' type=static),
+                    #3,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('t' type=inline),
+                    #3,
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    1,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1504,
+            ),
+            hi: BytePos(
+                1517,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('md5cmn' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Unknown(
+                None,
+                "unsupported expression",
+            ),
+            Variable(
+                (
+                    Atom('a' type=static),
+                    #5,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('b' type=static),
+                    #5,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('x' type=static),
+                    #5,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('s' type=static),
+                    #5,
+                ),
+            ),
+            Variable(
+                (
+                    Atom('t' type=inline),
+                    #5,
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1577,
+            ),
+            hi: BytePos(
+                1618,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: FreeVar(
+            Other(
+                Atom('module' type=static),
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('exports' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Left,
+            ),
+            PatOrExpr(
+                Pat,
+            ),
+            Pat(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1622,
+            ),
+            hi: BytePos(
+                1636,
+            ),
+            ctxt: #0,
+        },
+    },
+]

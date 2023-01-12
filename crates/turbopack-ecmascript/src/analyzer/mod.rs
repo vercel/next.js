@@ -2004,6 +2004,7 @@ mod tests {
         crate::register();
         let graph_snapshot_path = input.with_file_name("graph.snapshot");
         let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
+        let graph_effects_snapshot_path = input.with_file_name("graph-effects.snapshot");
         let resolved_explained_snapshot_path = input.with_file_name("resolved-explained.snapshot");
 
         run_test(false, |cm, handler| {
@@ -2064,6 +2065,9 @@ mod tests {
                         .unwrap();
                     NormalizedOutput::from(explain_all(&named_values))
                         .compare_to_file(&graph_explained_snapshot_path)
+                        .unwrap();
+                    NormalizedOutput::from(format!("{:#?}", var_graph.effects))
+                        .compare_to_file(&graph_effects_snapshot_path)
                         .unwrap();
                 }
 

@@ -1,0 +1,1772 @@
+[
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Constant(
+                StrWord(
+                    Atom('os' type=inline),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                40,
+            ),
+            hi: BytePos(
+                53,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Constant(
+                StrWord(
+                    Atom('process' type=static),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                93,
+            ),
+            hi: BytePos(
+                111,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Concat(
+                11,
+                [
+                    Constant(
+                        StrAtom(
+                            "esbuild-",
+                        ),
+                    ),
+                    Member(
+                        3,
+                        FreeVar(
+                            NodeProcess,
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('arch' type=inline),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('platform' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('endianness' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                ],
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                149,
+            ),
+            hi: BytePos(
+                217,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: FreeVar(
+            NodeProcess,
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('arch' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    0,
+                ),
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                171,
+            ),
+            hi: BytePos(
+                183,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('platform' type=dynamic),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    1,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                188,
+            ),
+            hi: BytePos(
+                198,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('endianness' type=dynamic),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    2,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                202,
+            ),
+            hi: BytePos(
+                214,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Concat(
+                10,
+                [
+                    Constant(
+                        StrAtom(
+                            "esbuild-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('arch' type=inline),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('platform' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('endianness' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                ],
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                236,
+            ),
+            hi: BytePos(
+                294,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('arch' type=inline),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    0,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                255,
+            ),
+            hi: BytePos(
+                261,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('platform' type=dynamic),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    1,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                265,
+            ),
+            hi: BytePos(
+                275,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('endianness' type=dynamic),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    2,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                279,
+            ),
+            hi: BytePos(
+                291,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Concat(
+                11,
+                [
+                    Constant(
+                        StrAtom(
+                            "esbuild-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('arch' type=inline),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Member(
+                        3,
+                        FreeVar(
+                            NodeProcess,
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('platform' type=dynamic),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('endianness' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                ],
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                313,
+            ),
+            hi: BytePos(
+                381,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('arch' type=inline),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    0,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                332,
+            ),
+            hi: BytePos(
+                338,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: FreeVar(
+            NodeProcess,
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('platform' type=dynamic),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    1,
+                ),
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                345,
+            ),
+            hi: BytePos(
+                361,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('endianness' type=dynamic),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    2,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                366,
+            ),
+            hi: BytePos(
+                378,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Concat(
+                12,
+                [
+                    Constant(
+                        StrAtom(
+                            "esbuild-",
+                        ),
+                    ),
+                    Member(
+                        3,
+                        FreeVar(
+                            NodeProcess,
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('arch' type=inline),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Member(
+                        3,
+                        FreeVar(
+                            NodeProcess,
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('platform' type=dynamic),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('endianness' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                ],
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                400,
+            ),
+            hi: BytePos(
+                474,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: FreeVar(
+            NodeProcess,
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('arch' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    0,
+                ),
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                419,
+            ),
+            hi: BytePos(
+                431,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: FreeVar(
+            NodeProcess,
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('platform' type=dynamic),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    1,
+                ),
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                438,
+            ),
+            hi: BytePos(
+                454,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('endianness' type=dynamic),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    2,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                459,
+            ),
+            hi: BytePos(
+                471,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Concat(
+                12,
+                [
+                    Constant(
+                        StrAtom(
+                            "esbuild-",
+                        ),
+                    ),
+                    Member(
+                        3,
+                        Variable(
+                            (
+                                Atom('p' type=static),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('arch' type=inline),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Member(
+                        3,
+                        Variable(
+                            (
+                                Atom('p' type=static),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('platform' type=dynamic),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('endianness' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                ],
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    7,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                493,
+            ),
+            hi: BytePos(
+                551,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('p' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('arch' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    7,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    0,
+                ),
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                512,
+            ),
+            hi: BytePos(
+                518,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('p' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('platform' type=dynamic),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    7,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    1,
+                ),
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                522,
+            ),
+            hi: BytePos(
+                532,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('endianness' type=dynamic),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    7,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    2,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                536,
+            ),
+            hi: BytePos(
+                548,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Concat(
+                10,
+                [
+                    Constant(
+                        StrAtom(
+                            "esbuild-",
+                        ),
+                    ),
+                    Member(
+                        3,
+                        Variable(
+                            (
+                                Atom('p' type=static),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('arch' type=inline),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('processPlatform' type=dynamic),
+                            #1,
+                        ),
+                    ),
+                    Constant(
+                        StrAtom(
+                            "-",
+                        ),
+                    ),
+                    Call(
+                        2,
+                        Variable(
+                            (
+                                Atom('endianness' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        [],
+                    ),
+                ],
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    8,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                570,
+            ),
+            hi: BytePos(
+                637,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('p' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('arch' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    8,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    0,
+                ),
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                592,
+            ),
+            hi: BytePos(
+                598,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('endianness' type=dynamic),
+                #1,
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    8,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Tpl,
+            ),
+            Tpl(
+                Exprs(
+                    2,
+                ),
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                622,
+            ),
+            hi: BytePos(
+                634,
+            ),
+            ctxt: #0,
+        },
+    },
+]

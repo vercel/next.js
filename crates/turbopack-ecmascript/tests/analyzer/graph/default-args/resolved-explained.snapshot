@@ -1,0 +1,11 @@
+*arrow function 105* = (...) => ???*0*
+- *0* value
+  ⚠️  no value of this variable analysed
+
+Fun = (...) => (arguments[0]["value"] | module<./module.js, {}>["named"])
+
+Fun2 = (...) => ???*0*
+- *0* value
+  ⚠️  no value of this variable analysed
+
+value = (arguments[0]["value"] | module<./module.js, {}>["named"])

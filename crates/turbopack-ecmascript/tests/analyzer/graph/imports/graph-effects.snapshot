@@ -1,0 +1,301 @@
+[
+    ImportedBinding {
+        esm_reference_index: 0,
+        export: Some(
+            "default",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                Import,
+            ),
+            ImportDecl(
+                Specifiers(
+                    0,
+                ),
+            ),
+            ImportSpecifier(
+                Default,
+            ),
+            ImportDefaultSpecifier(
+                Local,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                8,
+            ),
+            hi: BytePos(
+                9,
+            ),
+            ctxt: #1,
+        },
+    },
+    ImportedBinding {
+        esm_reference_index: 1,
+        export: Some(
+            "a",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                Import,
+            ),
+            ImportDecl(
+                Specifiers(
+                    0,
+                ),
+            ),
+            ImportSpecifier(
+                Named,
+            ),
+            ImportNamedSpecifier(
+                Local,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                30,
+            ),
+            hi: BytePos(
+                31,
+            ),
+            ctxt: #1,
+        },
+    },
+    ImportedBinding {
+        esm_reference_index: 1,
+        export: Some(
+            "b",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                Import,
+            ),
+            ImportDecl(
+                Specifiers(
+                    1,
+                ),
+            ),
+            ImportSpecifier(
+                Named,
+            ),
+            ImportNamedSpecifier(
+                Local,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                33,
+            ),
+            hi: BytePos(
+                34,
+            ),
+            ctxt: #1,
+        },
+    },
+    ImportedBinding {
+        esm_reference_index: 2,
+        export: None,
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    2,
+                ),
+            ),
+            ModuleItem(
+                ModuleDecl,
+            ),
+            ModuleDecl(
+                Import,
+            ),
+            ImportDecl(
+                Specifiers(
+                    0,
+                ),
+            ),
+            ImportSpecifier(
+                Namespace,
+            ),
+            ImportStarAsSpecifier(
+                Local,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                60,
+            ),
+            hi: BytePos(
+                61,
+            ),
+            ctxt: #1,
+        },
+    },
+    ImportedBinding {
+        esm_reference_index: 0,
+        export: Some(
+            "default",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    5,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                158,
+            ),
+            hi: BytePos(
+                159,
+            ),
+            ctxt: #1,
+        },
+    },
+    ImportedBinding {
+        esm_reference_index: 1,
+        export: Some(
+            "a",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    6,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                170,
+            ),
+            hi: BytePos(
+                171,
+            ),
+            ctxt: #1,
+        },
+    },
+    ImportedBinding {
+        esm_reference_index: 2,
+        export: None,
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    7,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                182,
+            ),
+            hi: BytePos(
+                183,
+            ),
+            ctxt: #1,
+        },
+    },
+]

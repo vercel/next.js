@@ -1,0 +1,737 @@
+[
+    Member {
+        obj: Variable(
+            (
+                Atom('object' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('a' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                75,
+            ),
+            hi: BytePos(
+                83,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('a' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                96,
+            ),
+            hi: BytePos(
+                107,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('b' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                120,
+            ),
+            hi: BytePos(
+                128,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('b' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                141,
+            ),
+            hi: BytePos(
+                152,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('c' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                165,
+            ),
+            hi: BytePos(
+                173,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('c' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                186,
+            ),
+            hi: BytePos(
+                197,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('d' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    7,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                210,
+            ),
+            hi: BytePos(
+                218,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('d' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    8,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                231,
+            ),
+            hi: BytePos(
+                242,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object_spread' type=dynamic),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('a' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    10,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                308,
+            ),
+            hi: BytePos(
+                323,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object_spread' type=dynamic),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('b' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    11,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                336,
+            ),
+            hi: BytePos(
+                351,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object_spread' type=dynamic),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('c' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    12,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                364,
+            ),
+            hi: BytePos(
+                379,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('object_spread' type=dynamic),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('d' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    13,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                392,
+            ),
+            hi: BytePos(
+                407,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('unknown_spread' type=dynamic),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('a' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    17,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                576,
+            ),
+            hi: BytePos(
+                592,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('unknown_spread' type=dynamic),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('b' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    18,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                605,
+            ),
+            hi: BytePos(
+                621,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Variable(
+            (
+                Atom('unknown_spread' type=dynamic),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('c' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    19,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                634,
+            ),
+            hi: BytePos(
+                650,
+            ),
+            ctxt: #0,
+        },
+    },
+]
