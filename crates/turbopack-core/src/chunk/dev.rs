@@ -7,7 +7,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use super::{ChunkingContext, ChunkingContextVc};
-use crate::asset::AssetVc;
+use crate::{asset::AssetVc, environment::EnvironmentVc};
 
 pub struct DevChunkingContextBuilder {
     context: DevChunkingContext,
@@ -56,6 +56,8 @@ pub struct DevChunkingContext {
     layer: Option<String>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
+    /// The environment chunks will be evaluated in.
+    environment: EnvironmentVc,
 }
 
 impl DevChunkingContextVc {
@@ -64,6 +66,7 @@ impl DevChunkingContextVc {
         output_root_path: FileSystemPathVc,
         chunk_root_path: FileSystemPathVc,
         asset_root_path: FileSystemPathVc,
+        environment: EnvironmentVc,
     ) -> DevChunkingContextBuilder {
         DevChunkingContextBuilder {
             context: DevChunkingContext {
@@ -74,6 +77,7 @@ impl DevChunkingContextVc {
                 asset_root_path,
                 layer: None,
                 enable_hot_module_replacement: false,
+                environment,
             },
         }
     }
@@ -92,6 +96,11 @@ impl ChunkingContext for DevChunkingContext {
     #[turbo_tasks::function]
     fn output_root(&self) -> FileSystemPathVc {
         self.output_root_path
+    }
+
+    #[turbo_tasks::function]
+    fn environment(&self) -> EnvironmentVc {
+        self.environment
     }
 
     #[turbo_tasks::function]

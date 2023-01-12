@@ -54,6 +54,7 @@ pub async fn get_evaluate_pool(
         intermediate_output_path,
         intermediate_output_path.join("chunks"),
         intermediate_output_path.join("assets"),
+        context.environment(),
     )
     .build();
 

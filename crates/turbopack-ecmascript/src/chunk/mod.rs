@@ -6,6 +6,7 @@ use std::{fmt::Write, io::Write as _, slice::Iter};
 
 use anyhow::{anyhow, bail, Result};
 use indexmap::{IndexMap, IndexSet};
+use indoc::indoc;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{JsonValueVc, StringReadRef, StringVc, StringsVc, UsizeVc},
@@ -26,6 +27,7 @@ use turbopack_core::{
         FromChunkableAsset, ModuleId, ModuleIdReadRef, ModuleIdVc, ModuleIdsVc,
     },
     code_builder::{Code, CodeBuilder, CodeReadRef, CodeVc},
+    environment::{ChunkLoading, EnvironmentVc},
     introspect::{
         asset::{children_from_asset_references, content_to_details, IntrospectableAssetVc},
         Introspectable, IntrospectableChildrenVc, IntrospectableVc,
@@ -343,6 +345,7 @@ pub struct EcmascriptChunkContent {
     chunk_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
     evaluate: Option<EcmascriptChunkContentEvaluateVc>,
+    environment: EnvironmentVc,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -452,6 +455,7 @@ impl EcmascriptChunkContentVc {
             chunk_path,
             output_root,
             evaluate,
+            environment: context.environment(),
         }
         .cell())
     }
@@ -625,11 +629,41 @@ impl EcmascriptChunkContentVc {
         }
         code += "]);\n";
         if this.evaluate.is_some() {
-            let runtime_code = embed_file!("js/src/runtime.js").await?;
-            match &*runtime_code {
-                FileContent::NotFound => return Err(anyhow!("runtime code is not found")),
+            // When a chunk is executed, it will either register itself with the current
+            // instance of the runtime, or it will push itself onto the list of pending
+            // chunks (`self.TURBOPACK`).
+            //
+            // When the runtime executes, it will pick up and register all pending chunks,
+            // and replace the list of pending chunks with itself so later chunks can
+            // register directly with it.
+            code += indoc! { r#"
+                (() => {
+                if (!Array.isArray(globalThis.TURBOPACK)) {
+                    return;
+                }
+            "# };
+
+            let specific_runtime_code = match *this.environment.chunk_loading().await? {
+                ChunkLoading::None => return Err(anyhow!("unsupported environment")),
+                ChunkLoading::NodeJs => embed_file!("js/src/runtime.nodejs.js").await?,
+                ChunkLoading::Dom => embed_file!("js/src/runtime.dom.js").await?,
+            };
+
+            match &*specific_runtime_code {
+                FileContent::NotFound => return Err(anyhow!("specific runtime code is not found")),
                 FileContent::Content(file) => code.push_source(file.content(), None),
             };
+
+            let shared_runtime_code = embed_file!("js/src/runtime.js").await?;
+
+            match &*shared_runtime_code {
+                FileContent::NotFound => return Err(anyhow!("shared runtime code is not found")),
+                FileContent::Content(file) => code.push_source(file.content(), None),
+            };
+
+            code += indoc! { r#"
+                })();
+            "# };
         }
 
         if code.has_source_map() {
