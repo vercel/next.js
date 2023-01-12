@@ -63,9 +63,8 @@ export class NextStartInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    console.log('running', buildArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
-      console.log('running', buildArgs.join(' '))
-
       try {
         this.childProcess = spawn(
           buildArgs[0],
@@ -99,7 +98,6 @@ export class NextStartInstance extends NextInstance {
     ).trim()
 
     console.log('running', startArgs.join(' '))
-
     await new Promise<void>((resolve) => {
       try {
         this.childProcess = spawn(

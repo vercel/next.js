@@ -325,6 +325,29 @@ createNextDescribe(
           })
         })
       })
+
+      describe('preconnect', () => {
+        it.each([['page'], ['layout'], ['component']])(
+          'should add preconnect when preloading is disabled in %s',
+          async (type: string) => {
+            const $ = await next.render$(`/preconnect-${type}`)
+
+            // Preconnect
+            expect($('link[rel="preconnect"]').length).toBe(1)
+            // Preload
+            expect($('link[as="font"]').length).toBe(0)
+          }
+        )
+
+        it('should not preconnect when css is used but no fonts', async () => {
+          const $ = await next.render$('/no-preconnect')
+
+          // Preconnect
+          expect($('link[rel="preconnect"]').length).toBe(0)
+          // Preload
+          expect($('link[as="font"]').length).toBe(0)
+        })
+      })
     }
 
     if (isDev) {

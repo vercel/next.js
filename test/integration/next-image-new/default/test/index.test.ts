@@ -4,6 +4,7 @@ import cheerio from 'cheerio'
 import validateHTML from 'html-validator'
 import {
   check,
+  fetchViaHTTP,
   findPort,
   getRedboxHeader,
   hasRedbox,
@@ -1094,6 +1095,15 @@ function runTests(mode) {
       await getComputedStyle(browser, 'img-blur', 'background-position')
     ).toBe('1px 2px')
   })
+
+  it('should emit image for next/dynamic with non ssr case', async () => {
+    let browser = await webdriver(appPort, '/dynamic-static-img')
+    const img = await browser.elementById('dynamic-loaded-static-jpg')
+    const src = await img.getAttribute('src')
+    const { status } = await fetchViaHTTP(appPort, src)
+    expect(status).toBe(200)
+  })
+
   describe('Fill-mode tests', () => {
     let browser
     beforeAll(async () => {

@@ -1191,7 +1191,10 @@ export async function buildAppStaticPaths({
     if (!hadGenerateParams) {
       return {
         paths: undefined,
-        fallback: undefined,
+        fallback:
+          process.env.NODE_ENV === 'production' && isDynamicRoute(page)
+            ? true
+            : undefined,
         encodedPaths: undefined,
       }
     }
@@ -1725,6 +1728,7 @@ export async function copyTracedFiles(
     path.relative(tracingRoot, dir),
     'server.js'
   )
+  await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
   await fs.writeFile(
     serverOutputPath,
     `${
