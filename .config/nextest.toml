@@ -1,0 +1,12 @@
+[profile.default]
+# Default is 100ms. Extending this addresses false positives in the
+# next-dev integration tests.
+#
+# TODO: Move this to [[profile.default.overrides]] below
+# Currently, doing so makes leak-timeout no longer parse as a duration:
+# https://github.com/nextest-rs/nextest/issues/762
+leak-timeout = "500ms"
+
+[[profile.default.overrides]]
+filter = "package(next-dev)"
+slow-timeout = "60s"
