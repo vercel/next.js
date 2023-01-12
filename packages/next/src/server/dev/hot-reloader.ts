@@ -155,6 +155,58 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
+export function parseVersionInfo(o: {
+  installed: string
+  latest: string
+  canary: string
+}): VersionInfo {
+  const latest = semver.parse(o.latest)
+  const canary = semver.parse(o.canary)
+  const installedParsed = semver.parse(o.installed)
+  const installed = o.installed
+  if (installedParsed && latest && canary) {
+    if (installedParsed.major < latest.major) {
+      // Old major version
+      return { staleness: 'stale-major', expected: latest.raw, installed }
+    } else if (
+      installedParsed.prerelease[0] === 'canary' &&
+      semver.lt(installedParsed, canary)
+    ) {
+      // Matching major, but old canary
+      return {
+        staleness: 'stale-prerelease',
+        expected: canary.raw,
+        installed,
+      }
+    } else if (
+      !installedParsed.prerelease.length &&
+      semver.lt(installedParsed, latest)
+    ) {
+      // Stable, but not the latest
+      if (installedParsed.minor === latest.minor) {
+        // Same major and minor, but not the latest patch
+        return {
+          staleness: 'stale-patch',
+          expected: latest.raw,
+          installed,
+        }
+      }
+      return { staleness: 'stale-minor', expected: latest.raw, installed }
+    } else if (semver.gt(installedParsed, latest)) {
+      // Newer major version
+      return { staleness: 'newer-than-npm', installed }
+    } else {
+      // Latest and greatest
+      return { staleness: 'fresh', installed }
+    }
+  }
+
+  return {
+    installed: installedParsed?.raw ?? '0.0.0',
+    staleness: 'unknown',
+  }
+}
+
 export default class HotReloader {
   private dir: string
   private buildId: string
@@ -424,7 +476,6 @@ export default class HotReloader {
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
       try {
         const installed = require('next/package.json').version
-        const installedParsed = semver.parse(installed)
 
         const res = await fetch(
           'https://registry.npmjs.org/-/package/next/dist-tags'
@@ -433,35 +484,12 @@ export default class HotReloader {
         if (!res.ok) return { installed, staleness: 'unknown' }
 
         const tags = await res.json()
-        const latest = semver.parse(tags.latest)
-        const canary = semver.parse(tags.canary)
 
-        if (installedParsed && latest && canary) {
-          if (installedParsed.major < latest.major) {
-            // Old major version
-            return { staleness: 'outdated', expected: latest.raw, installed }
-          } else if (
-            installedParsed.prerelease[0] === 'canary' &&
-            semver.lt(installedParsed, canary)
-          ) {
-            // Matching major, but old canary
-            return { staleness: 'outdated', expected: canary.raw, installed }
-          } else if (
-            !installedParsed.prerelease.length &&
-            semver.lt(installedParsed, latest)
-          ) {
-            // Stable, but not the latest
-            return { staleness: 'stale', expected: latest.raw, installed }
-          } else {
-            // Latest and greatest
-            return { staleness: 'fresh', installed }
-          }
-        }
-
-        return {
-          installed: installedParsed?.raw ?? '0.0.0',
-          staleness: 'unknown',
-        }
+        return parseVersionInfo({
+          installed,
+          latest: tags.latest,
+          canary: tags.canary,
+        })
       } catch {
         return { installed: '0.0.0', staleness: 'unknown' }
       }

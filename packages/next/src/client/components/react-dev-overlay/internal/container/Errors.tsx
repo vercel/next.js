@@ -81,7 +81,14 @@ const HotlinkedText: React.FC<{
 
 export interface VersionInfo {
   installed: string
-  staleness: 'fresh' | 'stale' | 'outdated' | 'unknown'
+  staleness:
+    | 'fresh'
+    | 'stale-patch'
+    | 'stale-minor'
+    | 'stale-major'
+    | 'stale-prerelease'
+    | 'newer-than-npm'
+    | 'unknown'
   expected?: string
 }
 
@@ -95,27 +102,29 @@ function Staleness(props: VersionInfo) {
       text = 'Next.js is up to date'
       title = `Latest available version is detected (${installed}).`
       break
-    case 'stale':
+    case 'stale-patch':
+    case 'stale-minor':
       text = `Next.js (${installed}) out of date`
       title = `There is a newer version (${expected}) available, upgrade recommended! `
       break
-    case 'outdated': {
-      if (installed.includes('canary')) {
-        text = `Using old canary (${installed})`
-        title = `There is a newer canary version (${expected}) available, please upgrade! `
-      }
+    case 'stale-major': {
       text = `Next.js (${installed}) is outdated`
       title = `An outdated version detected (latest is ${expected}), upgrade is highly recommended!`
       break
     }
+    case 'stale-prerelease': {
+      text = `Using old canary (${installed})`
+      title = `There is a newer canary version (${expected}) available, please upgrade! `
+      break
+    }
+    case 'newer-than-npm':
     case 'unknown':
-      text = 'Next.js version unknown'
-      title = 'Could not determine Next.js version'
       break
     default:
       break
   }
 
+  if (!text) return null
   return (
     <small
       className="nextjs-container-build-error-version-status"
