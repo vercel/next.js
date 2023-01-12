@@ -105,7 +105,7 @@ function Staleness(props: VersionInfo) {
         title = `There is a newer canary version (${expected}) available, please upgrade! `
       }
       text = `Next.js (${installed}) is outdated`
-      title = `An outdated version detected (latest is ${expected}), you have to upgrade!`
+      title = `An outdated version detected (latest is ${expected}), upgrade is highly recommended!`
       break
     }
     case 'unknown':
