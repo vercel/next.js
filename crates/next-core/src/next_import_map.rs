@@ -64,6 +64,25 @@ pub fn get_next_client_import_map(
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
+
+    match ty.into_value() {
+        ClientContextType::Pages {
+            pages_dir: context_dir,
+        }
+        | ClientContextType::App {
+            app_dir: context_dir,
+        } => {
+            for (original, alias) in NEXT_ALIASES {
+                import_map.insert_exact_alias(
+                    format!("node:{original}"),
+                    request_to_import_mapping(context_dir, alias),
+                );
+            }
+        }
+        ClientContextType::Fallback => {}
+        ClientContextType::Other => {}
+    }
+
     import_map.cell()
 }
 
@@ -102,10 +121,6 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Impo
             for (original, alias) in NEXT_ALIASES {
                 import_map
                     .insert_exact_alias(original, request_to_import_mapping(context_dir, alias));
-                import_map.insert_exact_alias(
-                    format!("node:{original}"),
-                    request_to_import_mapping(context_dir, alias),
-                );
             }
         }
         ClientContextType::Fallback => {}
