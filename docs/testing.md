@@ -18,7 +18,7 @@ Learn how to set up Next.js with commonly used testing tools: [Cypress](https://
 
 ## Cypress
 
-Cypress is a test runner used for **End-to-End (E2E)** and **Integration Testing**.
+Cypress is a test runner used for **End-to-End (E2E)** and **Component Testing**.
 
 ### Quickstart
 
@@ -55,7 +55,12 @@ npm run cypress
 
 You can look through the generated examples and the [Writing Your First Test](https://docs.cypress.io/guides/getting-started/writing-your-first-test) section of the Cypress Documentation to help you get familiar with Cypress.
 
-### Creating your first Cypress integration test
+
+### Should I use E2E or Component Tests?
+
+The [Cypress docs contain a guide](https://docs.cypress.io/guides/core-concepts/testing-types) on the difference between these two types of tests and when it is appropriate to use each.
+
+### Creating your first Cypress E2E test
 
 Assuming the following two Next.js pages:
 
@@ -66,6 +71,7 @@ import Link from 'next/link'
 export default function Home() {
   return (
     <nav>
+      <h1>Homepage</h1>
       <Link href="/about">About</Link>
     </nav>
   )
@@ -78,6 +84,7 @@ export default function About() {
   return (
     <div>
       <h1>About Page</h1>
+      <Link href="/">Homepage</Link>
     </div>
   )
 }
@@ -86,7 +93,7 @@ export default function About() {
 Add a test to check your navigation is working correctly:
 
 ```jsx
-// cypress/integration/app.spec.js
+// cypress/e2e/app.cy.js
 
 describe('Navigation', () => {
   it('should navigate to the about page', () => {
@@ -107,13 +114,45 @@ describe('Navigation', () => {
 
 You can use `cy.visit("/")` instead of `cy.visit("http://localhost:3000/")` if you add `baseUrl: 'http://localhost:3000'` to the `cypress.config.js` configuration file.
 
+### Creating your first Cypress component test
+
+Component tests build and mount a specific component without having to bundle your whole application or launch a server. This allows for more performant tests that still provide visual feedback and the same API used for Cypress E2E tests.
+
+> **Note:** Since component tests do not launch a Next.js server, capabilities like `<Image />` and `getServerSideProps` which rely on a server being available will not function out-of-the-box. See the [Cypress Next.js docs](https://docs.cypress.io/guides/component-testing/react/overview#Nextjs) for examples of getting these features working within component tests.
+
+Assuming the same components from the previous section, add a test to validate a component is rendering the expected output:
+
+```jsx
+// pages/about.cy.js
+import AboutPage from './about.js'
+
+describe('<AboutPage />', () => {
+  it('should render and display expected content', () => {
+    // Mount the React component for the About page
+    cy.mount(<AboutPage />)
+
+    // The new page should contain an h1 with "About page"
+    cy.get('h1').contains('About Page')
+
+    // Validate that a link with the expected URL is present
+    // *Following* the link is better suited to an E2E test
+    cy.get('a[href="/"]').should('be.visible')
+  })
+})
+```
+
 ### Running your Cypress tests
 
-Since Cypress is testing a real Next.js application, it requires the Next.js server to be running prior to starting Cypress. We recommend running your tests against your production code to more closely resemble how your application will behave.
+#### E2E Tests
+Since Cypress E2E tests are testing a real Next.js application they require the Next.js server to be running prior to starting Cypress. We recommend running your tests against your production code to more closely resemble how your application will behave.
 
-Run `npm run build` and `npm run start`, then run `npm run cypress` in another terminal window to start Cypress.
+Run `npm run build` and `npm run start`, then run `npm run cypress -- --e2e` in another terminal window to start Cypress and run your E2E testing suite.
 
 > **Note:** Alternatively, you can install the `start-server-and-test` package and add it to the `package.json` scripts field: `"test": "start-server-and-test start http://localhost:3000 cypress"` to start the Next.js production server in conjunction with Cypress. Remember to rebuild your application after new changes.
+
+#### Component Tests
+
+Run `npm run cypress -- --component` to start Cypress and execute your component testing suite.
 
 ### Getting ready for Continuous Integration (CI)
 
@@ -124,10 +163,10 @@ You will have noticed that running Cypress so far has opened an interactive brow
 
 "scripts": {
   //...
-  "cypress": "cypress open",
-  "cypress:headless": "cypress run",
-  "e2e": "start-server-and-test start http://localhost:3000 cypress",
-  "e2e:headless": "start-server-and-test start http://localhost:3000 cypress:headless"
+  "e2e": "start-server-and-test dev http://localhost:3000 \"cypress open --e2e\"",
+  "e2e:headless": "start-server-and-test dev http://localhost:3000 \"cypress run --e2e\"",
+  "component": "cypress open --component",
+  "component:headless": "cypress run --component"
 }
 ```
 
