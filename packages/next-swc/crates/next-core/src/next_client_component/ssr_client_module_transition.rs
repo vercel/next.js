@@ -8,7 +8,7 @@ use turbopack::{
 };
 use turbopack_core::{asset::AssetVc, environment::EnvironmentVc};
 
-use super::in_chunking_context_asset::WithChunkingContextScopeAsset;
+use super::with_chunking_context_scope_asset::WithChunkingContextScopeAsset;
 
 #[turbo_tasks::value(shared)]
 pub struct NextSSRClientModuleTransition {

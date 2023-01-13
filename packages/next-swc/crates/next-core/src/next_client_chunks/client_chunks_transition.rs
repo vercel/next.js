@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     ecmascript::chunk::EcmascriptChunkPlaceableVc,
@@ -8,8 +9,16 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{asset::AssetVc, chunk::ChunkingContextVc, environment::EnvironmentVc};
+use turbopack_node::execution_context::ExecutionContextVc;
 
 use super::with_chunks::WithChunksAsset;
+use crate::{
+    next_client::context::{
+        get_client_chunking_context, get_client_environment, get_client_module_options_context,
+        get_client_resolve_options_context, ClientContextType,
+    },
+    next_config::NextConfigVc,
+};
 
 #[turbo_tasks::value(shared)]
 pub struct NextClientChunksTransition {
@@ -18,6 +27,43 @@ pub struct NextClientChunksTransition {
     pub client_resolve_options_context: ResolveOptionsContextVc,
     pub client_chunking_context: ChunkingContextVc,
     pub server_root: FileSystemPathVc,
+}
+
+#[turbo_tasks::value_impl]
+impl NextClientChunksTransitionVc {
+    #[turbo_tasks::function]
+    pub fn new(
+        project_path: FileSystemPathVc,
+        execution_context: ExecutionContextVc,
+        ty: Value<ClientContextType>,
+        server_root: FileSystemPathVc,
+        browserslist_query: &str,
+        next_config: NextConfigVc,
+    ) -> NextClientChunksTransitionVc {
+        let client_environment = get_client_environment(browserslist_query);
+        let client_chunking_context =
+            get_client_chunking_context(project_path, server_root, client_environment, ty);
+
+        let client_module_options_context = get_client_module_options_context(
+            project_path,
+            execution_context,
+            client_environment,
+            ty,
+            next_config,
+        );
+        NextClientChunksTransition {
+            client_chunking_context,
+            client_module_options_context,
+            client_resolve_options_context: get_client_resolve_options_context(
+                project_path,
+                ty,
+                next_config,
+            ),
+            client_environment,
+            server_root,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]

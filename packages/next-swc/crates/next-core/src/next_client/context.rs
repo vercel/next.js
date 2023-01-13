@@ -2,13 +2,13 @@ use core::{default::Default, result::Result::Ok};
 use std::collections::HashMap;
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringsVc, Value};
+use turbo_tasks::Value;
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{
     module_options::{
         module_options_context::{ModuleOptionsContext, ModuleOptionsContextVc},
-        ModuleRule, ModuleRuleCondition, ModuleRuleEffect, PostCssTransformOptions,
+        PostCssTransformOptions,
     },
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
     transition::TransitionsByNameVc,
@@ -18,13 +18,12 @@ use turbopack_core::{
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
-    reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{parse::RequestVc, pattern::Pattern},
 };
-use turbopack_ecmascript::{EcmascriptInputTransform, EcmascriptInputTransformsVc};
 use turbopack_env::ProcessEnvAssetVc;
 use turbopack_node::execution_context::ExecutionContextVc;
 
+use super::transforms::get_next_client_transforms_rules;
 use crate::{
     embed_js::attached_next_js_package_path,
     env::env_for_js,
@@ -103,6 +102,7 @@ pub async fn get_client_module_options_context(
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
+    let custom_rules = get_next_client_transforms_rules(ty.into_value()).await?;
     let resolve_options_context = get_client_resolve_options_context(project_path, ty, next_config);
     let enable_react_refresh =
         assert_can_resolve_react_refresh(project_path, resolve_options_context)
@@ -133,42 +133,12 @@ pub async fn get_client_module_options_context(
             foreign_code_context_condition(next_config).await?,
             module_options_context.clone().cell(),
         )],
+        custom_rules,
         ..module_options_context
-    };
+    }
+    .cell();
 
-    Ok(add_next_font_transform(module_options_context.cell()))
-}
-
-#[turbo_tasks::function]
-pub async fn add_next_font_transform(
-    module_options_context: ModuleOptionsContextVc,
-) -> Result<ModuleOptionsContextVc> {
-    #[allow(unused_mut)] // This is mutated when next-font-local is enabled
-    let mut font_loaders = vec!["@next/font/google".to_owned()];
-    #[cfg(feature = "next-font-local")]
-    font_loaders.push("@next/font/local".to_owned());
-
-    let mut module_options_context = module_options_context.await?.clone_value();
-    module_options_context.custom_rules.push(ModuleRule::new(
-        // TODO: Only match in pages (not pages/api), app/, etc.
-        ModuleRuleCondition::all(vec![
-            ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(ReferenceType::Url(
-                UrlReferenceSubType::Undefined,
-            ))),
-            ModuleRuleCondition::any(vec![
-                ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-            ]),
-        ]),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJsFont(
-                StringsVc::cell(font_loaders),
-            )]),
-        )],
-    ));
-    Ok(module_options_context.cell())
+    Ok(module_options_context)
 }
 
 #[turbo_tasks::function]
