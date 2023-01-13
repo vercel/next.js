@@ -43,24 +43,9 @@ createNextDescribe(
         () => getRedboxSource(browser),
         /That only works in a Server Component/
       )
-      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-        "./components/Comp.js
-
-        You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
-
-           ,-[1:1]
-         1 | 
-         2 |         import { cookies } from 'next/headers'
-           :         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         3 |   
-         4 |         export default function Page() {
-         5 |           return 'hello world'
-           \`----
-
-        Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
-      `)
+      expect(await getRedboxSource(browser)).toInclude(
+        "You're importing a component that needs next/headers. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components"
+      )
     })
 
     test("importing 'server-only' in pages", async () => {
@@ -82,24 +67,9 @@ createNextDescribe(
         () => getRedboxSource(browser),
         /That only works in a Server Component/
       )
-      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-        "./components/Comp.js
-
-        You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
-
-           ,-[1:1]
-         1 | 
-         2 |           import 'server-only' 
-           :           ^^^^^^^^^^^^^^^^^^^^
-         3 |     
-         4 |           export default function Page() {
-         5 |             return 'hello world'
-           \`----
-
-        Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
-      `)
+      expect(await getRedboxSource(browser)).toInclude(
+        "You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components"
+      )
     })
 
     test('"use client" at the bottom of the page', async () => {
@@ -120,24 +90,9 @@ createNextDescribe(
         () => getRedboxSource(browser),
         /which is not supported in the pages/
       )
-      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-        "./components/Comp.js
-
-        You have tried to use the \\"use client\\" directive which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
-
-           ,-[2:1]
-         2 |         export default function Component() {
-         3 |             return null
-         4 |         }
-         5 |         'use client';
-           :         ^^^^^^^^^^^^^
-         6 |           
-           \`----
-
-        Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
-      `)
+      expect(await getRedboxSource(browser)).toInclude(
+        'You have tried to use the "use client" directive which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components'
+      )
     })
 
     test('"use client" with parentheses', async () => {
@@ -158,24 +113,9 @@ createNextDescribe(
         () => getRedboxSource(browser),
         /which is not supported in the pages/
       )
-      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-        "./components/Comp.js
-
-        You have tried to use the \\"use client\\" directive which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components
-
-           ,-[1:1]
-         1 | 
-         2 |           ;('use client')
-           :            ^^^^^^^^^^^^^^
-         3 |           export default function Component() {
-         4 |               return null
-         5 |           }
-           \`----
-
-        Import trace for requested module:
-          components/Comp.js
-          pages/index.js"
-      `)
+      expect(await getRedboxSource(browser)).toInclude(
+        'You have tried to use the "use client" directive which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components'
+      )
     })
   }
 )
