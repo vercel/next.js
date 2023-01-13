@@ -70,7 +70,7 @@ pub async fn get_client_resolve_options_context(
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
 ) -> Result<ResolveOptionsContextVc> {
-    let next_client_import_map = get_next_client_import_map(project_path, ty);
+    let next_client_import_map = get_next_client_import_map(project_path, ty, next_config);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path);
     let module_options_context = ResolveOptionsContext {

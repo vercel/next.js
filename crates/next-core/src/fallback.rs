@@ -49,7 +49,12 @@ pub async fn get_fallback_page(
     let entries = get_client_runtime_entries(project_path, env, ty, next_config);
 
     let mut import_map = ImportMap::empty();
-    insert_next_shared_aliases(&mut import_map, project_path);
+    insert_next_shared_aliases(
+        &mut import_map,
+        project_path,
+        next_config.resolve_alias_options(),
+    )
+    .await?;
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
