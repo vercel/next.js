@@ -55,7 +55,6 @@ npm run cypress
 
 You can look through the generated examples and the [Writing Your First Test](https://docs.cypress.io/guides/getting-started/writing-your-first-test) section of the Cypress Documentation to help you get familiar with Cypress.
 
-
 ### Should I use E2E or Component Tests?
 
 The [Cypress docs contain a guide](https://docs.cypress.io/guides/core-concepts/testing-types) on the difference between these two types of tests and when it is appropriate to use each.
@@ -144,6 +143,7 @@ describe('<AboutPage />', () => {
 ### Running your Cypress tests
 
 #### E2E Tests
+
 Since Cypress E2E tests are testing a real Next.js application they require the Next.js server to be running prior to starting Cypress. We recommend running your tests against your production code to more closely resemble how your application will behave.
 
 Run `npm run build` and `npm run start`, then run `npm run cypress -- --e2e` in another terminal window to start Cypress and run your E2E testing suite.

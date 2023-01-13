@@ -19,3 +19,6 @@ describe('<AboutPage />', () => {
     cy.get('a[href="/"]').should('be.visible')
   })
 })
+
+// Prevent TypeScript from reading file as legacy script
+export {}
