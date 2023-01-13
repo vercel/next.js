@@ -1,10 +1,11 @@
-import App from '../components/App'
-import InfoBox from '../components/InfoBox'
-import Header from '../components/Header'
-import Submit from '../components/Submit'
-import PostList from '../components/PostList'
+import type { NextPage } from 'next'
+import App from '@/components/App'
+import InfoBox from '@/components/InfoBox'
+import Header from '@/components/Header'
+import Submit from '@/components/Submit'
+import PostList from '@/components/PostList'
 
-const ClientOnlyPage = (props) => (
+const ClientOnlyPage: NextPage = () => (
   <App>
     <Header />
     <InfoBox>

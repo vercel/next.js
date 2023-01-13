@@ -1,24 +1,25 @@
-import { useRouter } from 'next/router'
+import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 
-export default function Header() {
+const Header: React.FC = () => {
   const { pathname } = useRouter()
+  const activeRoute = (path: string) =>
+    pathname === path ? 'is-active' : undefined
 
   return (
     <header>
       <Link href="/" legacyBehavior>
-        <a className={pathname === '/' ? 'is-active' : ''}>Home</a>
+        <a className={activeRoute('/')}>Home</a>
       </Link>
       <Link href="/about" legacyBehavior>
-        <a className={pathname === '/about' ? 'is-active' : ''}>About</a>
+        <a className={activeRoute('/about')}>About</a>
       </Link>
       <Link href="/client-only" legacyBehavior>
-        <a className={pathname === '/client-only' ? 'is-active' : ''}>
-          Client-Only
-        </a>
+        <a className={activeRoute('/client-only')}>Client-Only</a>
       </Link>
       <Link href="/ssr" legacyBehavior>
-        <a className={pathname === '/ssr' ? 'is-active' : ''}>SSR</a>
+        <a className={activeRoute('/ssr')}>SSR</a>
       </Link>
       <style jsx>{`
         header {
@@ -36,3 +37,5 @@ export default function Header() {
     </header>
   )
 }
+
+export default Header

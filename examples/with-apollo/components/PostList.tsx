@@ -1,9 +1,12 @@
-import { gql, useQuery, NetworkStatus } from '@apollo/client'
-import ErrorMessage from './ErrorMessage'
-import PostUpvoter from './PostUpvoter'
+import type { AllPostsQueryVariables } from '@/gql/graphql'
+import React from 'react'
+import ErrorMessage from '@/components/ErrorMessage'
+import PostUpvoter from '@/components/PostUpvoter'
+import { useQuery, NetworkStatus } from '@apollo/client'
+import { gql } from '@/gql'
 
-export const ALL_POSTS_QUERY = gql`
-  query allPosts($first: Int!, $skip: Int!) {
+export const ALL_POSTS_QUERY = gql(/* GraphQL */ `
+  query AllPosts($first: Int!, $skip: Int!) {
     allPosts(orderBy: { createdAt: desc }, first: $first, skip: $skip) {
       id
       title
@@ -15,14 +18,14 @@ export const ALL_POSTS_QUERY = gql`
       count
     }
   }
-`
+`)
 
-export const allPostsQueryVars = {
+export const allPostsQueryVars: AllPostsQueryVariables = {
   skip: 0,
   first: 10,
 }
 
-export default function PostList() {
+const PostList: React.FC = () => {
   const { loading, error, data, fetchMore, networkStatus } = useQuery(
     ALL_POSTS_QUERY,
     {
@@ -37,8 +40,12 @@ export default function PostList() {
   const loadingMorePosts = networkStatus === NetworkStatus.fetchMore
   const { allPosts, _allPostsMeta } = data
 
-  const loadMorePosts = () => {
-    fetchMore({
+  const loadMorePosts: React.MouseEventHandler<HTMLButtonElement> = async (
+    event
+  ) => {
+    event.preventDefault()
+
+    await fetchMore({
       variables: {
         skip: allPosts.length,
       },
@@ -64,7 +71,7 @@ export default function PostList() {
         ))}
       </ul>
       {areMorePosts && (
-        <button onClick={() => loadMorePosts()} disabled={loadingMorePosts}>
+        <button onClick={loadMorePosts} disabled={loadingMorePosts}>
           {loadingMorePosts ? 'Loading...' : 'Show More'}
         </button>
       )}
@@ -109,3 +116,5 @@ export default function PostList() {
     </section>
   )
 }
+
+export default PostList

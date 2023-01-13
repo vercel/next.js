@@ -1,0 +1,11 @@
+overwrite: true
+schema: ${NEXT_PUBLIC_GQL_SCHEMA_URI}
+documents: 'components/**/*.tsx'
+generates:
+  ./__generated__/gql/:
+    preset: 'client'
+    presetConfig:
+      gqlTagName: 'gql'
+      useTypeImports: true
+      enumsAsTypes: true
+    plugins: []

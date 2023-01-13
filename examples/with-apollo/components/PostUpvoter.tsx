@@ -1,6 +1,9 @@
-import { gql, useMutation } from '@apollo/client'
+import type { Post } from '@/gql/graphql'
+import React from 'react'
+import { useMutation } from '@apollo/client'
+import { gql } from '@/gql'
 
-const UPDATE_POST_MUTATION = gql`
+const UPDATE_POST_MUTATION = gql(/* GraphQL */ `
   mutation votePost($id: String!) {
     votePost(id: $id) {
       id
@@ -8,13 +11,17 @@ const UPDATE_POST_MUTATION = gql`
       __typename
     }
   }
-`
+`)
 
-export default function PostUpvoter({ votes, id }) {
+const PostUpvoter: React.FC<Pick<Post, 'id' | 'votes'>> = ({ votes, id }) => {
   const [updatePost] = useMutation(UPDATE_POST_MUTATION)
 
-  const upvotePost = () => {
-    updatePost({
+  const upvotePost: React.MouseEventHandler<HTMLButtonElement> = async (
+    event
+  ) => {
+    event.preventDefault()
+
+    await updatePost({
       variables: {
         id,
       },
@@ -30,7 +37,7 @@ export default function PostUpvoter({ votes, id }) {
   }
 
   return (
-    <button onClick={() => upvotePost()}>
+    <button onClick={upvotePost}>
       {votes}
       <style jsx>{`
         button {
@@ -55,3 +62,5 @@ export default function PostUpvoter({ votes, id }) {
     </button>
   )
 }
+
+export default PostUpvoter

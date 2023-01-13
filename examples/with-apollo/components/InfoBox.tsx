@@ -1,4 +1,6 @@
-const InfoBox = ({ children }) => (
+import React from 'react'
+
+const InfoBox: React.FC<React.PropsWithChildren> = ({ children }) => (
   <div className="info">
     <style jsx>{`
       .info {

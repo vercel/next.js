@@ -1,7 +1,8 @@
-import App from '../components/App'
-import Header from '../components/Header'
+import type { NextPage } from 'next'
+import App from '@/components/App'
+import Header from '@/components/Header'
 
-const AboutPage = () => (
+const AboutPage: NextPage = () => (
   <App>
     <Header />
     <article>

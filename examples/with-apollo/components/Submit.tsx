@@ -1,7 +1,8 @@
-import { gql, useMutation } from '@apollo/client'
+import { useMutation } from '@apollo/client'
+import { gql } from '@/gql'
 
-const CREATE_POST_MUTATION = gql`
-  mutation createPost($title: String!, $url: String!) {
+const CREATE_POST_MUTATION = gql(/* GraphQL */ `
+  mutation CreatePost($title: String!, $url: String!) {
     createPost(title: $title, url: $url) {
       id
       title
@@ -10,17 +11,23 @@ const CREATE_POST_MUTATION = gql`
       createdAt
     }
   }
-`
+`)
 
-export default function Submit() {
+const NEW_POST_FRAGMENT = gql(/* GraphQL */ `
+  fragment NewPost on Post {
+    id
+  }
+`)
+
+const Submit: React.FC = () => {
   const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION)
 
-  const handleSubmit = (event) => {
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault()
-    const form = event.target
+    const form = event.currentTarget
     const formData = new window.FormData(form)
-    const title = formData.get('title')
-    const url = formData.get('url')
+    const title = formData.get('title').toString()
+    const url = formData.get('url').toString()
     form.reset()
 
     createPost({
@@ -31,12 +38,7 @@ export default function Submit() {
             allPosts(existingPosts = []) {
               const newPostRef = cache.writeFragment({
                 data: createPost,
-                fragment: gql`
-                  fragment NewPost on allPosts {
-                    id
-                    type
-                  }
-                `,
+                fragment: NEW_POST_FRAGMENT,
               })
               return [newPostRef, ...existingPosts]
             },
@@ -71,3 +73,5 @@ export default function Submit() {
     </form>
   )
 }
+
+export default Submit

@@ -1,14 +1,15 @@
-import App from '../components/App'
-import InfoBox from '../components/InfoBox'
-import Header from '../components/Header'
-import Submit from '../components/Submit'
+import type { NextPage, GetStaticProps } from 'next'
+import App from '@/components/App'
+import InfoBox from '@/components/InfoBox'
+import Header from '@/components/Header'
+import Submit from '@/components/Submit'
 import PostList, {
   ALL_POSTS_QUERY,
   allPostsQueryVars,
-} from '../components/PostList'
-import { initializeApollo, addApolloState } from '../lib/apolloClient'
+} from '@/components/PostList'
+import { initializeApollo, addApolloState } from '@/lib/apolloClient'
 
-const IndexPage = () => (
+const IndexPage: NextPage = () => (
   <App>
     <Header />
     <InfoBox>ℹ️ This page shows how to use SSG with Apollo.</InfoBox>
@@ -17,7 +18,7 @@ const IndexPage = () => (
   </App>
 )
 
-export async function getStaticProps() {
+export const getStaticProps: GetStaticProps = async () => {
   const apolloClient = initializeApollo()
 
   await apolloClient.query({

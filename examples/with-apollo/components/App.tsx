@@ -1,4 +1,6 @@
-export default function App({ children }) {
+import React from 'react'
+
+const App: React.FC<React.PropsWithChildren> = ({ children }) => {
   return (
     <main>
       {children}
@@ -45,3 +47,5 @@ export default function App({ children }) {
     </main>
   )
 }
+
+export default App

@@ -1,14 +1,15 @@
-import App from '../components/App'
-import InfoBox from '../components/InfoBox'
-import Header from '../components/Header'
-import Submit from '../components/Submit'
+import type { GetServerSideProps, NextPage } from 'next'
+import App from '@/components/App'
+import InfoBox from '@/components/InfoBox'
+import Header from '@/components/Header'
+import Submit from '@/components/Submit'
 import PostList, {
   ALL_POSTS_QUERY,
   allPostsQueryVars,
-} from '../components/PostList'
-import { initializeApollo, addApolloState } from '../lib/apolloClient'
+} from '@/components/PostList'
+import { initializeApollo, addApolloState } from '@/lib/apolloClient'
 
-const SSRPage = () => (
+const SSRPage: NextPage = () => (
   <App>
     <Header />
     <InfoBox>ℹ️ This page shows how to use SSR with Apollo.</InfoBox>
@@ -17,7 +18,7 @@ const SSRPage = () => (
   </App>
 )
 
-export async function getServerSideProps() {
+export const getServerSideProps: GetServerSideProps = async () => {
   const apolloClient = initializeApollo()
 
   await apolloClient.query({

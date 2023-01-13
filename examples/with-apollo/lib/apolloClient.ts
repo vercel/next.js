@@ -1,5 +1,11 @@
 import { useMemo } from 'react'
-import { ApolloClient, HttpLink, InMemoryCache, from } from '@apollo/client'
+import {
+  type NormalizedCacheObject,
+  ApolloClient,
+  HttpLink,
+  InMemoryCache,
+  from,
+} from '@apollo/client'
 import { onError } from '@apollo/client/link/error'
 import { concatPagination } from '@apollo/client/utilities'
 import merge from 'deepmerge'
@@ -7,20 +13,27 @@ import isEqual from 'lodash/isEqual'
 
 export const APOLLO_STATE_PROP_NAME = '__APOLLO_STATE__'
 
-let apolloClient
+export type PagePropsWithApolloState<P extends Record<string, any> = {}> = P & {
+  [APOLLO_STATE_PROP_NAME]?: NormalizedCacheObject | undefined
+}
+
+let apolloClient: ApolloClient<NormalizedCacheObject> | undefined
 
 const errorLink = onError(({ graphQLErrors, networkError }) => {
-  if (graphQLErrors)
+  if (graphQLErrors) {
     graphQLErrors.forEach(({ message, locations, path }) =>
       console.log(
         `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
       )
     )
-  if (networkError) console.log(`[Network error]: ${networkError}`)
+  }
+  if (networkError) {
+    console.log(`[Network error]: ${networkError}`)
+  }
 })
 
 const httpLink = new HttpLink({
-  uri: 'https://nextjs-graphql-with-prisma-simple.vercel.app/api', // Server URL (must be absolute)
+  uri: process.env.NEXT_PUBLIC_GQL_SCHEMA_URI,
   credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
 })
 
@@ -40,7 +53,9 @@ function createApolloClient() {
   })
 }
 
-export function initializeApollo(initialState = null) {
+export function initializeApollo<InitialState extends NormalizedCacheObject>(
+  initialState: InitialState = null
+) {
   const _apolloClient = apolloClient ?? createApolloClient()
 
   // If your page has Next.js data fetching methods that use Apollo Client, the initial state
@@ -52,7 +67,7 @@ export function initializeApollo(initialState = null) {
     // Merge the initialState from getStaticProps/getServerSideProps in the existing cache
     const data = merge(existingCache, initialState, {
       // combine arrays using object equality (like in sets)
-      arrayMerge: (destinationArray, sourceArray) => [
+      arrayMerge: <T>(destinationArray: T[], sourceArray: T[]) => [
         ...sourceArray,
         ...destinationArray.filter((d) =>
           sourceArray.every((s) => !isEqual(d, s))
@@ -71,7 +86,13 @@ export function initializeApollo(initialState = null) {
   return _apolloClient
 }
 
-export function addApolloState(client, pageProps) {
+export function addApolloState<P extends Record<string, any> = {}>(
+  client: ApolloClient<NormalizedCacheObject>,
+  pageProps: {
+    props: PagePropsWithApolloState<P>
+    revalidate?: number | boolean
+  }
+) {
   if (pageProps?.props) {
     pageProps.props[APOLLO_STATE_PROP_NAME] = client.cache.extract()
   }
@@ -79,7 +100,7 @@ export function addApolloState(client, pageProps) {
   return pageProps
 }
 
-export function useApollo(pageProps) {
+export function useApollo<P extends PagePropsWithApolloState>(pageProps: P) {
   const state = pageProps[APOLLO_STATE_PROP_NAME]
   const store = useMemo(() => initializeApollo(state), [state])
   return store
