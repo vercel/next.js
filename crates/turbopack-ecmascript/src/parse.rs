@@ -269,6 +269,7 @@ async fn parse_content(
                 source_map: &source_map,
                 top_level_mark,
                 unresolved_mark,
+                file_path_str: &fs_path.path,
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
             };

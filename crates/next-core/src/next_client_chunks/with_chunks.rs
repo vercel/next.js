@@ -21,7 +21,7 @@ use turbopack_core::{
     resolve::{ResolveResult, ResolveResultVc},
 };
 
-use crate::next_client_component::in_chunking_context_asset::InChunkingContextAsset;
+use super::in_chunking_context_asset::InChunkingContextAsset;
 
 #[turbo_tasks::value(shared)]
 pub struct WithChunksAsset {

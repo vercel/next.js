@@ -1,40 +1,26 @@
 use anyhow::Result;
-use turbo_tasks::Value;
+use turbo_tasks::primitives::StringsVc;
 use turbo_tasks_fs::FileSystemPathVc;
-use turbopack::module_options::{
-    ModuleOptionsContextVc, ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
-};
+use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
+use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
 use turbopack_ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransformsVc, NextJsPageExportFilter,
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
-pub enum PageTransformType {
-    Client,
-    SsrData,
-}
-
-#[turbo_tasks::function]
-pub async fn add_next_transforms_to_pages(
-    module_options_context: ModuleOptionsContextVc,
+/// Returns a rule which applies the Next.js page export stripping transform.
+pub async fn get_next_pages_transforms_rule(
     pages_dir: FileSystemPathVc,
-    transform_ty: Value<PageTransformType>,
-) -> Result<ModuleOptionsContextVc> {
-    let page_transform = match transform_ty.into_value() {
-        PageTransformType::Client => EcmascriptInputTransform::NextJsStripPageExports(
-            NextJsPageExportFilter::StripDataExports,
-        ),
-        PageTransformType::SsrData => EcmascriptInputTransform::NextJsStripPageExports(
-            NextJsPageExportFilter::StripDefaultExport,
-        ),
-    };
-    let mut module_options_context = module_options_context.await?.clone_value();
-    // Apply the Next SSG tranform to all pages.
-    module_options_context.custom_rules.push(ModuleRule::new(
+    export_filter: NextJsPageExportFilter,
+) -> Result<ModuleRule> {
+    // Apply the Next SSG transform to all pages.
+    let strip_transform = EcmascriptInputTransform::NextJsStripPageExports(export_filter);
+    Ok(ModuleRule::new(
         ModuleRuleCondition::all(vec![
             ModuleRuleCondition::all(vec![
                 ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
+                ModuleRuleCondition::not(ModuleRuleCondition::ResourcePathInExactDirectory(
+                    pages_dir.join("api").await?,
+                )),
                 ModuleRuleCondition::not(ModuleRuleCondition::any(vec![
                     // TODO(alexkirsz): Possibly ignore _app as well?
                     ModuleRuleCondition::ResourcePathEquals(pages_dir.join("_document.js").await?),
@@ -43,16 +29,63 @@ pub async fn add_next_transforms_to_pages(
                     ModuleRuleCondition::ResourcePathEquals(pages_dir.join("_document.tsx").await?),
                 ])),
             ]),
-            ModuleRuleCondition::any(vec![
-                ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-            ]),
+            module_rule_match_js_no_url(),
         ]),
         vec![ModuleRuleEffect::AddEcmascriptTransforms(
-            EcmascriptInputTransformsVc::cell(vec![page_transform]),
+            EcmascriptInputTransformsVc::cell(vec![strip_transform]),
         )],
-    ));
-    Ok(module_options_context.cell())
+    ))
+}
+
+/// Returns a rule which applies the Next.js dynamic transform.
+pub fn get_next_dynamic_transform_rule(
+    is_development: bool,
+    is_server: bool,
+    is_server_components: bool,
+    pages_dir: Option<FileSystemPathVc>,
+) -> ModuleRule {
+    let dynamic_transform = EcmascriptInputTransform::NextJsDynamic {
+        is_development,
+        is_server,
+        is_server_components,
+        pages_dir,
+    };
+    ModuleRule::new(
+        module_rule_match_js_no_url(),
+        vec![ModuleRuleEffect::AddEcmascriptTransforms(
+            EcmascriptInputTransformsVc::cell(vec![dynamic_transform]),
+        )],
+    )
+}
+
+/// Returns a rule which applies the Next.js font transform.
+pub fn get_next_font_transform_rule() -> ModuleRule {
+    #[allow(unused_mut)] // This is mutated when next-font-local is enabled
+    let mut font_loaders = vec!["@next/font/google".to_owned()];
+    #[cfg(feature = "next-font-local")]
+    font_loaders.push("@next/font/local".to_owned());
+
+    ModuleRule::new(
+        // TODO: Only match in pages (not pages/api), app/, etc.
+        module_rule_match_js_no_url(),
+        vec![ModuleRuleEffect::AddEcmascriptTransforms(
+            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::NextJsFont(
+                StringsVc::cell(font_loaders),
+            )]),
+        )],
+    )
+}
+
+fn module_rule_match_js_no_url() -> ModuleRuleCondition {
+    ModuleRuleCondition::all(vec![
+        ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(ReferenceType::Url(
+            UrlReferenceSubType::Undefined,
+        ))),
+        ModuleRuleCondition::any(vec![
+            ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+            ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+        ]),
+    ])
 }

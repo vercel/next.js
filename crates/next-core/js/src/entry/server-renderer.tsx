@@ -9,6 +9,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { renderToHTML, RenderOpts } from "next/dist/server/render";
 import type { BuildManifest } from "next/dist/server/get-page-files";
+import type { ReactLoadableManifest } from "next/dist/server/load-components";
 
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
 import type { Ipc } from "@vercel/turbopack-next/ipc/index";
@@ -120,7 +121,7 @@ async function runOperation(
     Document,
     pageConfig: {},
     buildManifest,
-    reactLoadableManifest: {},
+    reactLoadableManifest: createReactLoadableManifestProxy(),
     ComponentMod: {
       default: comp,
       ...otherExports,
@@ -207,4 +208,53 @@ async function runOperation(
     html: body,
     pageData: pageData,
   };
+}
+
+type ManifestItem = {
+  id: string;
+  chunks: string[];
+};
+
+/**
+ * During compilation, Next.js builds a manifest of dynamic imports with the
+ * `ReactLoadablePlugin` for webpack.
+ *
+ * At the same time, the next/dynamic transform converts each `dynamic()` call
+ * so it contains a key to the corresponding entry within that manifest.
+ *
+ * During server-side rendering, each `dynamic()` call will be recorded and its
+ * corresponding entry in the manifest will be looked up.
+ * * The entry's chunks will be asynchronously loaded on the client using a
+ *   <script defer> tag.
+ * * The entry's module id will be appended to a list of dynamic module ids.
+ *
+ * On the client-side, during hydration, the dynamic module ids are used to
+ * initialize the corresponding <Loadable> components.
+ *
+ * In development, Turbopack works differently: instead of building a static
+ * manifest, each `dynamic()` call will embed its own manifest entry within a
+ * serialized string key. Hence the need for a proxy that can dynamically
+ * deserialize the manifest entries from that string key.
+ */
+function createReactLoadableManifestProxy(): ReactLoadableManifest {
+  return new Proxy(
+    {},
+    {
+      get: (_target, prop: string, _receiver) => {
+        const { id, chunks } = JSON.parse(prop) as ManifestItem;
+
+        return {
+          id,
+          files: chunks.map((chunk) => {
+            // Turbopack prefixes chunks with "_next/", but Next.js expects
+            // them to be relative to the build directory.
+            if (chunk.startsWith("_next/")) {
+              return chunk.slice("_next/".length);
+            }
+            return chunk;
+          }),
+        };
+      },
+    }
+  );
 }

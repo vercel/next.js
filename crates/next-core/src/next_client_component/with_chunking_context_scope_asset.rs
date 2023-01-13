@@ -11,51 +11,6 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::value(shared)]
-pub struct InChunkingContextAsset {
-    pub asset: EcmascriptChunkPlaceableVc,
-    pub chunking_context: ChunkingContextVc,
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for InChunkingContextAsset {
-    #[turbo_tasks::function]
-    fn path(&self) -> FileSystemPathVc {
-        self.asset.path()
-    }
-
-    #[turbo_tasks::function]
-    fn content(&self) -> AssetContentVc {
-        self.asset.content()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> AssetReferencesVc {
-        self.asset.references()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableAsset for InChunkingContextAsset {
-    #[turbo_tasks::function]
-    fn as_chunk(&self, _context: ChunkingContextVc) -> ChunkVc {
-        EcmascriptChunkVc::new(self.chunking_context, self.asset).into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for InChunkingContextAsset {
-    #[turbo_tasks::function]
-    fn as_chunk_item(&self, _context: ChunkingContextVc) -> EcmascriptChunkItemVc {
-        self.asset.as_chunk_item(self.chunking_context)
-    }
-
-    #[turbo_tasks::function]
-    fn get_exports(&self) -> EcmascriptExportsVc {
-        self.asset.get_exports()
-    }
-}
-
-#[turbo_tasks::value(shared)]
 pub struct WithChunkingContextScopeAsset {
     pub asset: EcmascriptChunkPlaceableVc,
     pub layer: String,

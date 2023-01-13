@@ -149,17 +149,18 @@ impl ValueToString for EsmAssetReference {
 impl ChunkableAssetReference for EsmAssetReference {
     #[turbo_tasks::function]
     fn chunking_type(&self, _context: ChunkingContextVc) -> Result<ChunkingTypeOptionVc> {
-        Ok(
+        Ok(ChunkingTypeOptionVc::cell(
             if let Some(chunking_type) = self.annotations.chunking_type() {
                 match chunking_type {
-                    "separate" => ChunkingTypeOptionVc::cell(Some(ChunkingType::Separate)),
-                    "parallel" => ChunkingTypeOptionVc::cell(Some(ChunkingType::Parallel)),
+                    "separate" => Some(ChunkingType::Separate),
+                    "parallel" => Some(ChunkingType::Parallel),
+                    "none" => None,
                     _ => return Err(anyhow!("unknown chunking_type: {}", chunking_type)),
                 }
             } else {
-                ChunkingTypeOptionVc::cell(Some(ChunkingType::default()))
+                Some(ChunkingType::default())
             },
-        )
+        ))
     }
 }
 
