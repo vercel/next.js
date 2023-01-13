@@ -159,7 +159,9 @@ pub trait ParallelChunkReference: AssetReference + ValueToString {
 
 /// Specifies how a chunk interacts with other chunks when building a chunk
 /// group
-#[derive(Copy, Clone, TraceRawVcs, Serialize, Deserialize, Eq, PartialEq, ValueDebugFormat)]
+#[derive(
+    Copy, Clone, Hash, TraceRawVcs, Serialize, Deserialize, Eq, PartialEq, ValueDebugFormat,
+)]
 pub enum ChunkingType {
     /// Asset is always placed into the referencing chunk and loaded with it.
     Placed,
@@ -354,7 +356,7 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
         chunk_item.references(),
     ));
     chunk_items.push(chunk_item);
-    processed_assets.insert(entry);
+    processed_assets.insert((ChunkingType::Placed, entry));
 
     if let Some(additional_entries) = additional_entries {
         for entry in &*additional_entries.await? {
@@ -363,7 +365,7 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
                 chunk_item.references(),
             ));
             chunk_items.push(chunk_item);
-            processed_assets.insert(*entry);
+            processed_assets.insert((ChunkingType::Placed, *entry));
         }
     }
 
@@ -407,7 +409,7 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
                 for asset in assets
                     .await?
                     .iter()
-                    .filter(|asset| processed_assets.insert(**asset))
+                    .filter(|asset| processed_assets.insert((chunking_type, **asset)))
                 {
                     let asset: &AssetVc = asset;
 
