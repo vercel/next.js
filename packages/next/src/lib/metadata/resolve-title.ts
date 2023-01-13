@@ -9,17 +9,19 @@ export function resolveTitle(
   stashed: AbsoluteTemplateString,
   title: Metadata['title']
 ) {
+  const resolved: AbsoluteTemplateString = { ...stashed }
   if (typeof title === 'string') {
-    stashed.absolute = resolveTitleTemplate(stashed.template, title)
+    resolved.absolute = resolveTitleTemplate(stashed.template, title)
   } else if (title) {
     if ('default' in title) {
-      stashed.absolute = resolveTitleTemplate(stashed.template, title.default)
+      resolved.absolute = resolveTitleTemplate(stashed.template, title.default)
     }
     if ('absolute' in title) {
-      stashed.absolute = title.absolute
+      resolved.absolute = title.absolute
     }
     if (title && 'template' in title) {
-      stashed.template = title.template
+      resolved.template = title.template
     }
   }
+  return resolved
 }

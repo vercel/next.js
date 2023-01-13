@@ -1,6 +1,6 @@
 import type { ResolvedMetadata } from './types/metadata-interface'
 
-export const createResolvedMetadata = (): ResolvedMetadata => {
+export const createDefaultMetadata = (): ResolvedMetadata => {
   return {
     viewport: 'width=device-width, initial-scale=1',
 

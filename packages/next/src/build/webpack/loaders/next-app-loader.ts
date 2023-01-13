@@ -78,7 +78,10 @@ async function createTreeCodeFromPath({
 
         metadataCode += `{
           type: 'page',
-          layer: 0,
+          layer: ${
+            // There's an extra virtual segment.
+            segments.length - 1
+          },
           mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}),
@@ -116,7 +119,7 @@ async function createTreeCodeFromPath({
       if (layout) {
         metadataCode += `{
           type: 'layout',
-          layer: 0,
+          layer: ${segments.length},
           mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
             layout
           )}),
@@ -124,7 +127,7 @@ async function createTreeCodeFromPath({
         },`
       }
       metadataCode += await resolveFileBasedMetadataForLoader(
-        0,
+        segments.length,
         (await resolve(`${appDirPrefix}${parallelSegmentPath}/`, true))!
       )
       metadataCode += subtreeMetadataCode

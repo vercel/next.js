@@ -1,9 +1,7 @@
-'use client'
-
 export default function Page() {
   return <p>hello</p>
 }
 
 export const metadata = {
-  title: 'Client Page',
+  title: 'Inner Page',
 }

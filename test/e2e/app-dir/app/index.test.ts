@@ -2616,12 +2616,21 @@ createNextDescribe(
             expect(await browser.eval(`document.title`)).toBe('Page | Layout')
           })
 
-          it('should support client page and layout', async () => {
+          it('should support stashed title in one layer of page and layout', async () => {
             const browser = await next.browser(
-              '/dashboard/metadata/title-template/client'
+              '/dashboard/metadata/title-template/extra'
             )
             expect(await browser.eval(`document.title`)).toBe(
-              'Client Page | Client Layout'
+              'Extra Page | Layout'
+            )
+          })
+
+          it('should support stashed title in two layers of page and layout', async () => {
+            const browser = await next.browser(
+              '/dashboard/metadata/title-template/extra/inner'
+            )
+            expect(await browser.eval(`document.title`)).toBe(
+              'Inner Page | Extra Layout'
             )
           })
 
