@@ -22,8 +22,10 @@ API Routes provide built-in request helpers which parse the incoming req
 
 Every API Route can export a `config` object to change the default configuration, which is the following:
 
-```js
-export const config = {
+```ts
+import { PageConfig } from "next"
+
+export const config: PageConfig = {
   api: {
     bodyParser: {
       sizeLimit: '1mb',
@@ -38,8 +40,10 @@ The `api` object includes all config options available for API Routes.
 
 One use case for disabling the automatic `bodyParsing` is to allow you to verify the raw body of a **webhook** request, for example [from GitHub](https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks#validating-payloads-from-github).
 
-```js
-export const config = {
+```ts
+import { PageConfig } from "next"
+
+export const config: PageConfig = {
   api: {
     bodyParser: false,
   },
@@ -48,8 +52,10 @@ export const config = {
 
 `bodyParser.sizeLimit` is the maximum size allowed for the parsed body, in any format supported by [bytes](https://github.com/visionmedia/bytes.js), like so:
 
-```js
-export const config = {
+```ts
+import { PageConfig } from "next"
+
+export const config: PageConfig = {
   api: {
     bodyParser: {
       sizeLimit: '500kb',
@@ -60,8 +66,10 @@ export const config = {
 
 `externalResolver` is an explicit flag that tells the server that this route is being handled by an external resolver like _express_ or _connect_. Enabling this option disables warnings for unresolved requests.
 
-```js
-export const config = {
+```ts
+import { PageConfig } from "next"
+
+export const config: PageConfig = {
   api: {
     externalResolver: true,
   },
@@ -72,8 +80,10 @@ export const config = {
 
 If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to `false`.
 
-```js
-export const config = {
+```ts
+import { PageConfig } from "next"
+
+export const config: PageConfig = {
   api: {
     responseLimit: false,
   },
@@ -83,8 +93,10 @@ export const config = {
 `responseLimit` can also take the number of bytes or any string format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
 This value will be the maximum response size before a warning is displayed. Default is 4MB. (see above)
 
-```js
-export const config = {
+```ts
+import { PageConfig } from "next"
+
+export const config: PageConfig = {
   api: {
     responseLimit: '8mb',
   },

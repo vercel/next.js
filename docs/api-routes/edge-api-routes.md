@@ -23,9 +23,10 @@ export default (req) => new Response('Hello world!')
 ### JSON Response
 
 ```typescript
+import { PageConfig } from "next"
 import type { NextRequest } from 'next/server'
 
-export const config = {
+export const config: PageConfig = {
   runtime: 'edge',
 }
 
@@ -47,9 +48,10 @@ export default async function handler(req: NextRequest) {
 ### Cache-Control
 
 ```typescript
+import { PageConfig } from "next"
 import type { NextRequest } from 'next/server'
 
-export const config = {
+export const config: PageConfig = {
   runtime: 'edge',
 }
 
@@ -72,9 +74,10 @@ export default async function handler(req: NextRequest) {
 ### Query Parameters
 
 ```typescript
+import { PageConfig } from "next"
 import type { NextRequest } from 'next/server'
 
-export const config = {
+export const config: PageConfig = {
   runtime: 'edge',
 }
 
@@ -88,9 +91,10 @@ export default async function handler(req: NextRequest) {
 ### Forwarding Headers
 
 ```typescript
+import { PageConfig } from "next"
 import { type NextRequest } from 'next/server'
 
-export const config = {
+export const config: PageConfig = {
   runtime: 'edge',
 }
 
@@ -112,10 +116,11 @@ You may want to restrict your edge function to specific regions when deploying s
 
 Note: this config is available in `v12.3.2` of Next.js and up.
 
-```js
+```typescript
+import { PageConfig } from "next"
 import { NextResponse } from 'next/server'
 
-export const config = {
+export const config: PageConfig = {
   regions: ['sfo1', 'iad1'], // defaults to 'all'
 }
 
