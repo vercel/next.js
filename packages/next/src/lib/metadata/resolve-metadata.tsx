@@ -191,9 +191,7 @@ export function elementsFromResolvedMetadata(metadata: ResolvedMetadata) {
     <>
       {elementsFromResolvedBasic(metadata)}
       {elementsFromResolvedAlternates(metadata)}
-      {metadata.openGraph !== null
-        ? elementsFromResolvedOpenGraph(metadata.openGraph)
-        : null}
+      {elementsFromResolvedOpenGraph(metadata.openGraph)}
     </>
   )
 }

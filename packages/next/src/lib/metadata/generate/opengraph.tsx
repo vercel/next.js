@@ -4,8 +4,12 @@ import React from 'react'
 import { Meta, MultiMeta } from './utils'
 
 export function elementsFromResolvedOpenGraph(
-  openGraph: Exclude<ResolvedMetadata['openGraph'], null>
+  openGraph: ResolvedMetadata['openGraph']
 ) {
+  if (!openGraph) {
+    return null
+  }
+
   let typedOpenGraph
   if ('type' in openGraph) {
     switch (openGraph.type) {
