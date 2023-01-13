@@ -3,8 +3,6 @@ import type { AdjustFontFallback, FontLoader } from 'next/font'
 import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
 // @ts-ignore
 import * as Log from 'next/dist/build/output/log'
-// @ts-ignore
-import chalk from 'next/dist/compiled/chalk'
 import {
   fetchCSSFromGoogleFonts,
   fetchFontFile,
@@ -38,8 +36,6 @@ const downloadGoogleFonts: FontLoader = async ({
   isServer,
   loaderContext,
 }) => {
-  const subsets = config?.subsets || []
-
   const {
     fontFamily,
     weights,
@@ -50,18 +46,8 @@ const downloadGoogleFonts: FontLoader = async ({
     fallback,
     adjustFontFallback,
     variable,
-    subsets: callSubsets,
-  } = validateData(functionName, data)
-
-  if (isServer && preload && !callSubsets && !config?.subsets) {
-    Log.warn(
-      `The ${chalk.bold('@next/font/google')} font ${chalk.bold(
-        fontFamily
-      )} has no selected subsets. Please specify subsets in the function call or in your ${chalk.bold(
-        'next.config.js'
-      )}, otherwise no fonts will be preloaded. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets`
-    )
-  }
+    subsets,
+  } = validateData(functionName, data, config)
 
   const fontAxes = getFontAxes(
     fontFamily,
@@ -142,8 +128,7 @@ const downloadGoogleFonts: FontLoader = async ({
         ) {
           fontFiles.push({
             googleFontFileUrl,
-            preloadFontFile:
-              !!preload && (callSubsets ?? subsets).includes(currentSubset),
+            preloadFontFile: !!preload && subsets.includes(currentSubset),
           })
         }
       }

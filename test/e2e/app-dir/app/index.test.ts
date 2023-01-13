@@ -20,12 +20,12 @@ createNextDescribe(
         const controller1 = new AbortController()
         const controller2 = new AbortController()
         next
-          .fetch('/slow-page-no-loading', undefined, {
+          .fetch('/slow-page-no-loading', {
             signal: controller1.signal,
           })
           .catch(() => {})
         next
-          .fetch('/slow-page-no-loading', undefined, {
+          .fetch('/slow-page-no-loading', {
             signal: controller2.signal,
           })
           .catch(() => {})
@@ -35,7 +35,7 @@ createNextDescribe(
 
         const controller3 = new AbortController()
         next
-          .fetch('/slow-page-no-loading', undefined, {
+          .fetch('/slow-page-no-loading', {
             signal: controller3.signal,
           })
           .catch(() => {})
@@ -66,28 +66,20 @@ createNextDescribe(
     }
 
     it('should use application/octet-stream for flight', async () => {
-      const res = await next.fetch(
-        '/dashboard/deployments/123',
-        {},
-        {
-          headers: {
-            ['RSC'.toString()]: '1',
-          },
-        }
-      )
+      const res = await next.fetch('/dashboard/deployments/123', {
+        headers: {
+          ['RSC'.toString()]: '1',
+        },
+      })
       expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
     })
 
     it('should use application/octet-stream for flight with edge runtime', async () => {
-      const res = await next.fetch(
-        '/dashboard',
-        {},
-        {
-          headers: {
-            ['RSC'.toString()]: '1',
-          },
-        }
-      )
+      const res = await next.fetch('/dashboard', {
+        headers: {
+          ['RSC'.toString()]: '1',
+        },
+      })
       expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
     })
 
@@ -1895,7 +1887,7 @@ createNextDescribe(
     })
     ;(isDev ? describe.skip : describe)('Subresource Integrity', () => {
       function fetchWithPolicy(policy: string | null) {
-        return next.fetch('/dashboard', undefined, {
+        return next.fetch('/dashboard', {
           headers: policy
             ? {
                 'Content-Security-Policy': policy,
@@ -2293,6 +2285,30 @@ createNextDescribe(
           expect($('#category-id').text()).toBe('electronicsabc')
         }
       })
+      it('should handle router.refresh without resetting state', async () => {
+        const browser = await next.browser(
+          '/navigation/refresh/navigate-then-refresh-bug'
+        )
+        await browser
+          .elementByCss('#to-route')
+          // Navigate to the page
+          .click()
+          // Wait for new page to be loaded
+          .waitForElementByCss('#refresh-page')
+          // Click the refresh button to trigger a refresh
+          .click()
+
+        // Wait for element that is shown when refreshed and verify text
+        expect(await browser.waitForElementByCss('#refreshed').text()).toBe(
+          'Refreshed page successfully!'
+        )
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+          )
+        ).toBe('rgb(34, 139, 34)')
+      })
       it('should handle as on next/link', async () => {
         const browser = await next.browser('/link-with-as')
         expect(
@@ -2405,7 +2421,7 @@ createNextDescribe(
     describe('bots', () => {
       if (!isNextDeploy) {
         it('should block rendering for bots and return 404 status', async () => {
-          const res = await next.fetch('/not-found/servercomponent', '', {
+          const res = await next.fetch('/not-found/servercomponent', {
             headers: {
               'User-Agent': 'Googlebot',
             },

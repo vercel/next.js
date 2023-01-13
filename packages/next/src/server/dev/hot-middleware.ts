@@ -192,6 +192,7 @@ export class WebpackHotMiddleware {
       hash: true,
       warnings: true,
       errors: true,
+      moduleTrace: true,
     })
 
     this.eventStream.publish({

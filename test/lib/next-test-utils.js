@@ -111,8 +111,30 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
   return fullUrl
 }
 
+/**
+ * Appends the querystring to the url
+ *
+ * @param {string} pathname the pathname
+ * @param {Record<string,any> | string} query the query object to add to the pathname
+ * @returns the pathname with the query
+ */
+export function withQuery(pathname, query) {
+  const querystring = typeof query === 'string' ? query : qs.stringify(query)
+  if (querystring.length === 0) {
+    return pathname
+  }
+
+  // If there's a `?` between the pathname and the querystring already, then
+  // don't add another one.
+  if (querystring.startsWith('?') || pathname.endsWith('?')) {
+    return `${pathname}${querystring}`
+  }
+
+  return `${pathname}?${querystring}`
+}
+
 export function renderViaAPI(app, pathname, query) {
-  const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
+  const url = query ? withQuery(pathname, query) : pathname
   return app.renderToHTML({ url }, {}, pathname, query)
 }
 
@@ -130,14 +152,12 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 /**
  * @param {string | number} appPort
  * @param {string} pathname
- * @param {Record<string, any> | string | undefined} [query]
+ * @param {Record<string, any> | string | null | undefined} [query]
  * @param {import('node-fetch').RequestInit} [opts]
  * @returns {Promise<Response & {buffer: any} & {headers: any}>}
  */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
-  const url = `${pathname}${
-    typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
-  }`
+  const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), {
     // in node.js v17 fetch favors IPv6 but Next.js is
     // listening on IPv4 by default so force IPv4 DNS resolving

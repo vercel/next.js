@@ -43,15 +43,17 @@ import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
-  FLIGHT_PARAMETERS,
 } from '../client/components/app-router-headers'
-import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
+import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 import { DefaultHead } from '../client/components/head'
 import { formatServerError } from '../lib/format-server-error'
 import {
   elementsFromResolvedMetadata,
   resolveMetadata,
 } from '../lib/metadata/resolve-metadata'
+import type { RequestAsyncStorage } from '../client/components/request-async-storage'
+import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
+import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -256,28 +258,26 @@ function patchFetch(ComponentMod: any) {
   const { DynamicServerError } =
     ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
-  const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
+  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
+    ComponentMod.staticGenerationAsyncStorage
 
   const originFetch = globalThis.fetch
   globalThis.fetch = async (input, init) => {
-    const staticGenerationStore =
-      ('getStore' in staticGenerationAsyncStorage
-        ? staticGenerationAsyncStorage.getStore()
-        : staticGenerationAsyncStorage) || {}
+    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
-    const {
-      isStaticGeneration,
-      fetchRevalidate,
-      pathname,
-      incrementalCache,
-      isRevalidate,
-    } = (staticGenerationStore || {}) as StaticGenerationStore
+    // If the staticGenerationStore is not available, we can't do any special
+    // treatment of fetch, therefore fallback to the original fetch
+    // implementation.
+    if (!staticGenerationStore) {
+      return originFetch(input, init)
+    }
 
     let revalidate: number | undefined | boolean
 
     if (typeof init?.next?.revalidate === 'number') {
       revalidate = init.next.revalidate
     }
+
     if (init?.next?.revalidate === false) {
       revalidate = CACHE_ONE_YEAR
     }
@@ -295,7 +295,7 @@ function patchFetch(ComponentMod: any) {
     const doOriginalFetch = async () => {
       return originFetch(input, init).then(async (res) => {
         if (
-          incrementalCache &&
+          staticGenerationStore.incrementalCache &&
           cacheKey &&
           typeof revalidate === 'number' &&
           revalidate > 0
@@ -316,7 +316,7 @@ function patchFetch(ComponentMod: any) {
             )
           }
 
-          await incrementalCache.set(
+          await staticGenerationStore.incrementalCache.set(
             cacheKey,
             {
               kind: 'FETCH',
@@ -336,14 +336,24 @@ function patchFetch(ComponentMod: any) {
       })
     }
 
-    if (incrementalCache && typeof revalidate === 'number' && revalidate > 0) {
-      cacheKey = await incrementalCache?.fetchCacheKey(input.toString(), init)
-      const entry = await incrementalCache.get(cacheKey, true)
+    if (
+      staticGenerationStore.incrementalCache &&
+      typeof revalidate === 'number' &&
+      revalidate > 0
+    ) {
+      cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
+        input.toString(),
+        init
+      )
+      const entry = await staticGenerationStore.incrementalCache.get(
+        cacheKey,
+        true
+      )
 
       if (entry?.value && entry.value.kind === 'FETCH') {
         // when stale and is revalidating we wait for fresh data
         // so the revalidated entry has the updated data
-        if (!isRevalidate || !entry.isStale) {
+        if (!staticGenerationStore.isRevalidate || !entry.isStale) {
           if (entry.isStale) {
             if (!staticGenerationStore.pendingRevalidates) {
               staticGenerationStore.pendingRevalidates = []
@@ -371,7 +381,7 @@ function patchFetch(ComponentMod: any) {
       }
     }
 
-    if (staticGenerationStore && isStaticGeneration) {
+    if (staticGenerationStore.isStaticGeneration) {
       if (init && typeof init === 'object') {
         const cache = init.cache
         // Delete `cache` property as Cloudflare Workers will throw an error
@@ -383,7 +393,11 @@ function patchFetch(ComponentMod: any) {
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
           throw new DynamicServerError(
-            `no-store fetch ${input}${pathname ? ` ${pathname}` : ''}`
+            `no-store fetch ${input}${
+              staticGenerationStore.pathname
+                ? ` ${staticGenerationStore.pathname}`
+                : ''
+            }`
           )
         }
 
@@ -391,8 +405,8 @@ function patchFetch(ComponentMod: any) {
         const next = init.next || {}
         if (
           typeof next.revalidate === 'number' &&
-          (typeof fetchRevalidate === 'undefined' ||
-            next.revalidate < fetchRevalidate)
+          (typeof staticGenerationStore.fetchRevalidate === 'undefined' ||
+            next.revalidate < staticGenerationStore.fetchRevalidate)
         ) {
           const forceDynamic = staticGenerationStore.forceDynamic
 
@@ -403,7 +417,9 @@ function patchFetch(ComponentMod: any) {
           if (!forceDynamic && next.revalidate === 0) {
             throw new DynamicServerError(
               `revalidate: ${next.revalidate} fetch ${input}${
-                pathname ? ` ${pathname}` : ''
+                staticGenerationStore.pathname
+                  ? ` ${staticGenerationStore.pathname}`
+                  : ''
               }`
             )
           }
@@ -411,6 +427,7 @@ function patchFetch(ComponentMod: any) {
         if (hasNextConfig) delete init.next
       }
     }
+
     return doOriginalFetch()
   }
 }
@@ -749,30 +766,37 @@ function getPreloadedFontFilesInlineLinkTags(
   fontLoaderManifest: FontLoaderManifest | undefined,
   serverCSSForEntries: string[],
   filePath?: string
-): string[] {
+): string[] | null {
   if (!fontLoaderManifest || !filePath) {
-    return []
+    return null
   }
   const layoutOrPageCss =
     serverCSSManifest[filePath] ||
     serverComponentManifest.__client_css_manifest__?.[filePath]
 
   if (!layoutOrPageCss) {
-    return []
+    return null
   }
 
   const fontFiles = new Set<string>()
+  // If we find an entry in the manifest but it's empty, add a preconnect tag
+  let foundFontUsage = false
 
   for (const css of layoutOrPageCss) {
     // We only include the CSS if it is used by this entrypoint.
     if (serverCSSForEntries.includes(css)) {
       const preloadedFontFiles = fontLoaderManifest.app[css]
       if (preloadedFontFiles) {
+        foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
           fontFiles.add(fontFile)
         }
       }
     }
+  }
+
+  if (!foundFontUsage) {
+    return null
   }
 
   return [...fontFiles]
@@ -828,14 +852,6 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   return nonce
 }
 
-function headersWithoutFlight(headers: IncomingHttpHeaders) {
-  const newHeaders = { ...headers }
-  for (const param of FLIGHT_PARAMETERS) {
-    delete newHeaders[param.toString().toLowerCase()]
-  }
-  return newHeaders
-}
-
 async function renderToString(element: React.ReactElement) {
   const renderStream = await ReactDOMServer.renderToReadableStream(element)
   await renderStream.allReady
@@ -849,21 +865,6 @@ export async function renderToHTMLOrFlight(
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
-  /**
-   * Rules of Static & Dynamic HTML:
-   *
-   *    1.) We must generate static HTML unless the caller explicitly opts
-   *        in to dynamic HTML support.
-   *
-   *    2.) If dynamic HTML support is requested, we must honor that request
-   *        or throw an error. It is the sole responsibility of the caller to
-   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
-   *
-   * These rules help ensure that other existing features like request caching,
-   * coalescing, and ISR continue working as intended.
-   */
-  const isStaticGeneration =
-    renderOpts.supportsDynamicHTML !== true && !renderOpts.isBot
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
 
   const capturedErrors: Error[] = []
@@ -897,25 +898,19 @@ export async function renderToHTMLOrFlight(
   patchFetch(ComponentMod)
   const generateStaticHTML = supportsDynamicHTML !== true
 
-  const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
-  const requestAsyncStorage = ComponentMod.requestAsyncStorage
-
-  if (
-    staticGenerationAsyncStorage &&
-    !('getStore' in staticGenerationAsyncStorage) &&
-    staticGenerationAsyncStorage.inUse
-  ) {
-    throw new Error(
-      `Invariant: A separate worker must be used for each render when AsyncLocalStorage is not available`
-    )
-  }
+  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
+    ComponentMod.staticGenerationAsyncStorage
+  const requestAsyncStorage: RequestAsyncStorage =
+    ComponentMod.requestAsyncStorage
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
-    const staticGenerationStore: StaticGenerationStore =
-      'getStore' in staticGenerationAsyncStorage
-        ? staticGenerationAsyncStorage.getStore()
-        : staticGenerationAsyncStorage
+    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+    if (!staticGenerationStore) {
+      throw new Error(
+        `Invariant: Render expects to have staticGenerationAsyncStorage, none found`
+      )
+    }
 
     // don't modify original query object
     query = Object.assign({}, query)
@@ -1249,7 +1244,10 @@ export async function renderToHTMLOrFlight(
       if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate
 
-        if (isStaticGeneration && defaultRevalidate === 0) {
+        if (
+          staticGenerationStore.isStaticGeneration &&
+          defaultRevalidate === 0
+        ) {
           const { DynamicServerError } =
             ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
@@ -1354,7 +1352,6 @@ export async function renderToHTMLOrFlight(
                   notFound={NotFound ? <NotFound /> : undefined}
                   notFoundStyles={notFoundStyles}
                   childProp={childProp}
-                  rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
                 />,
               ]
             }
@@ -1399,7 +1396,6 @@ export async function renderToHTMLOrFlight(
                 notFound={NotFound ? <NotFound /> : undefined}
                 notFoundStyles={notFoundStyles}
                 childProp={childProp}
-                rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
               />,
             ]
           }
@@ -1441,19 +1437,24 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           return (
             <>
-              {preloadedFontFiles.map((fontFile) => {
-                const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
-                return (
-                  <link
-                    key={fontFile}
-                    rel="preload"
-                    href={`${assetPrefix}/_next/${fontFile}`}
-                    as="font"
-                    type={`font/${ext}`}
-                    crossOrigin="anonymous"
-                  />
-                )
-              })}
+              {preloadedFontFiles?.length === 0 ? (
+                <link rel="preconnect" href="/" crossOrigin="anonymous" />
+              ) : null}
+              {preloadedFontFiles
+                ? preloadedFontFiles.map((fontFile) => {
+                    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+                    return (
+                      <link
+                        key={fontFile}
+                        rel="preload"
+                        href={`${assetPrefix}/_next/${fontFile}`}
+                        as="font"
+                        type={`font/${ext}`}
+                        crossOrigin="anonymous"
+                      />
+                    )
+                  })
+                : null}
               {stylesheets
                 ? stylesheets.map((href, index) => (
                     <link
@@ -1637,7 +1638,7 @@ export async function renderToHTMLOrFlight(
       return new FlightRenderResult(readable)
     }
 
-    if (isFlight && !isStaticGeneration) {
+    if (isFlight && !staticGenerationStore.isStaticGeneration) {
       return generateFlight()
     }
 
@@ -1817,7 +1818,8 @@ export async function renderToHTMLOrFlight(
 
         const result = await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: isStaticGeneration || generateStaticHTML,
+          generateStaticHTML:
+            staticGenerationStore.isStaticGeneration || generateStaticHTML,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           ...validateRootLayout,
@@ -1858,7 +1860,7 @@ export async function renderToHTMLOrFlight(
 
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: isStaticGeneration,
+          generateStaticHTML: staticGenerationStore.isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           ...validateRootLayout,
@@ -1871,7 +1873,7 @@ export async function renderToHTMLOrFlight(
       await Promise.all(staticGenerationStore.pendingRevalidates)
     }
 
-    if (isStaticGeneration) {
+    if (staticGenerationStore.isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
 
       // if we encountered any unexpected errors during build
@@ -1879,9 +1881,6 @@ export async function renderToHTMLOrFlight(
       if (capturedErrors.length > 0) {
         throw capturedErrors[0]
       }
-      // const before = Buffer.concat(
-      //   serverComponentsRenderOpts.rscChunks
-      // ).toString()
 
       // TODO-APP: derive this from same pass to prevent additional
       // render during static generation
@@ -1889,14 +1888,16 @@ export async function renderToHTMLOrFlight(
         await generateFlight()
       )
 
-      if (staticGenerationStore?.forceStatic === false) {
+      if (staticGenerationStore.forceStatic === false) {
         staticGenerationStore.fetchRevalidate = 0
       }
+
+      // TODO: investigate why `pageData` is not in RenderOpts
       ;(renderOpts as any).pageData = filteredFlightData
+
+      // TODO: investigate why `revalidate` is not in RenderOpts
       ;(renderOpts as any).revalidate =
-        typeof staticGenerationStore?.fetchRevalidate === 'undefined'
-          ? defaultRevalidate
-          : staticGenerationStore?.fetchRevalidate
+        staticGenerationStore.fetchRevalidate ?? defaultRevalidate
 
       return new RenderResult(htmlResult)
     }
@@ -1904,87 +1905,14 @@ export async function renderToHTMLOrFlight(
     return renderResult
   }
 
-  const initialStaticGenerationStore = {
-    isStaticGeneration,
-    inUse: true,
-    pathname,
-    incrementalCache: renderOpts.incrementalCache,
-    isRevalidate: renderOpts.isRevalidate,
-  }
-
-  const tryGetPreviewData =
-    process.env.NEXT_RUNTIME === 'edge'
-      ? () => false
-      : require('./api-utils/node').tryGetPreviewData
-
-  // Reads of this are cached on the `req` object, so this should resolve
-  // instantly. There's no need to pass this data down from a previous
-  // invoke, where we'd have to consider server & serverless.
-  const previewData = tryGetPreviewData(
-    req,
-    res,
-    (renderOpts as any).previewProps
-  )
-
-  let cachedHeadersInstance: ReadonlyHeaders | undefined
-  let cachedCookiesInstance: ReadonlyRequestCookies | undefined
-
-  const requestStore = {
-    get headers() {
-      if (!cachedHeadersInstance) {
-        cachedHeadersInstance = new ReadonlyHeaders(
-          headersWithoutFlight(req.headers)
-        )
-      }
-      return cachedHeadersInstance
-    },
-    get cookies() {
-      if (!cachedCookiesInstance) {
-        cachedCookiesInstance = new ReadonlyRequestCookies({
-          headers: {
-            get: (key) => {
-              if (key !== 'cookie') {
-                throw new Error('Only cookie header is supported')
-              }
-              return req.headers.cookie
-            },
-          },
-        })
-      }
-      return cachedCookiesInstance
-    },
-    previewData,
-  }
-
-  function handleRequestStoreRun<T>(fn: () => T): Promise<T> {
-    if ('getStore' in requestAsyncStorage) {
-      return new Promise((resolve, reject) => {
-        requestAsyncStorage.run(requestStore, () => {
-          return Promise.resolve(fn()).then(resolve).catch(reject)
-        })
-      })
-    } else {
-      Object.assign(requestAsyncStorage, requestStore)
-      return Promise.resolve(fn())
-    }
-  }
-
-  function handleStaticGenerationStoreRun<T>(fn: () => T): Promise<T> {
-    if ('getStore' in staticGenerationAsyncStorage) {
-      return new Promise((resolve, reject) => {
-        staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
-          return Promise.resolve(fn()).then(resolve).catch(reject)
-        })
-      })
-    } else {
-      Object.assign(staticGenerationAsyncStorage, initialStaticGenerationStore)
-      return Promise.resolve(fn()).finally(() => {
-        staticGenerationAsyncStorage.inUse = false
-      })
-    }
-  }
-
-  return handleRequestStoreRun(() =>
-    handleStaticGenerationStoreRun(() => wrappedRender())
+  return runWithRequestAsyncStorage(
+    requestAsyncStorage,
+    { req, res, renderOpts },
+    () =>
+      runWithStaticGenerationAsyncStorage(
+        staticGenerationAsyncStorage,
+        { pathname, renderOpts },
+        () => wrappedRender()
+      )
   )
 }

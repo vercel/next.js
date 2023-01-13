@@ -18,31 +18,61 @@ type FontOptions = {
   fallback?: string[]
   adjustFontFallback: boolean
   variable?: string
-  subsets?: string[]
+  subsets: string[]
 }
-export function validateData(functionName: string, data: any): FontOptions {
+export function validateData(
+  functionName: string,
+  data: any,
+  config: any
+): FontOptions {
   let {
     weight,
     style,
-    display = 'optional',
     preload = true,
+    // If preload is disabled set display to 'swap' by default.
+    // If display is 'optional' and we don't preload, we will never fetch the font in time to display it, not even in dev.
+    display = preload ? 'optional' : 'swap',
     axes,
     fallback,
     adjustFontFallback = true,
     variable,
-    subsets,
+    subsets: callSubsets,
   } = data[0] || ({} as any)
+  const subsets = callSubsets ?? config?.subsets ?? []
+
   if (functionName === '') {
     nextFontError(`@next/font/google has no default export`)
   }
 
   const fontFamily = functionName.replace(/_/g, ' ')
-
   const fontFamilyData = (fontData as any)[fontFamily]
-  const fontWeights = fontFamilyData?.weights
-  if (!fontWeights) {
+  if (!fontFamilyData) {
     nextFontError(`Unknown font \`${fontFamily}\``)
   }
+
+  const availableSubsets = fontFamilyData.subsets
+  if (availableSubsets.length === 0) {
+    // If the font doesn't have any preloaded subsets, disable preload and set display to 'swap'
+    preload = false
+    display = 'swap'
+  } else {
+    if (preload && !callSubsets && !config?.subsets) {
+      nextFontError(
+        `Missing selected subsets for font \`${fontFamily}\`. Please specify subsets in the function call or in your \`next.config.js\`. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets`
+      )
+    }
+    subsets.forEach((subset: string) => {
+      if (!availableSubsets.includes(subset)) {
+        nextFontError(
+          `Unknown subset \`${subset}\` for font \`${fontFamily}\`.\nAvailable subsets: ${formatValues(
+            availableSubsets
+          )}`
+        )
+      }
+    })
+  }
+
+  const fontWeights = fontFamilyData.weights
   const fontStyles = fontFamilyData.styles
 
   const weights = !weight

@@ -1191,7 +1191,10 @@ export async function buildAppStaticPaths({
     if (!hadGenerateParams) {
       return {
         paths: undefined,
-        fallback: undefined,
+        fallback:
+          process.env.NODE_ENV === 'production' && isDynamicRoute(page)
+            ? true
+            : undefined,
         encodedPaths: undefined,
       }
     }
@@ -1725,6 +1728,7 @@ export async function copyTracedFiles(
     path.relative(tracingRoot, dir),
     'server.js'
   )
+  await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
   await fs.writeFile(
     serverOutputPath,
     `${
@@ -1762,6 +1766,7 @@ const server = http.createServer(async (req, res) => {
   }
 })
 const currentPort = parseInt(process.env.PORT, 10) || 3000
+const hostname = process.env.HOSTNAME || 'localhost'
 
 server.listen(currentPort, (err) => {
   if (err) {
@@ -1769,7 +1774,7 @@ server.listen(currentPort, (err) => {
     process.exit(1)
   }
   const nextServer = new NextServer({
-    hostname: 'localhost',
+    hostname,
     port: currentPort,
     dir: path.join(__dirname),
     dev: false,

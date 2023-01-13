@@ -167,7 +167,7 @@ module.exports = {
         destination: '/another-page',
       },
       // if the header `x-dont-redirect` is present,
-      // this redirect will be applied
+      // this redirect will NOT be applied
       {
         source: '/:path((?!another-page$).*)',
         missing: [
