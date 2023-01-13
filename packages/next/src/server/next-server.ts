@@ -711,6 +711,7 @@ export default class NextNodeServer extends BaseServer {
       require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
     const proxy = new HttpProxy({
       target,
+      followRedirects: true,
       changeOrigin: true,
       ignorePath: true,
       xfwd: true,
