@@ -1,4 +1,4 @@
-import { check } from 'next-test-utils'
+import { check, getRedboxSource, hasRedbox } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 if (!(globalThis as any).isNextDev) {
@@ -107,6 +107,27 @@ if (!(globalThis as any).isNextDev) {
         expect(res.status).toBe(500)
         expect(await res.text()).toContain(
           `You’re importing a class component. It only works in a Client Component`
+        )
+      })
+
+      it.skip('should allow to use and handle rsc poisoning client-only', async () => {
+        const browser = await next.browser(
+          '/server-with-errors/client-only-in-server'
+        )
+        const text = await getRedboxSource(browser)
+        expect(text).toContain(
+          `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+        )
+      })
+
+      it.skip('should allow to use and handle rsc poisoning server-only', async () => {
+        const browser = await next.browser(
+          '/client-with-errors/server-only-in-client'
+        )
+
+        const text = await getRedboxSource(browser)
+        expect(text).toContain(
+          `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
         )
       })
     }
