@@ -8,6 +8,7 @@ import { ChildProcess, spawn, SpawnOptions } from 'child_process'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
 import glob from 'glob'
+import Conf from 'next/dist/compiled/conf'
 
 import {
   getProjectSetting,
@@ -22,6 +23,9 @@ const cli = require.resolve('create-next-app/dist/index.js')
  * Run the built version of `create-next-app` with the given arguments.
  */
 export const createNextApp = (args: string[], options?: SpawnOptions) => {
+  const conf = new Conf({ projectName: 'create-next-app' })
+  conf.clear()
+
   console.log(`[TEST] $ ${cli} ${args.join(' ')}`, { options })
   return spawn('node', [cli].concat(args), {
     ...options,
