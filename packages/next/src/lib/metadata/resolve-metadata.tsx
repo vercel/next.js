@@ -6,8 +6,7 @@ import type {
 import type { AbsoluteTemplateString } from './types/metadata-types'
 
 import React from 'react'
-import fs from 'fs-extra'
-import path from 'path'
+// import fs from 'fs'
 import { createDefaultMetadata } from './constant'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { resolveTitle } from './resolve-title'
