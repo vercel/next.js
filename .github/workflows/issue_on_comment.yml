@@ -1,14 +1,14 @@
-name: Label issues - custom
+name: On issue comment
 
 on:
-  issues:
-    types: [labeled]
+  issue_comment:
+    types: [created]
 
 jobs:
-  auto-label:
+  issue-on-comment:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: ./.github/actions/issue-auto-label
+      - uses: ./.github/actions/issue-on-comment
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
