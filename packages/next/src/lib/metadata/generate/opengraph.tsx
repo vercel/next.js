@@ -180,6 +180,8 @@ export function elementsFromResolvedOpenGraph(
       case 'video.other':
         typedOpenGraph = <Meta property="og:type" content="video.other" />
         break
+      default:
+        throw new Error('Invalid OpenGraph type: ' + (openGraph as any).type)
     }
   }
 

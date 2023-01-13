@@ -152,7 +152,19 @@ export async function resolveMetadata(metadataItems: Item[]) {
           twitterTitle: committedTwitterTitle,
         })
       } else if (layerMod.generateMetadata) {
-        // TODO: handle `generateMetadata`
+        stashedTitles = merge(
+          await layerMod.generateMetadata(
+            // TODO: Rewrite this to pass correct params and resolving metadata value.
+            {},
+            Promise.resolve(resolvedMetadata)
+          ),
+          resolvedMetadata,
+          {
+            title: committedTitle,
+            openGraphTitle: committedOpenGraphTitle,
+            twitterTitle: committedTwitterTitle,
+          }
+        )
       }
     }
 
@@ -184,32 +196,35 @@ export function elementsFromResolvedMetadata(metadata: ResolvedMetadata) {
   )
 }
 
+// TODO: Implement this function.
 export async function resolveFileBasedMetadataForLoader(
+  // @ts-ignore
   layer: number,
+  // @ts-ignore
   dir: string
 ) {
   let metadataCode = ''
 
-  const files = await fs.readdir(path.normalize(dir))
-  for (const file of files) {
-    // TODO: Get a full list and filter out directories.
-    if (file === 'icon.svg') {
-      metadataCode += `{
-        type: 'icon',
-        layer: ${layer},
-        path: ${JSON.stringify(path.join(dir, file))},
-      },`
-    } else if (file === 'icon.jsx') {
-      metadataCode += `{
-        type: 'icon',
-        layer: ${layer},
-        mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-          path.join(dir, file)
-        )}),
-        path: ${JSON.stringify(path.join(dir, file))},
-      },`
-    }
-  }
+  // const files = await fs.readdir(path.normalize(dir))
+  // for (const file of files) {
+  //   // TODO: Get a full list and filter out directories.
+  //   if (file === 'icon.svg') {
+  //     metadataCode += `{
+  //       type: 'icon',
+  //       layer: ${layer},
+  //       path: ${JSON.stringify(path.join(dir, file))},
+  //     },`
+  //   } else if (file === 'icon.jsx') {
+  //     metadataCode += `{
+  //       type: 'icon',
+  //       layer: ${layer},
+  //       mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+  //         path.join(dir, file)
+  //       )}),
+  //       path: ${JSON.stringify(path.join(dir, file))},
+  //     },`
+  //   }
+  // }
 
   return metadataCode
 }
