@@ -10,7 +10,9 @@ use turbo_tasks::{
 };
 use turbopack::{
     evaluate_context::node_evaluate_asset_context,
-    module_options::{WebpackLoadersOptions, WebpackLoadersOptionsVc},
+    module_options::{
+        ResolveAliasOptions, ResolveAliasOptionsVc, WebpackLoadersOptions, WebpackLoadersOptionsVc,
+    },
 };
 use turbopack_core::{
     asset::Asset,
@@ -137,6 +139,7 @@ pub struct ExperimentalConfig {
     pub server_components_external_packages: Option<Vec<String>>,
     pub app_dir: Option<bool>,
     pub turbopack_webpack_loaders: Option<IndexMap<String, Vec<String>>>,
+    pub resolve_alias: Option<IndexMap<String, Vec<String>>>,
 }
 
 #[derive(Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -227,6 +230,23 @@ impl NextConfigVc {
         }
         Ok(WebpackLoadersOptions {
             extension_to_loaders,
+            ..Default::default()
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn resolve_alias_options(self) -> Result<ResolveAliasOptionsVc> {
+        let this = self.await?;
+        let Some(resolve_alias) = this.experimental.as_ref().and_then(|experimental| experimental.resolve_alias.as_ref()) else {
+            return Ok(ResolveAliasOptionsVc::cell(ResolveAliasOptions::default()));
+        };
+        let mut alias_map = IndexMap::new();
+        for (ext, mappings) in resolve_alias {
+            alias_map.insert(ext.clone(), StringsVc::cell(mappings.clone()));
+        }
+        Ok(ResolveAliasOptions {
+            alias_map,
             ..Default::default()
         }
         .cell())
