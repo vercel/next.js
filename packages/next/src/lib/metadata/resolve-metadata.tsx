@@ -18,6 +18,7 @@ import { elementsFromResolvedAlternates } from './generate/alternate'
 type Item =
   | {
       type: 'layout' | 'page'
+      // A number that represents which layer the item is in. Starting from 0.
       layer: number
       mod: () => Promise<{
         metadata?: Metadata
@@ -30,6 +31,7 @@ type Item =
     }
   | {
       type: 'icon'
+      // A number that represents which layer the item is in. Starting from 0.
       layer: number
       mod?: () => Promise<{
         metadata?: Metadata
