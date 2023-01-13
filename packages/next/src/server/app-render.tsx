@@ -1701,16 +1701,23 @@ export async function renderToHTMLOrFlight(
 
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
+        const metadata = elementsFromResolvedMetadata(
+          await resolveMetadata(metadataItems)
+        )
+
         return (
-          <AppRouter
-            assetPrefix={assetPrefix}
-            initialCanonicalUrl={initialCanonicalUrl}
-            initialTree={initialTree}
-            initialHead={initialHead}
-            globalErrorComponent={GlobalError}
-          >
-            <ComponentTree />
-          </AppRouter>
+          <>
+            {metadata}
+            <AppRouter
+              assetPrefix={assetPrefix}
+              initialCanonicalUrl={initialCanonicalUrl}
+              initialTree={initialTree}
+              initialHead={initialHead}
+              globalErrorComponent={GlobalError}
+            >
+              <ComponentTree />
+            </AppRouter>
+          </>
         )
       },
       ComponentMod,
@@ -1755,24 +1762,10 @@ export async function renderToHTMLOrFlight(
           integrity: subresourceIntegrityManifest?.[polyfill],
         }))
 
-      const metadata = elementsFromResolvedMetadata(
-        await resolveMetadata(metadataItems, (filepath: string) => {
-          if (!serverComponentManifest) {
-            throw new Error('Missing flight manifest.')
-          }
-          const clientId = serverComponentManifest[filepath][''].id
-          const ssrId =
-            serverComponentManifest.__ssr_module_mapping__[clientId][''].id
-          return ComponentMod.__next_app_webpack_require__(ssrId)
-        })
-      )
       const content = (
-        <>
-          {metadata}
-          <InsertedHTML>
-            <ServerComponentsRenderer />
-          </InsertedHTML>
-        </>
+        <InsertedHTML>
+          <ServerComponentsRenderer />
+        </InsertedHTML>
       )
 
       let polyfillsFlushed = false

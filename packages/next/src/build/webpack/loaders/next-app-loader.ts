@@ -78,9 +78,11 @@ async function createTreeCodeFromPath({
 
         metadataCode += `{
           type: 'page',
+          layer: 0,
           mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}),
+          path: ${JSON.stringify(resolvedPagePath)},
         },`
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
@@ -114,12 +116,15 @@ async function createTreeCodeFromPath({
       if (layout) {
         metadataCode += `{
           type: 'layout',
+          layer: 0,
           mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
             layout
           )}),
+          path: ${JSON.stringify(layout)},
         },`
       }
       metadataCode += await resolveFileBasedMetadataForLoader(
+        0,
         (await resolve(`${appDirPrefix}${parallelSegmentPath}/`, true))!
       )
       metadataCode += subtreeMetadataCode

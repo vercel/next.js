@@ -15,16 +15,31 @@ import { elementsFromResolvedOpenGraph } from './generate/opengraph'
 import { elementsFromResolvedBasic } from './generate/basic'
 import { elementsFromResolvedAlternates } from './generate/alternate'
 
-type Item = {
-  type: 'layout' | 'page'
-  mod: () => Promise<{
-    metadata?: Metadata
-    generateMetadata?: (
-      props: any,
-      parent: ResolvingMetadata
-    ) => Promise<Metadata>
-  }>
-}
+type Item =
+  | {
+      type: 'layout' | 'page'
+      layer: number
+      mod: () => Promise<{
+        metadata?: Metadata
+        generateMetadata?: (
+          props: any,
+          parent: ResolvingMetadata
+        ) => Promise<Metadata>
+      }>
+      path: string
+    }
+  | {
+      type: 'icon'
+      layer: number
+      mod?: () => Promise<{
+        metadata?: Metadata
+        generateMetadata?: (
+          props: any,
+          parent: ResolvingMetadata
+        ) => Promise<Metadata>
+      }>
+      path?: string
+    }
 
 // Merge the source metadata into the resolved target metadata.
 function merge(source: Metadata, target: ResolvedMetadata) {
@@ -79,26 +94,27 @@ function merge(source: Metadata, target: ResolvedMetadata) {
   }
 }
 
-export async function resolveMetadata(
-  metadataItems: Item[],
-  resolveClientMod: (filepath: string) => any
-) {
+export async function resolveMetadata(metadataItems: Item[]) {
   let resolvedMetadata = createResolvedMetadata()
 
   for (const item of metadataItems) {
     if (item.type === 'layout' || item.type === 'page') {
       let layerMod = await item.mod()
 
-      // Layer is a client component, we need to resolve it via flight manifest.
-      if ('$$typeof' in layerMod) {
-        layerMod = resolveClientMod((layerMod as any).filepath)
+      // Layer is a client component, we just skip it. It can't have metadata
+      // exported. Note that during our SWC transpilation, it should check if
+      // the exports are valid and give specific error messages.
+      if (
+        '$$typeof' in layerMod &&
+        (layerMod as any).$$typeof === Symbol.for('react.module.reference')
+      ) {
+        continue
       }
 
       if (layerMod.metadata && layerMod.generateMetadata) {
-        console.log(layerMod)
-        // TODO: Attach error message link and actual filepath.
         throw new Error(
-          'It is not allowed to export both `metadata` and `generateMetadata`.'
+          'It is not allowed to export both `metadata` and `generateMetadata`. File: ' +
+            item.path
         )
       }
 
@@ -126,7 +142,10 @@ export function elementsFromResolvedMetadata(metadata: ResolvedMetadata) {
   )
 }
 
-export async function resolveFileBasedMetadataForLoader(dir: string) {
+export async function resolveFileBasedMetadataForLoader(
+  layer: number,
+  dir: string
+) {
   let metadataCode = ''
 
   const files = await fs.readdir(path.normalize(dir))
@@ -135,14 +154,17 @@ export async function resolveFileBasedMetadataForLoader(dir: string) {
     if (file === 'icon.svg') {
       metadataCode += `{
         type: 'icon',
+        layer: ${layer},
         path: ${JSON.stringify(path.join(dir, file))},
       },`
     } else if (file === 'icon.jsx') {
       metadataCode += `{
         type: 'icon',
+        layer: ${layer},
         mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
           path.join(dir, file)
         )}),
+        path: ${JSON.stringify(path.join(dir, file))},
       },`
     }
   }
