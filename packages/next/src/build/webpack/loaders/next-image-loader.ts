@@ -115,6 +115,8 @@ function nextImageLoader(this: any, content: Buffer) {
         content,
         null
       )
+    } else {
+      this.emitFile(interpolatedName, content, null)
     }
 
     return `export default ${stringifiedData};`

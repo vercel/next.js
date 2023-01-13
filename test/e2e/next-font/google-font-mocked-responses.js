@@ -988,4 +988,13 @@ body {
   --google-font-color-nabla:colrv1;
 }
   `,
+  'https://fonts.googleapis.com/css2?family=Single+Day:wght@400&display=swap': `
+  @font-face {
+    font-family: 'Single Day';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(https://fonts.gstatic.com/s/singleday/v15/LYjHdGDjlEgoAcF95EI5jV8FVtffGoa4-V3jzT3lMfZhY8uIhf9daTM.0.woff2) format('woff2');
+  }
+  `,
 }
