@@ -7,14 +7,12 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
-use turbopack::{
-    module_options::ModuleOptionsContextVc, transition::TransitionsByNameVc, ModuleAssetContextVc,
-};
+use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
     asset::AssetVc,
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
     context::AssetContextVc,
-    environment::{EnvironmentVc, ServerAddrVc},
+    environment::ServerAddrVc,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,
@@ -53,71 +51,15 @@ use crate::{
         },
         transition::NextClientTransition,
     },
+    next_client_chunks::client_chunks_transition::NextClientChunksTransitionVc,
     next_config::NextConfigVc,
     next_server::context::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
-    next_shared::transforms::{add_next_transforms_to_pages, PageTransformType},
     page_loader::create_page_loader,
     util::{get_asset_path_from_route, pathname_for_path, regular_expression_for_path},
 };
-
-#[turbo_tasks::function]
-fn get_page_client_module_options_context(
-    project_path: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    client_environment: EnvironmentVc,
-    ty: Value<ClientContextType>,
-    next_config: NextConfigVc,
-) -> Result<ModuleOptionsContextVc> {
-    let client_module_options_context = get_client_module_options_context(
-        project_path,
-        execution_context,
-        client_environment,
-        ty,
-        next_config,
-    );
-
-    let client_module_options_context = match ty.into_value() {
-        ClientContextType::Pages { pages_dir } => add_next_transforms_to_pages(
-            client_module_options_context,
-            pages_dir,
-            Value::new(PageTransformType::Client),
-        ),
-        _ => client_module_options_context,
-    };
-
-    Ok(client_module_options_context)
-}
-
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Copy, Clone, Hash, PartialOrd, Ord)]
-pub enum PageSsrType {
-    Ssr,
-    SsrData,
-}
-
-#[turbo_tasks::function]
-fn get_page_server_module_options_context(
-    project_path: FileSystemPathVc,
-    execution_context: ExecutionContextVc,
-    pages_dir: FileSystemPathVc,
-    ssr_ty: Value<PageSsrType>,
-    next_config: NextConfigVc,
-) -> ModuleOptionsContextVc {
-    let server_ty = Value::new(ServerContextType::Pages { pages_dir });
-    let server_module_options_context =
-        get_server_module_options_context(project_path, execution_context, server_ty, next_config);
-
-    match ssr_ty.into_value() {
-        PageSsrType::Ssr => server_module_options_context,
-        PageSsrType::SsrData => {
-            let transform_ty = Value::new(PageTransformType::SsrData);
-            add_next_transforms_to_pages(server_module_options_context, pages_dir, transform_ty)
-        }
-    }
-}
 
 /// Create a content source serving the `pages` or `src/pages` directory as
 /// Next.js pages folder.
@@ -144,24 +86,20 @@ pub async fn create_page_source(
         return Ok(NoContentSourceVc::new().into());
     };
 
-    let ty = Value::new(ClientContextType::Pages { pages_dir });
+    let client_ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
+    let server_data_ty = Value::new(ServerContextType::PagesData { pages_dir });
 
     let client_environment = get_client_environment(browserslist_query);
-    let client_module_options_context = get_page_client_module_options_context(
+    let client_module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
         client_environment,
-        ty,
+        client_ty,
         next_config,
     );
-    let client_module_options_context = add_next_transforms_to_pages(
-        client_module_options_context,
-        pages_dir,
-        Value::new(PageTransformType::Client),
-    );
     let client_resolve_options_context =
-        get_client_resolve_options_context(project_path, ty, next_config);
+        get_client_resolve_options_context(project_path, client_ty, next_config);
     let client_context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
         client_environment,
@@ -171,9 +109,10 @@ pub async fn create_page_source(
     .into();
 
     let client_chunking_context =
-        get_client_chunking_context(project_path, server_root, client_environment, ty);
+        get_client_chunking_context(project_path, server_root, client_environment, client_ty);
 
-    let client_runtime_entries = get_client_runtime_entries(project_path, env, ty, next_config);
+    let client_runtime_entries =
+        get_client_runtime_entries(project_path, env, client_ty, next_config);
 
     let next_client_transition = NextClientTransition {
         is_app: false,
@@ -193,17 +132,26 @@ pub async fn create_page_source(
     let server_resolve_options_context =
         get_server_resolve_options_context(project_path, server_ty, next_config);
 
-    let server_module_options_context = get_page_server_module_options_context(
-        project_path,
-        execution_context,
-        pages_dir,
-        Value::new(PageSsrType::Ssr),
-        next_config,
-    );
+    let server_module_options_context =
+        get_server_module_options_context(project_path, execution_context, server_ty, next_config);
     let server_transitions = TransitionsByNameVc::cell(
-        [("next-client".to_string(), next_client_transition)]
-            .into_iter()
-            .collect(),
+        [
+            ("next-client".to_string(), next_client_transition),
+            (
+                "next-client-chunks".to_string(),
+                NextClientChunksTransitionVc::new(
+                    project_path,
+                    execution_context,
+                    client_ty,
+                    server_root,
+                    browserslist_query,
+                    next_config,
+                )
+                .into(),
+            ),
+        ]
+        .into_iter()
+        .collect(),
     );
 
     let server_context: AssetContextVc = ModuleAssetContextVc::new(
@@ -214,11 +162,10 @@ pub async fn create_page_source(
     )
     .into();
 
-    let server_data_module_options_context = get_page_server_module_options_context(
+    let server_data_module_options_context = get_server_module_options_context(
         project_path,
         execution_context,
-        pages_dir,
-        Value::new(PageSsrType::SsrData),
+        server_data_ty,
         next_config,
     );
 

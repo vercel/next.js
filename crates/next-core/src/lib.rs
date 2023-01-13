@@ -9,6 +9,7 @@ mod fallback;
 pub mod manifest;
 mod next_build;
 pub mod next_client;
+mod next_client_chunks;
 mod next_client_component;
 pub mod next_config;
 mod next_font_google;

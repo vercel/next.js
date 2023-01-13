@@ -3,6 +3,7 @@ mod server_to_client_proxy;
 use std::{path::Path, sync::Arc};
 
 use anyhow::Result;
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_strip_page_exports::{next_transform_strip_page_exports, ExportFilter};
 use serde::{Deserialize, Serialize};
 use swc_core::{
@@ -23,6 +24,7 @@ use turbo_tasks::{
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
 };
+use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::environment::EnvironmentVc;
 
 use self::server_to_client_proxy::{create_proxy_module, is_client_module};
@@ -60,6 +62,13 @@ pub enum EcmascriptInputTransform {
     ///
     /// It also provides diagnostics for improper use of `getServerSideProps`.
     NextJsStripPageExports(NextJsPageExportFilter),
+    /// Enables the Next.js transform for next/dynamic.
+    NextJsDynamic {
+        is_development: bool,
+        is_server: bool,
+        is_server_components: bool,
+        pages_dir: Option<FileSystemPathVc>,
+    },
     NextJsFont(StringsVc),
     PresetEnv(EnvironmentVc),
     React {
@@ -90,6 +99,7 @@ pub struct TransformContext<'a> {
     pub top_level_mark: Mark,
     pub unresolved_mark: Mark,
     pub source_map: &'a Arc<SourceMap>,
+    pub file_path_str: &'a str,
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
 }
@@ -103,6 +113,7 @@ impl EcmascriptInputTransform {
             source_map,
             top_level_mark,
             unresolved_mark,
+            file_path_str,
             file_name_str,
             file_name_hash,
         }: &TransformContext<'_>,
@@ -207,6 +218,29 @@ impl EcmascriptInputTransform {
                 *program = module_program.fold_with(&mut next_transform_strip_page_exports(
                     export_type.into(),
                     eliminated_packages,
+                ));
+            }
+            EcmascriptInputTransform::NextJsDynamic {
+                is_development,
+                is_server,
+                is_server_components,
+                pages_dir,
+            } => {
+                let module_program = unwrap_module_program(program);
+
+                let pages_dir = if let Some(pages_dir) = pages_dir {
+                    Some(pages_dir.await?.path.clone().into())
+                } else {
+                    None
+                };
+
+                *program = module_program.fold_with(&mut next_dynamic(
+                    is_development,
+                    is_server,
+                    is_server_components,
+                    NextDynamicMode::Turbo,
+                    FileName::Real(file_path_str.into()),
+                    pages_dir,
                 ));
             }
             EcmascriptInputTransform::NextJsFont(font_loaders_vc) => {
