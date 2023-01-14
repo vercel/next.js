@@ -23,7 +23,7 @@ import {
 } from '../../../shared/lib/constants'
 import {
   getPageStaticInfo,
-  MiddlewareConfig,
+  InternalMiddlewareConfig,
 } from '../../analysis/get-page-static-info'
 import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
@@ -249,7 +249,7 @@ function isNodeJsModule(moduleName: string) {
 
 function isDynamicCodeEvaluationAllowed(
   fileName: string,
-  edgeFunctionConfig?: Partial<MiddlewareConfig>,
+  edgeFunctionConfig?: Partial<InternalMiddlewareConfig>,
   rootDir?: string
 ) {
   const name = fileName.replace(rootDir ?? '', '')

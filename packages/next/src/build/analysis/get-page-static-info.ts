@@ -1,9 +1,13 @@
 import type { NextConfig } from '../../server/config-shared'
-import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
+import type { RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
 import { matcher } from 'next/dist/compiled/micromatch'
-import { ServerRuntime } from 'next/types'
+import {
+  MiddlewareConfig,
+  MiddlewareConfigMatcher,
+  ServerRuntime,
+} from 'next/types'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
@@ -17,7 +21,7 @@ import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 
-export interface MiddlewareConfig {
+export interface InternalMiddlewareConfig {
   matchers: MiddlewareMatcher[]
   unstable_allowDynamicGlobs: string[]
   regions: string[] | string
@@ -35,7 +39,7 @@ export interface PageStaticInfo {
   ssg?: boolean
   ssr?: boolean
   rsc?: RSCModuleType
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: Partial<InternalMiddlewareConfig>
 }
 
 const CLIENT_MODULE_LABEL = `/* __next_internal_client_entry_do_not_use__ */`
@@ -132,10 +136,10 @@ async function tryToReadFile(filePath: string, shouldThrow: boolean) {
 }
 
 function getMiddlewareMatchers(
-  matcherOrMatchers: unknown,
+  matcherOrMatchers: MiddlewareConfigMatcher | MiddlewareConfigMatcher[],
   nextConfig: NextConfig
 ): MiddlewareMatcher[] {
-  let matchers: unknown[] = []
+  let matchers: MiddlewareConfigMatcher[] = []
   if (Array.isArray(matcherOrMatchers)) {
     matchers = matcherOrMatchers
   } else {
@@ -143,9 +147,7 @@ function getMiddlewareMatchers(
   }
   const { i18n } = nextConfig
 
-  let routes = matchers.map(
-    (m) => (typeof m === 'string' ? { source: m } : m) as Middleware
-  )
+  let routes = matchers.map((m) => (typeof m === 'string' ? { source: m } : m))
 
   // check before we process the routes and after to ensure
   // they are still valid
@@ -192,10 +194,10 @@ function getMiddlewareMatchers(
 
 function getMiddlewareConfig(
   pageFilePath: string,
-  config: any,
+  config: MiddlewareConfig,
   nextConfig: NextConfig
-): Partial<MiddlewareConfig> {
-  const result: Partial<MiddlewareConfig> = {}
+): Partial<InternalMiddlewareConfig> {
+  const result: Partial<InternalMiddlewareConfig> = {}
 
   if (config.matcher) {
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)

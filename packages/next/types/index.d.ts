@@ -22,6 +22,7 @@ import {
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
+import { Middleware } from '../src/lib/load-custom-routes'
 
 export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 
@@ -112,6 +113,28 @@ export type PageConfig = {
   unstable_includeFiles?: string[]
   unstable_excludeFiles?: string[]
 }
+
+/**
+ * `Config` type, use it for export const config in middleware file
+ */
+export type MiddlewareConfig = {
+  /**
+   * Path matchers which allows to filter out routes on which middleware should run
+   *
+   * A single matcher or array of matchers is acceptable, but each one must start with a `/`.
+   * You can include named parameters with `:` as a prefix, to match any sequence of characters in a single path component.
+   * The parameter suffix `?` makes that component optional, `+` requires at least one component and `*` allows for any number of path components.
+   * Regular Expressions are also permitted.
+   */
+  matcher?: MiddlewareConfigMatcher | MiddlewareConfigMatcher[]
+  /**
+   * Restricts middleware to only specific geolocations after deployment
+   */
+  regions?: string[] | string
+  unstable_allowDynamic?: string | string[]
+}
+
+export type MiddlewareConfigMatcher = string | Middleware
 
 export {
   NextPageContext,

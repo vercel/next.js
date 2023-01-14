@@ -38,7 +38,7 @@ npm install next@latest
 
 ```typescript
 // middleware.ts
-import { PageConfig } from 'next'
+import { MiddlewareConfig } from 'next'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -48,7 +48,7 @@ export function middleware(request: NextRequest) {
 }
 
 // See "Matching Paths" below to learn more
-export const config: PageConfig = {
+export const config: MiddlewareConfig = {
   matcher: '/about/:path*',
 }
 ```
@@ -76,9 +76,9 @@ There are two ways to define which paths Middleware will run on:
 `matcher` allows you to filter Middleware to run on specific paths.
 
 ```ts
-import { PageConfig } from 'next'
+import { MiddlewareConfig } from 'next'
 
-export const config: PageConfig = {
+export const config: MiddlewareConfig = {
   matcher: '/about/:path*',
 }
 ```
@@ -86,9 +86,9 @@ export const config: PageConfig = {
 You can match a single path or multiple paths with an array syntax:
 
 ```ts
-import { PageConfig } from 'next'
+import { MiddlewareConfig } from 'next'
 
-export const config: PageConfig = {
+export const config: MiddlewareConfig = {
   matcher: ['/about/:path*', '/dashboard/:path*'],
 }
 ```
@@ -96,9 +96,9 @@ export const config: PageConfig = {
 The `matcher` config allows full regex so matching like negative lookaheads or character matching is supported. An example of a negative lookahead to match all except specific paths can be seen here:
 
 ```ts
-import { PageConfig } from 'next'
+import { MiddlewareConfig } from 'next'
 
-export const config: PageConfig = {
+export const config: MiddlewareConfig = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
@@ -234,12 +234,12 @@ Once enabled, you can provide a response from middleware using the `Response` or
 
 ```ts
 // middleware.ts
-import { PageConfig } from 'next'
+import { MiddlewareConfig } from 'next'
 import { NextRequest, NextResponse } from 'next/server'
 import { isAuthenticated } from '@lib/auth'
 
 // Limit the middleware to paths starting with `/api/`
-export const config: PageConfig = {
+export const config: MiddlewareConfig = {
   matcher: '/api/:function*',
 }
 

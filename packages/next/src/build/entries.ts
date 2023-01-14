@@ -4,7 +4,7 @@ import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
-  MiddlewareConfig,
+  InternalMiddlewareConfig,
   MiddlewareMatcher,
 } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
@@ -158,7 +158,7 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: { [page: string]: string }
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: Partial<InternalMiddlewareConfig>
   pagesType: 'app' | 'pages' | 'root'
   appDirLoader?: string
 }) {
