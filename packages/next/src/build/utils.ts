@@ -1789,7 +1789,7 @@ server.listen(currentPort, (err) => {
   console.log(
     'Listening on port',
     currentPort,
-    'url: http://localhost:' + currentPort
+    'url:', hostname + ':' + currentPort
   )
 })`
   )
