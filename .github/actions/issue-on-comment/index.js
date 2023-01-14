@@ -52,20 +52,30 @@
       Object.defineProperty(p, '__esModule', { value: true })
       const s = r(a(5438))
       const i = r(a(2186))
-      const o = { LINEAR: 'linear', KIND_BUG: 'kind: bug' }
+      const o = {
+        VERIFY_CANARY: 'please verify canary',
+        ADD_REPRODUCTION: 'please add a complete reproduction',
+        NEEDS_TRIAGE: 'type: needs triage',
+      }
+      const n = [o.VERIFY_CANARY, o.ADD_REPRODUCTION]
+      function assertNotNullable(e) {
+        if (e === undefined || e === null)
+          throw new Error('Unexpected nullable value')
+      }
       async function run() {
         try {
           const { payload: e, repo: p } = s.context
-          const {
-            issue: a,
-            pull_request: d,
-            label: { name: t },
-          } = e
-          if (d || !a?.body || !process.env.GITHUB_TOKEN) return
-          const r = s.getOctokit(process.env.GITHUB_TOKEN).rest
-          const i = { ...p, issue_number: a.number }
-          if (t === o.KIND_BUG) {
-            r.issues.addLabels({ ...i, labels: [o.LINEAR] })
+          const { issue: a, comment: d } = e
+          assertNotNullable(a)
+          assertNotNullable(d)
+          if (!process.env.GITHUB_TOKEN) return
+          const t = s.getOctokit(process.env.GITHUB_TOKEN).rest
+          const r = { ...p, issue_number: a.number }
+          const i = a.labels.map((e) => e.name)
+          if (n.some((e) => i.includes(e))) {
+            if (d.user.type !== 'Bot') {
+              t.issues.addLabels({ ...r, labels: [o.NEEDS_TRIAGE] })
+            }
           }
         } catch (e) {
           i.setFailed(e.message)
@@ -6065,7 +6075,7 @@
         }
         return D(e)
       }
-      const O = 'destroy' in d.Readable.prototype
+      const A = 'destroy' in d.Readable.prototype
       function isRequest(e) {
         return typeof e === 'object' && typeof e[y] === 'object'
       }
@@ -6190,7 +6200,7 @@
         if (!/^https?:$/.test(p.protocol)) {
           throw new TypeError('Only HTTP(S) protocols are supported')
         }
-        if (e.signal && e.body instanceof d.Readable && !O) {
+        if (e.signal && e.body instanceof d.Readable && !A) {
           throw new Error(
             'Cancellation of streamed requests with AbortSignal is not supported in node < 8'
           )
@@ -6239,11 +6249,11 @@
       AbortError.prototype = Object.create(Error.prototype)
       AbortError.prototype.constructor = AbortError
       AbortError.prototype.name = 'AbortError'
-      const A = r.URL || s.URL
-      const k = d.PassThrough
-      const N = function isDomainOrSubdomain(e, p) {
-        const a = new A(p).hostname
-        const d = new A(e).hostname
+      const O = r.URL || s.URL
+      const N = d.PassThrough
+      const k = function isDomainOrSubdomain(e, p) {
+        const a = new O(p).hostname
+        const d = new O(e).hostname
         return a === d || (a[a.length - d.length - 1] === '.' && a.endsWith(d))
       }
       function fetch(e, p) {
@@ -6316,7 +6326,7 @@
               const d = p.get('Location')
               let t = null
               try {
-                t = d === null ? null : new A(d, s.url).toString()
+                t = d === null ? null : new O(d, s.url).toString()
               } catch (e) {
                 if (s.redirect !== 'manual') {
                   r(
@@ -6374,7 +6384,7 @@
                     timeout: s.timeout,
                     size: s.size,
                   }
-                  if (!N(s.url, t)) {
+                  if (!k(s.url, t)) {
                     for (const e of [
                       'authorization',
                       'www-authenticate',
@@ -6415,7 +6425,7 @@
             e.once('end', function () {
               if (m) m.removeEventListener('abort', v)
             })
-            let d = e.pipe(new k())
+            let d = e.pipe(new N())
             const t = {
               url: s.url,
               status: e.statusCode,
@@ -6445,7 +6455,7 @@
               return
             }
             if (i == 'deflate' || i == 'x-deflate') {
-              const p = e.pipe(new k())
+              const p = e.pipe(new N())
               p.once('data', function (e) {
                 if ((e[0] & 15) === 8) {
                   d = d.pipe(o.createInflate())

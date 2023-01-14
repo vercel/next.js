@@ -1,4 +1,9 @@
-import { check } from 'next-test-utils'
+import {
+  check,
+  getRedboxDescription,
+  getRedboxSource,
+  hasRedbox,
+} from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 if (!(globalThis as any).isNextDev) {
@@ -107,6 +112,39 @@ if (!(globalThis as any).isNextDev) {
         expect(res.status).toBe(500)
         expect(await res.text()).toContain(
           `You’re importing a class component. It only works in a Client Component`
+        )
+      })
+
+      // TODO-APP: investigate why the error keeps triggering reloading the page
+      it.skip('should allow to use and handle rsc poisoning client-only', async () => {
+        const browser = await next.browser(
+          '/server-with-errors/client-only-in-server'
+        )
+        await hasRedbox(browser)
+        const text = await getRedboxSource(browser)
+        expect(text).toContain(
+          `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+        )
+      })
+
+      it('should allow to use and handle rsc poisoning server-only', async () => {
+        const browser = await next.browser(
+          '/client-with-errors/server-only-in-client'
+        )
+
+        await hasRedbox(browser)
+        const text = await getRedboxSource(browser)
+        expect(text).toContain(
+          `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+        )
+      })
+
+      it('should error for invalid undefined module retuning from next dynamic', async () => {
+        const browser = await next.browser('/client-with-errors/dynamic')
+
+        await hasRedbox(browser)
+        expect(await getRedboxDescription(browser)).toContain(
+          `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
         )
       })
     }

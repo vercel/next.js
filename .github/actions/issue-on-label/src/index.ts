@@ -4,23 +4,25 @@ import * as core from '@actions/core'
 const LABELS = {
   LINEAR: 'linear',
   KIND_BUG: 'kind: bug',
+  NEEDS_INVESTIGAGION: 'type: needs investigation',
 }
+
+const labelsPortedToLinear = [LABELS.KIND_BUG, LABELS.NEEDS_INVESTIGAGION]
 
 async function run() {
   try {
     const { payload, repo } = github.context
     const {
       issue,
-      pull_request,
       label: { name: newLabel },
     } = payload
 
-    if (pull_request || !issue?.body || !process.env.GITHUB_TOKEN) return
+    if (!issue || !process.env.GITHUB_TOKEN) return
 
     const client = github.getOctokit(process.env.GITHUB_TOKEN).rest
     const issueCommon = { ...repo, issue_number: issue.number }
 
-    if (newLabel === LABELS.KIND_BUG) {
+    if (labelsPortedToLinear.includes(newLabel)) {
       client.issues.addLabels({
         ...issueCommon,
         labels: [LABELS.LINEAR],
