@@ -31,7 +31,13 @@ describe('create-next-app templates', () => {
        * Start the create-next-app call.
        */
       const childProcess = createNextApp(
-        [projectName, '--eslint', '--no-src-dir', '--no-experimental-app'],
+        [
+          projectName,
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+          `--import-alias="@/*"`,
+        ],
         { cwd }
       )
       /**
@@ -72,6 +78,7 @@ describe('create-next-app templates', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -88,7 +95,14 @@ describe('create-next-app templates', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'typescript-test'
       const childProcess = createNextApp(
-        [projectName, '--ts', '--eslint', '--src-dir', '--no-experimental-app'],
+        [
+          projectName,
+          '--ts',
+          '--eslint',
+          '--src-dir',
+          '--no-experimental-app',
+          `--import-alias="@/*"`,
+        ],
         {
           cwd,
         }
@@ -133,6 +147,7 @@ describe('create-next-app templates', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -149,7 +164,14 @@ describe('create-next-app templates', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'javascript-test'
       const childProcess = createNextApp(
-        [projectName, '--js', '--eslint', '--src-dir', '--no-experimental-app'],
+        [
+          projectName,
+          '--js',
+          '--eslint',
+          '--src-dir',
+          '--no-experimental-app',
+          `--import-alias="@/*"`,
+        ],
         {
           cwd,
         }
@@ -184,6 +206,7 @@ describe('create-next-app --experimental-app-dir', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -207,6 +230,7 @@ describe('create-next-app --experimental-app-dir', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -223,7 +247,14 @@ describe('create-next-app --experimental-app-dir', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'appdir-test'
       const childProcess = createNextApp(
-        [projectName, '--js', '--experimental-app', '--eslint', '--src-dir'],
+        [
+          projectName,
+          '--js',
+          '--experimental-app',
+          '--eslint',
+          '--src-dir',
+          '--import-alias="@/*"',
+        ],
         {
           cwd,
           stdio: 'inherit',
