@@ -23,7 +23,7 @@ API Routes provide built-in request helpers which parse the incoming req
 Every API Route can export a `config` object to change the default configuration, which is the following:
 
 ```ts
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 
 export const config: PageConfig = {
   api: {
@@ -41,7 +41,7 @@ The `api` object includes all config options available for API Routes.
 One use case for disabling the automatic `bodyParsing` is to allow you to verify the raw body of a **webhook** request, for example [from GitHub](https://docs.github.com/en/developers/webhooks-and-events/webhooks/securing-your-webhooks#validating-payloads-from-github).
 
 ```ts
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 
 export const config: PageConfig = {
   api: {
@@ -53,7 +53,7 @@ export const config: PageConfig = {
 `bodyParser.sizeLimit` is the maximum size allowed for the parsed body, in any format supported by [bytes](https://github.com/visionmedia/bytes.js), like so:
 
 ```ts
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 
 export const config: PageConfig = {
   api: {
@@ -67,7 +67,7 @@ export const config: PageConfig = {
 `externalResolver` is an explicit flag that tells the server that this route is being handled by an external resolver like _express_ or _connect_. Enabling this option disables warnings for unresolved requests.
 
 ```ts
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 
 export const config: PageConfig = {
   api: {
@@ -81,7 +81,7 @@ export const config: PageConfig = {
 If you are not using Next.js in a serverless environment, and understand the performance implications of not using a CDN or dedicated media host, you can set this limit to `false`.
 
 ```ts
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 
 export const config: PageConfig = {
   api: {
@@ -94,7 +94,7 @@ export const config: PageConfig = {
 This value will be the maximum response size before a warning is displayed. Default is 4MB. (see above)
 
 ```ts
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 
 export const config: PageConfig = {
   api: {

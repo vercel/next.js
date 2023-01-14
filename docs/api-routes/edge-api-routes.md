@@ -23,7 +23,7 @@ export default (req) => new Response('Hello world!')
 ### JSON Response
 
 ```typescript
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 import type { NextRequest } from 'next/server'
 
 export const config: PageConfig = {
@@ -48,7 +48,7 @@ export default async function handler(req: NextRequest) {
 ### Cache-Control
 
 ```typescript
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 import type { NextRequest } from 'next/server'
 
 export const config: PageConfig = {
@@ -74,7 +74,7 @@ export default async function handler(req: NextRequest) {
 ### Query Parameters
 
 ```typescript
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 import type { NextRequest } from 'next/server'
 
 export const config: PageConfig = {
@@ -91,7 +91,7 @@ export default async function handler(req: NextRequest) {
 ### Forwarding Headers
 
 ```typescript
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 import { type NextRequest } from 'next/server'
 
 export const config: PageConfig = {
@@ -117,7 +117,7 @@ You may want to restrict your edge function to specific regions when deploying s
 Note: this config is available in `v12.3.2` of Next.js and up.
 
 ```typescript
-import { PageConfig } from "next"
+import { PageConfig } from 'next'
 import { NextResponse } from 'next/server'
 
 export const config: PageConfig = {
