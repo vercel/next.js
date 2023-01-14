@@ -332,7 +332,7 @@ export async function getPageStaticInfo(params: {
 
     const requiresServerRuntime = ssr || ssg || pageType === 'app'
 
-    const isAnAPIRoute = isAPIRoute(page?.replace(/^\/pages\//, '/'))
+    const isAnAPIRoute = isAPIRoute(page?.replace(/(\/src|^)\/pages\//, '/'))
 
     resolvedRuntime = isEdgeRuntime(resolvedRuntime)
       ? resolvedRuntime
