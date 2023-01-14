@@ -1,4 +1,9 @@
-import { check, getRedboxSource, hasRedbox } from 'next-test-utils'
+import {
+  check,
+  getRedboxDescription,
+  getRedboxSource,
+  hasRedbox,
+} from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 if (!(globalThis as any).isNextDev) {
@@ -131,6 +136,15 @@ if (!(globalThis as any).isNextDev) {
         const text = await getRedboxSource(browser)
         expect(text).toContain(
           `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+        )
+      })
+
+      it('should error for invalid undefined module retuning from next dynamic', async () => {
+        const browser = await next.browser('/client-with-errors/dynamic')
+
+        await hasRedbox(browser)
+        expect(await getRedboxDescription(browser)).toContain(
+          `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
         )
       })
     }
