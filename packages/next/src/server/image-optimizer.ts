@@ -408,7 +408,9 @@ export async function optimizeImage({
   let optimizedBuffer = buffer
   if (sharp) {
     // Begin sharp transformation logic
-    const transformer = sharp(buffer)
+    const transformer = sharp(buffer, {
+      sequentialRead: true,
+    })
 
     transformer.rotate()
 
