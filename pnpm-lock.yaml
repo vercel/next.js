@@ -393,6 +393,7 @@ importers:
       '@types/async-retry': 1.4.2
       '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
+      '@types/glob': 7.1.1
       '@types/node': ^12.6.8
       '@types/prompts': 2.0.1
       '@types/rimraf': 3.0.0
@@ -403,8 +404,10 @@ importers:
       chalk: 2.4.2
       ci-info: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       commander: 2.20.0
+      conf: 10.2.0
       cpy: 7.3.0
       cross-spawn: 6.0.5
+      glob: 8.0.3
       got: 10.7.0
       prompts: 2.1.0
       tar: 4.4.10
@@ -414,6 +417,7 @@ importers:
       '@types/async-retry': 1.4.2
       '@types/ci-info': 2.0.0
       '@types/cross-spawn': 6.0.0
+      '@types/glob': 7.1.1
       '@types/node': 12.12.24
       '@types/prompts': 2.0.1
       '@types/rimraf': 3.0.0
@@ -424,8 +428,10 @@ importers:
       chalk: 2.4.2
       ci-info: github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       commander: 2.20.0
+      conf: 10.2.0
       cpy: 7.3.0
       cross-spawn: 6.0.5
+      glob: 8.0.3
       got: 10.7.0
       prompts: 2.1.0
       tar: 4.4.10
@@ -434,7 +440,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.1.2-canary.8
+      '@next/eslint-plugin-next': 13.1.3-canary.0
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -506,12 +512,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.13.3
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.1.2-canary.8
-      '@next/polyfill-module': 13.1.2-canary.8
-      '@next/polyfill-nomodule': 13.1.2-canary.8
-      '@next/react-dev-overlay': 13.1.2-canary.8
-      '@next/react-refresh-utils': 13.1.2-canary.8
-      '@next/swc': 13.1.2-canary.8
+      '@next/env': 13.1.3-canary.0
+      '@next/polyfill-module': 13.1.3-canary.0
+      '@next/polyfill-nomodule': 13.1.3-canary.0
+      '@next/react-dev-overlay': 13.1.3-canary.0
+      '@next/react-refresh-utils': 13.1.3-canary.0
+      '@next/swc': 13.1.3-canary.0
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
@@ -572,6 +578,7 @@ importers:
       chalk: 2.4.2
       ci-info: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       cli-select: 1.1.2
+      client-only: 0.0.1
       comment-json: 3.0.3
       compression: 1.7.4
       conf: 5.0.0
@@ -649,6 +656,7 @@ importers:
       schema-utils3: npm:schema-utils@3.0.0
       semver: 7.3.2
       send: 0.17.1
+      server-only: 0.0.1
       setimmediate: 1.0.5
       shell-quote: 1.7.3
       source-map: 0.6.1
@@ -777,6 +785,7 @@ importers:
       chalk: 2.4.2
       ci-info: github.com/watson/ci-info/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
       cli-select: 1.1.2
+      client-only: 0.0.1
       comment-json: 3.0.3
       compression: 1.7.4
       conf: 5.0.0
@@ -848,6 +857,7 @@ importers:
       schema-utils3: /schema-utils/3.0.0
       semver: 7.3.2
       send: 0.17.1
+      server-only: 0.0.1
       setimmediate: 1.0.5
       shell-quote: 1.7.3
       source-map: 0.6.1
@@ -7145,7 +7155,7 @@ packages:
     dependencies:
       '@types/events': 3.0.0
       '@types/minimatch': 3.0.3
-      '@types/node': 17.0.21
+      '@types/node': 18.11.18
     dev: true
 
   /@types/graceful-fs/4.1.3:
@@ -8043,6 +8053,17 @@ packages:
       clean-stack: 2.2.0
       indent-string: 4.0.0
 
+  /ajv-formats/2.1.1_ajv@8.11.0:
+    resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
+    peerDependencies:
+      ajv: ^8.0.0
+    peerDependenciesMeta:
+      ajv:
+        optional: true
+    dependencies:
+      ajv: 8.11.0
+    dev: true
+
   /ajv-keywords/3.5.2_ajv@6.12.6:
     resolution: {integrity: sha512-5p6WTN0DdTGVQk6VjcEju19IgaHudalcfabD7yhDGeA6bcQnmL+CpveLJq/3hvfwd1aof6L386Ougkx6RfyMIQ==}
     peerDependencies:
@@ -8505,6 +8526,11 @@ packages:
     resolution: {integrity: sha512-Wm6ukoaOGJi/73p/cl2GvLjTI5JM1k/O14isD73YML8StrH/7/lRFgmg8nICZgD3bZZvjwCGxtMOD3wWNAu8cg==}
     engines: {node: '>= 4.5.0'}
     hasBin: true
+
+  /atomically/1.7.0:
+    resolution: {integrity: sha512-Xcz9l0z7y9yQ9rdDaxlmaI4uJHf/T8g9hOEzJcsEqX2SjCj4J20uK7+ldkDHMbpJDK76wF7xEIgxc/vSlsfw5w==}
+    engines: {node: '>=10.12.0'}
+    dev: true
 
   /autoprefixer/10.4.4_postcss@8.4.14:
     resolution: {integrity: sha512-Tm8JxsB286VweiZ5F0anmbyGiNI3v3wGv3mz9W+cxEDYB/6jbnj6GM9H9mK3wIL8ftgl+C07Lcwb8PG5PCCPzA==}
@@ -9946,6 +9972,22 @@ packages:
       source-map: 0.6.1
     dev: true
 
+  /conf/10.2.0:
+    resolution: {integrity: sha512-8fLl9F04EJqjSqH+QjITQfJF8BrOVaYr1jewVgSRAEWePfxT0sku4w2hrGQ60BC/TNLGQ2pgxNlTbWQmMPFvXg==}
+    engines: {node: '>=12'}
+    dependencies:
+      ajv: 8.11.0
+      ajv-formats: 2.1.1_ajv@8.11.0
+      atomically: 1.7.0
+      debounce-fn: 4.0.0
+      dot-prop: 6.0.1
+      env-paths: 2.2.1
+      json-schema-typed: 7.0.3
+      onetime: 5.1.2
+      pkg-up: 3.1.0
+      semver: 7.3.8
+    dev: true
+
   /conf/5.0.0:
     resolution: {integrity: sha512-lRNyt+iRD4plYaOSVTxu1zPWpaH0EOxgFIR1l3mpC/DGZ7XzhoGFMKmbl54LAgXcSu6knqWgOwdINkqm58N85A==}
     engines: {node: '>=8'}
@@ -10780,6 +10822,13 @@ packages:
       semver: 5.7.1
     dev: true
 
+  /debounce-fn/4.0.0:
+    resolution: {integrity: sha512-8pYCQiL9Xdcg0UPSD3d+0KMlOjp+KGU5EPwYddgzQ7DATsg4fuUDjQtsYLmWjnk2obnNHgV3vE2Y4jejSOJVBQ==}
+    engines: {node: '>=10'}
+    dependencies:
+      mimic-fn: 3.1.0
+    dev: true
+
   /debug/0.8.1:
     resolution: {integrity: sha512-HlXEJm99YsRjLJ8xmuz0Lq8YUwrv7hAJkTEr6/Em3sUlSUNl0UdFA+1SrY4fnykeq1FVkUEUtwRGHs9VvlYbGA==}
     peerDependencies:
@@ -11442,6 +11491,11 @@ packages:
 
   /env-paths/2.2.0:
     resolution: {integrity: sha512-6u0VYSCo/OW6IoD5WCLLy9JUGARbamfSavcNXry/eu8aHVFei6CD3Sw+VGX5alea1i9pgPHW0mbu6Xj0uBh7gA==}
+    engines: {node: '>=6'}
+    dev: true
+
+  /env-paths/2.2.1:
+    resolution: {integrity: sha512-+h1lkLKhZMTYjog1VEpJNG7NZJWcuc2DDk/qsqSTRRCOXiLjeQ1d1/udrUGhqMxUgAlwKNZ0cf2uqan5GLuS2A==}
     engines: {node: '>=6'}
 
   /envinfo/7.7.4:
@@ -13325,6 +13379,17 @@ packages:
       minimatch: 3.1.2
       once: 1.4.0
       path-is-absolute: 1.0.1
+
+  /glob/8.0.3:
+    resolution: {integrity: sha512-ull455NHSHI/Y1FqGaaYFaLGkNMMJbavMrEGFXG/PGrg6y7sutWHUHrz6gy6WEBH6akM1M414dWKCNs+IhKdiQ==}
+    engines: {node: '>=12'}
+    dependencies:
+      fs.realpath: 1.0.0
+      inflight: 1.0.6
+      inherits: 2.0.4
+      minimatch: 5.1.0
+      once: 1.4.0
+    dev: true
 
   /global-dirs/2.1.0:
     resolution: {integrity: sha512-MG6kdOUh/xBnyo9cJFeIKkLEc1AyFq42QTU4XiX51i2NEdxLxLWXIjEjmqKeSuKR7pAZjTqUVoT2b2huxVLgYQ==}
@@ -17191,6 +17256,11 @@ packages:
     resolution: {integrity: sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==}
     engines: {node: '>=6'}
 
+  /mimic-fn/3.1.0:
+    resolution: {integrity: sha512-Ysbi9uYW9hFyfrThdDEQuykN4Ey6BuwPD2kpI5ES/nFTDn/98yxYNLZJcgUAKPT/mcrLLKaGzJR9YVxJrIdASQ==}
+    engines: {node: '>=8'}
+    dev: true
+
   /mimic-response/1.0.1:
     resolution: {integrity: sha512-j5EctnkH7amfV/q5Hgmoal1g2QHFJRraOtmx0JpIqkxhBhI/lJSl1nMpQ45hVarwNETOoWEimndZ4QK0RHxuxQ==}
     engines: {node: '>=4'}
@@ -17593,7 +17663,7 @@ packages:
     engines: {node: '>= 6.0.0'}
     hasBin: true
     dependencies:
-      env-paths: 2.2.0
+      env-paths: 2.2.1
       glob: 7.2.0
       graceful-fs: 4.2.10
       mkdirp: 0.5.5
@@ -17611,7 +17681,7 @@ packages:
     engines: {node: '>= 10.12.0'}
     hasBin: true
     dependencies:
-      env-paths: 2.2.0
+      env-paths: 2.2.1
       glob: 7.2.0
       graceful-fs: 4.2.10
       nopt: 5.0.0
@@ -17628,7 +17698,7 @@ packages:
     engines: {node: '>= 10.12.0'}
     hasBin: true
     dependencies:
-      env-paths: 2.2.0
+      env-paths: 2.2.1
       glob: 7.2.0
       graceful-fs: 4.2.10
       make-fetch-happen: 9.1.0
@@ -21499,6 +21569,10 @@ packages:
       send: 0.17.1
     transitivePeerDependencies:
       - supports-color
+    dev: true
+
+  /server-only/0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==}
     dev: true
 
   /set-blocking/2.0.0:
