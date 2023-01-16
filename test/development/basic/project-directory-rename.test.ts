@@ -3,6 +3,7 @@ import webdriver from 'next-webdriver'
 import { check, findPort, hasRedbox } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { createNext } from 'e2e-utils'
+import stripAnsi from 'strip-ansi'
 
 describe('Project Directory Renaming', () => {
   let next: NextInstance
@@ -28,13 +29,12 @@ describe('Project Directory Renaming', () => {
     await browser.eval('window.beforeNav = 1')
 
     let newTestDir = `${next.testDir}-renamed`
-    await fs.remove(newTestDir)
     await fs.move(next.testDir, newTestDir)
 
     next.testDir = newTestDir
 
     await check(
-      () => next.cliOutput,
+      () => stripAnsi(next.cliOutput),
       /Detected project directory rename, restarting in new location/
     )
     await check(async () => {
@@ -66,10 +66,11 @@ describe('Project Directory Renaming', () => {
     }
   })
 
+  // TODO: enable after fixing jest issue with hanging
   it.skip('should detect project removal and exit gracefully', async () => {
     await fs.remove(next.testDir)
     await check(
-      () => next.cliOutput,
+      () => stripAnsi(next.cliOutput),
       /Project directory could not be found, restart Next\.js in your new directory/
     )
   })

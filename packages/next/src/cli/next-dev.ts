@@ -442,7 +442,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
                   startDir,
                   !!config.experimental?.appDir
                 )
-                shouldFilter = !result.pagesDir && !result.appDir
+                shouldFilter = !Boolean(result.pagesDir || result.appDir)
               } catch (_) {
                 shouldFilter = true
               }
@@ -535,10 +535,12 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         try {
           const result = findPagesDir(dir, !!config.experimental?.appDir)
           hasPagesApp = Boolean(result.pagesDir || result.appDir)
-        } catch (_) {
+        } catch (err) {
           // if findPagesDir throws validation error let this be
           // handled in the dev-server itself in the fork
-          return
+          if ((err as any).message?.includes('experimental')) {
+            return
+          }
         }
 
         // try to find new dir introduced
