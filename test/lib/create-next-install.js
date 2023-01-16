@@ -162,7 +162,7 @@ async function createNextInstall({
             const runInstall = async () => {
               const args = ['install', '--strict-peer-dependencies=false']
 
-              if (process.env.NEXT_TEST_PREFER_OFFLINE) {
+              if (process.env.NEXT_TEST_PREFER_OFFLINE === '1') {
                 args.push('--prefer-offline')
               }
 
