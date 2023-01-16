@@ -77,6 +77,17 @@ createNextDescribe(
           expect(res.headers.get('location')).toEqual('https://nextjs.org/')
           expect(await res.text()).toBeEmpty()
         })
+
+        it('supports the NextResponse.json() helper', async () => {
+          const meta = { ping: 'pong' }
+          const res = await next.fetch('/hooks/json', {
+            headers: withRequestMeta(meta),
+          })
+
+          expect(res.status).toEqual(200)
+          expect(res.headers.get('content-type')).toEqual('application/json')
+          expect(await res.json()).toEqual(meta)
+        })
       })
     })
 
