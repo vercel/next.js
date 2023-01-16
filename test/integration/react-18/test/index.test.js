@@ -55,7 +55,7 @@ function runTestsAgainstRuntime(runtime) {
         it('should recover after undefined exported as default', async () => {
           const browser = await webdriver(context.appPort, '/invalid')
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(
             `Error: The default export is not a React Component in page: "/invalid"`
           )

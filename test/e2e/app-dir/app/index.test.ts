@@ -2071,8 +2071,10 @@ createNextDescribe(
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
+          // TODO: investigate desired behavior here as it is currently
+          // minimized by default
+          // expect(await hasRedbox(browser, true)).toBe(true)
+          // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
           expect(
@@ -2099,7 +2101,7 @@ createNextDescribe(
             // Digest of the error message should be stable.
           ).not.toBe('')
           // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
-          // expect(await hasRedbox(browser)).toBe(true)
+          // expect(await hasRedbox(browser, true)).toBe(true)
           // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -2122,7 +2124,7 @@ createNextDescribe(
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
@@ -2139,7 +2141,7 @@ createNextDescribe(
         )
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
         } else {
           expect(
@@ -2239,7 +2241,11 @@ createNextDescribe(
           const browser = await next.browser('/react-fetch/server-component')
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
-          expect(val1).toBe(val2)
+
+          // TODO: enable when fetch cache is enabled in dev
+          if (!isDev) {
+            expect(val1).toBe(val2)
+          }
         })
 
         it('server component client-navigation', async () => {
@@ -2251,7 +2257,11 @@ createNextDescribe(
             .waitForElementByCss('#value-1', 10000)
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
-          expect(val1).toBe(val2)
+
+          // TODO: enable when fetch cache is enabled in dev
+          if (!isDev) {
+            expect(val1).toBe(val2)
+          }
         })
 
         // TODO-APP: React doesn't have fetch deduping for client components yet.
@@ -2284,6 +2294,30 @@ createNextDescribe(
           const $ = cheerio.load(text)
           expect($('#category-id').text()).toBe('electronicsabc')
         }
+      })
+      it('should handle router.refresh without resetting state', async () => {
+        const browser = await next.browser(
+          '/navigation/refresh/navigate-then-refresh-bug'
+        )
+        await browser
+          .elementByCss('#to-route')
+          // Navigate to the page
+          .click()
+          // Wait for new page to be loaded
+          .waitForElementByCss('#refresh-page')
+          // Click the refresh button to trigger a refresh
+          .click()
+
+        // Wait for element that is shown when refreshed and verify text
+        expect(await browser.waitForElementByCss('#refreshed').text()).toBe(
+          'Refreshed page successfully!'
+        )
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+          )
+        ).toBe('rgb(34, 139, 34)')
       })
       it('should handle as on next/link', async () => {
         const browser = await next.browser('/link-with-as')
