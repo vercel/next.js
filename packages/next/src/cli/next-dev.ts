@@ -438,7 +438,11 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             if (startDir === dir) {
               try {
                 // check if start directory is still valid
-                findPagesDir(startDir, !!config.experimental?.appDir)
+                const result = findPagesDir(
+                  startDir,
+                  !!config.experimental?.appDir
+                )
+                shouldFilter = !result.pagesDir && !result.appDir
               } catch (_) {
                 shouldFilter = true
               }
@@ -531,7 +535,11 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         try {
           const result = findPagesDir(dir, !!config.experimental?.appDir)
           hasPagesApp = Boolean(result.pagesDir || result.appDir)
-        } catch (_) {}
+        } catch (_) {
+          // if findPagesDir throws validation error let this be
+          // handled in the dev-server itself in the fork
+          return
+        }
 
         // try to find new dir introduced
         if (previousItems.size) {
