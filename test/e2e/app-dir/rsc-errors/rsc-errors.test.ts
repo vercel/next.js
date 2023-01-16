@@ -140,6 +140,10 @@ if (!(globalThis as any).isNextDev) {
       })
 
       it('should error for invalid undefined module retuning from next dynamic', async () => {
+        // TODO: investigate previous error not being cleared properly
+        await next.stop()
+        await next.start()
+
         const browser = await next.browser('/client-with-errors/dynamic')
 
         expect(await hasRedbox(browser, true)).toBe(true)
