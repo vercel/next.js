@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     primitives::{BoolVc, StringVc},
+    trace::TraceRawVcs,
     Value,
 };
 use turbo_tasks_env::ProcessEnvVc;
@@ -290,7 +292,7 @@ async fn create_page_source_for_file(
             SsrEntry {
                 context: server_context,
                 entry_asset,
-                is_api_path,
+                ty: SsrType::Api,
                 chunking_context: server_chunking_context,
                 intermediate_output_path,
             }
@@ -308,7 +310,7 @@ async fn create_page_source_for_file(
         let ssr_entry = SsrEntry {
             context: server_context,
             entry_asset,
-            is_api_path,
+            ty: SsrType::Html,
             chunking_context: server_chunking_context,
             intermediate_output_path,
         }
@@ -318,7 +320,7 @@ async fn create_page_source_for_file(
         let ssr_data_entry = SsrEntry {
             context: server_data_context,
             entry_asset: data_asset,
-            is_api_path,
+            ty: SsrType::Data,
             chunking_context: server_data_chunking_context,
             intermediate_output_path: data_intermediate_output_path,
         }
@@ -473,12 +475,21 @@ async fn create_page_source_for_directory(
     .cell())
 }
 
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord, TraceRawVcs,
+)]
+enum SsrType {
+    Api,
+    Html,
+    Data,
+}
+
 /// The node.js renderer for SSR of pages.
 #[turbo_tasks::value]
 struct SsrEntry {
     context: AssetContextVc,
     entry_asset: AssetVc,
-    is_api_path: BoolVc,
+    ty: SsrType,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
 }
@@ -488,16 +499,19 @@ impl SsrEntryVc {
     #[turbo_tasks::function]
     async fn entry(self) -> Result<NodeRenderingEntryVc> {
         let this = self.await?;
-        let virtual_asset = if *this.is_api_path.await? {
-            VirtualAssetVc::new(
+        let virtual_asset = match this.ty {
+            SsrType::Api => VirtualAssetVc::new(
                 this.entry_asset.path().join("server-api.tsx"),
                 next_js_file("entry/server-api.tsx").into(),
-            )
-        } else {
-            VirtualAssetVc::new(
+            ),
+            SsrType::Data => VirtualAssetVc::new(
+                this.entry_asset.path().join("server-data.tsx"),
+                next_js_file("entry/server-data.tsx").into(),
+            ),
+            SsrType::Html => VirtualAssetVc::new(
                 this.entry_asset.path().join("server-renderer.tsx"),
                 next_js_file("entry/server-renderer.tsx").into(),
-            )
+            ),
         };
 
         Ok(NodeRenderingEntry {
