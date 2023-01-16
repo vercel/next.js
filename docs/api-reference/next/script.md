@@ -76,8 +76,8 @@ Scripts denoted with this strategy are preloaded and fetched before any first-pa
 **This strategy should only be used for critical scripts that need to be fetched before any part of the page becomes interactive.**
 
 ```jsx
-import { Html, Head, Main, NextScript } from "next/document";
-import Script from "next/script";
+import { Html, Head, Main, NextScript } from 'next/document'
+import Script from 'next/script'
 
 export default function Document() {
   return (
@@ -87,8 +87,8 @@ export default function Document() {
         <Main />
         <NextScript />
         <Script
-            src="https://example.com/script.js"
-            strategy="beforeInteractive"
+          src="https://example.com/script.js"
+          strategy="beforeInteractive"
         />
       </body>
     </Html>
