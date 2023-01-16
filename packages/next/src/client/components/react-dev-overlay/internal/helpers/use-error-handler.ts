@@ -62,7 +62,7 @@ if (typeof window !== 'undefined') {
       )
     ) {
       if (hydrationErrorInfo) {
-        error.message += hydrationErrorInfo
+        error.message += '\n\n' + hydrationErrorInfo
       }
       error.message +=
         '\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
