@@ -15,6 +15,7 @@ export function patchConsoleError(): UnpatchConsoleError {
     msg,
     serverContent,
     clientContent,
+    // TODO-APP: Display the component stack in the overlay
     _componentStack
   ) {
     if (knownHydrationWarnings.has(msg)) {
