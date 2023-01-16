@@ -1,4 +1,5 @@
 import type { Metadata, ResolvedMetadata } from './types/metadata-interface'
+import type { OpenGraphType, OpenGraph } from './types/opengraph-types'
 
 function resolveAsArrayOrUndefined<T = any>(value: T): undefined | any[] {
   if (typeof value === 'undefined' || value === null) {
@@ -10,100 +11,78 @@ function resolveAsArrayOrUndefined<T = any>(value: T): undefined | any[] {
   return [value]
 }
 
+function getFieldsByOgType(ogType: OpenGraphType | undefined) {
+  const articleKeys = ['authors', 'tags'] // article, book
+  const songKeys = ['albums', 'musicians'] // music.song, music.album
+  const playlistKeys = ['albums', 'musicians'] // music.playlist
+  const radioStationsKeys = ['creators']
+  const videoKeys = ['actors', 'directors', 'writers', 'tags']
+
+  switch (ogType) {
+    case 'article':
+    case 'book':
+      return articleKeys
+    case 'music.song':
+    case 'music.album':
+      return songKeys
+    case 'music.playlist':
+      return playlistKeys
+    case 'music.radio_station':
+      return radioStationsKeys
+    case 'video.movie':
+    case 'video.episode':
+      return videoKeys
+    default:
+      return [
+        'emails',
+        'phoneNumbers',
+        'faxNumbers',
+        'alternateLocale',
+        'images',
+        'audio',
+        'videos',
+      ]
+  }
+}
+
 export function resolveOpenGraph(
   openGraph: Metadata['openGraph']
 ): ResolvedMetadata['openGraph'] {
-  const emails = resolveAsArrayOrUndefined(openGraph?.emails)
-  const phoneNumbers = resolveAsArrayOrUndefined(openGraph?.phoneNumbers)
-  const faxNumbers = resolveAsArrayOrUndefined(openGraph?.faxNumbers)
-  const alternateLocale = resolveAsArrayOrUndefined(openGraph?.alternateLocale)
-  const images = resolveAsArrayOrUndefined(openGraph?.images)
-  const audio = resolveAsArrayOrUndefined(openGraph?.audio)
-  const videos = resolveAsArrayOrUndefined(openGraph?.videos)
-
-  const typedEntries = []
-  if (openGraph && 'type' in openGraph && openGraph.type) {
-    switch (openGraph.type) {
-      case 'article':
-        typedEntries.push(
-          ['authors', resolveAsArrayOrUndefined(openGraph.authors)],
-          ['tags', resolveAsArrayOrUndefined(openGraph.tags)]
-        )
-        break
-      case 'book':
-        typedEntries.push(
-          ['authors', resolveAsArrayOrUndefined(openGraph.authors)],
-          ['tags', resolveAsArrayOrUndefined(openGraph.tags)]
-        )
-        break
-      case 'music.song':
-        typedEntries.push(
-          ['albums', resolveAsArrayOrUndefined(openGraph.albums)],
-          ['musicians', resolveAsArrayOrUndefined(openGraph.musicians)]
-        )
-        break
-      case 'music.album':
-        typedEntries.push(
-          ['songs', resolveAsArrayOrUndefined(openGraph.songs)],
-          ['musicians', resolveAsArrayOrUndefined(openGraph.musicians)]
-        )
-        break
-      case 'music.playlist':
-        typedEntries.push(
-          ['songs', resolveAsArrayOrUndefined(openGraph.songs)],
-          ['creators', resolveAsArrayOrUndefined(openGraph.creators)]
-        )
-        break
-      case 'music.radio_station':
-        typedEntries.push([
-          'creators',
-          resolveAsArrayOrUndefined(openGraph.creators),
-        ])
-        break
-      case 'video.movie':
-        typedEntries.push(
-          ['actors', resolveAsArrayOrUndefined(openGraph.actors)],
-          ['directors', resolveAsArrayOrUndefined(openGraph.directors)],
-          ['writers', resolveAsArrayOrUndefined(openGraph.writers)],
-          ['tags', resolveAsArrayOrUndefined(openGraph.tags)]
-        )
-        break
-      case 'video.episode':
-        typedEntries.push(
-          ['actors', resolveAsArrayOrUndefined(openGraph.actors)],
-          ['directors', resolveAsArrayOrUndefined(openGraph.directors)],
-          ['writers', resolveAsArrayOrUndefined(openGraph.writers)],
-          ['tags', resolveAsArrayOrUndefined(openGraph.tags)]
-        )
-        break
-      default:
-        break
-    }
-  }
-
   const url = openGraph
     ? typeof openGraph.url === 'string'
       ? new URL(openGraph.url)
       : openGraph.url
     : undefined
 
-  const resolved = {
+  // TODO: improve typing
+  const resolved: { [x: string]: any } = {
     ...openGraph,
-    ...Object.fromEntries(
-      [
-        ['emails', emails],
-        ['phoneNumbers', phoneNumbers],
-        ['faxNumbers', faxNumbers],
-        ['alternateLocale', alternateLocale],
-        ['images', images],
-        ['audio', audio],
-        ['videos', videos],
-        ['url', url],
-        ...typedEntries,
-      ].filter(([, value]) => typeof value !== 'undefined')
-    ),
     title: undefined,
   }
 
-  return resolved
+  function assignProps(og: OpenGraph) {
+    const ogType = og && 'type' in og ? og.type : undefined
+    const keys = getFieldsByOgType(ogType)
+    for (const k of keys) {
+      const key = k as keyof OpenGraph
+      if (key in og) {
+        // TODO: fix typing inferring
+        // @ts-ignore
+        const value = resolveAsArrayOrUndefined(og[key])
+        if (value != null) {
+          ;(resolved as any)[key] = value
+        }
+      }
+    }
+  }
+
+  if (openGraph) {
+    assignProps(openGraph)
+  }
+
+  if (url) {
+    resolved.url = url
+  }
+
+  return resolved as ResolvedMetadata['openGraph']
 }

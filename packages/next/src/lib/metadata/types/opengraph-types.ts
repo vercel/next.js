@@ -1,5 +1,19 @@
 import type { AbsoluteTemplateString, TemplateString } from './metadata-types'
 
+export type OpenGraphType =
+  | 'article'
+  | 'book'
+  | 'music.song'
+  | 'music.album'
+  | 'music.playlist'
+  | 'music.radio_station'
+  | 'profile'
+  | 'website'
+  | 'video.tv_show'
+  | 'video.other'
+  | 'video.movie'
+  | 'video.episode'
+
 export type OpenGraph =
   | OpenGraphWebsite
   | OpenGraphArticle
@@ -42,7 +56,7 @@ type OpenGraphArticle = OpenGraphMetadata & {
   type: 'article'
   publishedTime?: string // datetime
   modifiedTime?: string // datetime
-  expirationTime?: string //datetime
+  expirationTime?: string // datetime
   authors?: null | string | URL | Array<string | URL>
   section?: null | string
   tags?: null | string | Array<string>
@@ -71,7 +85,7 @@ type OpenGraphMusicAlbum = OpenGraphMetadata & {
   type: 'music.album'
   songs?: null | string | URL | OGSong | Array<string | URL | OGSong>
   musicians?: null | string | URL | Array<string | URL>
-  releaseDate?: null | string //datetime
+  releaseDate?: null | string // datetime
 }
 type OpenGraphMusicPlaylist = OpenGraphMetadata & {
   type: 'music.playlist'
@@ -171,7 +185,7 @@ type ResolvedOpenGraphArticle = ResolvedOpenGraphMetadata & {
   type: 'article'
   publishedTime?: string // datetime
   modifiedTime?: string // datetime
-  expirationTime?: string //datetime
+  expirationTime?: string // datetime
   authors?: Array<string>
   section?: string
   tags?: Array<string>
@@ -200,7 +214,7 @@ type ResolvedOpenGraphMusicAlbum = ResolvedOpenGraphMetadata & {
   type: 'music.album'
   songs?: Array<string | URL | OGSong>
   musicians?: Array<string | URL>
-  releaseDate?: string //datetime
+  releaseDate?: string // datetime
 }
 type ResolvedOpenGraphMusicPlaylist = ResolvedOpenGraphMetadata & {
   type: 'music.playlist'
