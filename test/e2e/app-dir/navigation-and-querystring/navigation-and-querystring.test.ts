@@ -1,7 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
-import { check, waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 describe('app-dir navigation and querystring', () => {
   let next: NextInstance
