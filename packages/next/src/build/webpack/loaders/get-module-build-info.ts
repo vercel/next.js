@@ -25,7 +25,7 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
   }
 }
 
-// This attaches the app tree structure to the build into
+// This attaches the app tree structure to the build info
 export interface TreeNode {
   resource: string
   children: TreeNode[]
