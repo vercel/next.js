@@ -438,7 +438,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             if (startDir === dir) {
               try {
                 // check if start directory is still valid
-                findPagesDir(startDir, !!config.experimental.appDir)
+                findPagesDir(startDir, !!config.experimental?.appDir)
               } catch (_) {
                 shouldFilter = true
               }
@@ -529,7 +529,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
 
         // if the dir still exists nothing to check
         try {
-          const result = findPagesDir(dir, !!config.experimental.appDir)
+          const result = findPagesDir(dir, !!config.experimental?.appDir)
           hasPagesApp = Boolean(result.pagesDir || result.appDir)
         } catch (_) {}
 
@@ -555,7 +555,10 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         // to a new parent directory which we can't track as easily
         // so exit gracefully
         try {
-          const result = findPagesDir(newFiles[0], !!config.experimental.appDir)
+          const result = findPagesDir(
+            newFiles[0],
+            !!config.experimental?.appDir
+          )
           hasPagesApp = Boolean(result.pagesDir || result.appDir)
         } catch (_) {}
 
