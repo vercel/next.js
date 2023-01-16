@@ -1,11 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ReactRefreshLogBox app default Hydration errors should get error link 1`] = `
-"Error: Text content does not match server-rendered HTML.
-
-See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-`;
-
 exports[`ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
 "index.js (4:16) @ default
 
