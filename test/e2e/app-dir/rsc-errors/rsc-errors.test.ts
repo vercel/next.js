@@ -1,6 +1,6 @@
 import {
   check,
-  getRedboxDescription,
+  getRedboxHeader,
   getRedboxSource,
   hasRedbox,
 } from 'next-test-utils'
@@ -143,7 +143,7 @@ if (!(globalThis as any).isNextDev) {
         const browser = await next.browser('/client-with-errors/dynamic')
 
         expect(await hasRedbox(browser, true)).toBe(true)
-        expect(await getRedboxDescription(browser)).toContain(
+        expect(await getRedboxHeader(browser)).toContain(
           `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
         )
       })

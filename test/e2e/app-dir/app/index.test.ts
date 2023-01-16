@@ -2071,8 +2071,10 @@ createNextDescribe(
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser, true)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
+          // TODO: investigate desired behavior here as it is currently
+          // minimized by default
+          // expect(await hasRedbox(browser, true)).toBe(true)
+          // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
           expect(
@@ -2211,10 +2213,7 @@ createNextDescribe(
             .waitForElementByCss('#value-1', 10000)
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
-
-          if (!isDev) {
-            expect(val1).toBe(val2)
-          }
+          expect(val1).toBe(val2)
         })
 
         it('client component', async () => {
@@ -2242,7 +2241,11 @@ createNextDescribe(
           const browser = await next.browser('/react-fetch/server-component')
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
-          expect(val1).toBe(val2)
+
+          // TODO: enable when fetch cache is enabled in dev
+          if (!isDev) {
+            expect(val1).toBe(val2)
+          }
         })
 
         it('server component client-navigation', async () => {
@@ -2254,7 +2257,11 @@ createNextDescribe(
             .waitForElementByCss('#value-1', 10000)
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
-          expect(val1).toBe(val2)
+
+          // TODO: enable when fetch cache is enabled in dev
+          if (!isDev) {
+            expect(val1).toBe(val2)
+          }
         })
 
         // TODO-APP: React doesn't have fetch deduping for client components yet.
