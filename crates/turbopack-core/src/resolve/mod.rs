@@ -339,7 +339,7 @@ async fn type_exists(
     ty: FileSystemEntryType,
     refs: &mut Vec<AssetReferenceVc>,
 ) -> Result<Option<FileSystemPathVc>> {
-    let result = fs_path.realpath_with_links().await?;
+    let result = fs_path.resolve().await?.realpath_with_links().await?;
     for path in result.symlinks.iter() {
         refs.push(AffectingResolvingAssetReferenceVc::new(*path).into());
     }
@@ -464,7 +464,7 @@ async fn find_package(
                             }
                         }
                     }
-                    context = context.parent();
+                    context = context.parent().resolve().await?;
                     let new_context_value = context.await?;
                     if *new_context_value == *context_value {
                         break;
