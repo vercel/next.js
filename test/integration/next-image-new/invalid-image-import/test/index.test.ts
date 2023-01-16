@@ -23,7 +23,7 @@ function runTests({ isDev }) {
   it('should show error', async () => {
     if (isDev) {
       const browser = await webdriver(appPort, '/')
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toBe('Failed to compile')
       expect(await getRedboxSource(browser)).toBe(`./pages/index.js:3\n${msg}`)
       expect(stderr).toContain(msg)
