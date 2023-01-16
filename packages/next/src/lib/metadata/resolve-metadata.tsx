@@ -6,7 +6,6 @@ import type {
 import type { AbsoluteTemplateString } from './types/metadata-types'
 
 import React from 'react'
-// import fs from 'fs'
 import { createDefaultMetadata } from './constant'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { resolveTitle } from './resolve-title'
@@ -60,43 +59,54 @@ function merge(
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
-    if (key === 'other') {
-      target.other = { ...target.other, ...source.other }
-    } else if (key === 'title') {
-      updatedStashedTitle = resolveTitle(titles.title, source.title)
-      target.title = updatedStashedTitle
-    } else if (key === 'openGraph') {
-      if (typeof source.openGraph !== 'undefined') {
-        target.openGraph = {
-          ...resolveOpenGraph(source.openGraph),
-        }
-        if (source.openGraph && 'title' in source.openGraph) {
-          updatedStashedOpenGraphTitle = resolveTitle(
-            titles.openGraphTitle,
-            source.openGraph.title
-          )
-          target.openGraph.title = updatedStashedOpenGraphTitle
-        }
-      } else {
-        target.openGraph = null
+    switch (key) {
+      case 'other': {
+        target.other = { ...target.other, ...source.other }
+        break
       }
-    } else if (key === 'twitter') {
-      if (typeof source.twitter !== 'undefined') {
-        target.twitter = { ...source.twitter }
-        if (source.twitter && 'title' in source.twitter) {
-          updatedStashedTwitterTitle = resolveTitle(
-            titles.twitterTitle,
-            source.twitter.title
-          )
-          target.twitter.title = updatedStashedTwitterTitle
-        }
-      } else {
-        target.twitter = null
+      case 'title': {
+        updatedStashedTitle = resolveTitle(titles.title, source.title)
+        target.title = updatedStashedTitle
+        break
       }
-    } else {
-      // TODO: Make sure the type is correct.
-      // @ts-ignore
-      target[key] = source[key]
+      case 'openGraph': {
+        if (typeof source.openGraph !== 'undefined') {
+          target.openGraph = {
+            ...resolveOpenGraph(source.openGraph),
+          }
+          if (source.openGraph && 'title' in source.openGraph) {
+            updatedStashedOpenGraphTitle = resolveTitle(
+              titles.openGraphTitle,
+              source.openGraph.title
+            )
+            target.openGraph.title = updatedStashedOpenGraphTitle
+          }
+        } else {
+          target.openGraph = null
+        }
+        break
+      }
+      case 'twitter': {
+        if (typeof source.twitter !== 'undefined') {
+          target.twitter = { ...source.twitter }
+          if (source.twitter && 'title' in source.twitter) {
+            updatedStashedTwitterTitle = resolveTitle(
+              titles.twitterTitle,
+              source.twitter.title
+            )
+            target.twitter.title = updatedStashedTwitterTitle
+          }
+        } else {
+          target.twitter = null
+        }
+        break
+      }
+      default: {
+        // TODO: Make sure the type is correct.
+        // @ts-ignore
+        target[key] = source[key]
+        break
+      }
     }
   }
 
@@ -141,7 +151,7 @@ export async function resolveMetadata(metadataItems: Item[]) {
 
       if (layerMod.metadata && layerMod.generateMetadata) {
         throw new Error(
-          'It is not allowed to export both `metadata` and `generateMetadata`. File: ' +
+          `A ${item.type} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this ${item.type} is static use the metadata export, otherwise use generateMetadata. File: ` +
             item.path
         )
       }
@@ -197,10 +207,8 @@ export function elementsFromResolvedMetadata(metadata: ResolvedMetadata) {
 
 // TODO: Implement this function.
 export async function resolveFileBasedMetadataForLoader(
-  // @ts-ignore
-  layer: number,
-  // @ts-ignore
-  dir: string
+  _layer: number,
+  _dir: string
 ) {
   let metadataCode = ''
 

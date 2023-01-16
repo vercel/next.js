@@ -76,6 +76,8 @@ export function resolveOpenGraph(
           ['tags', resolveAsArrayOrUndefined(openGraph.tags)]
         )
         break
+      default:
+        break
     }
   }
 
