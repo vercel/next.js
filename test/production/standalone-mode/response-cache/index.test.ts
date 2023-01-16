@@ -15,6 +15,7 @@ describe('minimal-mode-response-cache', () => {
   let next: NextInstance
   let server
   let appPort
+  let output = ''
 
   beforeAll(async () => {
     // test build against environment with next support
@@ -64,12 +65,23 @@ describe('minimal-mode-response-cache', () => {
       undefined,
       {
         cwd: next.testDir,
+        onStdout(msg) {
+          output += msg
+        },
+        onStderr(msg) {
+          output += msg
+        },
       }
     )
   })
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should have correct "Listening on" log', async () => {
+    expect(output).toContain(`Listening on port`)
+    expect(output).toContain(`url: http://localhost:${appPort}`)
   })
 
   it('should have correct responses', async () => {
