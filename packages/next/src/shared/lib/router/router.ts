@@ -782,7 +782,11 @@ function fetchNextData({
         if (!unstable_skipClientCache) {
           delete inflightCache[cacheKey]
         }
-        if (err.message === 'Failed to fetch') {
+        if (
+          err.message === 'Failed to fetch' ||
+          err.message === 'NetworkError when attempting to fetch resource.' ||
+          err.message === 'Load failed'
+        ) {
           markAssetError(err)
         }
         throw err
