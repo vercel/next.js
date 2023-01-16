@@ -29,7 +29,7 @@ export function connectHMR(options: {
   log?: boolean
 }) {
   if (!options.timeout) {
-    options.timeout = 5 * 1000
+    options.timeout = 1000
   }
 
   function init() {

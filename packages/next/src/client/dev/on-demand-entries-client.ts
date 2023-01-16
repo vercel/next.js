@@ -42,22 +42,24 @@ export default async (page?: string) => {
         // So, we check if it can be created.
         fetch(location.href, {
           credentials: 'same-origin',
-        }).then((pageRes) => {
-          if (pageRes.status === 200) {
-            // Page exists now, reload
-            location.reload()
-          } else {
-            // Page doesn't exist
-            if (
-              self.__NEXT_DATA__.page === Router.pathname &&
-              Router.pathname !== '/_error'
-            ) {
-              // We are still on the page,
-              // reload to show 404 error page
-              location.reload()
-            }
-          }
         })
+          .then((pageRes) => {
+            if (pageRes.status === 200) {
+              // Page exists now, reload
+              location.reload()
+            } else {
+              // Page doesn't exist
+              if (
+                self.__NEXT_DATA__.page === Router.pathname &&
+                Router.pathname !== '/_error'
+              ) {
+                // We are still on the page,
+                // reload to show 404 error page
+                location.reload()
+              }
+            }
+          })
+          .catch(() => {})
       }
     } catch (err) {
       console.error('on-demand-entries failed to parse response', err)
