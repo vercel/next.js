@@ -2,7 +2,7 @@ import type webpack from 'webpack'
 import chalk from 'next/dist/compiled/chalk'
 import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
-import { getModuleBuildInfo } from './get-module-build-info'
+import { getModuleBuildInfo, TreeNode } from './get-module-build-info'
 import { sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
@@ -49,7 +49,10 @@ async function createTreeCodeFromPath({
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
-  ): Promise<string> {
+  ): Promise<{
+    tree: TreeNode
+    treeCode: string
+  }> {
     const segmentPath = segments.join('/')
 
     // Existing tree are the children of the current segment
@@ -63,11 +66,17 @@ async function createTreeCodeFromPath({
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
 
+    const tree: TreeNode = {
+      resource: '',
+      children: [],
+    }
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
         const resolvedPagePath = await resolve(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
+
+        tree.resource = resolvedPagePath || ''
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {
@@ -77,11 +86,17 @@ async function createTreeCodeFromPath({
         continue
       }
 
+      const parallelTree: TreeNode = {
+        resource: '',
+        children: [],
+      }
+      tree.children.push(parallelTree)
+
       const parallelSegmentPath = segmentPath + '/' + parallelSegment
-      const subtree = await createSubtreePropsFromSegmentPath([
-        ...segments,
-        parallelSegment,
-      ])
+      const { tree: subtree, treeCode: subtreeCode } =
+        await createSubtreePropsFromSegmentPath([...segments, parallelSegment])
+
+      parallelTree.children.push(subtree)
 
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
@@ -93,10 +108,14 @@ async function createTreeCodeFromPath({
         })
       )
 
+      const layoutPath = filePaths.find(
+        ([type, path]) => type === 'layout' && !!path
+      )?.[1]
+      if (layoutPath) {
+        parallelTree.resource = layoutPath
+      }
       if (!rootLayout) {
-        rootLayout = filePaths.find(
-          ([type, path]) => type === 'layout' && !!path
-        )?.[1]
+        rootLayout = layoutPath
       }
 
       if (!globalError) {
@@ -107,7 +126,7 @@ async function createTreeCodeFromPath({
 
       props[parallelKey] = `[
         '${parallelSegment}',
-        ${subtree},
+        ${subtreeCode},
         {
           ${filePaths
             .filter(([, filePath]) => filePath !== undefined)
@@ -115,6 +134,14 @@ async function createTreeCodeFromPath({
               if (filePath === undefined) {
                 return ''
               }
+
+              if (file !== 'layout') {
+                parallelTree.children.push({
+                  resource: filePath,
+                  children: [],
+                })
+              }
+
               return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
                 filePath
               )}), ${JSON.stringify(filePath)}],`
@@ -124,15 +151,24 @@ async function createTreeCodeFromPath({
       ]`
     }
 
-    return `{
-      ${Object.entries(props)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(',\n')}
-    }`
+    return {
+      tree,
+      treeCode: `{
+        ${Object.entries(props)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(',\n')}
+      }`,
+    }
   }
 
-  const tree = await createSubtreePropsFromSegmentPath([])
-  return [`const tree = ${tree}.children;`, pages, rootLayout, globalError]
+  const { treeCode, tree } = await createSubtreePropsFromSegmentPath([])
+  return {
+    tree,
+    treeCode: `const tree = ${treeCode}.children;`,
+    pages,
+    rootLayout,
+    globalError,
+  }
 }
 
 function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
@@ -220,7 +256,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  const [treeCode, pages, rootLayout, globalError] =
+  const { tree, treeCode, pages, rootLayout, globalError } =
     await createTreeCodeFromPath({
       pagePath,
       resolve: resolver,
@@ -250,6 +286,8 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
       }
     }
   }
+
+  buildInfo.treeInfo = tree
 
   const result = `
     export ${treeCode}

@@ -1466,6 +1466,27 @@ createNextDescribe(
 
       if (isDev) {
         describe('multiple entries', () => {
+          it('should only inject the same style once if used by different layers', async () => {
+            const browser = await next.browser('/css/css-duplicate-2/client')
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].filter(({ cssRules }) =>
+                  [...cssRules].some(({ cssText }) => (cssText||'').includes('_randomized_string_for_testing_'))
+                ).length`
+              )
+            ).toBe(1)
+          })
+
+          it('should only include the same style once in the flight data', async () => {
+            const initialHtml = await next.render('/css/css-duplicate-2/server')
+
+            // Even if it's deduped by Float, it should still only be included once in the payload.
+            // There are two matches, one for the rendered <link> and one for the flight data.
+            expect(
+              initialHtml.match(/duplicate-2_style_module_css\.css/g).length
+            ).toBe(2)
+          })
+
           it('should only load chunks for the css module that is used by the specific entrypoint', async () => {
             // Visit /b first
             await next.render('/css/css-duplicate/b')
