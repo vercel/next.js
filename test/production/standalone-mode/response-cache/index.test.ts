@@ -23,9 +23,6 @@ describe('minimal-mode-response-cache', () => {
 
     next = await createNext({
       files: new FileRef(join(__dirname, 'app')),
-      env: {
-        HOSTNAME: '',
-      },
     })
     await next.stop()
 
@@ -63,6 +60,7 @@ describe('minimal-mode-response-cache', () => {
       /Listening on/,
       {
         ...process.env,
+        HOSTNAME: '',
         PORT: appPort,
       },
       undefined,
