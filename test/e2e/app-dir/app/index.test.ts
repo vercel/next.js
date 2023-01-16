@@ -2099,7 +2099,7 @@ createNextDescribe(
             // Digest of the error message should be stable.
           ).not.toBe('')
           // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
-          // expect(await hasRedbox(browser)).toBe(true)
+          // expect(await hasRedbox(browser, true)).toBe(true)
           // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -2122,7 +2122,7 @@ createNextDescribe(
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
@@ -2139,7 +2139,7 @@ createNextDescribe(
         )
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
         } else {
           expect(

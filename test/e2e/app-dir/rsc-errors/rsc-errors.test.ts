@@ -120,7 +120,7 @@ if (!(globalThis as any).isNextDev) {
         const browser = await next.browser(
           '/server-with-errors/client-only-in-server'
         )
-        await hasRedbox(browser)
+        expect(await hasRedbox(browser, true)).toBe(true)
         const text = await getRedboxSource(browser)
         expect(text).toContain(
           `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
@@ -132,7 +132,7 @@ if (!(globalThis as any).isNextDev) {
           '/client-with-errors/server-only-in-client'
         )
 
-        await hasRedbox(browser)
+        expect(await hasRedbox(browser, true)).toBe(true)
         const text = await getRedboxSource(browser)
         expect(text).toContain(
           `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
@@ -142,7 +142,7 @@ if (!(globalThis as any).isNextDev) {
       it('should error for invalid undefined module retuning from next dynamic', async () => {
         const browser = await next.browser('/client-with-errors/dynamic')
 
-        await hasRedbox(browser)
+        expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxDescription(browser)).toContain(
           `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
         )

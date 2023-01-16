@@ -424,7 +424,7 @@ describe.each([[''], ['/docs']])(
 
           await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -470,7 +470,7 @@ describe.each([[''], ['/docs']])(
 
           browser = await webdriver(next.url, basePath + '/hmr/contact')
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -512,7 +512,7 @@ describe.each([[''], ['/docs']])(
             aboutContent.replace('export', 'aa=20;\nexport')
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -548,7 +548,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxSource(browser)).toMatch(/an-expected-error/)
 
           await next.patchFile(aboutPage, aboutContent)
@@ -593,7 +593,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
           Server Error
@@ -646,7 +646,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           // TODO: Replace this when webpack 5 is the default
           expect(await getRedboxHeader(browser)).toMatch(
             `Objects are not valid as a React child (found: [object RegExp]). If you meant to render a collection of children, use an array instead.`
@@ -696,7 +696,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
           Server Error
@@ -751,7 +751,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
             `"Failed to compile"`
           )
@@ -814,7 +814,7 @@ describe.each([[''], ['/docs']])(
             )
           )
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
             `"Failed to compile"`
           )
@@ -872,7 +872,7 @@ describe.each([[''], ['/docs']])(
           browser = await webdriver(next.url, basePath + '/hmr')
           await browser.elementByCss('#error-in-gip-link').click()
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
           Unhandled Runtime Error
@@ -916,7 +916,7 @@ describe.each([[''], ['/docs']])(
         try {
           browser = await webdriver(next.url, basePath + '/hmr/error-in-gip')
 
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
           " 1 of 1 unhandled error
           Server Error
