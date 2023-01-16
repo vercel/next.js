@@ -2606,8 +2606,9 @@ createNextDescribe(
         )
         if (Array.isArray(content)) {
           expect(values).toEqual(content)
+        } else {
+          expect(values[0]).toContain(content)
         }
-        expect(values[0]).toContain(content)
       }
 
       if (!isNextDeploy) {

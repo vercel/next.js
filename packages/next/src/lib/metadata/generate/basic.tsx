@@ -13,9 +13,6 @@ export function elementsFromResolvedBasic(metadata: ResolvedMetadata) {
             : metadata.title.absolute}
         </title>
       ) : null}
-      {metadata.metadataBase !== null ? (
-        <base href={metadata.metadataBase.toString()} />
-      ) : null}
       <Meta name="description" content={metadata.description} />
       <Meta name="application-name" content={metadata.applicationName} />
       <Meta name="author" content={metadata.authors?.join(',')} />
