@@ -82,10 +82,8 @@ if (cluster.isMaster) {
 }
 
 function watchConfigFiles(dirToWatch: string) {
-  const wp = new Watchpack({
-    dir: dirToWatch,
-  })
-  wp.watch({ files: CONFIG_FILES })
+  const wp = new Watchpack()
+  wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
   wp.on('change', (filename) => {
     console.log(
       `\n> Found a change in ${path.basename(
