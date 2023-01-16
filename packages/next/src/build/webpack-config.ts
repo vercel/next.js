@@ -2448,7 +2448,7 @@ export default async function getBaseWebpackConfig(
       devtoolRevertWarning(originalDevtool)
     }
 
-    // eslint-disable-next-line no-shadow
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const webpack5Config = webpackConfig as webpack.Configuration
 
     // disable lazy compilation of entries as next.js has it's own method here
