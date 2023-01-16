@@ -361,6 +361,7 @@ export class FlightClientEntryPlugin {
                   used.add(cssImport)
                   return true
                 }
+                return false
               })
             }
 
