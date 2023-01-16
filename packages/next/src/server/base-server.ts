@@ -1712,7 +1712,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname: string
   ): Promise<AppCustomRoute | false> {
     let appPaths = this.getOriginalAppPaths(pathname)
-    if (appPaths && appPaths[0]) {
+    if (appPaths && appPaths[0] && appPaths[0].endsWith('/route')) {
       return { page: pathname, pathname: appPaths[0] }
     }
 
@@ -1894,7 +1894,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (
-      this.router.catchAllMiddleware[0] &&
+      this.router.hasCatchAllMiddleware &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {

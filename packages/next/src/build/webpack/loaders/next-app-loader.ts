@@ -186,8 +186,10 @@ async function createCustomAppRouteCode({
   // TODO: validate that the handler exports at least one of the supported methods
 
   return `
-    export * as handlers from ${JSON.stringify(resolvedPagePath)}
+    import 'next/dist/server/node-polyfill-headers'
 
+    export * as handlers from ${JSON.stringify(resolvedPagePath)}
+    
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
   `
 }

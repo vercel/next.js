@@ -24,6 +24,8 @@ import * as Log from '../../../build/output/log'
 import { getRequestMeta } from '../../request-meta'
 import { NextRequest } from '../../web/spec-extension/request'
 import { fromNodeHeaders } from '../../web/utils'
+import { parseUrl } from '../../../shared/lib/router/utils/parse-url'
+import { relativizeURL } from '../../../shared/lib/router/utils/relativize-url'
 
 // TODO: document
 export type CustomRouteMod = {
@@ -195,6 +197,19 @@ type CustomAppRouteResolver = {
   res: BaseNextResponse
   route: AppCustomRoute
   mod: CustomRouteMod
+  minimalMode: boolean
+}
+
+type IntermediateResult = {
+  /**
+   * The response that requires additional processing.
+   */
+  response: Response
+
+  /**
+   * The condition for which the response required additional processing.
+   */
+  condition: 'rewrite'
 }
 
 export async function customAppRouteResolver({
@@ -202,7 +217,8 @@ export async function customAppRouteResolver({
   res,
   route,
   mod,
-}: CustomAppRouteResolver): Promise<void> {
+  minimalMode,
+}: CustomAppRouteResolver): Promise<IntermediateResult | undefined> {
   // This is added by the webpack loader, we load it directly from the module.
   const { requestAsyncStorage } = mod
 
@@ -228,11 +244,33 @@ export async function customAppRouteResolver({
     if (!(response instanceof Response)) {
       // TODO: validate the correct handling behavior
       response = handleInternalServerErrorResponse()
+    } else if (response.headers.has('x-middleware-rewrite')) {
+      // This is a rewrite created via `NextResponse.rewrite()`. We need to send
+      // the response up so it can be handled by the backing server.
+
+      // If the server is running in minimal mode, we just want to forward the
+      // response (including the rewrite headers) upstream so it can perform the
+      // redirect for us, otherwise return with the special condition so this
+      // server can perform a rewrite.
+      if (!minimalMode) {
+        return { response, condition: 'rewrite' }
+      }
+
+      // Relativize the url so it's relative to the base url. This is so the
+      // outgoing headers upstream can be relative.
+      const rewritePath = response.headers.get('x-middleware-rewrite')!
+      const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+      const { pathname } = parseUrl(relativizeURL(rewritePath, initUrl))
+      response.headers.set('x-middleware-rewrite', pathname)
+    } else if (response.headers.get('x-middleware-next') === '1') {
+      throw new Error(
+        'NextResponse.next() was used in a custom app route handler, this is not supported. See here for more info: https://nextjs.org/docs/messages/next-response-next-in-custom-app-route-handler'
+      )
     }
 
-    return await sendResponse(req, res, response)
+    await sendResponse(req, res, response)
   } catch (err) {
     // Get the correct response based on the error.
-    return await sendResponse(req, res, resolveHandlerError(err))
+    await sendResponse(req, res, resolveHandlerError(err))
   }
 }

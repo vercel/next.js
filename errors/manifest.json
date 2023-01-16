@@ -779,6 +779,10 @@
           "path": "/errors/context-in-server-component.md"
         },
         {
+          "title": "next-response-next-in-custom-app-route-handler",
+          "path": "/errors/next-response-next-in-custom-app-route-handler.md"
+        },
+        {
           "title": "react-client-hook-in-server-component",
           "path": "/errors/react-client-hook-in-server-component.md"
         },

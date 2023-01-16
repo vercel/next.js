@@ -52,17 +52,30 @@ createNextDescribe(
           const meta = getRequestMeta(res.headers)
           expect(meta.ping).toEqual('pong')
         })
+      })
 
-        it('can read the text body', async () => {
-          const body = 'hello, world'
-          const res = await next.fetch('/advanced/body/text', {
-            method: 'POST',
-            body,
-          })
+      describe('response', () => {
+        it('supports the NextResponse.rewrite() helper', async () => {
+          const res = await next.fetch('/hooks/rewrite')
 
           expect(res.status).toEqual(200)
-          const meta = getRequestMeta(res.headers)
-          expect(meta.body).toEqual(body)
+
+          // This is running in the edge runtime, so we expect not to see this
+          // header.
+          expect(res.headers.has('x-middleware-rewrite')).toBeFalse()
+          expect(await res.text()).toContain('hello, world')
+        })
+
+        it('supports the NextResponse.redirect() helper', async () => {
+          const res = await next.fetch('/hooks/redirect/response', {
+            // "Manually" perform the redirect, we want to inspect the
+            // redirection response, so don't actually follow it.
+            redirect: 'manual',
+          })
+
+          expect(res.status).toEqual(307)
+          expect(res.headers.get('location')).toEqual('https://nextjs.org/')
+          expect(await res.text()).toBeEmpty()
         })
       })
     })
@@ -116,6 +129,18 @@ createNextDescribe(
         const res = await next.fetch('/advanced/body/json', {
           method: 'POST',
           body: stream,
+        })
+
+        expect(res.status).toEqual(200)
+        const meta = getRequestMeta(res.headers)
+        expect(meta.body).toEqual(body)
+      })
+
+      it('can read the text body', async () => {
+        const body = 'hello, world'
+        const res = await next.fetch('/advanced/body/text', {
+          method: 'POST',
+          body,
         })
 
         expect(res.status).toEqual(200)
@@ -225,6 +250,21 @@ createNextDescribe(
 
         expect(res.status).toEqual(500)
         expect(await res.text()).toBeEmpty()
+      })
+
+      it('responds with 500 (Internal Server Error) when the handler calls NextResponse.next()', async () => {
+        const error =
+          'https://nextjs.org/docs/messages/next-response-next-in-custom-app-route-handler'
+
+        // Precondition. We shouldn't have seen this before. This ensures we're
+        // testing that the specific route throws this error in the console.
+        expect(next.cliOutput).not.toContain(error)
+
+        const res = await next.fetch('/status/500/next')
+
+        expect(res.status).toEqual(500)
+        expect(await res.text()).toBeEmpty()
+        expect(next.cliOutput).toContain(error)
       })
     })
 

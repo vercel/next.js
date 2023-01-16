@@ -3,7 +3,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
-import type { Route } from './router'
+import type { Route, RouteResult } from './router'
 import {
   CacheFs,
   DecodeError,
@@ -390,9 +390,7 @@ export default class NextNodeServer extends BaseServer {
           if (this.minimalMode) {
             res.statusCode = 400
             res.body('Bad Request').send()
-            return {
-              finished: true,
-            }
+            return { state: 'finished' }
           }
           const { ImageOptimizerCache } =
             require('./image-optimizer') as typeof import('./image-optimizer')
@@ -414,7 +412,7 @@ export default class NextNodeServer extends BaseServer {
 
           if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
             await this.render404(req, res)
-            return { finished: true }
+            return { state: 'finished' }
           }
           const paramsResult = ImageOptimizerCache.validateParams(
             (req as NodeNextRequest).originalRequest,
@@ -426,7 +424,7 @@ export default class NextNodeServer extends BaseServer {
           if ('errorMessage' in paramsResult) {
             res.statusCode = 400
             res.body(paramsResult.errorMessage).send()
-            return { finished: true }
+            return { state: 'finished' }
           }
           const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
 
@@ -480,12 +478,12 @@ export default class NextNodeServer extends BaseServer {
               res.statusCode = err.statusCode
               res.body(err.message).send()
               return {
-                finished: true,
+                state: 'finished',
               }
             }
             throw err
           }
-          return { finished: true }
+          return { state: 'finished' }
         },
       },
     ]
@@ -508,9 +506,7 @@ export default class NextNodeServer extends BaseServer {
             fn: async (req, res, params, parsedUrl) => {
               const p = join(this.dir, 'static', ...params.path)
               await this.serveStatic(req, res, p, parsedUrl)
-              return {
-                finished: true,
-              }
+              return { state: 'finished' }
             },
           } as Route,
         ]
@@ -531,9 +527,7 @@ export default class NextNodeServer extends BaseServer {
           // make sure to 404 for /_next/static itself
           if (!params.path) {
             await this.render404(req, res, parsedUrl)
-            return {
-              finished: true,
-            }
+            return { state: 'finished' }
           }
 
           if (
@@ -554,9 +548,7 @@ export default class NextNodeServer extends BaseServer {
             ...(params.path || [])
           )
           await this.serveStatic(req, res, p, parsedUrl)
-          return {
-            finished: true,
-          }
+          return { state: 'finished' }
         },
       },
     ]
@@ -591,7 +583,7 @@ export default class NextNodeServer extends BaseServer {
                 return part === pathParts[idx]
               })
             ) {
-              return { finished: false }
+              return { state: 'continue' }
             }
 
             pathParts.splice(0, basePathParts.length)
@@ -614,11 +606,11 @@ export default class NextNodeServer extends BaseServer {
               parsedUrl
             )
             return {
-              finished: true,
+              state: 'finished',
             }
           }
           return {
-            finished: false,
+            state: 'continue',
           }
         },
       } as Route,
@@ -706,7 +698,7 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     parsedUrl: ParsedUrl,
     upgradeHead?: any
-  ) {
+  ): Promise<RouteResult> {
     const { query } = parsedUrl
     delete (parsedUrl as any).query
     parsedUrl.search = stringifyQuery(req, query)
@@ -764,9 +756,7 @@ export default class NextNodeServer extends BaseServer {
       }
     })
 
-    return {
-      finished: true,
-    }
+    return { state: 'finished' }
   }
 
   protected async runApi(
@@ -1069,12 +1059,10 @@ export default class NextNodeServer extends BaseServer {
           // we also want to 404 if the buildId isn't correct
           if (!params.path || params.path[0] !== this.buildId) {
             if (isNextDataNormalizing) {
-              return { finished: false }
+              return { state: 'continue' }
             }
             await this.render404(req, res, _parsedUrl)
-            return {
-              finished: true,
-            }
+            return { state: 'finished' }
           }
           // remove buildId from URL
           params.path.shift()
@@ -1084,9 +1072,7 @@ export default class NextNodeServer extends BaseServer {
           // show 404 if it doesn't end with .json
           if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
             await this.render404(req, res, _parsedUrl)
-            return {
-              finished: true,
-            }
+            return { state: 'finished' }
           }
 
           // re-create page's pathname
@@ -1094,7 +1080,7 @@ export default class NextNodeServer extends BaseServer {
           pathname = getRouteFromAssetPath(pathname, '.json')
 
           // ensure trailing slash is normalized per config
-          if (this.router.catchAllMiddleware[0]) {
+          if (this.router.hasCatchAllMiddleware) {
             if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
               pathname += '/'
             }
@@ -1129,18 +1115,18 @@ export default class NextNodeServer extends BaseServer {
             _parsedUrl.query.__nextDefaultLocale =
               defaultLocale || this.nextConfig.i18n.defaultLocale
 
-            if (!detectedLocale && !this.router.catchAllMiddleware[0]) {
+            if (!detectedLocale && !this.router.hasCatchAllMiddleware) {
               _parsedUrl.query.__nextLocale =
                 _parsedUrl.query.__nextDefaultLocale
               await this.render404(req, res, _parsedUrl)
-              return { finished: true }
+              return { state: 'finished' }
             }
           }
 
           return {
             pathname,
             query: { ..._parsedUrl.query, __nextDataReq: '1' },
-            finished: false,
+            state: 'continue',
           }
         },
       },
@@ -1152,9 +1138,7 @@ export default class NextNodeServer extends BaseServer {
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, _params, parsedUrl) => {
           await this.render404(req, res, parsedUrl)
-          return {
-            finished: true,
-          }
+          return { state: 'finished' }
         },
       },
       ...publicRoutes,
@@ -1213,7 +1197,7 @@ export default class NextNodeServer extends BaseServer {
 
           const handled = await this.handleApiRequest(req, res, pathname, query)
           if (handled) {
-            return { finished: true }
+            return { state: 'finished' }
           }
         }
 
@@ -1222,28 +1206,16 @@ export default class NextNodeServer extends BaseServer {
           // TODO: is this needed for this route?
           delete query._nextBubbleNoFallback
 
-          const handled = await this.handleAppCustomRouteRequest(
-            req,
-            res,
-            route,
-            query
-          )
-          if (handled) {
-            return { finished: true }
-          }
+          return await this.handleAppCustomRouteRequest(req, res, route, query)
         }
 
         try {
           await this.render(req, res, pathname, query, parsedUrl, true)
 
-          return {
-            finished: true,
-          }
+          return { state: 'finished' }
         } catch (err) {
           if (err instanceof NoFallbackError && bubbleNoFallback) {
-            return {
-              finished: false,
-            }
+            return { state: 'continue' }
           }
           throw err
         }
@@ -1301,9 +1273,8 @@ export default class NextNodeServer extends BaseServer {
       }
     }
 
-    if (!pageFound) {
-      return false
-    }
+    if (!pageFound) return false
+
     // Make sure the page is built before getting the path
     // or else it won't be in the manifest yet
     await this.ensureApiPage(page)
@@ -1312,9 +1283,8 @@ export default class NextNodeServer extends BaseServer {
     try {
       builtPagePath = this.getPagePath(page)
     } catch (err) {
-      if (isError(err) && err.code === 'ENOENT') {
-        return false
-      }
+      if (isError(err) && err.code === 'ENOENT') return false
+
       throw err
     }
 
@@ -1326,7 +1296,7 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse,
     route: AppCustomRoute,
     query: ParsedUrlQuery
-  ): Promise<true> {
+  ): Promise<RouteResult> {
     if (!this.appPathsManifest) {
       throw new Error(
         'could not find app paths manifest, unable to lookup route file'
@@ -1351,9 +1321,18 @@ export default class NextNodeServer extends BaseServer {
       routeFilePath
     ))
 
-    await customAppRouteResolver({ req, res, route, mod })
+    const result = await customAppRouteResolver({
+      req,
+      res,
+      route,
+      mod,
+      minimalMode: this.minimalMode,
+    })
+    if (result?.condition === 'rewrite') {
+      return await this.handleMiddlewareRewrite(req, res, result.response, true)
+    }
 
-    return true
+    return { state: 'finished' }
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1517,9 +1496,7 @@ export default class NextNodeServer extends BaseServer {
             fn: async (req, res, params, parsedUrl) => {
               const p = join(this.dir, 'static', ...params.path)
               await this.serveStatic(req, res, p, parsedUrl)
-              return {
-                finished: true,
-              }
+              return { state: 'finished' }
             },
           } as Route,
         ]
@@ -1614,7 +1591,7 @@ export default class NextNodeServer extends BaseServer {
             addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
 
             return {
-              finished: false,
+              state: 'continue',
               pathname: newUrl,
               query: parsedDestination.query,
             }
@@ -1646,20 +1623,15 @@ export default class NextNodeServer extends BaseServer {
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
     if (this.minimalMode) return null
-    const manifest: MiddlewareManifest = require(join(
-      this.serverDistDir,
-      MIDDLEWARE_MANIFEST
-    ))
-    return manifest
+
+    return require(join(this.serverDistDir, MIDDLEWARE_MANIFEST))
   }
 
   /** Returns the middleware routing item if there is one. */
   protected getMiddleware(): MiddlewareRoutingItem | undefined {
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
-    if (!middleware) {
-      return
-    }
+    if (!middleware) return
 
     return {
       match: getMiddlewareMatcher(middleware),
@@ -1741,7 +1713,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   /**
-   * A placeholder for a function to be defined in the development server.
+   * A stub for a function to be defined in the development server.
    * It will make sure that the root middleware or an edge function has been compiled
    * so that we can run it.
    */
@@ -1763,13 +1735,13 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl: ParsedUrl
     parsed: UrlWithParsedQuery
     onWarning?: (warning: Error) => void
-  }) {
+  }): Promise<FetchEventResult | RouteResult> {
     // Middleware is skipped for on-demand revalidate requests
     if (
       checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
         .isManualRevalidate
     ) {
-      return { finished: false }
+      return { state: 'continue' }
     }
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
@@ -1811,10 +1783,10 @@ export default class NextNodeServer extends BaseServer {
 
     const middleware = this.getMiddleware()
     if (!middleware) {
-      return { finished: false }
+      return { state: 'continue' }
     }
     if (!(await this.hasMiddleware(middleware.page))) {
-      return { finished: false }
+      return { state: 'continue' }
     }
 
     await this.ensureMiddleware()
@@ -1868,7 +1840,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (!result) {
       this.render404(params.request, params.response, params.parsed)
-      return { finished: true }
+      return { state: 'finished' }
     } else {
       for (let [key, value] of allHeaders) {
         result.response.headers.set(key, value)
@@ -1887,226 +1859,242 @@ export default class NextNodeServer extends BaseServer {
 
   protected generateCatchAllMiddlewareRoute(devReady?: boolean): Route[] {
     if (this.minimalMode) return []
-    const routes = []
-    if (!this.renderOpts.dev || devReady) {
-      if (this.getMiddleware()) {
-        const middlewareCatchAllRoute: Route = {
-          match: getPathMatch('/:path*'),
-          matchesBasePath: true,
-          matchesLocale: true,
-          type: 'route',
-          name: 'middleware catchall',
-          fn: async (req, res, _params, parsed) => {
-            const middleware = this.getMiddleware()
-            if (!middleware) {
-              return { finished: false }
-            }
 
-            const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
-            const parsedUrl = parseUrl(initUrl)
-            const pathnameInfo = getNextPathnameInfo(parsedUrl.pathname, {
-              nextConfig: this.nextConfig,
+    const routes: Route[] = []
+
+    if ((!this.renderOpts.dev || devReady) && this.getMiddleware()) {
+      const middlewareCatchAllRoute: Route = {
+        match: getPathMatch('/:path*'),
+        matchesBasePath: true,
+        matchesLocale: true,
+        type: 'route',
+        name: 'middleware catchall',
+        fn: async (req, res, _params, parsed): Promise<RouteResult> => {
+          const middleware = this.getMiddleware()
+          if (!middleware) return { state: 'continue' }
+
+          const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+          const parsedUrl = parseUrl(initUrl)
+          const pathnameInfo = getNextPathnameInfo(parsedUrl.pathname, {
+            nextConfig: this.nextConfig,
+          })
+
+          parsedUrl.pathname = pathnameInfo.pathname
+          const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
+          if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
+            return { state: 'continue' }
+          }
+
+          let result: Awaited<
+            ReturnType<typeof NextNodeServer.prototype.runMiddleware>
+          >
+
+          try {
+            result = await this.runMiddleware({
+              request: req,
+              response: res,
+              parsedUrl: parsedUrl,
+              parsed: parsed,
             })
-
-            parsedUrl.pathname = pathnameInfo.pathname
-            const normalizedPathname = removeTrailingSlash(
-              parsed.pathname || ''
-            )
-            if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
-              return { finished: false }
+          } catch (err) {
+            if (isError(err) && err.code === 'ENOENT') {
+              await this.render404(req, res, parsed)
+              return { state: 'finished' }
             }
 
-            let result: Awaited<
-              ReturnType<typeof NextNodeServer.prototype.runMiddleware>
-            >
-
-            try {
-              result = await this.runMiddleware({
-                request: req,
-                response: res,
-                parsedUrl: parsedUrl,
-                parsed: parsed,
-              })
-            } catch (err) {
-              if (isError(err) && err.code === 'ENOENT') {
-                await this.render404(req, res, parsed)
-                return { finished: true }
-              }
-
-              if (err instanceof DecodeError) {
-                res.statusCode = 400
-                this.renderError(err, req, res, parsed.pathname || '')
-                return { finished: true }
-              }
-
-              const error = getProperError(err)
-              console.error(error)
-              res.statusCode = 500
-              this.renderError(error, req, res, parsed.pathname || '')
-              return { finished: true }
+            if (err instanceof DecodeError) {
+              res.statusCode = 400
+              this.renderError(err, req, res, parsed.pathname || '')
+              return { state: 'finished' }
             }
 
-            if ('finished' in result) {
-              return result
-            }
+            const error = getProperError(err)
+            console.error(error)
+            res.statusCode = 500
+            this.renderError(error, req, res, parsed.pathname || '')
+            return { state: 'finished' }
+          }
 
-            if (result.response.headers.has('x-middleware-rewrite')) {
-              const value = result.response.headers.get('x-middleware-rewrite')!
-              const rel = relativizeURL(value, initUrl)
-              result.response.headers.set('x-middleware-rewrite', rel)
-            }
+          if ('state' in result) {
+            return result
+          }
 
-            if (result.response.headers.has('x-middleware-override-headers')) {
-              const overriddenHeaders: Set<string> = new Set()
-              for (const key of result.response.headers
+          if (result.response.headers.has('x-middleware-override-headers')) {
+            const overriddenHeaders: ReadonlySet<string> = new Set(
+              result.response.headers
                 .get('x-middleware-override-headers')!
-                .split(',')) {
-                overriddenHeaders.add(key.trim())
-              }
+                .split(',')
+                .map((key) => key.trim())
+            )
 
-              result.response.headers.delete('x-middleware-override-headers')
+            result.response.headers.delete('x-middleware-override-headers')
 
-              // Delete headers.
-              for (const key of Object.keys(req.headers)) {
-                if (!overriddenHeaders.has(key)) {
-                  delete req.headers[key]
-                }
-              }
-
-              // Update or add headers.
-              for (const key of overriddenHeaders.keys()) {
-                const valueKey = 'x-middleware-request-' + key
-                const newValue = result.response.headers.get(valueKey)
-                const oldValue = req.headers[key]
-
-                if (oldValue !== newValue) {
-                  req.headers[key] = newValue === null ? undefined : newValue
-                }
-
-                result.response.headers.delete(valueKey)
+            // Delete headers.
+            for (const key of Object.keys(req.headers)) {
+              if (!overriddenHeaders.has(key)) {
+                delete req.headers[key]
               }
             }
 
-            if (result.response.headers.has('Location')) {
-              const value = result.response.headers.get('Location')!
-              const rel = relativizeURL(value, initUrl)
-              result.response.headers.set('Location', rel)
-            }
+            // Update or add headers.
+            for (const key of overriddenHeaders.keys()) {
+              const valueKey = 'x-middleware-request-' + key
+              const newValue = result.response.headers.get(valueKey)
+              const oldValue = req.headers[key]
 
-            if (
-              !result.response.headers.has('x-middleware-rewrite') &&
-              !result.response.headers.has('x-middleware-next') &&
-              !result.response.headers.has('Location')
-            ) {
-              result.response.headers.set('x-middleware-refresh', '1')
-            }
-
-            result.response.headers.delete('x-middleware-next')
-
-            for (const [key, value] of Object.entries(
-              toNodeHeaders(result.response.headers)
-            )) {
-              if (
-                [
-                  'x-middleware-rewrite',
-                  'x-middleware-redirect',
-                  'x-middleware-refresh',
-                ].includes(key)
-              ) {
-                continue
+              if (oldValue !== newValue) {
+                req.headers[key] = newValue === null ? undefined : newValue
               }
-              if (key !== 'content-encoding' && value !== undefined) {
-                res.setHeader(key, value)
-              }
-            }
 
+              result.response.headers.delete(valueKey)
+            }
+          }
+
+          if (result.response.headers.has('Location')) {
+            const value = result.response.headers.get('Location')!
+            const rel = relativizeURL(value, initUrl)
+            result.response.headers.set('Location', rel)
+          }
+
+          if (
+            !result.response.headers.has('x-middleware-rewrite') &&
+            !result.response.headers.has('x-middleware-next') &&
+            !result.response.headers.has('Location')
+          ) {
+            result.response.headers.set('x-middleware-refresh', '1')
+          }
+
+          result.response.headers.delete('x-middleware-next')
+
+          const skippedHeaders = [
+            'content-encoding',
+            'x-middleware-rewrite',
+            'x-middleware-redirect',
+            'x-middleware-refresh',
+          ]
+
+          for (const [key, value] of Object.entries(
+            toNodeHeaders(result.response.headers)
+          )) {
+            if (value === undefined || skippedHeaders.includes(key)) continue
+
+            res.setHeader(key, value)
+          }
+
+          res.statusCode = result.response.status
+          res.statusMessage = result.response.statusText
+
+          const location = result.response.headers.get('Location')
+          if (location) {
             res.statusCode = result.response.status
-            res.statusMessage = result.response.statusText
-
-            const location = result.response.headers.get('Location')
-            if (location) {
-              res.statusCode = result.response.status
-              if (res.statusCode === 308) {
-                res.setHeader('Refresh', `0;url=${location}`)
-              }
-
-              res.body(location).send()
-              return {
-                finished: true,
-              }
+            if (res.statusCode === 308) {
+              res.setHeader('Refresh', `0;url=${location}`)
             }
 
-            if (result.response.headers.has('x-middleware-rewrite')) {
-              const rewritePath = result.response.headers.get(
-                'x-middleware-rewrite'
-              )!
-              const parsedDestination = parseUrl(rewritePath)
-              const newUrl = parsedDestination.pathname
+            res.body(location).send()
+            return { state: 'finished' }
+          }
 
-              if (
-                parsedDestination.protocol &&
-                (parsedDestination.port
-                  ? `${parsedDestination.hostname}:${parsedDestination.port}`
-                  : parsedDestination.hostname) !== req.headers.host
-              ) {
-                // when we are handling a middleware prefetch and it doesn't
-                // resolve to a static data route we bail early to avoid
-                // unexpected SSR invocations
-                if (req.headers['x-middleware-prefetch']) {
-                  res.setHeader('x-middleware-skip', '1')
-                  res.body('{}').send()
-                  return { finished: true }
-                }
-                return this.proxyRequest(
-                  req as NodeNextRequest,
-                  res as NodeNextResponse,
-                  parsedDestination
-                )
-              }
+          // If there's a `x-middleware-rewrite` header on the response, then
+          // this was created via `NextResponse.rewrite()` and has special
+          // handling.
+          if (result.response.headers.has('x-middleware-rewrite')) {
+            return this.handleMiddlewareRewrite(
+              req,
+              res,
+              result.response,
+              false
+            )
+          }
 
-              if (this.nextConfig.i18n) {
-                const localePathResult = normalizeLocalePath(
-                  newUrl,
-                  this.nextConfig.i18n.locales
-                )
-                if (localePathResult.detectedLocale) {
-                  parsedDestination.query.__nextLocale =
-                    localePathResult.detectedLocale
-                }
-              }
-
-              addRequestMeta(req, '_nextRewroteUrl', newUrl)
-              addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
-
-              return {
-                finished: false,
-                pathname: newUrl,
-                query: parsedDestination.query,
-              }
+          if (result.response.headers.has('x-middleware-refresh')) {
+            res.statusCode = result.response.status
+            for await (const chunk of result.response.body || ([] as any)) {
+              this.streamResponseChunk(res as NodeNextResponse, chunk)
             }
-
-            if (result.response.headers.has('x-middleware-refresh')) {
-              res.statusCode = result.response.status
-              for await (const chunk of result.response.body || ([] as any)) {
-                this.streamResponseChunk(res as NodeNextResponse, chunk)
-              }
-              res.send()
-              return {
-                finished: true,
-              }
-            }
-
+            res.send()
             return {
-              finished: false,
+              state: 'finished',
             }
-          },
-        }
+          }
 
-        routes.push(middlewareCatchAllRoute)
+          return {
+            state: 'continue',
+          }
+        },
       }
+
+      routes.push(middlewareCatchAllRoute)
     }
 
     return routes
+  }
+
+  /**
+   * Handles the middleware rewrite by parsing the rewrite url and possibly
+   * proxying the request to external hosts.
+   *
+   * @param req the request object
+   * @param res the response object
+   * @param response the response from the route with the middleware header
+   * @param shouldRewind if true, will return a rewind state instead of a
+   * continue state. Used when the routes needs to be re-ran to perform the
+   * rewrite.
+   * @returns the route result to be passed up to the router
+   */
+  protected async handleMiddlewareRewrite(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    response: Response,
+    shouldRewind: boolean
+  ): Promise<RouteResult> {
+    // Relativize the rewrite URL if it exists.
+    const rewriteHeader = response.headers.get('x-middleware-rewrite')!
+    const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+    const parsedDestination = parseUrl(relativizeURL(rewriteHeader, initUrl))
+    const rewrite = parsedDestination.pathname
+
+    const isDifferentHost =
+      Boolean(parsedDestination.protocol) &&
+      (parsedDestination.port
+        ? `${parsedDestination.hostname}:${parsedDestination.port}`
+        : parsedDestination.hostname) !== req.headers.host
+
+    if (isDifferentHost) {
+      // when we are handling a middleware prefetch and it doesn't
+      // resolve to a static data route we bail early to avoid
+      // unexpected SSR invocations
+      if (req.headers['x-middleware-prefetch']) {
+        res.setHeader('x-middleware-skip', '1')
+        res.body('{}').send()
+        return { state: 'finished' }
+      }
+
+      return await this.proxyRequest(
+        req as NodeNextRequest,
+        res as NodeNextResponse,
+        parsedDestination
+      )
+    }
+
+    if (this.nextConfig.i18n) {
+      const localePathResult = normalizeLocalePath(
+        rewrite,
+        this.nextConfig.i18n.locales
+      )
+      if (localePathResult.detectedLocale) {
+        parsedDestination.query.__nextLocale = localePathResult.detectedLocale
+      }
+    }
+
+    addRequestMeta(req, '_nextRewroteUrl', rewrite)
+    addRequestMeta(req, '_nextDidRewrite', rewrite !== req.url)
+
+    return {
+      state: shouldRewind ? 'rewind' : 'continue',
+      pathname: rewrite,
+      query: parsedDestination.query,
+    }
   }
 
   private _cachedPreviewManifest: PrerenderManifest | undefined
