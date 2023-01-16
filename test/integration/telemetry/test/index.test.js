@@ -35,6 +35,9 @@ describe('Telemetry CLI', () => {
   it('can disable telemetry with flag', async () => {
     const { stdout } = await runNextCommand(['telemetry', '--disable'], {
       stdout: true,
+      env: {
+        NEXT_TELEMETRY_DISABLED: '',
+      },
     })
     expect(stdout).toMatch(/Your preference has been saved/)
     expect(stdout).toMatch(/Status: Disabled/)
@@ -43,6 +46,9 @@ describe('Telemetry CLI', () => {
   it('can enable telemetry without flag', async () => {
     const { stdout } = await runNextCommand(['telemetry', 'enable'], {
       stdout: true,
+      env: {
+        NEXT_TELEMETRY_DISABLED: '',
+      },
     })
     expect(stdout).toMatch(/Success/)
     expect(stdout).toMatch(/Status: Enabled/)
