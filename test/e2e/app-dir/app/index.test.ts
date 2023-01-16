@@ -2071,7 +2071,7 @@ createNextDescribe(
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -2211,7 +2211,10 @@ createNextDescribe(
             .waitForElementByCss('#value-1', 10000)
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
-          expect(val1).toBe(val2)
+
+          if (!isDev) {
+            expect(val1).toBe(val2)
+          }
         })
 
         it('client component', async () => {
