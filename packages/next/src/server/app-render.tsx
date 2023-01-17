@@ -1302,14 +1302,6 @@ export async function renderToHTMLOrFlight(
       // Resolve the segment param
       const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
-      console.log({
-        notFound,
-        segmentPath: createSegmentPath([actualSegment]),
-        NotFound,
-        notFoundStyles,
-        rootLayoutAtThisLevel,
-      })
-
       // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
       const parallelRouteMap = await Promise.all(
         Object.keys(parallelRoutes).map(
