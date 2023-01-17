@@ -151,6 +151,61 @@ if (!(globalThis as any).isNextDev) {
           `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
         )
       })
+
+      it('should throw an error when error file is a server component', async () => {
+        const browser = await next.browser('/server-with-errors/error-file')
+
+        // Remove "use client"
+        await next.patchFile(
+          'app/server-with-errors/error-file/error.js',
+          'export default function Error() {}'
+        )
+        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "./app/server-with-errors/error-file/error.js
+
+          ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+
+             ,----
+           1 | export default function Error() {}
+             : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+             \`----
+
+          Import path:
+            app/server-with-errors/error-file/error.js"
+        `)
+
+        // Add "use client"
+        await next.patchFile(
+          'app/server-with-errors/error-file/error.js',
+          '"use client"'
+        )
+        expect(await hasRedbox(browser, false)).toBe(false)
+
+        // Empty file
+        await next.patchFile('app/server-with-errors/error-file/error.js', '')
+        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "./app/server-with-errors/error-file/error.js
+
+          ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+
+             ,----
+           1 |  
+             : ^
+             \`----
+
+          Import path:
+            app/server-with-errors/error-file/error.js"
+        `)
+
+        // Fix
+        await next.patchFile(
+          'app/server-with-errors/error-file/error.js',
+          '"use client"'
+        )
+        expect(await hasRedbox(browser, false)).toBe(false)
+      })
     }
   )
 }
