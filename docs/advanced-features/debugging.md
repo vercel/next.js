@@ -24,7 +24,7 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
     },
     {
       "name": "Next.js: debug client-side",
-      "type": "pwa-chrome",
+      "type": "chrome",
       "request": "launch",
       "url": "http://localhost:3000"
     },
@@ -33,7 +33,6 @@ Create a file named `.vscode/launch.json` at the root of your project with the f
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev",
-      "console": "integratedTerminal",
       "serverReadyAction": {
         "pattern": "started server on .+, url: (https?://.+)",
         "uriFormat": "%s",
@@ -90,7 +89,7 @@ Debugging server-side code here works much like debugging client-side code with 
 
 ### Debugging on Windows
 
-Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`--dev` with NPM or `-D` for Yarn) and replace the `dev` script with the following.
+Windows users may run into an issue when using `NODE_OPTIONS='--inspect'` as that syntax is not supported on Windows platforms. To get around this, install the [`cross-env`](https://www.npmjs.com/package/cross-env) package as a development dependency (`-D` with `npm` and `yarn`) and replace the `dev` script with the following.
 
 ```json
 "dev": "cross-env NODE_OPTIONS='--inspect' next dev",

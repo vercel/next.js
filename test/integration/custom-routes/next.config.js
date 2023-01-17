@@ -1,5 +1,4 @@
 module.exports = {
-  // target: 'serverless',
   async rewrites() {
     // no-rewrites comment
     return {
@@ -204,6 +203,38 @@ module.exports = {
             },
           ],
           destination: '/blog-catchall/:post',
+        },
+        {
+          source: '/missing-rewrite-1',
+          missing: [
+            {
+              type: 'header',
+              key: 'x-my-header',
+              value: '(?<myHeader>.*)',
+            },
+          ],
+          destination: '/with-params',
+        },
+        {
+          source: '/missing-rewrite-2',
+          missing: [
+            {
+              type: 'query',
+              key: 'my-query',
+            },
+          ],
+          destination: '/with-params',
+        },
+        {
+          source: '/missing-rewrite-3',
+          missing: [
+            {
+              type: 'cookie',
+              key: 'loggedIn',
+              value: '(?<loggedIn>true)',
+            },
+          ],
+          destination: '/with-params?authorized=1',
         },
         {
           source: '/blog/about',

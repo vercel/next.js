@@ -111,6 +111,10 @@ The Next.js Edge Runtime is based on standard Web APIs, which is used by [Middle
 - [`WeakSet`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet)
 - [`WebAssembly`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly)
 
+## Next.js Specific Polyfills
+
+- [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage)
+
 ## Environment Variables
 
 You can use `process.env` to access [Environment Variables](/docs/basic-features/environment-variables.md) for both `next dev` and `next build`.
@@ -121,7 +125,7 @@ Running `console.log` on `process.env` **will not** show all your Environment Va
 console.log(process.env)
 // { NEXT_RUNTIME: 'edge' }
 console.log(process.env.TEST_VARIABLE)
-// { NEXT_RUNTIME: 'edge', TEST_VARIABLE: 'value' }
+// value
 ```
 
 ## Unsupported APIs
@@ -136,6 +140,25 @@ The following JavaScript language features are disabled, and **will not work:**
 
 - `eval`: Evaluates JavaScript code represented as a string
 - `new Function(evalString)`: Creates a new function with the code provided as an argument
+- `WebAssembly.compile`
+- `WebAssembly.instantiate` with [a buffer parameter](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code)
+
+In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by treeshaking.
+You can relax the check to allow specific files with your Middleware or Edge API Route exported configuration:
+
+```javascript
+export const config = {
+  runtime: 'edge', // for Edge API Routes only
+  unstable_allowDynamic: [
+    '/lib/utilities.js', // allows a single file
+    '/node_modules/function-bind/**', // use a glob to allow anything in the function-bind 3rd party module
+  ],
+}
+```
+
+`unstable_allowDynamic` is a [glob](https://github.com/micromatch/micromatch#matching-features), or an array of globs, ignoring dynamic code evaluation for specific files. The globs are relative to your application root folder.
+
+Be warned that if these statements are executed on the Edge, _they will throw and cause a runtime error_.
 
 ## Related
 

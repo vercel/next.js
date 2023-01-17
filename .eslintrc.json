@@ -1,7 +1,7 @@
 {
   "root": true,
   "parser": "@babel/eslint-parser",
-  "plugins": ["react", "react-hooks", "jest", "import"],
+  "plugins": ["react", "react-hooks", "jest", "import", "jsdoc"],
   "env": {
     "browser": true,
     "commonjs": true,
@@ -96,7 +96,16 @@
         "@typescript-eslint/no-useless-constructor": "warn",
         "@typescript-eslint/prefer-literal-enum-member": "error",
         "@typescript-eslint/prefer-namespace-keyword": "error"
-      }
+      },
+      "overrides": [
+        {
+          "files": ["packages/**"],
+          "rules": {
+            "jsdoc/no-types": "error",
+            "jsdoc/no-undefined-types": "error"
+          }
+        }
+      ]
     },
     {
       "files": [
@@ -149,6 +158,9 @@
     {
       "files": ["packages/**/*.tsx", "packages/**/*.ts"],
       "rules": {
+        // Note: you must disable the base rule as it can report incorrect errors
+        "no-shadow": "off",
+        "@typescript-eslint/no-shadow": ["warn", { "builtinGlobals": false }],
         "@typescript-eslint/no-unused-vars": [
           "warn",
           {
@@ -238,7 +250,6 @@
     "no-obj-calls": "warn",
     "no-octal": "warn",
     "no-octal-escape": "warn",
-    "no-redeclare": ["warn", { "builtinGlobals": false }],
     "no-regex-spaces": "warn",
     "no-restricted-syntax": [
       "warn",
@@ -330,6 +341,10 @@
     "react/style-prop-object": "warn",
     "react-hooks/rules-of-hooks": "error",
     // "@typescript-eslint/non-nullable-type-assertion-style": "warn",
-    "@typescript-eslint/prefer-as-const": "warn"
+    "@typescript-eslint/prefer-as-const": "warn",
+    "@typescript-eslint/no-redeclare": [
+      "warn",
+      { "builtinGlobals": false, "ignoreDeclarationMerge": true }
+    ]
   }
 }

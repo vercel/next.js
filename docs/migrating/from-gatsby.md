@@ -78,15 +78,11 @@ export default function Home() {
 import Link from 'next/link'
 
 export default function Home() {
-  return (
-    <Link href="/blog">
-      <a>blog</a>
-    </Link>
-  )
+  return <Link href="/blog">blog</Link>
 }
 ```
 
-Update any import statements, switch `to` to `href`, and add an `<a>` tag as a child of the element.
+Update any import statements, switch `to` to `href`.
 
 ## Data Fetching
 

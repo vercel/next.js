@@ -5,6 +5,7 @@ if (!process.env.WORDPRESS_API_URL) {
   `)
 }
 
+/** @type {import('next').NextConfig} */
 module.exports = {
   images: {
     domains: [

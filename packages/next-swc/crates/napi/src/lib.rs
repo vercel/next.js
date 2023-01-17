@@ -32,20 +32,25 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 /// Explicit extern crate to use allocator.
-extern crate swc_node_base;
+extern crate next_binding;
+
+use std::{env, panic::set_hook, sync::Arc};
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
-use napi::{CallContext, Env, JsObject, JsUndefined};
-use std::{env, panic::set_hook, sync::Arc};
-use swc::{Compiler, TransformOutput};
-use swc_common::{self, sync::Lazy, FilePathMapping, SourceMap};
+use napi::bindgen_prelude::*;
+use next_binding::swc::core::{
+    base::{Compiler, TransformOutput},
+    common::{sync::Lazy, FilePathMapping, SourceMap},
+};
 
-mod bundle;
-mod minify;
-mod parse;
-mod transform;
-mod util;
+pub mod mdx;
+pub mod minify;
+pub mod parse;
+pub mod transform;
+pub mod turbopack;
+pub mod turbotrace;
+pub mod util;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
@@ -53,53 +58,26 @@ static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     Arc::new(Compiler::new(cm))
 });
 
-#[module_exports]
-fn init(mut exports: JsObject) -> napi::Result<()> {
+#[napi::module_init]
+fn init() {
     if cfg!(debug_assertions) || env::var("SWC_DEBUG").unwrap_or_default() == "1" {
         set_hook(Box::new(|panic_info| {
             let backtrace = Backtrace::new();
             println!("Panic: {:?}\nBacktrace: {:?}", panic_info, backtrace);
         }));
     }
-
-    exports.create_named_method("bundle", bundle::bundle)?;
-
-    exports.create_named_method("transform", transform::transform)?;
-    exports.create_named_method("transformSync", transform::transform_sync)?;
-
-    exports.create_named_method("minify", minify::minify)?;
-    exports.create_named_method("minifySync", minify::minify_sync)?;
-
-    exports.create_named_method("parse", parse::parse)?;
-
-    exports.create_named_method("getTargetTriple", util::get_target_triple)?;
-    exports.create_named_method(
-        "initCustomTraceSubscriber",
-        util::init_custom_trace_subscriber,
-    )?;
-    exports.create_named_method("teardownTraceSubscriber", util::teardown_trace_subscriber)?;
-
-    exports.create_named_method("initCrashReporter", util::init_crash_reporter)?;
-    exports.create_named_method("teardownCrashReporter", util::teardown_crash_reporter)?;
-
-    Ok(())
 }
 
-fn get_compiler(_ctx: &CallContext) -> Arc<Compiler> {
+#[inline]
+fn get_compiler() -> Arc<Compiler> {
     COMPILER.clone()
-}
-
-#[js_function]
-fn construct_compiler(ctx: CallContext) -> napi::Result<JsUndefined> {
-    // TODO: Assign swc::Compiler
-    ctx.env.get_undefined()
 }
 
 pub fn complete_output(
     env: &Env,
     output: TransformOutput,
     eliminated_packages: FxHashSet<String>,
-) -> napi::Result<JsObject> {
+) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
     js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
     if let Some(map) = output.map {
@@ -108,9 +86,7 @@ pub fn complete_output(
     if !eliminated_packages.is_empty() {
         js_output.set_named_property(
             "eliminatedPackages",
-            env.create_string_from_std(serde_json::to_string(
-                &eliminated_packages.into_iter().collect::<Vec<String>>(),
-            )?)?,
+            env.create_string_from_std(serde_json::to_string(&eliminated_packages)?)?,
         )?;
     }
     Ok(js_output)

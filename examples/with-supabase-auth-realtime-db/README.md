@@ -8,6 +8,14 @@ The Vercel deployment will guide you through creating a Supabase account and pro
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db&project-name=nextjs-with-supabase-auth&repository-name=nextjs-with-supabase-auth&integration-ids=oac_jUduyjQgOyzev1fjrW83NYOv)
 
+## Running Locally
+
+1. `cd` into this directory
+1. Run `npm install` to install dependencies
+1. Create a Supabase account and new project
+1. Copy `.env.local.example` into `.env.local` and add the project keys
+1. Run `npm run dev` to start the local development server
+
 ## Feedback and issues
 
 Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).

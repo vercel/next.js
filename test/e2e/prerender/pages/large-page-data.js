@@ -14,12 +14,12 @@ export default (props) => {
   return (
     <>
       <p>lots of data returned</p>
-      <Link href="/">
-        <a id="home">to home</a>
+      <Link href="/" id="home">
+        to home
       </Link>
       <br />
-      <Link href="/another">
-        <a id="another">to another</a>
+      <Link href="/another" id="another">
+        to another
       </Link>
     </>
   )

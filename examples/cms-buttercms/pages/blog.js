@@ -19,9 +19,7 @@ export default function Blog({ posts, categories }) {
                 <h2>All Blog Posts</h2>
                 <ul className="breadcrumb-nav">
                   <li>
-                    <Link href="/">
-                      <a>Home</a>
-                    </Link>
+                    <Link href="/">Home</Link>
                   </li>
                   <li>All blog posts</li>
                 </ul>

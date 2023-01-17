@@ -13,7 +13,6 @@ import {
 
 const appDir = join(__dirname, '..')
 const page404 = join(appDir, 'pages/404.js')
-const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
@@ -98,24 +97,6 @@ describe('Custom _error', () => {
     it('should not contain /_error in build output', async () => {
       expect(buildOutput).toMatch(/λ .*?\/404/)
       expect(buildOutput).not.toMatch(/λ .*?\/_error/)
-    })
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `module.exports = { target: 'serverless' }`
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
     })
 
     runTests()

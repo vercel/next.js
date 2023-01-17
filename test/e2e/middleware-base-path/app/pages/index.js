@@ -6,25 +6,29 @@ export default function Main({ message }) {
       <h1 className="title">Hello {message}</h1>
       <ul>
         <li>
-          <Link href="/stream-response">
-            <a>Stream a response</a>
+          <Link href="/stream-response">Stream a response</Link>
+        </li>
+        <li>
+          <Link
+            href="/rewrite-me-to-about?message=refreshed"
+            id="link-with-rewritten-url"
+            className={message}
+          >
+            Rewrite me to about
           </Link>
         </li>
         <li>
-          <Link href="/rewrite-me-to-about?message=refreshed">
-            <a id="link-with-rewritten-url" className={message}>
-              Rewrite me to about
-            </a>
-          </Link>
+          <Link href="/rewrite-me-to-vercel">Rewrite me to Vercel</Link>
         </li>
         <li>
-          <Link href="/rewrite-me-to-vercel">
-            <a>Rewrite me to Vercel</a>
-          </Link>
+          <Link href="/redirect-me-to-about">redirect me to about</Link>
         </li>
         <li>
-          <Link href="/redirect-me-to-about">
-            <a>redirect me to about</a>
+          <Link
+            href="/dynamic-routes/hello-world"
+            id="go-to-hello-world-anchor"
+          >
+            Hello World
           </Link>
         </li>
       </ul>

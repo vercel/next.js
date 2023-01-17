@@ -34,6 +34,7 @@ const dirNoConfig = join(__dirname, '../no-config')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
+const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -93,7 +94,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -326,7 +327,7 @@ describe('ESLint', () => {
         'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
       )
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Warning: Do not include stylesheets manually')
       expect(output).toContain(
@@ -348,7 +349,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -384,7 +385,7 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain(
-        'Warning: Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
       expect(output).toContain('Error: Synchronous scripts should not be used.')
     })
@@ -657,7 +658,7 @@ describe('ESLint', () => {
 
       expect(output).toContain('pages/bar.js')
       expect(output).toContain(
-        'Do not use `<img>` element. Use `<Image />` from `next/image` instead.'
+        'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization.'
       )
 
       expect(output).not.toContain('pages/index.js')
@@ -702,7 +703,7 @@ describe('ESLint', () => {
             }),
             expect.objectContaining({
               message:
-                'Do not use `<img>` element. Use `<Image />` from `next/image` instead. See: https://nextjs.org/docs/messages/no-img-element',
+                'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element',
             }),
           ])
         )
@@ -741,7 +742,7 @@ describe('ESLint', () => {
         'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
       )
       expect(fileOutput).toContain(
-        'Do not use `<img>` element. Use `<Image />` from `next/image` instead. See: https://nextjs.org/docs/messages/no-img-element'
+        'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element'
       )
 
       expect(fileOutput).toContain('file-linting/pages/index.js')
@@ -765,6 +766,28 @@ describe('ESLint', () => {
 
       expect(cliOutput).toContain(
         `Cannot write to output file path, it is a directory: ${filePath}`
+      )
+    })
+
+    test('lint files with cjs and mjs file extension', async () => {
+      const { stdout, stderr } = await nextLint(mjsCjsLinting, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+
+      expect(output).toContain('pages/bar.mjs')
+      expect(output).toContain(
+        'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
+      )
+      expect(output).toContain(
+        'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. See: https://nextjs.org/docs/messages/no-img-element'
+      )
+
+      expect(output).toContain('pages/index.cjs')
+      expect(output).toContain(
+        'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts'
       )
     })
   })

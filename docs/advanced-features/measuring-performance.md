@@ -7,7 +7,7 @@ description: Measure and track page performance using Next.js Analytics
 [Next.js Analytics](https://nextjs.org/analytics) allows you to analyze and measure the performance of
 pages using different metrics.
 
-You can start collecting your [Real Experience Score](https://vercel.com/docs/analytics#metrics) with zero-configuration on [Vercel deployments](https://vercel.com/docs/analytics). There's also support for Analytics if you're [self-hosting](https://vercel.com/docs/analytics#self-hosted).
+You can start collecting your [Real Experience Score](https://vercel.com/docs/concepts/analytics/web-vitals?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) with zero-configuration on [Vercel deployments](https://vercel.com/docs/analytics?utm_source=next-site&utm_medium=docs&utm_campaign=next-website). There's also support for Analytics if you're [self-hosting](https://vercel.com/docs/concepts/analytics#self-hosted?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
 
 The rest of this documentation describes the built-in relayer Next.js Analytics uses.
 
@@ -180,6 +180,27 @@ export function reportWebVitals(metric) {
 > ```
 >
 > Read more about [sending results to Google Analytics](https://github.com/GoogleChrome/web-vitals#send-the-results-to-google-analytics).
+
+## Web Vitals Attribution
+
+When debugging issues related to Web Vitals, it is often helpful if we can pinpoint the source of the problem.
+For example, in the case of Cumulative Layout Shift (CLS), we might want to know the first element that shifted when the single largest layout shift occurred.
+Or, in the case of Largest Contentful Paint (LCP), we might want to identify the element corresponding to the LCP for the page.
+If the LCP element is an image, knowing the URL of the image resource can help us locate the asset we need to optimize.
+
+Pinpointing the biggest contributor to the Web Vitals score, aka [attribution](https://github.com/GoogleChrome/web-vitals/blob/4ca38ae64b8d1e899028c692f94d4c56acfc996c/README.md#attribution),
+allows us to obtain more in-depth information like entries for [PerformanceEventTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceEventTiming), [PerformanceNavigationTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigationTiming) and [PerformanceResourceTiming](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming).
+
+Attribution is disabled by default in Next.js but can be enabled **per metric** by specifying the following in `next.config.js`.
+
+```js
+// next.config.js
+experimental: {
+  webVitalsAttribution: ['CLS', 'LCP']
+}
+```
+
+Valid attribution values are all `web-vitals` metrics specified in the [`NextWebVitalsMetric`](https://github.com/vercel/next.js/blob/442378d21dd56d6e769863eb8c2cb521a463a2e0/packages/next/shared/lib/utils.ts#L43) type.
 
 ## TypeScript
 

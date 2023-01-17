@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import rule from '@next/eslint-plugin-next/lib/rules/no-html-link-for-pages'
+import rule from '@next/eslint-plugin-next/dist/rules/no-html-link-for-pages'
 import { Linter } from 'eslint'
 import assert from 'assert'
 import path from 'path'

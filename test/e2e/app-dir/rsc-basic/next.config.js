@@ -5,6 +5,16 @@ module.exports = {
   },
   experimental: {
     appDir: true,
-    serverComponents: true,
+    serverComponentsExternalPackages: ['conditional-exports-optout'],
+  },
+  rewrites: async () => {
+    return {
+      afterFiles: [
+        {
+          source: '/rewritten-to-edge-dynamic',
+          destination: '/edge/dynamic',
+        },
+      ],
+    }
   },
 }

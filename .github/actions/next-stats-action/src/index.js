@@ -72,11 +72,15 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     }
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)
+    let mainNextSwcVersion
 
     if (!actionInfo.skipClone) {
       if (actionInfo.isRelease) {
         logger('Release detected, resetting mainRepo to last stable tag')
         const lastStableTag = await getLastStable(mainRepoDir, actionInfo.prRef)
+        mainNextSwcVersion = {
+          '@next/swc-linux-x64-gnu': lastStableTag,
+        }
         if (!lastStableTag) throw new Error('failed to get last stable tag')
         console.log('using latestStable', lastStableTag)
         await checkoutRef(lastStableTag, mainRepoDir)
@@ -106,10 +110,13 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
         const usePnpm = await fs.pathExists(path.join(dir, 'pnpm-lock.yaml'))
+
         let buildCommand = `cd ${dir}${
           !statsConfig.skipInitialInstall
             ? usePnpm
-              ? ' && pnpm install && pnpm run build'
+              ? // --no-frozen-lockfile is used here to tolerate lockfile
+                // changes from merging latest changes
+                ` && pnpm install --no-frozen-lockfile && pnpm run build`
               : ' && yarn install --network-timeout 1000000'
             : ''
         }`
@@ -130,9 +137,13 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         .catch(console.error)
 
       logger(`Linking packages in ${dir}`)
-      const pkgPaths = await linkPackages(dir)
+      const isMainRepo = dir === mainRepoDir
+      const pkgPaths = await linkPackages({
+        repoDir: dir,
+        nextSwcPkg: isMainRepo ? mainNextSwcVersion : undefined,
+      })
 
-      if (dir === mainRepoDir) mainRepoPkgPaths = pkgPaths
+      if (isMainRepo) mainRepoPkgPaths = pkgPaths
       else diffRepoPkgPaths = pkgPaths
     }
 

@@ -13,12 +13,12 @@ export default ({ world, time }) => (
   <>
     <p>hello {world}</p>
     <span>time: {time}</span>
-    <Link href="/">
-      <a id="home">to home</a>
+    <Link href="/" id="home">
+      to home
     </Link>
     <br />
-    <Link href="/something">
-      <a id="something">to something</a>
+    <Link href="/something" id="something">
+      to something
     </Link>
   </>
 )

@@ -3,7 +3,7 @@ import Link from 'next/link'
 export default () => (
   <div id="button-link-page">
     <div>
-      <Link href="/" passHref>
+      <Link href="/" passHref legacyBehavior>
         <button>Go Back</button>
       </Link>
     </div>

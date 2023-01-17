@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "12.2.6-canary.1",
+  "version": "13.1.3-canary.2",
   "keywords": [
     "react",
     "next",
@@ -29,26 +29,30 @@
   },
   "devDependencies": {
     "@types/async-retry": "1.4.2",
+    "@types/ci-info": "2.0.0",
     "@types/cross-spawn": "6.0.0",
+    "@types/glob": "7.1.1",
     "@types/node": "^12.6.8",
     "@types/prompts": "2.0.1",
     "@types/rimraf": "3.0.0",
     "@types/tar": "4.0.3",
     "@types/validate-npm-package-name": "3.0.0",
-    "@vercel/ncc": "0.33.4",
+    "@vercel/ncc": "0.34.0",
     "async-retry": "1.3.1",
     "chalk": "2.4.2",
+    "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
     "commander": "2.20.0",
+    "conf": "10.2.0",
     "cpy": "7.3.0",
     "cross-spawn": "6.0.5",
+    "glob": "8.0.3",
     "got": "10.7.0",
     "prompts": "2.1.0",
-    "rimraf": "3.0.2",
     "tar": "4.4.10",
     "update-check": "1.5.4",
     "validate-npm-package-name": "3.0.0"
   },
   "engines": {
-    "node": ">=12.22.0"
+    "node": ">=14.6.0"
   }
 }

@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-assign-module-variable'
+import rule from '@next/eslint-plugin-next/dist/rules/no-assign-module-variable'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

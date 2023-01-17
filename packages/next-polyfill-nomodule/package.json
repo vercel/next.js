@@ -1,6 +1,6 @@
 {
   "name": "@next/polyfill-nomodule",
-  "version": "12.2.6-canary.1",
+  "version": "13.1.3-canary.2",
   "description": "A polyfill for non-dead, nomodule browsers.",
   "main": "dist/polyfill-nomodule.js",
   "license": "MIT",
@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "microbundle -i src/index.js -o dist/polyfill-nomodule.js -f iife --no-sourcemap --external none --no-pkg-main",
+    "dev": "pnpm build",
     "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {

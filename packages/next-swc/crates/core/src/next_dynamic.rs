@@ -1,26 +1,30 @@
 use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
-use swc_atoms::js_word;
-use swc_common::errors::HANDLER;
-use swc_common::{FileName, DUMMY_SP};
-use swc_ecmascript::ast::{
-    ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
-    ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr,
-    MemberProp, Null, ObjectLit, Prop, PropName, PropOrSpread, Str, Tpl,
+
+use next_binding::swc::core::{
+    common::{errors::HANDLER, FileName, DUMMY_SP},
+    ecma::ast::{
+        ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+        ExprOrSpread, Id, Ident, ImportDecl, ImportSpecifier, KeyValueProp, Lit, MemberExpr,
+        MemberProp, Null, ObjectLit, Prop, PropName, PropOrSpread, Str, Tpl,
+    },
+    ecma::atoms::js_word,
+    ecma::utils::ExprFactory,
+    ecma::visit::{Fold, FoldWith},
 };
-use swc_ecmascript::utils::ExprFactory;
-use swc_ecmascript::visit::{Fold, FoldWith};
 
 pub fn next_dynamic(
     is_development: bool,
     is_server: bool,
+    is_server_components: bool,
     filename: FileName,
     pages_dir: Option<PathBuf>,
 ) -> impl Fold {
     NextDynamicPatcher {
         is_development,
         is_server,
+        is_server_components,
         pages_dir,
         filename,
         dynamic_bindings: vec![],
@@ -33,6 +37,7 @@ pub fn next_dynamic(
 struct NextDynamicPatcher {
     is_development: bool,
     is_server: bool,
+    is_server_components: bool,
     pages_dir: Option<PathBuf>,
     filename: FileName,
     dynamic_bindings: Vec<Id>,
@@ -229,7 +234,6 @@ impl Fold for NextDynamicPatcher {
                         })))];
 
                     let mut has_ssr_false = false;
-                    let mut has_suspense = false;
 
                     if expr.args.len() == 2 {
                         if let Expr::Object(ObjectLit {
@@ -262,24 +266,14 @@ impl Fold for NextDynamicPatcher {
                                                 has_ssr_false = true
                                             }
                                         }
-                                        if sym == "suspense" {
-                                            if let Some(Lit::Bool(Bool {
-                                                value: true,
-                                                span: _,
-                                            })) = value.as_lit()
-                                            {
-                                                has_suspense = true
-                                            }
-                                        }
                                     }
                                 }
                             }
                             props.extend(options_props.iter().cloned());
                         }
                     }
-                    // Don't need to strip the `loader` argument if suspense is true
-                    // See https://github.com/vercel/next.js/issues/36636 for background
-                    if has_ssr_false && !has_suspense && self.is_server {
+
+                    if has_ssr_false && self.is_server && !self.is_server_components {
                         expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
 
@@ -317,7 +311,7 @@ fn rel_filename(base: Option<&Path>, file: &FileName) -> String {
         }
     };
 
-    let rel_path = diff_paths(&file, base);
+    let rel_path = diff_paths(file, base);
 
     let rel_path = match rel_path {
         Some(v) => v,

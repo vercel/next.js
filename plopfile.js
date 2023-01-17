@@ -7,6 +7,12 @@ module.exports = function (plop) {
     description: 'Create a new test',
     prompts: [
       {
+        type: 'confirm',
+        name: 'appDir',
+        message: 'Is this test for the app directory?',
+        default: false,
+      },
+      {
         type: 'input',
         name: 'name',
         message: 'Test name',
@@ -30,18 +36,18 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.name)
+      const appDirPath = data.appDir ? 'app-dir/' : ''
+      let templatePath = `test/${
+        data.type === 'unit' ? 'unit' : 'e2e'
+      }/${appDirPath}test-template`
+      let targetPath = `test/{{ type }}/${appDirPath}`
+
       return [
         {
-          type: 'add',
-          templateFile: `test/${
-            data.type === 'unit' ? 'unit' : 'e2e'
-          }/example.txt`,
-          path: `test/{{type}}/${
-            data.type === 'unit'
-              ? `${fileName}.test.ts`
-              : `${fileName}/index.test.ts`
-          }`,
+          type: 'addMany',
+          templateFiles: `${templatePath}/**/*`,
+          base: templatePath,
+          destination: targetPath,
         },
       ]
     },
@@ -51,13 +57,28 @@ module.exports = function (plop) {
     description: 'Create a new error document',
     prompts: [
       {
+        name: 'urlPath',
+        type: 'input',
+        message: 'Url path with dashes. E.g. circular-structure',
+      },
+      {
         name: 'title',
         type: 'input',
-        message: 'Title for the error',
+        message: 'Title for the error. E.g. Circular Structure',
+      },
+      {
+        name: 'why',
+        type: 'input',
+        message: 'What caused the error to happen?',
+      },
+      {
+        name: 'fix',
+        type: 'input',
+        message: 'What are the possible ways to fix it?',
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.title)
+      const fileName = getFileName(data.urlPath)
       return [
         {
           type: 'add',
@@ -76,6 +97,7 @@ module.exports = function (plop) {
             return JSON.stringify(manifestData, null, 2)
           },
         },
+        `Url for the error: https://nextjs.org/docs/messages/${fileName}`,
       ]
     },
   })

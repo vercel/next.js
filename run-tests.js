@@ -20,6 +20,11 @@ const isTestJob = !!process.env.NEXT_TEST_JOB
 const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
 const TIMINGS_API_HEADERS = {
   Accept: 'application/vnd.github.v3+json',
+  ...(process.env.TEST_TIMINGS_TOKEN
+    ? {
+        Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
+      }
+    : {}),
 }
 
 const testFilters = {
@@ -28,6 +33,11 @@ const testFilters = {
   production: 'production/',
   development: 'development/',
 }
+
+const mockTrace = () => ({
+  traceAsyncFn: (fn) => fn(mockTrace()),
+  traceChild: () => mockTrace(),
+})
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
@@ -44,11 +54,22 @@ const cleanUpAndExit = async (code) => {
 }
 
 async function getTestTimings() {
-  const timingsRes = await fetch(TIMINGS_API, {
-    headers: {
-      ...TIMINGS_API_HEADERS,
-    },
-  })
+  let timingsRes
+
+  const doFetch = () =>
+    fetch(TIMINGS_API, {
+      headers: {
+        ...TIMINGS_API_HEADERS,
+      },
+    })
+  timingsRes = await doFetch()
+
+  if (timingsRes.status === 403) {
+    const delay = 15
+    console.log(`Got 403 response waiting ${delay} seconds before retry`)
+    await new Promise((resolve) => setTimeout(resolve, delay * 1000))
+    timingsRes = await doFetch()
+  }
 
   if (!timingsRes.ok) {
     throw new Error(`request status: ${timingsRes.status}`)
@@ -214,6 +235,7 @@ async function main() {
   })
 
   if (
+    process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
     ((testType && testType !== 'unit') || hasIsolatedTests)
   ) {
@@ -223,8 +245,11 @@ async function main() {
     console.log('Creating Next.js install for isolated tests')
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const testStarter = await createNextInstall({
-      react: reactVersion,
-      'react-dom': reactVersion,
+      parentSpan: mockTrace(),
+      dependencies: {
+        react: reactVersion,
+        'react-dom': reactVersion,
+      },
     })
     process.env.NEXT_TEST_STARTER = testStarter
   }
@@ -238,13 +263,19 @@ async function main() {
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
 
-  const runTest = (test = '', isFinalRun) =>
+  const runTest = (test = '', isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
+
+      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
+
       const child = spawn(
         jestPath,
         [
+          ...(shouldRecordTestWithReplay
+            ? [`--config=jest.replay.config.js`]
+            : []),
           '--runInBand',
           '--forceExit',
           '--verbose',
@@ -257,9 +288,11 @@ async function main() {
           stdio: ['ignore', 'pipe', 'pipe'],
           env: {
             ...process.env,
+            RECORD_REPLAY: shouldRecordTestWithReplay,
             // run tests in headless mode by default
             HEADLESS: 'true',
             TRACE_PLAYWRIGHT: 'true',
+            NEXT_TELEMETRY_DISABLED: '1',
             ...(isFinalRun
               ? {
                   // Events can be finicky in CI. This switches to a more
@@ -336,7 +369,7 @@ async function main() {
       for (let i = 0; i < numRetries + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i === numRetries)
+          const time = await runTest(test, i === numRetries, i > 0)
           timings.push({
             file: test,
             time,
@@ -349,7 +382,13 @@ async function main() {
         } catch (err) {
           if (i < numRetries) {
             try {
-              const testDir = path.dirname(path.join(__dirname, test))
+              let testDir = path.dirname(path.join(__dirname, test))
+
+              // if test is nested in a test folder traverse up a dir to ensure
+              // we clean up relevant test files
+              if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
+                testDir = path.join(testDir, '../')
+              }
               console.log('Cleaning test files at', testDir)
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)
@@ -430,7 +469,6 @@ async function main() {
           method: 'PATCH',
           headers: {
             ...TIMINGS_API_HEADERS,
-            Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
           },
           body: JSON.stringify({
             files: {

@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-img-element'
+import * as rule from '@next/eslint-plugin-next/dist/rules/no-img-element'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {
@@ -81,7 +81,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'Do not use `<img>` element. Use `<Image />` from `next/image` instead. ' +
+            'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. ' +
             'See: https://nextjs.org/docs/messages/no-img-element',
           type: 'JSXOpeningElement',
         },
@@ -104,7 +104,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'Do not use `<img>` element. Use `<Image />` from `next/image` instead. ' +
+            'Using `<img>` could result in slower LCP and higher bandwidth. Use `<Image />` from `next/image` instead to utilize Image Optimization. ' +
             'See: https://nextjs.org/docs/messages/no-img-element',
           type: 'JSXOpeningElement',
         },

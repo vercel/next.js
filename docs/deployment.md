@@ -28,28 +28,28 @@ All JavaScript code inside `.next` has been **compiled** and browser bundles hav
 
 ## Managed Next.js with Vercel
 
-[Vercel](https://vercel.com?utm_source=github.com&utm_medium=referral&utm_campaign=deployment) is the fastest way to deploy your Next.js application with zero configuration.
+[Vercel](https://vercel.com?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) is the fastest way to deploy your Next.js application with zero configuration.
 
-When deploying to Vercel, the platform [automatically detects Next.js](https://vercel.com/solutions/nextjs?utm_source=github.com&utm_medium=referral&utm_campaign=deployment), runs `next build`, and optimizes the build output for you, including:
+When deploying to Vercel, the platform [automatically detects Next.js](https://vercel.com/solutions/nextjs?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), runs `next build`, and optimizes the build output for you, including:
 
 - Persisting cached assets across deployments if unchanged
-- [Immutable deployments](https://vercel.com/features/previews) with a unique URL for every commit
+- [Immutable deployments](https://vercel.com/features/previews?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) with a unique URL for every commit
 - [Pages](/docs/basic-features/pages.md) are automatically statically optimized, if possible
-- Assets (JavaScript, CSS, images, fonts) are compressed and served from a [Global Edge Network](https://vercel.com/features/infrastructure)
-- [API Routes](/docs/api-routes/introduction.md) are automatically optimized as isolated [Serverless Functions](https://vercel.com/features/infrastructure) that can scale infinitely
-- [Middleware](/docs/middleware.md) are automatically optimized as [Edge Functions](https://vercel.com/features/edge-functions) that have zero cold starts and boot instantly
+- Assets (JavaScript, CSS, images, fonts) are compressed and served from a [Global Edge Network](https://vercel.com/features/infrastructure?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- [API Routes](/docs/api-routes/introduction.md) are automatically optimized as isolated [Serverless Functions](https://vercel.com/features/infrastructure?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that can scale infinitely
+- [Middleware](/docs/middleware.md) are automatically optimized as [Edge Functions](https://vercel.com/features/edge-functions?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) that have zero cold starts and boot instantly
 
 In addition, Vercel provides features like:
 
-- Automatic performance monitoring with [Next.js Analytics](https://vercel.com/analytics)
+- Automatic performance monitoring with [Next.js Analytics](https://vercel.com/analytics?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
 - Automatic HTTPS and SSL certificates
 - Automatic CI/CD (through GitHub, GitLab, Bitbucket, etc.)
-- Support for [Environment Variables](https://vercel.com/docs/environment-variables)
-- Support for [Custom Domains](https://vercel.com/docs/custom-domains)
+- Support for [Environment Variables](https://vercel.com/docs/environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
+- Support for [Custom Domains](https://vercel.com/docs/custom-domains?utm_source=next-site&utm_medium=docs&utm_campaign=next-website)
 - Support for [Image Optimization](/docs/basic-features/image-optimization.md) with `next/image`
 - Instant global deployments via `git push`
 
-[Deploy a Next.js application to Vercel](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=github.com&utm_medium=referral&utm_campaign=deployment) for free to try it out.
+[Deploy a Next.js application to Vercel](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world&utm_source=next-site&utm_medium=docs&utm_campaign=next-website) for free to try it out.
 
 ## Self-Hosting
 
@@ -107,20 +107,21 @@ The following services support Next.js `v12+`. Below, you’ll find examples or 
 
 ### Static Only
 
-The following services support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
+The following services only support deploying Next.js using [`next export`](/docs/advanced-features/static-html-export.md).
 
-- [Azure Static Web Apps](https://docs.microsoft.com/en-us/azure/static-web-apps/deploy-nextjs)
-- [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
-- [Firebase](https://github.com/vercel/next.js/tree/canary/examples/with-firebase-hosting)
 - [GitHub Pages](https://github.com/vercel/next.js/tree/canary/examples/github-pages)
 
 You can also manually deploy the [`next export`](/docs/advanced-features/static-html-export.md) output to any static hosting provider, often through your CI/CD pipeline like GitHub Actions, Jenkins, AWS CodeBuild, Circle CI, Azure Pipelines, and more.
 
 ### Serverless
 
+- [AWS Amplify](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-Amplify-support.html)
 - [AWS Serverless](https://github.com/serverless-nextjs/serverless-next.js)
-- [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
+- [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/nextjs)
+- [Cloudflare Pages](https://developers.cloudflare.com/pages/framework-guides/deploy-a-nextjs-site/)
+- [Firebase](https://firebase.google.com/docs/hosting/nextjs)
 - [Netlify](https://docs.netlify.com/integrations/frameworks/next-js)
+- [Terraform](https://github.com/milliHQ/terraform-aws-next-js)
 
 > **Note:** Not all serverless providers implement the [Next.js Build API](/docs/deployment.md#nextjs-build-api) from `next start`. Please check with the provider to see what features are supported.
 
@@ -136,7 +137,18 @@ Next.js will automatically load the latest version of your application in the ba
 
 Sometimes you might want to run some cleanup code on process signals like `SIGTERM` or `SIGINT`.
 
-You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file.
+You can do that by setting the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then register a handler for that signal inside your `_document.js` file. Please note that you need to register env variable directly in the system env variable, not in the `.env` file.
+
+```json
+// package.json
+{
+  "scripts": {
+    "dev": "NEXT_MANUAL_SIG_HANDLE=true next dev",
+    "build": "next build",
+    "start": "NEXT_MANUAL_SIG_HANDLE=true next start"
+  }
+}
+```
 
 ```js
 // pages/_document.js

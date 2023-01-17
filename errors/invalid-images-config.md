@@ -21,6 +21,8 @@ module.exports = {
     path: '/_next/image',
     // loader can be 'default', 'imgix', 'cloudinary', 'akamai', or 'custom'
     loader: 'default',
+    // file with `export default function loader({src, width, quality})`
+    loaderFile: '',
     // disable static imports for image files
     disableStaticImages: false,
     // minimumCacheTTL is in seconds, must be integer 0 or more
@@ -31,17 +33,10 @@ module.exports = {
     dangerouslyAllowSVG: false,
     // set the Content-Security-Policy header
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    // the following are experimental features, and may cause breaking changes
-  },
-  experimental: {
-    images: {
-      // limit of 50 objects
-      remotePatterns: [],
-      // when true, every image will be unoptimized
-      unoptimized: false,
-      // when true, allow `next/future/image` to be imported
-      allowFutureImage: false,
-    },
+    // limit of 50 objects
+    remotePatterns: [],
+    // when true, every image will be unoptimized
+    unoptimized: false,
   },
 }
 ```

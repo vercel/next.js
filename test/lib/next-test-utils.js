@@ -83,6 +83,12 @@ export function initNextServerScript(
   })
 }
 
+/**
+ * @param {string | number} appPortOrUrl
+ * @param {string} [url]
+ * @param {string} [hostname]
+ * @returns
+ */
 export function getFullUrl(appPortOrUrl, url, hostname) {
   let fullUrl =
     typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
@@ -105,20 +111,53 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
   return fullUrl
 }
 
+/**
+ * Appends the querystring to the url
+ *
+ * @param {string} pathname the pathname
+ * @param {Record<string,any> | string} query the query object to add to the pathname
+ * @returns the pathname with the query
+ */
+export function withQuery(pathname, query) {
+  const querystring = typeof query === 'string' ? query : qs.stringify(query)
+  if (querystring.length === 0) {
+    return pathname
+  }
+
+  // If there's a `?` between the pathname and the querystring already, then
+  // don't add another one.
+  if (querystring.startsWith('?') || pathname.endsWith('?')) {
+    return `${pathname}${querystring}`
+  }
+
+  return `${pathname}?${querystring}`
+}
+
 export function renderViaAPI(app, pathname, query) {
-  const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
+  const url = query ? withQuery(pathname, query) : pathname
   return app.renderToHTML({ url }, {}, pathname, query)
 }
 
+/**
+ * @param {string | number} appPort
+ * @param {string} pathname
+ * @param {Record<string, any> | string | undefined} [query]
+ * @param {import('node-fetch').RequestInit} [opts]
+ * @returns {Promise<string>}
+ */
 export function renderViaHTTP(appPort, pathname, query, opts) {
   return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
 
-/** @return {Promise<Response & {buffer: any} & {headers: any}>} */
+/**
+ * @param {string | number} appPort
+ * @param {string} pathname
+ * @param {Record<string, any> | string | null | undefined} [query]
+ * @param {import('node-fetch').RequestInit} [opts]
+ * @returns {Promise<Response & {buffer: any} & {headers: any}>}
+ */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
-  const url = `${pathname}${
-    typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
-  }`
+  const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), {
     // in node.js v17 fetch favors IPv6 but Next.js is
     // listening on IPv4 by default so force IPv4 DNS resolving
@@ -214,13 +253,18 @@ export function runNextCommand(argv, options = {}) {
         !options.stderr &&
         !options.stdout &&
         !options.ignoreFail &&
-        code !== 0
+        (code !== 0 || signal)
       ) {
         return reject(
-          new Error(`command failed with code ${code}\n${mergedStdio}`)
+          new Error(
+            `command failed with code ${code} signal ${signal}\n${mergedStdio}`
+          )
         )
       }
 
+      if (code || signal) {
+        console.error(`process exited with code ${code} and signal ${signal}`)
+      }
       resolve({
         code,
         signal,
@@ -271,11 +315,14 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
       const message = data.toString()
       const bootupMarkers = {
         dev: /compiled .*successfully/i,
+        turbo: /initial compilation/i,
         start: /started server/i,
       }
       if (
         (opts.bootupMarker && opts.bootupMarker.test(message)) ||
-        bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
+        bootupMarkers[
+          opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
+        ].test(message)
       ) {
         if (!didResolve) {
           didResolve = true
@@ -323,7 +370,19 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
 
 // Launch the app in dev mode.
 export function launchApp(dir, port, opts) {
-  return runNextCommandDev([dir, '-p', port], undefined, opts)
+  const options = opts ?? {}
+  const useTurbo = !!process.env.TEST_WASM
+    ? false
+    : options?.turbo ?? shouldRunTurboDevTest()
+
+  return runNextCommandDev(
+    [useTurbo ? '--turbo' : undefined, dir, '-p', port].filter(Boolean),
+    undefined,
+    {
+      ...options,
+      turbo: useTurbo,
+    }
+  )
 }
 
 export function nextBuild(dir, args = [], opts = {}) {
@@ -595,7 +654,7 @@ export async function hasRedbox(browser, expected = true) {
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
             p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
             )
           )
       )
@@ -615,13 +674,13 @@ export async function getRedboxHeader(browser) {
       evaluate(browser, () => {
         const portal = [].slice
           .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-dialog-header]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('[data-nextjs-dialog-header]').innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxHeader'
   )
@@ -635,15 +694,15 @@ export async function getRedboxSource(browser) {
           .call(document.querySelectorAll('nextjs-portal'))
           .find((p) =>
             p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
             )
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector(
+          '[data-nextjs-codeframe], [data-nextjs-terminal]'
+        ).innerText
       }),
-    3000,
+    10000,
     500,
     'getRedboxSource'
   )
@@ -659,9 +718,7 @@ export async function getRedboxDescription(browser) {
             p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
           )
         const root = portal.shadowRoot
-        return root
-          .querySelector('#nextjs__container_errors_desc')
-          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+        return root.querySelector('#nextjs__container_errors_desc').innerText
       }),
     3000,
     500,
@@ -819,4 +876,84 @@ export function runDevSuite(suiteName, appDir, options) {
  */
 export function runProdSuite(suiteName, appDir, options) {
   return runSuite(suiteName, { appDir, env: 'prod' }, options)
+}
+
+/**
+ * Parse the output and return all entries that match the provided `eventName`
+ * @param {string} output output of the console
+ * @param {string} eventName
+ * @returns {Array<{}>}
+ */
+export function findAllTelemetryEvents(output, eventName) {
+  const regex = /\[telemetry\] ({.+?^})/gms
+  // Pop the last element of each entry to retrieve contents of the capturing group
+  const events = [...output.matchAll(regex)].map((entry) =>
+    JSON.parse(entry.pop())
+  )
+  return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
+}
+
+/**
+ * Utility function to determine if a given test case needs to run with --turbo.
+ *
+ * This is primarily for the gradual test enablement with latest turbopack upstream changes.
+ *
+ * Note: it could be possible to dynamically create test cases itself (createDevTest(): it.each([...])), but
+ * it makes hard to conform with existing lint rules. Instead, starting off from manual fixture setup and
+ * update test cases accordingly as turbopack changes enable more test cases.
+ */
+export function shouldRunTurboDevTest() {
+  if (!!process.env.TEST_WASM) {
+    return false
+  }
+
+  const shouldRunTurboDev = !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_DEV
+  // short-circuit to run all the test with --turbo enabled skips glob matching costs
+  if (shouldRunTurboDev) {
+    console.log(
+      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_DEV`
+    )
+    return true
+  }
+
+  const shouldRunTurboDevWithMatches =
+    !!process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
+
+  // By default, we do not run any tests with `--turbo` flag.
+  if (!shouldRunTurboDevWithMatches) {
+    return false
+  }
+
+  const glob = require('glob')
+  const matches = glob.sync(
+    process.env.__INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH
+  )
+  const testPath = expect.getState().testPath
+  const isMatch = matches.some((match) => testPath.includes(match))
+
+  if (isMatch) {
+    console.log(
+      `Running tests with --turbo via custom environment variable __INTERNAL_NEXT_DEV_TEST_TURBO_GLOB_MATCH`
+    )
+  }
+
+  // If the test path matches the glob pattern, add additional case to run the test with `--turbo` flag.
+  return isMatch
+}
+
+// WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
+// test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
+// to avoid force-snapshot update per each runs until turbopack update includes all the changes.
+export function getSnapshotTestDescribe(variant) {
+  const runningEnv = variant ?? 'default'
+  if (runningEnv !== 'default' && runningEnv !== 'turbo') {
+    throw new Error(`Check if test env passed correctly ${variant}`)
+  }
+
+  const shouldRunTurboDev = shouldRunTurboDevTest()
+  const shouldSkip =
+    (runningEnv === 'turbo' && !shouldRunTurboDev) ||
+    (runningEnv === 'default' && shouldRunTurboDev)
+
+  return shouldSkip ? describe.skip : describe
 }

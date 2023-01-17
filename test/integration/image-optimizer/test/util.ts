@@ -15,6 +15,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
+import type { RequestInit } from 'node-fetch'
 
 const largeSize = 1080 // defaults defined in server/config.ts
 const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
@@ -115,10 +116,15 @@ async function expectAvifSmallerThanWebp(w, q, appPort) {
   expect(avif).toBeLessThanOrEqual(webp)
 }
 
-async function fetchWithDuration(...args) {
-  console.warn('Fetching', args[1], args[2])
+async function fetchWithDuration(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string,
+  opts?: RequestInit
+) {
+  console.warn('Fetching', pathname, query)
   const start = Date.now()
-  const res = await fetchViaHTTP(...args)
+  const res = await fetchViaHTTP(appPort, pathname, query, opts)
   const buffer = await res.buffer()
   const duration = Date.now() - start
   return { duration, buffer, res }
@@ -140,7 +146,10 @@ export function runTests(ctx) {
         slowImageServer.port
       }/slow.png?delay=${1}&status=308`
       const query = { url, w: ctx.w, q: 39 }
-      const opts = { headers: { accept: 'image/webp' }, redirect: 'manual' }
+      const opts: RequestInit = {
+        headers: { accept: 'image/webp' },
+        redirect: 'manual',
+      }
 
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(500)
@@ -447,6 +456,38 @@ export function runTests(ctx) {
     expect(await res.text()).toBe(
       `"w" parameter (width) of 1000 is not allowed`
     )
+  })
+
+  it('should emit blur svg when width is 8 in dev but not prod', async () => {
+    const query = { url: '/test.png', w: 8, q: 70 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    if (isDev) {
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
+      expect(await res.text()).toMatch(
+        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image preserveAspectRatio='none' filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
+      )
+    } else {
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"w" parameter (width) of 8 is not allowed`)
+    }
+  })
+
+  it('should emit blur svg when width is less than 8 in dev but not prod', async () => {
+    const query = { url: '/test.png', w: 3, q: 70 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    if (isDev) {
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
+      expect(await res.text()).toMatch(
+        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3'><filter id='b' color-interpolation-filters='sRGB'><feGaussianBlur stdDeviation='1'/></filter><image preserveAspectRatio='none' filter='url(#b)' x='0' y='0' height='100%' width='100%' href='data:image/webp;base64`
+      )
+    } else {
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"w" parameter (width) of 3 is not allowed`)
+    }
   })
 
   it('should resize relative url and webp Firefox accept header', async () => {
