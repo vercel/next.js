@@ -725,7 +725,7 @@ function getCssInlinedLinkTags(
     // entrypoint.
     if (
       serverCSSForEntries.includes(mod) ||
-      !/\.module\.(css|sass)$/.test(mod)
+      !/\.module\.(css|sass|scss)$/.test(mod)
     ) {
       // If the CSS is already injected by a parent layer, we don't need
       // to inject it again.
