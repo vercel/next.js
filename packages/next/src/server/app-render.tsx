@@ -1168,7 +1168,7 @@ export async function renderToHTMLOrFlight(
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
       parentParams: { [key: string]: any }
-      rootLayoutIncluded?: boolean
+      rootLayoutIncluded: boolean
       firstItem?: boolean
       injectedCSS: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
@@ -1531,6 +1531,7 @@ export async function renderToHTMLOrFlight(
         parentRendered,
         rscPayloadHead,
         injectedCSS,
+        rootLayoutIncluded,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -1540,9 +1541,21 @@ export async function renderToHTMLOrFlight(
         parentRendered?: boolean
         rscPayloadHead: React.ReactNode
         injectedCSS: Set<string>
+        rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
         const [segment, parallelRoutes, { layout }] = loaderTreeToFilter
+        const isLayout = typeof layout !== 'undefined'
         const parallelRoutesKeys = Object.keys(parallelRoutes)
+
+        /**
+         * Checks if the current segment is a root layout.
+         */
+        const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+        /**
+         * Checks if the current segment or any level above it has a root layout.
+         */
+        const rootLayoutIncludedAtThisLevelOrAbove =
+          rootLayoutIncluded || rootLayoutAtThisLevel
 
         // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
         const segmentParam = getDynamicParamFromSegment(segment)
@@ -1592,6 +1605,8 @@ export async function renderToHTMLOrFlight(
                       parentParams: currentParams,
                       firstItem: isFirst,
                       injectedCSS,
+                      // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                      rootLayoutIncluded: rootLayoutIncluded,
                     }
                   )
                   return <Component />
@@ -1638,6 +1653,7 @@ export async function renderToHTMLOrFlight(
             isFirst: false,
             rscPayloadHead,
             injectedCSS: injectedCSSWithCurrentLayout,
+            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
           if (typeof path[path.length - 1] !== 'string') {
@@ -1661,6 +1677,7 @@ export async function renderToHTMLOrFlight(
             isFirst: true,
             rscPayloadHead,
             injectedCSS: new Set(),
+            rootLayoutIncluded: false,
           })
         ).slice(1),
       ]
@@ -1740,6 +1757,7 @@ export async function renderToHTMLOrFlight(
           parentParams: {},
           firstItem: true,
           injectedCSS: new Set(),
+          rootLayoutIncluded: false,
         })
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 

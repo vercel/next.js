@@ -35,6 +35,13 @@ describe.each(table)(
   (options) => {
     const isDev = (global as any).isNextDev
 
+    if ((global as any).isNextDeploy) {
+      // TODO: investigate condensing these tests to avoid
+      // 5 separate deploys for this one test
+      it('should skip for deploy', () => {})
+      return
+    }
+
     let next: NextInstance
     let nextConfig: NextConfig
 
