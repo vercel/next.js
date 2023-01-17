@@ -307,7 +307,6 @@ async function run(): Promise<void> {
       typeof program.importAlias !== 'string' ||
       !program.importAlias.length
     ) {
-      console.log({ idk: program.importAlias })
       if (ciInfo.isCI) {
         program.importAlias = '@/*'
       } else {

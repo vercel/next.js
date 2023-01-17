@@ -41,7 +41,7 @@ for (const variant of ['default', 'turbo']) {
         export default MyApp
       `
       )
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       await cleanup()
     })
 
@@ -89,7 +89,7 @@ for (const variant of ['default', 'turbo']) {
         export default MyDocument
       `
       )
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       await cleanup()
     })
 
@@ -120,7 +120,7 @@ for (const variant of ['default', 'turbo']) {
         export default MyApp
       `
       )
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       await cleanup()
     })
 
@@ -187,7 +187,7 @@ for (const variant of ['default', 'turbo']) {
         export default MyDocument
       `
       )
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       await cleanup()
     })
   })
