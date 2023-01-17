@@ -25,7 +25,6 @@ import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
 import { traverseModules } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
-import { TreeNode } from '../loaders/get-module-build-info'
 
 interface Options {
   dev: boolean
@@ -340,37 +339,6 @@ export class FlightClientEntryPlugin {
             })
 
           Object.assign(cssManifest, cssImports)
-        }
-
-        // Finally, we need to clean up CSS imports a bit. If a parent or
-        // current layout already imports a CSS file, we can remove it from
-        // the current entry's CSS imports.
-        const { treeInfo } = entryModule.buildInfo
-        if (treeInfo) {
-          function filterIncludedCSS(
-            tree: TreeNode,
-            parentCSSImports: Set<string>
-          ) {
-            const used = new Set(parentCSSImports)
-
-            // Remove CSS imports that are already imported by the parent
-            const collected = cssManifest[tree.resource]
-            if (collected?.length) {
-              cssManifest[tree.resource] = collected.filter((cssImport) => {
-                if (!parentCSSImports.has(cssImport)) {
-                  used.add(cssImport)
-                  return true
-                }
-                return false
-              })
-            }
-
-            // Recursively check children
-            tree.children.forEach((child) => {
-              filterIncludedCSS(child, used)
-            })
-          }
-          filterIncludedCSS(treeInfo, new Set())
         }
       })
     })

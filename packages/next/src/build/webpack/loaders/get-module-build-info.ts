@@ -21,14 +21,7 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
     importLocByPath?: Map<string, any>
     rootDir?: string
     rsc?: RSCMeta
-    treeInfo?: TreeNode
   }
-}
-
-// This attaches the app tree structure to the build info
-export interface TreeNode {
-  resource: string
-  children: TreeNode[]
 }
 
 export interface RSCMeta {
