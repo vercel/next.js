@@ -1572,7 +1572,8 @@ export async function renderToHTMLOrFlight(
                       loaderTree: loaderTreeToFilter,
                       parentParams: currentParams,
                       firstItem: isFirst,
-                      rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                      // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                      rootLayoutIncluded: rootLayoutIncluded,
                     }
                   )
                   return <Component />
