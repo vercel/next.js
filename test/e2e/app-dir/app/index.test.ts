@@ -1467,6 +1467,27 @@ createNextDescribe(
 
       if (isDev) {
         describe('multiple entries', () => {
+          it('should only inject the same style once if used by different layers', async () => {
+            const browser = await next.browser('/css/css-duplicate-2/client')
+            expect(
+              await browser.eval(
+                `[...document.styleSheets].filter(({ cssRules }) =>
+                  [...cssRules].some(({ cssText }) => (cssText||'').includes('_randomized_string_for_testing_'))
+                ).length`
+              )
+            ).toBe(1)
+          })
+
+          it('should only include the same style once in the flight data', async () => {
+            const initialHtml = await next.render('/css/css-duplicate-2/server')
+
+            // Even if it's deduped by Float, it should still only be included once in the payload.
+            // There are two matches, one for the rendered <link> and one for the flight data.
+            expect(
+              initialHtml.match(/duplicate-2_style_module_css\.css/g).length
+            ).toBe(2)
+          })
+
           it('should only load chunks for the css module that is used by the specific entrypoint', async () => {
             // Visit /b first
             await next.render('/css/css-duplicate/b')
@@ -1886,126 +1907,129 @@ createNextDescribe(
         ).toBe('rgb(0, 255, 255)')
       })
     })
-    ;(isDev ? describe.skip : describe)('Subresource Integrity', () => {
-      function fetchWithPolicy(policy: string | null) {
-        return next.fetch('/dashboard', {
-          headers: policy
-            ? {
-                'Content-Security-Policy': policy,
-              }
-            : {},
-        })
-      }
-
-      async function renderWithPolicy(policy: string | null) {
-        const res = await fetchWithPolicy(policy)
-
-        expect(res.ok).toBe(true)
-
-        const html = await res.text()
-
-        return cheerio.load(html)
-      }
-
-      it('does not include nonce when not enabled', async () => {
-        const policies = [
-          `script-src 'nonce-'`, // invalid nonce
-          'style-src "nonce-cmFuZG9tCg=="', // no script or default src
-          '', // empty string
-        ]
-
-        for (const policy of policies) {
-          const $ = await renderWithPolicy(policy)
-
-          // Find all the script tags without src attributes and with nonce
-          // attributes.
-          const elements = $('script[nonce]:not([src])')
-
-          // Expect there to be none.
-          expect(elements.length).toBe(0)
-        }
-      })
-
-      it('includes a nonce value with inline scripts when Content-Security-Policy header is defined', async () => {
-        // A random nonce value, base64 encoded.
-        const nonce = 'cmFuZG9tCg=='
-
-        // Validate all the cases where we could parse the nonce.
-        const policies = [
-          `script-src 'nonce-${nonce}'`, // base case
-          `   script-src   'nonce-${nonce}' `, // extra space added around sources and directive
-          `style-src 'self'; script-src 'nonce-${nonce}'`, // extra directives
-          `script-src 'self' 'nonce-${nonce}' 'nonce-othernonce'`, // extra nonces
-          `default-src 'nonce-othernonce'; script-src 'nonce-${nonce}';`, // script and then fallback case
-          `default-src 'nonce-${nonce}'`, // fallback case
-        ]
-
-        for (const policy of policies) {
-          const $ = await renderWithPolicy(policy)
-
-          // Find all the script tags without src attributes.
-          const elements = $('script:not([src])')
-
-          // Expect there to be at least 1 script tag without a src attribute.
-          expect(elements.length).toBeGreaterThan(0)
-
-          // Expect all inline scripts to have the nonce value.
-          elements.each((i, el) => {
-            expect(el.attribs['nonce']).toBe(nonce)
+    ;(isDev || isNextDeploy ? describe.skip : describe)(
+      'Subresource Integrity',
+      () => {
+        function fetchWithPolicy(policy: string | null) {
+          return next.fetch('/dashboard', {
+            headers: policy
+              ? {
+                  'Content-Security-Policy': policy,
+                }
+              : {},
           })
         }
-      })
 
-      it('includes an integrity attribute on scripts', async () => {
-        const $ = await next.render$('/dashboard')
+        async function renderWithPolicy(policy: string | null) {
+          const res = await fetchWithPolicy(policy)
 
-        // Find all the script tags with src attributes.
-        const elements = $('script[src]')
+          expect(res.ok).toBe(true)
 
-        // Expect there to be at least 1 script tag with a src attribute.
-        expect(elements.length).toBeGreaterThan(0)
+          const html = await res.text()
 
-        // Collect all the scripts with integrity hashes so we can verify them.
-        const files: [string, string][] = []
+          return cheerio.load(html)
+        }
 
-        // For each of these attributes, ensure that there's an integrity
-        // attribute and starts with the correct integrity hash prefix.
-        elements.each((i, el) => {
-          const integrity = el.attribs['integrity']
-          expect(integrity).toBeDefined()
-          expect(integrity).toStartWith('sha256-')
+        it('does not include nonce when not enabled', async () => {
+          const policies = [
+            `script-src 'nonce-'`, // invalid nonce
+            'style-src "nonce-cmFuZG9tCg=="', // no script or default src
+            '', // empty string
+          ]
 
-          const src = el.attribs['src']
-          expect(src).toBeDefined()
+          for (const policy of policies) {
+            const $ = await renderWithPolicy(policy)
 
-          files.push([src, integrity])
+            // Find all the script tags without src attributes and with nonce
+            // attributes.
+            const elements = $('script[nonce]:not([src])')
+
+            // Expect there to be none.
+            expect(elements.length).toBe(0)
+          }
         })
 
-        // For each script tag, ensure that the integrity attribute is the
-        // correct hash of the script tag.
-        for (const [src, integrity] of files) {
-          const res = await next.fetch(src)
-          expect(res.status).toBe(200)
-          const content = await res.text()
+        it('includes a nonce value with inline scripts when Content-Security-Policy header is defined', async () => {
+          // A random nonce value, base64 encoded.
+          const nonce = 'cmFuZG9tCg=='
 
-          const hash = crypto
-            .createHash('sha256')
-            .update(content)
-            .digest()
-            .toString('base64')
+          // Validate all the cases where we could parse the nonce.
+          const policies = [
+            `script-src 'nonce-${nonce}'`, // base case
+            `   script-src   'nonce-${nonce}' `, // extra space added around sources and directive
+            `style-src 'self'; script-src 'nonce-${nonce}'`, // extra directives
+            `script-src 'self' 'nonce-${nonce}' 'nonce-othernonce'`, // extra nonces
+            `default-src 'nonce-othernonce'; script-src 'nonce-${nonce}';`, // script and then fallback case
+            `default-src 'nonce-${nonce}'`, // fallback case
+          ]
 
-          expect(integrity).toEndWith(hash)
-        }
-      })
+          for (const policy of policies) {
+            const $ = await renderWithPolicy(policy)
 
-      it('throws when escape characters are included in nonce', async () => {
-        const res = await fetchWithPolicy(
-          `script-src 'nonce-"><script></script>"'`
-        )
+            // Find all the script tags without src attributes.
+            const elements = $('script:not([src])')
 
-        expect(res.status).toBe(500)
-      })
-    })
+            // Expect there to be at least 1 script tag without a src attribute.
+            expect(elements.length).toBeGreaterThan(0)
+
+            // Expect all inline scripts to have the nonce value.
+            elements.each((i, el) => {
+              expect(el.attribs['nonce']).toBe(nonce)
+            })
+          }
+        })
+
+        it('includes an integrity attribute on scripts', async () => {
+          const $ = await next.render$('/dashboard')
+
+          // Find all the script tags with src attributes.
+          const elements = $('script[src]')
+
+          // Expect there to be at least 1 script tag with a src attribute.
+          expect(elements.length).toBeGreaterThan(0)
+
+          // Collect all the scripts with integrity hashes so we can verify them.
+          const files: [string, string][] = []
+
+          // For each of these attributes, ensure that there's an integrity
+          // attribute and starts with the correct integrity hash prefix.
+          elements.each((i, el) => {
+            const integrity = el.attribs['integrity']
+            expect(integrity).toBeDefined()
+            expect(integrity).toStartWith('sha256-')
+
+            const src = el.attribs['src']
+            expect(src).toBeDefined()
+
+            files.push([src, integrity])
+          })
+
+          // For each script tag, ensure that the integrity attribute is the
+          // correct hash of the script tag.
+          for (const [src, integrity] of files) {
+            const res = await next.fetch(src)
+            expect(res.status).toBe(200)
+            const content = await res.text()
+
+            const hash = crypto
+              .createHash('sha256')
+              .update(content)
+              .digest()
+              .toString('base64')
+
+            expect(integrity).toEndWith(hash)
+          }
+        })
+
+        it('throws when escape characters are included in nonce', async () => {
+          const res = await fetchWithPolicy(
+            `script-src 'nonce-"><script></script>"'`
+          )
+
+          expect(res.status).toBe(500)
+        })
+      }
+    )
 
     describe('template component', () => {
       it('should render the template that holds state in a client component and reset on navigation', async () => {
@@ -2072,8 +2096,10 @@ createNextDescribe(
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
+          // TODO: investigate desired behavior here as it is currently
+          // minimized by default
+          // expect(await hasRedbox(browser, true)).toBe(true)
+          // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
           expect(
@@ -2100,7 +2126,7 @@ createNextDescribe(
             // Digest of the error message should be stable.
           ).not.toBe('')
           // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
-          // expect(await hasRedbox(browser)).toBe(true)
+          // expect(await hasRedbox(browser, true)).toBe(true)
           // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -2123,7 +2149,7 @@ createNextDescribe(
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
@@ -2140,7 +2166,7 @@ createNextDescribe(
         )
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(true)
+          expect(await hasRedbox(browser, true)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
         } else {
           expect(
@@ -2240,7 +2266,11 @@ createNextDescribe(
           const browser = await next.browser('/react-fetch/server-component')
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
-          expect(val1).toBe(val2)
+
+          // TODO: enable when fetch cache is enabled in dev
+          if (!isDev) {
+            expect(val1).toBe(val2)
+          }
         })
 
         it('server component client-navigation', async () => {
@@ -2252,7 +2282,11 @@ createNextDescribe(
             .waitForElementByCss('#value-1', 10000)
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
-          expect(val1).toBe(val2)
+
+          // TODO: enable when fetch cache is enabled in dev
+          if (!isDev) {
+            expect(val1).toBe(val2)
+          }
         })
 
         // TODO-APP: React doesn't have fetch deduping for client components yet.

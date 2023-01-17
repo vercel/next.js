@@ -63,7 +63,7 @@ const API_DOCS: Record<
       '"error"':
         'This errors if any dynamic Hooks or fetches are used. (This is equivalent to `getStaticProps`.)',
       '"force-static"':
-        'This forces caching of all fetches and returns empty values from `useCookies`, `useHeaders` and `useSearchParams`.',
+        'This forces caching of all fetches and returns empty values from `cookies`, `headers` and `useSearchParams`.',
     },
     link: 'https://beta.nextjs.org/docs/api-reference/segment-config#dynamic',
   },

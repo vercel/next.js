@@ -708,7 +708,9 @@ function getCssInlinedLinkTags(
   serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest,
   filePath: string,
-  serverCSSForEntries: string[]
+  serverCSSForEntries: string[],
+  injectedCSS: Set<string>,
+  collectNewCSSImports?: boolean
 ): string[] {
   const layoutOrPageCssModules = serverCSSManifest[filePath]
 
@@ -725,12 +727,26 @@ function getCssInlinedLinkTags(
   for (const mod of layoutOrPageCssModules) {
     // We only include the CSS if it's a global CSS, or it is used by this
     // entrypoint.
-    if (serverCSSForEntries.includes(mod) || !/\.module\.css/.test(mod)) {
-      const modData = serverComponentManifest[mod]
-      if (modData) {
-        for (const chunk of modData.default.chunks) {
-          if (cssFilesForEntry.has(chunk)) {
-            chunks.add(chunk)
+    if (
+      serverCSSForEntries.includes(mod) ||
+      !/\.module\.(css|sass|scss)$/.test(mod)
+    ) {
+      // If the CSS is already injected by a parent layer, we don't need
+      // to inject it again.
+      if (!injectedCSS.has(mod)) {
+        const modData = serverComponentManifest[mod]
+        if (modData) {
+          for (const chunk of modData.default.chunks) {
+            // If the current entry in the final tree-shaked bundle has that CSS
+            // chunk, it means that it's actually used. We should include it.
+            if (cssFilesForEntry.has(chunk)) {
+              chunks.add(chunk)
+              // This might be a new layout, and to make it more efficient and
+              // not introducing another loop, we mutate the set directly.
+              if (collectNewCSSImports) {
+                injectedCSS.add(mod)
+              }
+            }
           }
         }
       }
@@ -1108,16 +1124,19 @@ export async function renderToHTMLOrFlight(
       filePath,
       getComponent,
       shouldPreload,
+      injectedCSS,
     }: {
       filePath: string
       getComponent: () => any
       shouldPreload?: boolean
+      injectedCSS: Set<string>
     }): Promise<any> => {
       const cssHrefs = getCssInlinedLinkTags(
         serverComponentManifest,
         serverCSSManifest,
         filePath,
-        serverCSSForEntries
+        serverCSSForEntries,
+        injectedCSS
       )
 
       const styles = cssHrefs
@@ -1154,20 +1173,26 @@ export async function renderToHTMLOrFlight(
       parentParams,
       firstItem,
       rootLayoutIncluded,
+      injectedCSS,
     }: {
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
       parentParams: { [key: string]: any }
-      rootLayoutIncluded?: boolean
+      rootLayoutIncluded: boolean
       firstItem?: boolean
+      injectedCSS: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
       const layoutOrPagePath = layout?.[1] || page?.[1]
+
+      const injectedCSSWithCurrentLayout = new Set(injectedCSS)
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
             layoutOrPagePath,
-            serverCSSForEntries
+            serverCSSForEntries,
+            injectedCSSWithCurrentLayout,
+            true
           )
         : []
 
@@ -1186,6 +1211,7 @@ export async function renderToHTMLOrFlight(
             filePath: template[1],
             getComponent: template[0],
             shouldPreload: true,
+            injectedCSS: injectedCSSWithCurrentLayout,
           })
         : [React.Fragment]
 
@@ -1193,6 +1219,7 @@ export async function renderToHTMLOrFlight(
         ? await createComponentAndStyles({
             filePath: error[1],
             getComponent: error[0],
+            injectedCSS: injectedCSSWithCurrentLayout,
           })
         : []
 
@@ -1200,6 +1227,7 @@ export async function renderToHTMLOrFlight(
         ? await createComponentAndStyles({
             filePath: loading[1],
             getComponent: loading[0],
+            injectedCSS: injectedCSSWithCurrentLayout,
           })
         : []
 
@@ -1225,6 +1253,7 @@ export async function renderToHTMLOrFlight(
         ? await createComponentAndStyles({
             filePath: notFound[1],
             getComponent: notFound[0],
+            injectedCSS: injectedCSSWithCurrentLayout,
           })
         : rootLayoutAtThisLevel
         ? [DefaultNotFound]
@@ -1364,6 +1393,7 @@ export async function renderToHTMLOrFlight(
               loaderTree: parallelRoutes[parallelRouteKey],
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+              injectedCSS: injectedCSSWithCurrentLayout,
             })
 
             const childProp: ChildProp = {
@@ -1510,6 +1540,8 @@ export async function renderToHTMLOrFlight(
         flightRouterState,
         parentRendered,
         rscPayloadHead,
+        injectedCSS,
+        rootLayoutIncluded,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -1518,9 +1550,22 @@ export async function renderToHTMLOrFlight(
         flightRouterState?: FlightRouterState
         parentRendered?: boolean
         rscPayloadHead: React.ReactNode
+        injectedCSS: Set<string>
+        rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
-        const [segment, parallelRoutes] = loaderTreeToFilter
+        const [segment, parallelRoutes, { layout }] = loaderTreeToFilter
+        const isLayout = typeof layout !== 'undefined'
         const parallelRoutesKeys = Object.keys(parallelRoutes)
+
+        /**
+         * Checks if the current segment is a root layout.
+         */
+        const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+        /**
+         * Checks if the current segment or any level above it has a root layout.
+         */
+        const rootLayoutIncludedAtThisLevelOrAbove =
+          rootLayoutIncluded || rootLayoutAtThisLevel
 
         // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
         const segmentParam = getDynamicParamFromSegment(segment)
@@ -1569,6 +1614,9 @@ export async function renderToHTMLOrFlight(
                       loaderTree: loaderTreeToFilter,
                       parentParams: currentParams,
                       firstItem: isFirst,
+                      injectedCSS,
+                      // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                      rootLayoutIncluded: rootLayoutIncluded,
                     }
                   )
                   return <Component />
@@ -1577,6 +1625,22 @@ export async function renderToHTMLOrFlight(
               <>{rscPayloadHead}</>
             ),
           ]
+        }
+
+        // If we are not rendering on this level we need to check if the current
+        // segment has a layout. If so, we need to track all the used CSS to make
+        // the result consistent.
+        const layoutPath = layout?.[1]
+        const injectedCSSWithCurrentLayout = new Set(injectedCSS)
+        if (layoutPath) {
+          getCssInlinedLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            layoutPath,
+            serverCSSForEntries,
+            injectedCSSWithCurrentLayout,
+            true
+          )
         }
 
         // Walk through all parallel routes.
@@ -1598,6 +1662,8 @@ export async function renderToHTMLOrFlight(
             parentRendered: parentRendered || renderComponentsOnThisLevel,
             isFirst: false,
             rscPayloadHead,
+            injectedCSS: injectedCSSWithCurrentLayout,
+            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
           if (typeof path[path.length - 1] !== 'string') {
@@ -1620,6 +1686,8 @@ export async function renderToHTMLOrFlight(
             flightRouterState: providedFlightRouterState,
             isFirst: true,
             rscPayloadHead,
+            injectedCSS: new Set(),
+            rootLayoutIncluded: false,
           })
         ).slice(1),
       ]
@@ -1698,6 +1766,8 @@ export async function renderToHTMLOrFlight(
           loaderTree: loaderTree,
           parentParams: {},
           firstItem: true,
+          injectedCSS: new Set(),
+          rootLayoutIncluded: false,
         })
 
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
