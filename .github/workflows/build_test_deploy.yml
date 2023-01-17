@@ -84,6 +84,7 @@ jobs:
       - run: pnpm install
 
       - run: TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }} node run-tests.js --timings --write-timings -g 1/1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'nope' }}
 
       - run: pnpm run build
 
