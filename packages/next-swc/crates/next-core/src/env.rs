@@ -55,17 +55,19 @@ pub async fn env_for_js(
     } else {
         env
     };
-    let env = EmbeddableProcessEnvVc::new(env).into();
+
+    let env =
+        EmbeddableProcessEnvVc::new(CustomProcessEnvVc::new(env, next_config.env()).into()).into();
+
     let image_config = next_config.image_config().await?;
-
-    let next_config = next_config.await?;
-
     let mut map = indexmap! {
         // We need to overload the __NEXT_IMAGE_OPTS to override the default remotePatterns field.
         // This allows us to support loading from remote hostnames until we properly support reading
         // the next.config.js file.
-        "__NEXT_IMAGE_OPTS".to_string() => serde_json::to_string(&image_config).unwrap(),
+        "__NEXT_IMAGE_OPTS".to_string() => serde_json::to_string(&image_config)?,
     };
+
+    let next_config = next_config.await?;
 
     if next_config.react_strict_mode.unwrap_or(false) {
         map.insert("__NEXT_STRICT_MODE".to_string(), "true".to_string());
