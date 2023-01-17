@@ -114,16 +114,12 @@ async function createNextInstall({
             if (process.env.NEXT_TEST_PREFER_OFFLINE === '1') {
               args.push('--prefer-offline')
             }
-            
-            await execa(
-              'pnpm',
-              args,
-              {
-                cwd: installDir,
-                stdio: ['ignore', 'inherit', 'inherit'],
-                env: process.env,
-              }
-            )
+
+            await execa('pnpm', args, {
+              cwd: installDir,
+              stdio: ['ignore', 'inherit', 'inherit'],
+              env: process.env,
+            })
           })
       }
 
