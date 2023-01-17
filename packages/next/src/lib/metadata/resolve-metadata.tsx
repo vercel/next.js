@@ -43,18 +43,19 @@ type Item =
 
 // Merge the source metadata into the resolved target metadata.
 function merge(
-  source: Metadata,
   target: ResolvedMetadata,
-  titles: {
+  source: Metadata,
+  templateStrings: {
     title: AbsoluteTemplateString
     openGraphTitle: AbsoluteTemplateString
     twitterTitle: AbsoluteTemplateString
   }
 ) {
-  let updatedStashedTitle: AbsoluteTemplateString = titles.title
+  let updatedStashedTitle: AbsoluteTemplateString = templateStrings.title
   let updatedStashedOpenGraphTitle: AbsoluteTemplateString =
-    titles.openGraphTitle
-  let updatedStashedTwitterTitle: AbsoluteTemplateString = titles.twitterTitle
+    templateStrings.openGraphTitle
+  let updatedStashedTwitterTitle: AbsoluteTemplateString =
+    templateStrings.twitterTitle
 
   for (const key_ in source) {
     const key = key_ as keyof Metadata
@@ -65,7 +66,7 @@ function merge(
         break
       }
       case 'title': {
-        updatedStashedTitle = resolveTitle(titles.title, source.title)
+        updatedStashedTitle = resolveTitle(templateStrings.title, source.title)
         target.title = updatedStashedTitle
         break
       }
@@ -76,7 +77,7 @@ function merge(
           }
           if (source.openGraph && 'title' in source.openGraph) {
             updatedStashedOpenGraphTitle = resolveTitle(
-              titles.openGraphTitle,
+              templateStrings.openGraphTitle,
               source.openGraph.title
             )
             target.openGraph.title = updatedStashedOpenGraphTitle
@@ -91,7 +92,7 @@ function merge(
           target.twitter = { ...source.twitter }
           if (source.twitter && 'title' in source.twitter) {
             updatedStashedTwitterTitle = resolveTitle(
-              titles.twitterTitle,
+              templateStrings.twitterTitle,
               source.twitter.title
             )
             target.twitter.title = updatedStashedTwitterTitle
@@ -122,21 +123,24 @@ export async function resolveMetadata(metadataItems: Item[]) {
 
   const committedTitle: AbsoluteTemplateString = {
     absolute: '',
-    template: '%s',
+    template: '',
   }
   const committedOpenGraphTitle: AbsoluteTemplateString = {
     absolute: '',
-    template: '%s',
+    template: '',
   }
   const committedTwitterTitle: AbsoluteTemplateString = {
     absolute: '',
-    template: '%s',
+    template: '',
   }
   let stashedTitles
 
+  // from root layout to page metadata
   for (let i = 0; i < metadataItems.length; i++) {
     const item = metadataItems[i]
-    if (item.type === 'layout' || item.type === 'page') {
+    const isLayout = item.type === 'layout'
+    const isPage = item.type === 'page'
+    if (isLayout || isPage) {
       let layerMod = await item.mod()
 
       // Layer is a client component, we just skip it. It can't have metadata
@@ -156,20 +160,33 @@ export async function resolveMetadata(metadataItems: Item[]) {
         )
       }
 
+      // If we resolved all items in this layer, commit the stashed titles.
+      if (
+        stashedTitles &&
+        // reach out to page metadata
+        (i + 1 === metadataItems.length ||
+          // when the current item is page or layout (without page) for the current layer
+          metadataItems[i + 1].layer !== item.layer)
+      ) {
+        Object.assign(committedTitle, stashedTitles.title)
+        Object.assign(committedOpenGraphTitle, stashedTitles.openGraphTitle)
+        Object.assign(committedTwitterTitle, stashedTitles.twitterTitle)
+      }
+
       if (layerMod.metadata) {
-        stashedTitles = merge(layerMod.metadata, resolvedMetadata, {
+        stashedTitles = merge(resolvedMetadata, layerMod.metadata, {
           title: committedTitle,
           openGraphTitle: committedOpenGraphTitle,
           twitterTitle: committedTwitterTitle,
         })
       } else if (layerMod.generateMetadata) {
         stashedTitles = merge(
+          resolvedMetadata,
           await layerMod.generateMetadata(
             // TODO: Rewrite this to pass correct params and resolving metadata value.
             {},
             Promise.resolve(resolvedMetadata)
           ),
-          resolvedMetadata,
           {
             title: committedTitle,
             openGraphTitle: committedOpenGraphTitle,
@@ -178,23 +195,12 @@ export async function resolveMetadata(metadataItems: Item[]) {
         )
       }
     }
-
-    // If we resolved all items in this layer, commit the stashed titles.
-    if (
-      stashedTitles &&
-      (i + 1 === metadataItems.length ||
-        metadataItems[i + 1].layer !== item.layer)
-    ) {
-      Object.assign(committedTitle, stashedTitles.title)
-      Object.assign(committedOpenGraphTitle, stashedTitles.openGraphTitle)
-      Object.assign(committedTwitterTitle, stashedTitles.twitterTitle)
-    }
   }
 
   return resolvedMetadata
 }
 
-// Generate the acutal React elements from the resolved metadata.
+// Generate the actual React elements from the resolved metadata.
 export function elementsFromResolvedMetadata(metadata: ResolvedMetadata) {
   return (
     <>

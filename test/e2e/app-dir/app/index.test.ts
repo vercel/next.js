@@ -2638,7 +2638,7 @@ createNextDescribe(
               '/dashboard/metadata/title-template/extra'
             )
             expect(await browser.eval(`document.title`)).toBe(
-              'Extra Page | Layout'
+              'Extra Page | Extra Layout'
             )
           })
 
@@ -2734,8 +2734,8 @@ createNextDescribe(
               'https://example.com/image.png',
               'https://example.com/image2.png',
             ])
-            await checkMeta(browser, 'og:image:width', [800, 1800])
-            await checkMeta(browser, 'og:image:height', [600, 1600])
+            await checkMeta(browser, 'og:image:width', ['800', '1800'])
+            await checkMeta(browser, 'og:image:height', ['600', '1600'])
             await checkMeta(browser, 'og:image:alt', 'My custom alt')
           })
 

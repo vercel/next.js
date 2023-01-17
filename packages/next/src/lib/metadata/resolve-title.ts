@@ -1,8 +1,8 @@
 import type { Metadata } from './types/metadata-interface'
 import type { AbsoluteTemplateString } from './types/metadata-types'
 
-function resolveTitleTemplate(template: string, title: string) {
-  return template.replace(/%s/g, title)
+function resolveTitleTemplate(template: string | null, title: string) {
+  return template ? template.replace(/%s/g, title) : title
 }
 
 export function resolveTitle(
@@ -19,7 +19,7 @@ export function resolveTitle(
     if ('absolute' in title) {
       resolved.absolute = title.absolute
     }
-    if (title && 'template' in title) {
+    if (title && 'template' in title && title.template) {
       resolved.template = title.template
     }
   }
