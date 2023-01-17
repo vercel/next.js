@@ -110,6 +110,7 @@ static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
 #[case::mailgun("integration/mailgun.js")]
 #[case::mariadb("integration/mariadb.js")]
 #[case::memcached("integration/memcached.js")]
+#[case::mdx("integration/mdx/index.js")]
 #[case::mongoose("integration/mongoose.js")]
 #[case::mysql("integration/mysql.js")]
 #[case::npm("integration/npm.js")]

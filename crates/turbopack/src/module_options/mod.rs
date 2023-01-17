@@ -55,6 +55,7 @@ impl ModuleOptionsVc {
             enable_styled_components,
             enable_types,
             enable_typescript_transform,
+            enable_mdx,
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
@@ -127,12 +128,6 @@ impl ModuleOptionsVc {
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".json".to_string()),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
-            ),
-            ModuleRule::new(
-                ModuleRuleCondition::ResourcePathEndsWith(".mdx".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Mdx(
-                    mdx_transforms,
-                ))],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".css".to_string()),
@@ -237,6 +232,15 @@ impl ModuleOptionsVc {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
             ),
         ];
+
+        if enable_mdx {
+            rules.push(ModuleRule::new(
+                ModuleRuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Mdx(
+                    mdx_transforms,
+                ))],
+            ));
+        }
 
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let execution_context = execution_context

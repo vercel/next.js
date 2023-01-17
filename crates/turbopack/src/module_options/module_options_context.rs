@@ -54,6 +54,7 @@ pub struct ModuleOptionsContext {
     pub enable_webpack_loaders: Option<WebpackLoadersOptions>,
     pub enable_types: bool,
     pub enable_typescript_transform: bool,
+    pub enable_mdx: bool,
     pub preset_env_versions: Option<EnvironmentVc>,
     pub custom_ecmascript_app_transforms: Vec<EcmascriptInputTransform>,
     pub custom_ecmascript_transforms: Vec<EcmascriptInputTransform>,
