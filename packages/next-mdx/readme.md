@@ -102,7 +102,7 @@ yarn add @next/mdx
 Create a `mdx-component.js` file in your project with the following contents:
 
 ```js
-// This file is required to use MDX in the `app` directory.
+// This file is required to use @next/mdx in the `app` directory.
 export function useMDXComponents(components) {
   return components
   // Allows customizing built-in components, e.g. to add styling.
