@@ -401,10 +401,10 @@ pub(crate) async fn analyze_ecmascript_module(
                 .into();
                 analysis.add_code_gen(esm_exports);
                 EcmascriptExports::EsmExports(esm_exports)
-            } else if let Program::Module(_) = program {
-                EcmascriptExports::None
-            } else {
+            } else if has_cjs_export(program) {
                 EcmascriptExports::CommonJs
+            } else {
+                EcmascriptExports::None
             };
 
             analysis.set_exports(exports);
@@ -1933,3 +1933,45 @@ async fn resolve_as_webpack_runtime(
 // TODO enable serialization
 #[turbo_tasks::value(transparent, serialization = "none")]
 pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
+
+fn has_cjs_export(p: &Program) -> bool {
+    use swc_core::ecma::visit::{visit_obj_and_computed, Visit, VisitWith};
+
+    if let Program::Module(m) = p {
+        // Check for imports/exports
+        if m.body.iter().any(ModuleItem::is_module_decl) {
+            return false;
+        }
+    }
+
+    struct Visitor {
+        found: bool,
+    }
+
+    impl Visit for Visitor {
+        visit_obj_and_computed!();
+
+        fn visit_ident(&mut self, i: &Ident) {
+            if &*i.sym == "module" || &*i.sym == "exports" {
+                self.found = true;
+            }
+        }
+        fn visit_expr(&mut self, n: &Expr) {
+            if self.found {
+                return;
+            }
+            n.visit_children_with(self);
+        }
+
+        fn visit_stmt(&mut self, n: &Stmt) {
+            if self.found {
+                return;
+            }
+            n.visit_children_with(self);
+        }
+    }
+
+    let mut v = Visitor { found: false };
+    p.visit_with(&mut v);
+    v.found
+}

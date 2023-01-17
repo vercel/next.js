@@ -1,6 +1,6 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["output/79fb1_turbopack-tests_tests_snapshot_node_node_protocol_external_input_index_6a3d80.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/node/node_protocol_external/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/node/node_protocol_external/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
 var __TURBOPACK__external__node$3a$fs__ = __turbopack_external_require__("node:fs", true);
 "__TURBOPACK__ecmascript__hoisting__location__";
@@ -160,6 +160,18 @@ function esm(exports, getters) {
   if (toStringTag) defineProp(exports, toStringTag, { value: "Module" });
   for (const key in getters) {
     defineProp(exports, key, { get: getters[key], enumerable: true });
+  }
+}
+
+/**
+ * Adds the getters to the exports object
+ *
+ * @param {Exports} exports
+ * @param {Record<string, any>} props
+ */
+function cjs(exports, props) {
+  for (const key in props) {
+    defineProp(exports, key, { get: () => props[key], enumerable: true });
   }
 }
 
@@ -381,6 +393,7 @@ function instantiateModule(id, sourceType, sourceId) {
       x: externalRequire,
       i: esmImport.bind(null, module),
       s: esm.bind(null, module.exports),
+      j: cjs.bind(null, module.exports),
       v: exportValue.bind(null, module),
       m: module,
       c: moduleCache,
