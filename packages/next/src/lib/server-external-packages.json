@@ -22,5 +22,7 @@
   "tailwindcss",
   "ts-node",
   "typescript",
-  "webpack"
+  "webpack",
+  "shiki",
+  "vscode-oniguruma"
 ]
