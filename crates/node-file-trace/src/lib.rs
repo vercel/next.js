@@ -125,6 +125,11 @@ pub struct CommonArgs {
     #[cfg_attr(feature = "cli", clap(short, long))]
     #[cfg_attr(feature = "node-api", serde(default))]
     exact: bool,
+
+    /// Whether to enable mdx parsing while tracing dependencies
+    #[cfg_attr(feature = "cli", clap(short, long))]
+    #[cfg_attr(feature = "node-api", serde(default))]
+    enable_mdx: bool,
 }
 
 #[cfg_attr(feature = "cli", derive(Parser))]
@@ -230,6 +235,7 @@ async fn input_to_modules<'a>(
     input: Vec<String>,
     process_cwd: Option<String>,
     exact: bool,
+    enable_mdx: bool,
 ) -> Result<AssetsVc> {
     let root = fs.root();
     let env = EnvironmentVc::new(
@@ -259,6 +265,7 @@ async fn input_to_modules<'a>(
         env,
         ModuleOptionsContext {
             enable_types: true,
+            enable_mdx,
             ..Default::default()
         }
         .cell(),
@@ -513,6 +520,7 @@ async fn main_operation(
         ref input,
         watch,
         exact,
+        enable_mdx,
         ref context_directory,
         ref process_cwd,
         ..
@@ -526,7 +534,7 @@ async fn main_operation(
             let input = process_input(&dir, &context, input).unwrap();
             let mut result = BTreeSet::new();
             let fs = create_fs("context directory", &context, watch).await?;
-            let modules = input_to_modules(fs, input, process_cwd, exact).await?;
+            let modules = input_to_modules(fs, input, process_cwd, exact, enable_mdx).await?;
             for module in modules.iter() {
                 let set = all_assets(*module);
                 IssueVc::attach_context(module.path(), "gathering list of assets".to_string(), set)
@@ -544,7 +552,7 @@ async fn main_operation(
             let fs = create_fs("context directory", &context, watch).await?;
             let mut output_nft_assets = Vec::new();
             let mut emits = Vec::new();
-            for module in input_to_modules(fs, input, process_cwd, exact)
+            for module in input_to_modules(fs, input, process_cwd, exact, enable_mdx)
                 .await?
                 .iter()
             {
@@ -570,7 +578,7 @@ async fn main_operation(
             let input_dir = fs.root();
             let output_dir = out_fs.root();
             let mut emits = Vec::new();
-            for module in input_to_modules(fs, input, process_cwd, exact)
+            for module in input_to_modules(fs, input, process_cwd, exact, enable_mdx)
                 .await?
                 .iter()
             {
