@@ -713,6 +713,7 @@ export default async function getBaseWebpackConfig(
         isServer: isNodeServer || isEdgeServer,
         rootDir: dir,
         pagesDir,
+        appDir,
         hasServerComponents,
         hasReactRefresh: dev && isClient,
         fileReading: config.experimental.swcFileReading,

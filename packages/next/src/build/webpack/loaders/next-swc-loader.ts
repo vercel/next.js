@@ -46,6 +46,7 @@ async function loaderTransform(
     isServerLayer,
     rootDir,
     pagesDir,
+    appDir,
     hasReactRefresh,
     nextConfig,
     jsConfig,
@@ -58,6 +59,7 @@ async function loaderTransform(
 
   const swcOptions = getLoaderSWCOptions({
     pagesDir,
+    appDir,
     filename,
     isServer,
     isServerLayer,
