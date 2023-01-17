@@ -7,11 +7,7 @@ export function elementsFromResolvedBasic(metadata: ResolvedMetadata) {
   return (
     <>
       {metadata.title !== null ? (
-        <title>
-          {typeof metadata.title === 'string'
-            ? metadata.title
-            : metadata.title.absolute}
-        </title>
+        <title>{metadata.title.absolute}</title>
       ) : null}
       <Meta name="description" content={metadata.description} />
       <Meta name="application-name" content={metadata.applicationName} />
