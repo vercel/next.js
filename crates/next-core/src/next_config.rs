@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -8,6 +6,7 @@ use turbo_tasks::{
     trace::TraceRawVcs,
     Value,
 };
+use turbo_tasks_env::EnvMapVc;
 use turbopack::{
     evaluate_context::node_evaluate_asset_context,
     module_options::{
@@ -44,7 +43,7 @@ pub struct NextConfig {
     pub typescript: Option<TypeScriptConfig>,
     pub react_strict_mode: Option<bool>,
     pub experimental: Option<ExperimentalConfig>,
-    pub env: Option<HashMap<String, String>>,
+    pub env: IndexMap<String, String>,
     pub compiler: Option<CompilerConfig>,
     pub images: ImageConfig,
     pub transpile_packages: Option<Vec<String>>,
@@ -204,6 +203,11 @@ impl NextConfigVc {
                 .cloned()
                 .unwrap_or_default(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn env(self) -> Result<EnvMapVc> {
+        Ok(EnvMapVc::cell(self.await?.env.clone()))
     }
 
     #[turbo_tasks::function]
