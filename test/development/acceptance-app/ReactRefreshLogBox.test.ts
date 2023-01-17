@@ -285,10 +285,7 @@ for (const variant of ['default', 'turbo']) {
 `
       )
 
-      expect(await browser.waitForElementByCss('p').text()).toBe(
-        'Hello world 2'
-      )
-
+      await check(() => browser.elementByCss('p').text(), 'Hello world 2')
       await cleanup()
     })
 
