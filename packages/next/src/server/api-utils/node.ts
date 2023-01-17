@@ -181,6 +181,7 @@ export async function parseBody(
 
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
+  allowedRevalidateHeaderKeys?: string[]
   revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
 }
 
@@ -353,15 +354,6 @@ function setPreviewData<T>(
   return res
 }
 
-const filteredRevalidateHeaders = new Set([
-  'content-type',
-  'content-encoding',
-  'accept',
-  'accept-language',
-  'accept-encoding',
-  'connection',
-])
-
 async function revalidate(
   urlPath: string,
   opts: {
@@ -383,9 +375,15 @@ async function revalidate(
         }
       : {}),
   }
+  const allowedRevalidateHeaderKeys = [
+    ...(context.allowedRevalidateHeaderKeys || []),
+    ...(context.trustHostHeader
+      ? ['cookie', 'x-vercel-protection-bypass']
+      : []),
+  ]
 
   for (const key of Object.keys(req.headers)) {
-    if (!filteredRevalidateHeaders.has(key) && !key.startsWith('x-vercel')) {
+    if (allowedRevalidateHeaderKeys.includes(key)) {
       revalidateHeaders[key] = req.headers[key] as string
     }
   }
