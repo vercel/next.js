@@ -25,7 +25,7 @@ let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 let dir: string
-let configFileWatchController: () => void
+let unwatchConfigFiles: () => void
 
 const handleSessionStop = async () => {
   if (sessionStopHandled) return
@@ -68,8 +68,10 @@ const handleSessionStop = async () => {
       true
     )
     telemetry.flushDetached('dev', dir)
-  } catch (_) {}
-
+  } catch (_) {
+    // errors here aren't actionable so don't add
+    // noise to the output
+  }
   process.exit(0)
 }
 
@@ -82,6 +84,10 @@ if (cluster.isMaster) {
 }
 
 function watchConfigFiles(dirToWatch: string) {
+  if (unwatchConfigFiles) {
+    unwatchConfigFiles()
+  }
+
   const wp = new Watchpack()
   wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
   wp.on('change', (filename) => {
@@ -142,7 +148,7 @@ const nextDev: CliCommand = async (argv) => {
   }
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || args._[0])
-  configFileWatchController = watchConfigFiles(dir)
+  unwatchConfigFiles = watchConfigFiles(dir)
 
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, 'directory'))) {
@@ -574,7 +580,6 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           Log.info(
             `Detected project directory rename, restarting in new location`
           )
-          configFileWatchController()
           handleProjectDirRename(newFiles[0])
           watchConfigFiles(newFiles[0])
           dir = newFiles[0]

@@ -65,13 +65,4 @@ describe('Project Directory Renaming', () => {
       )
     }
   })
-
-  // TODO: enable after fixing jest issue with hanging
-  it.skip('should detect project removal and exit gracefully', async () => {
-    await fs.remove(next.testDir)
-    await check(
-      () => stripAnsi(next.cliOutput),
-      /Project directory could not be found, restart Next\.js in your new directory/
-    )
-  })
 })
