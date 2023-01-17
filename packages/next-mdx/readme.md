@@ -94,7 +94,7 @@ npm install @next/mdx
 or
 
 ```
-yarn add @next/md
+yarn add @next/mdx
 ```
 
 ## Usage
