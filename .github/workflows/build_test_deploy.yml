@@ -82,8 +82,10 @@ jobs:
             pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
 
       - run: pnpm install
+
+      - run: TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN || secrets.GITHUB_TOKEN }} node run-tests.js --timings --write-timings -g 1/1
+
       - run: pnpm run build
-      - run: node run-tests.js --timings --write-timings -g 1/1
 
       - id: check-release
         run: |
