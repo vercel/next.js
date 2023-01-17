@@ -1148,7 +1148,7 @@ export async function renderToHTMLOrFlight(
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
       parentParams: { [key: string]: any }
-      rootLayoutIncluded?: boolean
+      rootLayoutIncluded: boolean
       firstItem?: boolean
     }): Promise<{ Component: React.ComponentType }> => {
       const layoutOrPagePath = layout?.[1] || page?.[1]
@@ -1301,6 +1301,14 @@ export async function renderToHTMLOrFlight(
             parentParams
       // Resolve the segment param
       const actualSegment = segmentParam ? segmentParam.treeSegment : segment
+
+      console.log({
+        notFound,
+        segmentPath: createSegmentPath([actualSegment]),
+        NotFound,
+        notFoundStyles,
+        rootLayoutAtThisLevel,
+      })
 
       // This happens outside of rendering in order to eagerly kick off data fetching for layouts / the page further down
       const parallelRouteMap = await Promise.all(
@@ -1500,6 +1508,7 @@ export async function renderToHTMLOrFlight(
         flightRouterState,
         parentRendered,
         rscPayloadHead,
+        rootLayoutIncluded,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -1508,9 +1517,21 @@ export async function renderToHTMLOrFlight(
         flightRouterState?: FlightRouterState
         parentRendered?: boolean
         rscPayloadHead: React.ReactNode
+        rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
-        const [segment, parallelRoutes] = loaderTreeToFilter
+        const [segment, parallelRoutes, { layout }] = loaderTreeToFilter
+        const isLayout = typeof layout !== 'undefined'
         const parallelRoutesKeys = Object.keys(parallelRoutes)
+
+        /**
+         * Checks if the current segment is a root layout.
+         */
+        const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+        /**
+         * Checks if the current segment or any level above it has a root layout.
+         */
+        const rootLayoutIncludedAtThisLevelOrAbove =
+          rootLayoutIncluded || rootLayoutAtThisLevel
 
         // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
         const segmentParam = getDynamicParamFromSegment(segment)
@@ -1559,6 +1580,7 @@ export async function renderToHTMLOrFlight(
                       loaderTree: loaderTreeToFilter,
                       parentParams: currentParams,
                       firstItem: isFirst,
+                      rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
                     }
                   )
                   return <Component />
@@ -1588,6 +1610,7 @@ export async function renderToHTMLOrFlight(
             parentRendered: parentRendered || renderComponentsOnThisLevel,
             isFirst: false,
             rscPayloadHead,
+            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
           if (typeof path[path.length - 1] !== 'string') {
@@ -1610,6 +1633,7 @@ export async function renderToHTMLOrFlight(
             flightRouterState: providedFlightRouterState,
             isFirst: true,
             rscPayloadHead,
+            rootLayoutIncluded: false,
           })
         ).slice(1),
       ]
@@ -1688,6 +1712,7 @@ export async function renderToHTMLOrFlight(
           loaderTree: loaderTree,
           parentParams: {},
           firstItem: true,
+          rootLayoutIncluded: false,
         })
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
