@@ -108,10 +108,13 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
         const usePnpm = await fs.pathExists(path.join(dir, 'pnpm-lock.yaml'))
+
         let buildCommand = `cd ${dir}${
           !statsConfig.skipInitialInstall
             ? usePnpm
-              ? ' && pnpm install && pnpm run build'
+              ? // --no-frozen-lockfile is used here to tolerate lockfile
+                // changes from merging latest changes
+                ` && pnpm install --no-frozen-lockfile && pnpm run build`
               : ' && yarn install --network-timeout 1000000'
             : ''
         }`

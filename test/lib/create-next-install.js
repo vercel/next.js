@@ -109,9 +109,15 @@ async function createNextInstall({
         await rootSpan
           .traceChild('run generic install command')
           .traceAsyncFn(async () => {
+            const args = ['install', '--strict-peer-dependencies=false']
+
+            if (process.env.NEXT_TEST_PREFER_OFFLINE === '1') {
+              args.push('--prefer-offline')
+            }
+            
             await execa(
               'pnpm',
-              ['install', '--strict-peer-dependencies=false'],
+              args,
               {
                 cwd: installDir,
                 stdio: ['ignore', 'inherit', 'inherit'],

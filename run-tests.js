@@ -292,6 +292,7 @@ async function main() {
             // run tests in headless mode by default
             HEADLESS: 'true',
             TRACE_PLAYWRIGHT: 'true',
+            NEXT_TELEMETRY_DISABLED: '1',
             ...(isFinalRun
               ? {
                   // Events can be finicky in CI. This switches to a more
