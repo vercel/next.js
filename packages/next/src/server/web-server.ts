@@ -5,8 +5,7 @@ import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import { DynamicRoutes, PageChecker, Route, RouteResultState } from './router'
-import type { NextConfig } from './config-shared'
+import { Route, RouteResultState, RouterOptions } from './router'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { UrlWithParsedQuery } from 'url'
 
@@ -149,22 +148,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       .fontLoaderManifest
   }
 
-  protected generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  } {
+  protected generateRouteOptions(): RouterOptions {
     const fsRoutes: Route[] = [
       {
         match: getPathMatch('/_next/data/:path*'),
@@ -256,7 +240,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       },
     ]
 
-    const catchAllRoute: Route = {
+    const catchAll: Route = {
       match: getPathMatch('/:path*'),
       type: 'route',
       matchesLocale: true,
@@ -326,18 +310,12 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
 
     return {
-      headers: [],
-      fsRoutes,
-      rewrites: {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
+      routes: {
+        fs: fsRoutes,
+        catchAll,
+        dynamic: this.dynamicRoutes,
       },
-      redirects: [],
-      catchAllRoute,
-      catchAllMiddleware: [],
       useFileSystemPublicRoutes,
-      dynamicRoutes: this.dynamicRoutes,
       pageChecker: this.hasPage.bind(this),
       nextConfig: this.nextConfig,
     }

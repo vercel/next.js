@@ -3,7 +3,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
-import { Route, RouteResult, RouteResultState } from './router'
+import { Route, RouteResult, RouteResultState, RouterOptions } from './router'
 import {
   CacheFs,
   DecodeError,
@@ -24,8 +24,6 @@ import type {
   RouteMatch,
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { NextConfig } from './config-shared'
-import type { DynamicRoutes, PageChecker } from './router'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
@@ -1022,22 +1020,7 @@ export default class NextNodeServer extends BaseServer {
     return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
-  protected generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  } {
+  protected generateRouteOptions(): RouterOptions {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
     const staticFilesRoutes = this.generateStaticRoutes()
@@ -1162,10 +1145,7 @@ export default class NextNodeServer extends BaseServer {
           createRedirectRoute({ rule, restrictedRedirectPaths })
         )
 
-    const rewrites = this.generateRewrites({ restrictedRedirectPaths })
-    const catchAllMiddleware = this.generateCatchAllMiddlewareRoute()
-
-    const catchAllRoute: Route = {
+    const catchAll: Route = {
       match: getPathMatch('/:path*'),
       type: 'route',
       matchesLocale: true,
@@ -1230,16 +1210,18 @@ export default class NextNodeServer extends BaseServer {
     }
 
     return {
-      headers,
-      fsRoutes,
-      rewrites,
-      redirects,
-      catchAllRoute,
-      catchAllMiddleware,
-      useFileSystemPublicRoutes,
-      dynamicRoutes: this.dynamicRoutes,
-      pageChecker: this.hasPage.bind(this),
+      routes: {
+        headers,
+        fs: fsRoutes,
+        redirects,
+        rewrites: this.generateRewrites({ restrictedRedirectPaths }),
+        catchAll,
+        catchAllMiddleware: this.generateCatchAllMiddlewareRoute(),
+        dynamic: this.dynamicRoutes,
+      },
       nextConfig: this.nextConfig,
+      pageChecker: this.hasPage.bind(this),
+      useFileSystemPublicRoutes,
     }
   }
 

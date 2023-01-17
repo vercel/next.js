@@ -79,22 +79,38 @@ export type DynamicRoutes = Array<{
 
 export type PageChecker = (pathname: string) => Promise<boolean>
 
-export default class Router {
-  private readonly headers: ReadonlyArray<Route>
-  private readonly fsRoutes: Route[]
-  private readonly redirects: ReadonlyArray<Route>
-  private readonly rewrites: {
-    beforeFiles: ReadonlyArray<Route>
-    afterFiles: ReadonlyArray<Route>
-    fallback: ReadonlyArray<Route>
+export interface Routes {
+  headers?: ReadonlyArray<Route>
+  fs: Array<Route>
+  redirects?: ReadonlyArray<Route>
+  rewrites?: {
+    beforeFiles?: ReadonlyArray<Route>
+    afterFiles?: ReadonlyArray<Route>
+    fallback?: ReadonlyArray<Route>
   }
-  private readonly catchAllRoute: Route
+  catchAll: Route
+  catchAllMiddleware?: ReadonlyArray<Route>
+  dynamic?: DynamicRoutes
+}
+
+export interface RouterOptions {
+  routes: Routes
+  nextConfig: NextConfig
+  pageChecker: PageChecker
+  useFileSystemPublicRoutes: boolean
+}
+
+export default class Router {
+  private readonly routes: Routes
   private readonly pageChecker: PageChecker
   private readonly useFileSystemPublicRoutes: boolean
   private readonly nextConfig: NextConfig
-  private dynamicRoutes: DynamicRoutes
-  private catchAllMiddleware: ReadonlyArray<Route>
-  private compiledRoutes: ReadonlyArray<Route>
+
+  /**
+   * List of compiled routes, automatically recompiled when required during
+   * route execution.
+   */
+  private compiled: ReadonlyArray<Route>
   private needsRecompilation: boolean
 
   /**
@@ -112,49 +128,18 @@ export default class Router {
   >()
 
   constructor({
-    headers = [],
-    fsRoutes = [],
-    rewrites = {
-      beforeFiles: [],
-      afterFiles: [],
-      fallback: [],
-    },
-    redirects = [],
-    catchAllRoute,
-    catchAllMiddleware = [],
-    dynamicRoutes = [],
+    routes,
+    nextConfig,
     pageChecker,
     useFileSystemPublicRoutes,
-    nextConfig,
-  }: {
-    headers: ReadonlyArray<Route>
-    fsRoutes: ReadonlyArray<Route>
-    rewrites: {
-      beforeFiles: ReadonlyArray<Route>
-      afterFiles: ReadonlyArray<Route>
-      fallback: ReadonlyArray<Route>
-    }
-    redirects: ReadonlyArray<Route>
-    catchAllRoute: Route
-    catchAllMiddleware: ReadonlyArray<Route>
-    dynamicRoutes: DynamicRoutes | undefined
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    nextConfig: NextConfig
-  }) {
+  }: RouterOptions) {
+    this.routes = routes
     this.nextConfig = nextConfig
-    this.headers = headers
-    this.fsRoutes = [...fsRoutes]
-    this.rewrites = rewrites
-    this.redirects = redirects
     this.pageChecker = pageChecker
-    this.catchAllRoute = catchAllRoute
-    this.catchAllMiddleware = catchAllMiddleware
-    this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
 
     // Perform the initial route compilation.
-    this.compiledRoutes = this.compileRoutes()
+    this.compiled = this.compile()
     this.needsRecompilation = false
   }
 
@@ -180,124 +165,105 @@ export default class Router {
     return result
   }
 
-  get locales() {
-    return this.nextConfig.i18n?.locales || []
-  }
-
-  get basePath() {
-    return this.nextConfig.basePath || ''
-  }
-
   /**
    * Returns true if the router has catch all middleware.
    */
-  get hasCatchAllMiddleware() {
-    return this.catchAllMiddleware.length > 0
+  public get hasCatchAllMiddleware() {
+    if (!this.routes.catchAllMiddleware) return false
+
+    return this.routes.catchAllMiddleware.length > 0
   }
 
-  public setDynamicRoutes(dynamicRoutes: DynamicRoutes) {
-    this.dynamicRoutes = dynamicRoutes
-    this.needsRecompilation = true
+  public setDynamicRoutes(dynamic: DynamicRoutes) {
+    this.routes.dynamic = dynamic
   }
+
   public setCatchallMiddleware(catchAllMiddleware: ReadonlyArray<Route>) {
-    this.catchAllMiddleware = catchAllMiddleware
+    this.routes.catchAllMiddleware = catchAllMiddleware
     this.needsRecompilation = true
   }
 
   public addFsRoute(fsRoute: Route) {
     // We use unshift so that we're sure the routes is defined before Next's
     // default routes.
-    this.fsRoutes.unshift(fsRoute)
+    this.routes.fs.unshift(fsRoute)
     this.needsRecompilation = true
   }
 
-  private compileRoutes(): ReadonlyArray<Route> {
-    /*
-        Desired routes order
-        - headers
-        - redirects
-        - Check filesystem (including pages), if nothing found continue
-        - User rewrites (checking filesystem and pages each match)
-      */
+  private get locales() {
+    return this.nextConfig.i18n?.locales || []
+  }
 
-    const routes: Route[] = []
+  private get basePath() {
+    return this.nextConfig.basePath || ''
+  }
 
-    if (this.catchAllMiddleware.length > 0) {
-      routes.push(
-        ...this.fsRoutes
-          .filter((route) => route.name === '_next/data catchall')
-          .map((route) => ({
-            ...route,
-            name: '_next/data normalizing',
-            check: false,
-          }))
-      )
-    }
+  private compile(): ReadonlyArray<Route> {
+    return [
+      ...this.normalizingNextDataCatchAllRoutes,
+      // Apply and parse headers to the response.
+      ...(this.routes.headers ?? []),
+      // Apply all the redirects.
+      ...(this.routes.redirects ?? []),
+      // If we should use filesystem public routes then add the catch all
+      // middleware.
+      ...(this.useFileSystemPublicRoutes
+        ? this.routes.catchAllMiddleware ?? []
+        : []),
+      ...(this.routes.rewrites?.beforeFiles ?? []),
+      // Check the filesystem for any matches, then check the pages for any
+      // matches.
+      ...this.routes.fs,
+      ...(this.useFileSystemPublicRoutes ? [this.pageCheckerRoute] : []),
+      // Check for any user rewrites.
+      ...(this.routes.rewrites?.afterFiles ?? []),
+      // If fallback rewrites are configured, check the fs routes first.
+      ...(this.routes.rewrites?.fallback &&
+      this.routes.rewrites.fallback.length > 0
+        ? [this.dynamicFsRoutePageCheckRoute, ...this.routes.rewrites.fallback]
+        : []),
+      // We only check the catch-all route if public page routes hasn't been
+      // disabled
+      ...(this.useFileSystemPublicRoutes ? [this.routes.catchAll] : []),
+    ]
+  }
 
-    routes.push(...this.headers, ...this.redirects)
+  private readonly dynamicFsRoutePageCheckRoute: Route = {
+    type: 'route',
+    name: 'dynamic fs route/page check',
+    match: getPathMatch('/:path*'),
+    fn: async (req, res, _params, parsedCheckerUrl, upgradeHead) =>
+      await this.checkFsRoutes(req, res, parsedCheckerUrl, upgradeHead),
+  }
 
-    if (this.useFileSystemPublicRoutes && this.catchAllMiddleware.length > 0) {
-      routes.push(...this.catchAllMiddleware)
-    }
+  private pageCheckerRoute: Route = {
+    type: 'route',
+    name: 'page checker',
+    match: getPathMatch('/:path*'),
+    fn: async (req, res, params, parsedUrl, upgradeHead) => {
+      const pathname = removeTrailingSlash(parsedUrl.pathname || '/')
+      if (!pathname) {
+        return { state: RouteResultState.CONTINUE }
+      }
 
-    routes.push(...this.rewrites.beforeFiles, ...this.fsRoutes)
+      if (await this.checkPage(req, pathname)) {
+        return this.routes.catchAll.fn(req, res, params, parsedUrl, upgradeHead)
+      }
 
-    // We only check the catch-all route if public page routes hasn't been
-    // disabled
-    if (this.useFileSystemPublicRoutes) {
-      routes.push({
-        type: 'route',
-        name: 'page checker',
-        match: getPathMatch('/:path*'),
-        fn: async (req, res, params, parsedUrl, upgradeHead) => {
-          const pathname = removeTrailingSlash(parsedUrl.pathname || '/')
-          if (!pathname) {
-            return { state: RouteResultState.CONTINUE }
-          }
+      return { state: RouteResultState.CONTINUE }
+    },
+  }
 
-          if (await this.checkPage(req, pathname)) {
-            return this.catchAllRoute.fn(
-              req,
-              res,
-              params,
-              parsedUrl,
-              upgradeHead
-            )
-          }
+  private get normalizingNextDataCatchAllRoutes(): ReadonlyArray<Route> {
+    if (!this.hasCatchAllMiddleware) return []
 
-          return { state: RouteResultState.CONTINUE }
-        },
-      })
-    }
-
-    routes.push(...this.rewrites.afterFiles)
-
-    if (this.rewrites.fallback.length > 0) {
-      routes.push(
-        {
-          type: 'route',
-          name: 'dynamic route/page check',
-          match: getPathMatch('/:path*'),
-          fn: async (req, res, _params, parsedCheckerUrl, upgradeHead) => {
-            return await this.checkFsRoutes(
-              req,
-              res,
-              parsedCheckerUrl,
-              upgradeHead
-            )
-          },
-        },
-        ...this.rewrites.fallback
-      )
-    }
-
-    // We only check the catch-all route if public page routes hasn't been
-    // disabled
-    if (this.useFileSystemPublicRoutes) {
-      routes.push(this.catchAllRoute)
-    }
-
-    return routes
+    return this.routes.fs
+      .filter((route) => route.name === '_next/data catchall')
+      .map((route) => ({
+        ...route,
+        name: '_next/data normalizing',
+        check: false,
+      }))
   }
 
   private async checkFsRoutes(
@@ -309,7 +275,7 @@ export default class Router {
     const originalFsPathname = parsedUrl.pathname
     const fsPathname = removePathPrefix(originalFsPathname!, this.basePath)
 
-    for (const route of this.fsRoutes) {
+    for (const route of this.routes.fs) {
       const params = route.match(fsPathname)
       if (!params) continue
 
@@ -324,13 +290,13 @@ export default class Router {
     let matchedPage = await this.checkPage(req, fsPathname)
 
     // If we didn't match a page check dynamic routes
-    if (!matchedPage) {
+    if (!matchedPage && this.routes.dynamic) {
       const { pathname: normalizedFsPathname } = normalizeLocalePath(
         fsPathname,
         this.locales
       )
 
-      for (const dynamicRoute of this.dynamicRoutes) {
+      for (const dynamicRoute of this.routes.dynamic) {
         if (!dynamicRoute.match(normalizedFsPathname)) continue
 
         matchedPage = true
@@ -341,7 +307,7 @@ export default class Router {
     if (!matchedPage) return { state: RouteResultState.CONTINUE }
 
     // Matched a page or dynamic route so render it using catchAllRoute
-    const params = this.catchAllRoute.match(parsedUrl.pathname)
+    const params = this.routes.catchAll.match(parsedUrl.pathname)
     if (!params) {
       throw new Error(
         `Invariant: could not match params, this is an internal error please open an issue.`
@@ -351,7 +317,13 @@ export default class Router {
     parsedUrl.pathname = fsPathname
     parsedUrl.query._nextBubbleNoFallback = '1'
 
-    return await this.catchAllRoute.fn(req, res, params, parsedUrl, upgradeHead)
+    return await this.routes.catchAll.fn(
+      req,
+      res,
+      params,
+      parsedUrl,
+      upgradeHead
+    )
   }
 
   public async execute(
@@ -361,12 +333,15 @@ export default class Router {
     upgradeHead?: Buffer
   ): Promise<boolean> {
     // Only recompile if the routes need to be recompiled, this should only
-    // happen in development.
+    // happen in development as routes are only added at a later point in the
+    // runtime in those environments.
     if (this.needsRecompilation) {
-      this.compiledRoutes = this.compileRoutes()
+      this.compiled = this.compile()
       this.needsRecompilation = false
     }
 
+    // Add the request to the context so we can track the page checks per
+    // request. Expect that this is only done once per request (or error).
     if (this.context.has(req)) {
       throw new Error(
         `Invariant: request has already been processed: ${req.url}, this is an internal error please open an issue.`
@@ -393,10 +368,10 @@ export default class Router {
 
       for (
         let routeIndex = 0;
-        routeIndex < this.compiledRoutes.length;
+        routeIndex < this.compiled.length;
         routeIndex++
       ) {
-        const route = this.compiledRoutes[routeIndex]
+        const route = this.compiled[routeIndex]
 
         // Only process rewrites for upgrade request.
         if (upgradeHead && route.type !== 'rewrite') continue

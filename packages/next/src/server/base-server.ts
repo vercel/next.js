@@ -1,7 +1,7 @@
 import type { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
-import type { DynamicRoutes, PageChecker, Route } from './router'
+import type { DynamicRoutes, RouterOptions } from './router'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
@@ -291,22 +291,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getCustomRoutes(): CustomRoutes
   protected abstract hasPage(pathname: string): Promise<boolean>
 
-  protected abstract generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  }
+  protected abstract generateRouteOptions(): RouterOptions
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -457,7 +442,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.appPathsManifest = this.getAppPathsManifest()
 
     this.customRoutes = this.getCustomRoutes()
-    this.router = new Router(this.generateRoutes())
+    this.router = new Router(this.generateRouteOptions())
     this.setAssetPrefix(assetPrefix)
 
     this.responseCache = this.getResponseCache({ dev })
