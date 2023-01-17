@@ -1,6 +1,6 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_imports_static_input_index_b8717b.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2f$input$2f$vercel$2e$svg__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/vercel.svg (static)");
 "__TURBOPACK__ecmascript__hoisting__location__";
@@ -8,7 +8,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2f$input$2f$vercel$2e$svg__["default"]);
 
 })()),
-"[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/vercel.svg (static)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/static/input/vercel.svg (static)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
 __turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/imports/static/static/957b9b162f8447f9.svg");
 })()),
@@ -165,6 +165,18 @@ function esm(exports, getters) {
   if (toStringTag) defineProp(exports, toStringTag, { value: "Module" });
   for (const key in getters) {
     defineProp(exports, key, { get: getters[key], enumerable: true });
+  }
+}
+
+/**
+ * Adds the getters to the exports object
+ *
+ * @param {Exports} exports
+ * @param {Record<string, any>} props
+ */
+function cjs(exports, props) {
+  for (const key in props) {
+    defineProp(exports, key, { get: () => props[key], enumerable: true });
   }
 }
 
@@ -386,6 +398,7 @@ function instantiateModule(id, sourceType, sourceId) {
       x: externalRequire,
       i: esmImport.bind(null, module),
       s: esm.bind(null, module.exports),
+      j: cjs.bind(null, module.exports),
       v: exportValue.bind(null, module),
       m: module,
       c: moduleCache,

@@ -8,16 +8,12 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
-        ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Module,
-        ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Str,
+        ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Module,
+        ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Stmt, Str,
     },
-    quote,
+    quote, quote_expr,
 };
-use turbo_tasks::{
-    primitives::{StringVc, StringsVc},
-    trace::TraceRawVcs,
-    ValueToString,
-};
+use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, ValueToString};
 use turbopack_core::{
     asset::Asset,
     chunk::ChunkingContextVc,
@@ -29,6 +25,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceableVc, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
+    references::esm::base::insert_hoisted_stmt,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -39,9 +36,16 @@ pub enum EsmExport {
     Error,
 }
 
+#[turbo_tasks::value]
+struct ExpandResults {
+    star_exports: Vec<String>,
+    has_cjs_exports: bool,
+}
+
 #[turbo_tasks::function]
-async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<StringsVc> {
+async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<ExpandResultsVc> {
     let mut set = HashSet::new();
+    let mut has_cjs_exports = false;
     let mut checked_assets = HashSet::new();
     checked_assets.insert(root_asset);
     let mut queue = vec![(root_asset, root_asset.get_exports())];
@@ -92,26 +96,33 @@ async fn expand_star_exports(root_asset: EcmascriptChunkPlaceableVc) -> Result<S
             .cell()
             .as_issue()
             .emit(),
-            EcmascriptExports::CommonJs => AnalyzeIssue {
-                code: None,
-                category: StringVc::cell("analyze".to_string()),
-                message: StringVc::cell(format!(
-                    "export * used with module {} which is a CommonJS module with exports only \
-                     available at runtime\nList all export names manually (`export {{ a, b, c }} \
-                     from \"...\") or rewrite the module to ESM.`",
-                    asset.path().to_string().await?
-                )),
-                path: asset.path(),
-                severity: IssueSeverity::Warning.into(),
-                source: None,
-                title: StringVc::cell("unexpected export *".to_string()),
+            EcmascriptExports::CommonJs => {
+                has_cjs_exports = true;
+                AnalyzeIssue {
+                    code: None,
+                    category: StringVc::cell("analyze".to_string()),
+                    message: StringVc::cell(format!(
+                        "export * used with module {} which is a CommonJS module with exports \
+                         only available at runtime\nList all export names manually (`export {{ a, \
+                         b, c }} from \"...\") or rewrite the module to ESM, to avoid the \
+                         additional runtime code.`",
+                        asset.path().to_string().await?
+                    )),
+                    path: asset.path(),
+                    severity: IssueSeverity::Warning.into(),
+                    source: None,
+                    title: StringVc::cell("unexpected export *".to_string()),
+                }
+                .cell()
+                .as_issue()
+                .emit()
             }
-            .cell()
-            .as_issue()
-            .emit(),
         }
     }
-    Ok(StringsVc::cell(set.into_iter().collect()))
+    Ok(ExpandResultsVc::cell(ExpandResults {
+        star_exports: set.into_iter().collect(),
+        has_cjs_exports,
+    }))
 }
 
 #[turbo_tasks::value(shared)]
@@ -137,9 +148,12 @@ impl CodeGenerateable for EsmExports {
             .map(|(k, v)| (Cow::<str>::Borrowed(k), Cow::Borrowed(v)))
             .collect();
         let mut props = Vec::new();
+        let mut cjs_exports = Vec::<Box<Expr>>::new();
+
         for esm_ref in this.star_exports.iter() {
             if let ReferencedAsset::Some(asset) = &*esm_ref.get_referenced_asset().await? {
-                let export_names = expand_star_exports(*asset).await?;
+                let export_info = expand_star_exports(*asset).await?;
+                let export_names = &export_info.star_exports;
                 for export in export_names.iter() {
                     if !all_exports.contains_key(&Cow::<str>::Borrowed(export)) {
                         all_exports.insert(
@@ -147,6 +161,15 @@ impl CodeGenerateable for EsmExports {
                             Cow::Owned(EsmExport::ImportedBinding(*esm_ref, export.to_string())),
                         );
                     }
+                }
+
+                if export_info.has_cjs_exports {
+                    let ident = ReferencedAsset::get_ident_from_placeable(asset).await?;
+
+                    cjs_exports.push(quote_expr!(
+                        "__turbopack__cjs__($arg)",
+                        arg: Expr = Ident::new(ident.into(), DUMMY_SP).into()
+                    ));
                 }
             }
         }
@@ -204,6 +227,14 @@ impl CodeGenerateable for EsmExports {
             span: DUMMY_SP,
             props,
         });
+        let cjs_stmt = if !cjs_exports.is_empty() {
+            Some(Stmt::Expr(ExprStmt {
+                span: DUMMY_SP,
+                expr: Expr::from_exprs(cjs_exports),
+            }))
+        } else {
+            None
+        };
 
         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
             let stmt = quote!("__turbopack_esm__($getters);" as Stmt,
@@ -216,6 +247,9 @@ impl CodeGenerateable for EsmExports {
                 Program::Script(Script { body, .. }) => {
                     body.insert(0, stmt);
                 }
+            }
+            if let Some(cjs_stmt) = cjs_stmt.clone() {
+                insert_hoisted_stmt(program, cjs_stmt);
             }
         }));
 
