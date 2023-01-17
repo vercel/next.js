@@ -22,8 +22,29 @@ import { getRequestMeta } from './request-meta'
 import { formatNextPathnameInfo } from '../shared/lib/router/utils/format-next-pathname-info'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 
+export enum RouteResultState {
+  /**
+   * FINISHED indicates that the route resolution was completed and the response
+   * has been sent to the client.
+   */
+  FINISHED,
+
+  /**
+   * CONTINUE indicates that the route resolution was not completed, and should
+   * continue.
+   */
+  CONTINUE,
+
+  /**
+   * REWIND indicates that the resolution of the routes requires that the
+   * resolution for routes should go back a step, allowing the current route to
+   * be re-ran. This is a special case just for custom route handler rewrites.
+   */
+  REWIND,
+}
+
 export type RouteResult = {
-  state: 'finished' | 'continue' | 'rewind'
+  state: RouteResultState
   pathname?: string
   query?: ParsedUrlQuery
 }
@@ -231,7 +252,7 @@ export default class Router {
         fn: async (req, res, params, parsedUrl, upgradeHead) => {
           const pathname = removeTrailingSlash(parsedUrl.pathname || '/')
           if (!pathname) {
-            return { state: 'continue' }
+            return { state: RouteResultState.CONTINUE }
           }
 
           if (await this.checkPage(req, pathname)) {
@@ -244,7 +265,7 @@ export default class Router {
             )
           }
 
-          return { state: 'continue' }
+          return { state: RouteResultState.CONTINUE }
         },
       })
     }
@@ -295,7 +316,7 @@ export default class Router {
       parsedUrl.pathname = fsPathname
 
       const { state } = await route.fn(req, res, params, parsedUrl)
-      if (state === 'finished') return { state }
+      if (state === RouteResultState.FINISHED) return { state }
 
       parsedUrl.pathname = originalFsPathname
     }
@@ -317,7 +338,7 @@ export default class Router {
       }
     }
 
-    if (!matchedPage) return { state: 'continue' }
+    if (!matchedPage) return { state: RouteResultState.CONTINUE }
 
     // Matched a page or dynamic route so render it using catchAllRoute
     const params = this.catchAllRoute.match(parsedUrl.pathname)
@@ -481,7 +502,7 @@ export default class Router {
           addRequestMeta(req, '_nextDataNormalizing', false)
         }
 
-        if (result.state === 'finished') return true
+        if (result.state === RouteResultState.FINISHED) return true
 
         if (result.pathname) {
           parsedUrlUpdated.pathname = result.pathname
@@ -511,7 +532,7 @@ export default class Router {
         // rewritten, then rewind the route once.
         if (
           route.name === 'Catchall render' &&
-          result.state === 'rewind' &&
+          result.state === RouteResultState.REWIND &&
           !hasRewoundRoutes
         ) {
           hasRewoundRoutes = true

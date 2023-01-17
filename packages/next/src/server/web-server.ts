@@ -5,7 +5,7 @@ import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import type { DynamicRoutes, PageChecker, Route } from './router'
+import { DynamicRoutes, PageChecker, Route, RouteResultState } from './router'
 import type { NextConfig } from './config-shared'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { UrlWithParsedQuery } from 'url'
@@ -176,7 +176,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           // we also want to 404 if the buildId isn't correct
           if (!params.path || params.path[0] !== this.buildId) {
             await this.render404(req, res, _parsedUrl)
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
           // remove buildId from URL
           params.path.shift()
@@ -186,7 +186,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           // show 404 if it doesn't end with .json
           if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
             await this.render404(req, res, _parsedUrl)
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
 
           // re-create page's pathname
@@ -233,12 +233,12 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
               _parsedUrl.query.__nextLocale =
                 _parsedUrl.query.__nextDefaultLocale
               await this.render404(req, res, _parsedUrl)
-              return { state: 'finished' }
+              return { state: RouteResultState.FINISHED }
             }
           }
 
           return {
-            state: 'continue',
+            state: RouteResultState.CONTINUE,
             pathname,
             query: { ..._parsedUrl.query, __nextDataReq: '1' },
           }
@@ -251,7 +251,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, _params, parsedUrl) => {
           await this.render404(req, res, parsedUrl)
-          return { state: 'finished' }
+          return { state: RouteResultState.FINISHED }
         },
       },
     ]
@@ -308,10 +308,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
         try {
           await this.render(req, res, pathname, query, parsedUrl, true)
 
-          return { state: 'finished' }
+          return { state: RouteResultState.FINISHED }
         } catch (err) {
           if (err instanceof NoFallbackError && bubbleNoFallback) {
-            return { state: 'continue' }
+            return { state: RouteResultState.CONTINUE }
           }
           throw err
         }

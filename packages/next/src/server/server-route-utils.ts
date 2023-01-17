@@ -5,7 +5,7 @@ import type {
   Rewrite,
   RouteType,
 } from '../lib/load-custom-routes'
-import type { Route } from './router'
+import { Route, RouteResultState } from './router'
 import type { BaseNextRequest } from './base-http'
 import type { ParsedUrlQuery } from 'querystring'
 
@@ -58,7 +58,9 @@ export function getCustomRoute(params: {
     type,
     match,
     name: type,
-    fn: async (_req, _res, _params, _parsedUrl) => ({ state: 'continue' }),
+    fn: async (_req, _res, _params, _parsedUrl) => ({
+      state: RouteResultState.CONTINUE,
+    }),
   }
 }
 
@@ -94,7 +96,7 @@ export const createHeaderRoute = ({
         }
         res.setHeader(key, value)
       }
-      return { state: 'continue' }
+      return { state: RouteResultState.CONTINUE }
     },
   }
 }
@@ -175,7 +177,7 @@ export const createRedirectRoute = ({
         .send()
 
       return {
-        state: 'finished',
+        state: RouteResultState.FINISHED,
       }
     },
   }

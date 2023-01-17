@@ -3,7 +3,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
-import type { Route, RouteResult } from './router'
+import { Route, RouteResult, RouteResultState } from './router'
 import {
   CacheFs,
   DecodeError,
@@ -390,7 +390,7 @@ export default class NextNodeServer extends BaseServer {
           if (this.minimalMode) {
             res.statusCode = 400
             res.body('Bad Request').send()
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
           const { ImageOptimizerCache } =
             require('./image-optimizer') as typeof import('./image-optimizer')
@@ -412,7 +412,7 @@ export default class NextNodeServer extends BaseServer {
 
           if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
             await this.render404(req, res)
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
           const paramsResult = ImageOptimizerCache.validateParams(
             (req as NodeNextRequest).originalRequest,
@@ -424,7 +424,7 @@ export default class NextNodeServer extends BaseServer {
           if ('errorMessage' in paramsResult) {
             res.statusCode = 400
             res.body(paramsResult.errorMessage).send()
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
           const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
 
@@ -478,12 +478,12 @@ export default class NextNodeServer extends BaseServer {
               res.statusCode = err.statusCode
               res.body(err.message).send()
               return {
-                state: 'finished',
+                state: RouteResultState.FINISHED,
               }
             }
             throw err
           }
-          return { state: 'finished' }
+          return { state: RouteResultState.FINISHED }
         },
       },
     ]
@@ -506,7 +506,7 @@ export default class NextNodeServer extends BaseServer {
             fn: async (req, res, params, parsedUrl) => {
               const p = join(this.dir, 'static', ...params.path)
               await this.serveStatic(req, res, p, parsedUrl)
-              return { state: 'finished' }
+              return { state: RouteResultState.FINISHED }
             },
           } as Route,
         ]
@@ -527,7 +527,7 @@ export default class NextNodeServer extends BaseServer {
           // make sure to 404 for /_next/static itself
           if (!params.path) {
             await this.render404(req, res, parsedUrl)
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
 
           if (
@@ -548,7 +548,7 @@ export default class NextNodeServer extends BaseServer {
             ...(params.path || [])
           )
           await this.serveStatic(req, res, p, parsedUrl)
-          return { state: 'finished' }
+          return { state: RouteResultState.FINISHED }
         },
       },
     ]
@@ -583,7 +583,7 @@ export default class NextNodeServer extends BaseServer {
                 return part === pathParts[idx]
               })
             ) {
-              return { state: 'continue' }
+              return { state: RouteResultState.CONTINUE }
             }
 
             pathParts.splice(0, basePathParts.length)
@@ -606,11 +606,11 @@ export default class NextNodeServer extends BaseServer {
               parsedUrl
             )
             return {
-              state: 'finished',
+              state: RouteResultState.FINISHED,
             }
           }
           return {
-            state: 'continue',
+            state: RouteResultState.CONTINUE,
           }
         },
       } as Route,
@@ -756,7 +756,7 @@ export default class NextNodeServer extends BaseServer {
       }
     })
 
-    return { state: 'finished' }
+    return { state: RouteResultState.FINISHED }
   }
 
   protected async runApi(
@@ -1059,10 +1059,10 @@ export default class NextNodeServer extends BaseServer {
           // we also want to 404 if the buildId isn't correct
           if (!params.path || params.path[0] !== this.buildId) {
             if (isNextDataNormalizing) {
-              return { state: 'continue' }
+              return { state: RouteResultState.CONTINUE }
             }
             await this.render404(req, res, _parsedUrl)
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
           // remove buildId from URL
           params.path.shift()
@@ -1072,7 +1072,7 @@ export default class NextNodeServer extends BaseServer {
           // show 404 if it doesn't end with .json
           if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
             await this.render404(req, res, _parsedUrl)
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
 
           // re-create page's pathname
@@ -1119,14 +1119,14 @@ export default class NextNodeServer extends BaseServer {
               _parsedUrl.query.__nextLocale =
                 _parsedUrl.query.__nextDefaultLocale
               await this.render404(req, res, _parsedUrl)
-              return { state: 'finished' }
+              return { state: RouteResultState.FINISHED }
             }
           }
 
           return {
             pathname,
             query: { ..._parsedUrl.query, __nextDataReq: '1' },
-            state: 'continue',
+            state: RouteResultState.CONTINUE,
           }
         },
       },
@@ -1138,7 +1138,7 @@ export default class NextNodeServer extends BaseServer {
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, _params, parsedUrl) => {
           await this.render404(req, res, parsedUrl)
-          return { state: 'finished' }
+          return { state: RouteResultState.FINISHED }
         },
       },
       ...publicRoutes,
@@ -1197,7 +1197,7 @@ export default class NextNodeServer extends BaseServer {
 
           const handled = await this.handleApiRequest(req, res, pathname, query)
           if (handled) {
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
         }
 
@@ -1212,10 +1212,10 @@ export default class NextNodeServer extends BaseServer {
         try {
           await this.render(req, res, pathname, query, parsedUrl, true)
 
-          return { state: 'finished' }
+          return { state: RouteResultState.FINISHED }
         } catch (err) {
           if (err instanceof NoFallbackError && bubbleNoFallback) {
-            return { state: 'continue' }
+            return { state: RouteResultState.CONTINUE }
           }
           throw err
         }
@@ -1332,7 +1332,7 @@ export default class NextNodeServer extends BaseServer {
       return await this.handleMiddlewareRewrite(req, res, result.response, true)
     }
 
-    return { state: 'finished' }
+    return { state: RouteResultState.FINISHED }
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1496,7 +1496,7 @@ export default class NextNodeServer extends BaseServer {
             fn: async (req, res, params, parsedUrl) => {
               const p = join(this.dir, 'static', ...params.path)
               await this.serveStatic(req, res, p, parsedUrl)
-              return { state: 'finished' }
+              return { state: RouteResultState.FINISHED }
             },
           } as Route,
         ]
@@ -1591,7 +1591,7 @@ export default class NextNodeServer extends BaseServer {
             addRequestMeta(req, '_nextDidRewrite', newUrl !== req.url)
 
             return {
-              state: 'continue',
+              state: RouteResultState.CONTINUE,
               pathname: newUrl,
               query: parsedDestination.query,
             }
@@ -1741,7 +1741,7 @@ export default class NextNodeServer extends BaseServer {
       checkIsManualRevalidate(params.request, this.renderOpts.previewProps)
         .isManualRevalidate
     ) {
-      return { state: 'continue' }
+      return { state: RouteResultState.CONTINUE }
     }
     const normalizedPathname = removeTrailingSlash(params.parsed.pathname || '')
 
@@ -1783,10 +1783,10 @@ export default class NextNodeServer extends BaseServer {
 
     const middleware = this.getMiddleware()
     if (!middleware) {
-      return { state: 'continue' }
+      return { state: RouteResultState.CONTINUE }
     }
     if (!(await this.hasMiddleware(middleware.page))) {
-      return { state: 'continue' }
+      return { state: RouteResultState.CONTINUE }
     }
 
     await this.ensureMiddleware()
@@ -1840,7 +1840,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (!result) {
       this.render404(params.request, params.response, params.parsed)
-      return { state: 'finished' }
+      return { state: RouteResultState.FINISHED }
     } else {
       for (let [key, value] of allHeaders) {
         result.response.headers.set(key, value)
@@ -1871,7 +1871,7 @@ export default class NextNodeServer extends BaseServer {
         name: 'middleware catchall',
         fn: async (req, res, _params, parsed): Promise<RouteResult> => {
           const middleware = this.getMiddleware()
-          if (!middleware) return { state: 'continue' }
+          if (!middleware) return { state: RouteResultState.CONTINUE }
 
           const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
           const parsedUrl = parseUrl(initUrl)
@@ -1882,7 +1882,7 @@ export default class NextNodeServer extends BaseServer {
           parsedUrl.pathname = pathnameInfo.pathname
           const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
           if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
-            return { state: 'continue' }
+            return { state: RouteResultState.CONTINUE }
           }
 
           let result: Awaited<
@@ -1899,20 +1899,20 @@ export default class NextNodeServer extends BaseServer {
           } catch (err) {
             if (isError(err) && err.code === 'ENOENT') {
               await this.render404(req, res, parsed)
-              return { state: 'finished' }
+              return { state: RouteResultState.FINISHED }
             }
 
             if (err instanceof DecodeError) {
               res.statusCode = 400
               this.renderError(err, req, res, parsed.pathname || '')
-              return { state: 'finished' }
+              return { state: RouteResultState.FINISHED }
             }
 
             const error = getProperError(err)
             console.error(error)
             res.statusCode = 500
             this.renderError(error, req, res, parsed.pathname || '')
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
 
           if ('state' in result) {
@@ -1992,7 +1992,7 @@ export default class NextNodeServer extends BaseServer {
             }
 
             res.body(location).send()
-            return { state: 'finished' }
+            return { state: RouteResultState.FINISHED }
           }
 
           // If there's a `x-middleware-rewrite` header on the response, then
@@ -2014,12 +2014,12 @@ export default class NextNodeServer extends BaseServer {
             }
             res.send()
             return {
-              state: 'finished',
+              state: RouteResultState.FINISHED,
             }
           }
 
           return {
-            state: 'continue',
+            state: RouteResultState.CONTINUE,
           }
         },
       }
@@ -2067,7 +2067,7 @@ export default class NextNodeServer extends BaseServer {
       if (req.headers['x-middleware-prefetch']) {
         res.setHeader('x-middleware-skip', '1')
         res.body('{}').send()
-        return { state: 'finished' }
+        return { state: RouteResultState.FINISHED }
       }
 
       return await this.proxyRequest(
@@ -2091,7 +2091,7 @@ export default class NextNodeServer extends BaseServer {
     addRequestMeta(req, '_nextDidRewrite', rewrite !== req.url)
 
     return {
-      state: shouldRewind ? 'rewind' : 'continue',
+      state: shouldRewind ? RouteResultState.REWIND : RouteResultState.CONTINUE,
       pathname: rewrite,
       query: parsedDestination.query,
     }
