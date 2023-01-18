@@ -57,19 +57,6 @@ function merge(
     twitter: string | null
   }
 ) {
-  let updatedStashedTitle: AbsoluteTemplateString = {
-    absolute: '',
-    template: templateStrings.title,
-  }
-  let updatedStashedOpenGraphTitle: AbsoluteTemplateString = {
-    absolute: '',
-    template: templateStrings.openGraph,
-  }
-  let updatedStashedTwitterTitle: AbsoluteTemplateString = {
-    absolute: '',
-    template: templateStrings.twitter,
-  }
-
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
@@ -79,21 +66,18 @@ function merge(
         break
       }
       case 'title': {
-        updatedStashedTitle = resolveTitle(templateStrings.title, source.title)
-        target.title = updatedStashedTitle
+        target.title = resolveTitle(templateStrings.title, source.title)
         break
       }
       case 'openGraph': {
         if (typeof source.openGraph !== 'undefined') {
-          target.openGraph = {
-            ...resolveOpenGraph(source.openGraph),
-          }
-          if (source.openGraph && 'title' in source.openGraph) {
-            updatedStashedOpenGraphTitle = resolveTitle(
+          target.openGraph = resolveOpenGraph(source.openGraph)
+          const hasOg = source.openGraph && 'title' in source.openGraph
+          if (hasOg) {
+            target.openGraph.title = resolveTitle(
               templateStrings.openGraph,
-              source.openGraph.title
+              source.openGraph!.title
             )
-            target.openGraph.title = updatedStashedOpenGraphTitle
           }
         } else {
           target.openGraph = null
@@ -102,13 +86,12 @@ function merge(
       }
       case 'twitter': {
         if (typeof source.twitter !== 'undefined') {
-          target.twitter = { ...source.twitter }
-          if (source.twitter && 'title' in source.twitter) {
-            updatedStashedTwitterTitle = resolveTitle(
-              templateStrings.twitter,
-              source.twitter.title
-            )
-            target.twitter.title = updatedStashedTwitterTitle
+          const hasTitle = source.twitter && 'title' in source.twitter
+          target.twitter = {
+            ...source.twitter,
+            title: hasTitle
+              ? resolveTitle(templateStrings.twitter, source.twitter!.title)
+              : null,
           }
         } else {
           target.twitter = null

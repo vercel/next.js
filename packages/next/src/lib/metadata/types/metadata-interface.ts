@@ -21,7 +21,7 @@ import type {
   Verification,
 } from './metadata-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
-import { Twitter } from './twitter-types'
+import { ResolvedTwitterMetadata, Twitter } from './twitter-types'
 
 export interface Metadata {
   // origin and base path for absolute urls for various metadata links such as
@@ -149,7 +149,7 @@ export interface ResolvedMetadata {
 
   openGraph: null | ResolvedOpenGraph
 
-  twitter: null | Twitter
+  twitter: null | ResolvedTwitterMetadata
 
   // common verification tokens
   verification: Verification

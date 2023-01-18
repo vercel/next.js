@@ -1,5 +1,26 @@
-import type { Metadata, ResolvedMetadata } from './types/metadata-interface'
-import type { OpenGraphType, OpenGraph } from './types/opengraph-types'
+import type { Metadata } from './types/metadata-interface'
+import type {
+  OpenGraphType,
+  OpenGraph,
+  ResolvedOpenGraph,
+} from './types/opengraph-types'
+
+const OgTypFields = {
+  article: ['authors', 'tags'],
+  song: ['albums', 'musicians'],
+  playlist: ['albums', 'musicians'],
+  radio: ['creators'],
+  video: ['actors', 'directors', 'writers', 'tags'],
+  basic: [
+    'emails',
+    'phoneNumbers',
+    'faxNumbers',
+    'alternateLocale',
+    'images',
+    'audio',
+    'videos',
+  ],
+} as const
 
 function resolveAsArrayOrUndefined<T = any>(value: T): undefined | any[] {
   if (typeof value === 'undefined' || value === null) {
@@ -12,42 +33,28 @@ function resolveAsArrayOrUndefined<T = any>(value: T): undefined | any[] {
 }
 
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {
-  const articleKeys = ['authors', 'tags'] // article, book
-  const songKeys = ['albums', 'musicians'] // music.song, music.album
-  const playlistKeys = ['albums', 'musicians'] // music.playlist
-  const radioStationsKeys = ['creators']
-  const videoKeys = ['actors', 'directors', 'writers', 'tags']
-
   switch (ogType) {
     case 'article':
     case 'book':
-      return articleKeys
+      return OgTypFields.article
     case 'music.song':
     case 'music.album':
-      return songKeys
+      return OgTypFields.song
     case 'music.playlist':
-      return playlistKeys
+      return OgTypFields.playlist
     case 'music.radio_station':
-      return radioStationsKeys
+      return OgTypFields.radio
     case 'video.movie':
     case 'video.episode':
-      return videoKeys
+      return OgTypFields.video
     default:
-      return [
-        'emails',
-        'phoneNumbers',
-        'faxNumbers',
-        'alternateLocale',
-        'images',
-        'audio',
-        'videos',
-      ]
+      return OgTypFields.basic
   }
 }
 
 export function resolveOpenGraph(
   openGraph: Metadata['openGraph']
-): ResolvedMetadata['openGraph'] {
+): ResolvedOpenGraph {
   const url = openGraph
     ? typeof openGraph.url === 'string'
       ? new URL(openGraph.url)
@@ -84,5 +91,5 @@ export function resolveOpenGraph(
     resolved.url = url
   }
 
-  return resolved as ResolvedMetadata['openGraph']
+  return resolved as ResolvedOpenGraph
 }

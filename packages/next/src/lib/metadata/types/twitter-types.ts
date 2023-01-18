@@ -1,4 +1,4 @@
-import type { TemplateString } from './metadata-types'
+import type { AbsoluteTemplateString, TemplateString } from './metadata-types'
 
 export type Twitter =
   | TwitterSummary
@@ -59,4 +59,8 @@ type TwitterPlayerDescriptor = {
   streamUrl: string | URL
   width: number
   height: number
+}
+
+export type ResolvedTwitterMetadata = Omit<TwitterMetadata, 'title'> & {
+  title: AbsoluteTemplateString | null
 }
