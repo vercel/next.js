@@ -827,6 +827,8 @@ jobs:
     needs: [publishRelease, build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
+      VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
     steps:
       - uses: actions/cache@v3
         id: restore-build
@@ -1247,6 +1249,7 @@ jobs:
         shell: bash
 
       - name: Upload artifact
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-binaries
@@ -1337,6 +1340,7 @@ jobs:
         run: pnpm turbo run --force cache-build-native -- --platform --release --target x86_64-unknown-freebsd
 
       - name: Upload artifact
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-binaries
@@ -1386,6 +1390,7 @@ jobs:
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: wasm-binaries
