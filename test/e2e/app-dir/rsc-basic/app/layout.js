@@ -8,6 +8,7 @@ export default function AppLayout({ children }) {
     <html>
       <head>
         <title>RSC</title>
+        <meta charSet="utf-8" />
       </head>
       <body>
         <RootStyleRegistry>{children}</RootStyleRegistry>
