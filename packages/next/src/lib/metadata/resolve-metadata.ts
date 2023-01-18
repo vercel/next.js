@@ -3,8 +3,8 @@ import type {
   ResolvedMetadata,
   ResolvingMetadata,
 } from './types/metadata-interface'
-import type { AbsoluteTemplateString } from './types/metadata-types'
 import type { Viewport } from './types/extra-types'
+import type { ResolvedTwitterMetadata } from './types/twitter-types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { resolveTitle } from './resolve-title'
@@ -62,7 +62,7 @@ function merge(
 
     switch (key) {
       case 'other': {
-        target.other = { ...target.other, ...source.other }
+        Object.assign(target.other, source.other)
         break
       }
       case 'title': {
@@ -86,12 +86,12 @@ function merge(
       }
       case 'twitter': {
         if (typeof source.twitter !== 'undefined') {
-          const hasTitle = source.twitter && 'title' in source.twitter
-          target.twitter = {
-            ...source.twitter,
-            title: hasTitle
-              ? resolveTitle(templateStrings.twitter, source.twitter!.title)
-              : null,
+          target.twitter = source.twitter as ResolvedTwitterMetadata
+          if (source.twitter && 'title' in source.twitter) {
+            target.twitter.title = resolveTitle(
+              templateStrings.twitter,
+              source.twitter.title
+            )
           }
         } else {
           target.twitter = null
