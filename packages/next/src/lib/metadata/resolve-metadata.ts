@@ -4,9 +4,19 @@ import type {
   ResolvingMetadata,
 } from './types/metadata-interface'
 import type { AbsoluteTemplateString } from './types/metadata-types'
+import type { Viewport } from './types/extra-types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { resolveTitle } from './resolve-title'
+
+const viewPortKeys = {
+  width: 'width',
+  height: 'height',
+  initialScale: 'initial-scale',
+  minimumScale: 'minimum-scale',
+  maximumScale: 'maximum-scale',
+  viewportFit: 'viewport-fit',
+} as const
 
 type Item =
   | {
@@ -103,6 +113,24 @@ function merge(
         } else {
           target.twitter = null
         }
+        break
+      }
+      case 'viewport': {
+        let content: string | null = null
+        const { viewport } = source
+        if (typeof viewport === 'string') {
+          content = viewport
+        } else if (viewport) {
+          content = ''
+          for (const key_ in viewPortKeys) {
+            const key = key_ as keyof Viewport
+            if (viewport[key]) {
+              if (content) content += ', '
+              content += `${viewPortKeys[key]}=${viewport[key]}`
+            }
+          }
+        }
+        target.viewport = content
         break
       }
       default: {

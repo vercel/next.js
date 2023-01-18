@@ -49,7 +49,6 @@ export type Viewport = {
   initialScale?: number
   minimumScale?: number
   maximumScale?: number
-  viewportFit?: 'auto' | 'contain' | 'cover'
 }
 
 // Apple Web App

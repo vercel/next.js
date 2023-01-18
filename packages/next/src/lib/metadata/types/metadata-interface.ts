@@ -44,7 +44,7 @@ export interface Metadata {
   referrer?: null | ReferrerEnum
   themeColor?: null | string
   colorScheme?: null | ColorSchemeEnum
-  viewport?: null | string
+  viewport?: null | string | Viewport
   creator?: null | string
   publisher?: null | string
 
@@ -133,7 +133,7 @@ export interface ResolvedMetadata {
   referrer: null | ReferrerEnum
   themeColor: null | string
   colorScheme: null | ColorSchemeEnum
-  viewport: null | string | Viewport
+  viewport: null | string
   creator: null | string
   publisher: null | string
 

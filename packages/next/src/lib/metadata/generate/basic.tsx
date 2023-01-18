@@ -1,38 +1,7 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
-import type { Viewport } from '../types/extra-types'
 
 import React from 'react'
 import { Meta } from './utils'
-
-const viewPortKeys = {
-  width: 'width',
-  height: 'height',
-  initialScale: 'initial-scale',
-  minimumScale: 'minimum-scale',
-  maximumScale: 'maximum-scale',
-  viewportFit: 'viewport-fit',
-} as const
-
-function ViewPortMeta({
-  viewport,
-}: {
-  viewport: ResolvedMetadata['viewport']
-}) {
-  let content
-  if (typeof viewport === 'string') {
-    content = viewport
-  } else if (viewport) {
-    content = ''
-    for (const key_ in viewPortKeys) {
-      const key = key_ as keyof Viewport
-      if (viewport[key]) {
-        if (content) content += ', '
-        content += `${viewPortKeys[key]}=${viewport[key]}`
-      }
-    }
-  }
-  return <Meta name="viewport" content={content} />
-}
 
 export function ResolvedBasicMetadata({
   metadata,
@@ -53,7 +22,7 @@ export function ResolvedBasicMetadata({
       <Meta name="referrer" content={metadata.referrer} />
       <Meta name="theme-color" content={metadata.themeColor} />
       <Meta name="color-scheme" content={metadata.colorScheme} />
-      <ViewPortMeta viewport={metadata.viewport} />
+      <Meta name="viewport" content={metadata.viewport} />
       <Meta name="creator" content={metadata.creator} />
       <Meta name="publisher" content={metadata.publisher} />
       <Meta name="robots" content={metadata.robots} />
