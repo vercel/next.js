@@ -7,6 +7,9 @@
     "url": "vercel/next.js",
     "directory": "packages/next-mdx"
   },
+  "scripts": {
+    "test-pack": "cd ../../ && pnpm test-pack next-mdx"
+  },
   "peerDependencies": {
     "@mdx-js/loader": ">=0.15.0",
     "@mdx-js/react": "*"
