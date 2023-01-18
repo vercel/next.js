@@ -122,11 +122,11 @@ function merge(
           content = viewport
         } else if (viewport) {
           content = ''
-          for (const key_ in viewPortKeys) {
-            const key = key_ as keyof Viewport
-            if (viewport[key]) {
+          for (const viewportKey_ in viewPortKeys) {
+            const viewportKey = viewportKey_ as keyof Viewport
+            if (viewport[viewportKey]) {
               if (content) content += ', '
-              content += `${viewPortKeys[key]}=${viewport[key]}`
+              content += `${viewPortKeys[viewportKey]}=${viewport[viewportKey]}`
             }
           }
         }
