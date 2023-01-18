@@ -1,11 +1,12 @@
-const moduleAlias = require("module-alias");
 const os = require("os");
 
-require("./empty");
+// also trace the react and react/jsx-runtime
+require('react')
+require('react/jsx-runtime')
 
-moduleAlias.addAlias("./example.mdx", __dirname + "/empty.js");
+import('@mdx-js/node-loader')
 
-const Example = require("./example.mdx");
+import('./mdx.js');
 
 const { existsSync } = eval("require")("fs");
 
