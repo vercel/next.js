@@ -4,14 +4,9 @@ import type {
   ResolvingMetadata,
 } from './types/metadata-interface'
 import type { AbsoluteTemplateString } from './types/metadata-types'
-
-import React from 'react'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { resolveTitle } from './resolve-title'
-import { elementsFromResolvedOpenGraph } from './generate/opengraph'
-import { elementsFromResolvedBasic } from './generate/basic'
-import { elementsFromResolvedAlternates } from './generate/alternate'
 
 type Item =
   | {
@@ -192,17 +187,6 @@ export async function resolveMetadata(metadataItems: Item[]) {
   }
 
   return resolvedMetadata
-}
-
-// Generate the actual React elements from the resolved metadata.
-export function elementsFromResolvedMetadata(metadata: ResolvedMetadata) {
-  return (
-    <>
-      {elementsFromResolvedBasic(metadata)}
-      {elementsFromResolvedAlternates(metadata)}
-      {elementsFromResolvedOpenGraph(metadata.openGraph)}
-    </>
-  )
 }
 
 // TODO: Implement this function.

@@ -47,10 +47,7 @@ import {
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 import { DefaultHead } from '../client/components/head'
 import { formatServerError } from '../lib/format-server-error'
-import {
-  elementsFromResolvedMetadata,
-  resolveMetadata,
-} from '../lib/metadata/resolve-metadata'
+import { Metadata } from '../lib/metadata/ui'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
@@ -1772,13 +1769,10 @@ export async function renderToHTMLOrFlight(
 
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
-        const metadata = elementsFromResolvedMetadata(
-          await resolveMetadata(metadataItems)
-        )
-
         return (
           <>
-            {metadata}
+            {/* @ts-expect-error allow to use async server component */}
+            <Metadata metadata={metadataItems} />
             <AppRouter
               assetPrefix={assetPrefix}
               initialCanonicalUrl={initialCanonicalUrl}

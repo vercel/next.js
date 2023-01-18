@@ -3,7 +3,11 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 import React from 'react'
 import { Meta } from './utils'
 
-export function elementsFromResolvedBasic(metadata: ResolvedMetadata) {
+export function ResolvedBasicMetadata({
+  metadata,
+}: {
+  metadata: ResolvedMetadata
+}) {
   return (
     <>
       {metadata.title !== null ? (

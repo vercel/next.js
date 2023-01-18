@@ -2,7 +2,11 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
 
-export function elementsFromResolvedAlternates(metadata: ResolvedMetadata) {
+export function ResolvedAlternatesMetadata({
+  metadata,
+}: {
+  metadata: ResolvedMetadata
+}) {
   return (
     <>
       {metadata.alternates.canonical ? (

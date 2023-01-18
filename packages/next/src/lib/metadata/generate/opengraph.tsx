@@ -3,9 +3,11 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 import React from 'react'
 import { Meta, MultiMeta } from './utils'
 
-export function elementsFromResolvedOpenGraph(
+export function ResolvedOpenGraphMetadata({
+  openGraph,
+}: {
   openGraph: ResolvedMetadata['openGraph']
-) {
+}) {
   if (!openGraph) {
     return null
   }
