@@ -455,10 +455,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
               shouldFilter = true
               return
             }
-            process[fd].write(chunk)
-          } else {
-            process[fd].write(chunk)
           }
+          process[fd].write(chunk)
         }
 
         for (const workerId in cluster.workers) {
