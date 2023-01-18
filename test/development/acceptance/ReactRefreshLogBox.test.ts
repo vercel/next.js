@@ -100,7 +100,7 @@ for (const variant of ['default', 'turbo']) {
         /Count: 1/
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await cleanup()
     })
@@ -162,7 +162,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
@@ -172,7 +172,7 @@ for (const variant of ['default', 'turbo']) {
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('Count: 2')
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await cleanup()
     })
@@ -231,7 +231,7 @@ for (const variant of ['default', 'turbo']) {
       )
 
       expect(didNotReload).toBe(true)
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('Hello')
@@ -422,7 +422,7 @@ for (const variant of ['default', 'turbo']) {
       )
 
       // Expected: this fixes the problem
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await cleanup()
     })
@@ -597,7 +597,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await session.patch(
         'index.js',
@@ -648,7 +648,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('hello')
@@ -680,7 +680,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('hello new')
@@ -706,7 +706,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       // Syntax error
       await session.patch('index.module.css', `.button {`)
@@ -748,7 +748,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       await session.evaluate(() => document.querySelector('button').click())
       expect(await session.hasRedbox(true)).toBe(true)
 
@@ -794,7 +794,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       await session.evaluate(() => document.querySelector('button').click())
       expect(await session.hasRedbox(true)).toBe(true)
 
@@ -840,7 +840,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       await session.evaluate(() => document.querySelector('button').click())
       expect(await session.hasRedbox(true)).toBe(true)
 
@@ -886,7 +886,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       await session.evaluate(() => document.querySelector('button').click())
       expect(await session.hasRedbox(true)).toBe(true)
 
