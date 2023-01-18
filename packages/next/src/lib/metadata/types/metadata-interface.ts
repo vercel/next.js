@@ -7,6 +7,7 @@ import type {
   AppLinks,
   FormatDetection,
   ItunesApp,
+  Viewport,
 } from './extra-types'
 import type {
   AbsoluteTemplateString,
@@ -132,7 +133,7 @@ export interface ResolvedMetadata {
   referrer: null | ReferrerEnum
   themeColor: null | string
   colorScheme: null | ColorSchemeEnum
-  viewport: null | string
+  viewport: null | string | Viewport
   creator: null | string
   publisher: null | string
 

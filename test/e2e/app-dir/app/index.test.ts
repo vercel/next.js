@@ -2711,6 +2711,18 @@ createNextDescribe(
             await checkMeta(browser, 'robots', 'index, follow', 'name')
           })
 
+          it('should support object viewport', async () => {
+            const browser = await next.browser(
+              '/dashboard/metadata/viewport/object'
+            )
+            await checkMeta(
+              browser,
+              'viewport',
+              'width=device-width, initial-scale=1, maximum-scale=1',
+              'name'
+            )
+          })
+
           it('should support alternate tags', async () => {
             const browser = await next.browser('/dashboard/metadata/alternate')
             await checkMeta(
