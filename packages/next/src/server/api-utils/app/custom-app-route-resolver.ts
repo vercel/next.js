@@ -24,8 +24,6 @@ import * as Log from '../../../build/output/log'
 import { getRequestMeta } from '../../request-meta'
 import { NextRequest } from '../../web/spec-extension/request'
 import { fromNodeHeaders } from '../../web/utils'
-import { parseUrl } from '../../../shared/lib/router/utils/parse-url'
-import { relativizeURL } from '../../../shared/lib/router/utils/relativize-url'
 
 // TODO: document
 export type CustomRouteMod = {
@@ -217,8 +215,7 @@ export async function customAppRouteResolver({
   res,
   route,
   mod,
-  minimalMode,
-}: CustomAppRouteResolver): Promise<IntermediateResult | undefined> {
+}: CustomAppRouteResolver): Promise<IntermediateResult | void> {
   // This is added by the webpack loader, we load it directly from the module.
   const { requestAsyncStorage } = mod
 
@@ -245,23 +242,28 @@ export async function customAppRouteResolver({
       // TODO: validate the correct handling behavior
       response = handleInternalServerErrorResponse()
     } else if (response.headers.has('x-middleware-rewrite')) {
-      // This is a rewrite created via `NextResponse.rewrite()`. We need to send
-      // the response up so it can be handled by the backing server.
+      // TODO-APP: re-enable support below when we can proxy these type of requests
+      throw new Error(
+        'NextResponse.rewrite() was used in a custom app route handler, this is not currently supported. Please remove the invocation to continue.'
+      )
 
-      // If the server is running in minimal mode, we just want to forward the
-      // response (including the rewrite headers) upstream so it can perform the
-      // redirect for us, otherwise return with the special condition so this
-      // server can perform a rewrite.
-      if (!minimalMode) {
-        return { response, condition: 'rewrite' }
-      }
+      // // This is a rewrite created via `NextResponse.rewrite()`. We need to send
+      // // the response up so it can be handled by the backing server.
 
-      // Relativize the url so it's relative to the base url. This is so the
-      // outgoing headers upstream can be relative.
-      const rewritePath = response.headers.get('x-middleware-rewrite')!
-      const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
-      const { pathname } = parseUrl(relativizeURL(rewritePath, initUrl))
-      response.headers.set('x-middleware-rewrite', pathname)
+      // // If the server is running in minimal mode, we just want to forward the
+      // // response (including the rewrite headers) upstream so it can perform the
+      // // redirect for us, otherwise return with the special condition so this
+      // // server can perform a rewrite.
+      // if (!minimalMode) {
+      //   return { response, condition: 'rewrite' }
+      // }
+
+      // // Relativize the url so it's relative to the base url. This is so the
+      // // outgoing headers upstream can be relative.
+      // const rewritePath = response.headers.get('x-middleware-rewrite')!
+      // const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+      // const { pathname } = parseUrl(relativizeURL(rewritePath, initUrl))
+      // response.headers.set('x-middleware-rewrite', pathname)
     } else if (response.headers.get('x-middleware-next') === '1') {
       throw new Error(
         'NextResponse.next() was used in a custom app route handler, this is not supported. See here for more info: https://nextjs.org/docs/messages/next-response-next-in-custom-app-route-handler'

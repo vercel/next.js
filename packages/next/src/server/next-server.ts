@@ -1310,6 +1310,12 @@ export default class NextNodeServer extends BaseServer {
       mod,
       minimalMode: this.minimalMode,
     })
+
+    // When the condition for rewrite is returned, then the response should be
+    // handed to the middleware rewrite function. We indicate here that we also
+    // want the rewind to occur, because technically a rewrite could occur
+    // within the handler. This `true` enables the router to re-run the current
+    // middleware layer so it can possibly hit.
     if (result?.condition === 'rewrite') {
       return await this.handleMiddlewareRewrite(req, res, result.response, true)
     }
