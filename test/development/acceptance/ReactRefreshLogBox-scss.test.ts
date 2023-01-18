@@ -37,7 +37,7 @@ describe.skip('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
 
     // Syntax error
     await session.patch('index.module.scss', `.button { font-size: :5px; }`)

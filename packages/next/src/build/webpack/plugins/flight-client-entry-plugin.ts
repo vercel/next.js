@@ -236,7 +236,7 @@ export class FlightClientEntryPlugin {
     // After optimizing all the modules, we collect the CSS that are still used
     // by the certain chunk.
     compilation.hooks.afterOptimizeModules.tap(PLUGIN_NAME, () => {
-      const cssImportsForChunk: Record<string, string[]> = {}
+      const cssImportsForChunk: Record<string, Set<string>> = {}
       if (this.isEdgeServer) {
         edgeServerCSSManifest = {}
       } else {
@@ -252,7 +252,7 @@ export class FlightClientEntryPlugin {
         const modId = resource
         if (modId) {
           if (regexCSS.test(modId)) {
-            cssImportsForChunk[entryName].push(modId)
+            cssImportsForChunk[entryName].add(modId)
           }
         }
       }
@@ -266,7 +266,7 @@ export class FlightClientEntryPlugin {
           const entryName = path.join(this.appDir, '..', chunk.name)
 
           if (!cssImportsForChunk[entryName]) {
-            cssImportsForChunk[entryName] = []
+            cssImportsForChunk[entryName] = new Set()
           }
 
           const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
@@ -285,7 +285,7 @@ export class FlightClientEntryPlugin {
 
           const entryCSSInfo: Record<string, string[]> =
             cssManifest.__entry_css_mods__ || {}
-          entryCSSInfo[entryName] = cssImportsForChunk[entryName]
+          entryCSSInfo[entryName] = [...cssImportsForChunk[entryName]]
 
           Object.assign(cssManifest, {
             __entry_css_mods__: entryCSSInfo,
@@ -318,11 +318,17 @@ export class FlightClientEntryPlugin {
           }
         })
 
+        const tracked = new Set<string>()
         for (const connection of compilation.moduleGraph.getOutgoingConnections(
           entryModule
         )) {
           const entryDependency = connection.dependency
           const entryRequest = connection.dependency.request
+
+          // It is possible that the same entry is added multiple times in the
+          // connection graph. We can just skip these to speed up the process.
+          if (tracked.has(entryRequest)) continue
+          tracked.add(entryRequest)
 
           const [, cssImports] =
             this.collectClientComponentsAndCSSForDependency({
@@ -403,7 +409,7 @@ export class FlightClientEntryPlugin {
      */
     const visitedBySegment: { [segment: string]: Set<string> } = {}
     const clientComponentImports: ClientComponentImports = []
-    const serverCSSImports: CssImports = {}
+    const CSSImports: CssImports = {}
 
     const filterClientComponents = (
       dependencyToFilter: any,
@@ -451,8 +457,8 @@ export class FlightClientEntryPlugin {
           }
         }
 
-        serverCSSImports[entryRequest] = serverCSSImports[entryRequest] || []
-        serverCSSImports[entryRequest].push(modRequest)
+        CSSImports[entryRequest] = CSSImports[entryRequest] || []
+        CSSImports[entryRequest].push(modRequest)
       }
 
       // Check if request is for css file.
@@ -483,7 +489,7 @@ export class FlightClientEntryPlugin {
     // Traverse the module graph to find all client components.
     filterClientComponents(dependency, false)
 
-    return [clientComponentImports, serverCSSImports]
+    return [clientComponentImports, CSSImports]
   }
 
   injectClientEntryAndSSRModules({
