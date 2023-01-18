@@ -164,14 +164,8 @@ export async function resolveMetadata(metadataItems: Item[]) {
         committedTitleTemplate = resolvedMetadata.title?.template || null
         committedOpenGraphTitleTemplate =
           resolvedMetadata.openGraph?.title?.template || null
-        const twitterTitle = resolvedMetadata.twitter?.title
-        if (
-          twitterTitle &&
-          typeof twitterTitle !== 'string' &&
-          'template' in twitterTitle
-        ) {
-          committedTwitterTitleTemplate = twitterTitle.template || null
-        }
+        committedTwitterTitleTemplate =
+          resolvedMetadata.twitter?.title?.template || null
 
         lastLayer = item.layer
       }
