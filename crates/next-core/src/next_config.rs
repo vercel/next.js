@@ -137,7 +137,7 @@ pub enum RemotePatternProtocal {
 pub struct ExperimentalConfig {
     pub server_components_external_packages: Option<Vec<String>>,
     pub app_dir: Option<bool>,
-    pub turbopack_webpack_loaders: Option<IndexMap<String, Vec<String>>>,
+    pub turbopack_loaders: Option<IndexMap<String, Vec<String>>>,
     pub resolve_alias: Option<IndexMap<String, Vec<String>>>,
 }
 
@@ -225,11 +225,11 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn webpack_loaders_options(self) -> Result<WebpackLoadersOptionsVc> {
         let this = self.await?;
-        let Some(turbopack_webpack_loaders) = this.experimental.as_ref().and_then(|experimental| experimental.turbopack_webpack_loaders.as_ref()) else {
+        let Some(turbopack_loaders) = this.experimental.as_ref().and_then(|experimental| experimental.turbopack_loaders.as_ref()) else {
             return Ok(WebpackLoadersOptionsVc::cell(WebpackLoadersOptions::default()));
         };
         let mut extension_to_loaders = IndexMap::new();
-        for (ext, loaders) in turbopack_webpack_loaders {
+        for (ext, loaders) in turbopack_loaders {
             extension_to_loaders.insert(ext.clone(), StringsVc::cell(loaders.clone()));
         }
         Ok(WebpackLoadersOptions {
