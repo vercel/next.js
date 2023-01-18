@@ -1,6 +1,6 @@
 {
   "version": 3,
   "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs"],"sourcesContent":["export default \"turbopack\";\n"],"names":[],"mappings":"AAAA;;;uCAAe"}},
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs"],"sourcesContent":["export default \"turbopack\";\n"],"names":[],"mappings":";;;uCAAe"}},
     {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }
