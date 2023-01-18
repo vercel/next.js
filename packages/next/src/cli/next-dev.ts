@@ -475,7 +475,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           if ((worker as any).killed) return
 
           // TODO: we should track how many restarts are
-          // occurring and how long im-between them
+          // occurring and how long in-between them
           if (worker.exitedAfterDisconnect) {
             setupFork()
           } else if (!sessionStopHandled) {
