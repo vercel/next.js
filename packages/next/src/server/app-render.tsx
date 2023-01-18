@@ -1042,6 +1042,10 @@ export async function renderToHTMLOrFlight(
       parentParams: { [key: string]: any },
       isRootHead: boolean
     ): Promise<React.ReactNode> {
+      // Don't use head when metadata is applied
+      // TODO: add warning for head
+      if (metadataItems) return null
+
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
       /**
