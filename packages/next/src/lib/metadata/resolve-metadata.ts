@@ -42,16 +42,23 @@ function merge(
   target: ResolvedMetadata,
   source: Metadata,
   templateStrings: {
-    title: AbsoluteTemplateString
-    openGraphTitle: AbsoluteTemplateString
-    twitterTitle: AbsoluteTemplateString
+    title: string | null
+    openGraph: string | null
+    twitter: string | null
   }
 ) {
-  let updatedStashedTitle: AbsoluteTemplateString = templateStrings.title
-  let updatedStashedOpenGraphTitle: AbsoluteTemplateString =
-    templateStrings.openGraphTitle
-  let updatedStashedTwitterTitle: AbsoluteTemplateString =
-    templateStrings.twitterTitle
+  let updatedStashedTitle: AbsoluteTemplateString = {
+    absolute: '',
+    template: templateStrings.title,
+  }
+  let updatedStashedOpenGraphTitle: AbsoluteTemplateString = {
+    absolute: '',
+    template: templateStrings.openGraph,
+  }
+  let updatedStashedTwitterTitle: AbsoluteTemplateString = {
+    absolute: '',
+    template: templateStrings.twitter,
+  }
 
   for (const key_ in source) {
     const key = key_ as keyof Metadata
@@ -73,7 +80,7 @@ function merge(
           }
           if (source.openGraph && 'title' in source.openGraph) {
             updatedStashedOpenGraphTitle = resolveTitle(
-              templateStrings.openGraphTitle,
+              templateStrings.openGraph,
               source.openGraph.title
             )
             target.openGraph.title = updatedStashedOpenGraphTitle
@@ -88,7 +95,7 @@ function merge(
           target.twitter = { ...source.twitter }
           if (source.twitter && 'title' in source.twitter) {
             updatedStashedTwitterTitle = resolveTitle(
-              templateStrings.twitterTitle,
+              templateStrings.twitter,
               source.twitter.title
             )
             target.twitter.title = updatedStashedTwitterTitle
@@ -111,18 +118,9 @@ function merge(
 export async function resolveMetadata(metadataItems: Item[]) {
   const resolvedMetadata = createDefaultMetadata()
 
-  const committedTitle: AbsoluteTemplateString = {
-    absolute: '',
-    template: null,
-  }
-  const committedOpenGraphTitle: AbsoluteTemplateString = {
-    absolute: '',
-    template: null,
-  }
-  const committedTwitterTitle: AbsoluteTemplateString = {
-    absolute: '',
-    template: null,
-  }
+  let committedTitleTemplate: string | null = null
+  let committedOpenGraphTitleTemplate: string | null = null
+  let committedTwitterTitleTemplate: string | null = null
 
   let lastLayer = 0
   // from root layout to page metadata
@@ -152,21 +150,26 @@ export async function resolveMetadata(metadataItems: Item[]) {
 
       // If we resolved all items in this layer, commit the stashed titles.
       if (item.layer >= lastLayer) {
-        Object.assign(committedTitle, resolvedMetadata.title)
-        Object.assign(
-          committedOpenGraphTitle,
-          resolvedMetadata.openGraph?.title
-        )
-        Object.assign(committedTwitterTitle, resolvedMetadata.twitter?.title)
+        committedTitleTemplate = resolvedMetadata.title?.template || null
+        committedOpenGraphTitleTemplate =
+          resolvedMetadata.openGraph?.title?.template || null
+        const twitterTitle = resolvedMetadata.twitter?.title
+        if (
+          twitterTitle &&
+          typeof twitterTitle !== 'string' &&
+          'template' in twitterTitle
+        ) {
+          committedTwitterTitleTemplate = twitterTitle.template || null
+        }
 
         lastLayer = item.layer
       }
 
       if (layerMod.metadata) {
         merge(resolvedMetadata, layerMod.metadata, {
-          title: committedTitle,
-          openGraphTitle: committedOpenGraphTitle,
-          twitterTitle: committedTwitterTitle,
+          title: committedTitleTemplate,
+          openGraph: committedOpenGraphTitleTemplate,
+          twitter: committedTwitterTitleTemplate,
         })
       } else if (layerMod.generateMetadata) {
         merge(
@@ -177,9 +180,9 @@ export async function resolveMetadata(metadataItems: Item[]) {
             Promise.resolve(resolvedMetadata)
           ),
           {
-            title: committedTitle,
-            openGraphTitle: committedOpenGraphTitle,
-            twitterTitle: committedTwitterTitle,
+            title: committedTitleTemplate,
+            openGraph: committedOpenGraphTitleTemplate,
+            twitter: committedTwitterTitleTemplate,
           }
         )
       }
