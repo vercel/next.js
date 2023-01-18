@@ -6,7 +6,7 @@ import type {
 import type { AbsoluteTemplateString } from './types/metadata-types'
 
 import React from 'react'
-import { createDefaultMetadata } from './constant'
+import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { resolveTitle } from './resolve-title'
 import { elementsFromResolvedOpenGraph } from './generate/opengraph'
@@ -16,7 +16,8 @@ import { elementsFromResolvedAlternates } from './generate/alternate'
 type Item =
   | {
       type: 'layout' | 'page'
-      // A number that represents which layer the item is in. Starting from 0.
+      // A number that represents which layer or routes that the item is in. Starting from 0.
+      // Layout and page in the same level will share the same `layer`.
       layer: number
       mod: () => Promise<{
         metadata?: Metadata
@@ -110,12 +111,6 @@ function merge(
       }
     }
   }
-
-  return {
-    title: updatedStashedTitle,
-    openGraphTitle: updatedStashedOpenGraphTitle,
-    twitterTitle: updatedStashedTwitterTitle,
-  }
 }
 
 export async function resolveMetadata(metadataItems: Item[]) {
@@ -123,18 +118,18 @@ export async function resolveMetadata(metadataItems: Item[]) {
 
   const committedTitle: AbsoluteTemplateString = {
     absolute: '',
-    template: '',
+    template: null,
   }
   const committedOpenGraphTitle: AbsoluteTemplateString = {
     absolute: '',
-    template: '',
+    template: null,
   }
   const committedTwitterTitle: AbsoluteTemplateString = {
     absolute: '',
-    template: '',
+    template: null,
   }
-  let stashedTitles
 
+  let lastLayer = 0
   // from root layout to page metadata
   for (let i = 0; i < metadataItems.length; i++) {
     const item = metadataItems[i]
@@ -161,26 +156,25 @@ export async function resolveMetadata(metadataItems: Item[]) {
       }
 
       // If we resolved all items in this layer, commit the stashed titles.
-      if (
-        stashedTitles &&
-        // reach out to page metadata
-        (i + 1 === metadataItems.length ||
-          // when the current item is page or layout (without page) for the current layer
-          metadataItems[i + 1].layer !== item.layer)
-      ) {
-        Object.assign(committedTitle, stashedTitles.title)
-        Object.assign(committedOpenGraphTitle, stashedTitles.openGraphTitle)
-        Object.assign(committedTwitterTitle, stashedTitles.twitterTitle)
+      if (item.layer >= lastLayer) {
+        Object.assign(committedTitle, resolvedMetadata.title)
+        Object.assign(
+          committedOpenGraphTitle,
+          resolvedMetadata.openGraph?.title
+        )
+        Object.assign(committedTwitterTitle, resolvedMetadata.twitter?.title)
+
+        lastLayer = item.layer
       }
 
       if (layerMod.metadata) {
-        stashedTitles = merge(resolvedMetadata, layerMod.metadata, {
+        merge(resolvedMetadata, layerMod.metadata, {
           title: committedTitle,
           openGraphTitle: committedOpenGraphTitle,
           twitterTitle: committedTwitterTitle,
         })
       } else if (layerMod.generateMetadata) {
-        stashedTitles = merge(
+        merge(
           resolvedMetadata,
           await layerMod.generateMetadata(
             // TODO: Rewrite this to pass correct params and resolving metadata value.

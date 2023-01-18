@@ -19,7 +19,7 @@ export function resolveTitle(
     if ('absolute' in title) {
       resolved.absolute = title.absolute
     }
-    if (title && 'template' in title && title.template) {
+    if ('template' in title) {
       resolved.template = title.template
     }
   }

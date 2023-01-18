@@ -13,7 +13,7 @@ export type DefaultTemplateString = {
 }
 export type AbsoluteTemplateString = {
   absolute: string
-  template: string
+  template: string | null
 }
 export type AbsoluteString = {
   absolute: string
