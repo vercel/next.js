@@ -1365,5 +1365,35 @@ for (const variant of ['default', 'turbo']) {
 
       await cleanup()
     })
+
+    test('Import trace when module not found in layout', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+
+        new Map([['app/module.js', `import "non-existing-module"`]])
+      )
+
+      await session.patch(
+        'app/layout.js',
+        `
+        import "./module"
+
+        export default function RootLayout({ children }) {
+          return (
+            <html>
+              <head></head>
+              <body>{children}</body>
+            </html>
+          )
+        }
+        
+    `
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchSnapshot()
+
+      await cleanup()
+    })
   })
 }
