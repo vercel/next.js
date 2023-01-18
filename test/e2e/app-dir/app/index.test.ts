@@ -2642,6 +2642,7 @@ createNextDescribe(
         if (Array.isArray(content)) {
           expect(values).toEqual(content)
         } else {
+          console.log('expect', values[0], 'toContain', content)
           expect(values[0]).toContain(content)
         }
       }

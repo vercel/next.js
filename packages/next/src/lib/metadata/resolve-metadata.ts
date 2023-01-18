@@ -5,9 +5,10 @@ import type {
 } from './types/metadata-interface'
 import type { Viewport } from './types/extra-types'
 import type { ResolvedTwitterMetadata } from './types/twitter-types'
+import type { AbsoluteTemplateString } from './types/metadata-types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
-import { resolveTitle } from './resolve-title'
+import { mergeTitle } from './resolve-title'
 
 const viewPortKeys = {
   width: 'width',
@@ -66,18 +67,17 @@ function merge(
         break
       }
       case 'title': {
-        target.title = resolveTitle(templateStrings.title, source.title)
+        if (source.title) {
+          target.title = source.title as AbsoluteTemplateString
+          mergeTitle(target, templateStrings.title)
+        }
         break
       }
       case 'openGraph': {
         if (typeof source.openGraph !== 'undefined') {
           target.openGraph = resolveOpenGraph(source.openGraph)
-          const hasOg = source.openGraph && 'title' in source.openGraph
-          if (hasOg) {
-            target.openGraph.title = resolveTitle(
-              templateStrings.openGraph,
-              source.openGraph!.title
-            )
+          if (source.openGraph) {
+            mergeTitle(target.openGraph, templateStrings.openGraph)
           }
         } else {
           target.openGraph = null
@@ -85,14 +85,9 @@ function merge(
         break
       }
       case 'twitter': {
-        if (typeof source.twitter !== 'undefined') {
+        if (source.twitter) {
           target.twitter = source.twitter as ResolvedTwitterMetadata
-          if (source.twitter && 'title' in source.twitter) {
-            target.twitter.title = resolveTitle(
-              templateStrings.twitter,
-              source.twitter.title
-            )
-          }
+          mergeTitle(target.twitter, templateStrings.twitter)
         } else {
           target.twitter = null
         }

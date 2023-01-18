@@ -5,26 +5,37 @@ function resolveTitleTemplate(template: string | null, title: string) {
   return template ? template.replace(/%s/g, title) : title
 }
 
-export function resolveTitle(
-  stashedTemplate: string | null,
-  title: Metadata['title']
+export function mergeTitle<T extends { title?: Metadata['title'] }>(
+  source: T,
+  stashedTemplate: string | null
 ) {
-  const resolved: AbsoluteTemplateString = {
-    absolute: '',
-    template: null,
-  }
+  const { title } = source
+
+  let resolved
+  const template =
+    typeof source.title !== 'string' &&
+    source.title &&
+    'template' in source.title
+      ? source.title.template
+      : null
+
   if (typeof title === 'string') {
-    resolved.absolute = resolveTitleTemplate(stashedTemplate, title)
+    resolved = resolveTitleTemplate(stashedTemplate, title)
   } else if (title) {
     if ('default' in title) {
-      resolved.absolute = resolveTitleTemplate(stashedTemplate, title.default)
+      resolved = resolveTitleTemplate(stashedTemplate, title.default)
     }
-    if ('absolute' in title) {
-      resolved.absolute = title.absolute
-    }
-    if ('template' in title) {
-      resolved.template = title.template
+    if ('absolute' in title && title.absolute) {
+      resolved = title.absolute
     }
   }
-  return resolved
+
+  const target = source
+  if (source.title && typeof source.title !== 'string') {
+    const targetTitle = source.title as AbsoluteTemplateString
+    targetTitle.template = template
+    targetTitle.absolute = resolved || ''
+  } else {
+    target.title = { absolute: resolved || source.title || '', template }
+  }
 }

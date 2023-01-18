@@ -62,10 +62,7 @@ export function resolveOpenGraph(
     : undefined
 
   // TODO: improve typing
-  const resolved: { [x: string]: any } = {
-    ...openGraph,
-    title: undefined,
-  }
+  const resolved: { [x: string]: any } = openGraph || {}
 
   function assignProps(og: OpenGraph) {
     const ogType = og && 'type' in og ? og.type : undefined
