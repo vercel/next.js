@@ -107,7 +107,7 @@ for (const variant of ['default', 'turbo']) {
         /Count: 1/
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await cleanup()
     })
@@ -169,7 +169,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(await session.hasErrorToast()).toBe(false)
 
       expect(
@@ -180,7 +180,7 @@ for (const variant of ['default', 'turbo']) {
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('Count: 2')
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(await session.hasErrorToast()).toBe(false)
 
       await cleanup()
@@ -242,7 +242,7 @@ for (const variant of ['default', 'turbo']) {
 
       // TODO-APP: re-enable when error recovery doesn't reload the page.
       // expect(didNotReload).toBe(true)
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('Hello')
@@ -526,7 +526,7 @@ for (const variant of ['default', 'turbo']) {
       )
 
       // Expected: this fixes the problem
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await cleanup()
     })
@@ -701,7 +701,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await session.patch(
         'index.js',
@@ -752,7 +752,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('hello')
@@ -784,7 +784,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('hello new')
@@ -810,7 +810,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       // Syntax error
       await session.patch('index.module.css', `.button {`)
@@ -1219,7 +1219,7 @@ for (const variant of ['default', 'turbo']) {
         () => browser.elementByCss('.nextjs-toast-errors').text(),
         /4 errors/
       )
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       // Add Component error
       await session.patch(
@@ -1328,7 +1328,7 @@ for (const variant of ['default', 'turbo']) {
       expect(await browser.waitForElementByCss('#text').text()).toBe(
         'Hello world'
       )
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       // Re-add error
       await session.patch(

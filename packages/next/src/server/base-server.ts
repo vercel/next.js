@@ -1373,6 +1373,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isNotFound = (renderOpts as any).isNotFound
       isRedirect = (renderOpts as any).isRedirect
 
+      if (isAppPath && isSSG && isrRevalidate === 0) {
+        throw new Error(
+          `Page changed from static to dynamic at runtime ${urlPathname}, see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`
+        )
+      }
+
       let value: ResponseCacheValue | null
       if (isNotFound) {
         value = null

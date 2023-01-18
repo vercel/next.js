@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  allowedRevalidateHeaderKeys?: string[]
   fetchCache?: boolean
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
