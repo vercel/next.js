@@ -18,11 +18,11 @@
   "prisma",
   "rimraf",
   "sharp",
+  "shiki",
   "sqlite3",
   "tailwindcss",
   "ts-node",
   "typescript",
-  "webpack",
-  "shiki",
-  "vscode-oniguruma"
+  "vscode-oniguruma",
+  "webpack"
 ]
