@@ -457,48 +457,90 @@ createNextDescribe(
         }
 
         // Initial page
-        await hasHome()
-        await hasViewsHome()
-        await hasAudienceHome()
-        await checkUrlPath('')
+        const step1 = async () => {
+          await hasHome()
+          await hasViewsHome()
+          await hasAudienceHome()
+          await checkUrlPath('')
+        }
+
+        await step1()
 
         // Navigate to /views/duration
         await browser.elementByCss('#view-duration-link').click()
-        await hasHome()
-        await hasViewDuration()
-        await hasAudienceHome()
-        await checkUrlPath('/view-duration')
+
+        const step2 = async () => {
+          await hasHome()
+          await hasViewDuration()
+          await hasAudienceHome()
+          await checkUrlPath('/view-duration')
+        }
+
+        await step2()
 
         // Navigate to /views/impressions
         await browser.elementByCss('#impressions-link').click()
-        await hasHome()
-        await hasImpressions()
-        await hasAudienceHome()
-        await checkUrlPath('/impressions')
+
+        const step3 = async () => {
+          await hasHome()
+          await hasImpressions()
+          await hasAudienceHome()
+          await checkUrlPath('/impressions')
+        }
+
+        await step3()
 
         // Navigate to /audience/demographics
         await browser.elementByCss('#demographics-link').click()
-        await hasHome()
-        await hasImpressions()
-        await hasDemographics()
-        await checkUrlPath('/demographics')
+
+        const step4 = async () => {
+          await hasHome()
+          await hasImpressions()
+          await hasDemographics()
+          await checkUrlPath('/demographics')
+        }
+
+        await step4()
 
         // Navigate to /audience/subscribers
         await browser.elementByCss('#subscribers-link').click()
-        await hasHome()
-        await hasImpressions()
-        await hasSubscribers()
-        await checkUrlPath('/subscribers')
+
+        const step5 = async () => {
+          await hasHome()
+          await hasImpressions()
+          await hasSubscribers()
+          await checkUrlPath('/subscribers')
+        }
+
+        await step5()
 
         // Navigate to /
         await browser.elementByCss('#home-link-audience').click()
-        await hasHome()
-        await hasViewsHome()
-        await hasAudienceHome()
-        await checkUrlPath('')
 
-        // TODO: home links
-        // TODO: test back button
+        // TODO: home link behavior
+        await step1()
+
+        // Test that back navigation works as intended
+        await browser.back()
+        await step5()
+        await browser.back()
+        await step4()
+        await browser.back()
+        await step3()
+        await browser.back()
+        await step2()
+        await browser.back()
+        await step1()
+
+        // Test that forward navigation works as intended
+        await browser.forward()
+        await step2()
+        await browser.forward()
+        await step3()
+        await browser.forward()
+        await step4()
+        await browser.forward()
+        await step5()
       })
     })
 
