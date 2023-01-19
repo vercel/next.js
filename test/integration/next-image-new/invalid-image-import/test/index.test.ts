@@ -11,6 +11,7 @@ import {
   nextBuild,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '../')
 let appPort: number
@@ -26,9 +27,9 @@ function runTests({ isDev }) {
       expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toBe('Failed to compile')
       expect(await getRedboxSource(browser)).toBe(`./pages/index.js:3\n${msg}`)
-      expect(stderr).toContain(msg)
+      expect(stripAnsi(stderr)).toContain(msg)
     } else {
-      expect(stderr).toContain(msg)
+      expect(stripAnsi(stderr)).toContain(msg)
     }
   })
 }
