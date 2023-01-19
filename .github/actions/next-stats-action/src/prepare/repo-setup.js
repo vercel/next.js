@@ -106,94 +106,83 @@ module.exports = (actionInfo) => {
           throw err
         }
 
-        await rootSpan
-          .traceChild('prepare packages for packing')
-          .traceAsyncFn(async () => {
-            for (const pkg of pkgs) {
-              const pkgPath = path.join(repoDir, 'packages', pkg)
-              const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
+        for (const pkg of pkgs) {
+          const pkgPath = path.join(repoDir, 'packages', pkg)
+          const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
 
-              const pkgDataPath = path.join(pkgPath, 'package.json')
-              if (!fs.existsSync(pkgDataPath)) {
-                require('console').log(`Skipping ${pkgDataPath}`)
-                continue
-              }
-              const pkgData = require(pkgDataPath)
-              const { name } = pkgData
-              pkgDatas.set(name, {
-                pkgDataPath,
-                pkg,
-                pkgPath,
-                pkgData,
-                packedPkgPath,
-              })
-              pkgPaths.set(name, packedPkgPath)
-            }
-
-            for (const pkg of pkgDatas.keys()) {
-              const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
-
-              for (const pkg of pkgDatas.keys()) {
-                const { packedPkgPath } = pkgDatas.get(pkg)
-                if (!pkgData.dependencies || !pkgData.dependencies[pkg])
-                  continue
-                pkgData.dependencies[pkg] = packedPkgPath
-              }
-
-              // make sure native binaries are included in local linking
-              if (pkg === '@next/swc') {
-                if (!pkgData.files) {
-                  pkgData.files = []
-                }
-                pkgData.files.push('native')
-                require('console').log(
-                  'using swc binaries: ',
-                  await exec(
-                    `ls ${path.join(path.dirname(pkgDataPath), 'native')}`
-                  )
-                )
-              }
-
-              if (pkg === 'next') {
-                if (nextSwcPkg) {
-                  Object.assign(pkgData.dependencies, nextSwcPkg)
-                } else {
-                  if (pkgDatas.get('@next/swc')) {
-                    pkgData.dependencies['@next/swc'] =
-                      pkgDatas.get('@next/swc').packedPkgPath
-                  } else {
-                    pkgData.files.push('native')
-                  }
-                }
-              }
-
-              await fs.writeFile(
-                pkgDataPath,
-                JSON.stringify(pkgData, null, 2),
-                'utf8'
-              )
-            }
+          const pkgDataPath = path.join(pkgPath, 'package.json')
+          if (!fs.existsSync(pkgDataPath)) {
+            require('console').log(`Skipping ${pkgDataPath}`)
+            continue
+          }
+          const pkgData = require(pkgDataPath)
+          const { name } = pkgData
+          pkgDatas.set(name, {
+            pkgDataPath,
+            pkg,
+            pkgPath,
+            pkgData,
+            packedPkgPath,
           })
+          pkgPaths.set(name, packedPkgPath)
+        }
+
+        for (const pkg of pkgDatas.keys()) {
+          const { pkgDataPath, pkgData } = pkgDatas.get(pkg)
+
+          for (const pkg of pkgDatas.keys()) {
+            const { packedPkgPath } = pkgDatas.get(pkg)
+            if (!pkgData.dependencies || !pkgData.dependencies[pkg]) continue
+            pkgData.dependencies[pkg] = packedPkgPath
+          }
+
+          // make sure native binaries are included in local linking
+          if (pkg === '@next/swc') {
+            if (!pkgData.files) {
+              pkgData.files = []
+            }
+            pkgData.files.push('native')
+            require('console').log(
+              'using swc binaries: ',
+              await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
+            )
+          }
+
+          if (pkg === 'next') {
+            if (nextSwcPkg) {
+              Object.assign(pkgData.dependencies, nextSwcPkg)
+            } else {
+              if (pkgDatas.get('@next/swc')) {
+                pkgData.dependencies['@next/swc'] =
+                  pkgDatas.get('@next/swc').packedPkgPath
+              } else {
+                pkgData.files.push('native')
+              }
+            }
+          }
+
+          await fs.writeFile(
+            pkgDataPath,
+            JSON.stringify(pkgData, null, 2),
+            'utf8'
+          )
+        }
 
         // wait to pack packages until after dependency paths have been updated
         // to the correct versions
-        await rootSpan
-          .traceChild('packing packages')
-          .traceAsyncFn(async (packingSpan) => {
-            await Promise.all(
-              Array.from(pkgDatas.keys()).map(async (pkgName) => {
-                await packingSpan
-                  .traceChild(`pack ${pkgName}`)
-                  .traceAsyncFn(async () => {
-                    const { pkg, pkgPath } = pkgDatas.get(pkgName)
-                    await exec(
-                      `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
-                      true
-                    )
-                  })
+        await Promise.all(
+          Array.from(pkgDatas.keys()).map(async (pkgName) => {
+            await packingSpan
+              .traceChild(`pack ${pkgName}`)
+              .traceAsyncFn(async () => {
+                const { pkg, pkgPath } = pkgDatas.get(pkgName)
+                await exec(
+                  `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
+                  true
+                )
               })
-            )
           })
+        )
 
         return pkgPaths
       }
