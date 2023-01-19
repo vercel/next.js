@@ -190,12 +190,11 @@ where
             opts.is_development,
             opts.is_server,
             match &opts.server_components {
-                Some(config) if config.truthy() =>
-                    match config {
-                        react_server_components::Config::WithOptions(x) => x.is_server,
-                        _ => false
-                    }
-                _ => false
+                Some(config) if config.truthy() => match config {
+                    react_server_components::Config::WithOptions(x) => x.is_server,
+                    _ => false,
+                },
+                _ => false,
             },
             file.name.clone(),
             opts.pages_dir.clone()
