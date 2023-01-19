@@ -33,6 +33,7 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   isServerLayer,
+  hasServerComponents,
 }: any) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -125,7 +126,9 @@ function getBaseSWCOptions({
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
       styledComponents: getStyledComponentsOptions(nextConfig, development),
     }),
-    serverComponents: isServerLayer ? { isServer: true } : undefined,
+    serverComponents: hasServerComponents
+      ? { isServer: !!isServerLayer }
+      : undefined,
   }
 }
 
