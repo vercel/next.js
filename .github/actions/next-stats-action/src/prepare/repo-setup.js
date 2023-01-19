@@ -174,15 +174,11 @@ module.exports = (actionInfo) => {
         // to the correct versions
         await Promise.all(
           Array.from(pkgDatas.keys()).map(async (pkgName) => {
-            await packingSpan
-              .traceChild(`pack ${pkgName}`)
-              .traceAsyncFn(async () => {
-                const { pkg, pkgPath } = pkgDatas.get(pkgName)
-                await exec(
-                  `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
-                  true
-                )
-              })
+            const { pkg, pkgPath } = pkgDatas.get(pkgName)
+            await exec(
+              `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
+              true
+            )
           })
         )
 
