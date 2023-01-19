@@ -189,7 +189,13 @@ where
         next_dynamic::next_dynamic(
             opts.is_development,
             opts.is_server,
-            opts.server_components.is_some(),
+            match &opts.server_components {
+                Some(config) if config.truthy() => match config {
+                    react_server_components::Config::WithOptions(x) => x.is_server,
+                    _ => false,
+                },
+                _ => false,
+            },
             file.name.clone(),
             opts.pages_dir.clone()
         ),
