@@ -26,8 +26,7 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error"
+    Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox default _document syntax error shows logbox 1`] = `
@@ -46,6 +45,5 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error"
+    Syntax Error"
 `;
