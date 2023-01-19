@@ -1,5 +1,4 @@
 import * as React from 'react'
-/// @ts-ignore
 import { Main, NextScript, Head, Html } from 'next/document'
 import Script from 'next/script'
 

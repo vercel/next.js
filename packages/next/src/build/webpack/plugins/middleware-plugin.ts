@@ -607,7 +607,7 @@ function getExtractMetadata(params: {
   return async () => {
     metadataByEntry.clear()
     const resolver = compilation.resolverFactory.get('normal')
-    const telemetry: Telemetry = traceGlobals.get('telemetry')
+    const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
 
     for (const [entryName, entry] of compilation.entries) {
       if (entry.options.runtime !== EDGE_RUNTIME_WEBPACK) {
@@ -683,7 +683,7 @@ function getExtractMetadata(params: {
           }
 
           if (edgeFunctionConfig?.config?.unstable_allowDynamicGlobs) {
-            telemetry.record({
+            telemetry?.record({
               eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
               payload: {
                 ...edgeFunctionConfig,
@@ -773,7 +773,7 @@ function getExtractMetadata(params: {
         }
       }
 
-      telemetry.record({
+      telemetry?.record({
         eventName: EVENT_BUILD_FEATURE_USAGE,
         payload: {
           featureName: 'vercelImageGeneration',
