@@ -14,7 +14,7 @@ async function handleGet(
 ) {
   try {
     const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem)
-    const item = await itemsCollection.findOne({ id: itemId })
+    const item = await itemsCollection.findOne({ filter: { id: itemId } })
     if (!item) {
       res.status(404).json({ error: 'No item found' })
     } else {
@@ -45,7 +45,8 @@ async function handleDelete(
 ) {
   try {
     const itemsCollection = tigrisDb.getCollection<TodoItem>(TodoItem)
-    const status = (await itemsCollection.deleteOne({ id: itemId })).status
+    const status = (await itemsCollection.deleteOne({ filter: { id: itemId } }))
+      .status
     if (status === 'deleted') {
       res.status(200).json({})
     } else {

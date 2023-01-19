@@ -1,10 +1,10 @@
 {
   "private": true,
   "scripts": {
-    "predev": "APP_ENV=development npm run setup",
+    "predev": "npm run setup",
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "APP_ENV=production npm run setup",
+    "postbuild": "npm run setup",
     "start": "next start",
     "setup": "npx ts-node scripts/setup.ts"
   },
