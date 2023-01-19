@@ -1,7 +1,6 @@
 use std::{io::Error as IOError, string::FromUtf8Error};
 
-use colored::*;
-use strip_ansi_escapes::strip as strip_ansi_escapes;
+use console::style;
 use thiserror::Error as ThisError;
 
 pub enum BorderAlignment {
@@ -33,36 +32,22 @@ pub enum GetDisplayLengthError {
     ConvertError(#[from] FromUtf8Error),
 }
 
-pub fn get_display_length(line: &str) -> Result<usize, GetDisplayLengthError> {
-    // strip any ansi escape codes (for color)
-    let stripped = strip_ansi_escapes(line)?;
-    let stripped = String::from_utf8(stripped)?;
-    // count the chars instead of the bytes (for unicode)
-    return Ok(stripped.chars().count());
-}
-
 pub fn x_border(width: usize, position: BorderAlignment) {
-    match position {
+    let border = match position {
         BorderAlignment::Top => {
-            println!(
-                "{}{}{}",
-                TOP_LEFT.yellow(),
-                HORIZONTAL.repeat(width).yellow(),
-                TOP_RIGHT.yellow()
-            );
+            format!("{}{}{}", TOP_LEFT, HORIZONTAL.repeat(width), TOP_RIGHT)
         }
         BorderAlignment::Bottom => {
-            println!(
+            format!(
                 "{}{}{}",
-                BOTTOM_LEFT.yellow(),
-                HORIZONTAL.repeat(width).yellow(),
-                BOTTOM_RIGHT.yellow()
-            );
+                BOTTOM_LEFT,
+                HORIZONTAL.repeat(width),
+                BOTTOM_RIGHT
+            )
         }
-        BorderAlignment::Divider => {
-            println!("{}", HORIZONTAL.repeat(width).yellow(),);
-        }
-    }
+        BorderAlignment::Divider => HORIZONTAL.repeat(width),
+    };
+    println!("{}", style(border).yellow())
 }
 
 pub fn render_message(
@@ -125,9 +110,9 @@ pub fn render_message(
                 if *line_display_width == 0 {
                     println!(
                         "{}{}{}",
-                        VERTICAL.yellow(),
+                        style(VERTICAL).yellow(),
                         SPACE.repeat(full_message_width),
-                        VERTICAL.yellow()
+                        style(VERTICAL).yellow()
                     );
                 } else {
                     let line_padding = (full_message_width - line_display_width) / 2;
@@ -136,11 +121,11 @@ pub fn render_message(
                         full_message_width - (line_padding * 2) - line_display_width;
                     println!(
                         "{}{}{}{}{}",
-                        VERTICAL.yellow(),
+                        style(VERTICAL).yellow(),
                         SPACE.repeat(line_padding),
                         line,
                         SPACE.repeat(line_padding + line_padding_remainder),
-                        VERTICAL.yellow()
+                        style(VERTICAL).yellow()
                     );
                 }
             }

@@ -7,12 +7,10 @@ license = "MPL-2.0"
 publish = false
 
 [dependencies]
-colored = "2.0"
-is-terminal = "0.4"
+atty = "0.2"
+console = "0.15.5"
 semver = "1.0"
 serde = { version = "1.0.126", features = ["derive"] }
-strip-ansi-escapes = "0.1.1"
-terminal_size = "0.2"
 thiserror = "1.0"
 update-informer = "0.6.0"
 ureq = { version = "2.3.0" }

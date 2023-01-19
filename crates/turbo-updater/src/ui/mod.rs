@@ -1,4 +1,4 @@
-use terminal_size::{terminal_size, Width};
+use console::{measure_text_width, Term};
 
 use crate::UpdateNotifierError;
 pub mod utils;
@@ -6,14 +6,14 @@ pub mod utils;
 const DEFAULT_PADDING: usize = 8;
 
 pub fn message(text: &str) -> Result<(), UpdateNotifierError> {
-    let size = terminal_size();
+    let size = Term::stdout().size_checked();
     let lines: Vec<&str> = text.split('\n').map(|line| line.trim()).collect();
 
     // get the display width of each line so we can center it within the box later
     let lines_display_width = lines
         .iter()
-        .map(|line| utils::get_display_length(line))
-        .collect::<Result<Vec<_>, _>>()?;
+        .map(|line| measure_text_width(line))
+        .collect::<Vec<_>>();
 
     // find the longest line to determine layout
     let longest_line = lines_display_width
@@ -35,7 +35,7 @@ pub fn message(text: &str) -> Result<(), UpdateNotifierError> {
     };
 
     // render differently depending on viewport
-    if let Some((Width(term_width), _)) = size {
+    if let Some((term_width, _)) = size {
         // if possible, pad this value slightly
         let term_width = if term_width > 2 {
             usize::from(term_width) - 2

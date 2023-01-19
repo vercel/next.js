@@ -1,7 +1,6 @@
 use std::{fmt, time::Duration};
 
-use colored::*;
-use is_terminal::IsTerminal;
+use console::style;
 use semver::Version as SemVerVersion;
 use serde::Deserialize;
 use thiserror::Error as ThisError;
@@ -79,25 +78,13 @@ fn get_tag_from_version(pre: &semver::Prerelease) -> VersionTag {
 }
 
 fn should_skip_notification() -> bool {
-    if NOTIFIER_DISABLE_VARS
+    NOTIFIER_DISABLE_VARS
         .iter()
         .any(|var| std::env::var(var).is_ok())
-    {
-        return true;
-    }
-
-    if ENVIRONMENTAL_DISABLE_VARS
-        .iter()
-        .any(|var| std::env::var(var).is_ok())
-    {
-        return true;
-    }
-
-    if !std::io::stdout().is_terminal() {
-        return true;
-    }
-
-    false
+        || ENVIRONMENTAL_DISABLE_VARS
+            .iter()
+            .any(|var| std::env::var(var).is_ok())
+        || !atty::is(atty::Stream::Stdout)
 }
 
 pub fn check_for_updates(
@@ -130,11 +117,13 @@ pub fn check_for_updates(
     if let Ok(Some(version)) = informer.check_version() {
         let latest_version = version.to_string();
         // TODO: make this package manager aware
-        let update_cmd = if is_global_turbo {
-            "npm i -g turbo".cyan().bold()
+        let update_cmd = style(if is_global_turbo {
+            "npm i -g turbo"
         } else {
-            "npm i turbo".cyan().bold()
-        };
+            "npm i turbo"
+        })
+        .cyan()
+        .bold();
 
         let msg = format!(
             "
@@ -142,9 +131,9 @@ pub fn check_for_updates(
             Changelog: {github_repo}/releases/tag/{latest_version}
             Run \"{update_cmd}\" to update
             ",
-            version_prefix = "v".dimmed(),
-            current_version = current_version.dimmed(),
-            latest_version = latest_version.green().bold(),
+            version_prefix = style("v").dim(),
+            current_version = style(current_version).dim(),
+            latest_version = style(latest_version).green().bold(),
             github_repo = github_repo,
             update_cmd = update_cmd
         );
