@@ -17,7 +17,7 @@ describe('parse version info', () => {
     ['13.1.0', '13.1.0', '13.1.1-canary.0', 'fresh'],
     ['13.1.1-canary.7', '13.1.0', '13.1.1-canary.7', 'fresh'],
     ['13.0.0', '12.0.0', '12.0.1-canary.0', 'newer-than-npm'],
-    ['13.0.0-canary.8', '13.0.0', '13.0.0-canary.7', 'newer-than-npm'],
+    ['13.0.1-canary.8', '13.0.0', '13.0.1-canary.7', 'newer-than-npm'],
     ['13.0.0', '13.1.0', 'invalid', 'unknown'],
     ['13.0.0', 'invalid', '13.0.1-canary.0', 'unknown'],
     ['invalid', '13.0.1', '13.0.1-canary.0', 'unknown'],
