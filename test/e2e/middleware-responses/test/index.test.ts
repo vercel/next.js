@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, getAllHeaders } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { createNext, FileRef } from 'e2e-utils'
 
@@ -23,7 +23,7 @@ describe('Middleware Responses', () => {
 
     it(`${label}responds with multiple cookies`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/two-cookies`)
-      expect(res.headers.raw()['set-cookie']).toEqual([
+      expect(getAllHeaders(res.headers, 'set-cookie')).toEqual([
         'foo=chocochip',
         'bar=chocochip',
       ])
@@ -79,7 +79,7 @@ describe('Middleware Responses', () => {
       )
       expect(res.headers.get('x-nested-header')).toBe('valid')
       expect(res.headers.get('x-append-me')).toBe('top')
-      expect(res.headers.raw()['set-cookie']).toEqual(['bar=chocochip'])
+      expect(res.headers.get('set-cookie')).toEqual('bar=chocochip')
     })
   }
   testsWithLocale()

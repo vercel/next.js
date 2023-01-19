@@ -112,6 +112,18 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
 }
 
 /**
+ *
+ * @param {Headers} headers
+ * @param {string} name
+ * @returns {string[]}
+ */
+export function getAllHeaders(headers, name) {
+  return headers.raw()[name]
+  // const matches = [...headers.entries()].filter(([key]) => key === name)
+  // return matches.map(([, value]) => value)
+}
+
+/**
  * Appends the querystring to the url
  *
  * @param {string} pathname the pathname

@@ -4,7 +4,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { check, fetchViaHTTP, getAllHeaders } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
@@ -604,7 +604,7 @@ describe('Middleware Rewrite', () => {
 
     function getCookieFromResponse(res, cookieName) {
       // node-fetch bundles the cookies as string in the Response
-      const cookieArray = res.headers.raw()['set-cookie']
+      const cookieArray = getAllHeaders(res.headers, 'set-cookie')
       for (const cookie of cookieArray) {
         let individualCookieParams = cookie.split(';')
         let individualCookie = individualCookieParams[0].split('=')
@@ -620,7 +620,7 @@ describe('Middleware Rewrite', () => {
       const html = await res.text()
       const $ = cheerio.load(html)
       // Set-Cookie header with Expires should not be split into two
-      expect(res.headers.raw()['set-cookie']).toHaveLength(1)
+      expect(getAllHeaders(res.headers, 'set-cookie')).toHaveLength(1)
       const bucket = getCookieFromResponse(res, 'bucket')
       const expectedText = bucket === 'a' ? 'Welcome Page A' : 'Welcome Page B'
       const browser = await webdriver(next.url, `${locale}/rewrite-to-ab-test`)
