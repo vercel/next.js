@@ -1,3 +1,4 @@
 export function isAPIRoute(value?: string) {
-  return value === '/api' || Boolean(value?.startsWith('/api/'))
+  if (typeof value !== 'string') return false
+  return value.startsWith('/api/') || value === '/api'
 }

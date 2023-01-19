@@ -81,6 +81,7 @@ import {
   FLIGHT_PARAMETERS,
   FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
+import { isCustomAppRoutePathname } from '../lib/is-custom-app-route'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1686,9 +1687,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     const originalAppPath = this.appPathRoutes?.[route]
-    if (!originalAppPath) {
-      return null
-    }
+    if (!originalAppPath) return null
 
     return originalAppPath
   }
@@ -1696,9 +1695,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected async matchAppCustomRoute(
     pathname: string
   ): Promise<AppCustomRoute | false> {
-    let appPaths = this.getOriginalAppPaths(pathname)
-    if (appPaths && appPaths[0] && appPaths[0].endsWith('/route')) {
-      return { page: pathname, pathname: appPaths[0] }
+    if (!this.hasAppDir) return false
+
+    let appPathname = isCustomAppRoutePathname(pathname, this.appPathRoutes)
+    if (appPathname) {
+      return { page: pathname, pathname: appPathname }
     }
 
     // TODO: handle case where a url is requested with the literal matching params like `/accounts/[id]`, similar to below
@@ -1717,15 +1718,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         if (!params) continue
 
         // It did! So check if this route pathname is an app route.
-        appPaths = this.getOriginalAppPaths(route.page)
-        if (!appPaths || !appPaths[0]) continue
-        pathname = appPaths[0]
-
-        // It is! So check to see if this app path route is a custom route.
-        if (!pathname.endsWith('/route')) continue
+        appPathname = isCustomAppRoutePathname(route.page, this.appPathRoutes)
+        if (!appPathname) continue
 
         // It is! We found the route, which was a dynamic custom route.
-        return { page: route.page, params, pathname }
+        return { page: route.page, params, pathname: appPathname }
       }
     }
 

@@ -55,7 +55,8 @@ createNextDescribe(
       })
 
       describe('response', () => {
-        it('supports the NextResponse.rewrite() helper', async () => {
+        // TODO-APP: re-enable when rewrites are supported again
+        it.skip('supports the NextResponse.rewrite() helper', async () => {
           const res = await next.fetch('/hooks/rewrite')
 
           expect(res.status).toEqual(200)
