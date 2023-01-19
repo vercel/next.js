@@ -9,8 +9,3 @@ export default function DashboardLayout(props) {
     </div>
   )
 }
-
-export const metadata = {
-  title: 'this is the layout title',
-  description: 'this is the layout description',
-}
