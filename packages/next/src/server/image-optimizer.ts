@@ -417,11 +417,9 @@ export async function optimizeImage({
     if (height) {
       transformer.resize(width, height)
     } else {
-      const { width: metaWidth } = await transformer.metadata()
-
-      if (metaWidth && metaWidth > width) {
-        transformer.resize(width)
-      }
+      transformer.resize(width, undefined, {
+        withoutEnlargement: true,
+      })
     }
 
     if (contentType === AVIF) {

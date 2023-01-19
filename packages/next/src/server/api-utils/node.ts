@@ -181,6 +181,7 @@ export async function parseBody(
 
 type ApiContext = __ApiPreviewProps & {
   trustHostHeader?: boolean
+  allowedRevalidateHeaderKeys?: string[]
   revalidate?: (_req: IncomingMessage, _res: ServerResponse) => Promise<any>
 }
 
@@ -366,7 +367,7 @@ async function revalidate(
       `Invalid urlPath provided to revalidate(), must be a path e.g. /blog/post-1, received ${urlPath}`
     )
   }
-  const revalidateHeaders = {
+  const revalidateHeaders: HeadersInit = {
     [PRERENDER_REVALIDATE_HEADER]: context.previewModeId,
     ...(opts.unstable_onlyGenerated
       ? {
@@ -374,15 +375,24 @@ async function revalidate(
         }
       : {}),
   }
+  const allowedRevalidateHeaderKeys = [
+    ...(context.allowedRevalidateHeaderKeys || []),
+    ...(context.trustHostHeader
+      ? ['cookie', 'x-vercel-protection-bypass']
+      : []),
+  ]
+
+  for (const key of Object.keys(req.headers)) {
+    if (allowedRevalidateHeaderKeys.includes(key)) {
+      revalidateHeaders[key] = req.headers[key] as string
+    }
+  }
 
   try {
     if (context.trustHostHeader) {
       const res = await fetch(`https://${req.headers.host}${urlPath}`, {
         method: 'HEAD',
-        headers: {
-          ...revalidateHeaders,
-          cookie: req.headers.cookie || '',
-        },
+        headers: revalidateHeaders,
       })
       // we use the cache header to determine successful revalidate as
       // a non-200 status code can be returned from a successful revalidate

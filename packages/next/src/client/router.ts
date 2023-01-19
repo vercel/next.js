@@ -133,7 +133,7 @@ export function useRouter(): NextRouter {
   const router = React.useContext(RouterContext)
   if (!router) {
     throw new Error(
-      'Error: NextRouter was not mounted. https://nextjs.org/docs/messages/next-router-not-mounted'
+      'NextRouter was not mounted. https://nextjs.org/docs/messages/next-router-not-mounted'
     )
   }
 

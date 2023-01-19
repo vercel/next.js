@@ -83,7 +83,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
 
     await session.patch(
       'index.js',
@@ -107,7 +107,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
 
     await session.patch(
       'index.js',
@@ -131,7 +131,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
 
     await session.patch(
       'index.js',
@@ -155,7 +155,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false)
 
     await session.patch(
       'index.js',

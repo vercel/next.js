@@ -251,7 +251,7 @@ module.exports = {
       {
         // does not add /docs since basePath: false is set
         source: '/without-basePath',
-        destination: '/another',
+        destination: 'https://example.com',
         basePath: false,
         permanent: false,
       },
