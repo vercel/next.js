@@ -474,8 +474,9 @@ export default class HotReloader {
   private async getVersionInfo(span: Span) {
     const versionInfoSpan = span.traceChild('get-version-info')
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
+      let installed = '0.0.0'
       try {
-        const installed = require('next/package.json').version
+        installed = require('next/package.json').version
 
         const res = await fetch(
           'https://registry.npmjs.org/-/package/next/dist-tags'
@@ -491,7 +492,7 @@ export default class HotReloader {
           canary: tags.canary,
         })
       } catch {
-        return { installed: '0.0.0', staleness: 'unknown' }
+        return { installed, staleness: 'unknown' }
       }
     })
   }
