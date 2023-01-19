@@ -169,22 +169,12 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   ? React.StrictMode
   : React.Fragment
 
-let unpatchConsoleError: (() => void) | undefined = undefined
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   React.useEffect(() => {
     if (process.env.__NEXT_ANALYTICS_ID) {
       require('./performance-relayer-app')()
     }
   }, [])
-
-  if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    React.useEffect(() => {
-      if (unpatchConsoleError) {
-        unpatchConsoleError()
-      }
-    }, [])
-  }
 
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -266,12 +256,12 @@ export function hydrate() {
   const isError = document.documentElement.id === '__next_error__'
 
   if (process.env.NODE_ENV !== 'production') {
-    // Patch console.error to collect information about potetional hydration errors
+    // Patch console.error to collect information about hydration errors
     const patchConsoleError =
       require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
         .patchConsoleError as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').patchConsoleError
     if (!isError) {
-      unpatchConsoleError = patchConsoleError()
+      patchConsoleError()
     }
   }
 

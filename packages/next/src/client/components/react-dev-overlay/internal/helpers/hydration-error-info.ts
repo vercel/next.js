@@ -8,8 +8,7 @@ const knownHydrationWarnings = new Set([
   'Warning: Did not expect server HTML to contain the text node "%s" in <%s>.%s',
 ])
 
-type UnpatchConsoleError = () => void
-export function patchConsoleError(): UnpatchConsoleError {
+export function patchConsoleError() {
   const prev = console.error
   console.error = function (
     msg,
@@ -27,9 +26,5 @@ export function patchConsoleError(): UnpatchConsoleError {
 
     // @ts-expect-error argument is defined
     prev.apply(console, arguments)
-  }
-
-  return () => {
-    console.error = prev
   }
 }
