@@ -10,12 +10,6 @@ Import trace for requested module:
 https://nextjs.org/docs/messages/module-not-found"
 `;
 
-exports[`ReactRefreshLogBox app default Hydration errors should get error link 1`] = `
-"Error: Text content does not match server-rendered HTML.
-
-See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-`;
-
 exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
 "./app/module.js:1:0
 Module not found: Can't resolve 'non-existing-module'
