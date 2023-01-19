@@ -75,7 +75,10 @@ Error:
    \`----
 
 Caused by:
-    Syntax Error"
+    Syntax Error
+
+Import trace for requested module:
+./index.js"
 `;
 
 exports[`ReactRefreshLogBox default module init error not shown 1`] = `
@@ -151,7 +154,10 @@ Error:
 
 Caused by:
     0: error was recoverable, but proceeding would result in wrong codegen
-    1: Syntax Error"
+    1: Syntax Error
+
+Import trace for requested module:
+./index.js"
 `;
 
 exports[`ReactRefreshLogBox default syntax > runtime error 3`] = `
@@ -168,7 +174,10 @@ Error:
 
 Caused by:
     0: error was recoverable, but proceeding would result in wrong codegen
-    1: Syntax Error"
+    1: Syntax Error
+
+Import trace for requested module:
+./index.js"
 `;
 
 exports[`ReactRefreshLogBox default unterminated JSX 1`] = `
@@ -193,5 +202,8 @@ Error:
    \`----
 
 Caused by:
-    Syntax Error"
+    Syntax Error
+
+Import trace for requested module:
+./index.js"
 `;
