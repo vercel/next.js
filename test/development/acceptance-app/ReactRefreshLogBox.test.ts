@@ -107,7 +107,7 @@ for (const variant of ['default', 'turbo']) {
         /Count: 1/
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await cleanup()
     })
@@ -169,7 +169,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(await session.hasErrorToast()).toBe(false)
 
       expect(
@@ -180,7 +180,7 @@ for (const variant of ['default', 'turbo']) {
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('Count: 2')
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(await session.hasErrorToast()).toBe(false)
 
       await cleanup()
@@ -242,7 +242,7 @@ for (const variant of ['default', 'turbo']) {
 
       // TODO-APP: re-enable when error recovery doesn't reload the page.
       // expect(didNotReload).toBe(true)
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('Hello')
@@ -285,10 +285,7 @@ for (const variant of ['default', 'turbo']) {
 `
       )
 
-      expect(await browser.waitForElementByCss('p').text()).toBe(
-        'Hello world 2'
-      )
-
+      await check(() => browser.elementByCss('p').text(), 'Hello world 2')
       await cleanup()
     })
 
@@ -529,7 +526,7 @@ for (const variant of ['default', 'turbo']) {
       )
 
       // Expected: this fixes the problem
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await cleanup()
     })
@@ -704,7 +701,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       await session.patch(
         'index.js',
@@ -755,7 +752,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('hello')
@@ -787,7 +784,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('hello new')
@@ -813,7 +810,7 @@ for (const variant of ['default', 'turbo']) {
       `
       )
 
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       // Syntax error
       await session.patch('index.module.css', `.button {`)
@@ -1222,7 +1219,7 @@ for (const variant of ['default', 'turbo']) {
         () => browser.elementByCss('.nextjs-toast-errors').text(),
         /4 errors/
       )
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       // Add Component error
       await session.patch(
@@ -1331,7 +1328,7 @@ for (const variant of ['default', 'turbo']) {
       expect(await browser.waitForElementByCss('#text').text()).toBe(
         'Hello world'
       )
-      expect(await session.hasRedbox()).toBe(false)
+      expect(await session.hasRedbox(false)).toBe(false)
 
       // Re-add error
       await session.patch(
@@ -1365,6 +1362,36 @@ for (const variant of ['default', 'turbo']) {
       await browser.refresh()
       await session.waitForAndOpenRuntimeError()
       expect(await session.getRedboxDescription()).toMatchSnapshot()
+
+      await cleanup()
+    })
+
+    test('Import trace when module not found in layout', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+
+        new Map([['app/module.js', `import "non-existing-module"`]])
+      )
+
+      await session.patch(
+        'app/layout.js',
+        `
+        import "./module"
+
+        export default function RootLayout({ children }) {
+          return (
+            <html>
+              <head></head>
+              <body>{children}</body>
+            </html>
+          )
+        }
+        
+    `
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchSnapshot()
 
       await cleanup()
     })

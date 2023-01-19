@@ -1,3 +1,4 @@
+import { Telemetry } from '../../telemetry/storage'
 import { traceGlobals } from '../shared'
 
 const TRACE_EVENT_ACCESSLIST = new Map(
@@ -11,7 +12,7 @@ const reportToTelemetry = (spanName: string, duration: number) => {
   if (!eventName) {
     return
   }
-  const telemetry = traceGlobals.get('telemetry')
+  const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
   if (!telemetry) {
     return
   }

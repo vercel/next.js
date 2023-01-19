@@ -22,7 +22,7 @@ module.exports = function (task) {
       } = {}
     ) {
       // Don't compile .d.ts
-      if (file.base.endsWith('.d.ts')) return
+      if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
 
       const isClient = serverOrClient === 'client'
 

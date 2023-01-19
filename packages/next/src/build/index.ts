@@ -1325,9 +1325,9 @@ export default async function build(
           runtimeEnvConfig
         )
 
-        // eslint-disable-next-line no-shadow
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
-        // eslint-disable-next-line no-shadow
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         let hasSsrAmpPages = false
 
         const computedManifestData = await computeFromManifest(

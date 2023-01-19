@@ -229,6 +229,9 @@ const configSchema = {
         adjustFontFallbacksWithSizeAdjust: {
           type: 'boolean',
         },
+        allowedRevalidateHeaderKeys: {
+          type: 'array',
+        },
         amp: {
           additionalProperties: false,
           properties: {
