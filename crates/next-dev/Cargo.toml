@@ -64,6 +64,7 @@ chromiumoxide = { version = "0.4.0", features = [
 ], default-features = false }
 criterion = { version = "0.4.0", features = ["async_tokio"] }
 fs_extra = "1.2.0"
+httpmock = { version = "0.6.6", features = ["standalone"] }
 lazy_static = "1.4.0"
 once_cell = "1.13.0"
 parking_lot = "0.12.1"

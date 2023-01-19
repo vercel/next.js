@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use indoc::formatdoc;
 use once_cell::sync::Lazy;
 use turbo_tasks::primitives::{OptionStringVc, OptionU16Vc, StringVc, U32Vc};
+use turbo_tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
 use turbo_tasks_fetch::fetch;
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbo_tasks_hash::hash_xxh3_hash64;
@@ -276,10 +277,19 @@ async fn get_request_hash(query_vc: QueryMapVc) -> Result<U32Vc> {
 
 #[turbo_tasks::function]
 async fn get_stylesheet_url_from_options(options: NextFontGoogleOptionsVc) -> Result<StringVc> {
-    let options = options.await?;
+    #[allow(unused_mut, unused_assignments)] // This is used in test environments
+    let mut css_url: Option<String> = None;
+    #[cfg(debug_assertions)]
+    {
+        let env = CommandLineProcessEnvVc::new();
+        if let Some(url) = &*env.read("TURBOPACK_TEST_ONLY_MOCK_SERVER").await? {
+            css_url = Some(format!("{}/css2", url));
+        }
+    }
 
+    let options = options.await?;
     Ok(StringVc::cell(get_stylesheet_url(
-        GOOGLE_FONTS_STYLESHEET_URL,
+        css_url.as_deref().unwrap_or(GOOGLE_FONTS_STYLESHEET_URL),
         &options.font_family,
         &get_font_axes(
             &FONT_DATA,

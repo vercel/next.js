@@ -4,7 +4,10 @@ use turbopack_ecmascript::NextJsPageExportFilter;
 
 use crate::{
     next_server::context::ServerContextType,
-    next_shared::transforms::{get_next_dynamic_transform_rule, get_next_pages_transforms_rule},
+    next_shared::transforms::{
+        get_next_dynamic_transform_rule, get_next_font_transform_rule,
+        get_next_pages_transforms_rule,
+    },
 };
 
 /// Returns a list of module rules which apply server-side, Next.js-specific
@@ -12,7 +15,7 @@ use crate::{
 pub async fn get_next_server_transforms_rules(
     context_ty: ServerContextType,
 ) -> Result<Vec<ModuleRule>> {
-    let mut rules = vec![];
+    let mut rules = vec![get_next_font_transform_rule()];
 
     let (is_server_components, pages_dir) = match context_ty {
         ServerContextType::Pages { pages_dir } => (false, Some(pages_dir)),
