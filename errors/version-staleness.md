@@ -44,11 +44,11 @@ or
 pnpm add next@latest
 ```
 
-If you are coming from an older major version, check out our upgrade guides.
+If you are coming from an older major version, check out our [upgrade guides](https://nextjs.org/docs/upgrading).
 
 ### Note
 
-If you want to report a bug on GitHub, it is required that you first check if `canary` has the issue, to make sure it hasn't already been fixed.
+If you want to report a bug on GitHub, you should upgrade to the latest canary release of Next.js first, to see if the bug has already been fixed in canary.
 
 ### Useful Links
 
