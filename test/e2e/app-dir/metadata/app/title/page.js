@@ -1,5 +1,13 @@
+import Link from 'next/link'
+
 export default function Page() {
-  return <p>hello</p>
+  return (
+    <div id="title">
+      <Link id="to-index" href="/">
+        to index
+      </Link>
+    </div>
+  )
 }
 
 export const metadata = {

@@ -1,11 +1,19 @@
+import Link from 'next/link'
+
 export default function Page() {
-  return <p>hello</p>
+  return (
+    <div id="basic">
+      <Link id="to-index" href="/">
+        to index
+      </Link>
+    </div>
+  )
 }
 
 export const metadata = {
   generator: 'next.js',
   applicationName: 'test',
-  referrer: 'https://example.com',
+  referrer: 'origin-when-crossorigin',
   keywords: ['next.js', 'react', 'javascript'],
   authors: ['John Doe', 'Jane Doe'],
   themeColor: 'cyan',

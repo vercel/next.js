@@ -66,7 +66,12 @@ createNextDescribe(
           const browser = await next.browser('/basic')
           await checkMeta(browser, 'generator', 'next.js', 'name')
           await checkMeta(browser, 'application-name', 'test', 'name')
-          await checkMeta(browser, 'referrer', 'https://example.com', 'name')
+          await checkMeta(
+            browser,
+            'referrer',
+            'origin-when-crossorigin',
+            'name'
+          )
           await checkMeta(
             browser,
             'keywords',
@@ -139,6 +144,32 @@ createNextDescribe(
             'link',
             'href'
           )
+        })
+
+        it('should apply metadata when navigating client-side', async () => {
+          const browser = await next.browser('/')
+
+          const getTitle = () => browser.elementByCss('title').text()
+
+          expect(await getTitle()).toBe('index page')
+          await browser
+            .elementByCss('#to-basic')
+            .click()
+            .waitForElementByCss('#basic', 2000)
+
+          await checkMeta(
+            browser,
+            'referrer',
+            'origin-when-crossorigin',
+            'name'
+          )
+          await browser.back().waitForElementByCss('#index', 2000)
+          expect(await getTitle()).toBe('index page')
+          await browser
+            .elementByCss('#to-title')
+            .click()
+            .waitForElementByCss('#title', 2000)
+          expect(await getTitle()).toBe('this is the page title')
         })
       })
 
