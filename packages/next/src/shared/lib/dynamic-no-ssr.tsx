@@ -11,7 +11,7 @@ export function suspense() {
 
 type Child = React.ReactElement<any, any>
 
-export default function NoSSR({ children }: { children: Child }): Child {
+export function NoSSR({ children }: { children: Child }): Child {
   if (typeof window === 'undefined') {
     suspense()
   }

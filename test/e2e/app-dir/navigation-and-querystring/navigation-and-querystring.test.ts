@@ -1,7 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
-import { waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 describe('app-dir navigation and querystring', () => {
   let next: NextInstance
@@ -20,11 +20,12 @@ describe('app-dir navigation and querystring', () => {
     )
 
     browser.elementById('set-query').click()
-    await waitFor(200)
 
-    expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
-      `"a=b&c=d"`
+    await check(
+      async () => await browser.elementById('query').text(),
+      'a=b&c=d'
     )
+
     const url = new URL(await browser.url())
     expect(url.searchParams.toString()).toMatchInlineSnapshot(`"a=b&c=d"`)
   })

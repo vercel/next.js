@@ -129,7 +129,7 @@ describe.each([[''], ['/docs']])(
               () => browser.elementByCss('body').text(),
               /Hello World 1/
             )
-            expect(await hasRedbox(browser)).toBe(false)
+            expect(await hasRedbox(browser, false)).toBe(false)
           } finally {
             if (browser) {
               await browser.close()

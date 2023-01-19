@@ -24,7 +24,7 @@ Here's an example `.babelrc` file:
 }
 ```
 
-You can [take a look at this file](https://github.com/vercel/next.js/blob/canary/packages/next/build/babel/preset.ts) to learn about the presets included by `next/babel`.
+You can [take a look at this file](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/babel/preset.ts) to learn about the presets included by `next/babel`.
 
 To add presets/plugins **without configuring them**, you can do it this way:
 

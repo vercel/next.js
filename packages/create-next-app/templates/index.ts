@@ -1,12 +1,16 @@
 import { install } from '../helpers/install'
 
 import cpy from 'cpy'
+import globOrig from 'glob'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import chalk from 'chalk'
+import util from 'util'
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
+
+const glob = util.promisify(globOrig)
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -33,6 +37,7 @@ export const installTemplate = async ({
   mode,
   eslint,
   srcDir,
+  importAlias,
 }: InstallTemplateArgs) => {
   console.log(chalk.bold(`Using ${packageManager}.`))
 
@@ -97,6 +102,7 @@ export const installTemplate = async ({
 
     await install(root, dependencies, installFlags)
   }
+
   /**
    * Copy the template files to the target directory.
    */
@@ -123,6 +129,38 @@ export const installTemplate = async ({
     },
   })
 
+  const tsconfigFile = path.join(
+    root,
+    mode === 'js' ? 'jsconfig.json' : 'tsconfig.json'
+  )
+  await fs.promises.writeFile(
+    tsconfigFile,
+    (await fs.promises.readFile(tsconfigFile, 'utf8'))
+      .replace(
+        `"@/*": ["./*"]`,
+        srcDir ? `"@/*": ["./src/*"]` : `"@/*": ["./*"]`
+      )
+      .replace(`"@/*":`, `"${importAlias}":`)
+  )
+
+  // update import alias in any files if not using the default
+  if (importAlias !== '@/*') {
+    const files = await glob('**/*', { cwd: root, dot: true })
+    await Promise.all(
+      files.map(async (file) => {
+        const filePath = path.join(root, file)
+        if ((await fs.promises.stat(filePath)).isFile()) {
+          await fs.promises.writeFile(
+            filePath,
+            (
+              await fs.promises.readFile(filePath, 'utf8')
+            ).replace(`@/`, `${importAlias.replace(/\*/g, '')}`)
+          )
+        }
+      })
+    )
+  }
+
   if (srcDir) {
     await fs.promises.mkdir(path.join(root, 'src'), { recursive: true })
     await Promise.all(
@@ -135,16 +173,6 @@ export const installTemplate = async ({
             }
           })
       })
-    )
-    const tsconfigFile = path.join(
-      root,
-      mode === 'js' ? 'jsconfig.json' : 'tsconfig.json'
-    )
-    await fs.promises.writeFile(
-      tsconfigFile,
-      (
-        await fs.promises.readFile(tsconfigFile, 'utf8')
-      ).replace(`"@/*": ["./*"]`, `"@/*": ["./src/*"]`)
     )
   }
 
