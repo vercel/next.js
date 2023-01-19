@@ -1,3 +1,3 @@
 export default function Page({ params }) {
-  return <p>Photo {params.id}</p>
+  return <p id={`photo-page-${params.id}`}>Photo PAGE {params.id}</p>
 }

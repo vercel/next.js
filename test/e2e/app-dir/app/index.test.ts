@@ -416,6 +416,74 @@ createNextDescribe(
       })
     })
 
+    describe('route intercepting', () => {
+      it('should render intercepted route', async () => {
+        const browser = await next.browser('/intercepting-routes/feed')
+
+        // Check if navigation to modal route works.
+        expect(
+          await browser
+            .elementByCss('[href="/intercepting-routes/photos/1"]')
+            .click()
+            .waitForElementByCss('#photo-intercepted-1')
+            .text()
+        ).toBe('Photo INTERCEPTED 1')
+
+        // Check if intercepted route was rendered while existing page content was removed.
+        // Content would only be preserved when combined with parallel routes.
+        expect(await browser.elementByCss('#feed-page').text()).not.toBe('Feed')
+
+        // Check if url matches even though it was intercepted.
+        expect(await browser.url()).toBe(
+          next.url + '/intercepting-routes/photos/1'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        expect(
+          await browser.refresh().waitForElementByCss('#photo-page-1').text()
+        ).toBe('Photo PAGE 1')
+
+        // Check if the url matches still.
+        expect(await browser.url()).toBe(
+          next.url + '/intercepting-routes/photos/1'
+        )
+      })
+
+      it('should render modal when paired with parallel routes', async () => {
+        const browser = await next.browser(
+          '/intercepting-parallel-modal/vercel'
+        )
+        // Check if navigation to modal route works.
+        expect(
+          await browser
+            .elementByCss('[href="/intercepting-parallel-modal/photos/1"]')
+            .click()
+            .waitForElementByCss('#photo-modal-1')
+            .text()
+        ).toBe('Photo MODAL 1')
+
+        // Check if modal was rendered while existing page content is preserved.
+        expect(await browser.elementByCss('#user-page').text()).toBe(
+          'Feed for vercel'
+        )
+
+        // Check if url matches even though it was intercepted.
+        expect(await browser.url()).toBe(
+          next.url + '/intercepting-parallel-modal/photos/1'
+        )
+
+        // Trigger a refresh, this should load the normal page, not the modal.
+        expect(
+          await browser.refresh().waitForElementByCss('#photo-page-1').text()
+        ).toBe('Photo PAGE 1')
+
+        // Check if the url matches still.
+        expect(await browser.url()).toBe(
+          next.url + '/intercepting-parallel-modal/photos/1'
+        )
+      })
+    })
+
     describe('<Link />', () => {
       it('should hard push', async () => {
         const browser = await next.browser('/link-hard-push/123')

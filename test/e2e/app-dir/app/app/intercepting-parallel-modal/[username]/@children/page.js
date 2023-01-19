@@ -1,13 +1,15 @@
 import Link from 'next/link'
 
-export default function Page() {
+export default function Page({ params }) {
   return (
     <>
-      <h1>Feed</h1>
+      <h2 id="user-page">Feed for {params.username}</h2>
       <ul>
         {Array.from({ length: 10 }).map((_, i) => (
           <li>
-            <Link href={`/intercepting-routes/photos/${i}`}>Link {i}</Link>
+            <Link href={`/intercepting-parallel-modal/photos/${i}`}>
+              Link {i}
+            </Link>
           </li>
         ))}
       </ul>
