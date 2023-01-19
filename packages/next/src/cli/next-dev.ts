@@ -487,6 +487,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         return () => cluster.removeListener('exit', callback)
       }
       let clusterExitUnsub = handleClusterExit()
+      // x-ref: https://nodejs.org/api/cluster.html#clustersettings
+      // @ts-expect-error type is incorrect
+      cluster.settings.windowsHide = true
       cluster.settings.stdio = ['ipc', 'pipe', 'pipe']
 
       setupFork()
