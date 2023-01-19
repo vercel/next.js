@@ -131,6 +131,9 @@ async fn run_test(resource: &str) -> JestRunResult {
     let project_dir = workspace_root.join(resource);
     let requested_addr = get_free_local_addr().unwrap();
 
+    let mock_dir = path.join("__httpmock__");
+    let mock_server_future = get_mock_server_future(&mock_dir);
+
     let server = NextDevServerBuilder::new(
         TurboTasks::new(MemoryBackend::new()),
         sys_to_unix(&project_dir.to_string_lossy()).to_string(),
@@ -159,10 +162,16 @@ async fn run_test(resource: &str) -> JestRunResult {
         address = server.addr
     );
 
-    tokio::select! {
+    let result = tokio::select! {
+        // Poll the mock_server first to add the env var
+        _ = mock_server_future => panic!("Never resolves"),
         r = run_browser(server.addr) => r.expect("error while running browser"),
         _ = server.future => panic!("Never resolves"),
-    }
+    };
+
+    env::remove_var("TURBOPACK_TEST_ONLY_MOCK_SERVER");
+
+    result
 }
 
 async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinHandle<()>)> {
@@ -247,4 +256,25 @@ fn get_free_local_addr() -> Result<SocketAddr, std::io::Error> {
     let socket = TcpSocket::new_v4()?;
     socket.bind("127.0.0.1:0".parse().unwrap())?;
     socket.local_addr()
+}
+
+async fn get_mock_server_future(mock_dir: &Path) -> Result<(), String> {
+    if mock_dir.exists() {
+        let port = get_free_local_addr().unwrap().port();
+        env::set_var(
+            "TURBOPACK_TEST_ONLY_MOCK_SERVER",
+            format!("http://127.0.0.1:{}", port),
+        );
+
+        httpmock::standalone::start_standalone_server(
+            port,
+            false,
+            Some(mock_dir.to_path_buf()),
+            false,
+            0,
+        )
+        .await
+    } else {
+        std::future::pending::<Result<(), String>>().await
+    }
 }
