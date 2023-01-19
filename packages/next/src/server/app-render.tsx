@@ -1678,7 +1678,13 @@ export async function renderToHTMLOrFlight(
             parentParams: {},
             flightRouterState: providedFlightRouterState,
             isFirst: true,
-            rscPayloadHead,
+            rscPayloadHead: (
+              <>
+                {/* @ts-expect-error allow to use async server component */}
+                <Metadata metadata={metadataItems} />
+                {rscPayloadHead}
+              </>
+            ),
             injectedCSS: new Set(),
             rootLayoutIncluded: false,
           })
@@ -1767,13 +1773,17 @@ export async function renderToHTMLOrFlight(
 
         return (
           <>
-            {/* @ts-expect-error allow to use async server component */}
-            <Metadata metadata={metadataItems} />
             <AppRouter
               assetPrefix={assetPrefix}
               initialCanonicalUrl={initialCanonicalUrl}
               initialTree={initialTree}
-              initialHead={initialHead}
+              initialHead={
+                <>
+                  {/* @ts-expect-error allow to use async server component */}
+                  <Metadata metadata={metadataItems} />
+                  {initialHead}
+                </>
+              }
               globalErrorComponent={GlobalError}
             >
               <ComponentTree />
