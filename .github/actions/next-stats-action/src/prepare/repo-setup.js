@@ -4,23 +4,7 @@ const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
 const semver = require('semver')
-
-const mockTrace = () => ({
-  traceAsyncFn: (fn) => fn(mockTrace()),
-  traceChild: () => mockTrace(),
-})
-
-let turboRepoRoot = path.join(__dirname, '..', '..', '..', '..', '..')
-
-// stats-action runs this code without access to the original repo.
-// In that case we just use the temporary directory (everything is temporary anyway in CI)
-if (turboRepoRoot === '/') {
-  turboRepoRoot = path.join(__dirname, '..', '..')
-}
-
-/** Save turbo cache to persistent storage */
-const turboCacheLocation = path.join(turboRepoRoot, 'node_modules/.cache/turbo')
-const packedPkgsDir = path.join(turboRepoRoot, 'test/tmp/packedPkgs')
+const execa = require('execa')
 
 module.exports = (actionInfo) => {
   return {
@@ -70,145 +54,28 @@ module.exports = (actionInfo) => {
         }
       }
     },
-    async linkPackages({ repoDir = '', nextSwcPkg, parentSpan }) {
-      const rootSpan = parentSpan
-        ? parentSpan.traceChild('linkPackages')
-        : mockTrace()
-
-      return await rootSpan.traceAsyncFn(async () => {
-        const pkgPaths = new Map()
-        const pkgDatas = new Map()
-        let pkgs
-
-        try {
-          pkgs = await fs.readdir(path.join(repoDir, 'packages'))
-        } catch (err) {
-          if (err.code === 'ENOENT') {
-            require('console').log('no packages to link')
-            return pkgPaths
-          }
-          throw err
-        }
-
-        await rootSpan
-          .traceChild('prepare packages for packing')
-          .traceAsyncFn(async () => {
-            await fs.ensureDir(packedPkgsDir)
-            const repoData = require(path.join(repoDir, 'package.json'))
-
-            for (const pkg of pkgs) {
-              const pkgPath = path.join(repoDir, 'packages', pkg)
-              const packedPkgPath = path.join(
-                packedPkgsDir,
-                `${pkg}-packed.tgz`
-              )
-
-              const pkgDataPath = path.join(pkgPath, 'package.json')
-              if (!fs.existsSync(pkgDataPath)) {
-                require('console').log(`Skipping ${pkgDataPath}`)
-                continue
-              }
-              const pkgData = require(pkgDataPath)
-              const { name } = pkgData
-              pkgDatas.set(name, {
-                pkgDataPath,
-                pkg,
-                pkgPath,
-                pkgData,
-                packedPkgPath,
-              })
-              pkgPaths.set(name, packedPkgPath)
-            }
-
-            for (const pkg of pkgDatas.keys()) {
-              const { pkgDataPath, pkgData, pkgPath, packedPkgPath } =
-                pkgDatas.get(pkg)
-
-              for (const pkg of pkgDatas.keys()) {
-                const { packedPkgPath } = pkgDatas.get(pkg)
-                if (!pkgData.dependencies || !pkgData.dependencies[pkg])
-                  continue
-                pkgData.dependencies[pkg] = packedPkgPath
-              }
-
-              // make sure native binaries are included in local linking
-              if (pkg === '@next/swc') {
-                if (!pkgData.files) {
-                  pkgData.files = []
-                }
-                pkgData.files.push('native')
-                require('console').log(
-                  'using swc binaries: ',
-                  await exec(
-                    `ls ${path.join(path.dirname(pkgDataPath), 'native')}`
-                  )
-                )
-              }
-
-              if (pkg === 'next') {
-                if (nextSwcPkg) {
-                  Object.assign(pkgData.dependencies, nextSwcPkg)
-                } else {
-                  if (pkgDatas.get('@next/swc')) {
-                    pkgData.dependencies['@next/swc'] =
-                      pkgDatas.get('@next/swc').packedPkgPath
-                  } else {
-                    pkgData.files.push('native')
-                  }
-                }
-              }
-
-              // Turbo requires package manager specification
-              pkgData.packageManager =
-                pkgData.packageManager || repoData.packageManager
-
-              pkgData.scripts = {
-                ...pkgData.scripts,
-                'test-pack': `yarn pack -f ${packedPkgPath}`,
-              }
-
-              await fs.writeJSON(path.join(pkgPath, 'turbo.json'), {
-                pipeline: {
-                  'test-pack': {
-                    outputs: [packedPkgPath],
-                    inputs: ['*', '!node_modules/', '!.turbo/'],
-                  },
-                },
-              })
-
-              // Turbo requires pnpm-lock.yaml that is not empty
-              await fs.writeFile(path.join(pkgPath, 'pnpm-lock.yaml'), '')
-
-              await fs.writeFile(
-                pkgDataPath,
-                JSON.stringify(pkgData, null, 2),
-                'utf8'
-              )
-            }
-          })
-
-        // wait to pack packages until after dependency paths have been updated
-        // to the correct versions
-        await rootSpan
-          .traceChild('packing packages')
-          .traceAsyncFn(async (packingSpan) => {
-            await Promise.all(
-              Array.from(pkgDatas.keys()).map(async (pkgName) => {
-                await packingSpan
-                  .traceChild(`pack ${pkgName}`)
-                  .traceAsyncFn(async () => {
-                    const { pkgPath } = pkgDatas.get(pkgName)
-                    await exec(
-                      `pnpm run --dir="${turboRepoRoot}" turbo run test-pack --cache-dir="${turboCacheLocation}" --cwd="${pkgPath}"`,
-                      true
-                    )
-                  })
-              })
-            )
-          })
-
-        return pkgPaths
+    async linkPackages({ repoDir, nextSwcVersion }) {
+      execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
+        cwd: repoDir,
+        env: { NEXT_SWC_VERSION: nextSwcVersion },
       })
+
+      const pkgPaths = new Map()
+      const pkgs = await fs.readdir(path.join(repoDir, 'packages'))
+
+      pkgs.forEach((pkgDirname) => {
+        const { name } = require(path.join(
+          repoDir,
+          'packages',
+          pkgDirname,
+          'package.json'
+        ))
+        pkgPaths.set(
+          name,
+          path.join(repoDir, 'packages', pkgDirname, `packed-${pkgDirname}.tgz`)
+        )
+      })
+      return pkgPaths
     },
   }
 }

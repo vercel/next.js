@@ -63,9 +63,8 @@ export class NextStartInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    console.log('running', buildArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
-      console.log('running', buildArgs.join(' '))
-
       try {
         this.childProcess = spawn(
           buildArgs[0],
@@ -99,7 +98,6 @@ export class NextStartInstance extends NextInstance {
     ).trim()
 
     console.log('running', startArgs.join(' '))
-
     await new Promise<void>((resolve) => {
       try {
         this.childProcess = spawn(
@@ -112,7 +110,7 @@ export class NextStartInstance extends NextInstance {
         this.childProcess.on('close', (code, signal) => {
           if (this.isStopping) return
           if (code || signal) {
-            throw new Error(
+            require('console').error(
               `next start exited unexpectedly with code/signal ${
                 code || signal
               }`

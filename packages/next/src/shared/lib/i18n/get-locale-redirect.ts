@@ -108,7 +108,9 @@ export function getLocaleRedirect({
     if (detectedLocale.toLowerCase() !== defaultLocale.toLowerCase()) {
       return formatUrl({
         ...urlParsed,
-        pathname: `${nextConfig.basePath || ''}/${detectedLocale}`,
+        pathname: `${nextConfig.basePath || ''}/${detectedLocale}${
+          nextConfig.trailingSlash ? '/' : ''
+        }`,
       })
     }
   }

@@ -57,7 +57,9 @@ const HotlinkedText: React.FC<{
             if (linkRegex.test(word)) {
               return (
                 <React.Fragment key={`link-${index}`}>
-                  <a href={word}>{word}</a>
+                  <a href={word} target="_blank" rel="noreferrer noopener">
+                    {word}
+                  </a>
                   {index === array.length - 1 ? '' : ' '}
                 </React.Fragment>
               )

@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ReactRefreshLogBox app Module not found 1`] = `
+exports[`ReactRefreshLogBox app default Module not found 1`] = `
 "./index.js:1:0
 Module not found: Can't resolve 'b'
 > 1 | import Comp from 'b'
@@ -14,7 +14,7 @@ Import trace for requested module:
 https://nextjs.org/docs/messages/module-not-found"
 `;
 
-exports[`ReactRefreshLogBox app Module not found empty import trace 1`] = `
+exports[`ReactRefreshLogBox app default Module not found empty import trace 1`] = `
 "./app/page.js:2:6
 Module not found: Can't resolve 'b'
   1 | 'use client'
@@ -27,7 +27,7 @@ Module not found: Can't resolve 'b'
 https://nextjs.org/docs/messages/module-not-found"
 `;
 
-exports[`ReactRefreshLogBox app Module not found missing global CSS 1`] = `
+exports[`ReactRefreshLogBox app default Module not found missing global CSS 1`] = `
 "./app/page.js:2:10
 Module not found: Can't resolve './non-existent.css'
   1 | 'use client'
@@ -40,7 +40,7 @@ Module not found: Can't resolve './non-existent.css'
 https://nextjs.org/docs/messages/module-not-found"
 `;
 
-exports[`ReactRefreshLogBox app Node.js builtins 1`] = `
+exports[`ReactRefreshLogBox app default Node.js builtins 1`] = `
 "./node_modules/my-package/index.js:2:0
 Module not found: Can't resolve 'dns'
 

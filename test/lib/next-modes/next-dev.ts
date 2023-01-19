@@ -35,6 +35,7 @@ export class NextDevInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    console.log('running', startArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
@@ -69,7 +70,7 @@ export class NextDevInstance extends NextInstance {
         this.childProcess.on('close', (code, signal) => {
           if (this.isStopping) return
           if (code || signal) {
-            throw new Error(
+            require('console').error(
               `next dev exited unexpectedly with code/signal ${code || signal}`
             )
           }
