@@ -13,12 +13,13 @@ Module not found: Can't resolve 'non-existing-module'
 
 Import trace for requested module:
 ./app/layout.js
+./node_modules/.pnpm/file+..+..+..+..+..+..+..+Users+kdy1+projects+next-up+packages+next+packed-next.tgz_biqbaboplfbrettd7655fr4n2y/node_modules/next/dist/build/webpack/loaders/next-app-loader.js?name=app%2Fpage&appPaths=%2Fpage&pagePath=private-next-app-dir%2Fpage.js&appDir=%2Fprivate%2Fvar%2Ffolders%2Fpw%2F7l7d6f6s6ngb9z17pc912mtc0000gn%2FT%2Fnext-install-5e41dcf0981d536e63fbf6d6ff83331cb44ebf124ae591b21c15691aded25753%2Fapp&pageExtensions=tsx&pageExtensions=ts&pageExtensions=jsx&pageExtensions=js&rootDir=%2Fprivate%2Fvar%2Ffolders%2Fpw%2F7l7d6f6s6ngb9z17pc912mtc0000gn%2FT%2Fnext-install-5e41dcf0981d536e63fbf6d6ff83331cb44ebf124ae591b21c15691aded25753&isDev=true&tsconfigPath=tsconfig.json!
 
 https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
-"index.js (4:16) @ default
+"index.js (4:16) @ __webpack_exports__.default
 
   2 | export default () => {
   3 |  if (typeof window !== 'undefined') {
@@ -104,12 +105,7 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error
-
-Import trace for requested module:
-./index.js
-./app/page.js"
+    Syntax Error"
 `;
 
 exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
@@ -237,10 +233,5 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error
-
-Import trace for requested module:
-./index.js
-./app/page.js"
+    Syntax Error"
 `;
