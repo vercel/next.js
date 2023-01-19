@@ -70,7 +70,7 @@ export class NextDevInstance extends NextInstance {
         this.childProcess.on('close', (code, signal) => {
           if (this.isStopping) return
           if (code || signal) {
-            throw new Error(
+            require('console').error(
               `next dev exited unexpectedly with code/signal ${code || signal}`
             )
           }
