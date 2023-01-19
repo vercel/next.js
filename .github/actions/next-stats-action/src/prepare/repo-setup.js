@@ -149,8 +149,10 @@ module.exports = (actionInfo) => {
           }
 
           if (pkg === 'next') {
-            if (nextSwcPkg) {
-              Object.assign(pkgData.dependencies, nextSwcPkg)
+            if (nextSwcVersion) {
+              Object.assign(pkgData.dependencies, {
+                '@next/swc-linux-x64-gnu': nextSwcVersion,
+              })
             } else {
               if (pkgDatas.get('@next/swc')) {
                 pkgData.dependencies['@next/swc'] =
