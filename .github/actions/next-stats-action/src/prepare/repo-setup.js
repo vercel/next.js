@@ -59,11 +59,12 @@ module.exports = (actionInfo) => {
 
       try {
         hasTestPack = Boolean(
-          (await fs.readJSON(path.join(repoDir, 'package.json'))).scripts || {}
-        )['test-pack']
-      } catch (_) {}
-
-      console.error({ hasTestPack })
+          ((await fs.readJSON(path.join(repoDir, 'package.json'))).scripts ||
+            {})['test-pack']
+        )
+      } catch (err) {
+        console.error(err)
+      }
 
       if (hasTestPack) {
         execa.sync('pnpm', ['turbo', 'run', 'test-pack'], {
