@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>Demographics</p>
+  return <p id="demographics">Demographics</p>
 }

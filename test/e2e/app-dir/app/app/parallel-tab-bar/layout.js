@@ -4,13 +4,19 @@ function AudienceNav() {
   return (
     <ul>
       <li>
-        <Link href="/parallel-tab-bar">Home</Link>
+        <Link id="home-link-audience" href="/parallel-tab-bar">
+          Home
+        </Link>
       </li>
       <li>
-        <Link href="/parallel-tab-bar/demographics">Demographics</Link>
+        <Link id="demographics-link" href="/parallel-tab-bar/demographics">
+          Demographics
+        </Link>
       </li>
       <li>
-        <Link href="/parallel-tab-bar/subscribers">Subscribers</Link>
+        <Link id="subscribers-link" href="/parallel-tab-bar/subscribers">
+          Subscribers
+        </Link>
       </li>
     </ul>
   )
@@ -20,13 +26,19 @@ function ViewsNav() {
   return (
     <ul>
       <li>
-        <Link href="/parallel-tab-bar">Home</Link>
+        <Link id="home-link-views" href="/parallel-tab-bar">
+          Home
+        </Link>
       </li>
       <li>
-        <Link href="/parallel-tab-bar/impressions">Impressions</Link>
+        <Link id="impressions-link" href="/parallel-tab-bar/impressions">
+          Impressions
+        </Link>
       </li>
       <li>
-        <Link href="/parallel-tab-bar/view-duration">View Duration</Link>
+        <Link id="view-duration-link" href="/parallel-tab-bar/view-duration">
+          View Duration
+        </Link>
       </li>
     </ul>
   )

@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>View duration</p>
+  return <p id="view-duration">View duration</p>
 }

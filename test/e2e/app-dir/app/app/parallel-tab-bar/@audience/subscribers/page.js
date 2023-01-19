@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>Subscribers</p>
+  return <p id="subscribers">Subscribers</p>
 }

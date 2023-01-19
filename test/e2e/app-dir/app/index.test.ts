@@ -414,6 +414,92 @@ createNextDescribe(
         expect(html).toContain('parallel/(new)/layout')
         expect(html).toContain('parallel/(new)/@baz/nested/page')
       })
+
+      it('should support parallel route tab bars', async () => {
+        const browser = await next.browser('/parallel-tab-bar')
+
+        const hasHome = async () => {
+          const text = await browser.waitForElementByCss('#home').text()
+          expect(text).toBe('Tab bar page (@children)')
+        }
+        const hasViewsHome = async () => {
+          const text = await browser.waitForElementByCss('#views-home').text()
+          expect(text).toBe('Views home')
+        }
+        const hasViewDuration = async () => {
+          const text = await browser
+            .waitForElementByCss('#view-duration')
+            .text()
+          expect(text).toBe('View duration')
+        }
+        const hasImpressions = async () => {
+          const text = await browser.waitForElementByCss('#impressions').text()
+          expect(text).toBe('Impressions')
+        }
+        const hasAudienceHome = async () => {
+          const text = await browser
+            .waitForElementByCss('#audience-home')
+            .text()
+          expect(text).toBe('Audience home')
+        }
+        const hasDemographics = async () => {
+          const text = await browser.waitForElementByCss('#demographics').text()
+          expect(text).toBe('Demographics')
+        }
+        const hasSubscribers = async () => {
+          const text = await browser.waitForElementByCss('#subscribers').text()
+          expect(text).toBe('Subscribers')
+        }
+        const checkUrlPath = async (path: string) => {
+          expect(await browser.url()).toBe(
+            `${next.url}/parallel-tab-bar${path}`
+          )
+        }
+
+        // Initial page
+        await hasHome()
+        await hasViewsHome()
+        await hasAudienceHome()
+        await checkUrlPath('')
+
+        // Navigate to /views/duration
+        await browser.elementByCss('#view-duration-link').click()
+        await hasHome()
+        await hasViewDuration()
+        await hasAudienceHome()
+        await checkUrlPath('/view-duration')
+
+        // Navigate to /views/impressions
+        await browser.elementByCss('#impressions-link').click()
+        await hasHome()
+        await hasImpressions()
+        await hasAudienceHome()
+        await checkUrlPath('/impressions')
+
+        // Navigate to /audience/demographics
+        await browser.elementByCss('#demographics-link').click()
+        await hasHome()
+        await hasImpressions()
+        await hasDemographics()
+        await checkUrlPath('/demographics')
+
+        // Navigate to /audience/subscribers
+        await browser.elementByCss('#subscribers-link').click()
+        await hasHome()
+        await hasImpressions()
+        await hasSubscribers()
+        await checkUrlPath('/subscribers')
+
+        // Navigate to /
+        await browser.elementByCss('#home-link-audience').click()
+        await hasHome()
+        await hasViewsHome()
+        await hasAudienceHome()
+        await checkUrlPath('')
+
+        // TODO: home links
+        // TODO: test back button
+      })
     })
 
     describe('route intercepting', () => {

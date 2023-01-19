@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>Audience home</p>
+  return <p id="audience-home">Audience home</p>
 }
