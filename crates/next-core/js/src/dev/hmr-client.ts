@@ -107,7 +107,7 @@ type AggregatedUpdates = {
 };
 
 // we aggregate all updates until the issues are resolved
-const chunksWithUpdates: Map<ChunkPath, AggregatedUpdates> = new Map();
+const chunksWithUpdates: Map<ResourceKey, AggregatedUpdates> = new Map();
 
 function aggregateUpdates(
   msg: ServerMessage,
@@ -115,6 +115,15 @@ function aggregateUpdates(
 ): ServerMessage {
   const key = resourceKey(msg.resource);
   const aggregated = chunksWithUpdates.get(key);
+
+  if (msg.type === "issues" && aggregated == null && hasIssues) {
+    // add an empty record to make sure we don't call `onBuildOk`
+    chunksWithUpdates.set(key, {
+      added: {},
+      modified: {},
+      deleted: new Set(),
+    });
+  }
 
   if (msg.type === "issues" && aggregated != null) {
     if (!hasIssues) {
@@ -248,17 +257,15 @@ function handleSocketMessage(msg: ServerMessage) {
 
   if (hasIssues) return;
 
+  const runHooks = chunksWithUpdates.size === 0;
+
   if (aggregatedMsg.type !== "issues") {
-    onBeforeRefresh();
+    if (runHooks) onBeforeRefresh();
     triggerUpdate(aggregatedMsg);
-    if (chunksWithUpdates.size === 0) {
-      onRefresh();
-    }
+    if (runHooks) onRefresh();
   }
 
-  if (chunksWithUpdates.size === 0) {
-    onBuildOk();
-  }
+  if (runHooks) onBuildOk();
 }
 
 export function subscribeToChunkUpdate(
