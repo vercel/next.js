@@ -33,7 +33,6 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   isServerLayer,
-  hasServerComponents,
 }: any) {
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -126,11 +125,7 @@ function getBaseSWCOptions({
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
       styledComponents: getStyledComponentsOptions(nextConfig, development),
     }),
-    serverComponents: hasServerComponents
-      ? {
-          isServer: !!isServerLayer,
-        }
-      : undefined,
+    serverComponents: isServerLayer ? { isServer: true } : undefined,
   }
 }
 
@@ -220,7 +215,6 @@ export function getLoaderSWCOptions({
   filename,
   development,
   isServer,
-  isServerLayer,
   pagesDir,
   isPageFile,
   hasReactRefresh,
@@ -230,6 +224,7 @@ export function getLoaderSWCOptions({
   swcCacheDir,
   relativeFilePathFromRoot,
   hasServerComponents,
+  isServerLayer,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 any) {
@@ -242,9 +237,9 @@ any) {
     jsConfig,
     // resolvedBaseUrl,
     swcCacheDir,
-    isServerLayer,
     relativeFilePathFromRoot,
     hasServerComponents,
+    isServerLayer,
   })
 
   if (nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot) {
