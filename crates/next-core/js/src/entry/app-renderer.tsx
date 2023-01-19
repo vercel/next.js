@@ -29,6 +29,7 @@ import type { RenderData } from "types/turbopack";
 
 import "next/dist/server/node-polyfill-fetch";
 import "next/dist/server/node-polyfill-web-streams";
+import "@vercel/turbopack-next/polyfill/async-local-storage";
 import { RenderOpts, renderToHTMLOrFlight } from "next/dist/server/app-render";
 import { PassThrough } from "stream";
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";

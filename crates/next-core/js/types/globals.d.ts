@@ -20,6 +20,15 @@ declare global {
     page: string,
     paths: string[]
   ): unknown;
+
+  var AsyncLocalStorage = class AsyncLocalStorage<T> {
+    getStore(): T | undefined;
+    run<R, TArgs extends any[]>(
+      store: T,
+      callback: (...args: TArgs) => R,
+      ...args: TArgs
+    ): R;
+  };
 }
 
 export {};
