@@ -2,11 +2,11 @@ import os from 'os'
 import path from 'path'
 import fs from 'fs-extra'
 import treeKill from 'tree-kill'
-import { NextConfig } from 'next'
+import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
-import { Span } from 'next/trace'
+import { Span } from 'next/src/trace'
 import webdriver from 'next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
@@ -24,7 +24,6 @@ export interface NextInstanceOpts {
   files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
   packageJson?: PackageJson
-  packageLockPath?: string
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
@@ -59,7 +58,6 @@ export class NextInstance {
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
-  protected packageLockPath?: string
   protected basePath?: string
   protected env?: Record<string, string>
   public forcedPort?: string
@@ -129,6 +127,9 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
+          '@types/react': reactVersion,
+          typescript: 'latest',
+          '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }
@@ -176,7 +177,6 @@ export class NextInstance {
               dependencies: finalDependencies,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
-              packageLockPath: this.packageLockPath,
               dirSuffix: this.dirSuffix,
             })
           }
@@ -263,7 +263,6 @@ export class NextInstance {
         `
           )
         }
-        require('console').log(`Test directory created at ${this.testDir}`)
       })
   }
 
@@ -364,6 +363,9 @@ export class NextInstance {
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
+  public async readJSON(filename: string) {
+    return fs.readJSON(path.join(this.testDir, filename))
+  }
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
     await fs.ensureDir(path.dirname(outputPath))
@@ -408,12 +410,17 @@ export class NextInstance {
   }
 
   /**
-   * Fetch the HTML for the provided page.
+   * Performs a fetch request to the NextInstance with the options provided.
+   *
+   * @param pathname the pathname on the NextInstance to fetch
+   * @param opts the optional options to pass to the underlying fetch
+   * @returns the fetch response
    */
   public async fetch(
-    ...args: Parameters<OmitFirstArgument<typeof fetchViaHTTP>>
+    pathname: string,
+    opts?: import('node-fetch').RequestInit
   ) {
-    return fetchViaHTTP(this.url, ...args)
+    return fetchViaHTTP(this.url, pathname, null, opts)
   }
 
   public on(event: Event, cb: (...args: any[]) => any) {

@@ -1,24 +1,14 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP } from 'next-test-utils'
+import { createNextDescribe } from 'e2e-utils'
 
-describe('createNext', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(__dirname),
-      dependencies: {
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
-      },
+createNextDescribe(
+  'createNextDescribe',
+  {
+    files: __dirname,
+  },
+  ({ next }) => {
+    it('should work', async () => {
+      const res = await next.fetch('/')
+      expect(await res.text()).toContain('Hello World')
     })
-  })
-  afterAll(() => next.destroy())
-
-  it('should work', async () => {
-    const res = await fetchViaHTTP(next.url, '/')
-    expect(await res.text()).toContain('Hello World')
-  })
-})
+  }
+)

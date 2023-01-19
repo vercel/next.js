@@ -1,6 +1,6 @@
 # https://github.com/github/issue-labeler#create-workflow
 
-name: Label issues
+name: Label issues - GH Labeler
 
 on:
   issues:

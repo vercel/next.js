@@ -1,6 +1,17 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
+exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
+"./app/module.js:1:0
+Module not found: Can't resolve 'non-existing-module'
+> 1 | import \\"non-existing-module\\"
+
+Import trace for requested module:
+./app/layout.js
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
+exports[`ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
 "index.js (4:16) @ default
 
   2 | export default () => {
@@ -12,14 +23,14 @@ exports[`ReactRefreshLogBox app Should not show __webpack_exports__ when exporti
   7 |  return null"
 `;
 
-exports[`ReactRefreshLogBox app boundaries 1`] = `
+exports[`ReactRefreshLogBox app default boundaries 1`] = `
 "FunctionDefault.js (1:50) @ FunctionDefault
 
 > 1 | export default function FunctionDefault() { throw new Error('no'); }
     |                                                  ^"
 `;
 
-exports[`ReactRefreshLogBox app conversion to class component (1) 1`] = `
+exports[`ReactRefreshLogBox app default conversion to class component (1) 1`] = `
 "Child.js (5:18) @ ClickCount.render
 
   3 |   export default class ClickCount extends Component {
@@ -31,7 +42,7 @@ exports[`ReactRefreshLogBox app conversion to class component (1) 1`] = `
   8 | "
 `;
 
-exports[`ReactRefreshLogBox app css syntax errors 1`] = `
+exports[`ReactRefreshLogBox app default css syntax errors 1`] = `
 "./index.module.css:1:1
 Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
 
@@ -39,23 +50,23 @@ Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at 
     | ^"
 `;
 
-exports[`ReactRefreshLogBox app logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
 
-exports[`ReactRefreshLogBox app logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
 
-exports[`ReactRefreshLogBox app logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
 
-exports[`ReactRefreshLogBox app logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox app logbox: anchors links in error messages 9`] = `"http://example.com/"`;
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
 
-exports[`ReactRefreshLogBox app logbox: can recover from a component error 1`] = `
+exports[`ReactRefreshLogBox app default logbox: can recover from a component error 1`] = `
 "child.js (4:16) @ Child
 
   2 |   // hello
@@ -66,7 +77,7 @@ exports[`ReactRefreshLogBox app logbox: can recover from a component error 1`] =
   6 | "
 `;
 
-exports[`ReactRefreshLogBox app logbox: can recover from a event handler error 1`] = `
+exports[`ReactRefreshLogBox app default logbox: can recover from a event handler error 1`] = `
 "index.js (8:18) @ eval
 
    6 | const increment = useCallback(() => {
@@ -78,7 +89,7 @@ exports[`ReactRefreshLogBox app logbox: can recover from a event handler error 1
   11 |   <main>"
 `;
 
-exports[`ReactRefreshLogBox app logbox: can recover from a syntax error without losing state 1`] = `
+exports[`ReactRefreshLogBox app default logbox: can recover from a syntax error without losing state 1`] = `
 "./index.js
 Error: 
   x Unexpected eof
@@ -88,10 +99,14 @@ Error:
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: Syntax Error
+
+Import trace for requested module:
+./index.js
+./app/page.js"
 `;
 
-exports[`ReactRefreshLogBox app module init error not shown 1`] = `
+exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
 "index.js (4:14) @ eval
 
   2 | // top offset for snapshot
@@ -103,7 +118,7 @@ exports[`ReactRefreshLogBox app module init error not shown 1`] = `
   7 |     return <h1>Default Export</h1>;"
 `;
 
-exports[`ReactRefreshLogBox app render error not shown right after syntax error 1`] = `
+exports[`ReactRefreshLogBox app default render error not shown right after syntax error 1`] = `
 "index.js (6:18) @ ClassDefault.render
 
   4 | class ClassDefault extends React.Component {
@@ -115,7 +130,7 @@ exports[`ReactRefreshLogBox app render error not shown right after syntax error 
   9 | }"
 `;
 
-exports[`ReactRefreshLogBox app should strip whitespace correctly with newline 1`] = `
+exports[`ReactRefreshLogBox app default should strip whitespace correctly with newline 1`] = `
 "index.js (9:34) @ onClick
 
    7 | 
@@ -127,7 +142,7 @@ exports[`ReactRefreshLogBox app should strip whitespace correctly with newline 1
   12 | </a>"
 `;
 
-exports[`ReactRefreshLogBox app stuck error 1`] = `
+exports[`ReactRefreshLogBox app default stuck error 1`] = `
 "Foo.js (4:10) @ Foo
 
   2 |   // intentionally skips export
@@ -138,7 +153,7 @@ exports[`ReactRefreshLogBox app stuck error 1`] = `
   6 | "
 `;
 
-exports[`ReactRefreshLogBox app syntax > runtime error 1`] = `
+exports[`ReactRefreshLogBox app default syntax > runtime error 1`] = `
 "index.js (6:16) @ Error
 
   4 | setInterval(() => {
@@ -150,7 +165,7 @@ exports[`ReactRefreshLogBox app syntax > runtime error 1`] = `
   9 |   return <div />"
 `;
 
-exports[`ReactRefreshLogBox app syntax > runtime error 2`] = `
+exports[`ReactRefreshLogBox app default syntax > runtime error 2`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
@@ -165,10 +180,14 @@ Error:
 Caused by:
     0: failed to process input file
     1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error"
+    2: Syntax Error
+
+Import trace for requested module:
+./index.js
+./app/page.js"
 `;
 
-exports[`ReactRefreshLogBox app syntax > runtime error 3`] = `
+exports[`ReactRefreshLogBox app default syntax > runtime error 3`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
@@ -183,10 +202,14 @@ Error:
 Caused by:
     0: failed to process input file
     1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error"
+    2: Syntax Error
+
+Import trace for requested module:
+./index.js
+./app/page.js"
 `;
 
-exports[`ReactRefreshLogBox app unterminated JSX 1`] = `
+exports[`ReactRefreshLogBox app default unterminated JSX 1`] = `
 "./index.js
 Error: 
   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -209,5 +232,9 @@ Error:
 
 Caused by:
     0: failed to process input file
-    1: Syntax Error"
+    1: Syntax Error
+
+Import trace for requested module:
+./index.js
+./app/page.js"
 `;

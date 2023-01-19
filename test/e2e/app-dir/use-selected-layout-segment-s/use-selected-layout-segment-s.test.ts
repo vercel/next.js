@@ -1,7 +1,7 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
-import { waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 describe('useSelectedLayoutSegment(s)', () => {
   let next: NextInstance
@@ -9,13 +9,6 @@ describe('useSelectedLayoutSegment(s)', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(__dirname),
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
-      },
     })
   })
   afterAll(() => next.destroy())
@@ -84,7 +77,11 @@ describe('useSelectedLayoutSegment(s)', () => {
 
   it('should correctly update when changing static segment', async () => {
     browser.elementById('change-static').click()
-    await waitFor(100)
+
+    await check(
+      () => browser.eval('window.location.pathname'),
+      '/segment-name/param1/different-segment'
+    )
 
     expect(
       await browser.elementByCss('#root > .segments').text()
@@ -103,17 +100,21 @@ describe('useSelectedLayoutSegment(s)', () => {
 
   it('should correctly update when changing param segment', async () => {
     browser.elementById('change-param').click()
-    await waitFor(100)
+
+    await check(
+      () => browser.eval('window.location.pathname'),
+      '/segment-name/param1/segment-name2/different-value/value3/value4'
+    )
 
     expect(
       await browser.elementByCss('#root > .segments').text()
     ).toMatchInlineSnapshot(
-      `"[\\"segment-name\\",\\"param1\\",\\"segment-name2\\",\\"different-value\\",\\"value3/value4'\\"]"`
+      `"[\\"segment-name\\",\\"param1\\",\\"segment-name2\\",\\"different-value\\",\\"value3/value4\\"]"`
     )
 
     expect(
       await browser.elementByCss('#before-param > .segments').text()
-    ).toMatchInlineSnapshot(`"[\\"different-value\\",\\"value3/value4'\\"]"`)
+    ).toMatchInlineSnapshot(`"[\\"different-value\\",\\"value3/value4\\"]"`)
 
     expect(
       await browser.elementByCss('#before-param > .segment').text()
@@ -122,20 +123,24 @@ describe('useSelectedLayoutSegment(s)', () => {
 
   it('should correctly update when changing catchall segment', async () => {
     browser.elementById('change-catchall').click()
-    await waitFor(100)
+
+    await check(
+      () => browser.eval('window.location.pathname'),
+      '/segment-name/param1/segment-name2/value2/different/random/paths'
+    )
 
     expect(
       await browser.elementByCss('#root > .segments').text()
     ).toMatchInlineSnapshot(
-      `"[\\"segment-name\\",\\"param1\\",\\"segment-name2\\",\\"value2\\",\\"different/random/paths'\\"]"`
+      `"[\\"segment-name\\",\\"param1\\",\\"segment-name2\\",\\"value2\\",\\"different/random/paths\\"]"`
     )
 
     expect(
       await browser.elementByCss('#before-catchall > .segments').text()
-    ).toMatchInlineSnapshot(`"[\\"different/random/paths'\\"]"`)
+    ).toMatchInlineSnapshot(`"[\\"different/random/paths\\"]"`)
 
     expect(
       await browser.elementByCss('#before-catchall > .segment').text()
-    ).toMatchInlineSnapshot(`"\\"different/random/paths'\\""`)
+    ).toMatchInlineSnapshot(`"\\"different/random/paths\\""`)
   })
 })

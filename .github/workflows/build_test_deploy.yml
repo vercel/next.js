@@ -7,10 +7,10 @@ on:
 name: Build, test, and deploy
 
 env:
-  NAPI_CLI_VERSION: 2.12.0
+  NAPI_CLI_VERSION: 2.13.3
   TURBO_VERSION: 1.6.3
   RUST_TOOLCHAIN: nightly-2022-11-04
-  PNPM_VERSION: 7.3.0
+  PNPM_VERSION: 7.24.3
 
 jobs:
   check-examples:
@@ -54,23 +54,23 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - name: Check non-docs only change
-        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: docs-change
 
-      - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
+      - run: echo "${{steps.docs-change.outputs.DOCS_CHANGE}}"
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: swc-change
 
-      - run: echo "::set-output name=TURBO_TOKEN::$(echo ${TURBO_TOKEN:-empty})"
+      - run: echo "TURBO_TOKEN=$(echo ${TURBO_TOKEN:-empty})" >> $GITHUB_OUTPUT
         id: turbo-token
 
-      - run: echo ${{steps.swc-change.outputs.SWC_CHANGE}}
+      - run: echo "${{steps.swc-change.outputs.SWC_CHANGE}}"
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
       - id: get-store-path
-        run: echo ::set-output name=STORE_PATH::$(pnpm store path)
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v3
         id: cache-pnpm-store
@@ -82,20 +82,23 @@ jobs:
             pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
 
       - run: pnpm install
+
+      - run: TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} node run-tests.js --timings --write-timings -g 1/1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+
       - run: pnpm run build
-      - run: node run-tests.js --timings --write-timings -g 1/1
 
       - id: check-release
         run: |
           if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = v* ]];
             then
-              echo "::set-output name=IS_RELEASE::true"
+              echo "IS_RELEASE=true" >> $GITHUB_OUTPUT
             else
-              echo "::set-output name=IS_RELEASE::false"
+              echo "IS_RELEASE=false" >> $GITHUB_OUTPUT
           fi
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
-        run: echo ::set-output name=WEEK::$(date +%U)
+        run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v3
         id: cache-build
@@ -134,10 +137,10 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: swc-change
 
-      - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
+      - run: echo "${{ steps.swc-change.outputs.SWC_CHANGE }}"
 
       - name: Install
         uses: actions-rs/toolchain@v1
@@ -221,7 +224,6 @@ jobs:
     timeout-minutes: 10
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
     steps:
       - name: Setup node
         uses: actions/setup-node@v3
@@ -256,14 +258,14 @@ jobs:
     timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
         node: [16, 18]
         group: [1, 2, 3, 4]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -282,7 +284,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type development --timings -g ${{ matrix.group }}/4 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type development --timings -g ${{ matrix.group }}/4 >> /proc/1/fd/1"
         name: Run test/development
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
@@ -316,7 +318,6 @@ jobs:
     timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
@@ -324,7 +325,7 @@ jobs:
         node: [16, 18]
         group: [1, 2, 3, 4, 5, 6, 7]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -343,11 +344,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
         name: Run test/e2e (dev)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        env:
-          NEXT_TEST_MODE: dev
         #   RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testDevE2E / Group ${{ matrix.group }} / Node ${{ matrix.node }}
         #   RECORD_ALL_CONTENT: 1
         #   RECORD_REPLAY: 1
@@ -378,14 +377,14 @@ jobs:
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
         node: [16, 18]
         group: [1, 2, 3]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -404,7 +403,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type production --timings -g ${{ matrix.group }}/3 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type production --timings -g ${{ matrix.group }}/3 >> /proc/1/fd/1"
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
@@ -428,7 +427,6 @@ jobs:
     timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
@@ -436,7 +434,7 @@ jobs:
         node: [16, 18]
         group: [1, 2, 3, 4, 5, 6, 7]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -455,11 +453,9 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/7 >> /proc/1/fd/1"
         name: Run test/e2e (production)
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        env:
-          NEXT_TEST_MODE: start
         # RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testProdE2E / Group ${{ matrix.group }} / Node ${{ matrix.node }}
         # RECORD_ALL_CONTENT: 1
         # RECORD_REPLAY: 1
@@ -473,6 +469,51 @@ jobs:
       #     public: true
       #     filter: ${{ 'function($v) { $v.metadata.test.result = "failed" }' }}
 
+  testCNA:
+    name: Test Create Next App
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+
+    steps:
+      - run: echo "${{needs.build.outputs.docsChange}}"
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        if: ${{ needs.build.outputs.docsChange == 'nope' }}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{ needs.build.outputs.docsChange == 'nope' }}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: echo "CNA_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type cna --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
+        id: cna-change
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && NEXT_TEST_JOB=1 NEXT_TEST_CNA=1 xvfb-run node run-tests.js test/integration/create-next-app/index.test.ts test/integration/create-next-app/templates.test.ts >> /proc/1/fd/1"
+        if: ${{ needs.build.outputs.docsChange == 'nope' && steps.cna-change.outputs.CNA_CHANGE == 'yup' }}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
   testIntegration:
     name: Test Integration
     runs-on: ubuntu-latest
@@ -480,7 +521,6 @@ jobs:
     timeout-minutes: 35
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
@@ -514,7 +554,7 @@ jobs:
             25,
           ]
     steps:
-      - run: echo ${{needs.build.outputs.docsChange}}
+      - run: echo "${{needs.build.outputs.docsChange}}"
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -533,7 +573,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/25 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && NEXT_TEST_JOB=1 TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/25 >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         # env:
         # RECORD_REPLAY_METADATA_TEST_RUN_TITLE: testIntegration / Group ${{ matrix.group }}
@@ -566,7 +606,6 @@ jobs:
     timeout-minutes: 10
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
       TEST_ELECTRON: 1
     steps:
       - name: Setup node
@@ -621,7 +660,6 @@ jobs:
     needs: [build, build-native-test]
     timeout-minutes: 10
     env:
-      BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v3
@@ -637,7 +675,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/production/test/index.test.js >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && BROWSERNAME=firefox NEXT_TEST_JOB=1 TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js test/integration/production/test/index.test.js >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   testSafari:
@@ -646,8 +684,6 @@ jobs:
     needs: [build, build-native-test]
     timeout-minutes: 15
     env:
-      BROWSER_NAME: 'safari'
-      NEXT_TEST_MODE: 'start'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
@@ -667,7 +703,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts  >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js -c 1 test/integration/production/test/index.test.js test/e2e/basepath.test.ts && DEVICE_NAME='iPhone XR' node run-tests.js -c 1 test/production/prerender-prefetch/index.test.ts  >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   testSafariOld:
@@ -723,7 +759,6 @@ jobs:
     needs: [build, testFirefox, build-native-test]
     timeout-minutes: 10
     env:
-      BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v3
@@ -739,7 +774,7 @@ jobs:
           name: next-swc-test-binary
           path: packages/next-swc/native
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v18 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js test/integration/production/test/index.test.js >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v18 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && BROWSER_NAME=firefox NEXT_TEST_JOB=1 TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js test/integration/production/test/index.test.js >> /proc/1/fd/1"
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
   publishRelease:
@@ -792,10 +827,8 @@ jobs:
     needs: [publishRelease, build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
-      VERCEL_TEST_TEAM: 'vtest314-next-e2e-tests'
-      NEXT_TEST_MODE: deploy
+      VERCEL_TEST_TEAM: vtest314-next-e2e-tests
     steps:
       - uses: actions/cache@v3
         id: restore-build
@@ -812,7 +845,7 @@ jobs:
       - run: RESET_VC_PROJECT=true node scripts/reset-vercel-project.mjs
         name: Reset test project
 
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && ls && curl https://install-node.vercel.app/v16 | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} && VERCEL_TEST_TOKEN=${{ secrets.VERCEL_TEST_TOKEN }} VERCEL_TEST_TEAM=vtest314-next-e2e-tests NEXT_TEST_JOB=1 NEXT_TEST_MODE=deploy TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type e2e >> /proc/1/fd/1"
         name: Run test/e2e (deploy)
 
       - name: Upload test trace
@@ -866,7 +899,7 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
+      - run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: docs-change
 
       - name: Cache cargo registry
@@ -885,7 +918,7 @@ jobs:
 
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
-        run: echo ::set-output name=WEEK::$(date +%U)
+        run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
       - name: Turbo Cache
         id: turbo-cache
@@ -953,10 +986,10 @@ jobs:
         with:
           fetch-depth: 25
 
-      - run: echo "::set-output name=SWC_CHANGE::$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')"
+      - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: swc-change
 
-      - run: echo ${{ steps.swc-change.outputs.SWC_CHANGE }}
+      - run: echo "${{ steps.swc-change.outputs.SWC_CHANGE }}"
 
       - name: Install
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
@@ -1128,8 +1161,8 @@ jobs:
             target: 'aarch64-pc-windows-msvc'
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
-              turbo run build-native-no-plugin -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
-    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && needs.build.outputs.turboToken != 'empty') }}
+              turbo run build-native-no-plugin-woa -- --release --target aarch64-pc-windows-msvc --cargo-flags=--no-default-features
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.turboToken != 'empty') }}
     needs: build
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
@@ -1216,13 +1249,14 @@ jobs:
         shell: bash
 
       - name: Upload artifact
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-binaries
           path: packages/next-swc/native/next-swc.*.node
 
   build-native-freebsd:
-    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && needs.build.outputs.turboToken != 'empty') }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.turboToken != 'empty') }}
     needs: build
     name: stable - x86_64-unknown-freebsd - node@16
     runs-on: macos-12
@@ -1259,10 +1293,10 @@ jobs:
       - run: node ./scripts/pull-freebsd-cache.js
 
       - name: check build exists
-        run: if [ -f packages/next-swc/native/next-swc.freebsd-x64.node ]; then echo "::set-output name=BUILD_EXISTS::yes"; else echo "::set-output name=BUILD_EXISTS::no"; fi
+        run: if [ -f packages/next-swc/native/next-swc.freebsd-x64.node ]; then echo "BUILD_EXISTS=yes" >> $GITHUB_OUTPUT; else echo "BUILD_EXISTS=no" >> $GITHUB_OUTPUT; fi
         id: build-exists
 
-      - run: echo ${{steps.build-exists.outputs.BUILD_EXISTS}}
+      - run: echo "${{steps.build-exists.outputs.BUILD_EXISTS}}"
 
       - name: Build
         id: build
@@ -1297,15 +1331,16 @@ jobs:
             whoami
             env
             freebsd-version
-            pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
+            GITHUB_EVENT_PATH='' pnpm --filter=@next/swc run build-native-no-plugin --platform --release --target x86_64-unknown-freebsd
             rm -rf node_modules
             rm -rf packages/next-swc/target
 
       - name: cache build
         if: ${{ steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: pnpm turbo run cache-build-native -- --platform --release --target x86_64-unknown-freebsd
+        run: pnpm turbo run --force cache-build-native -- --platform --release --target x86_64-unknown-freebsd
 
       - name: Upload artifact
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: next-swc-binaries
@@ -1314,7 +1349,7 @@ jobs:
 
   build-wasm:
     needs: build
-    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.swcChange == 'yup' && needs.build.outputs.turboToken != 'empty') }}
+    if: ${{ needs.build.outputs.isRelease == 'true' || (needs.build.outputs.turboToken != 'empty') }}
     strategy:
       matrix:
         target: [web, nodejs]
@@ -1355,6 +1390,7 @@ jobs:
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
       - name: Upload artifact
+        if: ${{ needs.build.outputs.isRelease == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: wasm-binaries
@@ -1433,7 +1469,7 @@ jobs:
         env:
           TRACE_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
         if: "${{ env.TRACE_API_KEY != '' }}"
-        run: echo "::set-output name=defined::true"
+        run: echo "defined=true" >> $GITHUB_OUTPUT
 
   build-performance-metrics:
     name: Performance Metrics for Release Build

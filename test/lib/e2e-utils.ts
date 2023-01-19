@@ -1,6 +1,6 @@
 import path from 'path'
 import assert from 'assert'
-import { flushAllTraces, setGlobal, trace } from 'next/trace'
+import { flushAllTraces, setGlobal, trace } from 'next/src/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
@@ -221,7 +221,8 @@ export function createNextDescribe(
 
     const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
       get: function (_target, property) {
-        return next[property]
+        const prop = next[property]
+        return typeof prop === 'function' ? prop.bind(next) : prop
       },
     })
     fn({
