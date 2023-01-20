@@ -26,6 +26,8 @@ export type DynamicOptionsLoadingProps = {
   timedOut?: boolean
 }
 
+const isServerSide = typeof window === 'undefined'
+
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
 // Client component reference proxy need to be converted to a module.
@@ -97,11 +99,15 @@ export default function dynamic<P = {}>(
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
 
+  const isNonSSR =
+    typeof loadableOptions.ssr === 'boolean' && !loadableOptions.ssr
+
   const loaderFn = loadableOptions.loader as () => LoaderComponent<P>
   const loader = () =>
-    loaderFn != null
-      ? loaderFn().then(convertModule)
-      : Promise.resolve(convertModule(() => null))
+    // Strip the loader when loader is null or when it's nonSSR rendering on server side.
+    loaderFn == null || (isNonSSR && isServerSide)
+      ? Promise.resolve(convertModule(() => null))
+      : loaderFn().then(convertModule)
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {
@@ -113,7 +119,7 @@ export default function dynamic<P = {}>(
   }
 
   // support for disabling server side rendering, eg: dynamic(() => import('../hello-world'), {ssr: false}).
-  if (typeof loadableOptions.ssr === 'boolean' && !loadableOptions.ssr) {
+  if (isNonSSR) {
     delete loadableOptions.webpack
     delete loadableOptions.modules
   }
