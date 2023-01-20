@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::{BoolVc, StringsVc},
     trace::TraceRawVcs,
@@ -9,9 +10,7 @@ use turbo_tasks::{
 use turbo_tasks_env::EnvMapVc;
 use turbopack::{
     evaluate_context::node_evaluate_asset_context,
-    module_options::{
-        ResolveAliasOptions, ResolveAliasOptionsVc, WebpackLoadersOptions, WebpackLoadersOptionsVc,
-    },
+    module_options::{WebpackLoadersOptions, WebpackLoadersOptionsVc},
 };
 use turbopack_core::{
     asset::Asset,
@@ -19,7 +18,7 @@ use turbopack_core::{
     resolve::{
         find_context_file,
         options::{ImportMap, ImportMapping},
-        FindContextFileResult,
+        FindContextFileResult, ResolveAliasMap, ResolveAliasMapVc,
     },
     source_asset::SourceAssetVc,
 };
@@ -244,7 +243,7 @@ pub enum RemotePatternProtocal {
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
     pub app_dir: Option<bool>,
-    pub resolve_alias: Option<IndexMap<String, Vec<String>>>,
+    pub resolve_alias: Option<IndexMap<String, JsonValue>>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbopack_loaders: Option<IndexMap<String, Vec<String>>>,
 
@@ -407,19 +406,13 @@ impl NextConfigVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_alias_options(self) -> Result<ResolveAliasOptionsVc> {
-        let Some(ref resolve_alias) = self.await?.experimental.resolve_alias else {
-            return Ok(ResolveAliasOptionsVc::cell(ResolveAliasOptions::default()));
+    pub async fn resolve_alias_options(self) -> Result<ResolveAliasMapVc> {
+        let this = self.await?;
+        let Some(resolve_alias) = this.experimental.resolve_alias.as_ref() else {
+            return Ok(ResolveAliasMapVc::cell(ResolveAliasMap::default()));
         };
-        let mut alias_map = IndexMap::new();
-        for (ext, mappings) in resolve_alias {
-            alias_map.insert(ext.clone(), StringsVc::cell(mappings.clone()));
-        }
-        Ok(ResolveAliasOptions {
-            alias_map,
-            ..Default::default()
-        }
-        .cell())
+        let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
+        Ok(alias_map.cell())
     }
 }
 
