@@ -1,7 +1,10 @@
 use next_binding::swc::core::{
     common::{errors::HANDLER, DUMMY_SP},
     ecma::{
-        ast::{op, AssignExpr, CallExpr, Expr, ExprStmt, FnDecl, Ident, Lit, PatOrExpr, Stmt, Str},
+        ast::{
+            op, AssignExpr, CallExpr, Expr, ExprStmt, FnDecl, Ident, Lit, ModuleItem, PatOrExpr,
+            Stmt, Str,
+        },
         utils::{quote_ident, ExprFactory},
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
@@ -22,7 +25,7 @@ pub fn server_actions(config: Config) -> impl VisitMut + Fold {
 struct ServerActions {
     config: Config,
 
-    annotations: Vec<Stmt>,
+    annotations: Vec<ModuleItem>,
 }
 
 impl VisitMut for ServerActions {
@@ -77,8 +80,8 @@ impl VisitMut for ServerActions {
     }
 }
 
-fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> Stmt {
-    Stmt::Expr(ExprStmt {
+fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> ModuleItem {
+    ModuleItem::Stmt(Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
         expr: AssignExpr {
             span: DUMMY_SP,
@@ -87,5 +90,5 @@ fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> Stmt {
             right: value,
         }
         .into(),
-    })
+    }))
 }
