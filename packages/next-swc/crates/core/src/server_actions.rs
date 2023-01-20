@@ -1,5 +1,5 @@
 use next_binding::swc::core::{
-    common::{errors::HANDLER, DUMMY_SP},
+    common::{errors::HANDLER, util::take::Take, DUMMY_SP},
     ecma::{
         ast::{
             op, AssignExpr, CallExpr, Decl, ExportDecl, Expr, ExprStmt, FnDecl, Ident, Lit,
@@ -31,8 +31,6 @@ struct ServerActions {
 }
 
 impl VisitMut for ServerActions {
-    noop_visit_mut_type!();
-
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         f.visit_mut_children_with(self);
 
@@ -104,6 +102,24 @@ impl VisitMut for ServerActions {
                 })),
             })));
     }
+
+    fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
+        let old_annotations = self.annotations.take();
+
+        let mut new = Vec::with_capacity(stmts.len());
+        for mut stmt in stmts.take() {
+            stmt.visit_mut_with(self);
+
+            new.push(stmt);
+            new.append(&mut self.annotations);
+        }
+
+        *stmts = new;
+
+        self.annotations = old_annotations;
+    }
+
+    noop_visit_mut_type!();
 }
 
 fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> Stmt {
