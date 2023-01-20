@@ -59,6 +59,7 @@ pub mod react_server_components;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod relay;
 pub mod remove_console;
+mod server_actions;
 pub mod shake_exports;
 mod top_level_binding_collector;
 
@@ -122,6 +123,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub font_loaders: Option<next_font_loaders::Config>,
+
+    #[serde(default)]
+    pub server_actions: Option<server_actions::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
