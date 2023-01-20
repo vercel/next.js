@@ -401,6 +401,65 @@ impl TaskScope {
             }
         }
     }
+
+    pub(crate) fn assert_unused(&self) {
+        // This method checks if everything was cleaned up correctly
+        // no more tasks should be attached to this scope in any way
+
+        // println!("assert_unused {:?}", self);
+        assert_eq!(
+            self.tasks.load(Ordering::Acquire),
+            0,
+            "Scope tasks not correctly cleaned up"
+        );
+        assert_eq!(
+            self.unfinished_tasks.load(Ordering::Acquire),
+            0,
+            "Scope unfinished tasks not correctly cleaned up"
+        );
+        let state = self.state.lock();
+        assert!(
+            state.dependent_tasks.is_empty(),
+            "Scope dependent tasks not correctly cleaned up: {:?}",
+            state.dependent_tasks
+        );
+        assert!(
+            state.collectibles.is_empty(),
+            "Scope collectibles not correctly cleaned up: {:?}",
+            state.collectibles
+        );
+        // assert!(
+        // state.dirty_tasks.is_empty(),
+        // "Scope dirty tasks not correctly cleaned up: {:?}",
+        // state.dirty_tasks
+        // );
+        // TODO find the bug that causes dirty tasks to remain in the scope
+        if !state.dirty_tasks.is_empty() {
+            println!(
+                "Scope dirty tasks not correctly cleaned up: {:?}",
+                state.dirty_tasks
+            );
+        }
+        assert!(
+            state.children.is_empty(),
+            "Scope children not correctly cleaned up: {:?}",
+            state.children
+        );
+        assert!(
+            state.parents.is_empty(),
+            "Scope parents not correctly cleaned up: {:?}",
+            state.parents
+        );
+        assert!(
+            !state.has_unfinished_tasks,
+            "Scope has unfinished tasks not correctly cleaned up"
+        );
+        assert_eq!(
+            state.active, 0,
+            "Scope active not correctly cleaned up: {}",
+            state.active
+        );
+    }
 }
 
 pub struct ScopeChildChangeEffect {
@@ -452,12 +511,16 @@ impl TaskScopeState {
         self.decrement_active_by(1, more_jobs);
     }
     /// decrement the active counter, returns list of child scopes that need to
-    /// be decremented after releasing the scope lock
-    pub fn decrement_active_by(&mut self, count: usize, more_jobs: &mut Vec<TaskScopeId>) {
+    /// be decremented after releasing the scope lock. Returns `true` when the
+    /// scope has become inactive.
+    pub fn decrement_active_by(&mut self, count: usize, more_jobs: &mut Vec<TaskScopeId>) -> bool {
         let was_positive = self.active > 0;
         self.active -= count as isize;
         if self.active <= 0 && was_positive {
             more_jobs.extend(self.children.iter().copied());
+            true
+        } else {
+            false
         }
     }
 

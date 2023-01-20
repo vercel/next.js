@@ -252,7 +252,7 @@ fn node_file_trace_memory(#[case] input: CaseInput) {
         false,
         1,
         120,
-        |_| TurboTasks::new(MemoryBackend::new()),
+        |_| TurboTasks::new(MemoryBackend::default()),
         |tt| {
             let b = tt.backend();
             b.with_all_cached_tasks(|task| {
@@ -307,7 +307,7 @@ fn bench_against_node_nft_inner(input: CaseInput, multi_threaded: bool) {
         multi_threaded,
         1,
         120,
-        |_| TurboTasks::new(MemoryBackend::new()),
+        |_| TurboTasks::new(MemoryBackend::default()),
         |tt| {
             let b = tt.backend();
             b.with_all_cached_tasks(|task| {

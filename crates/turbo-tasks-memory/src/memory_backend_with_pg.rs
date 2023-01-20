@@ -1110,6 +1110,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         duration: Duration,
         _instant: Instant,
+        _stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         #[cfg(feature = "log_running_tasks")]

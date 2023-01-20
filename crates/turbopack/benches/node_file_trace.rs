@@ -65,7 +65,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         .unwrap();
 
     b.to_async(rt).iter(move || {
-        let tt = TurboTasks::new(MemoryBackend::new());
+        let tt = TurboTasks::new(MemoryBackend::default());
         let tests_root = bench_input.tests_root.clone();
         let input = bench_input.input.clone();
         async move {

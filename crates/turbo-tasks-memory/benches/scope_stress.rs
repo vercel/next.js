@@ -37,7 +37,7 @@ pub fn scope_stress(c: &mut Criterion) {
                 let size = *size;
 
                 b.to_async(rt).iter_with_large_drop(move || {
-                    let tt = TurboTasks::new(MemoryBackend::new());
+                    let tt = TurboTasks::new(MemoryBackend::default());
                     async move {
                         (0..size)
                             .map(|a| (a, size - 1))

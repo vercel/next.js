@@ -4,8 +4,8 @@ mod stats;
 use std::{
     borrow::Cow,
     cell::RefCell,
-    cmp::{max, Ordering},
-    collections::VecDeque,
+    cmp::{max, Ordering, Reverse},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::{self, Debug, Display, Formatter, Write},
     future::Future,
     hash::Hash,
@@ -17,6 +17,7 @@ use std::{
 
 use anyhow::Result;
 use auto_hash_map::{AutoMap, AutoSet};
+use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
 use stats::TaskStats;
 use tokio::task_local;
@@ -30,6 +31,7 @@ use turbo_tasks::{
 use crate::{
     cell::Cell,
     count_hash_set::CountHashSet,
+    gc::{to_exp_u8, GcPriority, GcStats, GcTaskState},
     memory_backend::Job,
     output::Output,
     scope::{ScopeChildChangeEffect, TaskScopeId, TaskScopes},
@@ -141,6 +143,9 @@ struct TaskState {
     /// dirty, scheduled, in progress
     state_type: TaskStateType,
 
+    /// true, when the task has state and that can't be dropped
+    stateful: bool,
+
     /// Children are only modified from execution
     children: AutoSet<TaskId>,
 
@@ -154,39 +159,53 @@ struct TaskState {
     output: Output,
     cells: AutoMap<ValueTypeId, Vec<Cell>>,
 
+    // GC state:
+    gc: GcTaskState,
+
     // Stats:
     stats: TaskStats,
 }
 
 impl TaskState {
-    fn new(id: TaskId, stats_type: StatsType) -> Self {
+    fn new(
+        description: impl Fn() -> String + Send + Sync + 'static,
+        stats_type: StatsType,
+    ) -> Self {
         Self {
             scopes: Default::default(),
             state_type: Dirty {
-                event: Event::new(move || format!("TaskState({id})::event")),
+                event: Event::new(move || format!("TaskState({})::event", description())),
             },
+            stateful: false,
             children: Default::default(),
             collectibles: Default::default(),
             output: Default::default(),
             prepared_type: PrepareTaskType::None,
             cells: Default::default(),
+            gc: Default::default(),
             stats: TaskStats::new(stats_type),
             #[cfg(feature = "track_wait_dependencies")]
             last_waiting_task: Default::default(),
         }
     }
 
-    fn new_scheduled_in_scope(id: TaskId, scope: TaskScopeId, stats_type: StatsType) -> Self {
+    fn new_scheduled_in_scope(
+        description: impl Fn() -> String + Send + Sync + 'static,
+        scope: TaskScopeId,
+        stats_type: StatsType,
+    ) -> Self {
         Self {
             scopes: TaskScopes::Inner(CountHashSet::from([scope]), 0),
             state_type: Scheduled {
-                event: Event::new(move || format!("TaskState({id})::event")),
+                event: Event::new(move || format!("TaskState({})::event", description())),
             },
+            stateful: false,
             children: Default::default(),
             collectibles: Default::default(),
             output: Default::default(),
             prepared_type: PrepareTaskType::None,
             cells: Default::default(),
+            gc: Default::default(),
             stats: TaskStats::new(stats_type),
             #[cfg(feature = "track_wait_dependencies")]
             last_waiting_task: Default::default(),
@@ -205,17 +224,19 @@ struct PartialTaskState {
 }
 
 impl PartialTaskState {
-    fn into_full(self, id: TaskId) -> TaskState {
+    fn into_full(self, description: impl Fn() -> String + Send + Sync + 'static) -> TaskState {
         TaskState {
             scopes: self.scopes,
             state_type: Dirty {
-                event: Event::new(move || format!("TaskState({id})::event")),
+                event: Event::new(move || format!("TaskState({})::event", description())),
             },
+            stateful: false,
             children: Default::default(),
             collectibles: Default::default(),
             prepared_type: PrepareTaskType::None,
             output: Default::default(),
             cells: Default::default(),
+            gc: Default::default(),
             stats: TaskStats::new(self.stats_type),
         }
     }
@@ -236,17 +257,19 @@ fn test_unloaded_task_state_size() {
 }
 
 impl UnloadedTaskState {
-    fn into_full(self, id: TaskId) -> TaskState {
+    fn into_full(self, description: impl Fn() -> String + Send + Sync + 'static) -> TaskState {
         TaskState {
             scopes: Default::default(),
             state_type: Dirty {
-                event: Event::new(move || format!("TaskState({id})::event")),
+                event: Event::new(move || format!("TaskState({})::event", description())),
             },
+            stateful: false,
             children: Default::default(),
             collectibles: Default::default(),
             prepared_type: PrepareTaskType::None,
             output: Default::default(),
             cells: Default::default(),
+            gc: Default::default(),
             stats: TaskStats::new(self.stats_type),
         }
     }
@@ -277,6 +300,11 @@ impl MaybeCollectibles {
     /// Consumes the collectibles (if any) and return them.
     fn take(&mut self) -> Option<Box<Collectibles>> {
         self.inner.take()
+    }
+
+    /// Consumes the collectibles (if any) and return them.
+    fn into_inner(self) -> Option<Box<Collectibles>> {
+        self.inner
     }
 
     /// Returns a reference to the collectibles (if any).
@@ -354,10 +382,15 @@ impl Task {
         task_type: Arc<PersistentTaskType>,
         stats_type: StatsType,
     ) -> Self {
+        let ty = TaskType::Persistent(task_type);
+        let description = Self::get_event_description_static(id, &ty);
         Self {
             id,
-            ty: TaskType::Persistent(task_type),
-            state: RwLock::new(TaskMetaState::Full(box TaskState::new(id, stats_type))),
+            ty,
+            state: RwLock::new(TaskMetaState::Full(box TaskState::new(
+                description,
+                stats_type,
+            ))),
         }
     }
 
@@ -367,11 +400,15 @@ impl Task {
         functor: impl Fn() -> NativeTaskFuture + Sync + Send + 'static,
         stats_type: StatsType,
     ) -> Self {
+        let ty = TaskType::Root(Box::new(functor));
+        let description = Self::get_event_description_static(id, &ty);
         Self {
             id,
-            ty: TaskType::Root(Box::new(functor)),
+            ty,
             state: RwLock::new(TaskMetaState::Full(box TaskState::new_scheduled_in_scope(
-                id, scope, stats_type,
+                description,
+                scope,
+                stats_type,
             ))),
         }
     }
@@ -382,12 +419,24 @@ impl Task {
         functor: impl Future<Output = Result<RawVc>> + Send + 'static,
         stats_type: StatsType,
     ) -> Self {
+        let ty = TaskType::Once(Mutex::new(Some(Box::pin(functor))));
+        let description = Self::get_event_description_static(id, &ty);
         Self {
             id,
-            ty: TaskType::Once(Mutex::new(Some(Box::pin(functor)))),
+            ty,
             state: RwLock::new(TaskMetaState::Full(box TaskState::new_scheduled_in_scope(
-                id, scope, stats_type,
+                description,
+                scope,
+                stats_type,
             ))),
+        }
+    }
+
+    pub(crate) fn is_pure(&self) -> bool {
+        match &self.ty {
+            TaskType::Persistent(_) => true,
+            TaskType::Root(_) => false,
+            TaskType::Once(_) => false,
         }
     }
 
@@ -416,6 +465,45 @@ impl Task {
                 }
             },
         }
+    }
+
+    fn format_description(ty: &TaskType, id: TaskId) -> String {
+        match ty {
+            TaskType::Root(..) => format!("[{}] root", id),
+            TaskType::Once(..) => format!("[{}] once", id),
+            TaskType::Persistent(ty) => match &**ty {
+                PersistentTaskType::Native(native_fn, _) => {
+                    format!("[{}] {}", id, registry::get_function(*native_fn).name)
+                }
+                PersistentTaskType::ResolveNative(native_fn, _) => {
+                    format!(
+                        "[{}] [resolve] {}",
+                        id,
+                        registry::get_function(*native_fn).name
+                    )
+                }
+                PersistentTaskType::ResolveTrait(trait_type, fn_name, _) => {
+                    format!(
+                        "[{}] [resolve trait] {} in trait {}",
+                        id,
+                        fn_name,
+                        registry::get_trait(*trait_type).name
+                    )
+                }
+            },
+        }
+    }
+
+    fn get_event_description_static(
+        id: TaskId,
+        ty: &TaskType,
+    ) -> impl Fn() -> String + Send + Sync {
+        let ty = Self::format_description(ty, id);
+        move || ty.clone()
+    }
+
+    fn get_event_description(&self) -> impl Fn() -> String + Send + Sync {
+        Self::get_event_description_static(self.id, &self.ty)
     }
 
     pub(crate) fn remove_dependency(dep: TaskDependency, reader: TaskId, backend: &MemoryBackend) {
@@ -634,6 +722,7 @@ impl Task {
         &self,
         duration: Duration,
         instant: Instant,
+        stateful: bool,
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
@@ -655,6 +744,7 @@ impl Task {
                         cells.shrink_to_fit();
                     }
                     state.cells.shrink_to_fit();
+                    state.stateful = stateful;
                     state.state_type = Done { dependencies };
                     for scope in state.scopes.iter() {
                         backend.with_scope(scope, |scope| {
@@ -665,13 +755,8 @@ impl Task {
                 }
                 InProgressDirty { ref mut event } => {
                     let event = event.take();
-                    let active = self.scopes_dirty_or_active(false, &state.scopes, backend);
-                    if active {
-                        state.state_type = Scheduled { event };
-                        schedule_task = true;
-                    } else {
-                        state.state_type = Dirty { event };
-                    }
+                    state.state_type = Scheduled { event };
+                    schedule_task = true;
                 }
                 Dirty { .. } | Scheduled { .. } | Done { .. } => {
                     panic!(
@@ -735,7 +820,7 @@ impl Task {
             });
             if any_scope_was_active {
                 // A scope is active, revert dirty task changes and return true
-                for scope in scopes.iter().take(i + 1) {
+                for scope in scopes.iter().take(i) {
                     backend.with_scope(scope, |scope| {
                         let mut state = scope.state.lock();
                         state.remove_dirty_task(self.id);
@@ -749,13 +834,26 @@ impl Task {
     }
 
     fn make_dirty(&self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
+        self.make_dirty_internal(false, backend, turbo_tasks);
+    }
+
+    fn make_dirty_internal(
+        &self,
+        force_schedule: bool,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
         if let TaskType::Once(_) = self.ty {
             // once task won't become dirty
             return;
         }
 
-        if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
-            let id = self.id;
+        let state = if force_schedule {
+            TaskMetaStateWriteGuard::Full(self.full_state_mut())
+        } else {
+            self.state_mut()
+        };
+        if let TaskMetaStateWriteGuard::Full(mut state) = state {
             let mut clear_dependencies = AutoSet::new();
 
             match state.state_type {
@@ -768,16 +866,22 @@ impl Task {
                 } => {
                     clear_dependencies = take(dependencies);
                     // add to dirty lists and potentially schedule
-                    let active = self.scopes_dirty_or_active(true, &state.scopes, backend);
+                    let description = self.get_event_description();
+                    let active =
+                        force_schedule || self.scopes_dirty_or_active(true, &state.scopes, backend);
                     if active {
                         state.state_type = Scheduled {
-                            event: Event::new(move || format!("TaskState({id})::event")),
+                            event: Event::new(move || {
+                                format!("TaskState({})::event", description())
+                            }),
                         };
                         drop(state);
                         turbo_tasks.schedule(self.id);
                     } else {
                         state.state_type = Dirty {
-                            event: Event::new(move || format!("TaskState({id})::event")),
+                            event: Event::new(move || {
+                                format!("TaskState({})::event", description())
+                            }),
                         };
                         drop(state);
                     }
@@ -1050,6 +1154,7 @@ impl Task {
         queue: &mut VecDeque<TaskId>,
     ) {
         let mut state = self.partial_state_mut();
+        let partial = matches!(state, TaskMetaStateWriteGuard::Partial(_));
         let (scopes, children) = state.scopes_and_children();
         match scopes {
             &mut TaskScopes::Root(root) => {
@@ -1060,14 +1165,57 @@ impl Task {
                         parent,
                     }) = backend.with_scope(id, |scope| scope.state.lock().remove_child(root))
                     {
-                        drop(state);
+                        if partial && parent {
+                            // We might be able to drop the root scope now
+                            // Check if this was the last parent that is removed
+                            // (We operate under the task lock to ensure no other thread is adding a
+                            // new parent)
+                            backend.with_scope(root, |child| {
+                                if child.remove_parent(id, backend) {
+                                    let stats_type = match &state {
+                                        TaskMetaStateWriteGuard::Full(s) => match s.stats {
+                                            TaskStats::Essential(_) => StatsType::Essential,
+                                            TaskStats::Full(_) => StatsType::Full,
+                                        },
+                                        TaskMetaStateWriteGuard::Partial(s) => s.stats_type,
+                                        TaskMetaStateWriteGuard::Unloaded(s) => s.stats_type,
+                                    };
+                                    let TaskMetaState::Partial(state) = replace(
+                                        &mut *state.into_inner(),
+                                        TaskMetaState::Unloaded(UnloadedTaskState { stats_type }),
+                                    ) else {
+                                        unreachable!("partial is set so it must be Partial");
+                                    };
+                                    child.decrement_tasks();
+                                    child.decrement_unfinished_tasks(backend);
+                                    let notify = {
+                                        // Partial tasks are always dirty
+                                        let mut child = child.state.lock();
+                                        child.remove_dirty_task(self.id);
+                                        child.take_all_dependent_tasks()
+                                    };
+                                    drop(state);
+
+                                    turbo_tasks.schedule_notify_tasks_set(&notify);
+
+                                    // Now this root scope is eventually no longer referenced
+                                    // and we can unload it, once all foreground jobs are done
+                                    // since there might be ongoing add/remove scopes.
+                                    let job =
+                                        backend.create_backend_job(Job::UnloadRootScope(root));
+                                    turbo_tasks.schedule_backend_foreground_job(job);
+                                }
+                            });
+                        } else {
+                            drop(state);
+                        }
                         if !notify.is_empty() {
                             turbo_tasks.schedule_notify_tasks_set(&notify);
                         }
                         if active {
-                            backend.decrease_scope_active(root, turbo_tasks);
+                            backend.decrease_scope_active(root, self.id, turbo_tasks);
                         }
-                        if parent {
+                        if !partial && parent {
                             backend.with_scope(root, |child| {
                                 child.remove_parent(id, backend);
                             });
@@ -1081,7 +1229,19 @@ impl Task {
                         queue.reserve(max(children.len(), SPLIT_OFF_QUEUE_AT * 2));
                     }
                     queue.extend(children.iter().copied());
+                    let unset = set.is_unset();
                     self.remove_self_from_scope(&mut state, id, backend, turbo_tasks);
+                    if unset {
+                        if let TaskMetaStateWriteGuard::Partial(state) = state {
+                            let stats_type = state.stats_type;
+                            let mut state = state.into_inner();
+                            *state = TaskMetaState::Unloaded(UnloadedTaskState { stats_type });
+                        } else {
+                            drop(state);
+                        }
+                    } else {
+                        drop(state);
+                    }
                 }
             }
         }
@@ -1096,7 +1256,9 @@ impl Task {
         // VecDeque::new() would allocate with 7 items capacity. We don't want that.
         let mut queue = VecDeque::with_capacity(0);
         self.remove_from_scope_internal_shallow(id, backend, turbo_tasks, &mut queue);
-        run_remove_from_scope_queue(queue, id, backend, turbo_tasks);
+        if !queue.is_empty() {
+            run_remove_from_scope_queue(queue, id, backend, turbo_tasks);
+        }
     }
 
     pub(crate) fn remove_from_scope(
@@ -1243,6 +1405,7 @@ impl Task {
                 Ordering::Less => {
                     backend.decrease_scope_active_by(
                         root_scope,
+                        self.id,
                         (-active_counter) as usize,
                         turbo_tasks,
                     );
@@ -1314,6 +1477,16 @@ impl Task {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         self.make_dirty(backend, turbo_tasks)
+    }
+
+    /// Called when the task need to be recomputed because a gc'ed cell was
+    /// read.
+    pub(crate) fn recompute(
+        &self,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) {
+        self.make_dirty_internal(true, backend, turbo_tasks)
     }
 
     /// Access to the output cell.
@@ -1732,6 +1905,462 @@ impl Task {
             drop(state);
             turbo_tasks.schedule_notify_tasks_set(&tasks);
         }
+    }
+
+    pub(crate) fn gc_check_inactive(&self, backend: &MemoryBackend) {
+        if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
+            if state.gc.inactive {
+                return;
+            }
+            state.gc.inactive = true;
+            backend.on_task_flagged_inactive(self.id, state.stats.last_duration());
+            for &child in state.children.iter() {
+                backend.on_task_might_become_inactive(child);
+            }
+        }
+    }
+
+    pub(crate) fn run_gc(
+        &self,
+        now_relative_to_start: Duration,
+        max_priority: GcPriority,
+        task_duration_cache: &mut HashMap<TaskId, Duration, BuildNoHashHasher<TaskId>>,
+        scope_active_cache: &mut HashMap<TaskScopeId, bool, BuildNoHashHasher<TaskScopeId>>,
+        stats: &mut GcStats,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> Option<GcPriority> {
+        if !self.is_pure() {
+            stats.no_gc_needed += 1;
+            return None;
+        }
+        let mut cells_to_drop = Vec::new();
+        // We don't want to access other tasks under this task lock, so we aggregate
+        // missing information first, gather it and then retry.
+        let mut missing_durations = Vec::new();
+        loop {
+            // This might be slightly inaccurate as we don't hold the lock for the whole
+            // duration so it might be too large when concurrent modifications
+            // happen, but that's fine.
+            let mut dependent_tasks_compute_duration = Duration::ZERO;
+            let mut included_tasks = HashSet::with_hasher(BuildNoHashHasher::<TaskId>::default());
+            // Fill up missing durations
+            for task_id in missing_durations.drain(..) {
+                backend.with_task(task_id, |task| {
+                    let duration = task.gc_compute_duration();
+                    task_duration_cache.insert(task_id, duration);
+                    dependent_tasks_compute_duration += duration;
+                })
+            }
+
+            if let TaskMetaStateWriteGuard::Full(mut state) = self.state_mut() {
+                fn is_active(
+                    state: &TaskState,
+                    scope_active_cache: &mut HashMap<
+                        TaskScopeId,
+                        bool,
+                        BuildNoHashHasher<TaskScopeId>,
+                    >,
+                    backend: &MemoryBackend,
+                ) -> bool {
+                    state.scopes.iter().any(|scope| {
+                        *scope_active_cache.entry(scope).or_insert_with(|| {
+                            backend.with_scope(scope, |scope| scope.state.lock().is_active())
+                        })
+                    })
+                }
+                if state.stateful {
+                    stats.no_gc_possible += 1;
+                    return None;
+                }
+                match &mut state.state_type {
+                    TaskStateType::Done { dependencies } => {
+                        dependencies.shrink_to_fit();
+                    }
+                    TaskStateType::Dirty { .. } => {}
+                    _ => {
+                        // GC can't run in this state. We will reschedule it when the execution
+                        // completes.
+                        stats.no_gc_needed += 1;
+                        return None;
+                    }
+                }
+
+                // Check if the task need to be activated again
+                let active = if state.gc.inactive {
+                    if is_active(&state, scope_active_cache, backend) {
+                        state.gc.inactive = false;
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                };
+
+                let last_duration = state.stats.last_duration();
+                let compute_duration = last_duration.into();
+
+                let age = to_exp_u8(
+                    (now_relative_to_start
+                        .saturating_sub(state.stats.last_execution_relative_to_start()))
+                    .as_secs(),
+                );
+
+                let min_prio_that_needs_total_duration = if active {
+                    GcPriority::EmptyCells {
+                        total_compute_duration: to_exp_u8(last_duration.as_millis() as u64),
+                        age: Reverse(age),
+                    }
+                } else {
+                    GcPriority::InactiveUnload {
+                        total_compute_duration: to_exp_u8(last_duration.as_millis() as u64),
+                        age: Reverse(age),
+                    }
+                };
+
+                let need_total_duration = max_priority >= min_prio_that_needs_total_duration;
+                let has_unused_cells = state.cells.values().any(|cells| {
+                    cells
+                        .iter()
+                        .any(|cell| cell.has_value() && !cell.has_dependent_tasks())
+                });
+
+                let empty_unused_priority = if active {
+                    GcPriority::EmptyUnusedCells { compute_duration }
+                } else {
+                    GcPriority::InactiveEmptyUnusedCells { compute_duration }
+                };
+
+                if !need_total_duration {
+                    // Fast mode, no need for total duration
+
+                    if has_unused_cells {
+                        if empty_unused_priority <= max_priority {
+                            // Empty unused cells
+                            for cells in state.cells.values_mut() {
+                                cells.shrink_to_fit();
+                                for cell in cells.iter_mut() {
+                                    if !cell.has_dependent_tasks() {
+                                        cells_to_drop.extend(cell.gc_content());
+                                    }
+                                    cell.shrink_to_fit();
+                                }
+                            }
+                            stats.empty_unused_fast += 1;
+                            return Some(GcPriority::EmptyCells {
+                                total_compute_duration: to_exp_u8(
+                                    Duration::from(compute_duration).as_millis() as u64,
+                                ),
+                                age: Reverse(age),
+                            });
+                        } else {
+                            stats.priority_updated_fast += 1;
+                            return Some(empty_unused_priority);
+                        }
+                    } else if active {
+                        stats.priority_updated += 1;
+                        return Some(GcPriority::EmptyCells {
+                            total_compute_duration: to_exp_u8(
+                                Duration::from(compute_duration).as_millis() as u64,
+                            ),
+                            age: Reverse(age),
+                        });
+                    } else {
+                        stats.priority_updated += 1;
+                        return Some(GcPriority::InactiveUnload {
+                            total_compute_duration: to_exp_u8(
+                                Duration::from(compute_duration).as_millis() as u64,
+                            ),
+                            age: Reverse(age),
+                        });
+                    }
+                } else {
+                    // Slow mode, need to compute total duration
+
+                    let mut has_used_cells = false;
+                    for cells in state.cells.values_mut() {
+                        for cell in cells.iter_mut() {
+                            if cell.has_value() && cell.has_dependent_tasks() {
+                                has_used_cells = true;
+                                for &task_id in cell.dependent_tasks() {
+                                    if included_tasks.insert(task_id) {
+                                        if let Some(duration) = task_duration_cache.get(&task_id) {
+                                            dependent_tasks_compute_duration += *duration;
+                                        } else {
+                                            missing_durations.push(task_id);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if !active {
+                        for &task_id in state.output.dependent_tasks() {
+                            if included_tasks.insert(task_id) {
+                                if let Some(duration) = task_duration_cache.get(&task_id) {
+                                    dependent_tasks_compute_duration += *duration;
+                                } else {
+                                    missing_durations.push(task_id);
+                                }
+                            }
+                        }
+                    }
+
+                    let total_compute_duration =
+                        max(last_duration, dependent_tasks_compute_duration);
+                    let total_compute_duration_u8 =
+                        to_exp_u8(total_compute_duration.as_millis() as u64);
+
+                    // When we have all information available, we can either run the GC or return a
+                    // new GC priority.
+                    if missing_durations.is_empty() {
+                        let mut new_priority = GcPriority::Placeholder;
+                        // TODO We currently don't unload root scopes tasks, because of a bug in
+                        // scope unloading. Fix that.
+                        if !active && !state.scopes.is_root() {
+                            new_priority = GcPriority::InactiveUnload {
+                                age: Reverse(age),
+                                total_compute_duration: total_compute_duration_u8,
+                            };
+                            if new_priority <= max_priority {
+                                // Unload task
+                                if self.unload(state, backend, turbo_tasks) {
+                                    stats.unloaded += 1;
+                                    return None;
+                                } else {
+                                    // unloading will fail if the task go active again
+                                    return Some(GcPriority::EmptyCells {
+                                        total_compute_duration: total_compute_duration_u8,
+                                        age: Reverse(age),
+                                    });
+                                }
+                            }
+                        }
+
+                        // always shrinking memory
+                        state.output.dependent_tasks.shrink_to_fit();
+                        if active && (has_unused_cells || has_used_cells) {
+                            new_priority = GcPriority::EmptyCells {
+                                total_compute_duration: total_compute_duration_u8,
+                                age: Reverse(age),
+                            };
+                            if new_priority <= max_priority {
+                                // Empty cells
+                                let cells = take(&mut state.cells);
+                                for cells in cells.into_values() {
+                                    for mut cell in cells {
+                                        if cell.has_value() {
+                                            cells_to_drop.extend(cell.gc_content());
+                                        }
+                                    }
+                                }
+                                stats.empty_cells += 1;
+                                return None;
+                            }
+                        }
+
+                        // always shrinking memory
+                        state.cells.shrink_to_fit();
+                        if has_unused_cells && active {
+                            new_priority = empty_unused_priority;
+                            if new_priority <= max_priority {
+                                // Empty unused cells
+                                for cells in state.cells.values_mut() {
+                                    cells.shrink_to_fit();
+                                    for cell in cells.iter_mut() {
+                                        if !cell.has_dependent_tasks() {
+                                            cells_to_drop.extend(cell.gc_content());
+                                        }
+                                        cell.shrink_to_fit();
+                                    }
+                                }
+                                stats.empty_unused += 1;
+                                return Some(GcPriority::EmptyCells {
+                                    total_compute_duration: total_compute_duration_u8,
+                                    age: Reverse(age),
+                                });
+                            }
+                        }
+
+                        // Shrink memory
+                        for cells in state.cells.values_mut() {
+                            cells.shrink_to_fit();
+                            for cell in cells.iter_mut() {
+                                cell.shrink_to_fit();
+                            }
+                        }
+
+                        // Return new gc priority if any
+                        if new_priority != GcPriority::Placeholder {
+                            stats.priority_updated += 1;
+
+                            return Some(new_priority);
+                        } else {
+                            stats.no_gc_needed += 1;
+
+                            return None;
+                        }
+                    }
+                }
+            } else {
+                // Task is already unloaded, we are done with GC for it
+                stats.no_gc_needed += 1;
+                return None;
+            }
+        }
+    }
+
+    pub(crate) fn gc_compute_duration(&self) -> Duration {
+        if let TaskMetaStateReadGuard::Full(state) = self.state() {
+            state.stats.last_duration()
+        } else {
+            Duration::ZERO
+        }
+    }
+
+    fn unload(
+        &self,
+        mut full_state: FullTaskWriteGuard<'_>,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi,
+    ) -> bool {
+        let mut clear_dependencies = None;
+        let TaskState {
+            ref mut state_type,
+            ref scopes,
+            ..
+        } = *full_state;
+        match state_type {
+            Done {
+                ref mut dependencies,
+            } => {
+                for (i, scope) in scopes.iter().enumerate() {
+                    let active = backend.with_scope(scope, |scope| {
+                        scope.increment_unfinished_tasks(backend);
+                        let mut scope_state = scope.state.lock();
+                        if scope_state.is_active() {
+                            drop(scope_state);
+                            log_scope_update!(
+                                "add unfinished task (unload): {} -> {}",
+                                *scope.id,
+                                *self.id
+                            );
+                            scope.decrement_unfinished_tasks(backend);
+                            true
+                        } else {
+                            scope_state.add_dirty_task(self.id);
+                            false
+                        }
+                    });
+                    if active {
+                        // Unloading is only possible for inactive tasks.
+                        // We need to abort the unloading, so revert changes done so far.
+                        for scope in scopes.iter().take(i) {
+                            backend.with_scope(scope, |scope| {
+                                scope.decrement_unfinished_tasks(backend);
+                                log_scope_update!(
+                                    "remove unfinished task (undo unload): {} -> {}",
+                                    *scope.id,
+                                    *self.id
+                                );
+                                let mut scope = scope.state.lock();
+                                scope.remove_dirty_task(self.id);
+                            });
+                        }
+                        return false;
+                    }
+                }
+                clear_dependencies = Some(take(dependencies));
+            }
+            Dirty { ref event } => {
+                // We want to get rid of this Event, so notify it to make sure it's empty.
+                event.notify(usize::MAX);
+            }
+            _ => {
+                // Any other state is not unloadable.
+                return false;
+            }
+        }
+        // Task is now dirty, so we can safely unload it
+
+        let mut state = full_state.into_inner();
+        let old_state = replace(
+            &mut *state,
+            // placeholder
+            TaskMetaState::Unloaded(UnloadedTaskState {
+                stats_type: StatsType::Essential,
+            }),
+        );
+        let TaskState {
+            children,
+            cells,
+            output,
+            collectibles,
+            scopes,
+            stats,
+            // can be dropped as it will be recomputed on next execution
+            stateful: _,
+            // can be dropped as it can be recomputed
+            prepared_type: _,
+            // can be dropped as always Dirty, event has been notified above
+            state_type: _,
+            // can be dropped as only gc meta info
+            gc: _,
+        } = old_state.into_full().unwrap();
+
+        // Remove all children, as they will be added again when this task is executed
+        // again
+        if !children.is_empty() {
+            remove_from_scopes(children, &scopes, backend, turbo_tasks);
+        }
+
+        // Remove all collectibles, as they will be added again when this task is
+        // executed again.
+        if let Some(collectibles) = collectibles.into_inner() {
+            remove_collectible_from_scopes(
+                collectibles.emitted,
+                collectibles.unemitted,
+                &scopes,
+                backend,
+                turbo_tasks,
+            );
+        }
+
+        let unset = if let TaskScopes::Inner(ref scopes, _) = scopes {
+            scopes.is_unset()
+        } else {
+            false
+        };
+
+        let stats_type = match stats {
+            TaskStats::Essential(_) => StatsType::Essential,
+            TaskStats::Full(_) => StatsType::Full,
+        };
+        if unset {
+            *state = TaskMetaState::Unloaded(UnloadedTaskState { stats_type });
+        } else {
+            *state = TaskMetaState::Partial(box PartialTaskState { scopes, stats_type });
+        }
+        drop(state);
+
+        // Notify everyone that is listening on our output or cells.
+        // This will mark everyone as dirty and will trigger a new execution when they
+        // become active again.
+        for cells in cells.into_values() {
+            for cell in cells {
+                cell.gc_drop(turbo_tasks);
+            }
+        }
+        output.gc_drop(turbo_tasks);
+
+        // We can clear the dependencies as we are already marked as dirty
+        if let Some(dependencies) = clear_dependencies {
+            self.clear_dependencies(dependencies, backend);
+        }
+
+        true
     }
 }
 

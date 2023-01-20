@@ -18,6 +18,13 @@ pub(super) enum TaskMetaState {
 }
 
 impl TaskMetaState {
+    pub(super) fn into_full(self) -> Option<TaskState> {
+        match self {
+            Self::Full(state) => Some(*state),
+            _ => None,
+        }
+    }
+
     pub(super) fn into_partial(self) -> Option<PartialTaskState> {
         match self {
             Self::Partial(state) => Some(*state),
@@ -179,7 +186,7 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
                 )
                 .into_partial()
                 .unwrap();
-                *guard = TaskMetaState::Full(box partial.into_full(task.id));
+                *guard = TaskMetaState::Full(box partial.into_full(task.get_event_description()));
             }
             TaskMetaState::Unloaded(_) => {
                 let unloaded = replace(
@@ -191,7 +198,7 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
                 )
                 .into_unloaded()
                 .unwrap();
-                *guard = TaskMetaState::Full(box unloaded.into_full(task.id));
+                *guard = TaskMetaState::Full(box unloaded.into_full(task.get_event_description()));
             }
         }
         WriteGuard::new(guard, TaskMetaState::as_full, TaskMetaState::as_full_mut)
@@ -256,6 +263,14 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
         match self {
             TaskMetaStateWriteGuard::Full(state) => Some(&mut **state),
             _ => None,
+        }
+    }
+
+    pub(super) fn into_inner(self) -> RwLockWriteGuard<'a, TaskMetaState> {
+        match self {
+            TaskMetaStateWriteGuard::Full(state) => state.into_inner(),
+            TaskMetaStateWriteGuard::Partial(state) => state.into_inner(),
+            TaskMetaStateWriteGuard::Unloaded(state) => state.into_inner(),
         }
     }
 }

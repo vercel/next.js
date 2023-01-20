@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     future::Future,
     hash::Hash,
+    mem::take,
     panic::AssertUnwindSafe,
     pin::Pin,
     sync::{
@@ -150,6 +151,9 @@ pub trait TurboTasksBackendApi: TaskIdProvider + TurboTasksCallApi + Sync + Send
     fn schedule_backend_foreground_job(&self, id: BackendJobId);
 
     fn try_foreground_done(&self) -> Result<(), EventListener>;
+    fn wait_foreground_done_excluding_own<'a>(
+        &'a self,
+    ) -> Option<Pin<Box<dyn Future<Output = ()> + Send + 'a>>>;
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
@@ -220,6 +224,17 @@ pub struct TurboTasks<B: Backend + 'static> {
     program_start: Instant,
 }
 
+#[derive(Default)]
+struct CurrentTaskState {
+    /// Affected [Task]s, that are tracked during task execution
+    /// These tasks will be invalidated when the execution finishes
+    /// or before reading a cell value
+    tasks_to_notify: Vec<TaskId>,
+
+    // true, if the current task has state in cells
+    stateful: bool,
+}
+
 // TODO implement our own thread pool and make these thread locals instead
 task_local! {
     /// The current TurboTasks instance
@@ -229,10 +244,7 @@ task_local! {
 
     static CURRENT_TASK_ID: TaskId;
 
-    /// Affected [Task]s, that are tracked during task execution
-    /// These tasks will be invalidated when the execution finishes
-    /// or before reading a cell value
-    static TASKS_TO_NOTIFY: RefCell<Vec<TaskId>>;
+    static CURRENT_TASK_STATE: RefCell<CurrentTaskState>;
 }
 
 impl<B: Backend> TurboTasks<B> {
@@ -382,59 +394,60 @@ impl<B: Backend> TurboTasks<B> {
 
         let this = self.pin();
         let future = async move {
-            loop {
-                if this.stopped.load(Ordering::Acquire) {
-                    break;
-                }
-                if let Some(execution) = this.backend.try_start_task_execution(task_id, &*this) {
-                    // Setup thread locals
-                    let (result, duration, instant) = CELL_COUNTERS
-                        .scope(Default::default(), async {
-                            let (result, duration, instant) =
-                                TimedFuture::new(AssertUnwindSafe(execution.future).catch_unwind())
-                                    .await;
-                            (result, duration, instant)
-                        })
-                        .await;
-                    if cfg!(feature = "log_function_stats") && duration.as_millis() > 1000 {
-                        println!(
-                            "{} took {}",
-                            this.backend.get_task_description(task_id),
-                            FormatDuration(duration)
-                        )
+            #[allow(clippy::blocks_in_if_conditions)]
+            while CURRENT_TASK_STATE
+                .scope(Default::default(), async {
+                    if this.stopped.load(Ordering::Acquire) {
+                        return false;
                     }
-                    let result = result.map_err(|any| match any.downcast::<String>() {
-                        Ok(owned) => Some(Cow::Owned(*owned)),
-                        Err(any) => match any.downcast::<&'static str>() {
-                            Ok(str) => Some(Cow::Borrowed(*str)),
-                            Err(_) => None,
-                        },
-                    });
-                    this.backend.task_execution_result(task_id, result, &*this);
-                    this.notify_scheduled_tasks_internal();
-                    let reexecute = this
-                        .backend
-                        .task_execution_completed(task_id, duration, instant, &*this);
-                    if !reexecute {
-                        break;
+                    if let Some(execution) = this.backend.try_start_task_execution(task_id, &*this)
+                    {
+                        // Setup thread locals
+                        let (result, duration, instant) = CELL_COUNTERS
+                            .scope(Default::default(), async {
+                                let (result, duration, instant) = TimedFuture::new(
+                                    AssertUnwindSafe(execution.future).catch_unwind(),
+                                )
+                                .await;
+                                (result, duration, instant)
+                            })
+                            .await;
+                        if cfg!(feature = "log_function_stats") && duration.as_millis() > 1000 {
+                            println!(
+                                "{} took {}",
+                                this.backend.get_task_description(task_id),
+                                FormatDuration(duration)
+                            )
+                        }
+                        let result = result.map_err(|any| match any.downcast::<String>() {
+                            Ok(owned) => Some(Cow::Owned(*owned)),
+                            Err(any) => match any.downcast::<&'static str>() {
+                                Ok(str) => Some(Cow::Borrowed(*str)),
+                                Err(_) => None,
+                            },
+                        });
+                        this.backend.task_execution_result(task_id, result, &*this);
+                        let stateful = this.finish_current_task_state();
+                        let reexecute = this
+                            .backend
+                            .task_execution_completed(task_id, duration, instant, stateful, &*this);
+                        if !reexecute {
+                            return false;
+                        }
+                    } else {
+                        return false;
                     }
-                } else {
-                    break;
-                }
-            }
+                    true
+                })
+                .await
+            {}
             this.finish_primary_job();
             anyhow::Ok(())
         };
 
         let future = TURBO_TASKS.scope(
             self.pin(),
-            CURRENT_TASK_ID.scope(
-                task_id,
-                TASKS_TO_NOTIFY.scope(
-                    Default::default(),
-                    self.backend.execution_scope(task_id, future),
-                ),
-            ),
+            CURRENT_TASK_ID.scope(task_id, self.backend.execution_scope(task_id, future)),
         );
 
         #[cfg(feature = "tokio_tracing")]
@@ -469,6 +482,7 @@ impl<B: Backend> TurboTasks<B> {
             .fetch_sub(1, Ordering::AcqRel)
             == 1
         {
+            self.backend.idle_start(self);
             // That's not super race-condition-safe, but it's only for
             // statistical reasons
             let total = self.scheduled_tasks.load(Ordering::Acquire);
@@ -670,14 +684,18 @@ impl<B: Backend> TurboTasks<B> {
         }));
     }
 
-    fn notify_scheduled_tasks_internal(&self) {
-        TASKS_TO_NOTIFY.with(|tasks| {
-            let tasks = tasks.take();
-            if tasks.is_empty() {
-                return;
+    fn finish_current_task_state(&self) -> bool {
+        CURRENT_TASK_STATE.with(|cell| {
+            let CurrentTaskState {
+                tasks_to_notify,
+                stateful,
+            } = &mut *cell.borrow_mut();
+            let tasks = take(tasks_to_notify);
+            if !tasks.is_empty() {
+                self.backend.invalidate_tasks(tasks, self);
             }
-            self.backend.invalidate_tasks(tasks, self);
-        });
+            *stateful
+        })
     }
 
     pub fn backend(&self) -> &B {
@@ -733,8 +751,11 @@ impl<B: Backend> TurboTasksApi for TurboTasks<B> {
     }
 
     fn notify_scheduled_tasks(&self) {
-        let _ = TASKS_TO_NOTIFY.try_with(|tasks| {
-            let tasks = tasks.take();
+        let _ = CURRENT_TASK_STATE.try_with(|cell| {
+            let CurrentTaskState {
+                tasks_to_notify, ..
+            } = &mut *cell.borrow_mut();
+            let tasks = take(tasks_to_notify);
             if tasks.is_empty() {
                 return;
             }
@@ -883,12 +904,31 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
         Err(listener)
     }
 
+    fn wait_foreground_done_excluding_own<'a>(
+        &'a self,
+    ) -> Option<Pin<Box<dyn Future<Output = ()> + Send + 'a>>> {
+        if self
+            .currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
+            == 0
+        {
+            return None;
+        }
+        Some(Box::pin(async {
+            self.finish_foreground_job();
+            self.wait_foreground_done().await;
+            self.begin_foreground_job();
+        }))
+    }
+
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `dependent_cell_updated()` on all tasks.
     fn schedule_notify_tasks(&self, tasks: &[TaskId]) {
-        let result = TASKS_TO_NOTIFY.try_with(|tasks_list| {
-            let mut list = tasks_list.borrow_mut();
-            list.extend(tasks.iter());
+        let result = CURRENT_TASK_STATE.try_with(|cell| {
+            let CurrentTaskState {
+                tasks_to_notify, ..
+            } = &mut *cell.borrow_mut();
+            tasks_to_notify.extend(tasks.iter());
         });
         if result.is_err() {
             self.backend.invalidate_tasks(tasks.to_vec(), self);
@@ -898,9 +938,11 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `dependent_cell_updated()` on all tasks.
     fn schedule_notify_tasks_set(&self, tasks: &AutoSet<TaskId>) {
-        let result = TASKS_TO_NOTIFY.try_with(|tasks_list| {
-            let mut list = tasks_list.borrow_mut();
-            list.extend(tasks.iter());
+        let result = CURRENT_TASK_STATE.try_with(|cell| {
+            let CurrentTaskState {
+                tasks_to_notify, ..
+            } = &mut *cell.borrow_mut();
+            tasks_to_notify.extend(tasks.iter());
         });
         if result.is_err() {
             self.backend
@@ -1106,7 +1148,10 @@ pub fn get_invalidator() -> Invalidator {
 /// Marks the current task as stateful. This prevents the tasks from being
 /// dropped without persisting the state.
 pub fn mark_stateful() {
-    // TODO pass this to the backend
+    CURRENT_TASK_STATE.with(|cell| {
+        let CurrentTaskState { stateful, .. } = &mut *cell.borrow_mut();
+        *stateful = true;
+    })
 }
 
 pub fn emit<T: ValueTraitVc>(collectible: T) {

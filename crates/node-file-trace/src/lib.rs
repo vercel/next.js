@@ -399,7 +399,7 @@ pub async fn start(args: Arc<Args>) -> Result<Vec<String>> {
 
     run(
         args.clone(),
-        || TurboTasks::new(MemoryBackend::new()),
+        || TurboTasks::new(MemoryBackend::default()),
         |tt, root_task, _| async move {
             if visualize_graph {
                 let mut stats = Stats::new();

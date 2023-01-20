@@ -730,6 +730,7 @@ impl Backend for RocksDbBackend {
         &self,
         task: TaskId,
         result: Result<RawVc>,
+        _stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
         #[cfg(feature = "log_backend")]
