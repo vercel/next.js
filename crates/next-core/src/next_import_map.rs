@@ -108,6 +108,8 @@ pub fn get_next_build_import_map(project_path: FileSystemPathVc) -> ImportMapVc 
 
     import_map.insert_exact_alias("next", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
+    import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
+    import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
     import_map.cell()
 }
@@ -178,6 +180,8 @@ pub async fn get_next_server_import_map(
             import_map.insert_wildcard_alias("react/", ImportMapping::External(None).into());
             import_map.insert_exact_alias("react-dom", ImportMapping::External(None).into());
             import_map.insert_wildcard_alias("react-dom/", ImportMapping::External(None).into());
+            import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
+            import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
         }
         ServerContextType::AppSSR { app_dir } | ServerContextType::AppRSC { app_dir } => {
             import_map.insert_exact_alias(
