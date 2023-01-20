@@ -2,13 +2,17 @@ use next_binding::swc::core::{
     common::{errors::HANDLER, util::take::Take, FileName, DUMMY_SP},
     ecma::{
         ast::{
-            op, AssignExpr, BlockStmt, CallExpr, Decl, ExportDecl, Expr, ExprStmt, FnDecl,
-            Function, Ident, Lit, ModuleDecl, ModuleItem, PatOrExpr, ReturnStmt, Stmt, Str,
-            VarDecl, VarDeclKind, VarDeclarator,
+            op, ArrayLit, AssignExpr, BlockStmt, CallExpr, ComputedPropName, Decl, ExportDecl,
+            Expr, ExprStmt, FnDecl, Function, Id, Ident, KeyValueProp, Lit, MemberExpr, MemberProp,
+            ModuleDecl, ModuleItem, PatOrExpr, Prop, PropName, ReturnStmt, Stmt, Str, VarDecl,
+            VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+        utils::{find_pat_ids, private_ident, quote_ident, ExprFactory},
+        visit::{
+            as_folder, noop_visit_mut_type, noop_visit_type, visit_obj_and_computed, Fold, Visit,
+            VisitMut, VisitMutWith, VisitWith,
+        },
     },
 };
 use serde::Deserialize;
@@ -22,8 +26,9 @@ pub fn server_actions(file_name: &FileName, config: Config) -> impl VisitMut + F
         config,
         file_name: file_name.clone(),
         top_level: false,
-        extra_items: Default::default(),
+        closure_candidates: Default::default(),
         annotations: Default::default(),
+        extra_items: Default::default(),
     })
 }
 
@@ -33,13 +38,23 @@ struct ServerActions {
 
     top_level: bool,
 
+    closure_candidates: Vec<Id>,
+
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
 }
 
 impl VisitMut for ServerActions {
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        f.visit_mut_children_with(self);
+        {
+            let mut old_len = self.closure_candidates.len();
+            self.closure_candidates
+                .extend(find_pat_ids(&f.function.params));
+
+            f.visit_mut_children_with(self);
+
+            self.closure_candidates.truncate(old_len);
+        }
 
         // Check if the first item is `"use action"`;
         if let Some(body) = &mut f.function.body {
@@ -114,6 +129,32 @@ impl VisitMut for ServerActions {
         } else {
             // Hoist the function to the top level.
 
+            let mut used_ids = idents_used_by(&f.function.body);
+
+            used_ids.retain(|id| self.closure_candidates.contains(id));
+
+            let closure_arg = private_ident!("closure");
+
+            f.function.body.visit_mut_with(&mut ClosureReplacer {
+                closure_arg: &closure_arg,
+                used_ids: &used_ids,
+            });
+
+            // myAction.$$closure = [id1, id2]
+            self.annotations.push(annotate(
+                &f.ident,
+                "$$closure",
+                ArrayLit {
+                    span: DUMMY_SP,
+                    elems: used_ids
+                        .iter()
+                        .cloned()
+                        .map(|id| Some(id.as_arg()))
+                        .collect(),
+                }
+                .into(),
+            ));
+
             let call = CallExpr {
                 span: DUMMY_SP,
                 callee: action_ident.clone().as_callee(),
@@ -147,7 +188,10 @@ impl VisitMut for ServerActions {
                     span: DUMMY_SP,
                     decl: FnDecl {
                         ident: action_ident,
-                        function: f.function.take(),
+                        function: Box::new(Function {
+                            params: vec![closure_arg.into()],
+                            ..*f.function.take()
+                        }),
                         declare: Default::default(),
                     }
                     .into(),
@@ -206,4 +250,100 @@ fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> Stmt {
         }
         .into(),
     })
+}
+
+fn idents_used_by<N>(n: &N) -> Vec<Id>
+where
+    N: VisitWith<IdentUsageCollector>,
+{
+    let mut v = IdentUsageCollector {
+        ..Default::default()
+    };
+    n.visit_with(&mut v);
+    v.ids
+}
+
+#[derive(Default)]
+pub(crate) struct IdentUsageCollector {
+    ids: Vec<Id>,
+}
+
+impl Visit for IdentUsageCollector {
+    noop_visit_type!();
+
+    visit_obj_and_computed!();
+
+    fn visit_ident(&mut self, n: &Ident) {
+        if self.ids.contains(&n.to_id()) {
+            return;
+        }
+        self.ids.push(n.to_id());
+    }
+
+    fn visit_member_prop(&mut self, n: &MemberProp) {
+        if let MemberProp::Computed(..) = n {
+            n.visit_children_with(self);
+        }
+    }
+
+    fn visit_prop_name(&mut self, n: &PropName) {
+        if let PropName::Computed(..) = n {
+            n.visit_children_with(self);
+        }
+    }
+}
+
+pub(crate) struct ClosureReplacer<'a> {
+    closure_arg: &'a Ident,
+    used_ids: &'a [Id],
+}
+
+impl ClosureReplacer<'_> {
+    fn index(&self, i: &Ident) -> Option<usize> {
+        self.used_ids
+            .iter()
+            .position(|used_id| i.sym == used_id.0 && i.span.ctxt == used_id.1)
+    }
+}
+
+impl VisitMut for ClosureReplacer<'_> {
+    fn visit_mut_expr(&mut self, e: &mut Expr) {
+        e.visit_mut_children_with(self);
+
+        if let Expr::Ident(i) = e {
+            if let Some(index) = self.index(i) {
+                *e = Expr::Member(MemberExpr {
+                    span: DUMMY_SP,
+                    obj: self.closure_arg.clone().into(),
+                    prop: MemberProp::Computed(ComputedPropName {
+                        span: DUMMY_SP,
+                        expr: index.into(),
+                    }),
+                });
+            }
+        }
+    }
+
+    fn visit_mut_prop(&mut self, p: &mut Prop) {
+        p.visit_mut_children_with(self);
+
+        if let Prop::Shorthand(i) = p {
+            if let Some(index) = self.index(i) {
+                *p = Prop::KeyValue(KeyValueProp {
+                    key: PropName::Ident(i.clone()),
+                    value: MemberExpr {
+                        span: DUMMY_SP,
+                        obj: self.closure_arg.clone().into(),
+                        prop: MemberProp::Computed(ComputedPropName {
+                            span: DUMMY_SP,
+                            expr: index.into(),
+                        }),
+                    }
+                    .into(),
+                });
+            }
+        }
+    }
+
+    noop_visit_mut_type!();
 }
