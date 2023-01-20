@@ -5,8 +5,8 @@ import dynamic from 'next/dynamic'
 import SuperTokens from 'supertokens-auth-react'
 import { redirectToAuth } from 'supertokens-auth-react'
 
-const SuperTokensComponentNoSSR = dynamic(
-  new Promise((res) => res(SuperTokens.getRoutingComponent)) as any,
+const SuperTokensComponentNoSSR = dynamic<React.ComponentProps<typeof SuperTokens.getRoutingComponent>>(
+  new Promise((res) => res(SuperTokens.getRoutingComponent)),
   { ssr: false }
 )
 
