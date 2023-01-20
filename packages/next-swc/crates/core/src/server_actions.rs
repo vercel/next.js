@@ -221,6 +221,7 @@ impl VisitMut for ServerActions {
     }
 
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
+        let old_top_level = self.top_level;
         let old_annotations = self.annotations.take();
 
         let mut new = Vec::with_capacity(stmts.len());
@@ -235,6 +236,7 @@ impl VisitMut for ServerActions {
         *stmts = new;
 
         self.annotations = old_annotations;
+        self.top_level = old_top_level;
     }
 
     noop_visit_mut_type!();
