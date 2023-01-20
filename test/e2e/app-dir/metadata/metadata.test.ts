@@ -8,6 +8,7 @@ createNextDescribe(
   ({ next, isNextDeploy }) => {
     describe('metadata', () => {
       if (isNextDeploy) {
+        it('should skip for deploy currently', () => {})
         return
       }
       async function checkMeta(
