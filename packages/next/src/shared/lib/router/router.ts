@@ -1101,7 +1101,7 @@ export default class Router implements BaseRouter {
       return
     }
 
-    let forcedScroll: { x: number; y: number } | undefined
+    let forcedScroll: { x: number; y: number } | 'stopScrollingToTop!' = 'stopScrollingToTop!'
     const { url, as, options, key } = state
     if (process.env.__NEXT_SCROLL_RESTORATION) {
       if (manualScrollRestoration) {
@@ -1216,7 +1216,7 @@ export default class Router implements BaseRouter {
     url: string,
     as: string,
     options: TransitionOptions,
-    forcedScroll?: { x: number; y: number }
+    forcedScroll?: { x: number; y: number } | 'stopScrollingToTop!'
   ): Promise<boolean> {
     if (!isLocalURL(url)) {
       handleHardNavigation({ url, router: this })
@@ -1762,7 +1762,10 @@ export default class Router implements BaseRouter {
       const shouldScroll =
         options.scroll ?? (!isQueryUpdating && !isValidShallowRoute)
       const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
-      const upcomingScrollState = forcedScroll ?? resetScroll
+      const upcomingScrollState =
+        forcedScroll === 'stopScrollingToTop!'
+          ? null
+          : forcedScroll ?? resetScroll
 
       // the new state that the router gonna set
       const upcomingRouterState = {
