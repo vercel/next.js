@@ -19,12 +19,14 @@ pub fn server_actions(config: Config) -> impl VisitMut + Fold {
     as_folder(ServerActions {
         config,
         extra_items: Default::default(),
+        annotations: Default::default(),
     })
 }
 
 struct ServerActions {
     config: Config,
 
+    annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
 }
 
@@ -53,7 +55,7 @@ impl VisitMut for ServerActions {
         }
 
         // myAction.$$typeof = Symbol.for('react.action.reference');
-        self.extra_items.push(annotate(
+        self.annotations.push(annotate(
             &f.ident,
             "$$typeof",
             CallExpr {
@@ -68,11 +70,11 @@ impl VisitMut for ServerActions {
         ));
 
         // myAction.$$filepath = '/app/page.tsx';
-        self.extra_items
+        self.annotations
             .push(annotate(&f.ident, "$$filepath", "".into()));
 
         // myAction.$$name = '$ACTION_myAction';
-        self.extra_items.push(annotate(
+        self.annotations.push(annotate(
             &f.ident,
             "$$name",
             format!("$ACTION_{}", f.ident.sym).into(),
@@ -98,8 +100,8 @@ impl VisitMut for ServerActions {
     }
 }
 
-fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> ModuleItem {
-    ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> Stmt {
+    Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
         expr: AssignExpr {
             span: DUMMY_SP,
@@ -108,5 +110,5 @@ fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> ModuleItem {
             right: value,
         }
         .into(),
-    }))
+    })
 }
