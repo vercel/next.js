@@ -20,7 +20,7 @@ use turbo_tasks_fs::{
 };
 
 use self::{
-    exports::{ExportsField, ExportsValue},
+    exports::ExportsField,
     options::{
         resolve_modules_options, ImportMapResult, ResolveInPackage, ResolveIntoPackage,
         ResolveModules, ResolveModulesOptionsVc, ResolveOptionsVc,
@@ -45,7 +45,7 @@ use crate::{
 };
 
 mod alias_map;
-mod exports;
+pub(crate) mod exports;
 pub mod options;
 pub mod origin;
 pub mod parse;
@@ -54,6 +54,7 @@ pub mod pattern;
 pub use alias_map::{
     AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern, AliasTemplate,
 };
+pub use exports::{ExportsValue, ResolveAliasMap, ResolveAliasMapVc};
 
 #[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize)]
 pub enum SpecialType {

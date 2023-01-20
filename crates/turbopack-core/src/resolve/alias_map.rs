@@ -207,6 +207,19 @@ impl<T> IntoIterator for AliasMap<T> {
     }
 }
 
+impl<'a, T> IntoIterator for &'a AliasMap<T> {
+    type Item = (AliasPattern, &'a T);
+
+    type IntoIter = AliasMapIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        AliasMapIter {
+            iter: self.map.iter(),
+            current_prefix_iterator: None,
+        }
+    }
+}
+
 /// An owning iterator over the entries of an `AliasMap`.
 ///
 /// Beware: The items are *NOT* returned in the order defined by
@@ -267,6 +280,69 @@ impl<T> Iterator for AliasMapIntoIter<T> {
                 }
             }
         }
+    }
+}
+
+/// A borrowing iterator over the entries of an `AliasMap`.
+///
+/// Beware: The items are *NOT* returned in the order defined by
+/// [PATTERN_KEY_COMPARE].
+///
+/// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolver-algorithm-specification
+pub struct AliasMapIter<'a, T> {
+    iter: patricia_tree::map::Iter<'a, BTreeMap<AliasKey, T>>,
+    current_prefix_iterator: Option<AliasMapIterItem<'a, T>>,
+}
+
+struct AliasMapIterItem<'a, T> {
+    prefix: String,
+    iterator: std::collections::btree_map::Iter<'a, AliasKey, T>,
+}
+
+impl<'a, T> AliasMapIter<'a, T> {
+    fn advance_iter(&mut self) -> bool {
+        let Some((prefix, map)) = self.iter.next() else {
+            return false;
+        };
+        let prefix = String::from_utf8(prefix).expect("invalid UTF-8 key in AliasMap");
+        self.current_prefix_iterator = Some(AliasMapIterItem {
+            prefix,
+            iterator: map.iter(),
+        });
+        true
+    }
+}
+
+impl<'a, T> Iterator for AliasMapIter<'a, T> {
+    type Item = (AliasPattern, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (current_prefix_iterator, current_value) = loop {
+            let Some(current_prefix_iterator) = &mut self.current_prefix_iterator else {
+                if !self.advance_iter() {
+                    return None;
+                }
+                continue;
+            };
+            if let Some(current_value) = current_prefix_iterator.iterator.next() {
+                break (&*current_prefix_iterator, current_value);
+            }
+            self.current_prefix_iterator = None;
+            continue;
+        };
+        Some(match current_value {
+            (AliasKey::Exact, value) => (
+                AliasPattern::Exact(current_prefix_iterator.prefix.clone()),
+                value,
+            ),
+            (AliasKey::Wildcard { suffix }, value) => (
+                AliasPattern::Wildcard {
+                    prefix: current_prefix_iterator.prefix.clone(),
+                    suffix: suffix.clone(),
+                },
+                value,
+            ),
+        })
     }
 }
 

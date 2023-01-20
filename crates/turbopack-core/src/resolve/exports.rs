@@ -1,11 +1,12 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::{anyhow, bail, Result};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::{
-    alias_map::{AliasMap, AliasMapLookupIterator, AliasPattern, AliasTemplate},
+    alias_map::{AliasMap, AliasMapIter, AliasMapLookupIterator, AliasPattern, AliasTemplate},
     options::ConditionValue,
 };
 
@@ -316,5 +317,40 @@ impl ExportsField {
     /// when conditions don't match or only partially match.
     pub fn lookup<'a>(&'a self, request: &'a str) -> AliasMapLookupIterator<'a, ExportsValue> {
         self.0.lookup(request)
+    }
+}
+
+/// Content of an "alias" configuration
+#[turbo_tasks::value(shared)]
+#[derive(Default)]
+pub struct ResolveAliasMap(#[turbo_tasks(trace_ignore)] AliasMap<ExportsValue>);
+
+impl TryFrom<&IndexMap<String, Value>> for ResolveAliasMap {
+    type Error = anyhow::Error;
+
+    fn try_from(object: &IndexMap<String, Value>) -> Result<Self> {
+        let mut map = AliasMap::new();
+
+        for (key, value) in object.iter() {
+            let mut value: ExportsValue = value.try_into()?;
+
+            let pattern = if is_folder_shorthand(key) {
+                expand_folder_shorthand(key, &mut value)?
+            } else {
+                AliasPattern::parse(key)
+            };
+
+            map.insert(pattern, value);
+        }
+        Ok(Self(map))
+    }
+}
+
+impl<'a> IntoIterator for &'a ResolveAliasMap {
+    type Item = (AliasPattern, &'a ExportsValue);
+    type IntoIter = AliasMapIter<'a, ExportsValue>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.0).into_iter()
     }
 }

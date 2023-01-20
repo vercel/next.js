@@ -21,7 +21,7 @@ use crate::{
         get_client_resolve_options_context, get_client_runtime_entries, ClientContextType,
     },
     next_config::NextConfigVc,
-    next_import_map::insert_next_shared_aliases,
+    next_import_map::{insert_alias_option, insert_next_shared_aliases},
     runtime::resolve_runtime_request,
 };
 
@@ -49,10 +49,12 @@ pub async fn get_fallback_page(
     let entries = get_client_runtime_entries(project_path, env, ty, next_config);
 
     let mut import_map = ImportMap::empty();
-    insert_next_shared_aliases(
+    insert_next_shared_aliases(&mut import_map, project_path).await?;
+    insert_alias_option(
         &mut import_map,
         project_path,
         next_config.resolve_alias_options(),
+        ["browser"],
     )
     .await?;
 

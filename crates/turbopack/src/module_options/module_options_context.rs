@@ -21,13 +21,6 @@ pub struct WebpackLoadersOptions {
     pub placeholder_for_future_extensions: (),
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Default, Clone, Debug)]
-pub struct ResolveAliasOptions {
-    pub alias_map: IndexMap<String, StringsVc>,
-    pub placeholder_for_future_extensions: (),
-}
-
 impl WebpackLoadersOptions {
     pub fn is_empty(&self) -> bool {
         self.extension_to_loaders.is_empty()
