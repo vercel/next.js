@@ -2,7 +2,7 @@
 
 ## Examples 
 
-These official examples are maintained by the Prisma team:
+These official examples are maintained by the Supabase team:
 
 - [Next.js User Management Quickstart](https://github.com/supabase/supabase/tree/master/examples/user-management/nuxtjs-user-management)
 - [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
