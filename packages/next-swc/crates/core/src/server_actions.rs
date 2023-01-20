@@ -78,6 +78,7 @@ impl VisitMut for ServerActions {
             format!("$ACTION_{}", f.ident.sym).into(),
         ));
 
+        // export const $ACTION_myAction = myAction;
         self.extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
