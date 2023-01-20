@@ -41,11 +41,11 @@ struct JestTestResult {
 
 lazy_static! {
     // Allows for interactive manual debugging of a test case in a browser with:
-    // `TURBOPACK_DEBUG_BROWSER=1 cargo test -p next-dev -- test_my_pattern --nocapture`
+    // `TURBOPACK_DEBUG_BROWSER=1 cargo test -p next-dev-tests -- test_my_pattern --nocapture`
     static ref DEBUG_BROWSER: bool = env::var("TURBOPACK_DEBUG_BROWSER").is_ok();
 }
 
-#[test_resources("crates/next-dev/tests/integration/*/*/*")]
+#[test_resources("crates/next-dev-tests/tests/integration/*/*/*")]
 #[tokio::main(flavor = "current_thread")]
 async fn test(resource: &str) {
     if resource.ends_with("__skipped__") || resource.ends_with("__flakey__") {
@@ -90,7 +90,7 @@ async fn test(resource: &str) {
     };
 }
 
-#[test_resources("crates/next-dev/tests/integration/*/*/__skipped__/*")]
+#[test_resources("crates/next-dev-tests/tests/integration/*/*/__skipped__/*")]
 #[should_panic]
 #[tokio::main]
 async fn test_skipped_fails(resource: &str) {
@@ -114,7 +114,7 @@ async fn run_test(resource: &str) -> JestRunResult {
     let path = Path::new(resource)
         // test_resources matches and returns relative paths from the workspace root,
         // but pwd in cargo tests is the crate under test.
-        .strip_prefix("crates/next-dev")
+        .strip_prefix("crates/next-dev-tests")
         .unwrap();
     assert!(path.exists(), "{} does not exist", resource);
 
