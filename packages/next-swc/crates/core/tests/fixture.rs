@@ -302,7 +302,12 @@ fn server_actions_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| server_actions(server_actions::Config {}),
+        &|_tr| {
+            server_actions(
+                &FileName::Real("/app/item.js".into()),
+                server_actions::Config {},
+            )
+        },
         &input,
         &output,
         Default::default(),

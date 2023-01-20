@@ -1,5 +1,5 @@
 use next_binding::swc::core::{
-    common::{errors::HANDLER, util::take::Take, DUMMY_SP},
+    common::{errors::HANDLER, util::take::Take, FileName, DUMMY_SP},
     ecma::{
         ast::{
             op, AssignExpr, CallExpr, Decl, ExportDecl, Expr, ExprStmt, FnDecl, Ident, Lit,
@@ -15,9 +15,10 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {}
 
-pub fn server_actions(config: Config) -> impl VisitMut + Fold {
+pub fn server_actions(file_name: &FileName, config: Config) -> impl VisitMut + Fold {
     as_folder(ServerActions {
         config,
+        file_name: file_name.clone(),
         extra_items: Default::default(),
         annotations: Default::default(),
     })
@@ -25,6 +26,7 @@ pub fn server_actions(config: Config) -> impl VisitMut + Fold {
 
 struct ServerActions {
     config: Config,
+    file_name: FileName,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -74,8 +76,11 @@ impl VisitMut for ServerActions {
         ));
 
         // myAction.$$filepath = '/app/page.tsx';
-        self.annotations
-            .push(annotate(&f.ident, "$$filepath", "".into()));
+        self.annotations.push(annotate(
+            &f.ident,
+            "$$filepath",
+            self.file_name.to_string().into(),
+        ));
 
         // myAction.$$name = '$ACTION_myAction';
         self.annotations.push(annotate(
