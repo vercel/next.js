@@ -1,7 +1,8 @@
 use next_binding::swc::core::{
-    common::errors::HANDLER,
+    common::{errors::HANDLER, DUMMY_SP},
     ecma::{
-        ast::{Expr, FnDecl, Lit, Stmt, Str},
+        ast::{op, AssignExpr, CallExpr, Expr, ExprStmt, FnDecl, Ident, Lit, PatOrExpr, Stmt, Str},
+        utils::{quote_ident, ExprFactory},
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
@@ -12,11 +13,16 @@ use serde::Deserialize;
 pub struct Config {}
 
 pub fn server_actions(config: Config) -> impl VisitMut + Fold {
-    as_folder(ServerActions { config })
+    as_folder(ServerActions {
+        config,
+        annotations: Default::default(),
+    })
 }
 
 struct ServerActions {
     config: Config,
+
+    annotations: Vec<Stmt>,
 }
 
 impl VisitMut for ServerActions {
@@ -42,5 +48,44 @@ impl VisitMut for ServerActions {
                     .emit();
             });
         }
+
+        // myAction.$$typeof = Symbol.for('react.action.reference');
+        self.annotations.push(annotate(
+            &f.ident,
+            "$$typeof",
+            CallExpr {
+                span: DUMMY_SP,
+                callee: quote_ident!("Symbol")
+                    .make_member(quote_ident!("for"))
+                    .as_callee(),
+                args: vec!["react.action.reference".as_arg()],
+                type_args: Default::default(),
+            }
+            .into(),
+        ));
+
+        // myAction.$$filepath = '/app/page.tsx';
+        self.annotations
+            .push(annotate(&f.ident, "$$filepath", "".into()));
+
+        // myAction.$$name = '$ACTION_myAction';
+        self.annotations.push(annotate(
+            &f.ident,
+            "$$name",
+            format!("$ACTION_{}", f.ident.sym).into(),
+        ));
     }
+}
+
+fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> Stmt {
+    Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: AssignExpr {
+            span: DUMMY_SP,
+            op: op!("="),
+            left: PatOrExpr::Expr(fn_name.clone().make_member(quote_ident!(field_name)).into()),
+            right: value,
+        }
+        .into(),
+    })
 }
