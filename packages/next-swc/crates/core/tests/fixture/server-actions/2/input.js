@@ -1,4 +1,3 @@
-// /app/page.tsx (Server Component)
 async function myAction(a, b, c) {
   "use action";
   console.log('a')
