@@ -184,7 +184,7 @@ async function runOperation(renderData: RenderData) {
       rootMainFiles: Object.values(layoutInfoChunks)
         .flat()
         .concat(BOOTSTRAP)
-        .filter((path) => !path.endsWith(".css")),
+        .filter((path) => path.endsWith(".js")),
       devFiles: [],
       ampDevFiles: [],
       lowPriorityFiles: [],
