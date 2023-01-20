@@ -108,6 +108,23 @@ impl VisitMut for ServerActions {
             })));
     }
 
+    fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
+        let old_annotations = self.annotations.take();
+
+        let mut new = Vec::with_capacity(stmts.len());
+        for mut stmt in stmts.take() {
+            stmt.visit_mut_with(self);
+
+            new.push(stmt);
+            new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
+            new.append(&mut self.extra_items);
+        }
+
+        *stmts = new;
+
+        self.annotations = old_annotations;
+    }
+
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {
         let old_annotations = self.annotations.take();
 
