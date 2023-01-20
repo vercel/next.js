@@ -215,6 +215,20 @@ impl VisitMut for ServerActions {
         }
     }
 
+    fn visit_mut_module_item(&mut self, s: &mut ModuleItem) {
+        s.visit_mut_children_with(self);
+
+        if self.in_action_file {
+            if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                decl: decl @ Decl::Fn(..),
+                ..
+            })) = s
+            {
+                *s = ModuleItem::Stmt(Stmt::Decl(decl.take()));
+            }
+        }
+    }
+
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
         if let Some(ModuleItem::Stmt(Stmt::Expr(first))) = stmts.first() {
             match &*first.expr {
