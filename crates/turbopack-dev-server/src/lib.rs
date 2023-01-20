@@ -293,9 +293,10 @@ impl DevServerBuilder {
                             )
                             .await?;
                             let status = response.status().as_u16();
-                            let success = response.status().is_success();
+                            let is_error = response.status().is_client_error()
+                                || response.status().is_server_error();
                             let elapsed = start.elapsed();
-                            if !success
+                            if is_error
                                 || (cfg!(feature = "log_request_stats")
                                     && elapsed > Duration::from_secs(1))
                             {
