@@ -1,12 +1,12 @@
 const os = require("os");
 
 // also trace the react and react/jsx-runtime
-require('react')
-require('react/jsx-runtime')
+require("react");
+require("react/jsx-runtime");
 
-import('@mdx-js/node-loader')
+import("@mdx-js/node-loader");
 
-import('./mdx.js');
+import("./mdx.js");
 
 const { existsSync } = eval("require")("fs");
 
