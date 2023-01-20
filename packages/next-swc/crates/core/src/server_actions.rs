@@ -115,7 +115,7 @@ impl VisitMut for ServerActions {
 
             let call = CallExpr {
                 span: DUMMY_SP,
-                callee: action_name.clone().as_callee(),
+                callee: quote_ident!(action_name.clone()).as_callee(),
                 args: vec![f
                     .ident
                     .clone()
