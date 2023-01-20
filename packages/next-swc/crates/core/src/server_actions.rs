@@ -25,6 +25,8 @@ pub fn server_actions(file_name: &FileName, config: Config) -> impl VisitMut + F
     as_folder(ServerActions {
         config,
         file_name: file_name.clone(),
+        in_action_file: false,
+        in_export_decl: false,
         top_level: false,
         closure_candidates: Default::default(),
         annotations: Default::default(),
@@ -37,6 +39,8 @@ struct ServerActions {
     config: Config,
     file_name: FileName,
 
+    in_action_file: bool,
+    in_export_decl: bool,
     top_level: bool,
 
     closure_candidates: Vec<Id>,
@@ -46,6 +50,13 @@ struct ServerActions {
 }
 
 impl VisitMut for ServerActions {
+    fn visit_mut_export_decl(&mut self, decl: &mut ExportDecl) {
+        let old = self.in_export_decl;
+        self.in_export_decl = true;
+        decl.decl.visit_mut_with(self);
+        self.in_export_decl = old;
+    }
+
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         {
             let old_len = self.closure_candidates.len();
@@ -57,20 +68,22 @@ impl VisitMut for ServerActions {
             self.closure_candidates.truncate(old_len);
         }
 
-        // Check if the first item is `"use action"`;
-        if let Some(body) = &mut f.function.body {
-            if let Some(Stmt::Expr(first)) = body.stmts.first() {
-                match &*first.expr {
-                    Expr::Lit(Lit::Str(Str { value, .. })) if value == "use action" => {}
-                    _ => return,
+        if !(self.in_action_file && self.in_export_decl) {
+            // Check if the first item is `"use action"`;
+            if let Some(body) = &mut f.function.body {
+                if let Some(Stmt::Expr(first)) = body.stmts.first() {
+                    match &*first.expr {
+                        Expr::Lit(Lit::Str(Str { value, .. })) if value == "use action" => {}
+                        _ => return,
+                    }
+                } else {
+                    return;
                 }
+
+                body.stmts.remove(0);
             } else {
                 return;
             }
-
-            body.stmts.remove(0);
-        } else {
-            return;
         }
 
         if !f.function.is_async {
@@ -203,6 +216,19 @@ impl VisitMut for ServerActions {
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
+        if let Some(ModuleItem::Stmt(Stmt::Expr(first))) = stmts.first() {
+            match &*first.expr {
+                Expr::Lit(Lit::Str(Str { value, .. })) if value == "use action" => {
+                    self.in_action_file = true;
+                }
+                _ => {}
+            }
+        }
+
+        if self.in_action_file {
+            stmts.remove(0);
+        }
+
         let old_annotations = self.annotations.take();
 
         let mut new = Vec::with_capacity(stmts.len());
