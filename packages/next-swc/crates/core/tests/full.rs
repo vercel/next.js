@@ -70,6 +70,7 @@ fn test(input: &Path, minify: bool) {
                 emotion: Some(assert_json("{}")),
                 modularize_imports: None,
                 font_loaders: None,
+                server_actions: None,
             };
 
             let options = options.patch(&fm);
