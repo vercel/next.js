@@ -30,7 +30,11 @@ pub async fn render_static(
         module.as_evaluated_chunk(chunking_context, Some(runtime_entries)),
         intermediate_output_path,
     );
-    let renderer_pool = get_renderer_pool(intermediate_asset, intermediate_output_path);
+    let renderer_pool = get_renderer_pool(
+        intermediate_asset,
+        intermediate_output_path,
+        /* debug */ false,
+    );
     // Read this strongly consistent, since we don't want to run inconsistent
     // node.js code.
     let pool = renderer_pool.strongly_consistent().await?;

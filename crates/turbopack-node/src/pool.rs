@@ -25,6 +25,7 @@ enum NodeJsPoolProcess {
 struct SpawnedNodeJsPoolProcess {
     child: Option<Child>,
     listener: TcpListener,
+    debug: bool,
 }
 
 struct RunningNodeJsPoolProcess {
@@ -55,13 +56,21 @@ impl Drop for RunningNodeJsPoolProcess {
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl NodeJsPoolProcess {
-    async fn new(cwd: &Path, env: &HashMap<String, String>, entrypoint: &Path) -> Result<Self> {
+    async fn new(
+        cwd: &Path,
+        env: &HashMap<String, String>,
+        entrypoint: &Path,
+        debug: bool,
+    ) -> Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .context("binding to a port")?;
         let port = listener.local_addr().context("getting port")?.port();
         let mut cmd = Command::new("node");
         cmd.current_dir(cwd);
+        if debug {
+            cmd.arg("--inspect-brk");
+        }
         cmd.arg(entrypoint);
         cmd.arg(port.to_string());
         cmd.env_clear();
@@ -84,12 +93,19 @@ impl NodeJsPoolProcess {
         Ok(Self::Spawned(SpawnedNodeJsPoolProcess {
             listener,
             child: Some(child),
+            debug,
         }))
     }
 
     async fn run(self) -> Result<RunningNodeJsPoolProcess> {
         Ok(match self {
             NodeJsPoolProcess::Spawned(mut spawned) => {
+                let timeout = if spawned.debug {
+                    Duration::MAX
+                } else {
+                    CONNECT_TIMEOUT
+                };
+
                 let (connection, _) = select! {
                     connection = spawned.listener.accept() => connection.context("accepting connection")?,
                     status = spawned.child.as_mut().unwrap().wait() => {
@@ -102,7 +118,7 @@ impl NodeJsPoolProcess {
                             },
                         }
                     },
-                    _ = sleep(CONNECT_TIMEOUT) => bail!("timed out waiting for the Node.js process to connect ({:?} timeout)", CONNECT_TIMEOUT),
+                    _ = sleep(timeout) => bail!("timed out waiting for the Node.js process to connect ({:?} timeout)", timeout),
                 };
 
                 RunningNodeJsPoolProcess {
@@ -168,21 +184,26 @@ pub struct NodeJsPool {
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     semaphore: Arc<Semaphore>,
+    debug: bool,
 }
 
 impl NodeJsPool {
+    /// * debug: Whether to automatically enable Node's `--inspect-brk` when
+    ///   spawning it. Note: automatically overrides concurrency to 1.
     pub(super) fn new(
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: HashMap<String, String>,
         concurrency: usize,
+        debug: bool,
     ) -> Self {
         Self {
             cwd,
             entrypoint,
             env,
             processes: Arc::new(Mutex::new(Vec::new())),
-            semaphore: Arc::new(Semaphore::new(concurrency)),
+            semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
+            debug,
         }
     }
 
@@ -195,11 +216,14 @@ impl NodeJsPool {
         };
         let process = match popped {
             Some(process) => process,
-            None => {
-                NodeJsPoolProcess::new(self.cwd.as_path(), &self.env, self.entrypoint.as_path())
-                    .await
-                    .context("creating new process")?
-            }
+            None => NodeJsPoolProcess::new(
+                self.cwd.as_path(),
+                &self.env,
+                self.entrypoint.as_path(),
+                self.debug,
+            )
+            .await
+            .context("creating new process")?,
         };
         Ok((process, permit))
     }

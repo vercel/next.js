@@ -182,6 +182,7 @@ async fn separate_assets(
 pub async fn get_renderer_pool(
     intermediate_asset: AssetVc,
     intermediate_output_path: FileSystemPathVc,
+    debug: bool,
 ) -> Result<NodeJsPoolVc> {
     // Emit a basic package.json that sets the type of the package to commonjs.
     // Currently code generated for Node is CommonJS, while authored code may be
@@ -206,7 +207,7 @@ pub async fn get_renderer_pool(
 
     if let (Some(cwd), Some(entrypoint)) = (to_sys_path(cwd).await?, to_sys_path(entrypoint).await?)
     {
-        let pool = NodeJsPool::new(cwd, entrypoint, HashMap::new(), 4);
+        let pool = NodeJsPool::new(cwd, entrypoint, HashMap::new(), 4, debug);
         Ok(pool.cell())
     } else {
         Err(anyhow!("can only render from a disk filesystem"))

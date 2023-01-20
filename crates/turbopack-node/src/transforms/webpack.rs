@@ -155,6 +155,7 @@ impl WebpackLoadersProcessedAssetVc {
                 JsonValueVc::cell(resource_path.into()),
                 JsonValueVc::cell(loaders.clone_value().into()),
             ],
+            /* debug */ false,
         )
         .await?;
         let JavaScriptValue::Value(val) = &*config_value else {
