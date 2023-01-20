@@ -48,6 +48,42 @@ type Item =
       path?: string
     }
 
+function resolveViewport(
+  viewport: Metadata['viewport']
+): ResolvedMetadata['viewport'] {
+  let resolved: ResolvedMetadata['viewport'] = null
+
+  if (typeof viewport === 'string') {
+    resolved = viewport
+  } else if (viewport) {
+    resolved = ''
+    for (const viewportKey_ in viewPortKeys) {
+      const viewportKey = viewportKey_ as keyof Viewport
+      if (viewport[viewportKey]) {
+        if (resolved) resolved += ', '
+        resolved += `${viewPortKeys[viewportKey]}=${viewport[viewportKey]}`
+      }
+    }
+  }
+  return resolved
+}
+
+function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
+  let resolved: ResolvedMetadata['icons'] = null
+  if (icons == null) {
+    resolved = null
+  } else {
+    if (Array.isArray(icons) || typeof icons === 'string') {
+      resolved = {
+        icon: icons,
+      }
+    } else {
+      resolved = icons
+    }
+  }
+  return resolved
+}
+
 // Merge the source metadata into the resolved target metadata.
 function merge(
   target: ResolvedMetadata,
@@ -94,21 +130,11 @@ function merge(
         break
       }
       case 'viewport': {
-        let content: string | null = null
-        const { viewport } = source
-        if (typeof viewport === 'string') {
-          content = viewport
-        } else if (viewport) {
-          content = ''
-          for (const viewportKey_ in viewPortKeys) {
-            const viewportKey = viewportKey_ as keyof Viewport
-            if (viewport[viewportKey]) {
-              if (content) content += ', '
-              content += `${viewPortKeys[viewportKey]}=${viewport[viewportKey]}`
-            }
-          }
-        }
-        target.viewport = content
+        target.viewport = resolveViewport(source.viewport)
+        break
+      }
+      case 'icons': {
+        target.icons = resolveIcons(source.icons)
         break
       }
       default: {

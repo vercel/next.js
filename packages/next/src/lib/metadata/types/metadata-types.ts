@@ -80,7 +80,7 @@ export type Icons = {
   // rel="apple-touch-icon"
   apple?: Icon | Array<Icon>
   // rel inferred from descriptor, defaults to "icon"
-  other?: Icon | Array<Icon>
+  other?: IconDescriptor | Array<IconDescriptor>
 }
 
 export type Verification = {
