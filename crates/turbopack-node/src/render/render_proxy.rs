@@ -26,7 +26,11 @@ pub async fn render_proxy(
         module.as_evaluated_chunk(chunking_context, Some(runtime_entries)),
         intermediate_output_path,
     );
-    let renderer_pool = get_renderer_pool(intermediate_asset, intermediate_output_path);
+    let renderer_pool = get_renderer_pool(
+        intermediate_asset,
+        intermediate_output_path,
+        /* debug */ false,
+    );
     let pool = renderer_pool.await?;
     let mut operation = match pool.operation().await {
         Ok(operation) => operation,

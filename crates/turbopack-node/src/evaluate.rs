@@ -48,6 +48,7 @@ pub async fn get_evaluate_pool(
     context: AssetContextVc,
     intermediate_output_path: FileSystemPathVc,
     runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
+    debug: bool,
 ) -> Result<NodeJsPoolVc> {
     let chunking_context = DevChunkingContextVc::builder(
         context_path,
@@ -104,6 +105,7 @@ pub async fn get_evaluate_pool(
         entrypoint,
         HashMap::new(),
         available_parallelism().map_or(1, |v| v.get()),
+        debug,
     );
     Ok(pool.cell())
 }
@@ -120,6 +122,7 @@ pub async fn evaluate(
     intermediate_output_path: FileSystemPathVc,
     runtime_entries: Option<EcmascriptChunkPlaceablesVc>,
     args: Vec<JsonValueVc>,
+    debug: bool,
 ) -> Result<JavaScriptValueVc> {
     let pool = get_evaluate_pool(
         context_path,
@@ -128,6 +131,7 @@ pub async fn evaluate(
         context,
         intermediate_output_path,
         runtime_entries,
+        debug,
     )
     .await?;
     let mut operation = pool.operation().await?;

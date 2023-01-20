@@ -225,6 +225,7 @@ impl PostCssTransformedAssetVc {
                 JsonValueVc::cell(content.into()),
                 JsonValueVc::cell(css_path.into()),
             ],
+            /* debug */ false,
         )
         .await?;
         let JavaScriptValue::Value(val) = &*config_value else {
