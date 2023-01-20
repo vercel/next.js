@@ -478,6 +478,7 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
         intermediate_output_path,
         runtime_entries,
         vec![],
+        /* debug */ false,
     )
     .await?;
     match &*config_value {
