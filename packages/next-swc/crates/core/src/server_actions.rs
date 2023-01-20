@@ -2,9 +2,11 @@ use next_binding::swc::core::{
     common::{errors::HANDLER, util::take::Take, FileName, DUMMY_SP},
     ecma::{
         ast::{
-            op, AssignExpr, CallExpr, Decl, ExportDecl, Expr, ExprStmt, FnDecl, Ident, Lit,
-            ModuleDecl, ModuleItem, PatOrExpr, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
+            op, AssignExpr, BlockStmt, CallExpr, Decl, ExportDecl, Expr, ExprStmt, FnDecl,
+            Function, Ident, Lit, ModuleDecl, ModuleItem, PatOrExpr, ReturnStmt, Stmt, Str,
+            VarDecl, VarDeclKind, VarDeclarator,
         },
+        atoms::JsWord,
         utils::{quote_ident, ExprFactory},
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
@@ -63,6 +65,8 @@ impl VisitMut for ServerActions {
             });
         }
 
+        let action_name: JsWord = format!("$ACTION_{}", f.ident.sym).into();
+
         // myAction.$$typeof = Symbol.for('react.action.reference');
         self.annotations.push(annotate(
             &f.ident,
@@ -86,11 +90,8 @@ impl VisitMut for ServerActions {
         ));
 
         // myAction.$$name = '$ACTION_myAction';
-        self.annotations.push(annotate(
-            &f.ident,
-            "$$name",
-            format!("$ACTION_{}", f.ident.sym).into(),
-        ));
+        self.annotations
+            .push(annotate(&f.ident, "$$name", action_name.clone().into()));
 
         if self.top_level {
             // export const $ACTION_myAction = myAction;
@@ -103,17 +104,55 @@ impl VisitMut for ServerActions {
                         declare: Default::default(),
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
-                            name: Ident::new(
-                                format!("$ACTION_{}", f.ident.sym).into(),
-                                f.ident.span,
-                            )
-                            .into(),
+                            name: Ident::new(action_name, f.ident.span).into(),
                             init: Some(f.ident.clone().into()),
                             definite: Default::default(),
                         }],
                     })),
                 })));
         } else {
+            // Hoist the function to the top level.
+
+            let call = CallExpr {
+                span: DUMMY_SP,
+                callee: action_name.clone().as_callee(),
+                args: vec![f
+                    .ident
+                    .clone()
+                    .make_member(quote_ident!("$$closure"))
+                    .as_arg()],
+                type_args: Default::default(),
+            };
+
+            let new_fn = Box::new(Function {
+                params: f.function.params.clone(),
+                decorators: f.function.decorators.take(),
+                span: f.function.span,
+                body: Some(BlockStmt {
+                    span: DUMMY_SP,
+                    stmts: vec![Stmt::Return(ReturnStmt {
+                        span: DUMMY_SP,
+                        arg: Some(call.into()),
+                    })],
+                }),
+                is_generator: f.function.is_generator,
+                is_async: f.function.is_async,
+                type_params: Default::default(),
+                return_type: Default::default(),
+            });
+
+            self.extra_items
+                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                    span: DUMMY_SP,
+                    decl: FnDecl {
+                        ident: Ident::new(action_name, f.ident.span),
+                        function: f.function.take(),
+                        declare: Default::default(),
+                    }
+                    .into(),
+                })));
+
+            f.function = new_fn;
         }
     }
 
