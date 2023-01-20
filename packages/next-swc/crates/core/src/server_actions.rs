@@ -43,7 +43,11 @@ impl VisitMut for ServerActions {
                     Expr::Lit(Lit::Str(Str { value, .. })) if value == "use action" => {}
                     _ => return,
                 }
+            } else {
+                return;
             }
+        } else {
+            return;
         }
 
         if !f.function.is_async {
