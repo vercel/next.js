@@ -1346,26 +1346,6 @@ for (const variant of ['default', 'turbo']) {
       await cleanup()
     })
 
-    test('Hydration errors should get error link', async () => {
-      const { session, browser, cleanup } = await sandbox(next)
-
-      await session.patch(
-        'app/page.js',
-        `
-    "use client"
-    export default function Page() {
-      return <p>{typeof window === 'undefined' ? "hello" : "world"}</p>
-    }
-    `
-      )
-
-      await browser.refresh()
-      await session.waitForAndOpenRuntimeError()
-      expect(await session.getRedboxDescription()).toMatchSnapshot()
-
-      await cleanup()
-    })
-
     test('Import trace when module not found in layout', async () => {
       const { session, cleanup } = await sandbox(
         next,
@@ -1377,6 +1357,38 @@ for (const variant of ['default', 'turbo']) {
         'app/layout.js',
         `
         import "./module"
+
+        export default function RootLayout({ children }) {
+          return (
+            <html>
+              <head></head>
+              <body>{children}</body>
+            </html>
+          )
+        }
+        
+    `
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchSnapshot()
+
+      await cleanup()
+    })
+
+    test("Can't resolve @import in CSS file", async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        new Map([
+          ['app/styles1.css', '@import "./styles2.css"'],
+          ['app/styles2.css', '@import "./boom.css"'],
+        ])
+      )
+
+      await session.patch(
+        'app/layout.js',
+        `
+        import "./styles1.css"
 
         export default function RootLayout({ children }) {
           return (
