@@ -1,10 +1,11 @@
 {
   "name": "@next/font",
-  "version": "13.1.1",
+  "version": "13.1.4-canary.0",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"
   },
+  "types": "dist/types.d.ts",
   "files": [
     "dist",
     "google",
@@ -16,7 +17,8 @@
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm ncc-fontkit && tsc -d -w -p tsconfig.json",
     "typescript": "tsec --noEmit -p tsconfig.json",
-    "ncc-fontkit": "ncc build ./fontkit.js -o dist/fontkit"
+    "ncc-fontkit": "ncc build ./fontkit.js -o dist/fontkit",
+    "test-pack": "cd ../../ && pnpm test-pack font"
   },
   "devDependencies": {
     "@types/fontkit": "2.0.0",

@@ -43,7 +43,10 @@ createNextDescribe(
           'dynamic-error.rsc',
           'dynamic-error/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
+          'dynamic-no-gen-params/[slug].html',
+          'dynamic-no-gen-params/[slug].rsc',
           'dynamic-no-gen-params/[slug]/page.js',
+          'force-dynamic-no-prerender/[id]/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
@@ -72,6 +75,12 @@ createNextDescribe(
           'ssr-auto/cache-no-store/page.js',
           'ssr-auto/fetch-revalidate-zero/page.js',
           'ssr-forced/page.js',
+          'static-to-dynamic-error-forced/[id].html',
+          'static-to-dynamic-error-forced/[id].rsc',
+          'static-to-dynamic-error-forced/[id]/page.js',
+          'static-to-dynamic-error/[id].html',
+          'static-to-dynamic-error/[id].rsc',
+          'static-to-dynamic-error/[id]/page.js',
           'variable-revalidate/no-store/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
@@ -201,25 +210,102 @@ createNextDescribe(
             fallback: false,
             routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
           },
+          '/dynamic-no-gen-params/[slug]': {
+            dataRoute: '/dynamic-no-gen-params/[slug].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/dynamic\\-no\\-gen\\-params\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
           '/hooks/use-pathname/[slug]': {
             dataRoute: '/hooks/use-pathname/[slug].rsc',
-            dataRouteRegex: '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$'
+            ),
             fallback: null,
-            routeRegex: '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$',
+            routeRegex: normalizeRegEx(
+              '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
           '/force-static/[slug]': {
             dataRoute: '/force-static/[slug].rsc',
-            dataRouteRegex: '^\\/force\\-static\\/([^\\/]+?)\\.rsc$',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/force\\-static\\/([^\\/]+?)\\.rsc$'
+            ),
             fallback: null,
-            routeRegex: '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$',
+            routeRegex: normalizeRegEx(
+              '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
           '/ssg-preview/[[...route]]': {
             dataRoute: '/ssg-preview/[[...route]].rsc',
-            dataRouteRegex: '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$'
+            ),
             fallback: null,
-            routeRegex: '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$',
+            routeRegex: normalizeRegEx(
+              '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$'
+            ),
+          },
+          '/static-to-dynamic-error-forced/[id]': {
+            dataRoute: '/static-to-dynamic-error-forced/[id].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          '/static-to-dynamic-error/[id]': {
+            dataRoute: '/static-to-dynamic-error/[id].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
         })
+      })
+    }
+
+    if (!isDev) {
+      it('should properly error when static page switches to dynamic at runtime', async () => {
+        const res = await next.fetch(
+          '/static-to-dynamic-error/static-bailout-1'
+        )
+
+        expect(res.status).toBe(500)
+
+        if (isNextStart) {
+          await check(
+            () => next.cliOutput,
+            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1/
+          )
+        }
+      })
+
+      it('should not error with dynamic server usage with force-static', async () => {
+        const res = await next.fetch(
+          '/static-to-dynamic-error-forced/static-bailout-1'
+        )
+        const outputIndex = next.cliOutput.length
+        const html = await res.text()
+
+        expect(res.status).toBe(200)
+        expect(html).toContain('/static-to-dynamic-error-forced')
+        expect(html).toMatch(/id:.*?static-bailout-1/)
+
+        if (isNextStart) {
+          expect(next.cliOutput.substring(outputIndex)).not.toMatch(
+            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1/
+          )
+        }
       })
     }
 
@@ -234,7 +320,7 @@ createNextDescribe(
     })
 
     it('should force SSR correctly for headers usage', async () => {
-      const res = await next.fetch('/force-static', undefined, {
+      const res = await next.fetch('/force-static', {
         headers: {
           Cookie: 'myCookie=cookieValue',
           another: 'header',
@@ -315,7 +401,7 @@ createNextDescribe(
       const validParams = ['tim', 'seb', 'styfle']
 
       for (const param of validParams) {
-        const res = await next.fetch(`/blog/${param}`, undefined, {
+        const res = await next.fetch(`/blog/${param}`, {
           redirect: 'manual',
         })
         expect(res.status).toBe(200)
@@ -330,7 +416,7 @@ createNextDescribe(
       const invalidParams = ['timm', 'non-existent']
 
       for (const param of invalidParams) {
-        const invalidRes = await next.fetch(`/blog/${param}`, undefined, {
+        const invalidRes = await next.fetch(`/blog/${param}`, {
           redirect: 'manual',
         })
         expect(invalidRes.status).toBe(404)
@@ -340,11 +426,9 @@ createNextDescribe(
 
     it('should work with forced dynamic path', async () => {
       for (const slug of ['first', 'second']) {
-        const res = await next.fetch(
-          `/dynamic-no-gen-params-ssr/${slug}`,
-          undefined,
-          { redirect: 'manual' }
-        )
+        const res = await next.fetch(`/dynamic-no-gen-params-ssr/${slug}`, {
+          redirect: 'manual',
+        })
         expect(res.status).toBe(200)
         expect(await res.text()).toContain(`${slug}`)
       }
@@ -352,11 +436,9 @@ createNextDescribe(
 
     it('should work with dynamic path no generateStaticParams', async () => {
       for (const slug of ['first', 'second']) {
-        const res = await next.fetch(
-          `/dynamic-no-gen-params/${slug}`,
-          undefined,
-          { redirect: 'manual' }
-        )
+        const res = await next.fetch(`/dynamic-no-gen-params/${slug}`, {
+          redirect: 'manual',
+        })
         expect(res.status).toBe(200)
         expect(await res.text()).toContain(`${slug}`)
       }
@@ -383,13 +465,9 @@ createNextDescribe(
       ]
 
       for (const params of paramsToCheck) {
-        const res = await next.fetch(
-          `/blog/${params.author}/${params.slug}`,
-          undefined,
-          {
-            redirect: 'manual',
-          }
-        )
+        const res = await next.fetch(`/blog/${params.author}/${params.slug}`, {
+          redirect: 'manual',
+        })
         expect(res.status).toBe(200)
         const html = await res.text()
         const $ = cheerio.load(html)
@@ -436,7 +514,7 @@ createNextDescribe(
 
     it('should ssr dynamically when detected automatically with fetch cache option', async () => {
       const pathname = '/ssr-auto/cache-no-store'
-      const initialRes = await next.fetch(pathname, undefined, {
+      const initialRes = await next.fetch(pathname, {
         redirect: 'manual',
       })
       expect(initialRes.status).toBe(200)
@@ -449,7 +527,7 @@ createNextDescribe(
 
       expect(initialHtml).toContain('Example Domain')
 
-      const secondRes = await next.fetch(pathname, undefined, {
+      const secondRes = await next.fetch(pathname, {
         redirect: 'manual',
       })
       expect(secondRes.status).toBe(200)
@@ -465,7 +543,7 @@ createNextDescribe(
     })
 
     it('should render not found pages correctly and fallback to the default one', async () => {
-      const res = await next.fetch(`/blog/shu/hi`, undefined, {
+      const res = await next.fetch(`/blog/shu/hi`, {
         redirect: 'manual',
       })
       expect(res.status).toBe(404)
@@ -477,7 +555,7 @@ createNextDescribe(
     // TODO-APP: support fetch revalidate case for dynamic rendering
     it.skip('should ssr dynamically when detected automatically with fetch revalidate option', async () => {
       const pathname = '/ssr-auto/fetch-revalidate-zero'
-      const initialRes = await next.fetch(pathname, undefined, {
+      const initialRes = await next.fetch(pathname, {
         redirect: 'manual',
       })
       expect(initialRes.status).toBe(200)
@@ -490,7 +568,7 @@ createNextDescribe(
 
       expect(initialHtml).toContain('Example Domain')
 
-      const secondRes = await next.fetch(pathname, undefined, {
+      const secondRes = await next.fetch(pathname, {
         redirect: 'manual',
       })
       expect(secondRes.status).toBe(200)
@@ -506,7 +584,7 @@ createNextDescribe(
     })
 
     it('should ssr dynamically when forced via config', async () => {
-      const initialRes = await next.fetch('/ssr-forced', undefined, {
+      const initialRes = await next.fetch('/ssr-forced', {
         redirect: 'manual',
       })
       expect(initialRes.status).toBe(200)
@@ -517,7 +595,7 @@ createNextDescribe(
       expect(initial$('#page').text()).toBe('/ssr-forced')
       const initialDate = initial$('#date').text()
 
-      const secondRes = await next.fetch('/ssr-forced', undefined, {
+      const secondRes = await next.fetch('/ssr-forced', {
         redirect: 'manual',
       })
       expect(secondRes.status).toBe(200)

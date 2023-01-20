@@ -36,6 +36,8 @@ export async function createApp({
   typescript,
   eslint,
   experimentalApp,
+  srcDir,
+  importAlias,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -44,6 +46,8 @@ export async function createApp({
   typescript: boolean
   eslint: boolean
   experimentalApp: boolean
+  srcDir: boolean
+  importAlias: string
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -219,6 +223,8 @@ export async function createApp({
       packageManager,
       isOnline,
       eslint,
+      srcDir,
+      importAlias,
     })
   }
 

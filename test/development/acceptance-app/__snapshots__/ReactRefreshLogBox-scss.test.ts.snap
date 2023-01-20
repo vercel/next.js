@@ -7,7 +7,12 @@ SassError: Expected expression.
 1 │ .button { font-size: :5px; }
   │                      ^
   ╵
-  index.module.scss 1:22  root stylesheet"
+  index.module.scss 1:22  root stylesheet
+
+Import trace for requested module:
+./index.module.scss
+./index.js
+./app/page.js"
 `;
 
 exports[`ReactRefreshLogBox app scss syntax errors 2`] = `
@@ -15,5 +20,5 @@ exports[`ReactRefreshLogBox app scss syntax errors 2`] = `
 Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
 
 > 1 | button { font-size: 5px; }
-    |                          ^"
+    |                                                                  ^"
 `;

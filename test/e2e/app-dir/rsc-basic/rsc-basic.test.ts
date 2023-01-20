@@ -103,9 +103,11 @@ describe('app dir - rsc basics', () => {
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
     // should have default head when there's no head.js provided
+    expect(homeHTML).toContain('<meta charSet="utf-8"/>')
     expect(homeHTML).toContain(
-      '<meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>'
+      '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
     )
+
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('header:test-util')
 
@@ -331,7 +333,7 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should render css-in-js suspense boundary correctly', async () => {
-    await next.fetch('/css-in-js/suspense', null, {}).then(async (response) => {
+    await next.fetch('/css-in-js/suspense').then(async (response) => {
       const results = []
 
       await resolveStreamResponse(response, (chunk: string) => {
@@ -393,15 +395,11 @@ describe('app dir - rsc basics', () => {
 
   it('should support streaming for flight response', async () => {
     await next
-      .fetch(
-        '/',
-        {},
-        {
-          headers: {
-            ['RSC'.toString()]: '1',
-          },
-        }
-      )
+      .fetch('/', {
+        headers: {
+          ['RSC'.toString()]: '1',
+        },
+      })
       .then(async (response) => {
         const result = await resolveStreamResponse(response)
         expect(result).toContain('component:index.server')
@@ -409,7 +407,7 @@ describe('app dir - rsc basics', () => {
   })
 
   it('should support partial hydration with inlined server data', async () => {
-    await next.fetch('/partial-hydration', null, {}).then(async (response) => {
+    await next.fetch('/partial-hydration').then(async (response) => {
       let gotFallback = false
       let gotData = false
       let gotInlinedData = false

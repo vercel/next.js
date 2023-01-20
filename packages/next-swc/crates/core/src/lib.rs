@@ -59,6 +59,7 @@ pub mod react_server_components;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod relay;
 pub mod remove_console;
+pub mod server_actions;
 pub mod shake_exports;
 mod top_level_binding_collector;
 
@@ -122,6 +123,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub font_loaders: Option<next_font_loaders::Config>,
+
+    #[serde(default)]
+    pub server_actions: Option<server_actions::Config>,
 }
 
 pub fn custom_before_pass<'a, C: Comments + 'a>(
@@ -189,7 +193,13 @@ where
         next_dynamic::next_dynamic(
             opts.is_development,
             opts.is_server,
-            opts.server_components.is_some(),
+            match &opts.server_components {
+                Some(config) if config.truthy() => match config {
+                    react_server_components::Config::WithOptions(x) => x.is_server,
+                    _ => false,
+                },
+                _ => false,
+            },
             file.name.clone(),
             opts.pages_dir.clone()
         ),
@@ -244,6 +254,11 @@ where
         },
         match &opts.font_loaders {
             Some(config) => Either::Left(next_font_loaders::next_font_loaders(config.clone())),
+            None => Either::Right(noop()),
+        },
+        match &opts.server_actions {
+            Some(config) =>
+                Either::Left(server_actions::server_actions(&file.name, config.clone())),
             None => Either::Right(noop()),
         },
     )
