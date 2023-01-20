@@ -1,4 +1,10 @@
-use next_binding::swc::core::ecma::visit::{as_folder, noop_visit_mut_type, Fold, VisitMut};
+use next_binding::swc::core::{
+    common::errors::HANDLER,
+    ecma::{
+        ast::{Expr, FnDecl, Lit, Stmt, Str},
+        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
+    },
+};
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
@@ -15,4 +21,26 @@ struct ServerActions {
 
 impl VisitMut for ServerActions {
     noop_visit_mut_type!();
+
+    fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
+        f.visit_mut_children_with(self);
+
+        // Check if the first item is `"use action"`;
+        if let Some(body) = &f.function.body {
+            if let Some(Stmt::Expr(first)) = body.stmts.first() {
+                match &*first.expr {
+                    Expr::Lit(Lit::Str(Str { value, .. })) if value == "use action" => {}
+                    _ => return,
+                }
+            }
+        }
+
+        if !f.function.is_async {
+            HANDLER.with(|handler| {
+                handler
+                    .struct_span_err(f.ident.span, "Server actions must be async")
+                    .emit();
+            });
+        }
+    }
 }
