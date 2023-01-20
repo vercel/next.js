@@ -43,7 +43,6 @@ async function loaderTransform(
 
   const {
     isServer,
-    isServerLayer,
     rootDir,
     pagesDir,
     appDir,
@@ -53,6 +52,7 @@ async function loaderTransform(
     supportedBrowsers,
     swcCacheDir,
     hasServerComponents,
+    isServerLayer,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
@@ -62,7 +62,6 @@ async function loaderTransform(
     appDir,
     filename,
     isServer,
-    isServerLayer,
     isPageFile,
     development: this.mode === 'development',
     hasReactRefresh,
@@ -72,6 +71,7 @@ async function loaderTransform(
     swcCacheDir,
     relativeFilePathFromRoot,
     hasServerComponents,
+    isServerLayer,
   })
 
   const programmaticOptions = {

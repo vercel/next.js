@@ -254,6 +254,17 @@ export function hydrate() {
     onRecoverableError,
   }
   const isError = document.documentElement.id === '__next_error__'
+
+  if (process.env.NODE_ENV !== 'production') {
+    // Patch console.error to collect information about hydration errors
+    const patchConsoleError =
+      require('./components/react-dev-overlay/internal/helpers/hydration-error-info')
+        .patchConsoleError as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info').patchConsoleError
+    if (!isError) {
+      patchConsoleError()
+    }
+  }
+
   const reactRoot = isError
     ? (ReactDOMClient as any).createRoot(appElement, options)
     : (React as any).startTransition(() =>
