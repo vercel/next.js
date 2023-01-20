@@ -26,4 +26,4 @@ swc_core = { workspace = true, features = [
 
 [dev-dependencies]
 swc_core = { workspace = true, features = ["testing_transform"] }
-testing = "0.31.14"
+testing = { workspace = true }
