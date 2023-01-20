@@ -78,6 +78,12 @@ pub struct DevServerOptions {
     #[cfg_attr(feature = "serializable", serde(default))]
     pub full_stats: bool,
 
+    /// Enable experimental garbage collection with the provided memory limit in
+    /// MB.
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
+    pub memory_limit: Option<usize>,
+
     // ==
     // = Inherited options from next-dev, need revisit later.
     // ==

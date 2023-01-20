@@ -135,7 +135,7 @@ async fn run_test(resource: &str) -> JestRunResult {
     let mock_server_future = get_mock_server_future(&mock_dir);
 
     let server = NextDevServerBuilder::new(
-        TurboTasks::new(MemoryBackend::new()),
+        TurboTasks::new(MemoryBackend::default()),
         sys_to_unix(&project_dir.to_string_lossy()).to_string(),
         sys_to_unix(&workspace_root.to_string_lossy()).to_string(),
     )
