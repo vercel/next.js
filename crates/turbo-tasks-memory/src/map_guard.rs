@@ -43,6 +43,10 @@ impl<'a, T: 'a, U: 'a, M: 'a + Fn(&T) -> Option<&U>, MM: 'a + Fn(&mut T) -> Opti
             map_mut,
         }
     }
+
+    pub fn into_inner(self) -> RwLockWriteGuard<'a, T> {
+        self.inner
+    }
 }
 
 impl<'a, T: 'a, U: 'a, M: 'a + Fn(&T) -> Option<&U>, MM: 'a + Fn(&mut T) -> Option<&mut U>> Deref

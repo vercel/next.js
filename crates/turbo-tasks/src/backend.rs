@@ -167,6 +167,9 @@ pub trait Backend: Sync + Send {
     #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
 
+    #[allow(unused_variables)]
+    fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
+
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi);
 
     fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi);
@@ -201,6 +204,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         duration: Duration,
         instant: Instant,
+        stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool;
 

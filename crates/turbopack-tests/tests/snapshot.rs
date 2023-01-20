@@ -98,7 +98,7 @@ fn test(resource: &'static str) {
 async fn run(resource: &'static str) -> Result<()> {
     register();
 
-    let tt = TurboTasks::new(MemoryBackend::new());
+    let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
         let out = run_test(resource.to_string());
         handle_issues(out).await?;

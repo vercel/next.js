@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     register();
     include!(concat!(env!("OUT_DIR"), "/register_example_hash_glob.rs"));
 
-    let tt = TurboTasks::new(MemoryBackend::new());
+    let tt = TurboTasks::new(MemoryBackend::default());
     let start = Instant::now();
 
     let task = tt.spawn_root_task(|| {

@@ -16,7 +16,7 @@ macro_rules! run {
         use turbo_tasks::TurboTasks;
         use turbo_tasks_memory::MemoryBackend;
         *REGISTER;
-        let tt = TurboTasks::new(MemoryBackend::new());
+        let tt = TurboTasks::new(MemoryBackend::default());
         tt.run_once(async {
             $($stmt)+
             Ok(())

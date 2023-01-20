@@ -1,11 +1,15 @@
 use std::{
     borrow::Cow,
     cell::RefCell,
+    cmp::min,
     collections::VecDeque,
     future::Future,
     hash::BuildHasherDefault,
     pin::Pin,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     time::{Duration, Instant},
 };
 
@@ -26,7 +30,9 @@ use turbo_tasks::{
 
 use crate::{
     cell::RecomputingCell,
+    gc::GcQueue,
     output::Output,
+    priority_pair::PriorityPair,
     scope::{TaskScope, TaskScopeId},
     task::{
         run_add_to_scope_queue, run_remove_from_scope_queue, Task, TaskDependency,
@@ -42,16 +48,20 @@ pub struct MemoryBackend {
     backend_jobs: NoMoveVec<Job>,
     backend_job_id_factory: IdFactory<BackendJobId>,
     task_cache: DashMap<Arc<PersistentTaskType>, TaskId, BuildHasherDefault<FxHasher>>,
+    memory_limit: usize,
+    gc_queue: Option<GcQueue>,
+    idle_gc_active: AtomicBool,
+    scope_add_remove_priority: PriorityPair,
 }
 
 impl Default for MemoryBackend {
     fn default() -> Self {
-        Self::new()
+        Self::new(usize::MAX)
     }
 }
 
 impl MemoryBackend {
-    pub fn new() -> Self {
+    pub fn new(memory_limit: usize) -> Self {
         let memory_task_scopes = NoMoveVec::new();
         let scope_id_factory = IdFactory::new();
         let initial_scope: TaskScopeId = scope_id_factory.get();
@@ -66,6 +76,10 @@ impl MemoryBackend {
             backend_jobs: NoMoveVec::new(),
             backend_job_id_factory: IdFactory::new(),
             task_cache: DashMap::default(),
+            memory_limit,
+            gc_queue: (memory_limit != usize::MAX).then(|| GcQueue::new()),
+            idle_gc_active: AtomicBool::new(false),
+            scope_add_remove_priority: PriorityPair::new(),
         }
     }
 
@@ -81,6 +95,7 @@ impl MemoryBackend {
     }
 
     pub(crate) fn create_backend_job(&self, job: Job) -> BackendJobId {
+        job.before_schedule(self);
         let id = self.backend_job_id_factory.get();
         // SAFETY: This is a fresh id
         unsafe {
@@ -169,27 +184,97 @@ impl MemoryBackend {
     pub(crate) fn decrease_scope_active(
         &self,
         scope: TaskScopeId,
+        task_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        self.decrease_scope_active_by(scope, 1, turbo_tasks);
+        self.decrease_scope_active_by(scope, task_id, 1, turbo_tasks);
     }
 
     pub(crate) fn decrease_scope_active_by(
         &self,
-        scope: TaskScopeId,
+        scope_id: TaskScopeId,
+        task_id: TaskId,
         count: usize,
         _turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
-        let mut queue = vec![scope];
+        let mut queue = Vec::new();
+        self.with_scope(scope_id, |scope| {
+            if scope.state.lock().decrement_active_by(count, &mut queue) {
+                if let Some(gc_queue) = &self.gc_queue {
+                    gc_queue.task_might_become_inactive(task_id);
+                }
+            }
+        });
         while let Some(scope) = queue.pop() {
             self.with_scope(scope, |scope| {
                 scope.state.lock().decrement_active_by(count, &mut queue)
             });
         }
     }
+
+    pub fn on_task_might_become_inactive(&self, task: TaskId) {
+        if let Some(gc_queue) = &self.gc_queue {
+            gc_queue.task_might_become_inactive(task);
+        }
+    }
+
+    pub fn on_task_flagged_inactive(&self, task: TaskId, compute_duration: Duration) {
+        if let Some(gc_queue) = &self.gc_queue {
+            gc_queue.task_flagged_inactive(task, compute_duration);
+        }
+    }
+
+    pub fn run_gc(&self, idle: bool, turbo_tasks: &dyn TurboTasksBackendApi) {
+        if let Some(gc_queue) = &self.gc_queue {
+            const MAX_COLLECT_FACTOR: u8 = u8::MAX / 8;
+
+            let mem_limit = self.memory_limit;
+
+            let usage = turbo_malloc::TurboMalloc::memory_usage();
+            let target = if idle {
+                mem_limit * 3 / 4
+            } else {
+                mem_limit * 7 / 8
+            };
+            if usage < target {
+                if idle {
+                    // Always run propagation when idle
+                    gc_queue.run_gc(0, self, turbo_tasks);
+                }
+                return;
+            }
+
+            let collect_factor = min(
+                MAX_COLLECT_FACTOR as usize,
+                (usage - target) * u8::MAX as usize / (mem_limit - target),
+            ) as u8;
+
+            let collected = gc_queue.run_gc(collect_factor, self, turbo_tasks);
+
+            if idle {
+                if let Some((_collected, _count, _stats)) = collected {
+                    let job = self.create_backend_job(Job::GarbageCollection);
+                    turbo_tasks.schedule_backend_background_job(job);
+                } else {
+                    self.idle_gc_active.store(false, Ordering::Release);
+                }
+            }
+        }
+    }
 }
 
 impl Backend for MemoryBackend {
+    fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi) {
+        if self
+            .idle_gc_active
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_ok()
+        {
+            let job = self.create_backend_job(Job::GarbageCollection);
+            turbo_tasks.schedule_backend_background_job(job);
+        }
+    }
+
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
         self.with_task(task, |task| task.invalidate(self, turbo_tasks));
     }
@@ -237,14 +322,22 @@ impl Backend for MemoryBackend {
 
     fn task_execution_completed(
         &self,
-        task: TaskId,
+        task_id: TaskId,
         duration: Duration,
         instant: Instant,
+        stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> bool {
-        self.with_task(task, |task| {
-            task.execution_completed(duration, instant, self, turbo_tasks)
-        })
+        let reexecute = self.with_task(task_id, |task| {
+            task.execution_completed(duration, instant, stateful, self, turbo_tasks)
+        });
+        if !reexecute {
+            self.run_gc(false, turbo_tasks);
+            if let Some(gc_queue) = &self.gc_queue {
+                gc_queue.task_executed(task_id, duration);
+            }
+        }
+        reexecute
     }
 
     fn try_read_task_output(
@@ -308,7 +401,7 @@ impl Backend for MemoryBackend {
                     Ok(content) => Ok(Ok(content)),
                     Err(RecomputingCell { listener, schedule }) => {
                         if schedule {
-                            task.invalidate(self, turbo_tasks);
+                            task.recompute(self, turbo_tasks);
                         }
                         Ok(Err(listener))
                     }
@@ -344,7 +437,7 @@ impl Backend for MemoryBackend {
                 Ok(content) => Ok(Ok(content)),
                 Err(RecomputingCell { listener, schedule }) => {
                     if schedule {
-                        task.invalidate(self, turbo_tasks);
+                        task.recompute(self, turbo_tasks);
                     }
                     Ok(Err(listener))
                 }
@@ -502,9 +595,24 @@ pub(crate) enum Job {
     /// Remove tasks from a scope. Scheduled by `run_remove_from_scope_queue` to
     /// split off work.
     RemoveFromScopeQueue(VecDeque<TaskId>, TaskScopeId),
+    /// Unloads a previously used root scope after all other foreground tasks
+    /// are done.
+    UnloadRootScope(TaskScopeId),
+    GarbageCollection,
 }
 
 impl Job {
+    fn before_schedule(&self, backend: &MemoryBackend) {
+        match self {
+            Job::RemoveFromScopes(..)
+            | Job::RemoveFromScope(..)
+            | Job::RemoveFromScopeQueue(..) => {
+                backend.scope_add_remove_priority.start_high();
+            }
+            _ => {}
+        }
+    }
+
     async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
         match self {
             Job::RemoveFromScopes(tasks, scopes) => {
@@ -513,6 +621,7 @@ impl Job {
                         task.remove_from_scopes(scopes.iter().cloned(), backend, turbo_tasks)
                     });
                 }
+                backend.scope_add_remove_priority.finish_high();
             }
             Job::RemoveFromScope(tasks, scope) => {
                 for task in tasks {
@@ -520,6 +629,7 @@ impl Job {
                         task.remove_from_scope(scope, backend, turbo_tasks)
                     });
                 }
+                backend.scope_add_remove_priority.finish_high();
             }
             Job::ScheduleWhenDirtyFromScope(tasks) => {
                 for task in tasks.into_iter() {
@@ -529,10 +639,36 @@ impl Job {
                 }
             }
             Job::AddToScopeQueue(queue, id, is_optimization_scope) => {
-                run_add_to_scope_queue(queue, id, is_optimization_scope, backend, turbo_tasks);
+                backend
+                    .scope_add_remove_priority
+                    .run_low(async {
+                        run_add_to_scope_queue(
+                            queue,
+                            id,
+                            is_optimization_scope,
+                            backend,
+                            turbo_tasks,
+                        );
+                    })
+                    .await;
             }
             Job::RemoveFromScopeQueue(queue, id) => {
                 run_remove_from_scope_queue(queue, id, backend, turbo_tasks);
+                backend.scope_add_remove_priority.finish_high();
+            }
+            Job::UnloadRootScope(id) => {
+                if let Some(future) = turbo_tasks.wait_foreground_done_excluding_own() {
+                    future.await;
+                }
+                backend.with_scope(id, |scope| {
+                    scope.assert_unused();
+                });
+                unsafe {
+                    backend.scope_id_factory.reuse(id);
+                }
+            }
+            Job::GarbageCollection => {
+                backend.run_gc(true, turbo_tasks);
             }
         }
     }

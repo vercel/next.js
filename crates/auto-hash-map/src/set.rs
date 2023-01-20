@@ -30,7 +30,7 @@ impl<K: Debug, H> Debug for AutoSet<K, H> {
 
 impl<K> AutoSet<K, RandomState> {
     /// see [HashSet::new](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.new)
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             map: AutoMap::new(),
         }

@@ -118,4 +118,15 @@ impl Output {
             turbo_tasks.schedule_notify_tasks_set(&take(&mut self.dependent_tasks));
         }
     }
+
+    pub fn dependent_tasks(&self) -> &AutoSet<TaskId> {
+        &self.dependent_tasks
+    }
+
+    pub fn gc_drop(self, turbo_tasks: &dyn TurboTasksBackendApi) {
+        // notify
+        if !self.dependent_tasks.is_empty() {
+            turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        }
+    }
 }

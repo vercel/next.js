@@ -32,7 +32,7 @@ use turbopack_core::{
 async fn main() -> Result<()> {
     register();
 
-    let tt = TurboTasks::new(MemoryBackend::new());
+    let tt = TurboTasks::new(MemoryBackend::default());
     let start = Instant::now();
 
     let task = tt.spawn_root_task(|| {

@@ -121,6 +121,20 @@ impl<T, const INITIAL_CAPACITY_BITS: u32> NoMoveVec<T, INITIAL_CAPACITY_BITS> {
         NoMoveVec { buckets }
     }
 
+    pub fn capacity(&self) -> usize {
+        self.buckets
+            .iter()
+            .enumerate()
+            .map(|(i, (ptr, _))| {
+                if ptr.load(Ordering::Relaxed).is_null() {
+                    0
+                } else {
+                    get_bucket_size::<INITIAL_CAPACITY_BITS>(i as u32)
+                }
+            })
+            .sum()
+    }
+
     pub fn get(&self, idx: usize) -> Option<&T> {
         let bucket_idx = get_bucket_index::<INITIAL_CAPACITY_BITS>(idx);
         let bucket_ptr = unsafe { self.buckets.get_unchecked(bucket_idx as usize) }

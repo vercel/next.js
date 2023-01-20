@@ -34,7 +34,7 @@ impl<K: Debug, V: Debug, H> Debug for AutoMap<K, V, H> {
 
 impl<K, V> AutoMap<K, V, RandomState> {
     /// see [HashMap::new](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.new)
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         AutoMap::List(Vec::new())
     }
 

@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
         "/register_example_hash_directory.rs"
     ));
 
-    let tt = TurboTasks::new(MemoryBackend::new());
+    let tt = TurboTasks::new(MemoryBackend::default());
     let start = Instant::now();
 
     let task = tt.spawn_root_task(|| {
