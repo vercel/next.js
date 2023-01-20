@@ -7,7 +7,7 @@ use next_binding::swc::core::{
             VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
-        utils::{quote_ident, ExprFactory},
+        utils::{private_ident, quote_ident, ExprFactory},
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
@@ -66,6 +66,7 @@ impl VisitMut for ServerActions {
         }
 
         let action_name: JsWord = format!("$ACTION_{}", f.ident.sym).into();
+        let action_ident = private_ident!(action_name.clone());
 
         // myAction.$$typeof = Symbol.for('react.action.reference');
         self.annotations.push(annotate(
@@ -91,7 +92,7 @@ impl VisitMut for ServerActions {
 
         // myAction.$$name = '$ACTION_myAction';
         self.annotations
-            .push(annotate(&f.ident, "$$name", action_name.clone().into()));
+            .push(annotate(&f.ident, "$$name", action_name.into()));
 
         if self.top_level {
             // export const $ACTION_myAction = myAction;
@@ -104,7 +105,7 @@ impl VisitMut for ServerActions {
                         declare: Default::default(),
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
-                            name: Ident::new(action_name, f.ident.span).into(),
+                            name: action_ident.into(),
                             init: Some(f.ident.clone().into()),
                             definite: Default::default(),
                         }],
@@ -115,7 +116,7 @@ impl VisitMut for ServerActions {
 
             let call = CallExpr {
                 span: DUMMY_SP,
-                callee: quote_ident!(action_name.clone()).as_callee(),
+                callee: action_ident.clone().as_callee(),
                 args: vec![f
                     .ident
                     .clone()
@@ -145,7 +146,7 @@ impl VisitMut for ServerActions {
                 .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                     span: DUMMY_SP,
                     decl: FnDecl {
-                        ident: Ident::new(action_name, f.ident.span),
+                        ident: action_ident,
                         function: f.function.take(),
                         declare: Default::default(),
                     }
