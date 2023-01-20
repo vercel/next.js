@@ -37,7 +37,7 @@ impl VisitMut for ServerActions {
         f.visit_mut_children_with(self);
 
         // Check if the first item is `"use action"`;
-        if let Some(body) = &f.function.body {
+        if let Some(body) = &mut f.function.body {
             if let Some(Stmt::Expr(first)) = body.stmts.first() {
                 match &*first.expr {
                     Expr::Lit(Lit::Str(Str { value, .. })) if value == "use action" => {}
@@ -46,6 +46,8 @@ impl VisitMut for ServerActions {
             } else {
                 return;
             }
+
+            body.stmts.remove(0);
         } else {
             return;
         }
