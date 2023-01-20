@@ -17,6 +17,7 @@ use next_swc::{
     react_server_components::server_components,
     relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
+    server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use std::path::PathBuf;
@@ -289,6 +290,23 @@ fn next_font_loaders_fixture(input: PathBuf) {
                 relative_file_path_from_root: "pages/test.tsx".into(),
                 font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
             })
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/server-actions/**/input.js")]
+fn server_actions_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            server_actions(
+                &FileName::Real("/app/item.js".into()),
+                server_actions::Config {},
+            )
         },
         &input,
         &output,
