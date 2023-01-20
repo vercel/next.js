@@ -33,6 +33,7 @@ pub fn server_actions(file_name: &FileName, config: Config) -> impl VisitMut + F
 }
 
 struct ServerActions {
+    #[allow(unused)]
     config: Config,
     file_name: FileName,
 
@@ -47,7 +48,7 @@ struct ServerActions {
 impl VisitMut for ServerActions {
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
         {
-            let mut old_len = self.closure_candidates.len();
+            let old_len = self.closure_candidates.len();
             self.closure_candidates
                 .extend(find_pat_ids(&f.function.params));
 
