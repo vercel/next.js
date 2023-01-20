@@ -19,6 +19,7 @@ pub fn server_actions(file_name: &FileName, config: Config) -> impl VisitMut + F
     as_folder(ServerActions {
         config,
         file_name: file_name.clone(),
+        top_level: false,
         extra_items: Default::default(),
         annotations: Default::default(),
     })
@@ -27,6 +28,8 @@ pub fn server_actions(file_name: &FileName, config: Config) -> impl VisitMut + F
 struct ServerActions {
     config: Config,
     file_name: FileName,
+
+    top_level: bool,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -89,23 +92,29 @@ impl VisitMut for ServerActions {
             format!("$ACTION_{}", f.ident.sym).into(),
         ));
 
-        // export const $ACTION_myAction = myAction;
-        self.extra_items
-            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                span: DUMMY_SP,
-                decl: Decl::Var(Box::new(VarDecl {
+        if self.top_level {
+            // export const $ACTION_myAction = myAction;
+            self.extra_items
+                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                     span: DUMMY_SP,
-                    kind: VarDeclKind::Const,
-                    declare: Default::default(),
-                    decls: vec![VarDeclarator {
+                    decl: Decl::Var(Box::new(VarDecl {
                         span: DUMMY_SP,
-                        name: Ident::new(format!("$ACTION_{}", f.ident.sym).into(), f.ident.span)
+                        kind: VarDeclKind::Const,
+                        declare: Default::default(),
+                        decls: vec![VarDeclarator {
+                            span: DUMMY_SP,
+                            name: Ident::new(
+                                format!("$ACTION_{}", f.ident.sym).into(),
+                                f.ident.span,
+                            )
                             .into(),
-                        init: Some(f.ident.clone().into()),
-                        definite: Default::default(),
-                    }],
-                })),
-            })));
+                            init: Some(f.ident.clone().into()),
+                            definite: Default::default(),
+                        }],
+                    })),
+                })));
+        } else {
+        }
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
@@ -113,6 +122,7 @@ impl VisitMut for ServerActions {
 
         let mut new = Vec::with_capacity(stmts.len());
         for mut stmt in stmts.take() {
+            self.top_level = true;
             stmt.visit_mut_with(self);
 
             new.push(stmt);
@@ -130,6 +140,7 @@ impl VisitMut for ServerActions {
 
         let mut new = Vec::with_capacity(stmts.len());
         for mut stmt in stmts.take() {
+            self.top_level = false;
             stmt.visit_mut_with(self);
 
             new.push(stmt);
