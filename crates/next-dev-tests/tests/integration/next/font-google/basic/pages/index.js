@@ -23,7 +23,7 @@ function runTests() {
   it("returns structured data about the font styles from the font function", () => {
     expect(interNoArgs).toEqual({
       className:
-        "className◽[project-with-next]/crates/next-dev/tests/integration/next/font-google/basic/[embedded_modules]/@vercel/turbopack-next/internal/font/google/inter_34ab8b4d.module.css",
+        "className◽[project-with-next]/crates/next-dev-tests/tests/integration/next/font-google/basic/[embedded_modules]/@vercel/turbopack-next/internal/font/google/inter_34ab8b4d.module.css",
       style: {
         fontFamily: "'__Inter_34ab8b4d'",
         fontStyle: "normal",
