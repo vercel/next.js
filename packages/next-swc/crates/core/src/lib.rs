@@ -256,6 +256,11 @@ where
             Some(config) => Either::Left(next_font_loaders::next_font_loaders(config.clone())),
             None => Either::Right(noop()),
         },
+        match &opts.server_actions {
+            Some(config) =>
+                Either::Left(server_actions::server_actions(&file.name, config.clone())),
+            None => Either::Right(noop()),
+        },
     )
 }
 
