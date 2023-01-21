@@ -779,6 +779,18 @@
           "path": "/errors/context-in-server-component.md"
         },
         {
+          "title": "react-client-hook-in-server-component",
+          "path": "/errors/react-client-hook-in-server-component.md"
+        },
+        {
+          "title": "class-component-in-server-component",
+          "path": "/errors/class-component-in-server-component.md"
+        },
+        {
+          "title": "app-static-to-dynamic-error",
+          "path": "/errors/app-static-to-dynamic-error.md"
+        },
+        {
           "title": "no-space-left-on-device",
           "path": "/errors/no-space-left-on-device.md"
         }

@@ -7,6 +7,12 @@ module.exports = function (plop) {
     description: 'Create a new test',
     prompts: [
       {
+        type: 'confirm',
+        name: 'appDir',
+        message: 'Is this test for the app directory?',
+        default: false,
+      },
+      {
         type: 'input',
         name: 'name',
         message: 'Test name',
@@ -30,18 +36,18 @@ module.exports = function (plop) {
       },
     ],
     actions: function (data) {
-      const fileName = getFileName(data.name)
+      const appDirPath = data.appDir ? 'app-dir/' : ''
+      let templatePath = `test/${
+        data.type === 'unit' ? 'unit' : 'e2e'
+      }/${appDirPath}test-template`
+      let targetPath = `test/{{ type }}/${appDirPath}`
+
       return [
         {
-          type: 'add',
-          templateFile: `test/${
-            data.type === 'unit' ? 'unit' : 'e2e'
-          }/example.txt`,
-          path: `test/{{type}}/${
-            data.type === 'unit'
-              ? `${fileName}.test.ts`
-              : `${fileName}/index.test.ts`
-          }`,
+          type: 'addMany',
+          templateFiles: `${templatePath}/**/*`,
+          base: templatePath,
+          destination: targetPath,
         },
       ]
     },

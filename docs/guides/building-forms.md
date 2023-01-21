@@ -13,7 +13,7 @@ This guide will teach you how to create a web form with Next.js.
 
 HTML forms are built using the `<form>` tag. It takes a set of attributes and fields to structure the form for features like text fields, checkboxes, dropdown menus, buttons, radio buttons, etc.
 
-Here's the syntax of a HTML form:
+Here's the syntax of an HTML form:
 
 ```html
 <!-- Basic HTML Form -->

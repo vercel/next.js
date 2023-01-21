@@ -5,10 +5,10 @@ on:
 name: Generate Pull Request Stats
 
 env:
-  NAPI_CLI_VERSION: 2.12.0
+  NAPI_CLI_VERSION: 2.13.3
   TURBO_VERSION: 1.6.3
   RUST_TOOLCHAIN: nightly-2022-11-04
-  PNPM_VERSION: 7.3.0
+  PNPM_VERSION: 7.24.3
 
 jobs:
   build-native-dev:
@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 25
 
       - name: Check non-docs only change
-        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: docs-change
 
       - name: Cache cargo registry
@@ -43,7 +43,7 @@ jobs:
 
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
-        run: echo ::set-output name=WEEK::$(date +%U)
+        run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
       - name: Turbo Cache
         id: turbo-cache
@@ -106,7 +106,7 @@ jobs:
           fetch-depth: 25
 
       - name: Check non-docs only change
-        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: docs-change
 
       - uses: actions/download-artifact@v3

@@ -1,3 +1,12 @@
+use next_binding::swc::{
+    core::{
+        common::{chain, comments::SingleThreadedComments, FileName, Mark},
+        ecma::parser::{EsConfig, Syntax},
+        ecma::transforms::react::jsx,
+        ecma::transforms::testing::{test, test_fixture},
+    },
+    testing::fixture,
+};
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
@@ -8,16 +17,10 @@ use next_swc::{
     react_server_components::server_components,
     relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
+    server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use std::path::PathBuf;
-use swc_core::{
-    common::{chain, comments::SingleThreadedComments, FileName, Mark},
-    ecma::parser::{EsConfig, Syntax},
-    ecma::transforms::react::jsx,
-    ecma::transforms::testing::{test, test_fixture},
-};
-use testing::fixture;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
@@ -100,7 +103,7 @@ fn next_ssg_fixture(input: PathBuf) {
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
-                swc_core::ecma::transforms::react::Options {
+                next_binding::swc::core::ecma::transforms::react::Options {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
@@ -287,6 +290,23 @@ fn next_font_loaders_fixture(input: PathBuf) {
                 relative_file_path_from_root: "pages/test.tsx".into(),
                 font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
             })
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/server-actions/**/input.js")]
+fn server_actions_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            server_actions(
+                &FileName::Real("/app/item.js".into()),
+                server_actions::Config {},
+            )
         },
         &input,
         &output,

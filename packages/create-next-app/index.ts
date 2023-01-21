@@ -2,6 +2,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import chalk from 'chalk'
 import Commander from 'commander'
+import Conf from 'conf'
 import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
@@ -49,6 +50,20 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--src-dir',
+    `
+
+  Initialize inside a \`src/\` directory.
+`
+  )
+  .option(
+    '--import-alias <alias-to-configure>',
+    `
+
+  Specify import alias to use (default "@/*").
+`
+  )
+  .option(
     '--use-npm',
     `
 
@@ -81,6 +96,13 @@ const program = new Commander.Command(packageJson.name)
   --example-path foo/bar
 `
   )
+  .option(
+    '--reset-preferences',
+    `
+
+  Explicitly tell the CLI to reset any stored preferences
+`
+  )
   .allowUnknownOption()
   .parse(process.argv)
 
@@ -91,6 +113,14 @@ const packageManager = !!program.useNpm
   : getPkgManager()
 
 async function run(): Promise<void> {
+  const conf = new Conf({ projectName: 'create-next-app' })
+
+  if (program.resetPreferences) {
+    conf.clear()
+    console.log(`Preferences reset successfully`)
+    return
+  }
+
   if (typeof projectPath === 'string') {
     projectPath = projectPath.trim()
   }
@@ -151,12 +181,27 @@ async function run(): Promise<void> {
   }
 
   const example = typeof program.example === 'string' && program.example.trim()
-
+  const preferences = (conf.get('preferences') || {}) as Record<
+    string,
+    boolean | string
+  >
   /**
    * If the user does not provide the necessary flags, prompt them for whether
    * to use TS or JS.
    */
   if (!example) {
+    const defaults: typeof preferences = {
+      typescript: true,
+      eslint: true,
+      srcDir: false,
+      importAlias: '@/*',
+    }
+    const getPrefOrDefault = (field: string) => {
+      return typeof preferences[field] === 'undefined'
+        ? defaults[field]
+        : preferences[field]
+    }
+
     if (!program.typescript && !program.javascript) {
       if (ciInfo.isCI) {
         // default to JavaScript in CI as we can't prompt to
@@ -170,7 +215,7 @@ async function run(): Promise<void> {
             type: 'toggle',
             name: 'typescript',
             message: `Would you like to use ${styledTypeScript} with this project?`,
-            initial: true,
+            initial: getPrefOrDefault('typescript'),
             active: 'Yes',
             inactive: 'No',
           },
@@ -190,6 +235,7 @@ async function run(): Promise<void> {
          */
         program.typescript = Boolean(typescript)
         program.javascript = !Boolean(typescript)
+        preferences.typescript = Boolean(typescript)
       }
     }
 
@@ -205,11 +251,84 @@ async function run(): Promise<void> {
           type: 'toggle',
           name: 'eslint',
           message: `Would you like to use ${styledEslint} with this project?`,
-          initial: true,
+          initial: getPrefOrDefault('eslint'),
           active: 'Yes',
           inactive: 'No',
         })
         program.eslint = Boolean(eslint)
+        preferences.eslint = Boolean(eslint)
+      }
+    }
+
+    if (
+      !process.argv.includes('--src-dir') &&
+      !process.argv.includes('--no-src-dir')
+    ) {
+      if (ciInfo.isCI) {
+        program.srcDir = false
+      } else {
+        const styledSrcDir = chalk.hex('#007acc')('`src/` directory')
+        const { srcDir } = await prompts({
+          type: 'toggle',
+          name: 'srcDir',
+          message: `Would you like to use ${styledSrcDir} with this project?`,
+          initial: getPrefOrDefault('srcDir'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.srcDir = Boolean(srcDir)
+        preferences.srcDir = Boolean(srcDir)
+      }
+    }
+
+    if (
+      !process.argv.includes('--experimental-app') &&
+      !process.argv.includes('--no-experimental-app')
+    ) {
+      if (ciInfo.isCI) {
+        program.experimentalApp = false
+      } else {
+        const styledAppDir = chalk.hex('#007acc')(
+          'experimental `app/` directory'
+        )
+        const { appDir } = await prompts({
+          type: 'toggle',
+          name: 'appDir',
+          message: `Would you like to use ${styledAppDir} with this project?`,
+          initial: false,
+          active: 'Yes',
+          inactive: 'No',
+        })
+        program.experimentalApp = Boolean(appDir)
+      }
+    }
+
+    if (
+      typeof program.importAlias !== 'string' ||
+      !program.importAlias.length
+    ) {
+      if (ciInfo.isCI) {
+        program.importAlias = '@/*'
+      } else {
+        const styledImportAlias = chalk.hex('#007acc')('import alias')
+        const { importAlias } = await prompts({
+          type: 'text',
+          name: 'importAlias',
+          message: `What ${styledImportAlias} would you like configured?`,
+          initial: getPrefOrDefault('importAlias'),
+        })
+
+        if (!/.+\/\*/.test(importAlias)) {
+          console.error(
+            `${chalk.red(
+              'Error:'
+            )} invalid import alias (${importAlias}), it must follow the pattern <prefix>/*`
+          )
+          process.exit(1)
+        }
+
+        program.importAlias = importAlias
+        preferences.importAlias = importAlias
       }
     }
   }
@@ -223,6 +342,8 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       eslint: program.eslint,
       experimentalApp: program.experimentalApp,
+      srcDir: program.srcDir,
+      importAlias: program.importAlias,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -247,8 +368,11 @@ async function run(): Promise<void> {
       typescript: program.typescript,
       eslint: program.eslint,
       experimentalApp: program.experimentalApp,
+      srcDir: program.srcDir,
+      importAlias: program.importAlias,
     })
   }
+  conf.set('preferences', preferences)
 }
 
 const update = checkForUpdate(packageJson).catch(() => null)

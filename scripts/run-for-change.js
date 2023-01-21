@@ -17,7 +17,24 @@ const CHANGE_ITEM_GROUPS = {
     '.github/ISSUE_TEMPLATE',
     '.github/labeler.json',
     '.github/pull_request_template.md',
+    'packages/next-plugin-storybook/readme.md',
+    'packages/next/license.md',
+    'packages/next/README.md',
+    'packages/eslint-plugin-next/README.md',
+    'packages/next-codemod/license.md',
+    'packages/next-codemod/README.md',
+    'packages/next-swc/crates/wasm/README.md',
+    'packages/next-swc/README.md',
+    'packages/next-bundle-analyzer/readme.md',
+    'packages/next-mdx/license.md',
+    'packages/next-mdx/readme.md',
+    'packages/react-dev-overlay/README.md',
+    'packages/react-refresh-utils/README.md',
+    'packages/create-next-app/README.md',
+    'packages/font/README.md',
+    'packages/next-env/README.md',
   ],
+  cna: ['packages/create-next-app'],
   'next-swc': ['packages/next-swc', 'scripts/normalize-version-bump.js'],
 }
 
@@ -64,6 +81,7 @@ async function main() {
   const typeIndex = process.argv.indexOf('--type')
   const type = typeIndex > -1 && process.argv[typeIndex + 1]
   const isNegated = process.argv.indexOf('--not') > -1
+  const alwaysCanary = process.argv.indexOf('--always-canary') > -1
 
   if (!type) {
     throw new Error(
@@ -91,6 +109,12 @@ async function main() {
     )
   }
   let changedFilesCount = 0
+
+  // always run for canary if flag is enabled
+  if (alwaysCanary && branchName === 'canary') {
+    changedFilesCount += 1
+    hasMatchingChange = true
+  }
 
   for (let file of changedFilesOutput.split('\n')) {
     file = file.trim().replace(/\\/g, '/')
