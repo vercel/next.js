@@ -662,6 +662,12 @@ interface ServerPatchAction {
   }
 }
 
+/**
+ * Prefetch adds the provided FlightData to the prefetch cache
+ * - Creates the router state tree based on the patch in FlightData
+ * - Adds the FlightData to the prefetch cache
+ * - In ACTION_NAVIGATE the prefetch cache is checked and the router state tree and FlightData are applied.
+ */
 interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
@@ -687,17 +693,17 @@ type AppRouterState = {
   /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.
-   * - Holds which segments are shown on the screen.
-   * - Holds where loading states (loading.js) exists.
+   * - Holds which segments and parallel routes are shown on the screen.
    */
   tree: FlightRouterState
   /**
-   * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments and prefetched segments.
+   * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments.
    * It also holds in-progress data requests.
+   * Prefetched data is stored separately in `prefetchCache`, that is applied during ACTION_NAVIGATE.
    */
   cache: CacheNode
   /**
-   * Cache that holds prefetched Flight responses keyed by url
+   * Cache that holds prefetched Flight responses keyed by url.
    */
   prefetchCache: Map<
     string,
@@ -708,7 +714,7 @@ type AppRouterState = {
     }
   >
   /**
-   * Decides if the update should create a new history entry and if the navigation can't be handled by app-router.
+   * Decides if the update should create a new history entry and if the navigation has to trigger a browser navigation.
    */
   pushRef: PushRef
   /**
@@ -716,7 +722,8 @@ type AppRouterState = {
    */
   focusAndScrollRef: FocusAndScrollRef
   /**
-   * The canonical url that is pushed/replaced
+   * The canonical url that is pushed/replaced.
+   * - This is the url you see in the browser.
    */
   canonicalUrl: string
 }
