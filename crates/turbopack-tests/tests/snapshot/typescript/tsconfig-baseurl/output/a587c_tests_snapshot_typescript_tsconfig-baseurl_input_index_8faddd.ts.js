@@ -1,14 +1,28 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_tsconfig_baseurl_input_index_5906e5.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/a587c_tests_snapshot_typescript_tsconfig-baseurl_input_index_8faddd.ts.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/tsconfig/baseurl/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/index.ts (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-const e = new Error("Could not parse module '[project]/crates/turbopack-tests/tests/snapshot/tsconfig/baseurl/input/index.js'");
-e.code = 'MODULE_UNPARSEABLE';
-throw e;
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/prop.ts (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/prop.ts (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/prop.ts (ecmascript)");
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
+;
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__["prop"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__["prop"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__["prop"]);
+
+})()),
+"[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/prop.ts (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+
+__turbopack_esm__({
+    "prop": ()=>prop
+});
+const prop = 1;
+
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_tsconfig_baseurl_input_index_ad5ffe.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/tsconfig/baseurl/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/a587c_tests_snapshot_typescript_tsconfig-baseurl_input_index_a058d6.ts.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/index.ts (ecmascript)");
 }]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -1052,3 +1066,6 @@ globalThis.TURBOPACK = {
   push: registerChunk,
 };
 })();
+
+
+//# sourceMappingURL=a587c_tests_snapshot_typescript_tsconfig-baseurl_input_index_8faddd.ts.js.map

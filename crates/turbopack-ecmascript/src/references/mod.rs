@@ -423,7 +423,6 @@ pub(crate) async fn analyze_ecmascript_module(
                 this: JsValue,
                 args: Vec<JsValue>,
                 link_value: &'a F,
-                analyze_types: bool,
                 analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
                 environment: EnvironmentVc,
             ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
@@ -437,7 +436,6 @@ pub(crate) async fn analyze_ecmascript_module(
                     this,
                     args,
                     link_value,
-                    analyze_types,
                     analysis,
                     environment,
                 ))
@@ -456,7 +454,6 @@ pub(crate) async fn analyze_ecmascript_module(
                 this: JsValue,
                 args: Vec<JsValue>,
                 link_value: &F,
-                analyze_types: bool,
                 analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
                 environment: EnvironmentVc,
             ) -> Result<()> {
@@ -477,7 +474,6 @@ pub(crate) async fn analyze_ecmascript_module(
                                 this.clone(),
                                 args.clone(),
                                 link_value,
-                                analyze_types,
                                 analysis,
                                 environment,
                             )
@@ -503,7 +499,6 @@ pub(crate) async fn analyze_ecmascript_module(
                                             JsValue::Unknown(None, "no this provided"),
                                             args,
                                             link_value,
-                                            analyze_types,
                                             analysis,
                                             environment,
                                         )
@@ -1104,7 +1099,6 @@ pub(crate) async fn analyze_ecmascript_module(
                             JsValue::Unknown(None, "no this provided"),
                             args,
                             &link_value,
-                            analyze_types,
                             &mut analysis,
                             environment,
                         )
@@ -1135,7 +1129,6 @@ pub(crate) async fn analyze_ecmascript_module(
                             obj,
                             args,
                             &link_value,
-                            analyze_types,
                             &mut analysis,
                             environment,
                         )
