@@ -635,8 +635,8 @@ interface NavigateAction {
  * Restore applies the provided router state.
  * - Only used for `popstate` (back/forward navigation) where a known router state has to be applied.
  * - Router state is applied as-is from the history state.
- * - If any data is missing it will be fetched in layout-router during rendering and trigger fast path or server-patch case.
- * - If no data is missing the existing cached data is rendered.
+ * - If any cache node is missing it will be fetched in layout-router during rendering and the server-patch case.
+ * - If existing cache nodes match these are used.
  */
 interface RestoreAction {
   type: typeof ACTION_RESTORE
@@ -646,8 +646,7 @@ interface RestoreAction {
 
 /**
  * Server-patch applies the provided Flight data to the cache and router tree.
- * - Only triggered in layout-router when the data can't be handled in the fast path.
- * - Main case where this is triggered is when a rewrite applies and Flight data for a different path is returned from the server.
+ * - Only triggered in layout-router.
  * - Creates a new cache and router state with the Flight data applied.
  */
 interface ServerPatchAction {
