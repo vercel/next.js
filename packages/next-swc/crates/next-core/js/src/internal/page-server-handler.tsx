@@ -59,11 +59,12 @@ export default function startHandler({
         }
       }
 
-      const res = await runOperation(renderData);
+      let res = await runOperation(renderData);
 
       if (isDataReq) {
         if (res === undefined) {
-          throw new Error("no data result returned");
+          // Page data is only returned if the page had getXxyProps.
+          res = {};
         }
         ipc.send({
           type: "result",
