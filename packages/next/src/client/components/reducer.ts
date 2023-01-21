@@ -588,7 +588,7 @@ interface RefreshAction {
  * - `push` - pushes a new history entry in the browser history
  * - `replace` - replaces the current history entry in the browser history
  *
- * Navigate has has multiple cache heuristics:
+ * Navigate has multiple cache heuristics:
  * - page was prefetched
  *  - Apply router state tree from prefetch
  *  - Apply Flight data from prefetch to the cache
