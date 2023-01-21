@@ -17,6 +17,10 @@ const DynamicComponent3WithNoSSR = dynamic(
 const DynamicComponent4 = dynamic(() => import('../components/hello4'))
 
 const DynamicComponent5 = dynamic(() => import('../components/hello5'))
+const DynamicComponent6WithCustomFallback = dynamic(
+  () => import('../components/hello5'),
+  { fallback: true }
+)
 
 const names = ['Tim', 'Joe', 'Bel', 'Max', 'Lee']
 
@@ -44,6 +48,9 @@ const IndexPage = () => {
       {/* Load on demand */}
       {showMore && <DynamicComponent5 />}
       <button onClick={() => setShowMore(!showMore)}>Toggle Show More</button>
+
+      {/* Using fallback */}
+      <DynamicComponent6WithCustomFallback fallback={<div>Loading</div>} />
 
       {/* Load library on demand */}
       <div style={{ marginTop: '1rem' }}>

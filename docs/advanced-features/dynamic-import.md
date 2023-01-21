@@ -63,6 +63,23 @@ const DynamicHeader = dynamic(() => import('../components/header'), {
 })
 ```
 
+## With fallback
+
+If you need to pass props to your loading component, you can use the `fallback` prop to specify the
+loading component. This will be passed directly to `<Suspense fallback={fallback}>` when the `fallback` option is set to `true`.
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const DynamicHeader = dynamic(() => import('../components/header'), {
+  fallback: true,
+})
+
+export default function Home() {
+  return <DynamicHeader fallback={<Loading size="small" />} />
+}
+```
+
 ## With external libraries
 
 This example uses the external library `fuse.js` for fuzzy search. The module is only loaded in the browser after the user types in the search input.

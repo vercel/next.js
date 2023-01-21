@@ -223,6 +223,31 @@ describe.each([[''], ['/docs']])(
         })
       })
 
+      describe('custom fallback', () => {
+        it('should render custom fallback on the server side when `ssr:false`', async () => {
+          const $ = await get$(basePath + '/dynamic/no-ssr-fallback')
+          expect($('p').text()).toBe('Loading 1Loading 2')
+        })
+
+        it('should render the component on client side', async () => {
+          let browser
+          try {
+            browser = await webdriver(
+              next.url,
+              basePath + '/dynamic/no-ssr-fallback'
+            )
+            await check(
+              () => browser.elementByCss('body').text(),
+              /Hello World 1/
+            )
+          } finally {
+            if (browser) {
+              await browser.close()
+            }
+          }
+        })
+      })
+
       describe('Multiple modules', () => {
         it('should only include the rendered module script tag', async () => {
           const $ = await get$(basePath + '/dynamic/multiple-modules')

@@ -34,6 +34,7 @@ function convertModule<P>(mod: React.ComponentType<P> | ComponentModule<P>) {
 }
 
 export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
+  fallback?: boolean
   loading?: (loadingProps: DynamicOptionsLoadingProps) => JSX.Element | null
   loader?: Loader<P> | LoaderMap
   loadableGenerated?: LoadableGeneratedOptions

@@ -64,6 +64,7 @@ function createLoadableComponent(loadFn: any, options: any) {
       webpack: null,
       modules: null,
       ssr: true,
+      fallback: false,
     },
     options
   )
@@ -121,10 +122,11 @@ function createLoadableComponent(loadFn: any, options: any) {
   }
 
   function LoadableComponent(props: any) {
+    const { fallback, ...rest } = props
     useLoadableModule()
 
     const Loading = opts.loading
-    const fallbackElement = (
+    const fallbackElement = (opts.fallback && fallback) || (
       <Loading isLoading={true} pastDelay={true} error={null} />
     )
 
@@ -134,7 +136,7 @@ function createLoadableComponent(loadFn: any, options: any) {
     return (
       <React.Suspense fallback={fallbackElement}>
         <Wrap>
-          <Lazy {...props} />
+          <Lazy {...(opts.fallback ? rest : props)} />
         </Wrap>
       </React.Suspense>
     )
