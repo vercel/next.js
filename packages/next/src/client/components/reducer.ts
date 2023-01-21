@@ -568,7 +568,7 @@ export const ACTION_PREFETCH = 'prefetch'
 /**
  * Refresh triggers a refresh of the full page data.
  * - fetches the Flight data and fills subTreeData at the root of the cache.
- * - The router state is updated at the root of the state tree.
+ * - The router state is updated at the root.
  */
 interface RefreshAction {
   type: typeof ACTION_REFRESH
@@ -582,28 +582,39 @@ interface RefreshAction {
 }
 
 /**
- * Navigate triggers a navigation to the provided url. It supports a combination of `cacheType` (`hard` and `soft`) and `navigateType` (`push` and `replace`).
+ * Navigate triggers a navigation to the provided url. It supports two types: `push` and `replace`.
  *
  * `navigateType`:
  * - `push` - pushes a new history entry in the browser history
  * - `replace` - replaces the current history entry in the browser history
  *
- * `cacheType`:
- * - `hard` - Creates a new cache in one of two ways:
- *   - Not optimistic
- *      - Default if there is no loading.js.
- *      - Fetch data in the reducer and suspend there.
- *      - Copies the previous cache nodes as far as possible and applies new subTreeData.
- *      - Applies the new router state.
- *   - optimistic
- *      - Enabled when somewhere in the router state path to the page there is a loading.js.
- *      - Similar to `soft` but kicks off the data fetch in the reducer and applies `data` in the spot that should suspend.
- *      - This enables showing loading states while navigating.
- *      - Will trigger fast path or server-patch case in layout-router.
- * - `soft`
- *   - Reuses the existing cache.
- *   - Creates an optimistic router state that causes the fetch to start in layout-router when there is missing data.
- *   - If there is no missing data the existing cache data is rendered.
+ * Navigate has has multiple cache heuristics:
+ * - page was prefetched
+ *  - Apply router state tree from prefetch
+ *  - Apply Flight data from prefetch to the cache
+ *  - If Flight data is a string, it's a redirect and the state is updated to trigger a redirect
+ *  - Check if hard navigation is needed
+ *    - Hard navigation happens when a dynamic parameter below the common layout changed
+ *    - When hard navigation is needed the cache is invalidated below the flightSegmentPath
+ *    - The missing cache nodes of the page will be fetched in layout-router and trigger the SERVER_PATCH action
+ *  - If hard navigation is not needed
+ *    - The cache is reused
+ *    - If any cache nodes are missing they'll be fetched in layout-router and trigger the SERVER_PATCH action
+ * - page was not prefetched
+ *  - The navigate was called from `next/link` with `prefetch={false}`. This case is called `forceOptimisticNavigation`. It triggers an optimistic navigation so that loading spinners can be shown early if any.
+ *    - Creates an optimistic router tree based on the provided url
+ *    - Adds a cache node to the cache with a Flight data fetch that was eagerly started in the reducer
+ *    - Flight data fetch is suspended in the layout-router
+ *    - Triggers SERVER_PATCH action when the data comes back, this will apply the data to the cache and router state, at that point the optimistic router tree is replaced by the actual router tree.
+ *  - The navigate was called from `next/router` (`router.push()` / `router.replace()`) / `next/link` without prefetch set (e.g. the prefetch didn't come back from the server before clicking the link)
+ *    - Flight data is fetched in the reducer (suspends the reducer)
+ *    - Router state tree is created based on Flight data
+ *    - Cache is filled based on the Flight data
+ *
+ * Above steps explain 3 cases:
+ * - `soft` - Reuses the existing cache and fetches missing nodes in layout-router.
+ * - `hard` - Creates a new cache where cache nodes are removed below the common layout and fetches missing nodes in layout-router.
+ * - `optimistic` (explicit no prefetch) - Creates a new cache and kicks off the data fetch in the reducer. The data fetch is awaited in the layout-router.
  */
 interface NavigateAction {
   type: typeof ACTION_NAVIGATE
@@ -836,6 +847,7 @@ function clientReducer(
             if (flightDataPath.length === 3) {
               cache.status = CacheStates.READY
               cache.subTreeData = subTreeData
+              cache.parallelRoutes = new Map()
               fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
             } else {
               cache.status = CacheStates.READY
