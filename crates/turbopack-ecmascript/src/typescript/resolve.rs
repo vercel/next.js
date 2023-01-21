@@ -216,7 +216,10 @@ pub async fn tsconfig_resolve_options(
 
 #[turbo_tasks::function]
 pub fn tsconfig() -> StringsVc {
-    StringsVc::cell(vec!["tsconfig.json".to_string()])
+    StringsVc::cell(vec![
+        "tsconfig.json".to_string(),
+        "jsconfig.json".to_string(),
+    ])
 }
 
 #[turbo_tasks::function]
