@@ -1,12 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import crypto from 'crypto'
-import {
-  check,
-  getRedboxHeader,
-  hasRedbox,
-  renderViaHTTP,
-  waitFor,
-} from 'next-test-utils'
+import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 
