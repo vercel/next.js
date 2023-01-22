@@ -82,6 +82,10 @@ Options:
     In this case, you must specify the path to the example separately:
     --example-path foo/bar
 
+  --branch <branch-name>
+
+    Use this branch name when initializing the git repository (default "main")
+
   --reset-preferences
 
     Explicitly tell the CLI to reset any stored preferences

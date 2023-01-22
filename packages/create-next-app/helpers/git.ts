@@ -19,7 +19,7 @@ function isInMercurialRepository(): boolean {
   return false
 }
 
-export function tryGitInit(root: string): boolean {
+export function tryGitInit(root: string, branch: string): boolean {
   let didInit = false
   try {
     execSync('git --version', { stdio: 'ignore' })
@@ -30,7 +30,7 @@ export function tryGitInit(root: string): boolean {
     execSync('git init', { stdio: 'ignore' })
     didInit = true
 
-    execSync('git checkout -b main', { stdio: 'ignore' })
+    execSync(`git checkout -b ${branch}`, { stdio: 'ignore' })
 
     execSync('git add -A', { stdio: 'ignore' })
     execSync('git commit -m "Initial commit from Create Next App"', {

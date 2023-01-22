@@ -97,6 +97,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--branch <branch-name>',
+    `
+
+  Use this branch name when initializing the git repository (default "main")
+`
+  )
+  .option(
     '--reset-preferences',
     `
 
@@ -195,6 +202,7 @@ async function run(): Promise<void> {
       eslint: true,
       srcDir: false,
       importAlias: '@/*',
+      branch: 'main',
     }
     const getPrefOrDefault = (field: string) => {
       return typeof preferences[field] === 'undefined'
@@ -303,6 +311,23 @@ async function run(): Promise<void> {
       }
     }
 
+    if (typeof program.branch !== 'string' || !program.branch.length) {
+      if (ciInfo.isCI) {
+        program.branch = 'main'
+      } else {
+        const styledbranch = chalk.hex('#007acc')('initial git branch')
+        const { branch } = await prompts({
+          type: 'text',
+          name: 'branch',
+          message: `How would you like to name the ${styledbranch} for this project?`,
+          initial: getPrefOrDefault('branch'),
+        })
+
+        program.branch = branch
+        preferences.branch = branch
+      }
+    }
+
     if (
       typeof program.importAlias !== 'string' ||
       !program.importAlias.length
@@ -344,6 +369,7 @@ async function run(): Promise<void> {
       experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      branch: program.branch,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -370,6 +396,7 @@ async function run(): Promise<void> {
       experimentalApp: program.experimentalApp,
       srcDir: program.srcDir,
       importAlias: program.importAlias,
+      branch: program.branch,
     })
   }
   conf.set('preferences', preferences)
