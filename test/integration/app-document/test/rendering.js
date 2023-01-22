@@ -98,6 +98,11 @@ export default function ({ app }, suiteName, render, fetch) {
           expect(src).toMatch(/\?ts=/)
         })
       })
+
+      test('It renders dynamic in SSR correctly when getInitialProps is specified', async () => {
+        const $ = await get$('/dynamic')
+        expect($('body').text()).toBe('lazy-loaded')
+      })
     })
 
     describe('_app', () => {
