@@ -1349,9 +1349,7 @@ export default async function getBaseWebpackConfig(
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
-    ...(isNodeServer || isEdgeServer
-      ? { externalsPresets: { node: true } }
-      : {}),
+    ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
       isClient || isEdgeServer
