@@ -97,9 +97,6 @@ export default function dynamic<P = {}>(
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
   loadableOptions = { ...loadableOptions, ...options }
 
-  const isNonSSR =
-    typeof loadableOptions.ssr === 'boolean' && !loadableOptions.ssr
-
   const loaderFn = loadableOptions.loader as () => LoaderComponent<P>
   const loader = () =>
     loaderFn != null
@@ -116,7 +113,7 @@ export default function dynamic<P = {}>(
   }
 
   // support for disabling server side rendering, eg: dynamic(() => import('../hello-world'), {ssr: false}).
-  if (isNonSSR) {
+  if (typeof loadableOptions.ssr === 'boolean' && !loadableOptions.ssr) {
     delete loadableOptions.webpack
     delete loadableOptions.modules
   }
