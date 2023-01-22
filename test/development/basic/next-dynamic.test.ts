@@ -20,7 +20,7 @@ describe.each([
           components: new FileRef(join(__dirname, 'next-dynamic/components')),
           pages: new FileRef(join(__dirname, 'next-dynamic/pages')),
           ...(compiler === 'babel' && {
-            ['.babelrc']: `{ "presets": ["next/babel"] }`,
+            '.babelrc': `{ "presets": ["next/babel"] }`,
           }),
         },
         nextConfig: {

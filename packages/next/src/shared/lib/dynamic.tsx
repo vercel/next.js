@@ -26,8 +26,6 @@ export type DynamicOptionsLoadingProps = {
   timedOut?: boolean
 }
 
-const isServerSide = typeof window === 'undefined'
-
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
 // Client component reference proxy need to be converted to a module.
@@ -104,10 +102,9 @@ export default function dynamic<P = {}>(
 
   const loaderFn = loadableOptions.loader as () => LoaderComponent<P>
   const loader = () =>
-    // Strip the loader when loader is null or when it's nonSSR rendering on server side.
-    loaderFn == null || (isNonSSR && isServerSide)
-      ? Promise.resolve(convertModule(() => null))
-      : loaderFn().then(convertModule)
+    loaderFn != null
+      ? loaderFn().then(convertModule)
+      : Promise.resolve(convertModule(() => null))
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {
