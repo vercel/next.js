@@ -35,7 +35,13 @@ const handleSessionStop = async () => {
     const { eventCliSession } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+    const config = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      dir,
+      undefined,
+      undefined,
+      true
+    )
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -493,7 +499,13 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       cluster.settings.stdio = ['ipc', 'pipe', 'pipe']
 
       setupFork()
-      config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+      config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        undefined,
+        true
+      )
 
       const handleProjectDirRename = (newDir: string) => {
         clusterExitUnsub()
