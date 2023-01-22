@@ -68,7 +68,7 @@ function createLoadableComponent(loadFn: any, options: any) {
     options
   )
 
-  opts.lazy = React.lazy(opts.loader)
+  // opts.lazy = React.lazy(opts.loader)
 
   /** @type LoadableSubscription */
   let subscription: any = null
@@ -119,6 +119,17 @@ function createLoadableComponent(loadFn: any, options: any) {
       })
     }
   }
+
+  opts.lazy = React.lazy(async () => {
+    // If dynamic options.ssr == true during SSR,
+    // passing the preloaded promise of component to `React.lazy`
+    if (opts.ssr && subscription) {
+      const value = subscription.getCurrentValue()
+      const resolved = await value.loaded
+      return resolved ? resolved : { default: null }
+    }
+    return await opts.loader()
+  })
 
   function LoadableComponent(props: any) {
     useLoadableModule()
