@@ -247,7 +247,7 @@ export class Telemetry {
       JSON.stringify(allEvents)
     )
 
-    spawn(process.execPath, [require.resolve('./deteched-flush'), mode, dir], {
+    spawn(process.execPath, [require.resolve('./detached-flush'), mode, dir], {
       detached: !this.NEXT_TELEMETRY_DEBUG,
       windowsHide: true,
       shell: false,

@@ -45,21 +45,17 @@ function getModuleTrace(input: any, compilation: any) {
   return moduleTrace
 }
 
-export async function getNotFoundError(
-  compilation: webpack.Compilation,
+async function getSourceFrame(
   input: any,
-  fileName: string
-) {
-  if (input.name !== 'ModuleNotFoundError') {
-    return false
-  }
-
-  const loc = input.loc
-    ? input.loc
-    : input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
-  const originalSource = input.module.originalSource()
-
+  fileName: any,
+  compilation: any
+): Promise<{ frame: string; lineNumber: string; column: string }> {
   try {
+    const loc = input.loc
+      ? input.loc
+      : input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
+    const originalSource = input.module.originalSource()
+
     const result = await createOriginalStackFrame({
       line: loc.start.line,
       column: loc.start.column,
@@ -69,10 +65,37 @@ export async function getNotFoundError(
       frame: {},
     })
 
-    // If we could not result the original location we still need to show the existing error
-    if (!result) {
-      return input
+    return {
+      frame: result?.originalCodeFrame ?? '',
+      lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
+      column: result?.originalStackFrame?.column?.toString() ?? '',
     }
+  } catch {
+    return { frame: '', lineNumber: '', column: '' }
+  }
+}
+
+export async function getNotFoundError(
+  compilation: webpack.Compilation,
+  input: any,
+  fileName: string
+) {
+  if (
+    input.name !== 'ModuleNotFoundError' &&
+    !(
+      input.name === 'ModuleBuildError' &&
+      /Error: Can't resolve '.+' in /.test(input.message)
+    )
+  ) {
+    return false
+  }
+
+  try {
+    const { frame, lineNumber, column } = await getSourceFrame(
+      input,
+      fileName,
+      compilation
+    )
 
     const errorMessage = input.error.message
       .replace(/ in '.*?'/, '')
@@ -88,7 +111,8 @@ export async function getNotFoundError(
             name &&
             !/next-(app|middleware|client-pages|flight-(client|server|client-entry))-loader\.js/.test(
               name
-            )
+            ) &&
+            !/css-loader.+\.js/.test(name)
         )
       if (moduleTrace.length === 0) return ''
 
@@ -96,8 +120,6 @@ export async function getNotFoundError(
         '\n'
       )}\n\n`
     }
-
-    const frame = result.originalCodeFrame ?? ''
 
     let message =
       chalk.red.bold('Module not found') +
@@ -108,12 +130,14 @@ export async function getNotFoundError(
       importTrace() +
       '\nhttps://nextjs.org/docs/messages/module-not-found'
 
-    return new SimpleWebpackError(
-      `${chalk.cyan(fileName)}:${chalk.yellow(
-        result.originalStackFrame.lineNumber?.toString() ?? ''
-      )}:${chalk.yellow(result.originalStackFrame.column?.toString() ?? '')}`,
-      message
-    )
+    let formattedFileName: string = chalk.cyan(fileName)
+    if (lineNumber && column) {
+      formattedFileName += `:${chalk.yellow(lineNumber)}:${chalk.yellow(
+        column
+      )}`
+    }
+
+    return new SimpleWebpackError(formattedFileName, message)
   } catch (err) {
     // Don't fail on failure to resolve sourcemaps
     return input

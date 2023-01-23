@@ -1,5 +1,15 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`ReactRefreshLogBox app default Can't resolve @import in CSS file 1`] = `
+"./app/styles2.css
+Module not found: Can't resolve './boom.css'
+
+Import trace for requested module:
+./app/styles1.css
+
+https://nextjs.org/docs/messages/module-not-found"
+`;
+
 exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
 "./app/module.js:1:0
 Module not found: Can't resolve 'non-existing-module'
@@ -98,8 +108,7 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error
+    Syntax Error
 
 Import trace for requested module:
 ./index.js
@@ -178,9 +187,8 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error
+    0: error was recoverable, but proceeding would result in wrong codegen
+    1: Syntax Error
 
 Import trace for requested module:
 ./index.js
@@ -200,9 +208,8 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error
+    0: error was recoverable, but proceeding would result in wrong codegen
+    1: Syntax Error
 
 Import trace for requested module:
 ./index.js
@@ -231,8 +238,7 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error
+    Syntax Error
 
 Import trace for requested module:
 ./index.js
