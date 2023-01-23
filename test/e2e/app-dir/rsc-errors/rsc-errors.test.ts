@@ -151,6 +151,47 @@ if (!(globalThis as any).isNextDev) {
           `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
         )
       })
+
+      it('should be possible to open the import trace files in your editor', async () => {
+        const componentFile = 'app/editor-links/component.js'
+
+        let editorRequestsCount = 0
+        const browser = await next.browser('/editor-links', {
+          beforePageLoad(page) {
+            page.route('**/__nextjs_launch-editor**', (route) => {
+              editorRequestsCount += 1
+              route.fulfill()
+            })
+          },
+        })
+
+        await browser.waitForElementByCss('#component-editor-links')
+        const fileContent = await next.readFile(componentFile)
+        await next.patchFile(
+          componentFile,
+          fileContent.replace(
+            "// import { useState } from 'react'",
+            "import { useState } from 'react'"
+          )
+        )
+
+        await browser
+          .waitForElementByCss(
+            "[data-with-open-in-editor-link='app/editor-links/component.js']"
+          )
+          .click()
+        await browser
+          .waitForElementByCss(
+            "[data-with-open-in-editor-link='app/editor-links/page.js']"
+          )
+          .click()
+
+        await check(() => editorRequestsCount, /2/)
+
+        // Fix file
+        await next.patchFile(componentFile, fileContent)
+        await browser.waitForElementByCss('#component-editor-links')
+      })
     }
   )
 }
