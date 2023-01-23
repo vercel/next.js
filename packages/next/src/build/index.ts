@@ -2210,6 +2210,7 @@ export default async function build(
           const exportOptions = {
             silent: false,
             buildExport: true,
+            debugOutput,
             threads: config.experimental.cpus,
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),

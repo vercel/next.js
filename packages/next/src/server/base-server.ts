@@ -1374,9 +1374,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isRedirect = (renderOpts as any).isRedirect
 
       if (isAppPath && isSSG && isrRevalidate === 0) {
-        throw new Error(
-          `Page changed from static to dynamic at runtime ${urlPathname}, see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`
+        const staticBailoutInfo: {
+          stack?: string
+          description?: string
+        } = (renderOpts as any).staticBailoutInfo || {}
+
+        const err = new Error(
+          `Page changed from static to dynamic at runtime ${urlPathname}${
+            staticBailoutInfo.description
+              ? `, reason: ${staticBailoutInfo.description}`
+              : ``
+          }` +
+            `\nsee more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`
         )
+
+        if (staticBailoutInfo.stack) {
+          const stack = staticBailoutInfo.stack as string
+          err.stack = err.message + stack.substring(stack.indexOf('\n'))
+        }
+
+        throw err
       }
 
       let value: ResponseCacheValue | null
