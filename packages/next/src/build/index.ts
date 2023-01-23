@@ -2359,7 +2359,9 @@ export default async function build(
           for (const [originalAppPath, routes] of appStaticPaths) {
             const page = appNormalizedPaths.get(originalAppPath) || ''
             const appConfig = appDefaultConfigs.get(originalAppPath) || {}
-            let hasDynamicData = appConfig.revalidate === 0
+            let hasDynamicData =
+              appConfig.revalidate === 0 ||
+              exportConfig.initialPageRevalidationMap[page] === 0
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
