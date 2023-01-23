@@ -5,9 +5,13 @@ import { createNext, FileRef } from 'e2e-utils'
 import { renderViaHTTP, check, hasRedbox } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe.each([[''], ['/docs']])(
-  'basic next/dynamic usage, basePath: %p',
-  (basePath: string) => {
+describe.each([
+  ['', 'swc'],
+  ['/docs', 'swc'],
+  ['', 'babel'],
+])(
+  'basic next/dynamic usage, basePath: %p with %p compiler',
+  (basePath: string, compiler: 'swc' | 'babel') => {
     let next: NextInstance
 
     beforeAll(async () => {
@@ -15,6 +19,9 @@ describe.each([[''], ['/docs']])(
         files: {
           components: new FileRef(join(__dirname, 'next-dynamic/components')),
           pages: new FileRef(join(__dirname, 'next-dynamic/pages')),
+          ...(compiler === 'babel' && {
+            '.babelrc': `{ "presets": ["next/babel"] }`,
+          }),
         },
         nextConfig: {
           basePath,
@@ -125,10 +132,7 @@ describe.each([[''], ['/docs']])(
           let browser
           try {
             browser = await webdriver(next.url, basePath + '/dynamic/no-ssr')
-            await check(
-              () => browser.elementByCss('body').text(),
-              /Hello World 1/
-            )
+            await check(() => browser.elementByCss('body').text(), /navigator/)
             expect(await hasRedbox(browser, false)).toBe(false)
           } finally {
             if (browser) {
@@ -167,7 +171,7 @@ describe.each([[''], ['/docs']])(
                 '.next/server/pages/dynamic/no-ssr.js.nft.json'
               )
             ) as { files: string[] }
-            expect(trace).not.toContain('hello1')
+            expect(trace).not.toContain('navigator')
           })
         }
       })
