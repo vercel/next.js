@@ -11,6 +11,8 @@ import { getPkgManager } from './helpers/get-pkg-manager'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import ciInfo from 'ci-info'
+import { isFolderEmpty } from './helpers/is-folder-empty'
+import fs from 'fs'
 
 let projectPath: string = ''
 
@@ -177,6 +179,17 @@ async function run(): Promise<void> {
     console.error(
       'Please provide an example name or url, otherwise remove the example option.'
     )
+    process.exit(1)
+  }
+
+  /**
+   * Verify the project dir is empty or doesn't exist
+   */
+  const root = path.resolve(resolvedProjectPath)
+  const appName = path.basename(root)
+  const folderExists = fs.existsSync(root)
+
+  if (folderExists && !isFolderEmpty(root, appName)) {
     process.exit(1)
   }
 
