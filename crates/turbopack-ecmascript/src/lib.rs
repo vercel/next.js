@@ -29,7 +29,8 @@ use chunk::{
     EcmascriptChunkItem, EcmascriptChunkItemVc, EcmascriptChunkPlaceablesVc, EcmascriptChunkVc,
 };
 use code_gen::CodeGenerateableVc;
-use parse::{parse, ParseResult, ParseResultSourceMap};
+use parse::{parse, ParseResult};
+pub use parse::{ParseResultSourceMap, ParseResultSourceMapVc};
 use path_visitor::ApplyVisitors;
 use references::AnalyzeEcmascriptModuleResult;
 use swc_core::{
