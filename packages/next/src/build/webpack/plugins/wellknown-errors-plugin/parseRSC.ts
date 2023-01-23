@@ -141,7 +141,8 @@ export function getRscError(
 
   const error = new SimpleWebpackError(
     fileName,
-    formattedError[0] +
+    'ReactServerComponentsError:\n' +
+      formattedError[0] +
       formattedError[1] +
       moduleTrace
         .map((m) =>
