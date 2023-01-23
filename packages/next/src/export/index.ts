@@ -140,6 +140,7 @@ interface ExportOptions {
   outdir: string
   silent?: boolean
   threads?: number
+  debugOutput?: boolean
   pages?: string[]
   buildExport?: boolean
   statusMessage?: string
@@ -630,6 +631,7 @@ export default async function exportApp(
             serverComponents: hasAppDir,
             appPaths: options.appPaths || [],
             enableUndici: nextConfig.experimental.enableUndici,
+            debugOutput: options.debugOutput,
           })
 
           for (const validation of result.ampValidations || []) {
