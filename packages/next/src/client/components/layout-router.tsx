@@ -128,7 +128,8 @@ class ScrollAndFocusHandler extends React.Component<{
         () => {
           // Store the current viewport height because reading `clientHeight` causes a reflow,
           // and it won't change during this function.
-          const viewportHeight = document.documentElement.clientHeight
+          const htmlElement = document.documentElement
+          const viewportHeight = htmlElement.clientHeight
 
           // If the element's top edge is already in the viewport, exit early.
           if (topOfElementInViewport(domNode, viewportHeight)) {
@@ -139,7 +140,7 @@ class ScrollAndFocusHandler extends React.Component<{
           // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
           // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
           // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
-          document.documentElement.scrollTop = 0
+          htmlElement.scrollTop = 0
 
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
           if (!topOfElementInViewport(domNode, viewportHeight)) {
@@ -152,6 +153,7 @@ class ScrollAndFocusHandler extends React.Component<{
           dontForceLayout: true,
         }
       )
+
       // Set focus on the element
       domNode.focus()
     }
