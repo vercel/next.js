@@ -1375,5 +1375,37 @@ for (const variant of ['default', 'turbo']) {
 
       await cleanup()
     })
+
+    test("Can't resolve @import in CSS file", async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        new Map([
+          ['app/styles1.css', '@import "./styles2.css"'],
+          ['app/styles2.css', '@import "./boom.css"'],
+        ])
+      )
+
+      await session.patch(
+        'app/layout.js',
+        `
+        import "./styles1.css"
+
+        export default function RootLayout({ children }) {
+          return (
+            <html>
+              <head></head>
+              <body>{children}</body>
+            </html>
+          )
+        }
+        
+    `
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchSnapshot()
+
+      await cleanup()
+    })
   })
 }
