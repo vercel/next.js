@@ -5,13 +5,39 @@ import { createNext, FileRef } from 'e2e-utils'
 import { renderViaHTTP, check, hasRedbox } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
+const customDocumentGipFiles = {
+  'pages/_document.js': `
+  import { Html, Main, NextScript, Head } from 'next/document'
+
+  export default function Document() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+
+  Document.getInitialProps = (ctx) => {
+    return ctx.defaultGetInitialProps(ctx)
+  }
+  `,
+}
+
 describe.each([
   ['', 'swc'],
   ['/docs', 'swc'],
+  ['', 'document.getInitialProps'],
   ['', 'babel'],
 ])(
   'basic next/dynamic usage, basePath: %p with %p compiler',
-  (basePath: string, compiler: 'swc' | 'babel') => {
+  (
+    basePath: string,
+    testCase: 'swc' | 'babel' | 'document.getInitialProps'
+  ) => {
     let next: NextInstance
 
     beforeAll(async () => {
@@ -19,7 +45,9 @@ describe.each([
         files: {
           components: new FileRef(join(__dirname, 'next-dynamic/components')),
           pages: new FileRef(join(__dirname, 'next-dynamic/pages')),
-          ...(compiler === 'babel' && {
+          ...(testCase === 'document.getInitialProps' &&
+            customDocumentGipFiles),
+          ...(testCase === 'babel' && {
             '.babelrc': `{ "presets": ["next/babel"] }`,
           }),
         },
