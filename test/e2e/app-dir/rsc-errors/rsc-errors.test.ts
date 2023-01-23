@@ -153,10 +153,6 @@ if (!(globalThis as any).isNextDev) {
       })
 
       it('should be possible to open the import trace files in your editor', async () => {
-        // TODO: investigate previous error not being cleared properly
-        await next.stop()
-        await next.start()
-
         const componentFile = 'app/editor-links/component.js'
 
         let editorRequestsCount = 0
