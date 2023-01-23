@@ -5,9 +5,35 @@ import { createNext, FileRef } from 'e2e-utils'
 import { renderViaHTTP, check, hasRedbox } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe.each([[''], ['/docs']])(
-  'basic next/dynamic usage, basePath: %p',
-  (basePath: string) => {
+const customDocumentGipFiles = {
+  'pages/_document.js': `
+  import { Html, Main, NextScript, Head } from 'next/document'
+
+  export default function Document() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+
+  Document.getInitialProps = (ctx) => {
+    return ctx.defaultGetInitialProps(ctx)
+  }
+  `,
+}
+
+describe.each([
+  ['', 'default'],
+  ['/docs', 'default'],
+  ['', 'document.getInitialProps'],
+])(
+  'basic next/dynamic usage, basePath: %p - %p',
+  (basePath: string, testCase: string) => {
     let next: NextInstance
 
     beforeAll(async () => {
@@ -15,6 +41,8 @@ describe.each([[''], ['/docs']])(
         files: {
           components: new FileRef(join(__dirname, 'next-dynamic/components')),
           pages: new FileRef(join(__dirname, 'next-dynamic/pages')),
+          ...(testCase === 'document.getInitialProps' &&
+            customDocumentGipFiles),
         },
         nextConfig: {
           basePath,

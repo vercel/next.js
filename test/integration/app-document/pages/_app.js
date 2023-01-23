@@ -1,6 +1,6 @@
 import App from 'next/app'
 import React from 'react'
-import { setState } from '../components/shared-module'
+import { setState } from '../shared-module'
 
 setState(typeof window === 'undefined' ? 'UPDATED' : 'UPDATED CLIENT')
 
