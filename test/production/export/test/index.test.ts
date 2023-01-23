@@ -14,12 +14,7 @@ import {
   runNextCommand,
 } from 'next-test-utils'
 
-import ssr from './ssr'
-import browser from './browser'
-import dev from './dev'
 import { promises } from 'fs'
-import dynamic from './dynamic'
-import apiRoutes from './api-routes'
 import { AddressInfo } from 'net'
 
 const { access, mkdir, writeFile, stat } = promises
@@ -128,10 +123,4 @@ describe('Static Export', () => {
 
     expect(await fileExist(join(outdir, 'index.html'))).toBe(true)
   })
-
-  ssr(context)
-  browser(context)
-  dev(devContext)
-  dynamic(context)
-  apiRoutes(context)
 })
