@@ -175,16 +175,14 @@ if (!(globalThis as any).isNextDev) {
           )
         )
 
-        await browser
-          .waitForElementByCss(
-            "[data-with-open-in-editor-link='app/editor-links/component.js']"
-          )
-          .click()
-        await browser
-          .waitForElementByCss(
-            "[data-with-open-in-editor-link='app/editor-links/page.js']"
-          )
-          .click()
+        await browser.waitForElementByCss('[data-with-open-in-editor-link]')
+
+        const collapsedFrameworkGroups = await browser.elementsByCss(
+          '[data-with-open-in-editor-link]'
+        )
+        for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
+          await collapsedFrameworkButton.click()
+        }
 
         await check(() => editorRequestsCount, /2/)
 

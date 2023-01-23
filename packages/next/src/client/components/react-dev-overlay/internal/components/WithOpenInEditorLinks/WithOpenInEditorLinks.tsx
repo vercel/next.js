@@ -10,7 +10,7 @@ function EditorLink({ file }: { file: string }) {
 
   return (
     <div
-      data-with-open-in-editor-link={file}
+      data-with-open-in-editor-link
       tabIndex={10}
       role={'link'}
       onClick={open}
