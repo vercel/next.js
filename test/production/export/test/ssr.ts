@@ -1,8 +1,9 @@
 /* eslint-env jest */
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
+import type { Context } from './types'
 
-export default function (context) {
+export default function (context: Context) {
   describe('Render via SSR', () => {
     it('should render the home page', async () => {
       const html = await renderViaHTTP(context.port, '/')

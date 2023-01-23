@@ -2,13 +2,14 @@
 import webdriver from 'next-webdriver'
 import { renderViaHTTP, getBrowserBodyText, check } from 'next-test-utils'
 import cheerio from 'cheerio'
+import type { Context } from './types'
 
 const loadJSONInPage = (pageContent) => {
   const page = cheerio.load(pageContent)
   return JSON.parse(page('#__next').text())
 }
 
-export default function (context) {
+export default function (context: Context) {
   describe('Render in development mode', () => {
     it('should render the home page', async () => {
       const browser = await webdriver(context.port, '/')

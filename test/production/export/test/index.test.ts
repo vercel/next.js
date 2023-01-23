@@ -11,6 +11,7 @@ import {
   findPort,
   renderViaHTTP,
   File,
+  runNextCommand,
 } from 'next-test-utils'
 
 import ssr from './ssr'
@@ -19,14 +20,23 @@ import dev from './dev'
 import { promises } from 'fs'
 import dynamic from './dynamic'
 import apiRoutes from './api-routes'
+import { AddressInfo } from 'net'
 
 const { access, mkdir, writeFile, stat } = promises
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
 const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
-const context = {}
-context.appDir = appDir
-const devContext = {}
+type Context = {
+  appDir: string
+  server: Awaited<ReturnType<typeof startStaticServer>>
+  port: number
+  serverNoTrailSlash: Awaited<ReturnType<typeof startStaticServer>>
+  portNoTrailSlash: number
+}
+const context: Context = {
+  appDir,
+} as any
+const devContext: Context = {} as any
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
 const fileExist = (path) =>
@@ -66,10 +76,12 @@ describe('Static Export', () => {
     nextConfig.restore()
 
     context.server = await startStaticServer(outdir)
-    context.port = context.server.address().port
+    context.port = (context.server.address() as AddressInfo).port
 
     context.serverNoTrailSlash = await startStaticServer(outNoTrailSlash)
-    context.portNoTrailSlash = context.serverNoTrailSlash.address().port
+    context.portNoTrailSlash = (
+      context.serverNoTrailSlash.address() as AddressInfo
+    ).port
 
     devContext.port = await findPort()
     devContext.server = await launchApp(
