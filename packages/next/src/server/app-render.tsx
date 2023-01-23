@@ -184,6 +184,7 @@ export type RenderOptsPartial = {
   isBot?: boolean
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
+  nextExport?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -214,6 +215,7 @@ function createErrorHandler(
    * Used for debugging
    */
   _source: string,
+  isNextExport: boolean,
   capturedErrors: Error[],
   allCapturedErrors?: Error[]
 ) {
@@ -236,7 +238,19 @@ function createErrorHandler(
     }
     // Used for debugging error source
     // console.error(_source, err)
-    console.error(err)
+
+    // Don't log the suppressed error during export
+    if (
+      !(
+        isNextExport &&
+        err?.message?.includes(
+          'The specific message is omitted in production builds to avoid leaking sensitive details.'
+        )
+      )
+    ) {
+      console.error(err)
+    }
+
     capturedErrors.push(err)
     // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
     return stringHash(err.message + err.stack + (err.digest || '')).toString()
@@ -882,16 +896,20 @@ export async function renderToHTMLOrFlight(
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
 
+  const isNextExport = !!renderOpts.nextExport
   const serverComponentsErrorHandler = createErrorHandler(
     'serverComponentsRenderer',
+    isNextExport,
     capturedErrors
   )
   const flightDataRendererErrorHandler = createErrorHandler(
     'flightDataRenderer',
+    isNextExport,
     capturedErrors
   )
   const htmlRendererErrorHandler = createErrorHandler(
     'htmlRenderer',
+    isNextExport,
     capturedErrors,
     allCapturedErrors
   )
