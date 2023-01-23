@@ -74,6 +74,7 @@ interface ExportPageInput {
   serverComponents?: boolean
   appPaths: string[]
   enableUndici: NextConfigComplete['experimental']['enableUndici']
+  debugOutput?: boolean
 }
 
 interface ExportPageResults {
@@ -124,6 +125,7 @@ export default async function exportPage({
   httpAgentOptions,
   serverComponents,
   enableUndici,
+  debugOutput,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -366,6 +368,25 @@ export default async function exportPage({
             throw new Error(
               `Page with dynamic = "error" encountered dynamic data method ${path}.`
             )
+          }
+
+          const { staticBailoutInfo = {} } = curRenderOpts as any
+
+          if (
+            revalidate === 0 &&
+            debugOutput &&
+            staticBailoutInfo?.description
+          ) {
+            const bailErr = new Error(
+              `Static generation failed due to dynamic usage on ${path}, reason: ${staticBailoutInfo.description}`
+            )
+            const stack = staticBailoutInfo.stack
+
+            if (stack) {
+              bailErr.stack =
+                bailErr.message + stack.substring(stack.indexOf('\n'))
+            }
+            console.warn(bailErr)
           }
         } catch (err: any) {
           if (

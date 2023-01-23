@@ -28,12 +28,16 @@ const customDocumentGipFiles = {
 }
 
 describe.each([
-  ['', 'default'],
-  ['/docs', 'default'],
+  ['', 'swc'],
+  ['/docs', 'swc'],
   ['', 'document.getInitialProps'],
+  ['', 'babel'],
 ])(
-  'basic next/dynamic usage, basePath: %p - %p',
-  (basePath: string, testCase: string) => {
+  'basic next/dynamic usage, basePath: %p with %p compiler',
+  (
+    basePath: string,
+    testCase: 'swc' | 'babel' | 'document.getInitialProps'
+  ) => {
     let next: NextInstance
 
     beforeAll(async () => {
@@ -43,6 +47,9 @@ describe.each([
           pages: new FileRef(join(__dirname, 'next-dynamic/pages')),
           ...(testCase === 'document.getInitialProps' &&
             customDocumentGipFiles),
+          ...(testCase === 'babel' && {
+            '.babelrc': `{ "presets": ["next/babel"] }`,
+          }),
         },
         nextConfig: {
           basePath,
@@ -153,10 +160,7 @@ describe.each([
           let browser
           try {
             browser = await webdriver(next.url, basePath + '/dynamic/no-ssr')
-            await check(
-              () => browser.elementByCss('body').text(),
-              /Hello World 1/
-            )
+            await check(() => browser.elementByCss('body').text(), /navigator/)
             expect(await hasRedbox(browser, false)).toBe(false)
           } finally {
             if (browser) {
@@ -195,7 +199,7 @@ describe.each([
                 '.next/server/pages/dynamic/no-ssr.js.nft.json'
               )
             ) as { files: string[] }
-            expect(trace).not.toContain('hello1')
+            expect(trace).not.toContain('navigator')
           })
         }
       })
