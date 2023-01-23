@@ -46,7 +46,7 @@ import {
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 import { formatServerError } from '../lib/format-server-error'
-import { Metadata } from '../lib/metadata/ui'
+import { Metadata } from '../lib/metadata/metadata'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'

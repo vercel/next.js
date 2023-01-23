@@ -1,7 +1,7 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
-import { Meta } from './ui'
+import { Meta } from './meta'
 
 export function ResolvedBasicMetadata({
   metadata,

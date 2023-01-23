@@ -10,12 +10,6 @@ const resolveUrl = (url: string | URL) =>
 function IconDescriptorLink({ icon }: { icon: IconDescriptor }) {
   const { url, rel = 'icon', ...props } = icon
 
-  if (process.env.NODE_ENV !== 'production') {
-    if (!url) {
-      throw new Error('`url` in required for descriptor in `metadata.icons`')
-    }
-  }
-
   return <link rel={rel} href={resolveUrl(url)} {...props} />
 }
 
