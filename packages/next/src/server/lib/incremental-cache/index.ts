@@ -85,7 +85,7 @@ export class IncrementalCache {
       cacheHandlerMod = cacheHandlerMod.default || cacheHandlerMod
     }
 
-    if (minimalMode && fetchCache) {
+    if (!incrementalCacheHandlerPath && minimalMode && fetchCache) {
       cacheHandlerMod = FetchCache
     }
 
