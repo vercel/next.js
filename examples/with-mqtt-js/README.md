@@ -13,9 +13,9 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-mqtt-js with-mqtt-js-app
+npx create next-app --example with-mqtt-js with-mqtt-js-app
 # or
-yarn create-next-app --example with-mqtt-js with-mqtt-js-app
+yarn create next-app --example with-mqtt-js with-mqtt-js-app
 ```
 
 To set up a connection URI with a mqtt client, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
