@@ -1,5 +1,6 @@
 import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
+import { WithOpenInEditorLinks } from '../WithOpenInEditorLinks'
 
 export type TerminalProps = { content: string }
 
@@ -29,7 +30,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
                 : undefined),
             }}
           >
-            {entry.content}
+            <WithOpenInEditorLinks content={entry.content} />
           </span>
         ))}
       </pre>
