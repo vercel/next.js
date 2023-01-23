@@ -496,8 +496,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       ? child && typeof child === 'object' && child.ref
       : forwardedRef
 
-    const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
+    const childRefInner = React.useRef<Element | null>(null)
+
+    const [, isVisible, resetVisible] = useIntersection({
       rootMargin: '200px',
+      rootRef: childRef,
     })
 
     const setRef = React.useCallback(
@@ -509,7 +512,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           previousHref.current = href
         }
 
-        setIntersectionRef(el)
+        childRefInner.current = el
+
         if (childRef) {
           if (typeof childRef === 'function') childRef(el)
           else if (typeof childRef === 'object') {
@@ -517,7 +521,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         }
       },
-      [as, childRef, href, resetVisible, setIntersectionRef]
+      [as, childRef, href, resetVisible]
     )
 
     // Prefetch the URL if we haven't already and it's visible.
