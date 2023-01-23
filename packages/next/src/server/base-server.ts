@@ -32,7 +32,6 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 
 import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
-import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   NEXT_BUILTIN_DOCUMENT,
@@ -81,6 +80,7 @@ import {
   FLIGHT_PARAMETERS,
   FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
+import { handleRedirect } from './lib/handle-redirect'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1215,33 +1215,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       this.nextConfig.i18n?.locales
     ).pathname
 
-    const handleRedirect = (pageData: any) => {
-      const redirect = {
-        destination: pageData.pageProps.__N_REDIRECT,
-        statusCode: pageData.pageProps.__N_REDIRECT_STATUS,
-        basePath: pageData.pageProps.__N_REDIRECT_BASE_PATH,
-      }
-      const statusCode = getRedirectStatus(redirect)
-      const { basePath } = this.nextConfig
-
-      if (
-        basePath &&
-        redirect.basePath !== false &&
-        redirect.destination.startsWith('/')
-      ) {
-        redirect.destination = `${basePath}${redirect.destination}`
-      }
-
-      if (redirect.destination.startsWith('/')) {
-        redirect.destination = normalizeRepeatedSlashes(redirect.destination)
-      }
-
-      res
-        .redirect(redirect.destination, statusCode)
-        .body(redirect.destination)
-        .send()
-    }
-
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
     if (isDataReq) {
@@ -1620,7 +1593,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           revalidateOptions,
         }
       } else {
-        await handleRedirect(cachedData.props)
+        await handleRedirect(res, cachedData.props, this.nextConfig.basePath)
         return null
       }
     } else if (cachedData.kind === 'IMAGE') {

@@ -16,25 +16,23 @@ export function normalizeLocalePath(
   pathname: string,
   locales?: string[]
 ): PathLocale {
-  let detectedLocale: string | undefined
-  // first item will be empty string from splitting at first char
-  const pathnameParts = pathname.split('/')
+  if (!locales) return { pathname }
 
-  ;(locales || []).some((locale) => {
-    if (
-      pathnameParts[1] &&
-      pathnameParts[1].toLowerCase() === locale.toLowerCase()
-    ) {
-      detectedLocale = locale
-      pathnameParts.splice(1, 1)
-      pathname = pathnameParts.join('/') || '/'
-      return true
-    }
-    return false
-  })
+  // The first segment will be empty, because it has a leading `/`. If
+  // there is no further segment, there is no locale.
+  const segments = pathname.split('/')
+  if (!segments[1]) return { pathname }
 
-  return {
-    pathname,
-    detectedLocale,
-  }
+  // The second segment will contain the locale part if any.
+  const segment = segments[1].toLowerCase()
+
+  const detectedLocale = locales.find(
+    (locale) => locale.toLowerCase() === segment
+  )
+  if (!detectedLocale) return { pathname }
+
+  // Remove the `/${detectedLocale}` part of the pathname.
+  pathname = pathname.slice(detectedLocale.length + 1) || '/'
+
+  return { pathname, detectedLocale }
 }
