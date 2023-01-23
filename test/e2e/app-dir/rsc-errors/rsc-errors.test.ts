@@ -179,6 +179,30 @@ if (!(globalThis as any).isNextDev) {
           )
         )
 
+        expect(await hasRedbox(browser, true)).toBe(true)
+
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
+          `"Failed to compile"`
+        )
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "./app/editor-links/component.js
+          ReactServerComponentsError:
+
+          You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
+
+             ,-[1:1]
+           1 | import { useState } from 'react'
+             :          ^^^^^^^^
+           2 | export default function Component() {
+           3 |   return <div id=\\"component-editor-links\\">Component</div>
+           4 | }
+             \`----
+
+          Maybe one of these should be marked as a client entry with \\"use client\\":
+          app/editor-links/component.js
+          app/editor-links/page.js"
+        `)
+
         await browser.waitForElementByCss('[data-with-open-in-editor-link]')
 
         const collapsedFrameworkGroups = await browser.elementsByCss(
