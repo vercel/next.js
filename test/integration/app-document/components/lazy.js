@@ -1,1 +1,1 @@
-export default () => 'lazy-loaded'
+export default () => <p id="lazy">lazy-loaded</p>

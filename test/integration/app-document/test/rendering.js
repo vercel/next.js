@@ -101,7 +101,7 @@ export default function ({ app }, suiteName, render, fetch) {
 
       test('It renders dynamic in SSR correctly when getInitialProps is specified', async () => {
         const $ = await get$('/dynamic')
-        expect($('body').text()).toBe('lazy-loaded')
+        expect($('#lazy').text()).toBe('lazy-loaded')
       })
     })
 
