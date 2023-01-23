@@ -106,9 +106,8 @@ function findDOMNode(
 /**
  * Check if the top corner of the HTMLElement is in the viewport.
  */
-function topOfElementInViewport(element: HTMLElement) {
+function topOfElementInViewport(element: HTMLElement, viewportHeight: number) {
   const rect = element.getBoundingClientRect()
-  const viewportHeight = document.documentElement.clientHeight
   return rect.top >= 0 && rect.top <= viewportHeight
 }
 
@@ -127,16 +126,23 @@ class ScrollAndFocusHandler extends React.Component<{
 
       handleSmoothScroll(
         () => {
-          // Try scrolling go the top of the document to be backward compatible with pages
-          if (!topOfElementInViewport(domNode)) {
-            // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
-            // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
-            // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
-            document.documentElement.scrollTop = 0
+          // Store the current viewport height because reading `clientHeight` causes a reflow,
+          // and it won't change during this function.
+          const viewportHeight = document.documentElement.clientHeight
+
+          // If the element's top edge is already in the viewport, exit early.
+          if (topOfElementInViewport(domNode, viewportHeight)) {
+            return
           }
 
+          // Otherwise, try scrolling go the top of the document to be backward compatible with pages
+          // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
+          // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
+          // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
+          document.documentElement.scrollTop = 0
+
           // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(domNode)) {
+          if (!topOfElementInViewport(domNode, viewportHeight)) {
             // Scroll into view doesn't scroll horizontally by default when not needed
             domNode.scrollIntoView()
           }
