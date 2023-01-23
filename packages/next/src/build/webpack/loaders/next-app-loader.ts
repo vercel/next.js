@@ -7,7 +7,6 @@ import { sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
-import { resolveFileBasedMetadataForLoader } from '../../../lib/metadata/resolve-metadata'
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -37,10 +36,7 @@ async function createTreeCodeFromPath({
   resolveParallelSegments,
 }: {
   pagePath: string
-  resolve: (
-    pathname: string,
-    resolveDir?: boolean
-  ) => Promise<string | undefined>
+  resolve: (pathname: string) => Promise<string | undefined>
   resolveParallelSegments: (
     pathname: string
   ) => [key: string, segment: string][]
@@ -48,7 +44,6 @@ async function createTreeCodeFromPath({
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
-
   let rootLayout: string | undefined
   let globalError: string | undefined
 
@@ -56,7 +51,6 @@ async function createTreeCodeFromPath({
     segments: string[]
   ): Promise<{
     treeCode: string
-    treeMetadataCode: string
   }> {
     const segmentPath = segments.join('/')
 
@@ -71,25 +65,11 @@ async function createTreeCodeFromPath({
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
 
-    let metadataCode = ''
-
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
         const resolvedPagePath = await resolve(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
-
-        metadataCode += `{
-          type: 'page',
-          layer: ${
-            // There's an extra virtual segment.
-            segments.length - 1
-          },
-          mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-            resolvedPagePath
-          )}),
-          path: ${JSON.stringify(resolvedPagePath)},
-        },`
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {
@@ -100,8 +80,9 @@ async function createTreeCodeFromPath({
       }
 
       const parallelSegmentPath = segmentPath + '/' + parallelSegment
-      const { treeCode: subtreeCode, treeMetadataCode: subTreeMetadataCode } =
-        await createSubtreePropsFromSegmentPath([...segments, parallelSegment])
+      const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
+        [...segments, parallelSegment]
+      )
 
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
@@ -116,27 +97,6 @@ async function createTreeCodeFromPath({
       const layoutPath = filePaths.find(
         ([type, path]) => type === 'layout' && !!path
       )?.[1]
-      if (!rootLayout) {
-        rootLayout = layoutPath
-      }
-
-      // Collect metadata for the layout
-      if (layoutPath) {
-        metadataCode += `{
-          type: 'layout',
-          layer: ${segments.length},
-          mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-            layoutPath
-          )}),
-          path: ${JSON.stringify(layoutPath)},
-        },`
-      }
-      metadataCode += await resolveFileBasedMetadataForLoader(
-        segments.length,
-        (await resolve(`${appDirPrefix}${parallelSegmentPath}/`, true))!
-      )
-      metadataCode += subTreeMetadataCode
-
       if (!rootLayout) {
         rootLayout = layoutPath
       }
@@ -173,16 +133,13 @@ async function createTreeCodeFromPath({
           .map(([key, value]) => `${key}: ${value}`)
           .join(',\n')}
       }`,
-      treeMetadataCode: metadataCode,
     }
   }
 
-  const { treeCode, treeMetadataCode } =
-    await createSubtreePropsFromSegmentPath([])
+  const { treeCode } = await createSubtreePropsFromSegmentPath([])
   return {
     treeCode: `const tree = ${treeCode}.children;`,
-    treeMetadataCode: `const metadata = [${treeMetadataCode}];`,
-    pages: `const pages = ${JSON.stringify(pages)};`,
+    pages,
     rootLayout,
     globalError,
   }
@@ -240,7 +197,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         const rest = path.slice(pathname.length + 1).split('/')
 
         let matchedSegment = rest[0]
-        // It is the actual page, mark it specially.
+        // It is the actual page, mark it sepcially.
         if (rest.length === 1 && matchedSegment === 'page') {
           matchedSegment = PAGE_SEGMENT
         }
@@ -255,11 +212,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     return Object.entries(matched)
   }
 
-  const resolver = async (pathname: string, resolveDir?: boolean) => {
-    if (resolveDir) {
-      return createAbsolutePath(appDir, pathname)
-    }
-
+  const resolver = async (pathname: string) => {
     try {
       const resolved = await resolve(this.rootContext, pathname)
       this.addDependency(resolved)
@@ -277,17 +230,12 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  const {
-    treeCode,
-    treeMetadataCode,
-    pages: pageListCode,
-    rootLayout,
-    globalError,
-  } = await createTreeCodeFromPath({
-    pagePath,
-    resolve: resolver,
-    resolveParallelSegments,
-  })
+  const { treeCode, pages, rootLayout, globalError } =
+    await createTreeCodeFromPath({
+      pagePath,
+      resolve: resolver,
+      resolveParallelSegments,
+    })
 
   if (!rootLayout) {
     const errorMessage = `${chalk.bold(
@@ -315,8 +263,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
   const result = `
     export ${treeCode}
-    export ${treeMetadataCode}
-    export ${pageListCode}
+    export const pages = ${JSON.stringify(pages)}
 
     export { default as AppRouter } from 'next/dist/client/components/app-router'
     export { default as LayoutRouter } from 'next/dist/client/components/layout-router'
