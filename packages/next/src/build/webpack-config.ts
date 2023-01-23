@@ -902,7 +902,7 @@ export default async function getBaseWebpackConfig(
   const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
     [COMPILER_NAMES.server]: ['main', 'module'],
     [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-    [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
+    [COMPILER_NAMES.edgeServer]: ['edge-light', 'browser', 'module', 'main'],
   }
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
