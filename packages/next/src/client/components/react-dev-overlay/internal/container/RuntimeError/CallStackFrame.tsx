@@ -4,6 +4,7 @@ import {
   getFrameSource,
   type OriginalStackFrame,
 } from '../../helpers/stack-frame'
+import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 
 export const CallStackFrame: React.FC<{ frame: OriginalStackFrame }> =
   function CallStackFrame({ frame }) {
@@ -12,30 +13,15 @@ export const CallStackFrame: React.FC<{ frame: OriginalStackFrame }> =
 
     const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
     const hasSource = Boolean(frame.originalCodeFrame)
-
-    const open = React.useCallback(() => {
-      if (!hasSource) return
-
-      const params = new URLSearchParams()
-      for (const key in f) {
-        params.append(key, ((f as any)[key] ?? '').toString())
-      }
-
-      self
-        .fetch(
-          `${
-            process.env.__NEXT_ROUTER_BASEPATH || ''
-          }/__nextjs_launch-editor?${params.toString()}`
-        )
-        .then(
-          () => {},
-          () => {
-            console.error(
-              'There was an issue opening this code in your editor.'
-            )
+    const open = useOpenInEditor(
+      hasSource
+        ? {
+            file: f.file,
+            lineNumber: f.lineNumber,
+            column: f.column,
           }
-        )
-    }, [hasSource, f])
+        : undefined
+    )
 
     return (
       <div data-nextjs-call-stack-frame>
