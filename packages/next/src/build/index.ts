@@ -2210,6 +2210,7 @@ export default async function build(
           const exportOptions = {
             silent: false,
             buildExport: true,
+            debugOutput,
             threads: config.experimental.cpus,
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
@@ -2358,7 +2359,9 @@ export default async function build(
           for (const [originalAppPath, routes] of appStaticPaths) {
             const page = appNormalizedPaths.get(originalAppPath) || ''
             const appConfig = appDefaultConfigs.get(originalAppPath) || {}
-            let hasDynamicData = appConfig.revalidate === 0
+            let hasDynamicData =
+              appConfig.revalidate === 0 ||
+              exportConfig.initialPageRevalidationMap[page] === 0
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return

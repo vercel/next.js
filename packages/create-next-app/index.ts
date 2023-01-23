@@ -11,6 +11,8 @@ import { getPkgManager } from './helpers/get-pkg-manager'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import ciInfo from 'ci-info'
+import { isFolderEmpty } from './helpers/is-folder-empty'
+import fs from 'fs'
 
 let projectPath: string = ''
 
@@ -180,6 +182,17 @@ async function run(): Promise<void> {
     process.exit(1)
   }
 
+  /**
+   * Verify the project dir is empty or doesn't exist
+   */
+  const root = path.resolve(resolvedProjectPath)
+  const appName = path.basename(root)
+  const folderExists = fs.existsSync(root)
+
+  if (folderExists && !isFolderEmpty(root, appName)) {
+    process.exit(1)
+  }
+
   const example = typeof program.example === 'string' && program.example.trim()
   const preferences = (conf.get('preferences') || {}) as Record<
     string,
@@ -310,22 +323,28 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         program.importAlias = '@/*'
       } else {
-        const styledImportAlias = chalk.hex('#007acc')('import alias')
-        const { importAlias } = await prompts({
-          type: 'text',
-          name: 'importAlias',
-          message: `What ${styledImportAlias} would you like configured?`,
-          initial: getPrefOrDefault('importAlias'),
-        })
+        let importAlias = ''
 
-        if (!/.+\/\*/.test(importAlias)) {
-          console.error(
-            `${chalk.red(
-              'Error:'
-            )} invalid import alias (${importAlias}), it must follow the pattern <prefix>/*`
-          )
-          process.exit(1)
+        const promptAlias = async () => {
+          const styledImportAlias = chalk.hex('#007acc')('import alias')
+          const promptResult = await prompts({
+            type: 'text',
+            name: 'importAlias',
+            message: `What ${styledImportAlias} would you like configured?`,
+            initial: getPrefOrDefault('importAlias'),
+          })
+          importAlias = promptResult.importAlias
+
+          if (!/.+\/\*/.test(importAlias)) {
+            console.error(
+              `${chalk.red(
+                'Error:'
+              )} invalid import alias (${importAlias}), it must follow the pattern <prefix>/*`
+            )
+            await promptAlias()
+          }
         }
+        await promptAlias()
 
         program.importAlias = importAlias
         preferences.importAlias = importAlias
