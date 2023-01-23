@@ -102,7 +102,7 @@ createNextDescribe(
 
     it('should pass props from getServerSideProps in root layout', async () => {
       const $ = await next.render$('/dashboard')
-      expect($('title').text()).toBe('hello world')
+      expect($('title').first().text()).toBe('hello world')
     })
 
     it('should serve from pages', async () => {
