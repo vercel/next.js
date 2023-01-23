@@ -62,7 +62,7 @@ const main = async () => {
   // Ensure that we bundle binaries with swc
   if (currentPkgDirname === 'next-swc') {
     packageJson.files = packageJson.files ?? []
-    packageJson.files.push('native')
+    packageJson.files.push('native/*')
 
     console.log('using swc binaries:')
     await execa('ls', [
@@ -93,7 +93,7 @@ const main = async () => {
         packageJson.version
       }.tgz`
     )
-    await execa('yarn', ['pack', '-f', tmpTarball], {
+    await execa('pnpm', ['pack'], {
       cwd: tmpPkgPath,
     })
     await fs.copyFile(tmpTarball, getPackedPkgPath(currentPkgDirname))
