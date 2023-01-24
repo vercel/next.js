@@ -277,8 +277,8 @@ export class Playwright extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute(attr) {
-    return this.chain((el) => el.getAttribute(attr))
+  async getAttribute<T = any>(attr) {
+    return this.chain((el) => el.getAttribute(attr)) as T
   }
 
   hasElementByCssSelector(selector: string) {
@@ -359,7 +359,7 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  async evalAsync(snippet) {
+  async evalAsync<T = any>(snippet) {
     if (typeof snippet === 'function') {
       snippet = snippet.toString()
     }
@@ -377,7 +377,7 @@ export class Playwright extends BrowserInterface {
       })()`
     }
 
-    return page.evaluate(snippet).catch(() => null)
+    return page.evaluate<T>(snippet).catch(() => null)
   }
 
   async log() {
