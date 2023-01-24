@@ -77,7 +77,9 @@ impl ContentSource for DevManifestContentSource {
         let file = File::from(manifest_content).with_content_type(APPLICATION_JSON);
 
         Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Static(AssetContentVc::from(file).into()).cell(),
+            ContentSourceContent::Static(AssetContentVc::from(file).into())
+                .cell()
+                .into(),
         ))
     }
 }
