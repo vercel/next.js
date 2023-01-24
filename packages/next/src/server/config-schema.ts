@@ -229,6 +229,9 @@ const configSchema = {
         adjustFontFallbacksWithSizeAdjust: {
           type: 'boolean',
         },
+        allowedRevalidateHeaderKeys: {
+          type: 'array',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -337,6 +340,9 @@ const configSchema = {
           type: 'array',
         },
         pageEnv: {
+          type: 'boolean',
+        },
+        preCompiledNextServer: {
           type: 'boolean',
         },
         proxyTimeout: {

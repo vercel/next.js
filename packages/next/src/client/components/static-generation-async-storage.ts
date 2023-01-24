@@ -1,23 +1,23 @@
 import type { AsyncLocalStorage } from 'async_hooks'
+import { createAsyncLocalStorage } from './async-local-storage'
 
 export interface StaticGenerationStore {
-  inUse?: boolean
-  pathname?: string
-  revalidate?: number
-  fetchRevalidate?: number
-  isStaticGeneration?: boolean
+  readonly isStaticGeneration: boolean
+  readonly pathname: string
+  readonly incrementalCache?: import('../../server/lib/incremental-cache').IncrementalCache
+  readonly isRevalidate?: boolean
+
+  forceDynamic?: boolean
+  revalidate?: boolean | number
   forceStatic?: boolean
-  incrementalCache?: import('../../server/lib/incremental-cache').IncrementalCache
   pendingRevalidates?: Promise<any>[]
-  isRevalidate?: boolean
+
+  dynamicUsageDescription?: string
+  dynamicUsageStack?: string
 }
 
-export let staticGenerationAsyncStorage:
-  | AsyncLocalStorage<StaticGenerationStore>
-  | StaticGenerationStore = {}
+export type StaticGenerationAsyncStorage =
+  AsyncLocalStorage<StaticGenerationStore>
 
-// @ts-expect-error we provide this on globalThis in
-// the edge and node runtime
-if (globalThis.AsyncLocalStorage) {
-  staticGenerationAsyncStorage = new (globalThis as any).AsyncLocalStorage()
-}
+export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
+  createAsyncLocalStorage()

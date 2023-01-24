@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { hydrationErrorInfo } from './hydration-error-info'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -54,8 +55,17 @@ if (typeof window !== 'undefined') {
       return
     }
 
-    if (isHydrationError(error)) {
-      error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
+    if (
+      isHydrationError(error) &&
+      !error.message.includes(
+        'https://nextjs.org/docs/messages/react-hydration-error'
+      )
+    ) {
+      if (hydrationErrorInfo) {
+        error.message += '\n\n' + hydrationErrorInfo
+      }
+      error.message +=
+        '\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
     }
 
     const e = error

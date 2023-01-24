@@ -11,6 +11,7 @@ examples/with-flow/**
 examples/with-jest/**
 examples/with-mobx-state-tree/**
 examples/with-mobx/**
+examples/with-tigris/db/models/todoItems.ts
 packages/next/src/bundles/webpack/packages/*.runtime.js
 packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 packages/next/src/compiled/**/*
@@ -36,3 +37,4 @@ bench/nested-deps/pages/**
 bench/nested-deps/components/**
 packages/next-bundle-analyzer/index.d.ts
 examples/with-typescript-graphql/lib/gql/
+test/development/basic/hmr/components/parse-error.js

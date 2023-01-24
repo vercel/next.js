@@ -568,7 +568,7 @@ export const ACTION_PREFETCH = 'prefetch'
 /**
  * Refresh triggers a refresh of the full page data.
  * - fetches the Flight data and fills subTreeData at the root of the cache.
- * - The router state is updated at the root of the state tree.
+ * - The router state is updated at the root.
  */
 interface RefreshAction {
   type: typeof ACTION_REFRESH
@@ -582,28 +582,39 @@ interface RefreshAction {
 }
 
 /**
- * Navigate triggers a navigation to the provided url. It supports a combination of `cacheType` (`hard` and `soft`) and `navigateType` (`push` and `replace`).
+ * Navigate triggers a navigation to the provided url. It supports two types: `push` and `replace`.
  *
  * `navigateType`:
  * - `push` - pushes a new history entry in the browser history
  * - `replace` - replaces the current history entry in the browser history
  *
- * `cacheType`:
- * - `hard` - Creates a new cache in one of two ways:
- *   - Not optimistic
- *      - Default if there is no loading.js.
- *      - Fetch data in the reducer and suspend there.
- *      - Copies the previous cache nodes as far as possible and applies new subTreeData.
- *      - Applies the new router state.
- *   - optimistic
- *      - Enabled when somewhere in the router state path to the page there is a loading.js.
- *      - Similar to `soft` but kicks off the data fetch in the reducer and applies `data` in the spot that should suspend.
- *      - This enables showing loading states while navigating.
- *      - Will trigger fast path or server-patch case in layout-router.
- * - `soft`
- *   - Reuses the existing cache.
- *   - Creates an optimistic router state that causes the fetch to start in layout-router when there is missing data.
- *   - If there is no missing data the existing cache data is rendered.
+ * Navigate has multiple cache heuristics:
+ * - page was prefetched
+ *  - Apply router state tree from prefetch
+ *  - Apply Flight data from prefetch to the cache
+ *  - If Flight data is a string, it's a redirect and the state is updated to trigger a redirect
+ *  - Check if hard navigation is needed
+ *    - Hard navigation happens when a dynamic parameter below the common layout changed
+ *    - When hard navigation is needed the cache is invalidated below the flightSegmentPath
+ *    - The missing cache nodes of the page will be fetched in layout-router and trigger the SERVER_PATCH action
+ *  - If hard navigation is not needed
+ *    - The cache is reused
+ *    - If any cache nodes are missing they'll be fetched in layout-router and trigger the SERVER_PATCH action
+ * - page was not prefetched
+ *  - The navigate was called from `next/link` with `prefetch={false}`. This case is called `forceOptimisticNavigation`. It triggers an optimistic navigation so that loading spinners can be shown early if any.
+ *    - Creates an optimistic router tree based on the provided url
+ *    - Adds a cache node to the cache with a Flight data fetch that was eagerly started in the reducer
+ *    - Flight data fetch is suspended in the layout-router
+ *    - Triggers SERVER_PATCH action when the data comes back, this will apply the data to the cache and router state, at that point the optimistic router tree is replaced by the actual router tree.
+ *  - The navigate was called from `next/router` (`router.push()` / `router.replace()`) / `next/link` without prefetch set (e.g. the prefetch didn't come back from the server before clicking the link)
+ *    - Flight data is fetched in the reducer (suspends the reducer)
+ *    - Router state tree is created based on Flight data
+ *    - Cache is filled based on the Flight data
+ *
+ * Above steps explain 3 cases:
+ * - `soft` - Reuses the existing cache and fetches missing nodes in layout-router.
+ * - `hard` - Creates a new cache where cache nodes are removed below the common layout and fetches missing nodes in layout-router.
+ * - `optimistic` (explicit no prefetch) - Creates a new cache and kicks off the data fetch in the reducer. The data fetch is awaited in the layout-router.
  */
 interface NavigateAction {
   type: typeof ACTION_NAVIGATE
@@ -624,8 +635,8 @@ interface NavigateAction {
  * Restore applies the provided router state.
  * - Only used for `popstate` (back/forward navigation) where a known router state has to be applied.
  * - Router state is applied as-is from the history state.
- * - If any data is missing it will be fetched in layout-router during rendering and trigger fast path or server-patch case.
- * - If no data is missing the existing cached data is rendered.
+ * - If any cache node is missing it will be fetched in layout-router during rendering and the server-patch case.
+ * - If existing cache nodes match these are used.
  */
 interface RestoreAction {
   type: typeof ACTION_RESTORE
@@ -635,8 +646,7 @@ interface RestoreAction {
 
 /**
  * Server-patch applies the provided Flight data to the cache and router tree.
- * - Only triggered in layout-router when the data can't be handled in the fast path.
- * - Main case where this is triggered is when a rewrite applies and Flight data for a different path is returned from the server.
+ * - Only triggered in layout-router.
  * - Creates a new cache and router state with the Flight data applied.
  */
 interface ServerPatchAction {
@@ -652,6 +662,12 @@ interface ServerPatchAction {
   }
 }
 
+/**
+ * Prefetch adds the provided FlightData to the prefetch cache
+ * - Creates the router state tree based on the patch in FlightData
+ * - Adds the FlightData to the prefetch cache
+ * - In ACTION_NAVIGATE the prefetch cache is checked and the router state tree and FlightData are applied.
+ */
 interface PrefetchAction {
   type: typeof ACTION_PREFETCH
   url: URL
@@ -677,17 +693,17 @@ type AppRouterState = {
   /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.
-   * - Holds which segments are shown on the screen.
-   * - Holds where loading states (loading.js) exists.
+   * - Holds which segments and parallel routes are shown on the screen.
    */
   tree: FlightRouterState
   /**
-   * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments and prefetched segments.
+   * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments.
    * It also holds in-progress data requests.
+   * Prefetched data is stored separately in `prefetchCache`, that is applied during ACTION_NAVIGATE.
    */
   cache: CacheNode
   /**
-   * Cache that holds prefetched Flight responses keyed by url
+   * Cache that holds prefetched Flight responses keyed by url.
    */
   prefetchCache: Map<
     string,
@@ -698,7 +714,7 @@ type AppRouterState = {
     }
   >
   /**
-   * Decides if the update should create a new history entry and if the navigation can't be handled by app-router.
+   * Decides if the update should create a new history entry and if the navigation has to trigger a browser navigation.
    */
   pushRef: PushRef
   /**
@@ -706,7 +722,8 @@ type AppRouterState = {
    */
   focusAndScrollRef: FocusAndScrollRef
   /**
-   * The canonical url that is pushed/replaced
+   * The canonical url that is pushed/replaced.
+   * - This is the url you see in the browser.
    */
   canonicalUrl: string
 }
@@ -834,9 +851,12 @@ function clientReducer(
           // Handles case where prefetch only returns the router tree patch without rendered components.
           if (subTreeData !== null) {
             if (flightDataPath.length === 3) {
+              cache.status = CacheStates.READY
               cache.subTreeData = subTreeData
+              cache.parallelRoutes = new Map()
               fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
             } else {
+              cache.status = CacheStates.READY
               // Copy subTreeData for the root node of the cache.
               cache.subTreeData = state.cache.subTreeData
               // Create a copy of the existing cache with the subTreeData applied.
@@ -855,6 +875,7 @@ function clientReducer(
             )
 
           if (hardNavigate) {
+            cache.status = CacheStates.READY
             // Copy subTreeData for the root node of the cache.
             cache.subTreeData = state.cache.subTreeData
 
@@ -915,6 +936,7 @@ function clientReducer(
         )
 
         // Copy subTreeData for the root node of the cache.
+        cache.status = CacheStates.READY
         cache.subTreeData = state.cache.subTreeData
 
         // Copy existing cache nodes as far as possible and fill in `data` property with the started data fetch.
@@ -1012,10 +1034,12 @@ function clientReducer(
       mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
 
       if (flightDataPath.length === 3) {
+        cache.status = CacheStates.READY
         cache.subTreeData = subTreeData
         fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
       } else {
         // Copy subTreeData for the root node of the cache.
+        cache.status = CacheStates.READY
         cache.subTreeData = state.cache.subTreeData
         // Create a copy of the existing cache with the subTreeData applied.
         fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
@@ -1137,10 +1161,12 @@ function clientReducer(
 
       // Root refresh
       if (flightDataPath.length === 3) {
+        cache.status = CacheStates.READY
         cache.subTreeData = subTreeData
         fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
       } else {
         // Copy subTreeData for the root node of the cache.
+        cache.status = CacheStates.READY
         cache.subTreeData = state.cache.subTreeData
         fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
       }
@@ -1288,6 +1314,7 @@ function clientReducer(
       mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
 
       // Set subTreeData for the root node of the cache.
+      cache.status = CacheStates.READY
       cache.subTreeData = subTreeData
       fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
 

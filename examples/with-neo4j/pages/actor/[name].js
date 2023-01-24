@@ -9,10 +9,11 @@ import Footer from '../../components/footer'
 export default function Actor() {
   const router = useRouter()
   const { name } = router.query
-  const { data, error } = useSWR(`/api/actors/${name}`, fetcher)
+  const { data, error, isLoading } = useSWR(`/api/actors/${name}`, fetcher)
 
   if (error) return <div>failed to load</div>
-  if (!data) return <div>loading...</div>
+  if (isLoading) return <div>loading...</div>
+  if (!data) return null
 
   return (
     <div className="container">

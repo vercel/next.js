@@ -1048,7 +1048,7 @@ export async function buildStaticPaths({
 export type AppConfig = {
   revalidate?: number | false
   dynamicParams?: true | false
-  dynamic?: 'auto' | 'error' | 'force-static'
+  dynamic?: 'auto' | 'error' | 'force-static' | 'force-dynamic'
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
@@ -1191,7 +1191,10 @@ export async function buildAppStaticPaths({
     if (!hadGenerateParams) {
       return {
         paths: undefined,
-        fallback: undefined,
+        fallback:
+          process.env.NODE_ENV === 'production' && isDynamicRoute(page)
+            ? true
+            : undefined,
         encodedPaths: undefined,
       }
     }
@@ -1350,6 +1353,10 @@ export async function isPageStatic({
           },
           {}
         )
+
+        if (appConfig.dynamic === 'force-dynamic') {
+          appConfig.revalidate = 0
+        }
 
         if (isDynamicRoute(page)) {
           ;({
@@ -1725,6 +1732,7 @@ export async function copyTracedFiles(
     path.relative(tracingRoot, dir),
     'server.js'
   )
+  await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
   await fs.writeFile(
     serverOutputPath,
     `${
@@ -1762,6 +1770,7 @@ const server = http.createServer(async (req, res) => {
   }
 })
 const currentPort = parseInt(process.env.PORT, 10) || 3000
+const hostname = process.env.HOSTNAME || 'localhost'
 
 server.listen(currentPort, (err) => {
   if (err) {
@@ -1769,7 +1778,7 @@ server.listen(currentPort, (err) => {
     process.exit(1)
   }
   const nextServer = new NextServer({
-    hostname: 'localhost',
+    hostname,
     port: currentPort,
     dir: path.join(__dirname),
     dev: false,
@@ -1784,7 +1793,7 @@ server.listen(currentPort, (err) => {
   console.log(
     'Listening on port',
     currentPort,
-    'url: http://localhost:' + currentPort
+    'url: http://' + hostname + ':' + currentPort
   )
 })`
   )

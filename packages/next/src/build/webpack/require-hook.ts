@@ -34,9 +34,12 @@ export function loadRequireHook(aliases: [string, string][] = []) {
   const defaultAliases = [
     ...aliases,
     // Use `require.resolve` explicitly to make them statically analyzable
+    // styled-jsx needs to be resolved as the external dependency.
     ['styled-jsx', require.resolve('styled-jsx')],
     ['styled-jsx/style', require.resolve('styled-jsx/style')],
     ['styled-jsx/style', require.resolve('styled-jsx/style')],
+    ['server-only', require.resolve('next/dist/compiled/server-only')],
+    ['client-only', require.resolve('next/dist/compiled/client-only')],
   ] as [string, string][]
 
   setRequireOverrides(defaultAliases)

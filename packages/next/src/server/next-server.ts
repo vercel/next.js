@@ -51,7 +51,6 @@ import {
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { findDir } from '../lib/find-pages-dir'
 import { format as formatUrl, UrlWithParsedQuery } from 'url'
-import compression from 'next/dist/compiled/compression'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
 import { createHeaderRoute, createRedirectRoute } from './server-route-utils'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
@@ -206,6 +205,7 @@ function getEdgeMatcher(
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
+  private compression?: ExpressMiddleware
 
   constructor(options: Options) {
     // Initialize super class
@@ -226,6 +226,10 @@ export default class NextNodeServer extends BaseServer {
     }
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
+    }
+
+    if (this.nextConfig.compress) {
+      this.compression = require('next/dist/compiled/compression')()
     }
 
     if (!this.minimalMode) {
@@ -256,10 +260,6 @@ export default class NextNodeServer extends BaseServer {
     // ensure options are set when loadConfig isn't called
     setHttpClientAndAgentOptions(this.nextConfig)
   }
-
-  private compression = this.nextConfig.compress
-    ? (compression() as ExpressMiddleware)
-    : undefined
 
   protected loadEnvConfig({
     dev,
@@ -810,7 +810,10 @@ export default class NextNodeServer extends BaseServer {
             new NodeNextResponse(newRes)
           ),
         // internal config so is not typed
-        trustHostHeader: (this.nextConfig.experimental as any).trustHostHeader,
+        trustHostHeader: (this.nextConfig.experimental as Record<string, any>)
+          .trustHostHeader,
+        allowedRevalidateHeaderKeys:
+          this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       },
       this.minimalMode,
       this.renderOpts.dev,

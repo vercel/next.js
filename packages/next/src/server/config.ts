@@ -56,19 +56,22 @@ const experimentalWarning = execOnce(
   }
 )
 
-export function setHttpClientAndAgentOptions(config: {
-  httpAgentOptions?: NextConfig['httpAgentOptions']
-  experimental?: {
-    enableUndici?: boolean
-  }
-}) {
+export function setHttpClientAndAgentOptions(
+  config: {
+    httpAgentOptions?: NextConfig['httpAgentOptions']
+    experimental?: {
+      enableUndici?: boolean
+    }
+  },
+  silent = false
+) {
   if (isAboveNodejs16) {
     // Node.js 18 has undici built-in.
     if (config.experimental?.enableUndici && !isAboveNodejs18) {
       // When appDir is enabled undici is the default because of Response.clone() issues in node-fetch
       ;(globalThis as any).__NEXT_USE_UNDICI = config.experimental?.enableUndici
     }
-  } else if (config.experimental?.enableUndici) {
+  } else if (config.experimental?.enableUndici && !silent) {
     Log.warn(
       `\`enableUndici\` option requires Node.js v${NODE_16_VERSION} or greater. Falling back to \`node-fetch\``
     )
@@ -130,14 +133,17 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
   oldKey: string,
   newKey: string,
-  configFileName: string
+  configFileName: string,
+  silent = false
 ) {
   if (config.experimental && oldKey in config.experimental) {
-    Log.warn(
-      `\`${oldKey}\` has been moved out of \`experimental\`` +
-        (newKey.includes('.') ? ` and into \`${newKey}\`` : '') +
-        `. Please update your ${configFileName} file accordingly.`
-    )
+    if (!silent) {
+      Log.warn(
+        `\`${oldKey}\` has been moved out of \`experimental\`` +
+          (newKey.includes('.') ? ` and into \`${newKey}\`` : '') +
+          `. Please update your ${configFileName} file accordingly.`
+      )
+    }
 
     let current = config
     const newKeys = newKey.split('.')
@@ -152,9 +158,13 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   return config
 }
 
-function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
+function assignDefaults(
+  dir: string,
+  userConfig: { [key: string]: any },
+  silent = false
+) {
   const configFileName = userConfig.configFileName
-  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+  if (!silent && typeof userConfig.exportTrailingSlash !== 'undefined') {
     console.warn(
       chalk.yellow.bold('Warning: ') +
         `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
@@ -200,7 +210,7 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
           }
         }
 
-        if (enabledExperiments.length > 0) {
+        if (!silent && enabledExperiments.length > 0) {
           experimentalWarning(configFileName, enabledExperiments)
         }
       }
@@ -572,43 +582,52 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     result,
     'relay',
     'compiler.relay',
-    configFileName
+    configFileName,
+    silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'styledComponents',
     'compiler.styledComponents',
-    configFileName
+    configFileName,
+    silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'emotion',
     'compiler.emotion',
-    configFileName
+    configFileName,
+    silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'reactRemoveProperties',
     'compiler.reactRemoveProperties',
-    configFileName
+    configFileName,
+    silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'removeConsole',
     'compiler.removeConsole',
-    configFileName
+    configFileName,
+    silent
   )
 
   if (result.experimental?.swcMinifyDebugOptions) {
-    Log.warn(
-      'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
-    )
+    if (!silent) {
+      Log.warn(
+        'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
+      )
+    }
   }
 
   if ((result.experimental as any).outputStandalone) {
-    Log.warn(
-      `experimental.outputStandalone has been renamed to "output: 'standalone'", please move the config.`
-    )
+    if (!silent) {
+      Log.warn(
+        `experimental.outputStandalone has been renamed to "output: 'standalone'", please move the config.`
+      )
+    }
     result.output = 'standalone'
   }
 
@@ -616,19 +635,22 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     result,
     'transpilePackages',
     'transpilePackages',
-    configFileName
+    configFileName,
+    silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'skipMiddlewareUrlNormalize',
     'skipMiddlewareUrlNormalize',
-    configFileName
+    configFileName,
+    silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'skipTrailingSlashRedirect',
     'skipTrailingSlashRedirect',
-    configFileName
+    configFileName,
+    silent
   )
 
   if (
@@ -638,19 +660,23 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
     result.experimental.outputFileTracingRoot = resolve(
       result.experimental.outputFileTracingRoot
     )
-    Log.warn(
-      `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
-    )
+    if (!silent) {
+      Log.warn(
+        `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
+      )
+    }
   }
 
   if (result.output === 'standalone' && !result.outputFileTracing) {
-    Log.warn(
-      `"output: 'standalone'" requires outputFileTracing not be disabled please enable it to leverage the standalone build`
-    )
+    if (!silent) {
+      Log.warn(
+        `"output: 'standalone'" requires outputFileTracing not be disabled please enable it to leverage the standalone build`
+      )
+    }
     result.output = undefined
   }
 
-  setHttpClientAndAgentOptions(result || defaultConfig)
+  setHttpClientAndAgentOptions(result || defaultConfig, silent)
 
   if (result.i18n) {
     const { i18n } = result
@@ -668,7 +694,7 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
       )
     }
 
-    if (i18n.locales.length > 100) {
+    if (i18n.locales.length > 100 && !silent) {
       Log.warn(
         `Received ${i18n.locales.length} i18n.locales items which exceeds the recommended max of 100.\nSee more info here: https://nextjs.org/docs/advanced-features/i18n-routing#how-does-this-work-with-static-generation`
       )
@@ -700,7 +726,7 @@ function assignDefaults(dir: string, userConfig: { [key: string]: any }) {
             altItem.domain !== item.domain
         )
 
-        if (defaultLocaleDuplicate) {
+        if (!silent && defaultLocaleDuplicate) {
           console.warn(
             `Both ${item.domain} and ${defaultLocaleDuplicate.domain} configured the defaultLocale ${item.defaultLocale} but only one can. Change one item's default locale to continue`
           )
@@ -830,19 +856,35 @@ export default async function loadConfig(
   phase: string,
   dir: string,
   customConfig?: object | null,
-  rawConfig?: boolean
+  rawConfig?: boolean,
+  silent?: boolean
 ): Promise<NextConfigComplete> {
-  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
-  loadWebpackHook()
+  const curLog = silent
+    ? {
+        warn: () => {},
+        info: () => {},
+        error: () => {},
+      }
+    : Log
+
+  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
+
+  if (!customConfig) {
+    loadWebpackHook()
+  }
 
   let configFileName = 'next.config.js'
 
   if (customConfig) {
-    return assignDefaults(dir, {
-      configOrigin: 'server',
-      configFileName,
-      ...customConfig,
-    }) as NextConfigComplete
+    return assignDefaults(
+      dir,
+      {
+        configOrigin: 'server',
+        configFileName,
+        ...customConfig,
+      },
+      silent
+    ) as NextConfigComplete
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
@@ -869,7 +911,7 @@ export default async function loadConfig(
         return userConfigModule
       }
     } catch (err) {
-      Log.error(
+      curLog.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
       throw err
@@ -881,8 +923,8 @@ export default async function loadConfig(
 
     const validateResult = validateConfig(userConfig)
 
-    if (validateResult.errors) {
-      Log.warn(`Invalid next.config.js options detected: `)
+    if (!silent && validateResult.errors) {
+      curLog.warn(`Invalid next.config.js options detected: `)
 
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
@@ -900,7 +942,7 @@ export default async function loadConfig(
     }
 
     if (Object.keys(userConfig).length === 0) {
-      Log.warn(
+      curLog.warn(
         `Detected ${configFileName}, no exported configuration found. https://nextjs.org/docs/messages/empty-configuration`
       )
     }
@@ -921,12 +963,16 @@ export default async function loadConfig(
           : canonicalBase) || ''
     }
 
-    const completeConfig = assignDefaults(dir, {
-      configOrigin: relative(dir, path),
-      configFile: path,
-      configFileName,
-      ...userConfig,
-    }) as NextConfigComplete
+    const completeConfig = assignDefaults(
+      dir,
+      {
+        configOrigin: relative(dir, path),
+        configFile: path,
+        configFileName,
+        ...userConfig,
+      },
+      silent
+    ) as NextConfigComplete
     setFontLoaderDefaults(completeConfig)
     return completeConfig
   } else {
@@ -953,10 +999,11 @@ export default async function loadConfig(
   // reactRoot can be updated correctly even with no next.config.js
   const completeConfig = assignDefaults(
     dir,
-    defaultConfig
+    defaultConfig,
+    silent
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
-  setHttpClientAndAgentOptions(completeConfig)
+  setHttpClientAndAgentOptions(completeConfig, silent)
   setFontLoaderDefaults(completeConfig)
   return completeConfig
 }

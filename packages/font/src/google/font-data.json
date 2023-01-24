@@ -50,9 +50,34 @@
     "subsets": ["latin"]
   },
   "Advent Pro": {
-    "weights": ["100", "200", "300", "400", "500", "600", "700"],
-    "styles": ["normal"],
-    "subsets": ["greek", "latin", "latin-ext"]
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 100,
+        "max": 200,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "greek", "latin", "latin-ext"]
   },
   "Aguafina Script": {
     "weights": ["400"],
@@ -1104,7 +1129,7 @@
     "subsets": ["cyrillic", "greek-ext", "latin", "latin-ext"]
   },
   "BIZ UDMincho": {
-    "weights": ["400"],
+    "weights": ["400", "700"],
     "styles": ["normal"],
     "subsets": ["cyrillic", "greek-ext", "latin", "latin-ext"]
   },
@@ -1114,7 +1139,7 @@
     "subsets": ["cyrillic", "greek-ext", "latin", "latin-ext"]
   },
   "BIZ UDPMincho": {
-    "weights": ["400"],
+    "weights": ["400", "700"],
     "styles": ["normal"],
     "subsets": ["cyrillic", "greek-ext", "latin", "latin-ext"]
   },
@@ -7888,6 +7913,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "siddham"]
   },
+  "Noto Sans SignWriting": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "signwriting"]
+  },
   "Noto Sans Sinhala": {
     "weights": [
       "100",
@@ -8070,6 +8100,19 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["tamil-supplement"]
+  },
+  "Noto Sans Tangsa": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "tangsa"]
   },
   "Noto Sans Telugu": {
     "weights": [
@@ -8850,6 +8893,19 @@
     ],
     "subsets": ["latin", "latin-ext", "tibetan"]
   },
+  "Noto Serif Toto": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "toto"]
+  },
   "Noto Serif Yezidi": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
@@ -9227,6 +9283,11 @@
     "weights": ["400", "700"],
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "myanmar"]
+  },
+  "Padyakke Expanded One": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["kannada", "latin", "latin-ext"]
   },
   "Palanquin": {
     "weights": ["100", "200", "300", "400", "500", "600", "700"],
@@ -9813,6 +9874,12 @@
     "weights": ["200", "300", "400", "500", "600", "700", "variable"],
     "styles": ["normal"],
     "axes": [
+      {
+        "tag": "HEXP",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
       {
         "tag": "wght",
         "min": 160,
@@ -10910,6 +10977,107 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
+  },
+  "Sofia Sans": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+  },
+  "Sofia Sans Condensed": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+  },
+  "Sofia Sans Extra Condensed": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+  },
+  "Sofia Sans Semi Condensed": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
+  },
+  "Solitreo": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["hebrew", "latin", "latin-ext"]
   },
   "Solway": {
     "weights": ["300", "400", "500", "700", "800"],

@@ -13,7 +13,6 @@ import {
   WEBPACK_LAYERS,
   RSC_MOD_REF_PROXY_ALIAS,
 } from '../lib/constants'
-import { EXTERNAL_PACKAGES } from '../lib/server-external-packages'
 import { fileExists } from '../lib/file-exists'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -62,6 +61,8 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
+
+const EXTERNAL_PACKAGES = require('../lib/server-external-packages.json')
 
 const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
@@ -1348,6 +1349,7 @@ export default async function getBaseWebpackConfig(
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
       isClient || isEdgeServer
@@ -2447,7 +2449,7 @@ export default async function getBaseWebpackConfig(
       devtoolRevertWarning(originalDevtool)
     }
 
-    // eslint-disable-next-line no-shadow
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     const webpack5Config = webpackConfig as webpack.Configuration
 
     // disable lazy compilation of entries as next.js has it's own method here

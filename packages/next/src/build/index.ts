@@ -879,6 +879,11 @@ export default async function build(
           config: {
             ...config,
             configFile: undefined,
+            ...(ciEnvironment.hasNextSupport
+              ? {
+                  compress: false,
+                }
+              : {}),
             experimental: {
               ...config.experimental,
               trustHostHeader: ciEnvironment.hasNextSupport,
@@ -1320,9 +1325,9 @@ export default async function build(
           runtimeEnvConfig
         )
 
-        // eslint-disable-next-line no-shadow
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
-        // eslint-disable-next-line no-shadow
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         let hasSsrAmpPages = false
 
         const computedManifestData = await computeFromManifest(
@@ -1489,7 +1494,8 @@ export default async function build(
                           isSsg = true
                         }
                         if (
-                          !isDynamicRoute(page) &&
+                          (!isDynamicRoute(page) ||
+                            !workerResult.prerenderRoutes?.length) &&
                           workerResult.appConfig?.revalidate !== 0
                         ) {
                           appStaticPaths.set(originalAppPath, [page])
@@ -1694,7 +1700,84 @@ export default async function build(
         )
       }
 
-      if (config.outputFileTracing) {
+      const nextServerTraceOutput = path.join(
+        distDir,
+        'next-server.js.nft.json'
+      )
+
+      if (config.experimental.preCompiledNextServer) {
+        if (!ciEnvironment.hasNextSupport) {
+          Log.warn(
+            `"experimental.preCompiledNextServer" is currently optimized for environments with Next.js support, some features may not be supported`
+          )
+        }
+        const nextServerPath = require.resolve('next/dist/server/next-server')
+        await promises.rename(nextServerPath, `${nextServerPath}.bak`)
+
+        await promises.writeFile(
+          nextServerPath,
+          `module.exports = require('next/dist/compiled/next-server/next-server.js')`
+        )
+        const glob =
+          require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+        const compiledFiles: string[] = []
+        const compiledNextServerFolder = path.dirname(
+          require.resolve('next/dist/compiled/next-server/next-server.js')
+        )
+
+        for (const compiledFolder of [
+          compiledNextServerFolder,
+          path.join(compiledNextServerFolder, '../react'),
+          path.join(compiledNextServerFolder, '../react-dom'),
+          path.join(compiledNextServerFolder, '../scheduler'),
+        ]) {
+          const globResult = glob.sync('**/*', {
+            cwd: compiledFolder,
+            dot: true,
+          })
+
+          await Promise.all(
+            globResult.map(async (file) => {
+              const absolutePath = path.join(compiledFolder, file)
+              const statResult = await promises.stat(absolutePath)
+
+              if (statResult.isFile()) {
+                compiledFiles.push(absolutePath)
+              }
+            })
+          )
+        }
+
+        const externalLibFiles = [
+          'next/dist/shared/lib/server-inserted-html.js',
+          'next/dist/shared/lib/router-context.js',
+          'next/dist/shared/lib/loadable-context.js',
+          'next/dist/shared/lib/image-config-context.js',
+          'next/dist/shared/lib/image-config.js',
+          'next/dist/shared/lib/head-manager-context.js',
+          'next/dist/shared/lib/app-router-context.js',
+          'next/dist/shared/lib/amp-context.js',
+          'next/dist/shared/lib/hooks-client-context.js',
+          'next/dist/shared/lib/html-context.js',
+        ]
+        for (const file of externalLibFiles) {
+          compiledFiles.push(require.resolve(file))
+        }
+        compiledFiles.push(nextServerPath)
+
+        await promises.writeFile(
+          nextServerTraceOutput,
+          JSON.stringify({
+            version: 1,
+            files: [...new Set(compiledFiles)].map((file) =>
+              path.relative(distDir, file)
+            ),
+          } as {
+            version: number
+            files: string[]
+          })
+        )
+      } else if (config.outputFileTracing) {
         let nodeFileTrace: any
         if (config.experimental.turbotrace) {
           let binding = (await loadBindings()) as any
@@ -1799,10 +1882,6 @@ export default async function build(
               )
             ).filter(Boolean) as any // TypeScript doesn't like this filter
 
-            const nextServerTraceOutput = path.join(
-              distDir,
-              'next-server.js.nft.json'
-            )
             const cachedTracePath = path.join(
               distDir,
               'cache/next-server.js.nft.json'
@@ -2131,6 +2210,7 @@ export default async function build(
           const exportOptions = {
             silent: false,
             buildExport: true,
+            debugOutput,
             threads: config.experimental.cpus,
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
@@ -2279,9 +2359,13 @@ export default async function build(
           for (const [originalAppPath, routes] of appStaticPaths) {
             const page = appNormalizedPaths.get(originalAppPath) || ''
             const appConfig = appDefaultConfigs.get(originalAppPath) || {}
-            let hasDynamicData = appConfig.revalidate === 0
+            let hasDynamicData =
+              appConfig.revalidate === 0 ||
+              exportConfig.initialPageRevalidationMap[page] === 0
 
             routes.forEach((route) => {
+              if (isDynamicRoute(page) && route === page) return
+
               let revalidate = exportConfig.initialPageRevalidationMap[route]
 
               if (typeof revalidate === 'undefined') {

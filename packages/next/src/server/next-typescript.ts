@@ -63,7 +63,7 @@ const API_DOCS: Record<
       '"error"':
         'This errors if any dynamic Hooks or fetches are used. (This is equivalent to `getStaticProps`.)',
       '"force-static"':
-        'This forces caching of all fetches and returns empty values from `useCookies`, `useHeaders` and `useSearchParams`.',
+        'This forces caching of all fetches and returns empty values from `cookies`, `headers` and `useSearchParams`.',
     },
     link: 'https://beta.nextjs.org/docs/api-reference/segment-config#dynamic',
   },
@@ -403,8 +403,12 @@ export function createTSPlugin(modules: {
           isDefaultFunctionExport(node) &&
           isPositionInsideNode(position, node)
         ) {
-          const paramNode = (node as ts.FunctionDeclaration).parameters?.[0]
-          if (isPositionInsideNode(position, paramNode)) {
+          // Default export function might not accept parameters
+          const paramNode = (node as ts.FunctionDeclaration).parameters?.[0] as
+            | ts.ParameterDeclaration
+            | undefined
+
+          if (paramNode && isPositionInsideNode(position, paramNode)) {
             const props = paramNode?.name
             if (props && ts.isObjectBindingPattern(props)) {
               let validProps = []

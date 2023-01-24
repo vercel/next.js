@@ -7,6 +7,7 @@ import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { CliCommand } from '../lib/commands'
+import { isIPv6 } from 'net'
 
 const nextStart: CliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -80,7 +81,8 @@ const nextStart: CliCommand = (argv) => {
   })
     .then(async (app) => {
       const appUrl = `http://${app.hostname}:${app.port}`
-      Log.ready(`started server on ${host}:${app.port}, url: ${appUrl}`)
+      const hostname = isIPv6(host) ? `[${host}]` : host
+      Log.ready(`started server on ${hostname}:${app.port}, url: ${appUrl}`)
       await app.prepare()
     })
     .catch((err) => {
