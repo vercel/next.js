@@ -4,7 +4,6 @@ import { createNextDescribe } from 'e2e-utils'
 import type { Context } from './types'
 import { startStaticServer } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
-import execa from 'execa'
 
 const files = path.join(__dirname, '..')
 
