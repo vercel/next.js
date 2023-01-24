@@ -103,9 +103,11 @@ describe('app dir - rsc basics', () => {
     // should have only 1 DOCTYPE
     expect(homeHTML).toMatch(/^<!DOCTYPE html><html/)
     // should have default head when there's no head.js provided
+    expect(homeHTML).toContain('<meta charSet="utf-8"/>')
     expect(homeHTML).toContain(
-      '<meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>'
+      '<meta name="viewport" content="width=device-width, initial-scale=1"/>'
     )
+
     expect(homeHTML).toContain('component:index.server')
     expect(homeHTML).toContain('header:test-util')
 
