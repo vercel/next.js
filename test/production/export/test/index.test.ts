@@ -5,6 +5,12 @@ import type { Context } from './types'
 import { startStaticServer } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
 
+import ssr from './ssr'
+import browser from './browser'
+import dev from './dev'
+import dynamic from './dynamic'
+import apiRoutes from './api-routes'
+
 const files = path.join(__dirname, '..')
 
 createNextDescribe(
@@ -100,5 +106,11 @@ createNextDescribe(
 
       expect(await fileExist(path.join(outdir, 'index.html'))).toBe(true)
     })
+
+    ssr(context)
+    browser(context)
+    // dev(devContext)
+    dynamic(context)
+    apiRoutes(context)
   }
 )
