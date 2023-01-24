@@ -1,27 +1,22 @@
 /* eslint-env jest */
-import { join } from 'path'
-import { File, runNextCommand } from 'next-test-utils'
 import type { Context } from './types'
 
 export default function (context: Context) {
   describe('API routes export', () => {
-    const nextConfig = new File(join(context.appDir, 'next.config.js'))
-
-    beforeEach(() => {
-      nextConfig.replace('// API route', `'/data': { page: '/api/data' },`)
-    })
-    afterEach(() => {
-      nextConfig.restore()
-    })
-
     it('Should throw if a route is matched', async () => {
-      const outdir = join(context.appDir, 'outApi')
-      const { stderr } = await runNextCommand(
-        ['export', context.appDir, '--outdir', outdir],
-        { stderr: true }
+      const { next } = context
+      const nextConfigPath = 'next.config.js'
+      const nextConfig = await next.readFile(nextConfigPath)
+      await next.patchFile(
+        nextConfigPath,
+        nextConfig.replace('// API route', `'/data': { page: '/api/data' },`)
       )
+      const outdir = 'outApi'
+      const { exitCode, cliOutput } = await next.export({ outdir })
+      await next.patchFile(nextConfigPath, nextConfig)
 
-      expect(stderr).toContain(
+      expect(exitCode).not.toBe(0)
+      expect(cliOutput).toContain(
         'https://nextjs.org/docs/messages/api-routes-static-export'
       )
     })
