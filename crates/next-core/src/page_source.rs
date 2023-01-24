@@ -60,7 +60,8 @@ use crate::{
         get_server_resolve_options_context, ServerContextType,
     },
     page_loader::create_page_loader,
-    util::{get_asset_path_from_route, pathname_for_path, regular_expression_for_path},
+    params_matcher::NextParamsMatcherVc,
+    util::pathname_for_path,
 };
 
 /// Create a content source serving the `pages` or `src/pages` directory as
@@ -281,14 +282,14 @@ async fn create_page_source_for_file(
     );
 
     let pathname = pathname_for_path(server_root, server_path, true);
-    let path_regex = regular_expression_for_path(pathname);
+    let params_matcher = NextParamsMatcherVc::new(pathname, None, None);
 
     Ok(if *is_api_path.await? {
         create_node_api_source(
             specificity,
             server_root,
             pathname,
-            path_regex,
+            params_matcher.into(),
             SsrEntry {
                 context: server_context,
                 entry_asset,
@@ -301,11 +302,11 @@ async fn create_page_source_for_file(
             runtime_entries,
         )
     } else {
-        let data_pathname = StringVc::cell(format!(
-            "_next/data/development/{}",
-            get_asset_path_from_route(&pathname.await?, ".json")
-        ));
-        let data_path_regex = regular_expression_for_path(data_pathname);
+        let data_params_matcher = NextParamsMatcherVc::new(
+            pathname,
+            Some(StringVc::cell("_next/data/development/".to_string())),
+            Some(StringVc::cell(".json".to_string())),
+        );
 
         let ssr_entry = SsrEntry {
             context: server_context,
@@ -332,7 +333,7 @@ async fn create_page_source_for_file(
                 specificity,
                 server_root,
                 pathname,
-                path_regex,
+                params_matcher.into(),
                 ssr_entry,
                 runtime_entries,
                 fallback_page,
@@ -340,8 +341,8 @@ async fn create_page_source_for_file(
             create_node_rendered_source(
                 specificity,
                 server_root,
-                data_pathname,
-                data_path_regex,
+                pathname,
+                data_params_matcher.into(),
                 ssr_data_entry,
                 runtime_entries,
                 fallback_page,

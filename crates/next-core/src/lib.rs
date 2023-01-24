@@ -19,6 +19,7 @@ pub mod next_server;
 pub mod next_shared;
 mod page_loader;
 mod page_source;
+mod params_matcher;
 pub mod react_refresh;
 mod runtime;
 mod util;

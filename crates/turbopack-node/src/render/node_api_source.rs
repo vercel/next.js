@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use anyhow::{anyhow, Result};
-use indexmap::IndexMap;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::introspect::{
@@ -16,7 +15,7 @@ use turbopack_dev_server::source::{
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
 use super::{render_proxy::render_proxy, RenderData};
-use crate::{get_intermediate_asset, node_entry::NodeEntryVc, path_regex::PathRegexVc};
+use crate::{get_intermediate_asset, match_params::MatchParamsVc, node_entry::NodeEntryVc};
 
 /// Creates a [NodeApiContentSource].
 #[turbo_tasks::function]
@@ -24,7 +23,7 @@ pub fn create_node_api_source(
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     pathname: StringVc,
-    path_regex: PathRegexVc,
+    match_params: MatchParamsVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
 ) -> ContentSourceVc {
@@ -32,7 +31,7 @@ pub fn create_node_api_source(
         specificity,
         server_root,
         pathname,
-        path_regex,
+        match_params,
         entry,
         runtime_entries,
     }
@@ -51,7 +50,7 @@ pub struct NodeApiContentSource {
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     pathname: StringVc,
-    path_regex: PathRegexVc,
+    match_params: MatchParamsVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
 }
@@ -64,19 +63,6 @@ impl NodeApiContentSourceVc {
     }
 }
 
-impl NodeApiContentSource {
-    /// Checks if a path matches the regular expression
-    async fn is_matching_path(&self, path: &str) -> Result<bool> {
-        Ok(self.path_regex.await?.is_match(path))
-    }
-
-    /// Matches a path with the regular expression and returns a JSON object
-    /// with the named captures
-    async fn get_matches(&self, path: &str) -> Result<Option<IndexMap<String, String>>> {
-        Ok(self.path_regex.await?.get_matches(path))
-    }
-}
-
 #[turbo_tasks::value_impl]
 impl ContentSource for NodeApiContentSource {
     #[turbo_tasks::function]
@@ -86,7 +72,7 @@ impl ContentSource for NodeApiContentSource {
         _data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
         let this = self_vc.await?;
-        if this.is_matching_path(path).await? {
+        if *this.match_params.is_match(path).await? {
             return Ok(ContentSourceResult::Result {
                 specificity: this.specificity,
                 get_content: NodeApiGetContentResult {
@@ -126,7 +112,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
     #[turbo_tasks::function]
     async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
         let this = self.source.await?;
-        let Some(params) = this.get_matches(&self.path).await? else {
+        let Some(params) = &*this.match_params.get_matches(&self.path).await? else {
             return Err(anyhow!("Non matching path provided"));
         };
         let ContentSourceData {
@@ -147,7 +133,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
             entry.chunking_context,
             entry.intermediate_output_path,
             RenderData {
-                params,
+                params: params.clone(),
                 method: method.clone(),
                 url: url.clone(),
                 query: query.clone(),
@@ -175,7 +161,7 @@ impl Introspectable for NodeApiContentSource {
 
     #[turbo_tasks::function]
     fn title(&self) -> StringVc {
-        self.path_regex.to_string()
+        self.match_params.to_string()
     }
 
     #[turbo_tasks::function]
