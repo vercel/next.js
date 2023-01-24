@@ -928,6 +928,66 @@ for (const variant of ['default', 'turbo']) {
         )
       ).toMatchSnapshot()
 
+      await session.patch(
+        'index.js',
+        `
+        import { useCallback } from 'react'
+
+        export default function Index() {
+          const boom = useCallback(() => {
+            throw new Error('multiple http://nextjs.org links (http://example.com)')
+          }, [])
+          return (
+            <main>
+              <button onClick={boom}>Boom!</button>
+            </main>
+          )
+        }
+      `
+      )
+
+      expect(await session.hasRedbox(false)).toBe(false)
+      await session.evaluate(() => document.querySelector('button').click())
+      expect(await session.hasRedbox(true)).toBe(true)
+
+      const header5 = await session.getRedboxDescription()
+      expect(header5).toMatchInlineSnapshot(
+        `"Error: multiple http://nextjs.org links (http://example.com)"`
+      )
+      expect(
+        await session.evaluate(
+          () =>
+            document
+              .querySelector('body > nextjs-portal')
+              .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+              .length
+        )
+      ).toBe(2)
+      expect(
+        await session.evaluate(
+          () =>
+            (
+              document
+                .querySelector('body > nextjs-portal')
+                .shadowRoot.querySelector(
+                  '#nextjs__container_errors_desc a:nth-of-type(1)'
+                ) as any
+            ).href
+        )
+      ).toMatchSnapshot()
+      expect(
+        await session.evaluate(
+          () =>
+            (
+              document
+                .querySelector('body > nextjs-portal')
+                .shadowRoot.querySelector(
+                  '#nextjs__container_errors_desc a:nth-of-type(2)'
+                ) as any
+            ).href
+        )
+      ).toMatchSnapshot()
+
       await cleanup()
     })
 
