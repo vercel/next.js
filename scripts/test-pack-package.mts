@@ -16,9 +16,10 @@ const main = async () => {
   const getPackageJsonPath = (pkgDirname: string) =>
     path.join(pkgsDir, pkgDirname, `package.json`)
 
-  const allPkgDirnames = (await fs.readdir(pkgsDir)).filter((item) =>
-    !item.startsWith('.')
+  const allPkgDirnames = (await fs.readdir(pkgsDir)).filter(
+    (item) => !item.startsWith('.')
   )
+
   if (!allPkgDirnames.includes(currentPkgDirname)) {
     throw new Error(`Unknown package '${currentPkgDirname}'`)
   }
