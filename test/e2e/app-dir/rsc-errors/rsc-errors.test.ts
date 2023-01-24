@@ -52,6 +52,7 @@ if (!(globalThis as any).isNextDev) {
         await next.patchFile(pageFile, uncomment)
         const res = await next.fetch('/client-with-errors/get-static-props')
         await next.patchFile(pageFile, content)
+
         await check(async () => {
           const { status } = await next.fetch(
             '/client-with-errors/get-static-props'
@@ -109,55 +110,101 @@ if (!(globalThis as any).isNextDev) {
         const res = await next.fetch('/server-with-errors/class-component')
         await next.patchFile(pageFile, content)
 
+        await check(async () => {
+          const { status } = await next.fetch(
+            '/server-with-errors/class-component'
+          )
+          return status
+        }, /200/)
+
         expect(res.status).toBe(500)
         expect(await res.text()).toContain(
           `You’re importing a class component. It only works in a Client Component`
         )
       })
 
-      // TODO-APP: investigate why the error keeps triggering reloading the page
-      it.skip('should allow to use and handle rsc poisoning client-only', async () => {
-        const browser = await next.browser(
+      it('should allow to use and handle rsc poisoning client-only', async () => {
+        const file =
+          'app/server-with-errors/client-only-in-server/client-only-lib.js'
+        const content = await next.readFile(file)
+        const uncomment = content.replace(
+          "// import 'client-only'",
+          "import 'client-only'"
+        )
+
+        await next.patchFile(file, uncomment)
+        const res = await next.fetch(
           '/server-with-errors/client-only-in-server'
         )
-        expect(await hasRedbox(browser, true)).toBe(true)
-        const text = await getRedboxSource(browser)
-        expect(text).toContain(
-          `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+        await next.patchFile(file, content)
+
+        await check(async () => {
+          const { status } = await next.fetch(
+            '/server-with-errors/client-only-in-server'
+          )
+          return status
+        }, /200/)
+
+        expect(res.status).toBe(500)
+        expect(await res.text()).toContain(
+          `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.`
         )
       })
 
       it('should allow to use and handle rsc poisoning server-only', async () => {
-        const browser = await next.browser(
-          '/client-with-errors/server-only-in-client'
+        const file =
+          'app/client-with-errors/server-only-in-client/server-only-lib.js'
+        const content = await next.readFile(file)
+        const uncomment = content.replace(
+          "// import 'server-only'",
+          "import 'server-only'"
         )
 
-        expect(await hasRedbox(browser, true)).toBe(true)
-        const text = await getRedboxSource(browser)
-        expect(text).toContain(
-          `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+        await next.patchFile(file, uncomment)
+        const res = await next.fetch(
+          '/client-with-errors/server-only-in-client'
+        )
+        await next.patchFile(file, content)
+
+        await check(async () => {
+          const { status } = await next.fetch(
+            '/client-with-errors/server-only-in-client'
+          )
+          return status
+        }, /200/)
+
+        expect(res.status).toBe(500)
+        expect(await res.text()).toContain(
+          `You're importing a component that needs server-only. That only works in a Server Component but one of its parents is marked with \\"use client\\", so it's a Client Component.`
         )
       })
 
       it('should error for invalid undefined module retuning from next dynamic', async () => {
-        // TODO: investigate previous error not being cleared properly
-        await next.stop()
-        await next.start()
+        const file = 'app/client-with-errors/dynamic/page.js'
+        const content = await next.readFile(file)
 
         const browser = await next.browser('/client-with-errors/dynamic')
+
+        await next.patchFile(
+          file,
+          content.replace(
+            '() => <p id="dynamic-world">hello dynamic world</p>',
+            'undefined'
+          )
+        )
 
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxHeader(browser)).toContain(
           `Element type is invalid. Received a promise that resolves to: undefined. Lazy element type must resolve to a class or function.`
         )
+
+        await next.patchFile(file, content)
+        await browser.waitForElementByCss('#dynamic-world')
       })
 
       it('should be possible to open the import trace files in your editor', async () => {
-        // TODO: investigate previous error not being cleared properly
-        await next.stop()
-        await next.start()
-
         const componentFile = 'app/editor-links/component.js'
+        const fileContent = await next.readFile(componentFile)
 
         let editorRequestsCount = 0
         const browser = await next.browser('/editor-links', {
@@ -169,7 +216,6 @@ if (!(globalThis as any).isNextDev) {
           },
         })
 
-        const fileContent = await next.readFile(componentFile)
         await next.patchFile(
           componentFile,
           fileContent.replace(
@@ -179,10 +225,11 @@ if (!(globalThis as any).isNextDev) {
         )
 
         expect(await hasRedbox(browser, true)).toBe(true)
-
-        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(
-          `"Failed to compile"`
+        await check(
+          () => getRedboxSource(browser),
+          /You're importing a component that needs useState./
         )
+
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/editor-links/component.js
           ReactServerComponentsError:
@@ -203,7 +250,6 @@ if (!(globalThis as any).isNextDev) {
         `)
 
         await browser.waitForElementByCss('[data-with-open-in-editor-link]')
-
         const collapsedFrameworkGroups = await browser.elementsByCss(
           '[data-with-open-in-editor-link]'
         )
