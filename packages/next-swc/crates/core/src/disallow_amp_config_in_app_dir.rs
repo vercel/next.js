@@ -38,29 +38,25 @@ impl VisitMut for DisallowAmpConfigInAppDir {
                             for prop in &obj.props {
                                 if let PropOrSpread::Prop(prop) = prop {
                                     if let Prop::KeyValue(kv) = &**prop {
-                                        match &kv.key {
-                                            PropName::Ident(ident) => {
-                                                if &ident.sym == "amp" {
-                                                    if let Some(app_dir) = self.app_dir.to_str() {
-                                                        if self.filepath.starts_with(app_dir) {
-                                                            HANDLER.with(|handler| {
-                                                                handler
-                                                                    .struct_span_err(
-                                                                        export.span,
-                                                                        "AMP is not supported in \
-                                                                         the app directory. If \
-                                                                         you need to use AMP it \
-                                                                         will continue to be \
-                                                                         supported in the pages \
-                                                                         directory.",
-                                                                    )
-                                                                    .emit()
-                                                            })
-                                                        }
+                                        if let PropName::Ident(ident) = &kv.key {
+                                            if &ident.sym == "amp" {
+                                                if let Some(app_dir) = self.app_dir.to_str() {
+                                                    if self.filepath.starts_with(app_dir) {
+                                                        HANDLER.with(|handler| {
+                                                            handler
+                                                                .struct_span_err(
+                                                                    export.span,
+                                                                    "AMP is not supported in the \
+                                                                     app directory. If you need \
+                                                                     to use AMP it will continue \
+                                                                     to be supported in the pages \
+                                                                     directory.",
+                                                                )
+                                                                .emit()
+                                                        })
                                                     }
                                                 }
                                             }
-                                            _ => {}
                                         }
                                     }
                                 }
