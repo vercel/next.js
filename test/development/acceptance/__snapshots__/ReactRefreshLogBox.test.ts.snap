@@ -43,6 +43,10 @@ exports[`ReactRefreshLogBox default logbox: anchors links in error messages 8`] 
 
 exports[`ReactRefreshLogBox default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
 
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 11`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 12`] = `"http://example.com/"`;
+
 exports[`ReactRefreshLogBox default logbox: can recover from a component error 1`] = `
 "child.js (4:16) @ Child
 
