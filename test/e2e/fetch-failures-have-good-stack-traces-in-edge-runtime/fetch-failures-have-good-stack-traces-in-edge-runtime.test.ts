@@ -30,5 +30,12 @@ createNextDescribe(
         expect(description).toEqual('TypeError: fetch failed')
       }
     })
+
+    it('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
+      await webdriver(next.appPort, '/api/unknown-domain-no-await')
+      expect(next.cliOutput).toMatch(
+        /at.+\/pages\/api\/unknown-domain-no-await.js/
+      )
+    })
   }
 )

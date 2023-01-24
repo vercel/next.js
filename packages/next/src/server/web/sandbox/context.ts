@@ -217,16 +217,9 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
           return result
         }
 
-      const __fetch__ = context.fetch
-      const __fetch: typeof __fetch__ = async (...args) => {
-        try {
-          return await __fetch__(...args)
-        } catch (err: any) {
-          Error.captureStackTrace(err, context.fetch)
-          throw err
-        }
-      }
+      const __fetch = context.fetch
       context.fetch = async (input, init = {}) => {
+        const callingError = new Error('[internal]')
         const assetResponse = await fetchInlineAsset({
           input,
           assets: options.edgeFunctionEntry.assets,
@@ -247,30 +240,35 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
           init.headers.set(`user-agent`, `Next.js Middleware`)
         }
 
-        if (typeof input === 'object' && 'url' in input) {
-          return await __fetch(input.url, {
-            ...pick(input, [
-              'method',
-              'body',
-              'cache',
-              'credentials',
-              'integrity',
-              'keepalive',
-              'mode',
-              'redirect',
-              'referrer',
-              'referrerPolicy',
-              'signal',
-            ]),
-            ...init,
-            headers: {
-              ...Object.fromEntries(input.headers),
-              ...Object.fromEntries(init.headers),
-            },
-          })
-        }
+        const response =
+          typeof input === 'object' && 'url' in input
+            ? __fetch(input.url, {
+                ...pick(input, [
+                  'method',
+                  'body',
+                  'cache',
+                  'credentials',
+                  'integrity',
+                  'keepalive',
+                  'mode',
+                  'redirect',
+                  'referrer',
+                  'referrerPolicy',
+                  'signal',
+                ]),
+                ...init,
+                headers: {
+                  ...Object.fromEntries(input.headers),
+                  ...Object.fromEntries(init.headers),
+                },
+              })
+            : __fetch(String(input), init)
 
-        return await __fetch(String(input), init)
+        return await response.catch((err) => {
+          callingError.message = err.message
+          err.stack = callingError.stack
+          throw err
+        })
       }
 
       const __Request = context.Request
