@@ -9,6 +9,8 @@ import { ResolvedIconsMetadata } from './generate/icons'
 
 // Generate the actual React elements from the resolved metadata.
 export async function Metadata({ metadata }: { metadata: any }) {
+  if (!metadata) return null
+
   const resolved: ResolvedMetadata = await resolveMetadata(metadata)
   return (
     <>

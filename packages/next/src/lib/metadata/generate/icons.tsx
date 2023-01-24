@@ -2,7 +2,6 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 import type { Icon, IconDescriptor } from '../types/metadata-types'
 
 import React from 'react'
-import { resolveAsArrayOrUndefined } from './utils'
 
 const resolveUrl = (url: string | URL) =>
   typeof url === 'string' ? url : url.toString()
@@ -30,10 +29,10 @@ export function ResolvedIconsMetadata({
 }) {
   if (!icons) return null
 
-  const shortcutList = resolveAsArrayOrUndefined(icons.shortcut)
-  const iconList = resolveAsArrayOrUndefined(icons.icon)
-  const appleList = resolveAsArrayOrUndefined(icons.apple)
-  const otherList = resolveAsArrayOrUndefined(icons.other)
+  const shortcutList = icons.shortcut
+  const iconList = icons.icon
+  const appleList = icons.apple
+  const otherList = icons.other
 
   return (
     <>

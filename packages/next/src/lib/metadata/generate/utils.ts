@@ -1,5 +1,5 @@
 export function resolveAsArrayOrUndefined<T = any>(
-  value: T | T[] | undefined
+  value: T | T[] | undefined | null
 ): undefined | T[] {
   if (typeof value === 'undefined' || value === null) {
     return undefined

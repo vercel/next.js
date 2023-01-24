@@ -5,10 +5,18 @@ import type {
 } from './types/metadata-interface'
 import type { Viewport } from './types/extra-types'
 import type { ResolvedTwitterMetadata } from './types/twitter-types'
-import type { AbsoluteTemplateString } from './types/metadata-types'
+import type {
+  AbsoluteTemplateString,
+  Icon,
+  IconDescriptor,
+  Icons,
+  IconURL,
+  ResolvedIcons,
+} from './types/metadata-types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { mergeTitle } from './resolve-title'
+import { resolveAsArrayOrUndefined } from './generate/utils'
 
 const viewPortKeys = {
   width: 'width',
@@ -68,17 +76,32 @@ function resolveViewport(
   return resolved
 }
 
+function isUrlIcon(icon: any): icon is string | URL {
+  return typeof icon === 'string' || icon instanceof URL
+}
+
+function resolveIcon(icon: Icon): IconDescriptor {
+  if (isUrlIcon(icon)) return { url: icon }
+  else if (Array.isArray(icon)) return icon
+  return icon
+}
+
+const IconKeys = ['icon', 'shortcut', 'apple', 'other'] as (keyof Icons)[]
+
 function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
-  let resolved: ResolvedMetadata['icons'] = null
-  if (icons == null) {
-    resolved = null
+  if (!icons) {
+    return null
+  }
+
+  const resolved: ResolvedMetadata['icons'] = {}
+  if (Array.isArray(icons)) {
+    resolved.icon = icons.map(resolveIcon).filter(Boolean)
+  } else if (isUrlIcon(icons)) {
+    resolved.icon = [resolveIcon(icons)]
   } else {
-    if (Array.isArray(icons) || typeof icons === 'string') {
-      resolved = {
-        icon: icons,
-      }
-    } else {
-      resolved = icons
+    for (const key of IconKeys) {
+      const values = resolveAsArrayOrUndefined(icons[key])
+      if (values) resolved[key] = values.map(resolveIcon)
     }
   }
   return resolved
