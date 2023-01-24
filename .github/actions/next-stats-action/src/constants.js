@@ -1,10 +1,10 @@
 const path = require('path')
-const os = require('os')
+const fs = require('fs')
 
 const benchTitle = 'Page Load Tests'
-const workDir = path.join(os.tmpdir(), 'next-stats')
-const mainRepoDir = path.join(os.tmpdir(), 'main-repo')
-const diffRepoDir = path.join(os.tmpdir(), 'diff-repo')
+const workDir = path.join(fs.mkdtempSync(), 'next-stats')
+const mainRepoDir = path.join(workDir, 'main-repo')
+const diffRepoDir = path.join(workDir, 'diff-repo')
 const statsAppDir = path.join(workDir, 'stats-app')
 const diffingDir = path.join(workDir, 'diff')
 const yarnEnvValues = {
