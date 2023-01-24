@@ -1,7 +1,7 @@
 import React from 'react'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 
-function EditorLink({ file }: { file: string }) {
+export function EditorLink({ file }: { file: string }) {
   const open = useOpenInEditor({
     file,
     column: 1,
@@ -32,29 +32,4 @@ function EditorLink({ file }: { file: string }) {
       </svg>
     </div>
   )
-}
-
-export function WithOpenInEditorLinks({ content }: { content: string }) {
-  if (/ReactServerComponentsError:/.test(content)) {
-    // It's an RSC Build Error
-    const lines = content.split('\n')
-
-    // Grab the lines at the end containing the files
-    const files = []
-    while (/app\/.+\./.test(lines[lines.length - 1])) {
-      const file = lines.pop()!.trim()
-      files.unshift(file)
-    }
-
-    return (
-      <>
-        {lines.join('\n')}
-        {files.map((file) => (
-          <EditorLink key={file} file={file} />
-        ))}
-      </>
-    )
-  }
-
-  return <>{content}</>
 }

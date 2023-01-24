@@ -1,19 +1,42 @@
 import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
-import { WithOpenInEditorLinks } from '../WithOpenInEditorLinks'
+import { EditorLink } from './EditorLink'
 
 export type TerminalProps = { content: string }
+
+function getImportTraceFiles(content: string): [string, string[]] {
+  if (/ReactServerComponentsError:/.test(content)) {
+    // It's an RSC Build Error
+    const lines = content.split('\n')
+
+    // Grab the lines at the end containing the files
+    const files = []
+    while (/app\/.+\./.test(lines[lines.length - 1])) {
+      const file = lines.pop()!.trim()
+      files.unshift(file)
+    }
+
+    return [lines.join('\n'), files]
+  }
+
+  return [content, []]
+}
 
 export const Terminal: React.FC<TerminalProps> = function Terminal({
   content,
 }) {
+  const [source, editorLinks] = React.useMemo(
+    () => getImportTraceFiles(content),
+    [content]
+  )
+
   const decoded = React.useMemo(() => {
-    return Anser.ansiToJson(content, {
+    return Anser.ansiToJson(source, {
       json: true,
       use_classes: true,
       remove_empty: true,
     })
-  }, [content])
+  }, [source])
 
   return (
     <div data-nextjs-terminal>
@@ -30,8 +53,11 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
                 : undefined),
             }}
           >
-            <WithOpenInEditorLinks content={entry.content} />
+            {entry.content}
           </span>
+        ))}
+        {editorLinks.map((file) => (
+          <EditorLink key={file} file={file} />
         ))}
       </pre>
     </div>

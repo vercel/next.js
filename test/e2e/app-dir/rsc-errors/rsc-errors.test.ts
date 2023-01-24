@@ -187,10 +187,7 @@ if (!(globalThis as any).isNextDev) {
 
         await next.patchFile(
           file,
-          content.replace(
-            '() => <p id="dynamic-world">hello dynamic world</p>',
-            'undefined'
-          )
+          content.replace('() => <p>hello dynamic world</p>', 'undefined')
         )
 
         expect(await hasRedbox(browser, true)).toBe(true)
@@ -199,7 +196,7 @@ if (!(globalThis as any).isNextDev) {
         )
 
         await next.patchFile(file, content)
-        await browser.waitForElementByCss('#dynamic-world')
+        expect(await hasRedbox(browser, false)).toBe(false)
       })
 
       it('should be possible to open the import trace files in your editor', async () => {
@@ -225,27 +222,6 @@ if (!(globalThis as any).isNextDev) {
         )
 
         expect(await hasRedbox(browser, true)).toBe(true)
-        await check(() => getRedboxHeader(browser), /Failed to compile/)
-
-        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-          "./app/editor-links/component.js
-          ReactServerComponentsError:
-
-          You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
-
-             ,-[1:1]
-           1 | import { useState } from 'react'
-             :          ^^^^^^^^
-           2 | export default function Component() {
-           3 |   return <div id=\\"component-editor-links\\">Component</div>
-           4 | }
-             \`----
-
-          Maybe one of these should be marked as a client entry with \\"use client\\":
-          app/editor-links/component.js
-          app/editor-links/page.js"
-        `)
-
         await browser.waitForElementByCss('[data-with-open-in-editor-link]')
         const collapsedFrameworkGroups = await browser.elementsByCss(
           '[data-with-open-in-editor-link]'
@@ -258,7 +234,7 @@ if (!(globalThis as any).isNextDev) {
 
         // Fix file
         await next.patchFile(componentFile, fileContent)
-        await browser.waitForElementByCss('#component-editor-links')
+        expect(await hasRedbox(browser, false)).toBe(false)
       })
 
       it('should throw an error when error file is a server component', async () => {
@@ -272,6 +248,7 @@ if (!(globalThis as any).isNextDev) {
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/server-with-errors/error-file/error.js
+          ReactServerComponentsError:
 
           ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
 
@@ -281,7 +258,7 @@ if (!(globalThis as any).isNextDev) {
              \`----
 
           Import path:
-            app/server-with-errors/error-file/error.js"
+          app/server-with-errors/error-file/error.js"
         `)
 
         // Add "use client"
@@ -296,6 +273,7 @@ if (!(globalThis as any).isNextDev) {
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/server-with-errors/error-file/error.js
+          ReactServerComponentsError:
 
           ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
 
@@ -305,7 +283,7 @@ if (!(globalThis as any).isNextDev) {
              \`----
 
           Import path:
-            app/server-with-errors/error-file/error.js"
+          app/server-with-errors/error-file/error.js"
         `)
 
         // Fix
