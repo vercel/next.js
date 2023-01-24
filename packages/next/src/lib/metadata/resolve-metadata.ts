@@ -10,8 +10,6 @@ import type {
   Icon,
   IconDescriptor,
   Icons,
-  IconURL,
-  ResolvedIcons,
 } from './types/metadata-types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
