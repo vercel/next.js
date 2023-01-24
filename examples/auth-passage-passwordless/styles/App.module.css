@@ -1,0 +1,30 @@
+
+.mainContainer {
+    background: white;
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    border-radius: 20px;
+    width: fit-content;
+    min-height: 310px;
+    margin: 30px auto;
+}
+.footer {
+    text-align: center;
+    font-size: 18px;
+}
+
+.dashboard{
+    padding: 30px 30px 20px;
+}
+.title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+.message {
+    overflow-wrap: anywhere;
+}
+.link {
+    color: blue;
+    text-decoration-color: black;
+}
+  
