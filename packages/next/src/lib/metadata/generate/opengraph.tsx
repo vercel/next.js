@@ -1,7 +1,7 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
-import { Meta, MultiMeta } from './utils'
+import { Meta, MultiMeta } from './meta'
 
 export function ResolvedOpenGraphMetadata({
   openGraph,

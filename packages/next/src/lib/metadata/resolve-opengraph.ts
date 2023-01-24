@@ -4,6 +4,7 @@ import type {
   OpenGraph,
   ResolvedOpenGraph,
 } from './types/opengraph-types'
+import { resolveAsArrayOrUndefined } from './generate/utils'
 
 const OgTypFields = {
   article: ['authors', 'tags'],
@@ -21,16 +22,6 @@ const OgTypFields = {
     'videos',
   ],
 } as const
-
-function resolveAsArrayOrUndefined<T = any>(value: T): undefined | any[] {
-  if (typeof value === 'undefined' || value === null) {
-    return undefined
-  }
-  if (Array.isArray(value)) {
-    return value
-  }
-  return [value]
-}
 
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {
   switch (ogType) {
