@@ -15,7 +15,9 @@ import type {
   ColorSchemeEnum,
   Icon,
   Icons,
+  IconURL,
   ReferrerEnum,
+  ResolvedIcons,
   Robots,
   TemplateString,
   Verification,
@@ -56,7 +58,7 @@ export interface Metadata {
 
   // Defaults to rel="icon" but the Icons type can be used
   // to get more specific about rel types
-  icons?: null | Array<Icon> | Icons
+  icons?: null | IconURL | Array<Icon> | Icons
 
   openGraph?: null | OpenGraph
 
@@ -145,7 +147,7 @@ export interface ResolvedMetadata {
 
   // Defaults to rel="icon" but the Icons type can be used
   // to get more specific about rel types
-  icons: null | Icons
+  icons: null | ResolvedIcons
 
   openGraph: null | ResolvedOpenGraph
 

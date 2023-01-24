@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { BrowserInterface } from 'test/lib/browsers/base'
 
 createNextDescribe(
   'app dir - metadata',
@@ -11,21 +12,39 @@ createNextDescribe(
         it('should skip for deploy currently', () => {})
         return
       }
+
+      const getTitle = (browser: BrowserInterface) =>
+        browser.elementByCss('title').text()
+
+      async function queryMetaProps(
+        browser: BrowserInterface,
+        tag: string,
+        query: string,
+        selectedKeys: string[]
+      ) {
+        return await browser.eval(`
+          const res = {}
+          const el = document.querySelector('${tag}[${query}]')
+          for (const k of ${JSON.stringify(selectedKeys)}) {
+            res[k] = el?.getAttribute(k)
+          }
+          res`)
+      }
+
       async function checkMeta(
-        browser,
-        name,
-        content,
-        property = 'property',
-        tag = 'meta',
-        field = 'content'
+        browser: BrowserInterface,
+        name: string,
+        content: string | string[],
+        property: string = 'property',
+        tag: string = 'meta',
+        field: string = 'content'
       ) {
         const values = await browser.eval(
-          `[...document.querySelectorAll('${tag}[${property}="${name}"]')].map((el) => el.${field})`
+          `[...document.querySelectorAll('${tag}[${property}="${name}"]')].map((el) => el.getAttribute("${field}"))`
         )
         if (Array.isArray(content)) {
           expect(values).toEqual(content)
         } else {
-          console.log('expect', values[0], 'toContain', content)
           expect(values[0]).toContain(content)
         }
       }
@@ -150,9 +169,7 @@ createNextDescribe(
         it('should apply metadata when navigating client-side', async () => {
           const browser = await next.browser('/')
 
-          const getTitle = () => browser.elementByCss('title').text()
-
-          expect(await getTitle()).toBe('index page')
+          expect(await getTitle(browser)).toBe('index page')
           await browser
             .elementByCss('#to-basic')
             .click()
@@ -165,12 +182,12 @@ createNextDescribe(
             'name'
           )
           await browser.back().waitForElementByCss('#index', 2000)
-          expect(await getTitle()).toBe('index page')
+          expect(await getTitle(browser)).toBe('index page')
           await browser
             .elementByCss('#to-title')
             .click()
             .waitForElementByCss('#title', 2000)
-          expect(await getTitle()).toBe('this is the page title')
+          expect(await getTitle(browser)).toBe('this is the page title')
         })
       })
 
@@ -207,6 +224,56 @@ createNextDescribe(
             'author2',
             'author3',
           ])
+        })
+      })
+
+      describe('icons', () => {
+        const checkLink = (browser, name, content) =>
+          checkMeta(browser, name, content, 'rel', 'link', 'href')
+
+        it('should support basic object icons field', async () => {
+          const browser = await next.browser('/icons')
+
+          await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
+          await checkLink(browser, 'icon', '/icon.png')
+          await checkLink(browser, 'apple-touch-icon', '/apple-icon.png')
+          await checkLink(
+            browser,
+            'apple-touch-icon-precomposed',
+            '/apple-touch-icon-precomposed.png'
+          )
+        })
+
+        it('should support basic string icons field', async () => {
+          const browser = await next.browser('/icons/string')
+          await checkLink(browser, 'icon', '/icon.png')
+        })
+
+        it('should support basic complex descriptor icons field', async () => {
+          const browser = await next.browser('/icons/descriptor')
+
+          await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
+          await checkLink(browser, 'icon', [
+            '/icon.png',
+            'https://example.com/icon.png',
+          ])
+          await checkLink(browser, 'apple-touch-icon', [
+            '/apple-icon.png',
+            '/apple-icon-x3.png',
+          ])
+
+          await checkLink(
+            browser,
+            'apple-touch-icon-precomposed',
+            '/apple-touch-icon-precomposed.png'
+          )
+
+          expect(
+            await queryMetaProps(browser, 'link', 'href="/apple-icon-x3.png"', [
+              'sizes',
+              'type',
+            ])
+          ).toEqual({ sizes: '180x180', type: 'image/png' })
         })
       })
     })
