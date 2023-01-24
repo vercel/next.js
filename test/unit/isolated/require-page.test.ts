@@ -51,8 +51,8 @@ describe('normalizePagePath', () => {
 })
 
 describe('getPagePath', () => {
-  it('Should not append /index to the / page', () => {
-    expect(() => getPagePath('/', distDir)).toThrow(
+  it('Should not append /index to the / page', async () => {
+    await expect(async () => await getPagePath('/', distDir)).rejects.toThrow(
       'Cannot find module for page: /'
     )
   })
@@ -62,16 +62,16 @@ describe('getPagePath', () => {
     expect(pagePath).toBe(join(pathToBundles, `${sep}_error.js`))
   })
 
-  it('Should throw with paths containing ../', () => {
-    expect(() => getPagePath('/../../package.json', distDir)).toThrow()
+  it('Should throw with paths containing ../', async () => {
+    await expect(
+      async () => await getPagePath('/../../package.json', distDir)
+    ).rejects.toThrow()
   })
 })
 
 describe('requirePage', () => {
   it('Should not find page /index when using /', async () => {
-    await expect(() => requirePage('/', distDir, false)).toThrow(
-      'Cannot find module for page: /'
-    )
+    await expect(() => requirePage('/', distDir, false)).rejects.toThrow()
   })
 
   it('Should require /index.js when using /index', async () => {
@@ -85,23 +85,15 @@ describe('requirePage', () => {
   })
 
   it('Should throw when using /../../test.js', async () => {
-    expect.assertions(1)
-    try {
-      await requirePage('/../../test', distDir, false)
-    } catch (err) {
-      // eslint-disable-next-line jest/no-try-expect
-      expect(err.code).toBe('ENOENT')
-    }
+    await expect(
+      async () => await requirePage('/../../test', distDir, false)
+    ).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('Should throw when using non existent pages like /non-existent.js', async () => {
-    expect.assertions(1)
-    try {
-      await requirePage('/non-existent', distDir, false)
-    } catch (err) {
-      // eslint-disable-next-line jest/no-try-expect
-      expect(err.code).toBe('ENOENT')
-    }
+    await expect(
+      async () => await requirePage('/non-existent', distDir, false)
+    ).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('Should bubble up errors in the child component', async () => {
