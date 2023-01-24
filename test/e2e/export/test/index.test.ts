@@ -1,103 +1,103 @@
-import { join } from 'path'
+import path from 'path'
 import { promises } from 'fs'
-import { AddressInfo } from 'net'
-import { createNext, FileRef } from 'e2e-utils'
+import { createNext, createNextDescribe } from 'e2e-utils'
 
 import type { Context } from './types'
 
 const { access, mkdir, writeFile, stat } = promises
-const appDir = join(__dirname, '../')
+const files = path.join(__dirname, '..')
 const outdir = 'out'
-const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
-const context: Context = {
-  appDir,
-} as any
+const outNoTrailSlash = path.join(files, 'outNoTrailSlash')
+const context: Context = {} as any
 const devContext: Context = {} as any
-const nextConfig = join(appDir, 'next.config.js')
+const nextConfig = path.join(files, 'next.config.js')
 
-const fileExist = (path) =>
-  access(path)
-    .then(() => stat(path))
-    .then((stats) => (stats.isFile() ? true : false))
-    .catch(() => false)
+createNextDescribe(
+  'static export',
+  {
+    files,
+  },
+  ({ next, isNextStart }) => {
+    if (!isNextStart) return
 
-describe('Static Export', () => {
-  it('should delete existing exported files', async () => {
-    const next = await createNext({
-      files: {
-        pages: appDir,
-      },
-      startCommand: '',
+    it('should delete existing exported files', async () => {
+      await next.stop()
+      const tempfile = path.join(outdir, 'temp.txt')
+      await next.patchFile(tempfile, 'test')
+      await next.export()
+      await expect(next.readFile(tempfile)).rejects.toThrowError()
     })
-    const tempfile = join(outdir, 'temp.txt')
-    await next.patchFile(tempfile, 'test')
-    await next.export()
-    expect(() => next.readFile(tempfile)).toThrow()
-  })
-  /*beforeAll(async () => {
-    await nextBuild(appDir)
-    await nextExport(appDir, { outdir })
 
-    nextConfig.replace(
-      `exportTrailingSlash: true`,
-      `exportTrailingSlash: false`
-    )
-    await nextBuild(appDir)
-    await nextExport(appDir, { outdir: outNoTrailSlash })
-    nextConfig.restore()
+    const fileExist = async (file: string) =>
+      next
+        .readFile(file)
+        .then(() => true)
+        .catch(() => false)
+    /*
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      await nextExport(appDir, { outdir })
 
-    context.server = await startStaticServer(outdir)
-    context.port = (context.server.address() as AddressInfo).port
+      nextConfig.replace(
+        `exportTrailingSlash: true`,
+        `exportTrailingSlash: false`
+      )
+      await nextBuild(appDir)
+      await nextExport(appDir, { outdir: outNoTrailSlash })
+      nextConfig.restore()
 
-    context.serverNoTrailSlash = await startStaticServer(outNoTrailSlash)
-    context.portNoTrailSlash = (
-      context.serverNoTrailSlash.address() as AddressInfo
-    ).port
+      context.server = await startStaticServer(outdir)
+      context.port = (context.server.address() as AddressInfo).port
 
-    devContext.port = await findPort()
-    devContext.server = await launchApp(
-      join(__dirname, '../'),
-      devContext.port,
-      true
-    )
+      context.serverNoTrailSlash = await startStaticServer(outNoTrailSlash)
+      context.portNoTrailSlash = (
+        context.serverNoTrailSlash.address() as AddressInfo
+      ).port
 
-    // pre-build all pages at the start
-    await Promise.all([
-      renderViaHTTP(devContext.port, '/'),
-      renderViaHTTP(devContext.port, '/dynamic/one'),
-    ])
-  })
-  afterAll(async () => {
-    await Promise.all([
-      stopApp(context.server),
-      killApp(devContext.server),
-      stopApp(context.serverNoTrailSlash),
-    ])
-  })
+      devContext.port = await findPort()
+      devContext.server = await launchApp(
+        join(__dirname, '../'),
+        devContext.port,
+        true
+      )
 
-  it('should honor exportTrailingSlash for 404 page', async () => {
-    expect(await fileExist(join(outdir, '404/index.html'))).toBe(true)
+      // pre-build all pages at the start
+      await Promise.all([
+        renderViaHTTP(devContext.port, '/'),
+        renderViaHTTP(devContext.port, '/dynamic/one'),
+      ])
+    })
 
-    // we still output 404.html for backwards compat
-    expect(await fileExist(join(outdir, '404.html'))).toBe(true)
-  })
+    it('should honor exportTrailingSlash for 404 page', async () => {
+      expect(await fileExist(path.join(outdir, '404/index.html'))).toBe(true)
 
-  it('should handle trailing slash in getStaticPaths', async () => {
-    expect(await fileExist(join(outdir, 'gssp/foo/index.html'))).toBe(true)
+      // we still output 404.html for backwards compat
+      expect(await fileExist(path.join(outdir, '404.html'))).toBe(true)
+    })
 
-    expect(await fileExist(join(outNoTrailSlash, 'gssp/foo.html'))).toBe(true)
-  })
+    it('should handle trailing slash in getStaticPaths', async () => {
+      expect(await fileExist(path.join(outdir, 'gssp/foo/index.html'))).toBe(
+        true
+      )
 
-  it('should only output 404.html without exportTrailingSlash', async () => {
-    expect(await fileExist(join(outNoTrailSlash, '404/index.html'))).toBe(false)
+      expect(await fileExist(path.join(outNoTrailSlash, 'gssp/foo.html'))).toBe(
+        true
+      )
+    })
 
-    expect(await fileExist(join(outNoTrailSlash, '404.html'))).toBe(true)
-  })
+    it('should only output 404.html without exportTrailingSlash', async () => {
+      expect(
+        await fileExist(path.join(outNoTrailSlash, '404/index.html'))
+      ).toBe(false)
 
-  it('should not duplicate /index with exportTrailingSlash', async () => {
-    expect(await fileExist(join(outdir, 'index/index.html'))).toBe(false)
+      expect(await fileExist(path.join(outNoTrailSlash, '404.html'))).toBe(true)
+    })
 
-    expect(await fileExist(join(outdir, 'index.html'))).toBe(true)
-  })
-  */
-})
+    it('should not duplicate /index with exportTrailingSlash', async () => {
+      expect(await fileExist(path.join(outdir, 'index/index.html'))).toBe(false)
+
+      expect(await fileExist(path.join(outdir, 'index.html'))).toBe(true)
+    })
+    */
+  }
+)
