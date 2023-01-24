@@ -1,7 +1,12 @@
 import type { ResolvedMetadata } from './types/metadata-interface'
 
 import React from 'react'
-import { ResolvedBasicMetadata } from './generate/basic'
+import {
+  AppleWebAppMeta,
+  FormatDetectionMeta,
+  ItunesMeta,
+  ResolvedBasicMetadata,
+} from './generate/basic'
 import { ResolvedAlternatesMetadata } from './generate/alternate'
 import { ResolvedOpenGraphMetadata } from './generate/opengraph'
 import { resolveMetadata } from './resolve-metadata'
@@ -16,6 +21,9 @@ export async function Metadata({ metadata }: { metadata: any }) {
     <>
       <ResolvedBasicMetadata metadata={resolved} />
       <ResolvedAlternatesMetadata metadata={resolved} />
+      <ItunesMeta itunes={resolved.itunes} />
+      <FormatDetectionMeta formatDetection={resolved.formatDetection} />
+      <AppleWebAppMeta appleWebApp={resolved.appleWebApp} />
       <ResolvedOpenGraphMetadata openGraph={resolved.openGraph} />
       <ResolvedIconsMetadata icons={resolved.icons} />
     </>

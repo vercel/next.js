@@ -7,6 +7,7 @@ import type {
   AppLinks,
   FormatDetection,
   ItunesApp,
+  ResolvedAppleWebApp,
   Viewport,
 } from './extra-types'
 import type {
@@ -18,6 +19,7 @@ import type {
   IconURL,
   ReferrerEnum,
   ResolvedIcons,
+  ResolvedVerification,
   Robots,
   TemplateString,
   Verification,
@@ -38,7 +40,7 @@ export interface Metadata {
 
   // Standard metadata names
   // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name
-  applicationName?: null | string | Array<string>
+  applicationName?: null | string
   authors?: null | Author | Array<Author>
   generator?: null | string
   // if you provide an array it will be flattened into a single tag with comma separation
@@ -69,7 +71,7 @@ export interface Metadata {
 
   // Apple web app metadata
   // https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
-  appleWebApp?: null | boolean | AppleWebApp
+  appleWebApp?: null | AppleWebApp
 
   // Should devices try to interpret various formats and make actionable links
   // out of them? The canonical example is telephone numbers on mobile that can
@@ -154,11 +156,11 @@ export interface ResolvedMetadata {
   twitter: null | ResolvedTwitterMetadata
 
   // common verification tokens
-  verification: Verification
+  verification: null | ResolvedVerification
 
   // Apple web app metadata
   // https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
-  appleWebApp: null | AppleWebApp
+  appleWebApp: null | ResolvedAppleWebApp
 
   // Should devices try to interpret various formats and make actionable links
   // out of them? The canonical example is telephone numbers on mobile that can

@@ -68,6 +68,13 @@ export type AppleImageDescriptor = {
   media?: string
 }
 
+export type ResolvedAppleWebApp = {
+  capable: boolean
+  title: string | null
+  startupImage: AppleImageDescriptor[] | null
+  statusBarStyle: 'default' | 'black' | 'black-translucent'
+}
+
 // Format Detection
 // This is a poorly specified metadata export type that is supposed to
 // control whether the device attempts to conver text that matches

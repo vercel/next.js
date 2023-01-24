@@ -93,6 +93,14 @@ export type Verification = {
   }
 }
 
+export type ResolvedVerification = {
+  google?: null | (string | number)[]
+  yahoo?: null | (string | number)[]
+  other?: {
+    [name: string]: (string | number)[]
+  }
+}
+
 export type ResolvedIcons = {
   icon?: IconDescriptor[]
   shortcut?: IconDescriptor[]

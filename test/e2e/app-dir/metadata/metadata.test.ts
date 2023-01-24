@@ -49,6 +49,9 @@ createNextDescribe(
         }
       }
 
+      const checkLink = (browser, name, content) =>
+        checkMeta(browser, name, content, 'rel', 'link', 'href')
+
       describe('basic', () => {
         it('should support title and description', async () => {
           const browser = await next.browser('/title')
@@ -110,6 +113,12 @@ createNextDescribe(
           await checkMeta(browser, 'creator', 'shu', 'name')
           await checkMeta(browser, 'publisher', 'vercel', 'name')
           await checkMeta(browser, 'robots', 'index, follow', 'name')
+
+          await checkMeta(
+            browser,
+            'format-detection',
+            'telephone=no, address=no, email=no'
+          )
         })
 
         it('should support object viewport', async () => {
@@ -120,6 +129,66 @@ createNextDescribe(
             'width=device-width, initial-scale=1, maximum-scale=1',
             'name'
           )
+        })
+
+        it('should support apple related tags `itunes` and `appWebApp`', async () => {
+          const browser = await next.browser('/apple')
+
+          // <meta name="apple-itunes-app" content="app-id=undefined"/>
+          // <meta name="apple-mobile-web-app-capable" content="yes"/>
+          // <meta name="apple-mobile-web-app-title" content="Apple Web App"/>
+          // <link href="/assets/startup/apple-touch-startup-image-768x1004.png" rel="apple-touch-startup-image"/>
+          // <link href="/assets/startup/apple-touch-startup-image-1536x2008.png" media="(device-width: 768px) and (device-height: 1024px)" rel="apple-touch-startup-image"/>
+          // <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+
+          await checkMeta(
+            browser,
+            'apple-itunes-app',
+            'app-id=myAppStoreID, app-argument=myAppArgument',
+            'name'
+          )
+          await checkMeta(
+            browser,
+            'apple-mobile-web-app-capable',
+            'yes',
+            'name'
+          )
+          await checkMeta(
+            browser,
+            'apple-mobile-web-app-title',
+            'Apple Web App',
+            'name'
+          )
+          await checkMeta(
+            browser,
+            'apple-mobile-web-app-status-bar-style',
+            'black-translucent',
+            'name'
+          )
+
+          expect(
+            await queryMetaProps(
+              browser,
+              'link',
+              'href="/assets/startup/apple-touch-startup-image-768x1004.png"',
+              ['rel', 'media']
+            )
+          ).toEqual({
+            rel: 'apple-touch-startup-image',
+            media: null,
+          })
+
+          expect(
+            await queryMetaProps(
+              browser,
+              'link',
+              'href="/assets/startup/apple-touch-startup-image-1536x2008.png"',
+              ['rel', 'media']
+            )
+          ).toEqual({
+            rel: 'apple-touch-startup-image',
+            media: '(device-width: 768px) and (device-height: 1024px)',
+          })
         })
 
         it('should support alternate tags', async () => {
@@ -228,9 +297,6 @@ createNextDescribe(
       })
 
       describe('icons', () => {
-        const checkLink = (browser, name, content) =>
-          checkMeta(browser, name, content, 'rel', 'link', 'href')
-
         it('should support basic object icons field', async () => {
           const browser = await next.browser('/icons')
 

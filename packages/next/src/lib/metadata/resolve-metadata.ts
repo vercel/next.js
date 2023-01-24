@@ -25,6 +25,8 @@ const viewPortKeys = {
   viewportFit: 'viewport-fit',
 } as const
 
+const invalidKeys = ['apple-touch-fullscreen', 'apple-touch-icon-precomposed']
+
 type Item =
   | {
       type: 'layout' | 'page'
@@ -105,6 +107,22 @@ function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
   return resolved
 }
 
+function resolveAppleWebApp(
+  appWebApp: Metadata['appleWebApp']
+): ResolvedMetadata['appleWebApp'] {
+  if (!appWebApp) return null
+  const startupImages = resolveAsArrayOrUndefined(appWebApp.startupImage)?.map(
+    (item) => (typeof item === 'string' ? { url: item } : item)
+  )
+
+  return {
+    capable: 'capable' in appWebApp ? !!appWebApp.capable : true,
+    title: appWebApp.title || null,
+    startupImage: startupImages || null,
+    statusBarStyle: appWebApp.statusBarStyle || 'default',
+  }
+}
+
 // Merge the source metadata into the resolved target metadata.
 function merge(
   target: ResolvedMetadata,
@@ -158,10 +176,28 @@ function merge(
         target.icons = resolveIcons(source.icons)
         break
       }
+      case 'appLinks':
+      case 'verification':
+        break
+      case 'appleWebApp':
+        target.appleWebApp = resolveAppleWebApp(source.appleWebApp)
+        break
+      case 'archives':
+      case 'assets':
+      case 'bookmarks':
+      case 'keywords':
+        target[key] = resolveAsArrayOrUndefined(source[key]) || null
+        break
+      case 'authors':
+        // TODO: improve type infer for resolveAsArrayOrUndefined
+        target[key] = resolveAsArrayOrUndefined(source[key]) || null
+        break
       default: {
         // TODO: Make sure the type is correct.
-        // @ts-ignore
-        target[key] = source[key]
+        if (!invalidKeys.includes(key)) {
+          // @ts-ignore
+          target[key] = source[key] || null
+        }
         break
       }
     }

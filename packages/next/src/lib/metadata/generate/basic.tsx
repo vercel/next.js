@@ -54,3 +54,72 @@ export function ResolvedBasicMetadata({
     </>
   )
 }
+
+export function ItunesMeta({ itunes }: { itunes: ResolvedMetadata['itunes'] }) {
+  if (!itunes) return null
+  const { appId, appArgument } = itunes
+  let content = `app-id=${appId}`
+  if (appArgument) {
+    content += ', ' + `app-argument=${appArgument}`
+  }
+  return <meta name="apple-itunes-app" content={content} />
+}
+
+const formatDetectionKeys = [
+  'telephone',
+  'date',
+  'address',
+  'email',
+  'url',
+] as const
+export function FormatDetectionMeta({
+  formatDetection,
+}: {
+  formatDetection: ResolvedMetadata['formatDetection']
+}) {
+  if (!formatDetection) return null
+  let content = ''
+  for (const key of formatDetectionKeys) {
+    if (formatDetection[key]) {
+      if (content) content += ', '
+      content += `${key}=no`
+    }
+  }
+  return <meta name="format-detection" content={content} />
+}
+
+export function AppleWebAppMeta({
+  appleWebApp,
+}: {
+  appleWebApp: ResolvedMetadata['appleWebApp']
+}) {
+  if (!appleWebApp) return null
+  const { capable, title, startupImage, statusBarStyle } = appleWebApp
+
+  return (
+    <>
+      {capable ? (
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+      ) : null}
+      {title ? (
+        <meta name="apple-mobile-web-app-title" content={title} />
+      ) : null}
+      {startupImage
+        ? startupImage.map((image, index) => (
+            <link
+              key={index}
+              href={image.url}
+              media={image.media}
+              rel="apple-touch-startup-image"
+            />
+          ))
+        : null}
+      {statusBarStyle ? (
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content={statusBarStyle}
+        />
+      ) : null}
+    </>
+  )
+}
