@@ -60,7 +60,7 @@ export function ItunesMeta({ itunes }: { itunes: ResolvedMetadata['itunes'] }) {
   const { appId, appArgument } = itunes
   let content = `app-id=${appId}`
   if (appArgument) {
-    content += ', ' + `app-argument=${appArgument}`
+    content += `, app-argument=${appArgument}`
   }
   return <meta name="apple-itunes-app" content={content} />
 }

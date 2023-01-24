@@ -117,7 +117,8 @@ createNextDescribe(
           await checkMeta(
             browser,
             'format-detection',
-            'telephone=no, address=no, email=no'
+            'telephone=no, address=no, email=no',
+            'name'
           )
         })
 
@@ -133,14 +134,6 @@ createNextDescribe(
 
         it('should support apple related tags `itunes` and `appWebApp`', async () => {
           const browser = await next.browser('/apple')
-
-          // <meta name="apple-itunes-app" content="app-id=undefined"/>
-          // <meta name="apple-mobile-web-app-capable" content="yes"/>
-          // <meta name="apple-mobile-web-app-title" content="Apple Web App"/>
-          // <link href="/assets/startup/apple-touch-startup-image-768x1004.png" rel="apple-touch-startup-image"/>
-          // <link href="/assets/startup/apple-touch-startup-image-1536x2008.png" media="(device-width: 768px) and (device-height: 1024px)" rel="apple-touch-startup-image"/>
-          // <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-
           await checkMeta(
             browser,
             'apple-itunes-app',
