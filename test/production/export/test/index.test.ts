@@ -1,7 +1,6 @@
 import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
 
-import type { Context } from './types'
 import { startStaticServer } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
 
@@ -19,7 +18,6 @@ createNextDescribe(
     files,
   },
   ({ next }) => {
-    let context: Context
     const outdir = 'out'
     const outNoTrailSlash = 'outNoTrailSlash'
     let server: Server
@@ -46,11 +44,6 @@ createNextDescribe(
       serverNoTrailSlash = await startStaticServer(
         path.join(next.testDir, outNoTrailSlash)
       )
-      context = {
-        next,
-        server,
-        serverNoTrailSlash,
-      }
     })
 
     afterAll(async () => {
@@ -110,6 +103,24 @@ createNextDescribe(
     // browser(context)
     // dev(devContext)
     // dynamic(context)
-    apiRoutes(context)
+
+    describe('API routes export', () => {
+      it('Should throw if a route is matched', async () => {
+        const nextConfigPath = 'next.config.js'
+        const nextConfig = await next.readFile(nextConfigPath)
+        await next.patchFile(
+          nextConfigPath,
+          nextConfig.replace('// API route', `'/data': { page: '/api/data' },`)
+        )
+        const outdir = 'outApi'
+        await next.build()
+        const { cliOutput } = await next.export({ outdir })
+        await next.patchFile(nextConfigPath, nextConfig)
+
+        expect(cliOutput).toContain(
+          'https://nextjs.org/docs/messages/api-routes-static-export'
+        )
+      })
+    })
   }
 )
