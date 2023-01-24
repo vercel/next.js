@@ -30,7 +30,6 @@ createNextDescribe(
       await next.stop()
 
       const nextConfig = await next.readFile(nextConfigPath)
-      await next.build()
       await next.export({ outdir })
 
       await next.patchFile(
@@ -60,7 +59,6 @@ createNextDescribe(
       const tmpOutDir = 'tmpOutDir'
       const tempfile = path.join(tmpOutDir, 'temp.txt')
       await next.patchFile(tempfile, 'test')
-      await next.build()
       await next.export({ outdir: tmpOutDir })
       await expect(next.readFile(tempfile)).rejects.toThrowError()
     })
