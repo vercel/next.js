@@ -35,12 +35,12 @@ pub fn message(text: &str) -> Result<(), UpdateNotifierError> {
     };
 
     // render differently depending on viewport
-    if let Some((term_width, _)) = size {
+    if let Some((_, num_cols)) = size {
         // if possible, pad this value slightly
-        let term_width = if term_width > 2 {
-            usize::from(term_width) - 2
+        let term_width = if num_cols > 2 {
+            usize::from(num_cols) - 2
         } else {
-            term_width.into()
+            num_cols.into()
         };
 
         let can_fit_box = term_width >= full_message_width;
