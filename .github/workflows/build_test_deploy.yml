@@ -73,6 +73,7 @@ jobs:
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
@@ -101,6 +102,7 @@ jobs:
         run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         id: cache-build
         with:
           path: ./*
@@ -119,6 +121,7 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         id: restore-build
         with:
           path: ./*
@@ -131,6 +134,7 @@ jobs:
     needs: build
     steps:
       - uses: actions/cache@v3
+        timeout-minutes: 2
         id: restore-build
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
@@ -152,6 +156,7 @@ jobs:
 
       - name: Cache cargo registry
         uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
         with:
           path: ~/.cargo/registry
@@ -159,6 +164,7 @@ jobs:
 
       - name: Cache cargo index
         uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{ steps.swc-change.outputs.SWC_CHANGE == 'yup' }}
         with:
           path: ~/.cargo/git
@@ -197,6 +203,7 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -233,6 +240,7 @@ jobs:
           check-latest: true
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -272,6 +280,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -332,6 +341,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -391,6 +401,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -441,6 +452,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -486,6 +498,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{ needs.build.outputs.docsChange == 'nope' }}
         id: restore-build
         with:
@@ -561,6 +574,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -616,6 +630,7 @@ jobs:
           check-latest: true
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -663,6 +678,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -691,6 +707,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -715,6 +732,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -754,6 +772,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         id: restore-build
         with:
           path: ./*
@@ -784,6 +803,7 @@ jobs:
       VERCEL_TEST_TEAM: vtest314-next-e2e-tests
     steps:
       - uses: actions/cache@v3
+        timeout-minutes: 2
         id: restore-build
         with:
           path: ./*
@@ -823,6 +843,7 @@ jobs:
           check-latest: true
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         id: restore-build
         with:
           path: ./*
@@ -857,6 +878,7 @@ jobs:
 
       - name: Cache cargo registry
         uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/registry
@@ -864,6 +886,7 @@ jobs:
 
       - name: Cache cargo index
         uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/git
@@ -876,6 +899,7 @@ jobs:
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: .turbo
@@ -895,6 +919,7 @@ jobs:
       # So we get latest cache
       - name: Cache built files
         uses: actions/cache@v3
+        timeout-minutes: 2
         with:
           path: ./packages/next-swc/target
           key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
@@ -962,6 +987,7 @@ jobs:
 
     steps:
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -1146,6 +1172,7 @@ jobs:
       # So we get latest cache
       - name: Cache built files
         uses: actions/cache@v3
+        timeout-minutes: 2
         with:
           path: ./packages/next-swc/target
           key: next-swc-cargo-cache-${{ matrix.settings.target }}--${{ hashFiles('**/Cargo.lock') }}
@@ -1170,12 +1197,14 @@ jobs:
 
       - name: Cache cargo registry
         uses: actions/cache@v3
+        timeout-minutes: 2
         with:
           path: ~/.cargo/registry
           key: ${{ matrix.settings.target }}-cargo-registry
 
       - name: Cache cargo index
         uses: actions/cache@v3
+        timeout-minutes: 2
         with:
           path: ~/.cargo/git
           key: ${{ matrix.settings.target }}-cargo-index
@@ -1354,6 +1383,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         id: restore-build
         with:
@@ -1381,6 +1411,7 @@ jobs:
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v3
+        timeout-minutes: 2
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           path: .turbo
@@ -1440,6 +1471,7 @@ jobs:
           check-latest: true
 
       - uses: actions/cache@v3
+        timeout-minutes: 2
         id: restore-build
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
