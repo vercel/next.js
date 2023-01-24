@@ -31,14 +31,13 @@
     },
     "typescript": {},
     "test-pack": {
-      "dependsOn": ["^test-pack"],
-      "inputs": [
-        "*",
-        "../../scripts/test-pack-package.mts",
-        "../../package.json"
-      ],
+      "dependsOn": ["^test-pack", "test-pack-global-deps"],
       "outputs": ["packed-*.tgz"],
       "env": ["NEXT_SWC_VERSION"]
+    },
+    "test-pack-global-deps": {
+      "inputs": ["../../scripts/test-pack-package.mts", "../../package.json"],
+      "cache": false
     }
   }
 }
