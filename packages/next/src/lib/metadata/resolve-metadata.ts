@@ -5,10 +5,16 @@ import type {
 } from './types/metadata-interface'
 import type { Viewport } from './types/extra-types'
 import type { ResolvedTwitterMetadata } from './types/twitter-types'
-import type { AbsoluteTemplateString } from './types/metadata-types'
+import type {
+  AbsoluteTemplateString,
+  Icon,
+  IconDescriptor,
+  Icons,
+} from './types/metadata-types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { mergeTitle } from './resolve-title'
+import { resolveAsArrayOrUndefined } from './generate/utils'
 
 const viewPortKeys = {
   width: 'width',
@@ -47,6 +53,57 @@ type Item =
       }>
       path?: string
     }
+
+function resolveViewport(
+  viewport: Metadata['viewport']
+): ResolvedMetadata['viewport'] {
+  let resolved: ResolvedMetadata['viewport'] = null
+
+  if (typeof viewport === 'string') {
+    resolved = viewport
+  } else if (viewport) {
+    resolved = ''
+    for (const viewportKey_ in viewPortKeys) {
+      const viewportKey = viewportKey_ as keyof Viewport
+      if (viewport[viewportKey]) {
+        if (resolved) resolved += ', '
+        resolved += `${viewPortKeys[viewportKey]}=${viewport[viewportKey]}`
+      }
+    }
+  }
+  return resolved
+}
+
+function isUrlIcon(icon: any): icon is string | URL {
+  return typeof icon === 'string' || icon instanceof URL
+}
+
+function resolveIcon(icon: Icon): IconDescriptor {
+  if (isUrlIcon(icon)) return { url: icon }
+  else if (Array.isArray(icon)) return icon
+  return icon
+}
+
+const IconKeys = ['icon', 'shortcut', 'apple', 'other'] as (keyof Icons)[]
+
+function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
+  if (!icons) {
+    return null
+  }
+
+  const resolved: ResolvedMetadata['icons'] = {}
+  if (Array.isArray(icons)) {
+    resolved.icon = icons.map(resolveIcon).filter(Boolean)
+  } else if (isUrlIcon(icons)) {
+    resolved.icon = [resolveIcon(icons)]
+  } else {
+    for (const key of IconKeys) {
+      const values = resolveAsArrayOrUndefined(icons[key])
+      if (values) resolved[key] = values.map(resolveIcon)
+    }
+  }
+  return resolved
+}
 
 // Merge the source metadata into the resolved target metadata.
 function merge(
@@ -94,21 +151,11 @@ function merge(
         break
       }
       case 'viewport': {
-        let content: string | null = null
-        const { viewport } = source
-        if (typeof viewport === 'string') {
-          content = viewport
-        } else if (viewport) {
-          content = ''
-          for (const viewportKey_ in viewPortKeys) {
-            const viewportKey = viewportKey_ as keyof Viewport
-            if (viewport[viewportKey]) {
-              if (content) content += ', '
-              content += `${viewPortKeys[viewportKey]}=${viewport[viewportKey]}`
-            }
-          }
-        }
-        target.viewport = content
+        target.viewport = resolveViewport(source.viewport)
+        break
+      }
+      case 'icons': {
+        target.icons = resolveIcons(source.icons)
         break
       }
       default: {
