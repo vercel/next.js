@@ -18,6 +18,7 @@ createNextDescribe(
     files,
   },
   ({ next }) => {
+    const nextConfigPath = 'next.config.js'
     const outdir = 'out'
     const outNoTrailSlash = 'outNoTrailSlash'
     let server: Server
@@ -26,8 +27,6 @@ createNextDescribe(
     let portNoTrailSlash: number
 
     beforeAll(async () => {
-      const nextConfigPath = 'next.config.js'
-
       await next.stop()
 
       const nextConfig = await next.readFile(nextConfigPath)
@@ -103,10 +102,21 @@ createNextDescribe(
       expect(await fileExist(path.join(outdir, 'index.html'))).toBe(true)
     })
 
-    // ssr(context)
-    // browser(context)
-    // dev(devContext)
-    // dynamic(context)
+    describe('Dynamic routes export', () => {
+      it('Should throw error not matched route', async () => {
+        const nextConfig = await next.readFile(nextConfigPath)
+        await next.patchFile(
+          nextConfigPath,
+          nextConfig.replace('/blog/nextjs/comment/test', '/bad/path')
+        )
+        const outdir = 'outDynamic'
+        const { cliOutput } = await next.export({ outdir })
+
+        expect(cliOutput).toContain(
+          'https://nextjs.org/docs/messages/export-path-mismatch'
+        )
+      })
+    })
 
     describe('Render via browser', () => {
       it('should render the home page', async () => {
@@ -457,14 +467,12 @@ createNextDescribe(
 
     describe('API routes export', () => {
       it('Should throw if a route is matched', async () => {
-        const nextConfigPath = 'next.config.js'
         const nextConfig = await next.readFile(nextConfigPath)
         await next.patchFile(
           nextConfigPath,
           nextConfig.replace('// API route', `'/data': { page: '/api/data' },`)
         )
         const outdir = 'outApi'
-        await next.build()
         const { cliOutput } = await next.export({ outdir })
         await next.patchFile(nextConfigPath, nextConfig)
 
