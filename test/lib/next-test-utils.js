@@ -283,7 +283,7 @@ export function runNextCommand(argv, options = {}) {
 
 export function runNextCommandDev(argv, stdOut, opts = {}) {
   const nextDir = path.dirname(require.resolve('next/package'))
-  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const nextBin = opts.nextBin || path.join(nextDir, 'dist/bin/next')
   const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
