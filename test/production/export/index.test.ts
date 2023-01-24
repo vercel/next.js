@@ -10,12 +10,10 @@ import { AddressInfo, Server } from 'net'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 
-const files = path.join(__dirname, '..')
-
 createNextDescribe(
   'static export',
   {
-    files,
+    files: __dirname,
   },
   ({ next }) => {
     const nextConfigPath = 'next.config.js'
@@ -478,6 +476,20 @@ createNextDescribe(
           'https://nextjs.org/docs/messages/api-routes-static-export'
         )
       })
+    })
+
+    it('exportTrailingSlash is not ignored', async () => {
+      const nextConfig = await next.readFile(nextConfigPath)
+      const tmpOutdir = 'exportTrailingSlash-out'
+      await next.patchFile(
+        nextConfigPath,
+        nextConfig.replace(`trailingSlash: true`, `exportTrailingSlash: true`)
+      )
+      await next.build()
+      await next.export({ outdir: tmpOutdir })
+      await next.patchFile(nextConfigPath, nextConfig)
+
+      expect(await fileExist(path.join(tmpOutdir, '404/index.html'))).toBeTrue()
     })
   }
 )
