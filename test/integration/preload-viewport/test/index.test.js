@@ -6,7 +6,6 @@ import {
   nextBuild,
   nextStart,
   waitFor,
-  check,
 } from 'next-test-utils'
 import http from 'http'
 import httpProxy from 'http-proxy'
