@@ -245,11 +245,12 @@ if (!(globalThis as any).isNextDev) {
           'app/server-with-errors/error-file/error.js',
           'export default function Error() {}'
         )
-        expect(await hasRedbox(browser, true)).toBe(true)
-        await check(
-          () => getRedboxSource(browser),
-          /ReactServerComponentsError/
-        )
+        await check(async () => {
+          expect(
+            await browser.waitForElementByCss('[data-nextjs-terminal]').text()
+          ).toContain('must be a Client Component')
+          return 'success'
+        }, 'success')
 
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/server-with-errors/error-file/error.js
@@ -275,11 +276,12 @@ if (!(globalThis as any).isNextDev) {
 
         // Empty file
         await next.patchFile('app/server-with-errors/error-file/error.js', '')
-        expect(await hasRedbox(browser, true)).toBe(true)
-        await check(
-          () => getRedboxSource(browser),
-          /ReactServerComponentsError/
-        )
+        await check(async () => {
+          expect(
+            await browser.waitForElementByCss('[data-nextjs-terminal]').text()
+          ).toContain('must be a Client Component')
+          return 'success'
+        }, 'success')
 
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/server-with-errors/error-file/error.js
