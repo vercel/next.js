@@ -1,5 +1,6 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { SupportedErrorEvent } from './container/Errors'
+import { ComponentStackFrame } from './helpers/parse-component-stack'
 
 export const ACTION_BUILD_OK = 'build-ok'
 export const ACTION_BUILD_ERROR = 'build-error'
@@ -25,6 +26,7 @@ export interface UnhandledErrorAction {
   type: typeof ACTION_UNHANDLED_ERROR
   reason: Error
   frames: StackFrame[]
+  componentStackFrames?: ComponentStackFrame[]
 }
 export interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION

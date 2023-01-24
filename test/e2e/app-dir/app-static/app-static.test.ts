@@ -4,6 +4,7 @@ import { promisify } from 'util'
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
 import { check, normalizeRegEx, waitFor } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
 
@@ -11,6 +12,9 @@ createNextDescribe(
   'app-dir static/dynamic handling',
   {
     files: __dirname,
+    env: {
+      NEXT_DEBUG_BUILD: '1',
+    },
   },
   ({ next, isNextDev: isDev, isNextStart }) => {
     if (isNextStart) {
@@ -272,6 +276,17 @@ createNextDescribe(
           },
         })
       })
+
+      it('should output debug info for static bailouts', async () => {
+        const cleanedOutput = stripAnsi(next.cliOutput)
+
+        expect(cleanedOutput).toContain(
+          'Static generation failed due to dynamic usage on /force-static, reason: headers'
+        )
+        expect(cleanedOutput).toContain(
+          'Static generation failed due to dynamic usage on /ssr-auto/cache-no-store, reason: no-store fetch'
+        )
+      })
     }
 
     if (!isDev) {
@@ -284,8 +299,8 @@ createNextDescribe(
 
         if (isNextStart) {
           await check(
-            () => next.cliOutput,
-            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1/
+            () => stripAnsi(next.cliOutput),
+            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1, reason: cookies/
           )
         }
       })
@@ -302,8 +317,8 @@ createNextDescribe(
         expect(html).toMatch(/id:.*?static-bailout-1/)
 
         if (isNextStart) {
-          expect(next.cliOutput.substring(outputIndex)).not.toMatch(
-            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1/
+          expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
+            /Page changed from static to dynamic at runtime \/static-to-dynamic-error-forced\/static-bailout-1, reason: cookies/
           )
         }
       })
