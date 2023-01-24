@@ -293,11 +293,11 @@ function patchFetch(ComponentMod: any) {
     }
 
     if (
-      !staticGenerationStore.fetchRevalidate ||
+      !staticGenerationStore.revalidate ||
       (typeof revalidate === 'number' &&
-        revalidate < staticGenerationStore.fetchRevalidate)
+        revalidate < staticGenerationStore.revalidate)
     ) {
-      staticGenerationStore.fetchRevalidate = revalidate
+      staticGenerationStore.revalidate = revalidate
     }
 
     let cacheKey: string | undefined
@@ -399,39 +399,47 @@ function patchFetch(ComponentMod: any) {
           delete init.cache
         }
         if (cache === 'no-store') {
-          staticGenerationStore.fetchRevalidate = 0
+          staticGenerationStore.revalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
-          throw new DynamicServerError(
-            `no-store fetch ${input}${
-              staticGenerationStore.pathname
-                ? ` ${staticGenerationStore.pathname}`
-                : ''
-            }`
-          )
+          const dynamicUsageReason = `no-store fetch ${input}${
+            staticGenerationStore.pathname
+              ? ` ${staticGenerationStore.pathname}`
+              : ''
+          }`
+          const err = new DynamicServerError(dynamicUsageReason)
+          staticGenerationStore.dynamicUsageStack = err.stack
+          staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+
+          throw err
         }
 
         const hasNextConfig = 'next' in init
         const next = init.next || {}
         if (
           typeof next.revalidate === 'number' &&
-          (typeof staticGenerationStore.fetchRevalidate === 'undefined' ||
-            next.revalidate < staticGenerationStore.fetchRevalidate)
+          (typeof staticGenerationStore.revalidate === 'undefined' ||
+            next.revalidate < staticGenerationStore.revalidate)
         ) {
           const forceDynamic = staticGenerationStore.forceDynamic
 
           if (!forceDynamic || next.revalidate !== 0) {
-            staticGenerationStore.fetchRevalidate = next.revalidate
+            staticGenerationStore.revalidate = next.revalidate
           }
 
           if (!forceDynamic && next.revalidate === 0) {
-            throw new DynamicServerError(
-              `revalidate: ${next.revalidate} fetch ${input}${
-                staticGenerationStore.pathname
-                  ? ` ${staticGenerationStore.pathname}`
-                  : ''
-              }`
-            )
+            const dynamicUsageReason = `revalidate: ${
+              next.revalidate
+            } fetch ${input}${
+              staticGenerationStore.pathname
+                ? ` ${staticGenerationStore.pathname}`
+                : ''
+            }`
+            const err = new DynamicServerError(dynamicUsageReason)
+            staticGenerationStore.dynamicUsageStack = err.stack
+            staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+
+            throw err
           }
         }
         if (hasNextConfig) delete init.next
@@ -1291,7 +1299,11 @@ export async function renderToHTMLOrFlight(
           const { DynamicServerError } =
             ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
-          throw new DynamicServerError(`revalidate: 0 configured ${segment}`)
+          const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
+          staticGenerationStore.dynamicUsageDescription =
+            dynamicUsageDescription
+
+          throw new DynamicServerError(dynamicUsageDescription)
         }
       }
 
@@ -1977,7 +1989,7 @@ export async function renderToHTMLOrFlight(
       )
 
       if (staticGenerationStore.forceStatic === false) {
-        staticGenerationStore.fetchRevalidate = 0
+        staticGenerationStore.revalidate = 0
       }
 
       // TODO: investigate why `pageData` is not in RenderOpts
@@ -1985,7 +1997,15 @@ export async function renderToHTMLOrFlight(
 
       // TODO: investigate why `revalidate` is not in RenderOpts
       ;(renderOpts as any).revalidate =
-        staticGenerationStore.fetchRevalidate ?? defaultRevalidate
+        staticGenerationStore.revalidate ?? defaultRevalidate
+
+      // provide bailout info for debugging
+      if ((renderOpts as any).revalidate === 0) {
+        ;(renderOpts as any).staticBailoutInfo = {
+          description: staticGenerationStore.dynamicUsageDescription,
+          stack: staticGenerationStore.dynamicUsageStack,
+        }
+      }
 
       return new RenderResult(htmlResult)
     }
