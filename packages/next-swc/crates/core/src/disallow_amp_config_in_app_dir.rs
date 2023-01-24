@@ -29,10 +29,8 @@ impl VisitMut for DisallowAmpConfigInAppDir {
     fn visit_mut_export_decl(&mut self, export: &mut ExportDecl) {
         if let Decl::Var(var_decl) = &export.decl {
             for decl in &var_decl.decls {
-                let is_config = match &decl.name {
-                    Pat::Ident(ident) if &ident.id.sym == CONFIG_KEY => true,
-                    _ => false,
-                };
+                let is_config =
+                    matches!(&decl.name, Pat::Ident(ident) if &ident.id.sym == CONFIG_KEY);
 
                 if is_config {
                     if let Some(expr) = &decl.init {
