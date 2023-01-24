@@ -96,6 +96,16 @@ impl Specificity {
     pub fn is_exact(&self) -> bool {
         self.elements.is_empty()
     }
+
+    /// The lowest possible specificity. Used when no match is found.
+    pub fn not_found() -> Self {
+        Specificity {
+            elements: vec![SpecificityElement {
+                position: 0,
+                ty: SpecificityElementType::NotFound,
+            }],
+        }
+    }
 }
 
 impl Display for Specificity {
@@ -126,13 +136,7 @@ impl SpecificityVc {
     /// The lowest possible specificity. Used when no match is found.
     #[turbo_tasks::function]
     pub fn not_found() -> Self {
-        Specificity {
-            elements: vec![SpecificityElement {
-                position: 0,
-                ty: SpecificityElementType::NotFound,
-            }],
-        }
-        .cell()
+        Specificity::not_found().cell()
     }
 
     /// The highest possible specificity. Used for exact matches.

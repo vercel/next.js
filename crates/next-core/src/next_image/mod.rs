@@ -1,12 +1,12 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::introspect::{Introspectable, IntrospectableVc};
 use turbopack_dev_server::source::{
     query::QueryValue, ContentSource, ContentSourceContent, ContentSourceData,
-    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
-    NeededData, ProxyResult,
+    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc,
+    ContentSourceVc, NeededData, ProxyResult,
 };
 
 /// Serves, resizes, optimizes, and re-encodes images to be used with
@@ -42,20 +42,17 @@ impl ContentSource for NextImageContentSource {
                 ]
                 .iter()
                 .cloned()
-                .collect::<HashSet<_>>();
+                .collect::<BTreeSet<_>>();
 
-                return Ok(ContentSourceResultVc::exact(
-                    ContentSourceContent::NeedData(NeededData {
-                        source: self_vc.into(),
-                        path: path.to_string(),
-                        vary: ContentSourceDataVary {
-                            url: true,
-                            query: Some(ContentSourceDataFilter::Subset(queries)),
-                            ..Default::default()
-                        },
-                    })
-                    .cell(),
-                ));
+                return Ok(ContentSourceResultVc::need_data(Value::new(NeededData {
+                    source: self_vc.into(),
+                    path: path.to_string(),
+                    vary: ContentSourceDataVary {
+                        url: true,
+                        query: Some(ContentSourceDataFilter::Subset(queries)),
+                        ..Default::default()
+                    },
+                })));
             }
             Some(query) => query,
         };
@@ -69,9 +66,8 @@ impl ContentSource for NextImageContentSource {
         // formats.
         if let Some(path) = url.strip_prefix('/') {
             let asset = this.asset_source.get(path, Default::default());
-            // THERE'S A HUGE PERFORMANCE ISSUE IF THIS MISSES
             let inner = asset.await?;
-            if matches!(&*inner.content.await?, ContentSourceContent::Static(..)) {
+            if let ContentSourceResult::Result { .. } = &*inner {
                 return Ok(asset);
             }
         }
@@ -86,7 +82,8 @@ impl ContentSource for NextImageContentSource {
                 }
                 .cell(),
             )
-            .cell(),
+            .cell()
+            .into(),
         ))
     }
 }

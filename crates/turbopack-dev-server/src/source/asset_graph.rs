@@ -149,7 +149,9 @@ impl ContentSource for AssetGraphContentSource {
                 }
             }
             return Ok(ContentSourceResultVc::exact(
-                ContentSourceContent::Static(asset.versioned_content()).cell(),
+                ContentSourceContent::Static(asset.versioned_content())
+                    .cell()
+                    .into(),
             ));
         }
         Ok(ContentSourceResultVc::not_found())

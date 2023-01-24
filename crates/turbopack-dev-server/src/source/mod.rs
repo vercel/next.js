@@ -9,7 +9,7 @@ pub mod specificity;
 pub mod static_assets;
 
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, BTreeSet},
     hash::Hash,
     mem::replace,
 };
@@ -37,32 +37,63 @@ pub struct ProxyResult {
 /// attached and when combining results this specificity should be used to order
 /// results.
 #[turbo_tasks::value(shared)]
-pub struct ContentSourceResult {
-    pub specificity: SpecificityVc,
-    pub content: ContentSourceContentVc,
+pub enum ContentSourceResult {
+    NotFound,
+    NeedData(NeededData),
+    Result {
+        specificity: SpecificityVc,
+        get_content: GetContentSourceContentVc,
+    },
+}
+
+#[turbo_tasks::value_impl]
+impl ContentSource for ContentSourceResult {
+    #[turbo_tasks::function]
+    fn get(
+        self_vc: ContentSourceResultVc,
+        _path: &str,
+        _data: Value<ContentSourceData>,
+    ) -> ContentSourceResultVc {
+        self_vc
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl ContentSourceResultVc {
     /// Wraps some content source content with exact match specificity.
     #[turbo_tasks::function]
-    pub fn exact(content: ContentSourceContentVc) -> ContentSourceResultVc {
-        ContentSourceResult {
+    pub fn exact(get_content: GetContentSourceContentVc) -> ContentSourceResultVc {
+        ContentSourceResult::Result {
             specificity: SpecificityVc::exact(),
-            content,
+            get_content,
         }
         .cell()
+    }
+
+    /// Wraps some content source content with exact match specificity.
+    #[turbo_tasks::function]
+    pub fn need_data(data: Value<NeededData>) -> ContentSourceResultVc {
+        ContentSourceResult::NeedData(data.into_value()).cell()
     }
 
     /// Result when no match was found with the lowest specificity.
     #[turbo_tasks::function]
     pub fn not_found() -> ContentSourceResultVc {
-        ContentSourceResult {
-            specificity: SpecificityVc::not_found(),
-            content: ContentSourceContent::NotFound.cell(),
-        }
-        .cell()
+        ContentSourceResult::NotFound.cell()
     }
+}
+
+/// A functor to receive the actual content of a content source result.
+#[turbo_tasks::value_trait]
+pub trait GetContentSourceContent {
+    /// Specifies data requirements for the get function. Restricting data
+    /// passed allows to cache the get method.
+    fn vary(&self) -> ContentSourceDataVaryVc {
+        ContentSourceDataVary::default().cell()
+    }
+
+    /// Get the content
+    fn get(&self, data: Value<ContentSourceData>) -> ContentSourceContentVc;
 }
 
 #[turbo_tasks::value(shared)]
@@ -73,15 +104,33 @@ pub enum ContentSourceContent {
     NotFound,
     Static(VersionedContentVc),
     HttpProxy(ProxyResultVc),
-    NeedData(NeededData),
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for ContentSourceContent {
+    #[turbo_tasks::function]
+    fn get(
+        self_vc: ContentSourceContentVc,
+        _data: Value<ContentSourceData>,
+    ) -> ContentSourceContentVc {
+        self_vc
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ContentSourceContentVc {
+    #[turbo_tasks::function]
+    pub fn not_found() -> ContentSourceContentVc {
+        ContentSourceContent::NotFound.cell()
+    }
 }
 
 /// Needed data content signals that the content source requires more
 /// information in order to serve the request. The held data allows us to
 /// partially compute some data, and resume computation after the needed vary
 /// data is supplied by the dev server.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone)]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 pub struct NeededData {
     /// A [ContentSource] to query once the data has been extracted from the
     /// server. This _does not_ need to be the original content source.
@@ -240,10 +289,12 @@ impl Default for BodyVc {
 }
 
 /// Filter function that describes which information is required.
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub enum ContentSourceDataFilter {
     All,
-    Subset(HashSet<String>),
+    Subset(BTreeSet<String>),
 }
 
 impl ContentSourceDataFilter {
@@ -280,13 +331,32 @@ impl ContentSourceDataFilter {
             ContentSourceDataFilter::Subset(set) => set.contains(key),
         }
     }
+
+    /// Returns true if the first argument at least contains all values that the
+    /// second argument would contain.
+    pub fn fulfills(
+        this: &Option<ContentSourceDataFilter>,
+        other: &Option<ContentSourceDataFilter>,
+    ) -> bool {
+        match (this, other) {
+            (_, None) => true,
+            (None, Some(_)) => false,
+            (Some(this), Some(other)) => match (this, other) {
+                (ContentSourceDataFilter::All, _) => true,
+                (_, ContentSourceDataFilter::All) => false,
+                (ContentSourceDataFilter::Subset(this), ContentSourceDataFilter::Subset(other)) => {
+                    this.is_superset(other)
+                }
+            },
+        }
+    }
 }
 
 /// Describes additional information that need to be sent to requests to
 /// ContentSource. By sending these information ContentSource responses are
 /// cached-keyed by them and they can access them.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Default, Clone)]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[derive(Debug, Default, Clone, PartialOrd, Ord, Hash)]
 pub struct ContentSourceDataVary {
     pub method: bool,
     pub url: bool,
@@ -310,6 +380,40 @@ impl ContentSourceDataVary {
         self.cache_buster = self.cache_buster || other.cache_buster;
         ContentSourceDataFilter::extend_options(&mut self.query, &other.query);
         ContentSourceDataFilter::extend_options(&mut self.headers, &other.headers);
+    }
+
+    /// Returns true if `self` at least contains all values that the
+    /// argument would contain.
+    pub fn fulfills(&self, other: &ContentSourceDataVary) -> bool {
+        // All fields must be used!
+        let ContentSourceDataVary {
+            method,
+            url,
+            query,
+            headers,
+            body,
+            cache_buster,
+            placeholder_for_future_extensions: _,
+        } = self;
+        if other.method && !method {
+            return false;
+        }
+        if other.url && !url {
+            return false;
+        }
+        if other.body && !body {
+            return false;
+        }
+        if other.cache_buster && !cache_buster {
+            return false;
+        }
+        if !ContentSourceDataFilter::fulfills(&query, &other.query) {
+            return false;
+        }
+        if !ContentSourceDataFilter::fulfills(&headers, &other.headers) {
+            return false;
+        }
+        true
     }
 }
 

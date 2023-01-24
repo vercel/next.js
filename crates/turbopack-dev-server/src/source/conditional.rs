@@ -1,11 +1,13 @@
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, State};
+use turbo_tasks::{primitives::StringVc, State, Value};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
 use super::{
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceResultVc, ContentSourceVc,
+    combined::CombinedContentSource, ContentSource, ContentSourceData, ContentSourceDataVaryVc,
+    ContentSourceResult, ContentSourceResultVc, ContentSourceVc, GetContentSourceContent,
+    GetContentSourceContentVc,
 };
-use crate::source::ContentSourcesVc;
+use crate::source::{ContentSourceContentVc, ContentSourcesVc};
 
 /// Combines two [ContentSource]s like the [CombinedContentSource], but only
 /// allows to serve from the second source when the first source has
@@ -41,25 +43,36 @@ impl ConditionalContentSourceVc {
 impl ContentSource for ConditionalContentSource {
     #[turbo_tasks::function]
     async fn get(
-        &self,
+        self_vc: ConditionalContentSourceVc,
         path: &str,
         data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
-        let first = self.activator.get(path, data.clone());
-        if let ContentSourceContent::NotFound = &*first.await?.content.await? {
-            if !*self.activated.get() {
-                return Ok(first);
-            }
+        let this = self_vc.await?;
+        if !*this.activated.get() {
+            let first = this.activator.get(path, data.clone());
+            let first_value = first.await?;
+            return Ok(match &*first_value {
+                &ContentSourceResult::Result {
+                    get_content,
+                    specificity,
+                } => ContentSourceResult::Result {
+                    get_content: ActivateOnGetContentSource {
+                        source: this,
+                        get_content,
+                    }
+                    .cell()
+                    .into(),
+                    specificity,
+                }
+                .cell(),
+                _ => first,
+            });
         }
-        self.activated.set(true);
-        let second = self.action.get(path, data);
-        let first_specificity = first.await?.specificity.await?;
-        let second_specificity = second.await?.specificity.await?;
-        if first_specificity >= second_specificity {
-            Ok(first)
-        } else {
-            Ok(second)
+        Ok(CombinedContentSource {
+            sources: vec![this.activator, this.action],
         }
+        .cell()
+        .get(path, data))
     }
 
     #[turbo_tasks::function]
@@ -114,5 +127,25 @@ impl Introspectable for ConditionalContentSource {
             .flatten()
             .collect(),
         ))
+    }
+}
+
+#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
+struct ActivateOnGetContentSource {
+    source: ConditionalContentSourceReadRef,
+    get_content: GetContentSourceContentVc,
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for ActivateOnGetContentSource {
+    #[turbo_tasks::function]
+    fn vary(&self) -> ContentSourceDataVaryVc {
+        self.get_content.vary()
+    }
+
+    #[turbo_tasks::function]
+    fn get(&self, data: Value<ContentSourceData>) -> ContentSourceContentVc {
+        self.source.activated.set(true);
+        self.get_content.get(data)
     }
 }
