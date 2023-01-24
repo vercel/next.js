@@ -119,8 +119,6 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
  */
 export function getAllHeaders(headers, name) {
   return headers.raw()[name]
-  // const matches = [...headers.entries()].filter(([key]) => key === name)
-  // return matches.map(([, value]) => value)
 }
 
 /**

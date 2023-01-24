@@ -1785,27 +1785,27 @@ describe('Prerender', () => {
         })
 
         const previewRes = await fetchViaHTTP(next.url, '/api/enable')
-        let previewCookie = ''
 
         expect(previewRes.headers.get('set-cookie')).toMatch(
           /(__prerender_bypass|__next_preview_data)/
         )
 
-        previewRes.headers
-          .get('set-cookie')
-          .split(',')
-          .forEach((c) => {
-            c = cookie.parse(c)
-            const isBypass = c.__prerender_bypass
+        let previewCookie = ''
+        for (const c of previewRes.headers.get('set-cookie').split(',')) {
+          const parsed: Record<string, string> = cookie.parse(c)
+          const prerenderBypass = parsed.__prerender_bypass
+          const previewData = parsed.__next_preview_data
 
-            if (isBypass || c.__next_preview_data) {
-              if (previewCookie) previewCookie += '; '
+          if (!prerenderBypass && !previewData) continue
 
-              previewCookie += `${
-                isBypass ? '__prerender_bypass' : '__next_preview_data'
-              }=${c[isBypass ? '__prerender_bypass' : '__next_preview_data']}`
-            }
-          })
+          if (previewCookie) previewCookie += '; '
+
+          const key = prerenderBypass
+            ? '__prerender_bypass'
+            : '__next_preview_data'
+
+          previewCookie += `${key}=${parsed[key]}`
+        }
 
         const apiRes = await fetchViaHTTP(
           next.url,
