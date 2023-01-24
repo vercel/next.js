@@ -5,7 +5,8 @@ import { SimpleWebpackError } from './simpleWebpackError'
 
 function formatRSCErrorMessage(
   message: string,
-  isPagesDir: boolean
+  isPagesDir: boolean,
+  fileName: string
 ): [string, string] {
   let formattedMessage = message
   let formattedVerboseMessage = ''
@@ -19,6 +20,8 @@ function formatRSCErrorMessage(
   const NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN =
     /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN\n/s
   const NEXT_RSC_ERR_INVALID_API = /.+NEXT_RSC_ERR_INVALID_API: (.*?)\n/s
+  const NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT =
+    /.+NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT/
 
   if (NEXT_RSC_ERR_REACT_API.test(message)) {
     const matches = message.match(NEXT_RSC_ERR_REACT_API)
@@ -100,6 +103,12 @@ function formatRSCErrorMessage(
       `\n\n"$1" is not supported in app/. Read more: https://beta.nextjs.org/docs/data-fetching/fundamentals\n\n`
     )
     formattedVerboseMessage = '\n\nFile path:\n'
+  } else if (NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT.test(message)) {
+    formattedMessage = message.replace(
+      NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT,
+      `\n\n${fileName} must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.\n\n`
+    )
+    formattedVerboseMessage = '\n\nImport path:\n'
   }
 
   return [formattedMessage, formattedVerboseMessage]
@@ -137,7 +146,11 @@ export function getRscError(
     current = origin
   }
 
-  const formattedError = formatRSCErrorMessage(err.message, isPagesDir)
+  const formattedError = formatRSCErrorMessage(
+    err.message,
+    isPagesDir,
+    fileName
+  )
 
   const error = new SimpleWebpackError(
     fileName,
