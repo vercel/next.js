@@ -1,36 +1,14 @@
-import { CacheNode, CacheStates } from '../../shared/lib/app-router-context'
+import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
 import type {
   FlightRouterState,
   FlightData,
   FlightDataPath,
   FlightSegmentPath,
   Segment,
-} from '../../server/app-render'
-import { matchSegment } from './match-segments'
-import { fetchServerResponse } from './app-router'
-
-/**
- * Create data fetching record for Promise.
- */
-// TODO-APP: change `any` to type inference.
-function createRecordFromThenable(thenable: any) {
-  thenable.status = 'pending'
-  thenable.then(
-    (value: any) => {
-      if (thenable.status === 'pending') {
-        thenable.status = 'fulfilled'
-        thenable.value = value
-      }
-    },
-    (err: any) => {
-      if (thenable.status === 'pending') {
-        thenable.status = 'rejected'
-        thenable.value = err
-      }
-    }
-  )
-  return thenable
-}
+} from '../../../server/app-render'
+import { matchSegment } from '../match-segments'
+import { fetchServerResponse } from '../app-router'
+import { createRecordFromThenable } from './create-record-from-thenable'
 
 /**
  * Read record value or throw Promise if it's not resolved yet.
@@ -606,7 +584,7 @@ interface RefreshAction {
  *    - Adds a cache node to the cache with a Flight data fetch that was eagerly started in the reducer
  *    - Flight data fetch is suspended in the layout-router
  *    - Triggers SERVER_PATCH action when the data comes back, this will apply the data to the cache and router state, at that point the optimistic router tree is replaced by the actual router tree.
- *  - The navigate was called from `next/router` (`router.push()` / `router.replace()`) / `next/link` without prefetch set (e.g. the prefetch didn't come back from the server before clicking the link)
+ *  - The navigate was called from `next/router` (`router.push()` / `router.replace()`) / `next/link` without prefetched data available (e.g. the prefetch didn't come back from the server before clicking the link)
  *    - Flight data is fetched in the reducer (suspends the reducer)
  *    - Router state tree is created based on Flight data
  *    - Cache is filled based on the Flight data

@@ -23,7 +23,7 @@ import {
   ACTION_SERVER_PATCH,
   createHrefFromUrl,
   reducer,
-} from './reducer'
+} from './router-reducer/router-reducer'
 import {
   SearchParamsContext,
   // ParamsContext,

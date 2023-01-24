@@ -9,7 +9,7 @@ import type {
   ChildProp,
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
-import type { FocusAndScrollRef } from './reducer'
+import type { FocusAndScrollRef } from './router-reducer/router-reducer'
 
 import React, { useContext, useEffect, use } from 'react'
 import ReactDOM from 'react-dom'
