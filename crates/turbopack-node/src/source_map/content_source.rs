@@ -6,7 +6,7 @@ use turbopack_core::{
 };
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    ContentSourceResultVc, ContentSourceVc, ContentSourcesVc, NeededData,
+    ContentSourceResult, ContentSourceResultVc, ContentSourceVc, ContentSourcesVc, NeededData,
 };
 use url::Url;
 
@@ -37,17 +37,14 @@ impl ContentSource for NextSourceMapTraceContentSource {
     ) -> Result<ContentSourceResultVc> {
         let url = match &data.url {
             None => {
-                return Ok(ContentSourceResultVc::exact(
-                    ContentSourceContent::NeedData(NeededData {
-                        source: self_vc.into(),
-                        path: path.to_string(),
-                        vary: ContentSourceDataVary {
-                            url: true,
-                            ..Default::default()
-                        },
-                    })
-                    .cell(),
-                ));
+                return Ok(ContentSourceResultVc::need_data(Value::new(NeededData {
+                    source: self_vc.into(),
+                    path: path.to_string(),
+                    vary: ContentSourceDataVary {
+                        url: true,
+                        ..Default::default()
+                    },
+                })));
             }
             Some(query) => query,
         };
@@ -83,7 +80,13 @@ impl ContentSource for NextSourceMapTraceContentSource {
 
         let this = self_vc.await?;
         let result = this.asset_source.get(path, Default::default()).await?;
-        let file = match &*result.content.await? {
+        let content = match &*result {
+            ContentSourceResult::Result { get_content, .. } => {
+                get_content.get(Default::default()).await?
+            }
+            _ => return Ok(ContentSourceResultVc::not_found()),
+        };
+        let file = match &*content {
             ContentSourceContent::Static(f) => *f,
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
@@ -105,7 +108,9 @@ impl ContentSource for NextSourceMapTraceContentSource {
 
         let traced = SourceMapTraceVc::new(sm, line, column, frame.name);
         Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Static(traced.content().into()).cell(),
+            ContentSourceContent::Static(traced.content().into())
+                .cell()
+                .into(),
         ))
     }
 

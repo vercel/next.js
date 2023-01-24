@@ -5,7 +5,7 @@ use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 
 use super::{
-    specificity::SpecificityReadRef, ContentSource, ContentSourceContent, ContentSourceData,
+    specificity::SpecificityReadRef, ContentSource, ContentSourceData, ContentSourceResult,
     ContentSourceResultVc, ContentSourceVc, NeededData,
 };
 use crate::source::ContentSourcesVc;
@@ -107,40 +107,43 @@ impl PausableCombinedContentSource {
             };
 
             let res = result.await?;
-            if let ContentSourceContent::NeedData(data) = &*res.content.await? {
-                // We create a partially computed content source which will be able to resume
-                // iteration at this exact content source after getting data.
-                let paused = PausableCombinedContentSource {
-                    inner,
-                    index,
-                    pending: Some(PendingState::from(data)),
-                    max,
-                };
+            match &*res {
+                ContentSourceResult::NeedData(data) => {
+                    // We create a partially computed content source which will be able to resume
+                    // iteration at this exact content source after getting data.
+                    let paused = PausableCombinedContentSource {
+                        inner,
+                        index,
+                        pending: Some(PendingState::from(data)),
+                        max,
+                    };
 
-                return Ok(ContentSourceResultVc::exact(
-                    ContentSourceContent::NeedData(NeededData {
+                    return Ok(ContentSourceResultVc::need_data(Value::new(NeededData {
                         // We do not return data.path because that would affect later content source
                         // requests. However, when we resume, we'll use the path stored in pending
                         // to correctly requery this source.
                         path: path.to_string(),
                         source: paused.cell().into(),
                         vary: data.vary.clone(),
-                    })
-                    .cell(),
-                ));
-            }
-
-            let specificity = res.specificity.await?;
-            if specificity.is_exact() {
-                return Ok(result);
-            }
-            if let Some((max, _)) = max.as_ref() {
-                if *max >= specificity {
+                    })));
+                }
+                ContentSourceResult::NotFound => {
                     // we can keep the current max
-                    continue;
+                }
+                ContentSourceResult::Result { specificity, .. } => {
+                    let specificity = specificity.await?;
+                    if specificity.is_exact() {
+                        return Ok(result);
+                    }
+                    if let Some((max, _)) = max.as_ref() {
+                        if *max >= specificity {
+                            // we can keep the current max
+                            continue;
+                        }
+                    }
+                    max = Some((specificity, result));
                 }
             }
-            max = Some((specificity, result));
         }
 
         if let Some((_, result)) = max {

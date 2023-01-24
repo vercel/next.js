@@ -39,8 +39,8 @@ use turbopack_core::asset::AssetContent;
 
 use self::{
     source::{
-        query::Query, ContentSourceContent, ContentSourceDataVary, ContentSourceResultVc,
-        ContentSourceVc, ProxyResultReadRef,
+        query::Query, ContentSourceContent, ContentSourceDataVary, ContentSourceResult,
+        ContentSourceResultVc, ContentSourceVc, ProxyResultReadRef,
     },
     update::{protocol::ResourceIdentifier, UpdateServer},
 };
@@ -114,23 +114,41 @@ async fn get_from_source(
     source: ContentSourceVc,
     path: &str,
     data: Value<ContentSourceData>,
+    vary: Value<ContentSourceDataVary>,
 ) -> Result<GetFromSourceResultVc> {
-    let content = source.get(path, data).await?.content.await?;
-    Ok(match &*content {
-        ContentSourceContent::Static(content_vc) => {
-            if let AssetContent::File(file) = &*content_vc.content().await? {
-                GetFromSourceResult::Static(file.await?)
-            } else {
-                GetFromSourceResult::NotFound
-            }
-        }
-        ContentSourceContent::HttpProxy(proxy) => GetFromSourceResult::HttpProxy(proxy.await?),
-        ContentSourceContent::NeedData(data) => GetFromSourceResult::NeedData {
+    let result = source.get(path, data.clone()).await?;
+    Ok(match &*result {
+        ContentSourceResult::NotFound => GetFromSourceResult::NotFound,
+        ContentSourceResult::NeedData(data) => GetFromSourceResult::NeedData {
             source: data.source.resolve().await?,
             path: data.path.clone(),
             vary: data.vary.clone(),
         },
-        ContentSourceContent::NotFound => GetFromSourceResult::NotFound,
+        ContentSourceResult::Result { get_content, .. } => {
+            let content_vary = get_content.vary().await?;
+            if *vary != *content_vary {
+                GetFromSourceResult::NeedData {
+                    source: ContentSourceResultVc::exact(*get_content).into(),
+                    path: String::new(),
+                    vary: content_vary.clone_value(),
+                }
+            } else {
+                let content = get_content.get(data).await?;
+                match &*content {
+                    ContentSourceContent::NotFound => GetFromSourceResult::NotFound,
+                    ContentSourceContent::Static(content_vc) => {
+                        if let AssetContent::File(file) = &*content_vc.content().await? {
+                            GetFromSourceResult::Static(file.await?)
+                        } else {
+                            GetFromSourceResult::NotFound
+                        }
+                    }
+                    ContentSourceContent::HttpProxy(proxy) => {
+                        GetFromSourceResult::HttpProxy(proxy.await?)
+                    }
+                }
+            }
+        }
     }
     .cell())
 }
@@ -143,8 +161,14 @@ async fn process_request_with_content_source(
     console_ui: ConsoleUiVc,
 ) -> Result<Response<hyper::Body>> {
     let mut data = ContentSourceData::default();
+    let mut data_vary = ContentSourceDataVary::default();
     loop {
-        let content_source_result = get_from_source(resolved_source, &asset_path, Value::new(data));
+        let content_source_result = get_from_source(
+            resolved_source,
+            &asset_path,
+            Value::new(data),
+            Value::new(data_vary),
+        );
         handle_issues(
             content_source_result,
             path,
@@ -201,6 +225,7 @@ async fn process_request_with_content_source(
                 resolved_source = *source;
                 asset_path = Cow::Owned(path.to_string());
                 data = request_to_data(&mut request, vary).await?;
+                data_vary = vary.clone();
                 continue;
             }
             GetFromSourceResult::NotFound => {}

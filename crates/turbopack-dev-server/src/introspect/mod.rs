@@ -148,7 +148,8 @@ impl ContentSource for IntrospectionSource {
                 .cell()
                 .into(),
             )
-            .cell(),
+            .cell()
+            .into(),
         ))
     }
 }

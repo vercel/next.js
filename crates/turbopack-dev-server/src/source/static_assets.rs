@@ -50,7 +50,7 @@ impl ContentSource for StaticAssetsContentSource {
                 ) {
                     let content = SourceAssetVc::new(path).as_asset().content();
                     return Ok(ContentSourceResultVc::exact(
-                        ContentSourceContent::Static(content.into()).cell(),
+                        ContentSourceContent::Static(content.into()).cell().into(),
                     ));
                 }
             }

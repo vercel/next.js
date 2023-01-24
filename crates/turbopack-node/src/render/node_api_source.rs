@@ -1,16 +1,17 @@
 use std::collections::HashSet;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use indexmap::IndexMap;
-use turbo_tasks::{primitives::StringVc, ValueToString};
+use turbo_tasks::{primitives::StringVc, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::introspect::{
     asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
 };
 use turbopack_dev_server::source::{
-    specificity::SpecificityVc, ContentSource, ContentSourceContent, ContentSourceData,
-    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc,
-    ContentSourceVc, NeededData,
+    specificity::SpecificityVc, ContentSource, ContentSourceContent, ContentSourceContentVc,
+    ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary, ContentSourceDataVaryVc,
+    ContentSourceResult, ContentSourceResultVc, ContentSourceVc, GetContentSourceContent,
+    GetContentSourceContentVc,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
@@ -82,63 +83,81 @@ impl ContentSource for NodeApiContentSource {
     async fn get(
         self_vc: NodeApiContentSourceVc,
         path: &str,
-        data: turbo_tasks::Value<ContentSourceData>,
+        _data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
         let this = self_vc.await?;
         if this.is_matching_path(path).await? {
-            if let Some(params) = this.get_matches(path).await? {
-                let content = if let ContentSourceData {
-                    headers: Some(headers),
-                    method: Some(method),
-                    url: Some(url),
-                    query: Some(query),
-                    body: Some(body),
-                    ..
-                } = &*data
-                {
-                    let entry = this.entry.entry(data.clone()).await?;
-                    ContentSourceContent::HttpProxy(render_proxy(
-                        this.server_root.join(path),
-                        entry.module,
-                        this.runtime_entries,
-                        entry.chunking_context,
-                        entry.intermediate_output_path,
-                        RenderData {
-                            params,
-                            method: method.clone(),
-                            url: url.clone(),
-                            query: query.clone(),
-                            headers: headers.clone(),
-                            path: format!("/{path}"),
-                        }
-                        .cell(),
-                        *body,
-                    ))
-                    .cell()
-                } else {
-                    ContentSourceContent::NeedData(NeededData {
-                        source: self_vc.into(),
-                        path: path.to_string(),
-                        vary: ContentSourceDataVary {
-                            method: true,
-                            url: true,
-                            headers: Some(ContentSourceDataFilter::All),
-                            query: Some(ContentSourceDataFilter::All),
-                            body: true,
-                            cache_buster: true,
-                            ..Default::default()
-                        },
-                    })
-                    .cell()
-                };
-                return Ok(ContentSourceResult {
-                    specificity: this.specificity,
-                    content,
+            return Ok(ContentSourceResult::Result {
+                specificity: this.specificity,
+                get_content: NodeApiGetContentResult {
+                    source: self_vc,
+                    path: path.to_string(),
                 }
-                .cell());
+                .cell()
+                .into(),
             }
+            .cell());
         }
         Ok(ContentSourceResultVc::not_found())
+    }
+}
+
+#[turbo_tasks::value]
+struct NodeApiGetContentResult {
+    source: NodeApiContentSourceVc,
+    path: String,
+}
+
+#[turbo_tasks::value_impl]
+impl GetContentSourceContent for NodeApiGetContentResult {
+    #[turbo_tasks::function]
+    fn vary(&self) -> ContentSourceDataVaryVc {
+        ContentSourceDataVary {
+            method: true,
+            url: true,
+            headers: Some(ContentSourceDataFilter::All),
+            query: Some(ContentSourceDataFilter::All),
+            body: true,
+            cache_buster: true,
+            ..Default::default()
+        }
+        .cell()
+    }
+    #[turbo_tasks::function]
+    async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
+        let this = self.source.await?;
+        let Some(params) = this.get_matches(&self.path).await? else {
+            return Err(anyhow!("Non matching path provided"));
+        };
+        let ContentSourceData {
+            method: Some(method),
+            url: Some(url),
+            headers: Some(headers),
+            query: Some(query),
+            body: Some(body),
+            ..
+        } = &*data else {
+            return Err(anyhow!("Missing request data"));
+        };
+        let entry = this.entry.entry(data.clone()).await?;
+        Ok(ContentSourceContent::HttpProxy(render_proxy(
+            this.server_root.join(&self.path),
+            entry.module,
+            this.runtime_entries,
+            entry.chunking_context,
+            entry.intermediate_output_path,
+            RenderData {
+                params,
+                method: method.clone(),
+                url: url.clone(),
+                query: query.clone(),
+                headers: headers.clone(),
+                path: format!("/{}", self.path),
+            }
+            .cell(),
+            *body,
+        ))
+        .cell())
     }
 }
 

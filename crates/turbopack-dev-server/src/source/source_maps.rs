@@ -9,8 +9,8 @@ use turbopack_core::{
 
 use super::{
     query::QueryValue, ContentSource, ContentSourceContent, ContentSourceData,
-    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
-    NeededData,
+    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc,
+    ContentSourceVc, NeededData,
 };
 
 /// SourceMapContentSource allows us to serve full source maps, and individual
@@ -53,17 +53,14 @@ impl ContentSource for SourceMapContentSource {
         let query = match &data.query {
             Some(q) => q,
             None => {
-                return Ok(ContentSourceResultVc::exact(
-                    ContentSourceContent::NeedData(NeededData {
-                        source: self_vc.into(),
-                        path: path.to_string(),
-                        vary: ContentSourceDataVary {
-                            query: Some(ContentSourceDataFilter::Subset(["id".to_string()].into())),
-                            ..Default::default()
-                        },
-                    })
-                    .cell(),
-                ))
+                return Ok(ContentSourceResultVc::need_data(Value::new(NeededData {
+                    source: self_vc.into(),
+                    path: path.to_string(),
+                    vary: ContentSourceDataVary {
+                        query: Some(ContentSourceDataFilter::Subset(["id".to_string()].into())),
+                        ..Default::default()
+                    },
+                })))
             }
         };
 
@@ -74,7 +71,13 @@ impl ContentSource for SourceMapContentSource {
 
         let this = self_vc.await?;
         let result = this.asset_source.get(pathname, Default::default()).await?;
-        let file = match &*result.content.await? {
+        let content = match &*result {
+            ContentSourceResult::Result { get_content, .. } => {
+                get_content.get(Default::default()).await?
+            }
+            _ => return Ok(ContentSourceResultVc::not_found()),
+        };
+        let file = match &*content {
             ContentSourceContent::Static(f) => *f,
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
@@ -97,7 +100,7 @@ impl ContentSource for SourceMapContentSource {
 
         let asset = AssetContentVc::from(File::from(content));
         Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Static(asset.into()).cell(),
+            ContentSourceContent::Static(asset.into()).cell().into(),
         ))
     }
 }
