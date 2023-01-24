@@ -6,6 +6,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  check,
 } from 'next-test-utils'
 import http from 'http'
 import httpProxy from 'http-proxy'
@@ -436,18 +437,23 @@ describe('Prefetching Links in viewport', () => {
   it('should not add an another observer for a prefetched page', async () => {
     // info: both `/` and `/de-duped` ref the `/first` page, which we don't
     // want to be re-fetched/re-observed.
-    const browser = await webdriver(appPort, '/')
-    await browser.eval(`(function() {
-      window.calledPrefetch = false
-      window.next.router.prefetch = function() {
-        window.calledPrefetch = true
-        return Promise.resolve()
-      }
-      window.next.router.push('/de-duped')
-    })()`)
-    await waitFor(2 * 1000)
-    const calledPrefetch = await browser.eval(`window.calledPrefetch`)
-    expect(calledPrefetch).toBe(false)
+    const browser = await webdriver(appPort, '/', {
+      waitHydration: false,
+    })
+
+    let requests = []
+
+    browser.on('request', (req) => {
+      requests.push(new URL(req.url()).pathname)
+    })
+
+    await waitFor(3 * 1000)
+    const initialRequests = requests.length
+    await browser.eval(`window.next.router.push('/de-duped')`)
+    await waitFor(3 * 1000)
+    const finalRequests = requests.length
+
+    expect(finalRequests).toBe(initialRequests + 1)
   })
 
   it('should prefetch with a different asPath for a prefetched page', async () => {
