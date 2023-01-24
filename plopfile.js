@@ -2,6 +2,7 @@ module.exports = function (plop) {
   function getFileName(str) {
     return str.toLowerCase().replace(/ /g, '-')
   }
+  plop.setHelper('toFileName', getFileName)
 
   plop.setGenerator('test', {
     description: 'Create a new test',
