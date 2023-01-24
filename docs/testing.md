@@ -86,7 +86,7 @@ export default function About() {
 Add a test to check your navigation is working correctly:
 
 ```jsx
-// cypress/integration/app.spec.js
+// cypress/e2e/app.cy.js
 
 describe('Navigation', () => {
   it('should navigate to the about page', () => {
