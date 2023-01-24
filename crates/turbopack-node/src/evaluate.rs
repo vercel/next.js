@@ -1,4 +1,4 @@
-use std::{collections::HashMap, thread::available_parallelism};
+use std::{borrow::Cow, collections::HashMap, thread::available_parallelism};
 
 use anyhow::Result;
 use turbo_tasks::{
@@ -69,7 +69,13 @@ pub async fn get_evaluate_pool(
     .as_asset();
 
     let module_path = module_asset.path().await?;
-    let path = intermediate_output_path.join(module_path.file_name());
+    let file_name = module_path.file_name();
+    let file_name = if file_name.ends_with(".js") {
+        Cow::Borrowed(file_name)
+    } else {
+        Cow::Owned(format!("{file_name}.js"))
+    };
+    let path = intermediate_output_path.join(file_name.as_ref());
     let entry_module = EcmascriptModuleAssetVc::new_with_inner_assets(
         VirtualAssetVc::new(
             runtime_asset.path().join("evaluate.js"),
