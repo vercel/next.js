@@ -246,6 +246,11 @@ if (!(globalThis as any).isNextDev) {
           'export default function Error() {}'
         )
         expect(await hasRedbox(browser, true)).toBe(true)
+        await check(
+          () => getRedboxSource(browser),
+          /ReactServerComponentsError/
+        )
+
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/server-with-errors/error-file/error.js
           ReactServerComponentsError:
@@ -271,6 +276,11 @@ if (!(globalThis as any).isNextDev) {
         // Empty file
         await next.patchFile('app/server-with-errors/error-file/error.js', '')
         expect(await hasRedbox(browser, true)).toBe(true)
+        await check(
+          () => getRedboxSource(browser),
+          /ReactServerComponentsError/
+        )
+
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/server-with-errors/error-file/error.js
           ReactServerComponentsError:
