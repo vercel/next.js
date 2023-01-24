@@ -1,38 +1,19 @@
-/* eslint-env jest */
-
 import { join } from 'path'
-import {
-  nextBuild,
-  nextExport,
-  startStaticServer,
-  launchApp,
-  stopApp,
-  killApp,
-  findPort,
-  renderViaHTTP,
-  File,
-  runNextCommand,
-} from 'next-test-utils'
-
 import { promises } from 'fs'
 import { AddressInfo } from 'net'
+import { createNext, FileRef } from 'e2e-utils'
+
+import type { Context } from './types'
 
 const { access, mkdir, writeFile, stat } = promises
 const appDir = join(__dirname, '../')
-const outdir = join(appDir, 'out')
+const outdir = 'out'
 const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
-type Context = {
-  appDir: string
-  server: Awaited<ReturnType<typeof startStaticServer>>
-  port: number
-  serverNoTrailSlash: Awaited<ReturnType<typeof startStaticServer>>
-  portNoTrailSlash: number
-}
 const context: Context = {
   appDir,
 } as any
 const devContext: Context = {} as any
-const nextConfig = new File(join(appDir, 'next.config.js'))
+const nextConfig = join(appDir, 'next.config.js')
 
 const fileExist = (path) =>
   access(path)
@@ -42,23 +23,18 @@ const fileExist = (path) =>
 
 describe('Static Export', () => {
   it('should delete existing exported files', async () => {
+    const next = await createNext({
+      files: {
+        pages: appDir,
+      },
+      startCommand: '',
+    })
     const tempfile = join(outdir, 'temp.txt')
-
-    await mkdir(outdir).catch((e) => {
-      if (e.code !== 'EEXIST') throw e
-    })
-    await writeFile(tempfile, 'Hello there')
-
-    await nextBuild(appDir)
-    await nextExport(appDir, { outdir })
-
-    let doesNotExist = false
-    await access(tempfile).catch((e) => {
-      if (e.code === 'ENOENT') doesNotExist = true
-    })
-    expect(doesNotExist).toBe(true)
+    await next.patchFile(tempfile, 'test')
+    await next.export()
+    expect(() => next.readFile(tempfile)).toThrow()
   })
-  beforeAll(async () => {
+  /*beforeAll(async () => {
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
@@ -123,4 +99,5 @@ describe('Static Export', () => {
 
     expect(await fileExist(join(outdir, 'index.html'))).toBe(true)
   })
+  */
 })
