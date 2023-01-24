@@ -175,29 +175,20 @@ export const installTemplate = async ({
       })
     )
     // Change the `Get started by editing pages/index` / `app/page` to include `src`
-    if (template === 'app') {
-      const indexPageFile = path.join(
-        'src/app',
-        mode === 'ts' ? 'page.tsx' : 'page.jsx'
+    const indexPageFile = path.join(
+      'src',
+      template === 'app' ? 'app' : 'pages',
+      `${template === 'app' ? 'page' : 'index'}.${mode === 'ts' ? 'tsx' : 'js'}`
+    )
+    await fs.promises.writeFile(
+      indexPageFile,
+      (
+        await fs.promises.readFile(indexPageFile, 'utf8')
+      ).replace(
+        template === 'app' ? 'app/page' : 'pages/index',
+        template === 'app' ? 'src/app/page' : 'src/pages/index'
       )
-      await fs.promises.writeFile(
-        indexPageFile,
-        (
-          await fs.promises.readFile(indexPageFile, 'utf8')
-        ).replace(`app/page`, 'src/app/page')
-      )
-    } else {
-      const indexPageFile = path.join(
-        'src/pages',
-        mode === 'ts' ? 'index.tsx' : 'index.js'
-      )
-      await fs.promises.writeFile(
-        indexPageFile,
-        (
-          await fs.promises.readFile(indexPageFile, 'utf8')
-        ).replace(`pages/index`, 'src/pages/index')
-      )
-    }
+    )
   }
 
   if (!eslint) {
