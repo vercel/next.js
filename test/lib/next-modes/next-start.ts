@@ -134,10 +134,42 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
-  public async export() {
+  public async build() {
     return new Promise((resolve) => {
       const curOutput = this._cliOutput.length
-      const exportArgs = ['yarn', 'next', 'export']
+      const exportArgs = ['pnpm', 'next', 'build']
+
+      if (this.childProcess) {
+        throw new Error(
+          `can not run export while server is running, use next.stop() first`
+        )
+      }
+
+      console.log('running', exportArgs.join(' '))
+
+      this.childProcess = spawn(
+        exportArgs[0],
+        exportArgs.slice(1),
+        this.spawnOpts
+      )
+      this.handleStdio(this.childProcess)
+
+      this.childProcess.on('exit', (code, signal) => {
+        this.childProcess = undefined
+        resolve({
+          exitCode: signal || code,
+          cliOutput: this.cliOutput.slice(curOutput),
+        })
+      })
+    })
+  }
+
+  public async export(...[args]: Parameters<NextInstance['export']>) {
+    return new Promise((resolve) => {
+      const curOutput = this._cliOutput.length
+      const exportArgs = ['pnpm', 'next', 'export']
+
+      if (args?.outdir) exportArgs.push('--outdir', args.outdir)
 
       if (this.childProcess) {
         throw new Error(

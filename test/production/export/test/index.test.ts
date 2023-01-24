@@ -1,74 +1,77 @@
 import path from 'path'
-import { promises } from 'fs'
-import { createNext, createNextDescribe } from 'e2e-utils'
+import { createNextDescribe } from 'e2e-utils'
 
 import type { Context } from './types'
+import { startStaticServer } from 'next-test-utils'
+import { AddressInfo, Server } from 'net'
+import execa from 'execa'
 
-const { access, mkdir, writeFile, stat } = promises
 const files = path.join(__dirname, '..')
-const outdir = 'out'
-const outNoTrailSlash = path.join(files, 'outNoTrailSlash')
-const context: Context = {} as any
-const devContext: Context = {} as any
-const nextConfig = path.join(files, 'next.config.js')
 
 createNextDescribe(
   'static export',
   {
     files,
   },
-  ({ next, isNextStart }) => {
-    if (!isNextStart) return
+  ({ next }) => {
+    let context: Context
+    const outdir = 'out'
+    const outNoTrailSlash = 'outNoTrailSlash'
+    let server: Server
+    let serverNoTrailSlash: Server
+
+    beforeAll(async () => {
+      const nextConfigPath = 'next.config.js'
+
+      await next.stop()
+
+      const nextConfig = await next.readFile(nextConfigPath)
+      await next.build()
+      await next.export({ outdir })
+
+      await next.patchFile(
+        nextConfigPath,
+        nextConfig.replace(`trailingSlash: true`, `trailingSlash: false`)
+      )
+      await next.build()
+      await next.export({ outdir: outNoTrailSlash })
+      await next.patchFile(nextConfigPath, nextConfig)
+
+      server = await startStaticServer(path.join(next.testDir, outdir))
+      serverNoTrailSlash = await startStaticServer(
+        path.join(next.testDir, outNoTrailSlash)
+      )
+      context = {
+        server,
+        port: (server.address() as AddressInfo).port,
+        serverNoTrailSlash,
+        portNoTrailSlash: (serverNoTrailSlash.address() as AddressInfo).port,
+      }
+    })
+
+    afterAll(async () => {
+      await Promise.all([
+        new Promise((resolve) => server.close(resolve)),
+        new Promise((resolve) => serverNoTrailSlash.close(resolve)),
+      ])
+    })
 
     it('should delete existing exported files', async () => {
-      await next.stop()
-      const tempfile = path.join(outdir, 'temp.txt')
+      const tmpOutDir = 'tmpOutDir'
+      const tempfile = path.join(tmpOutDir, 'temp.txt')
       await next.patchFile(tempfile, 'test')
-      await next.export()
+      await next.build()
+      await next.export({ outdir: tmpOutDir })
       await expect(next.readFile(tempfile)).rejects.toThrowError()
     })
 
     const fileExist = async (file: string) =>
-      next
+      await next
         .readFile(file)
         .then(() => true)
         .catch(() => false)
-    /*
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      await nextExport(appDir, { outdir })
 
-      nextConfig.replace(
-        `exportTrailingSlash: true`,
-        `exportTrailingSlash: false`
-      )
-      await nextBuild(appDir)
-      await nextExport(appDir, { outdir: outNoTrailSlash })
-      nextConfig.restore()
-
-      context.server = await startStaticServer(outdir)
-      context.port = (context.server.address() as AddressInfo).port
-
-      context.serverNoTrailSlash = await startStaticServer(outNoTrailSlash)
-      context.portNoTrailSlash = (
-        context.serverNoTrailSlash.address() as AddressInfo
-      ).port
-
-      devContext.port = await findPort()
-      devContext.server = await launchApp(
-        join(__dirname, '../'),
-        devContext.port,
-        true
-      )
-
-      // pre-build all pages at the start
-      await Promise.all([
-        renderViaHTTP(devContext.port, '/'),
-        renderViaHTTP(devContext.port, '/dynamic/one'),
-      ])
-    })
-
-    it('should honor exportTrailingSlash for 404 page', async () => {
+    it('should honor trailingSlash for 404 page', async () => {
       expect(await fileExist(path.join(outdir, '404/index.html'))).toBe(true)
 
       // we still output 404.html for backwards compat
@@ -85,7 +88,7 @@ createNextDescribe(
       )
     })
 
-    it('should only output 404.html without exportTrailingSlash', async () => {
+    it('should only output 404.html without trailingSlash', async () => {
       expect(
         await fileExist(path.join(outNoTrailSlash, '404/index.html'))
       ).toBe(false)
@@ -93,11 +96,10 @@ createNextDescribe(
       expect(await fileExist(path.join(outNoTrailSlash, '404.html'))).toBe(true)
     })
 
-    it('should not duplicate /index with exportTrailingSlash', async () => {
+    it('should not duplicate /index with trailingSlash', async () => {
       expect(await fileExist(path.join(outdir, 'index/index.html'))).toBe(false)
 
       expect(await fileExist(path.join(outdir, 'index.html'))).toBe(true)
     })
-    */
   }
 )

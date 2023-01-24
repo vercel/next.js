@@ -6,7 +6,7 @@ module.exports = (phase) => {
     serverRuntimeConfig: {
       bar: 'bar',
     },
-    exportTrailingSlash: true,
+    trailingSlash: true,
     exportPathMap: function () {
       return {
         '/': { page: '/' },
