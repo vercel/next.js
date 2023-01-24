@@ -225,10 +225,7 @@ if (!(globalThis as any).isNextDev) {
         )
 
         expect(await hasRedbox(browser, true)).toBe(true)
-        await check(
-          () => getRedboxSource(browser),
-          /You're importing a component that needs useState./
-        )
+        await check(() => getRedboxHeader(browser), /Failed to compile/)
 
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/editor-links/component.js
