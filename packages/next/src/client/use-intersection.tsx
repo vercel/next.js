@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   requestIdleCallback,
   cancelIdleCallback,
@@ -101,12 +101,17 @@ export function useIntersection<T extends Element>({
   const isDisabled: boolean = disabled || !hasIntersectionObserver
 
   const [visible, setVisible] = useState(false)
-  const [element, setElement] = useState<T | null>(null)
+  // const [element, setElement] = useState<T | null>(null)
+  const elementRef = useRef<T | null>(null)
+  const setElement = useCallback((element: T | null) => {
+    elementRef.current = element
+  }, [])
 
   useEffect(() => {
     if (hasIntersectionObserver) {
       if (isDisabled || visible) return
 
+      const element = elementRef.current
       if (element && element.tagName) {
         const unobserve = observe(
           element,
@@ -122,7 +127,8 @@ export function useIntersection<T extends Element>({
         return () => cancelIdleCallback(idleCallback)
       }
     }
-  }, [element, isDisabled, rootMargin, rootRef, visible])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDisabled, rootMargin, rootRef, visible, elementRef.current])
 
   const resetVisible = useCallback(() => {
     setVisible(false)
