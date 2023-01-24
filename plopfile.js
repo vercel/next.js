@@ -1,5 +1,6 @@
 module.exports = function (plop) {
-  plop.setHelper('toFileName', (str) => str.toLowerCase().replace(/ /g, '-'))
+  const toFileName = (str) => str.toLowerCase().replace(/ /g, '-')
+  plop.setHelper('toFileName', toFileName)
 
   plop.setGenerator('test', {
     description: 'Create a new test',
@@ -55,7 +56,7 @@ module.exports = function (plop) {
     description: 'Create a new error document',
     prompts: [
       {
-        name: 'urlPath',
+        name: 'name',
         type: 'input',
         message: 'Url path with dashes. E.g. circular-structure',
       },
@@ -75,7 +76,7 @@ module.exports = function (plop) {
         message: 'What are the possible ways to fix it?',
       },
     ],
-    actions: function (data) {
+    actions: function ({ name }) {
       return [
         {
           type: 'add',
@@ -85,16 +86,18 @@ module.exports = function (plop) {
         {
           type: 'modify',
           path: 'errors/manifest.json',
-          transform(fileContents, data) {
+          transform(fileContents) {
             const manifestData = JSON.parse(fileContents)
             manifestData.routes[0].routes.push({
-              title: '{{ toFileName name }}',
-              path: `/errors/{{ toFileName name }}.md`,
+              title: toFileName(name),
+              path: `/errors/${toFileName(name)}.md`,
             })
             return JSON.stringify(manifestData, null, 2)
           },
         },
-        `Url for the error: https://nextjs.org/docs/messages/{{ toFileName name }}`,
+        `Url for the error: https://nextjs.org/docs/messages/${toFileName(
+          name
+        )}`,
       ]
     },
   })
