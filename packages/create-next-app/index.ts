@@ -352,7 +352,7 @@ async function run(): Promise<void> {
           validate: (value) =>
             /.+\/\*/.test(value)
               ? true
-              : 'Import pattern must match the pattern <prefix>/*',
+              : 'Import alias must follow the pattern <prefix>/*',
         })
         program.importAlias = importAlias
         preferences.importAlias = importAlias
