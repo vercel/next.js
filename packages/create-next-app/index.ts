@@ -16,6 +16,21 @@ import fs from 'fs'
 
 let projectPath: string = ''
 
+const handleSigTerm = () => process.exit(0)
+
+process.on('SIGINT', handleSigTerm)
+process.on('SIGTERM', handleSigTerm)
+
+const onPromptState = (state: any) => {
+  if (state.aborted) {
+    // If we don't re-enable the terminal cursor before exiting
+    // the program, the cursor will remain hidden
+    process.stdout.write('\x1B[?25h')
+    process.stdout.write('\n')
+    process.exit(1)
+  }
+}
+
 const program = new Commander.Command(packageJson.name)
   .version(packageJson.version)
   .arguments('<project-directory>')
@@ -129,6 +144,7 @@ async function run(): Promise<void> {
 
   if (!projectPath) {
     const res = await prompts({
+      onState: onPromptState,
       type: 'text',
       name: 'path',
       message: 'What is your project named?',
@@ -261,6 +277,7 @@ async function run(): Promise<void> {
       } else {
         const styledEslint = chalk.hex('#007acc')('ESLint')
         const { eslint } = await prompts({
+          onState: onPromptState,
           type: 'toggle',
           name: 'eslint',
           message: `Would you like to use ${styledEslint} with this project?`,
@@ -282,6 +299,7 @@ async function run(): Promise<void> {
       } else {
         const styledSrcDir = chalk.hex('#007acc')('`src/` directory')
         const { srcDir } = await prompts({
+          onState: onPromptState,
           type: 'toggle',
           name: 'srcDir',
           message: `Would you like to use ${styledSrcDir} with this project?`,
@@ -305,6 +323,7 @@ async function run(): Promise<void> {
           'experimental `app/` directory'
         )
         const { appDir } = await prompts({
+          onState: onPromptState,
           type: 'toggle',
           name: 'appDir',
           message: `Would you like to use ${styledAppDir} with this project?`,
@@ -328,6 +347,7 @@ async function run(): Promise<void> {
         const promptAlias = async () => {
           const styledImportAlias = chalk.hex('#007acc')('import alias')
           const promptResult = await prompts({
+            onState: onPromptState,
             type: 'text',
             name: 'importAlias',
             message: `What ${styledImportAlias} would you like configured?`,
@@ -370,6 +390,7 @@ async function run(): Promise<void> {
     }
 
     const res = await prompts({
+      onState: onPromptState,
       type: 'confirm',
       name: 'builtin',
       message:
