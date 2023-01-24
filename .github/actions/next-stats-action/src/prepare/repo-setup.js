@@ -73,7 +73,9 @@ module.exports = (actionInfo) => {
         })
 
         const pkgPaths = new Map()
-        const pkgs = await fs.readdir(path.join(repoDir, 'packages'))
+        const pkgs = (await fs.readdir(path.join(repoDir, 'packages'))).filter(
+          (item) => !item.startsWith('.')
+        )
 
         pkgs.forEach((pkgDirname) => {
           const { name } = require(path.join(
