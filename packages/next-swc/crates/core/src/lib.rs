@@ -239,7 +239,7 @@ where
                                 config.clone(),
                                 path,
                                 cm,
-                                comments,
+                                comments.clone(),
                             ),
                         )
                     })
@@ -261,8 +261,11 @@ where
             None => Either::Right(noop()),
         },
         match &opts.server_actions {
-            Some(config) =>
-                Either::Left(server_actions::server_actions(&file.name, config.clone())),
+            Some(config) => Either::Left(server_actions::server_actions(
+                &file.name,
+                config.clone(),
+                comments,
+            )),
             None => Either::Right(noop()),
         },
     )

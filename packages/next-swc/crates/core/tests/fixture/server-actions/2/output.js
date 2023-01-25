@@ -1,4 +1,4 @@
-async function myAction(a, b, c) {
+/* __next_internal_action_entry_do_not_use__ */ async function myAction(a, b, c) {
     console.log('a');
 }
 myAction.$$typeof = Symbol.for("react.action.reference");
