@@ -62,6 +62,18 @@ export async function loadDefaultErrorComponents(distDir: string) {
   }
 }
 
+async function loadManifest<T>(manifestPath: string, attempts = 1): Promise<T> {
+  try {
+    return require(manifestPath)
+  } catch (err) {
+    if (attempts >= 3) {
+      throw err
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    return loadManifest(manifestPath, attempts + 1)
+  }
+}
+
 export async function loadComponents({
   distDir,
   pathname,
@@ -87,13 +99,12 @@ export async function loadComponents({
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
     await Promise.all([
-      // We shouldn't attempt loading build-manifest or react-loadable
-      // manifest when loading app paths as it may still be writing to
-      // disk causing a race condition
-      isAppPath ? {} : require(join(distDir, BUILD_MANIFEST)),
-      isAppPath ? {} : require(join(distDir, REACT_LOADABLE_MANIFEST)),
+      loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
+      loadManifest<ReactLoadableManifest>(
+        join(distDir, REACT_LOADABLE_MANIFEST)
+      ),
       hasServerComponents
-        ? require(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
+        ? loadManifest(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
         : null,
     ])
 
