@@ -28,6 +28,7 @@ const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'createFactory',
 ]
 
+const LEGACY_CONFIG_EXPORT = 'config'
 const ALLOWED_EXPORTS = ['config', 'generateStaticParams']
 
 const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
@@ -39,6 +40,7 @@ const NEXT_TS_ERRORS = {
   INVALID_OPTION_VALUE: 71003,
   MISPLACED_CLIENT_ENTRY: 71004,
   INVALID_PAGE_PROP: 71005,
+  INVALID_CONFIG_OPTION: 71006,
 }
 
 const API_DOCS: Record<
@@ -801,6 +803,28 @@ export function createTSPlugin(modules: {
                         start: value.getStart(),
                         length: value.getWidth(),
                       })
+                    }
+                  }
+                } else if (name.text === LEGACY_CONFIG_EXPORT) {
+                  // export const config = { ... }
+                  // Error if using `amp: ...`
+                  const value = declarartion.initializer
+                  if (value && ts.isObjectLiteralExpression(value)) {
+                    for (const prop of value.properties) {
+                      if (
+                        ts.isPropertyAssignment(prop) &&
+                        ts.isIdentifier(prop.name) &&
+                        prop.name.text === 'amp'
+                      ) {
+                        prior.push({
+                          file: source,
+                          category: ts.DiagnosticCategory.Error,
+                          code: NEXT_TS_ERRORS.INVALID_CONFIG_OPTION,
+                          messageText: `AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.`,
+                          start: prop.getStart(),
+                          length: prop.getWidth(),
+                        })
+                      }
                     }
                   }
                 }
