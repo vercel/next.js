@@ -4,7 +4,7 @@ import type {
   FlightData,
   FlightSegmentPath,
 } from '../../../server/app-render'
-import { fetchServerResponse } from '../app-router'
+import { fetchServerResponse } from './fetch-server-response'
 import { createRecordFromThenable } from './create-record-from-thenable'
 import { readRecordValue } from './read-record-value'
 import { createHrefFromUrl } from './create-href-from-url'

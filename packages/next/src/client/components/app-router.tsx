@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -33,20 +32,16 @@ import {
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import {
-  NEXT_ROUTER_PREFETCH,
-  NEXT_ROUTER_STATE_TREE,
-  RSC,
-} from './app-router-headers'
-import {
   createInitialRouterState,
   InitialRouterStateParameters,
 } from './router-reducer/create-initial-router-state'
+import { fetchServerResponse } from './router-reducer/fetch-server-response'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
   typeof window === 'undefined' ? null! : new Map()
 
-function urlToUrlWithoutFlightMarker(url: string): URL {
+export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
   // TODO-APP: handle .rsc for static export case
   return urlWithoutFlightParameters
@@ -59,49 +54,6 @@ const HotReloader:
     ? null
     : (require('./react-dev-overlay/hot-reloader-client')
         .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
-
-/**
- * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
- */
-export async function fetchServerResponse(
-  url: URL,
-  flightRouterState: FlightRouterState,
-  prefetch?: true
-): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
-  const headers: {
-    [RSC]: '1'
-    [NEXT_ROUTER_STATE_TREE]: string
-    [NEXT_ROUTER_PREFETCH]?: '1'
-  } = {
-    // Enable flight response
-    [RSC]: '1',
-    // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE]: JSON.stringify(flightRouterState),
-  }
-  if (prefetch) {
-    // Enable prefetch response
-    headers[NEXT_ROUTER_PREFETCH] = '1'
-  }
-
-  const res = await fetch(url.toString(), {
-    headers,
-  })
-  const canonicalUrl = res.redirected
-    ? urlToUrlWithoutFlightMarker(res.url)
-    : undefined
-
-  const isFlightResponse =
-    res.headers.get('content-type') === 'application/octet-stream'
-
-  // If fetch returns something different than flight response handle it like a mpa navigation
-  if (!isFlightResponse) {
-    return [res.url, undefined]
-  }
-
-  // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-  const flightData: FlightData = await createFromFetch(Promise.resolve(res))
-  return [flightData, canonicalUrl]
-}
 
 const prefetched = new Set<string>()
 
