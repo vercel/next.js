@@ -15,7 +15,7 @@ env:
 jobs:
   check-examples:
     name: Check examples
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v3
       - name: Install moreutils
@@ -24,7 +24,7 @@ jobs:
         run: ./scripts/check-examples.sh
 
   build:
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       # we build a dev binary for use in CI so skip downloading
@@ -109,7 +109,7 @@ jobs:
           key: ${{ github.sha }}-${{ github.run_number }}
 
   lint:
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: build
     steps:
       - name: Setup node
@@ -130,7 +130,7 @@ jobs:
       - run: pnpm lint
 
   rust-check:
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: build
     steps:
       - uses: actions/cache@v3
@@ -179,7 +179,7 @@ jobs:
 
   checkPrecompiled:
     name: Check Pre-compiled
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -226,7 +226,7 @@ jobs:
 
   testUnit:
     name: Test Unit
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [build, build-native-test]
     timeout-minutes: 10
     env:
@@ -261,7 +261,7 @@ jobs:
 
   testDev:
     name: Test Development
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -322,7 +322,7 @@ jobs:
 
   testDevE2E:
     name: Test Development (E2E)
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -382,7 +382,7 @@ jobs:
 
   testProd:
     name: Test Production
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [build, build-native-test]
     timeout-minutes: 15
     env:
@@ -433,7 +433,7 @@ jobs:
 
   testProdE2E:
     name: Test Production (E2E)
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -483,7 +483,7 @@ jobs:
 
   testCNA:
     name: Test Create Next App
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -529,7 +529,7 @@ jobs:
 
   testIntegration:
     name: Test Integration
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [build, build-native-test]
     timeout-minutes: 35
     env:
@@ -615,7 +615,7 @@ jobs:
 
   testElectron:
     name: Test Electron
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [build, build-native-test]
     timeout-minutes: 10
     env:
@@ -654,7 +654,7 @@ jobs:
 
   testsPass:
     name: thank you, next
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs:
       [
         lint,
@@ -751,7 +751,7 @@ jobs:
   publishRelease:
     if: ${{ needs.build.outputs.isRelease == 'true' }}
     name: Potentially publish release
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs:
       - build
       - build-wasm
@@ -795,7 +795,7 @@ jobs:
 
   testDeployE2E:
     name: E2E (deploy)
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [publishRelease, build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -833,7 +833,7 @@ jobs:
 
   releaseStats:
     name: Release Stats
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [publishRelease, build-native-test]
     steps:
       - name: Setup node
@@ -863,7 +863,7 @@ jobs:
 
   build-native-test:
     name: Build native binary for tests and metrics
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -882,7 +882,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/registry
-          key: stable-[test-nextjs-vm, linux, x64]-cargo-registry
+          key: stable-[self-hosted, linux, x64]-cargo-registry
 
       - name: Cache cargo index
         uses: actions/cache@v3
@@ -890,7 +890,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/git
-          key: stable-[test-nextjs-vm, linux, x64]-cargo-index
+          key: stable-[self-hosted, linux, x64]-cargo-index
 
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
@@ -922,9 +922,9 @@ jobs:
         timeout-minutes: 5
         with:
           path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-dev-[test-nextjs-vm, linux, x64]-${{ hashFiles('**/Cargo.lock') }}
+          key: next-swc-cargo-cache-dev-[self-hosted, linux, x64]-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            next-swc-cargo-cache-dev-[test-nextjs-vm, linux, x64]
+            next-swc-cargo-cache-dev-[self-hosted, linux, x64]
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3
@@ -957,7 +957,7 @@ jobs:
 
   test-native:
     name: Unit Test Native Code
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
 
     steps:
       - uses: actions/checkout@v3
@@ -1036,7 +1036,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin -- --release --target i686-pc-windows-msvc
             target: 'i686-pc-windows-msvc'
-          - host: [test-nextjs-vm, linux, x64]
+          - host: [self-hosted, linux, x64]
             target: 'x86_64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
             build: >-
@@ -1048,7 +1048,7 @@ jobs:
               unset CC_x86_64_unknown_linux_gnu && unset CC &&
               turbo run build-native -- --release --target x86_64-unknown-linux-gnu &&
               strip packages/next-swc/native/next-swc.*.node
-          - host: [test-nextjs-vm, linux, x64]
+          - host: [self-hosted, linux, x64]
             target: 'x86_64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
             build: >-
@@ -1071,7 +1071,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native -- --release --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
-          - host: [test-nextjs-vm, linux, x64]
+          - host: [self-hosted, linux, x64]
             target: 'aarch64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-aarch64
             build: >-
@@ -1084,7 +1084,7 @@ jobs:
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
               turbo run build-native -- --release --target aarch64-unknown-linux-gnu &&
               llvm-strip -x packages/next-swc/native/next-swc.*.node
-          - host: [test-nextjs-vm, linux, x64]
+          - host: [self-hosted, linux, x64]
             target: 'armv7-unknown-linux-gnueabihf'
             setup: |
               sudo apt-get update
@@ -1093,7 +1093,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native-no-plugin -- --release --target armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip packages/next-swc/native/next-swc.*.node
-          - host: [test-nextjs-vm, linux, x64]
+          - host: [self-hosted, linux, x64]
             target: aarch64-linux-android
             build: |
               export CLANG_VERSION=`ls ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang | sed 's/ *$//g'`
@@ -1108,7 +1108,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi
               turbo run build-native -- --release --target aarch64-linux-android
               ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
-          - host: [test-nextjs-vm, linux, x64]
+          - host: [self-hosted, linux, x64]
             target: armv7-linux-androideabi
             build: |
               export CLANG_VERSION=`ls ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang | sed 's/ *$//g'`
@@ -1123,7 +1123,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" "pnpm@${PNPM_VERSION}"
               turbo run build-native-no-plugin -- --release --target armv7-linux-androideabi
               ${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip packages/next-swc/native/next-swc.*.node
-          - host: [test-nextjs-vm, linux, x64]
+          - host: [self-hosted, linux, x64]
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-alpine
             build: >-
@@ -1153,10 +1153,10 @@ jobs:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
-        if: ${{ matrix.settings.host == '[test-nextjs-vm, linux, x64]' }}
+        if: ${{ matrix.settings.host == '[self-hosted, linux, x64]' }}
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
-        if: ${{ matrix.settings.host == '[test-nextjs-vm, linux, x64]' }}
+        if: ${{ matrix.settings.host == '[self-hosted, linux, x64]' }}
       - name: tune windows network
         run: Disable-NetAdapterChecksumOffload -Name * -TcpIPv4 -UdpIPv4 -TcpIPv6 -UdpIPv6
         if: ${{ matrix.settings.host == 'windows-latest' }}
@@ -1380,7 +1380,7 @@ jobs:
 
   build-wasm-dev:
     needs: build
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/cache@v3
         timeout-minutes: 2
@@ -1445,7 +1445,7 @@ jobs:
           path: packages/next-swc/crates/wasm/pkg-nodejs
 
   check-trace-secrests:
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     outputs:
       trace-api-key: ${{ steps.trace-api-key.outputs.defined }}
     steps:
@@ -1457,7 +1457,7 @@ jobs:
 
   build-performance-metrics:
     name: Performance Metrics for Release Build
-    runs-on: [test-nextjs-vm, linux, x64]
+    runs-on: [self-hosted, linux, x64]
     needs: [build, build-native-test, check-trace-secrests]
     if: needs.check-trace-secrests.outputs.trace-api-key == 'true'
     env:
