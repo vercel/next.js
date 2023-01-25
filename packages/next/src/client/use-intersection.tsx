@@ -101,7 +101,6 @@ export function useIntersection<T extends Element>({
   const isDisabled: boolean = disabled || !hasIntersectionObserver
 
   const [visible, setVisible] = useState(false)
-  // const [element, setElement] = useState<T | null>(null)
   const elementRef = useRef<T | null>(null)
   const setElement = useCallback((element: T | null) => {
     elementRef.current = element
