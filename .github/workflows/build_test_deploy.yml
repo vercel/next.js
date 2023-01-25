@@ -919,7 +919,7 @@ jobs:
       # So we get latest cache
       - name: Cache built files
         uses: actions/cache@v3
-        timeout-minutes: 2
+        timeout-minutes: 5
         with:
           path: ./packages/next-swc/target
           key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
@@ -1172,7 +1172,7 @@ jobs:
       # So we get latest cache
       - name: Cache built files
         uses: actions/cache@v3
-        timeout-minutes: 2
+        timeout-minutes: 5
         with:
           path: ./packages/next-swc/target
           key: next-swc-cargo-cache-${{ matrix.settings.target }}--${{ hashFiles('**/Cargo.lock') }}
