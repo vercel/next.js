@@ -1560,7 +1560,8 @@
   },
   "BIZ UDMincho": {
     "weights": [
-      "400"
+      "400",
+      "700"
     ],
     "styles": [
       "normal"
@@ -1577,7 +1578,8 @@
   },
   "BIZ UDPMincho": {
     "weights": [
-      "400"
+      "400",
+      "700"
     ],
     "styles": [
       "normal"
@@ -16092,6 +16094,14 @@
         "max": 900,
         "defaultValue": 400
       }
+    ]
+  },
+  "Solitreo": {
+    "weights": [
+      "400"
+    ],
+    "styles": [
+      "normal"
     ]
   },
   "Solway": {
