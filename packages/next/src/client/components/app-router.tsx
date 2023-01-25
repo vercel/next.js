@@ -21,9 +21,9 @@ import {
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
-  createHrefFromUrl,
   reducer,
 } from './router-reducer/router-reducer'
+import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
   // ParamsContext,

@@ -9,25 +9,8 @@ import type {
 import { matchSegment } from '../match-segments'
 import { fetchServerResponse } from '../app-router'
 import { createRecordFromThenable } from './create-record-from-thenable'
-
-/**
- * Read record value or throw Promise if it's not resolved yet.
- */
-function readRecordValue<T>(thenable: Promise<T>): T {
-  // @ts-expect-error TODO: fix type
-  if (thenable.status === 'fulfilled') {
-    // @ts-expect-error TODO: fix type
-    return thenable.value
-  } else {
-    throw thenable
-  }
-}
-
-export function createHrefFromUrl(
-  url: Pick<URL, 'pathname' | 'search' | 'hash'>
-): string {
-  return url.pathname + url.search + url.hash
-}
+import { readRecordValue } from './read-record-value'
+import { createHrefFromUrl } from './create-href-from-url'
 
 /**
  * Invalidate cache one level down from the router state.
