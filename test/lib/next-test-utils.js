@@ -283,7 +283,7 @@ export function runNextCommand(argv, options = {}) {
 
 export function runNextCommandDev(argv, stdOut, opts = {}) {
   const nextDir = path.dirname(require.resolve('next/package'))
-  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const nextBin = opts.nextBin || path.join(nextDir, 'dist/bin/next')
   const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
@@ -939,4 +939,21 @@ export function shouldRunTurboDevTest() {
 
   // If the test path matches the glob pattern, add additional case to run the test with `--turbo` flag.
   return isMatch
+}
+
+// WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
+// test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
+// to avoid force-snapshot update per each runs until turbopack update includes all the changes.
+export function getSnapshotTestDescribe(variant) {
+  const runningEnv = variant ?? 'default'
+  if (runningEnv !== 'default' && runningEnv !== 'turbo') {
+    throw new Error(`Check if test env passed correctly ${variant}`)
+  }
+
+  const shouldRunTurboDev = shouldRunTurboDevTest()
+  const shouldSkip =
+    (runningEnv === 'turbo' && !shouldRunTurboDev) ||
+    (runningEnv === 'default' && shouldRunTurboDev)
+
+  return shouldSkip ? describe.skip : describe
 }

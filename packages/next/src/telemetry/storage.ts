@@ -10,7 +10,9 @@ import { _postPayload } from './post-payload'
 import { getRawProjectId } from './project-id'
 import { AbortController } from 'next/dist/compiled/@edge-runtime/primitives/abort-controller'
 import fs from 'fs'
-import spawn from 'next/dist/compiled/cross-spawn'
+// Note: cross-spawn is not used here as it causes
+// a new command window to appear when we don't want it to
+import { spawn } from 'child_process'
 
 // This is the key that stores whether or not telemetry is enabled or disabled.
 const TELEMETRY_KEY_ENABLED = 'telemetry.enabled'
@@ -245,8 +247,10 @@ export class Telemetry {
       JSON.stringify(allEvents)
     )
 
-    spawn('node', [require.resolve('./deteched-flush'), mode, dir], {
+    spawn(process.execPath, [require.resolve('./detached-flush'), mode, dir], {
       detached: !this.NEXT_TELEMETRY_DEBUG,
+      windowsHide: true,
+      shell: false,
       ...(this.NEXT_TELEMETRY_DEBUG
         ? {
             stdio: 'inherit',

@@ -3,7 +3,8 @@ import cheerio from 'cheerio'
 import { promisify } from 'util'
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check, normalizeRegEx, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
 
@@ -11,6 +12,9 @@ createNextDescribe(
   'app-dir static/dynamic handling',
   {
     files: __dirname,
+    env: {
+      NEXT_DEBUG_BUILD: '1',
+    },
   },
   ({ next, isNextDev: isDev, isNextStart }) => {
     if (isNextStart) {
@@ -46,6 +50,7 @@ createNextDescribe(
           'dynamic-no-gen-params/[slug].html',
           'dynamic-no-gen-params/[slug].rsc',
           'dynamic-no-gen-params/[slug]/page.js',
+          'force-dynamic-no-prerender/[id]/page.js',
           'force-static/[slug]/page.js',
           'force-static/first.html',
           'force-static/first.rsc',
@@ -74,6 +79,12 @@ createNextDescribe(
           'ssr-auto/cache-no-store/page.js',
           'ssr-auto/fetch-revalidate-zero/page.js',
           'ssr-forced/page.js',
+          'static-to-dynamic-error-forced/[id].html',
+          'static-to-dynamic-error-forced/[id].rsc',
+          'static-to-dynamic-error-forced/[id]/page.js',
+          'static-to-dynamic-error/[id].html',
+          'static-to-dynamic-error/[id].rsc',
+          'static-to-dynamic-error/[id]/page.js',
           'variable-revalidate/no-store/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
@@ -215,25 +226,162 @@ createNextDescribe(
           },
           '/hooks/use-pathname/[slug]': {
             dataRoute: '/hooks/use-pathname/[slug].rsc',
-            dataRouteRegex: '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$'
+            ),
             fallback: null,
-            routeRegex: '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$',
+            routeRegex: normalizeRegEx(
+              '^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
           '/force-static/[slug]': {
             dataRoute: '/force-static/[slug].rsc',
-            dataRouteRegex: '^\\/force\\-static\\/([^\\/]+?)\\.rsc$',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/force\\-static\\/([^\\/]+?)\\.rsc$'
+            ),
             fallback: null,
-            routeRegex: '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$',
+            routeRegex: normalizeRegEx(
+              '^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
           '/ssg-preview/[[...route]]': {
             dataRoute: '/ssg-preview/[[...route]].rsc',
-            dataRouteRegex: '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/ssg\\-preview(?:\\/(.+?))?\\.rsc$'
+            ),
             fallback: null,
-            routeRegex: '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$',
+            routeRegex: normalizeRegEx(
+              '^\\/ssg\\-preview(?:\\/(.+?))?(?:\\/)?$'
+            ),
+          },
+          '/static-to-dynamic-error-forced/[id]': {
+            dataRoute: '/static-to-dynamic-error-forced/[id].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$'
+            ),
+          },
+          '/static-to-dynamic-error/[id]': {
+            dataRoute: '/static-to-dynamic-error/[id].rsc',
+            dataRouteRegex: normalizeRegEx(
+              '^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)\\.rsc$'
+            ),
+            fallback: null,
+            routeRegex: normalizeRegEx(
+              '^\\/static\\-to\\-dynamic\\-error\\/([^\\/]+?)(?:\\/)?$'
+            ),
           },
         })
       })
+
+      it('should output debug info for static bailouts', async () => {
+        const cleanedOutput = stripAnsi(next.cliOutput)
+
+        expect(cleanedOutput).toContain(
+          'Static generation failed due to dynamic usage on /force-static, reason: headers'
+        )
+        expect(cleanedOutput).toContain(
+          'Static generation failed due to dynamic usage on /ssr-auto/cache-no-store, reason: no-store fetch'
+        )
+      })
     }
+
+    if (isDev) {
+      it('should bypass fetch cache with cache-control: no-cache', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3'
+        )
+
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3',
+          undefined,
+          {
+            headers: {
+              'cache-control': 'no-cache',
+            },
+          }
+        )
+
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+        expect($2('#layout-data').text()).not.toBe(layoutData)
+        expect($2('#page-data').text()).not.toBe(pageData)
+      })
+    } else {
+      it('should properly error when static page switches to dynamic at runtime', async () => {
+        const res = await next.fetch(
+          '/static-to-dynamic-error/static-bailout-1'
+        )
+
+        expect(res.status).toBe(500)
+
+        if (isNextStart) {
+          await check(
+            () => stripAnsi(next.cliOutput),
+            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1, reason: cookies/
+          )
+        }
+      })
+
+      it('should not error with dynamic server usage with force-static', async () => {
+        const res = await next.fetch(
+          '/static-to-dynamic-error-forced/static-bailout-1'
+        )
+        const outputIndex = next.cliOutput.length
+        const html = await res.text()
+
+        expect(res.status).toBe(200)
+        expect(html).toContain('/static-to-dynamic-error-forced')
+        expect(html).toMatch(/id:.*?static-bailout-1/)
+
+        if (isNextStart) {
+          expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
+            /Page changed from static to dynamic at runtime \/static-to-dynamic-error-forced\/static-bailout-1, reason: cookies/
+          )
+        }
+      })
+    }
+
+    it('should honor fetch cache correctly', async () => {
+      await fetchViaHTTP(next.url, '/variable-revalidate/revalidate-3')
+
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate/revalidate-3'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const layoutData = $('#layout-data').text()
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
+    })
 
     it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
       const browserOnIndexPage = await next.browser('/ssg-preview')

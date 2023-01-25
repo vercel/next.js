@@ -1573,6 +1573,16 @@ export async function ncc_react(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_rsc_poison_packages(task, opts) {
+  await task
+    .source(join(dirname(require.resolve('server-only')), '*'))
+    .target('src/compiled/server-only')
+  await task
+    .source(join(dirname(require.resolve('client-only')), '*'))
+    .target('src/compiled/client-only')
+}
+
+// eslint-disable-next-line camelcase
 export async function ncc_react_server_dom_webpack(task, opts) {
   // Use installed versions instead of bundled version
   const peerDeps = {
@@ -2151,14 +2161,14 @@ export async function cli(task, opts) {
 
 export async function lib(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx)')
+    .source('src/lib/**/*.+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx)')
+    .source('src/lib/**/*.+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }

@@ -1,12 +1,16 @@
 import { install } from '../helpers/install'
 
 import cpy from 'cpy'
+import globOrig from 'glob'
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import chalk from 'chalk'
+import util from 'util'
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
+
+const glob = util.promisify(globOrig)
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -33,6 +37,7 @@ export const installTemplate = async ({
   mode,
   eslint,
   srcDir,
+  importAlias,
 }: InstallTemplateArgs) => {
   console.log(chalk.bold(`Using ${packageManager}.`))
 
@@ -65,7 +70,16 @@ export const installTemplate = async ({
   /**
    * Default dependencies.
    */
-  const dependencies = ['react', 'react-dom', 'next', '@next/font']
+  const dependencies = [
+    'react',
+    'react-dom',
+    `next${
+      process.env.NEXT_PRIVATE_TEST_VERSION
+        ? `@${process.env.NEXT_PRIVATE_TEST_VERSION}`
+        : ''
+    }`,
+    '@next/font',
+  ]
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
@@ -97,6 +111,7 @@ export const installTemplate = async ({
 
     await install(root, dependencies, installFlags)
   }
+
   /**
    * Copy the template files to the target directory.
    */
@@ -123,6 +138,38 @@ export const installTemplate = async ({
     },
   })
 
+  const tsconfigFile = path.join(
+    root,
+    mode === 'js' ? 'jsconfig.json' : 'tsconfig.json'
+  )
+  await fs.promises.writeFile(
+    tsconfigFile,
+    (await fs.promises.readFile(tsconfigFile, 'utf8'))
+      .replace(
+        `"@/*": ["./*"]`,
+        srcDir ? `"@/*": ["./src/*"]` : `"@/*": ["./*"]`
+      )
+      .replace(`"@/*":`, `"${importAlias}":`)
+  )
+
+  // update import alias in any files if not using the default
+  if (importAlias !== '@/*') {
+    const files = await glob('**/*', { cwd: root, dot: true })
+    await Promise.all(
+      files.map(async (file) => {
+        const filePath = path.join(root, file)
+        if ((await fs.promises.stat(filePath)).isFile()) {
+          await fs.promises.writeFile(
+            filePath,
+            (
+              await fs.promises.readFile(filePath, 'utf8')
+            ).replace(`@/`, `${importAlias.replace(/\*/g, '')}`)
+          )
+        }
+      })
+    )
+  }
+
   if (srcDir) {
     await fs.promises.mkdir(path.join(root, 'src'), { recursive: true })
     await Promise.all(
@@ -136,15 +183,20 @@ export const installTemplate = async ({
           })
       })
     )
-    const tsconfigFile = path.join(
-      root,
-      mode === 'js' ? 'jsconfig.json' : 'tsconfig.json'
+    // Change the `Get started by editing pages/index` / `app/page` to include `src`
+    const indexPageFile = path.join(
+      'src',
+      template === 'app' ? 'app' : 'pages',
+      `${template === 'app' ? 'page' : 'index'}.${mode === 'ts' ? 'tsx' : 'js'}`
     )
     await fs.promises.writeFile(
-      tsconfigFile,
+      indexPageFile,
       (
-        await fs.promises.readFile(tsconfigFile, 'utf8')
-      ).replace(`"@/*": ["./*"]`, `"@/*": ["./src/*"]`)
+        await fs.promises.readFile(indexPageFile, 'utf8')
+      ).replace(
+        template === 'app' ? 'app/page' : 'pages/index',
+        template === 'app' ? 'src/app/page' : 'src/pages/index'
+      )
     )
   }
 

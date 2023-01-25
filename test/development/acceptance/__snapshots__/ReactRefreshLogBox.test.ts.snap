@@ -1,13 +1,13 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ReactRefreshLogBox boundaries 1`] = `
+exports[`ReactRefreshLogBox default boundaries 1`] = `
 "FunctionDefault.js (1:50) @ FunctionDefault
 
 > 1 | export default function FunctionDefault() { throw new Error('no'); }
     |                                                  ^"
 `;
 
-exports[`ReactRefreshLogBox conversion to class component (1) 1`] = `
+exports[`ReactRefreshLogBox default conversion to class component (1) 1`] = `
 "Child.js (5:18) @ ClickCount.render
 
   3 |   export default class ClickCount extends Component {
@@ -19,7 +19,7 @@ exports[`ReactRefreshLogBox conversion to class component (1) 1`] = `
   8 | "
 `;
 
-exports[`ReactRefreshLogBox css syntax errors 1`] = `
+exports[`ReactRefreshLogBox default css syntax errors 1`] = `
 "./index.module.css:1:1
 Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
 
@@ -27,23 +27,27 @@ Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at 
     | ^"
 `;
 
-exports[`ReactRefreshLogBox logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
 
-exports[`ReactRefreshLogBox logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
 
-exports[`ReactRefreshLogBox logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
 
-exports[`ReactRefreshLogBox logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
 
-exports[`ReactRefreshLogBox logbox: anchors links in error messages 9`] = `"http://example.com/"`;
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
 
-exports[`ReactRefreshLogBox logbox: can recover from a component error 1`] = `
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 11`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 12`] = `"http://example.com/"`;
+
+exports[`ReactRefreshLogBox default logbox: can recover from a component error 1`] = `
 "child.js (4:16) @ Child
 
   2 |   // hello
@@ -54,7 +58,7 @@ exports[`ReactRefreshLogBox logbox: can recover from a component error 1`] = `
   6 | "
 `;
 
-exports[`ReactRefreshLogBox logbox: can recover from a event handler error 1`] = `
+exports[`ReactRefreshLogBox default logbox: can recover from a event handler error 1`] = `
 "index.js (8:18) @ eval
 
    6 | const increment = useCallback(() => {
@@ -66,7 +70,7 @@ exports[`ReactRefreshLogBox logbox: can recover from a event handler error 1`] =
   11 |   <main>"
 `;
 
-exports[`ReactRefreshLogBox logbox: can recover from a syntax error without losing state 1`] = `
+exports[`ReactRefreshLogBox default logbox: can recover from a syntax error without losing state 1`] = `
 "./index.js
 Error: 
   x Unexpected eof
@@ -75,14 +79,13 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error
+    Syntax Error
 
 Import trace for requested module:
 ./index.js"
 `;
 
-exports[`ReactRefreshLogBox module init error not shown 1`] = `
+exports[`ReactRefreshLogBox default module init error not shown 1`] = `
 "index.js (4:14) @ eval
 
   2 | // top offset for snapshot
@@ -94,7 +97,7 @@ exports[`ReactRefreshLogBox module init error not shown 1`] = `
   7 |     return <h1>Default Export</h1>;"
 `;
 
-exports[`ReactRefreshLogBox render error not shown right after syntax error 1`] = `
+exports[`ReactRefreshLogBox default render error not shown right after syntax error 1`] = `
 "index.js (6:18) @ ClassDefault.render
 
   4 | class ClassDefault extends React.Component {
@@ -106,7 +109,7 @@ exports[`ReactRefreshLogBox render error not shown right after syntax error 1`] 
   9 | }"
 `;
 
-exports[`ReactRefreshLogBox should strip whitespace correctly with newline 1`] = `
+exports[`ReactRefreshLogBox default should strip whitespace correctly with newline 1`] = `
 "index.js (9:34) @ onClick
 
    7 | 
@@ -118,7 +121,7 @@ exports[`ReactRefreshLogBox should strip whitespace correctly with newline 1`] =
   12 | </a>"
 `;
 
-exports[`ReactRefreshLogBox stuck error 1`] = `
+exports[`ReactRefreshLogBox default stuck error 1`] = `
 "Foo.js (4:10) @ Foo
 
   2 |   // intentionally skips export
@@ -129,7 +132,7 @@ exports[`ReactRefreshLogBox stuck error 1`] = `
   6 | "
 `;
 
-exports[`ReactRefreshLogBox syntax > runtime error 1`] = `
+exports[`ReactRefreshLogBox default syntax > runtime error 1`] = `
 "index.js (6:16) @ Error
 
   4 | setInterval(() => {
@@ -141,7 +144,7 @@ exports[`ReactRefreshLogBox syntax > runtime error 1`] = `
   9 |   return <div />"
 `;
 
-exports[`ReactRefreshLogBox syntax > runtime error 2`] = `
+exports[`ReactRefreshLogBox default syntax > runtime error 2`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
@@ -154,15 +157,14 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error
+    0: error was recoverable, but proceeding would result in wrong codegen
+    1: Syntax Error
 
 Import trace for requested module:
 ./index.js"
 `;
 
-exports[`ReactRefreshLogBox syntax > runtime error 3`] = `
+exports[`ReactRefreshLogBox default syntax > runtime error 3`] = `
 "./index.js
 Error: 
   x Expected '}', got '<eof>'
@@ -175,15 +177,14 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error
+    0: error was recoverable, but proceeding would result in wrong codegen
+    1: Syntax Error
 
 Import trace for requested module:
 ./index.js"
 `;
 
-exports[`ReactRefreshLogBox unterminated JSX 1`] = `
+exports[`ReactRefreshLogBox default unterminated JSX 1`] = `
 "./index.js
 Error: 
   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -205,8 +206,7 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error
+    Syntax Error
 
 Import trace for requested module:
 ./index.js"

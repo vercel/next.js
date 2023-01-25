@@ -679,7 +679,7 @@ describe('Middleware Runtime', () => {
 
       // Check that no server requests were made to ?hello=world,
       // as it's a shallow request.
-      expect(requests).toEqual([
+      expect(requests.filter((req) => req.includes('_next/data'))).toEqual([
         `${next.url}/_next/data/${next.buildId}${
           i18n ? '/en' : ''
         }/sha.json?hello=goodbye`,

@@ -9,10 +9,13 @@ export function staticGenerationBailout(reason: string): boolean | never {
   }
 
   if (staticGenerationStore?.isStaticGeneration) {
-    if (staticGenerationStore) {
-      staticGenerationStore.fetchRevalidate = 0
-    }
-    throw new DynamicServerError(reason)
+    staticGenerationStore.revalidate = 0
+    const err = new DynamicServerError(reason)
+
+    staticGenerationStore.dynamicUsageDescription = reason
+    staticGenerationStore.dynamicUsageStack = err.stack
+
+    throw err
   }
 
   return false

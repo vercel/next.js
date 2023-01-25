@@ -30,7 +30,7 @@ export type DynamicOptionsLoadingProps = {
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
 // Client component reference proxy need to be converted to a module.
 function convertModule<P>(mod: React.ComponentType<P> | ComponentModule<P>) {
-  return { default: (mod as ComponentModule<P>).default || mod }
+  return { default: (mod as ComponentModule<P>)?.default || mod }
 }
 
 export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {

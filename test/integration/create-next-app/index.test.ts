@@ -13,7 +13,7 @@
 import execa from 'execa'
 import fs from 'fs-extra'
 import path from 'path'
-
+import Conf from 'next/dist/compiled/conf'
 import { useTempDir } from '../../lib/use-temp-dir'
 import {
   projectFilesShouldExist,
@@ -25,8 +25,11 @@ const cli = require.resolve('create-next-app/dist/index.js')
 const exampleRepo = 'https://github.com/vercel/next.js/tree/canary'
 const examplePath = 'examples/basic-css'
 
-const run = (args: string[], options: execa.Options) =>
-  execa('node', [cli].concat(args), options)
+const run = (args: string[], options: execa.Options) => {
+  const conf = new Conf({ projectName: 'create-next-app' })
+  conf.clear()
+  return execa('node', [cli].concat(args), options)
+}
 
 describe('create next app', () => {
   if (!process.env.NEXT_TEST_CNA) {
@@ -48,6 +51,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -72,6 +76,7 @@ describe('create next app', () => {
             '--eslint',
             '--no-src-dir',
             '--no-experimental-app',
+            `--import-alias="@/*"`,
           ],
           { cwd }
         )
@@ -320,6 +325,7 @@ describe('create next app', () => {
           '--example',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -355,6 +361,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -388,7 +395,14 @@ describe('create next app', () => {
       }
 
       const res = await run(
-        ['.', '--js', '--eslint', '--no-src-dir', '--no-experimental-app'],
+        [
+          '.',
+          '--js',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+          `--import-alias="@/*"`,
+        ],
         {
           cwd,
           env,
@@ -407,7 +421,13 @@ describe('create next app', () => {
     await useTempDir(async (cwd) => {
       const projectName = 'test-project'
       const res = await run(
-        ['--js', '--eslint', '--no-src-dir', '--no-experimental-app'],
+        [
+          '--js',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+          `--import-alias="@/*"`,
+        ],
         {
           cwd,
           input: `${projectName}\n`,
@@ -430,6 +450,7 @@ describe('create next app', () => {
           '--use-npm',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -482,6 +503,7 @@ describe('create next app', () => {
           '--use-pnpm',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -551,6 +573,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -616,6 +639,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
@@ -688,6 +712,7 @@ describe('create next app', () => {
           '--eslint',
           '--no-src-dir',
           '--no-experimental-app',
+          `--import-alias="@/*"`,
         ],
         {
           cwd,
