@@ -1407,5 +1407,22 @@ for (const variant of ['default', 'turbo']) {
 
       await cleanup()
     })
+
+    test.each([['server'], ['client']])(
+      '%s component can recover from error thrown in the module',
+      async (type: string) => {
+        const { session, cleanup } = await sandbox(next, undefined, '/' + type)
+
+        await session.patch('index.js', "throw new Error('module error')")
+        expect(await session.hasRedbox(true)).toBe(true)
+        await session.patch(
+          'index.js',
+          'export default function Page() {return <p>hello world</p>}'
+        )
+        expect(await session.hasRedbox(false)).toBe(false)
+
+        await cleanup()
+      }
+    )
   })
 }
