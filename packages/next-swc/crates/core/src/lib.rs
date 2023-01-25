@@ -264,7 +264,7 @@ where
             Some(config) => Either::Left(server_actions::server_actions(
                 &file.name,
                 config.clone(),
-                comments.clone(),
+                comments,
             )),
             None => Either::Right(noop()),
         },
