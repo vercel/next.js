@@ -53,13 +53,18 @@ function getDesiredCompilerOptions(
       reason: 'for dynamic import() support',
     },
     moduleResolution: {
-      parsedValue: ts.ModuleResolutionKind.NodeJs,
+      // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
+      parsedValue:
+        ts.ModuleResolutionKind.NodeJs ??
+        (ts.ModuleResolutionKind as any).Node10,
       // All of these values work:
       parsedValues: [
-        ts.ModuleResolutionKind.NodeJs,
-        // only newer TypeScript versions have this field, it
-        // will be filtered for new versions of TypeScript
-        (ts.ModuleResolutionKind as any).Node12,
+        ts.ModuleResolutionKind.NodeJs ??
+          (ts.ModuleResolutionKind as any).Node10(
+            // only newer TypeScript versions have this field, it
+            // will be filtered for new versions of TypeScript
+            ts.ModuleResolutionKind as any
+          ).Node12,
         ts.ModuleResolutionKind.Node16,
         ts.ModuleResolutionKind.NodeNext,
       ].filter((val) => typeof val !== 'undefined'),
