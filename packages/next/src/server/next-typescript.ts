@@ -310,15 +310,15 @@ export function createTSPlugin(modules: {
               )
             ) {
               if (ts.isVariableDeclarationList(node.declarationList)) {
-                for (const declarartion of node.declarationList.declarations) {
+                for (const declaration of node.declarationList.declarations) {
                   if (
-                    declarartion.getFullStart() <= position &&
+                    declaration.getFullStart() <= position &&
                     position <=
-                      declarartion.getFullStart() + declarartion.getFullWidth()
+                      declaration.getFullStart() + declaration.getFullWidth()
                   ) {
                     // `export const ... = ...`
-                    const text = declarartion.name.getText()
-                    callback(text, declarartion)
+                    const text = declaration.name.getText()
+                    callback(text, declaration)
                   }
                 }
               }
@@ -374,13 +374,12 @@ export function createTSPlugin(modules: {
       }
 
       // Auto completion for entry exported configs.
-      visitEntryConfig(fileName, position, (entryConfig, declarartion) => {
+      visitEntryConfig(fileName, position, (entryConfig, declaration) => {
         if (!API_DOCS[entryConfig]) {
           if (
-            declarartion.name.getFullStart() <= position &&
+            declaration.name.getFullStart() <= position &&
             position <=
-              declarartion.name.getFullStart() +
-                declarartion.name.getFullWidth()
+              declaration.name.getFullStart() + declaration.name.getFullWidth()
           ) {
             prior.entries = [
               ...prior.entries,
@@ -574,11 +573,11 @@ export function createTSPlugin(modules: {
       }
 
       let overriden: ts.QuickInfo | undefined
-      visitEntryConfig(fileName, position, (entryConfig, declarartion) => {
+      visitEntryConfig(fileName, position, (entryConfig, declaration) => {
         if (!API_DOCS[entryConfig]) return
 
-        const name = declarartion.name
-        const value = declarartion.initializer
+        const name = declaration.name
+        const value = declaration.initializer
 
         const docsLink = {
           kind: 'text',
@@ -717,8 +716,8 @@ export function createTSPlugin(modules: {
         ) {
           // Check if it has correct option exports
           if (ts.isVariableDeclarationList(node.declarationList)) {
-            for (const declarartion of node.declarationList.declarations) {
-              const name = declarartion.name
+            for (const declaration of node.declarationList.declarations) {
+              const name = declaration.name
               if (ts.isIdentifier(name)) {
                 if (
                   !ALLOWED_EXPORTS.includes(name.text) &&
@@ -734,7 +733,7 @@ export function createTSPlugin(modules: {
                   })
                 } else if (API_DOCS[name.text]) {
                   // Check if the value is valid
-                  const value = declarartion.initializer
+                  const value = declaration.initializer
 
                   if (value) {
                     let displayedValue = ''
@@ -813,7 +812,7 @@ export function createTSPlugin(modules: {
                 } else if (name.text === LEGACY_CONFIG_EXPORT) {
                   // export const config = { ... }
                   // Error if using `amp: ...`
-                  const value = declarartion.initializer
+                  const value = declaration.initializer
                   if (value && ts.isObjectLiteralExpression(value)) {
                     for (const prop of value.properties) {
                       if (
