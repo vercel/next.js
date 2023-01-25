@@ -45,6 +45,7 @@ pub fn server_actions<C: Comments>(
         closure_candidates: Default::default(),
         annotations: Default::default(),
         extra_items: Default::default(),
+        export_actions: Default::default(),
     })
 }
 
@@ -64,6 +65,7 @@ struct ServerActions<C: Comments> {
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
+    export_actions: Vec<String>,
 }
 
 impl<C: Comments> VisitMut for ServerActions<C> {
@@ -115,6 +117,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let action_ident = private_ident!(action_name.clone());
 
         self.has_action = true;
+        self.export_actions
+            .push(if self.in_action_file && self.in_export_decl {
+                f.ident.sym.to_string()
+            } else {
+                action_name.to_string()
+            });
 
         // myAction.$$typeof = Symbol.for('react.action.reference');
         self.annotations.push(annotate(
@@ -279,7 +287,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 Comment {
                     span: DUMMY_SP,
                     kind: CommentKind::Block,
-                    text: " __next_internal_action_entry_do_not_use__ ".into(),
+                    // Append a list of exported actions.
+                    text: format!(
+                        " __next_internal_action_entry_do_not_use__ {} ",
+                        self.export_actions.join(",")
+                    )
+                    .into(),
                 },
             );
         }
