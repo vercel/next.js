@@ -68,9 +68,9 @@ export const projectSpecification: ProjectSpecification = {
       deps: [],
       devDeps: [],
       files: [
-        'app/page.jsx',
-        'app/head.jsx',
-        'app/layout.jsx',
+        'app/page.js',
+        'app/head.js',
+        'app/layout.js',
         'pages/api/hello.js',
         'jsconfig.json',
       ],
