@@ -87,8 +87,11 @@ export async function loadComponents({
 
   const [buildManifest, reactLoadableManifest, serverComponentManifest] =
     await Promise.all([
-      require(join(distDir, BUILD_MANIFEST)),
-      require(join(distDir, REACT_LOADABLE_MANIFEST)),
+      // We shouldn't attempt loading build-manifest or react-loadable
+      // manifest when loading app paths as it may still be writing to
+      // disk causing a race condition
+      isAppPath ? {} : require(join(distDir, BUILD_MANIFEST)),
+      isAppPath ? {} : require(join(distDir, REACT_LOADABLE_MANIFEST)),
       hasServerComponents
         ? require(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
         : null,
