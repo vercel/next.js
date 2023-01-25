@@ -391,13 +391,7 @@ function clientReducer(
 
         // Optimistic tree case.
         // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
-        const optimisticTree = createOptimisticTree(
-          segments,
-          state.tree,
-          true,
-          false,
-          href
-        )
+        const optimisticTree = createOptimisticTree(segments, state.tree, false)
 
         // Copy subTreeData for the root node of the cache.
         cache.status = CacheStates.READY
