@@ -51,7 +51,7 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - name: Check non-docs only change
         run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
@@ -194,7 +194,7 @@ jobs:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/checkout@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -277,7 +277,7 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/cache@v3
         timeout-minutes: 2
@@ -338,7 +338,7 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/cache@v3
         timeout-minutes: 2
@@ -398,7 +398,7 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/cache@v3
         timeout-minutes: 2
@@ -449,7 +449,7 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/cache@v3
         timeout-minutes: 2
@@ -495,7 +495,7 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/cache@v3
         timeout-minutes: 2
@@ -571,7 +571,7 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/cache@v3
         timeout-minutes: 2
@@ -704,7 +704,7 @@ jobs:
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/cache@v3
         timeout-minutes: 2
@@ -769,7 +769,7 @@ jobs:
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/cache@v3
         timeout-minutes: 2
@@ -867,7 +867,7 @@ jobs:
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
 
       - uses: actions/checkout@v3
         with:
@@ -1152,10 +1152,10 @@ jobs:
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
         if: ${{ matrix.settings.host == '[self-hosted, linux, x64]' }}
       - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
+        run: echo '1'
         if: ${{ matrix.settings.host == '[self-hosted, linux, x64]' }}
       - name: tune windows network
         run: Disable-NetAdapterChecksumOffload -Name * -TcpIPv4 -UdpIPv4 -TcpIPv6 -UdpIPv6
