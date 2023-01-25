@@ -37,6 +37,14 @@ import {
   NEXT_ROUTER_STATE_TREE,
   RSC,
 } from './app-router-headers'
+import {
+  createInitialRouterState,
+  InitialRouterStateParameters,
+} from './router-reducer/create-initial-router-state'
+
+// Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
+let initialParallelRoutes: CacheNode['parallelRoutes'] =
+  typeof window === 'undefined' ? null! : new Map()
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -95,17 +103,13 @@ export async function fetchServerResponse(
   return [flightData, canonicalUrl]
 }
 
-// Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
-let initialParallelRoutes: CacheNode['parallelRoutes'] =
-  typeof window === 'undefined' ? null! : new Map()
-
 const prefetched = new Set<string>()
 
-type AppRouterProps = {
+type AppRouterProps = Omit<
+  InitialRouterStateParameters,
+  'initialParallelRoutes'
+> & {
   initialHead: ReactNode
-  initialTree: FlightRouterState
-  initialCanonicalUrl: string
-  children: ReactNode
   assetPrefix: string
 }
 
@@ -150,28 +154,16 @@ function Router({
   children,
   assetPrefix,
 }: AppRouterProps) {
-  const initialState = useMemo(() => {
-    return {
-      tree: initialTree,
-      cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: children,
-        parallelRoutes:
-          typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-      } as CacheNode,
-      prefetchCache: new Map(),
-      pushRef: { pendingPush: false, mpaNavigation: false },
-      focusAndScrollRef: { apply: false },
-      canonicalUrl:
-        // location.href is read as the initial value for canonicalUrl in the browser
-        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
-        typeof window !== 'undefined'
-          ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
-            createHrefFromUrl(window.location)
-          : initialCanonicalUrl,
-    }
-  }, [children, initialCanonicalUrl, initialTree])
+  const initialState = useMemo(
+    () =>
+      createInitialRouterState({
+        children,
+        initialCanonicalUrl,
+        initialTree,
+        initialParallelRoutes,
+      }),
+    [children, initialCanonicalUrl, initialTree]
+  )
   const [
     { tree, cache, prefetchCache, pushRef, focusAndScrollRef, canonicalUrl },
     dispatch,
