@@ -192,8 +192,8 @@ function merge(
           const resolved = {
             title: source.twitter.title,
           } as ResolvedTwitterMetadata
-          for (const key of TwitterBasicInfoKeys) {
-            resolved[key] = source.twitter[key] || null
+          for (const infoKey of TwitterBasicInfoKeys) {
+            resolved[infoKey] = source.twitter[infoKey] || null
           }
           mergeTitle(resolved, templateStrings.twitter)
           resolved.images =
@@ -228,9 +228,6 @@ function merge(
       case 'verification':
         target.verification = resolveVerification(source.verification)
         break
-      case 'keywords': {
-        target.keywords = resolveAsArrayOrUndefined(source.keywords) || null
-      }
       case 'viewport': {
         target.viewport = resolveViewport(source.viewport)
         break
@@ -279,6 +276,7 @@ function merge(
         if (typeof source.robots === 'string') {
           target.robots = source.robots
         }
+        break
       }
       default:
         break
