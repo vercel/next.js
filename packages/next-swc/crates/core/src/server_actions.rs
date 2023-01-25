@@ -113,16 +113,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        let action_name: JsWord = format!("$ACTION_{}", f.ident.sym).into();
+        let action_name: JsWord = if self.in_action_file && self.in_export_decl {
+            f.ident.sym.clone()
+        } else {
+            format!("$ACTION_{}", f.ident.sym).into()
+        };
+
         let action_ident = private_ident!(action_name.clone());
 
         self.has_action = true;
-        self.export_actions
-            .push(if self.in_action_file && self.in_export_decl {
-                f.ident.sym.to_string()
-            } else {
-                action_name.to_string()
-            });
+        self.export_actions.push(action_name.to_string());
 
         // myAction.$$typeof = Symbol.for('react.action.reference');
         self.annotations.push(annotate(

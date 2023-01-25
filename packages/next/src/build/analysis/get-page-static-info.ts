@@ -39,12 +39,21 @@ export interface PageStaticInfo {
   middleware?: Partial<MiddlewareConfig>
 }
 
-const CLIENT_MODULE_LABEL = `/* __next_internal_client_entry_do_not_use__ */`
+const CLIENT_MODULE_LABEL = '/* __next_internal_client_entry_do_not_use__ */'
+const ACTION_MODULE_LABEL =
+  /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
+
 export type RSCModuleType = 'server' | 'client'
-export function getRSCModuleType(source: string): RSCModuleType {
-  return source.includes(CLIENT_MODULE_LABEL)
+export function getRSCModuleInformation(source: string): {
+  type: RSCModuleType
+  actions?: string[]
+} {
+  const type = source.includes(CLIENT_MODULE_LABEL)
     ? RSC_MODULE_TYPES.client
     : RSC_MODULE_TYPES.server
+
+  const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
+  return { type, actions }
 }
 
 /**
@@ -294,7 +303,7 @@ export async function getPageStaticInfo(params: {
   ) {
     const swcAST = await parseModule(pageFilePath, fileContent)
     const { ssg, ssr, runtime } = checkExports(swcAST)
-    const rsc = getRSCModuleType(fileContent)
+    const rsc = getRSCModuleInformation(fileContent).type
 
     // default / failsafe value for config
     let config: any = {}

@@ -47,6 +47,7 @@ import {
   FLIGHT_SERVER_CSS_MANIFEST,
   SERVER_DIRECTORY,
   FONT_LOADER_MANIFEST,
+  ACTIONS_MANIFEST,
 } from '../shared/lib/constants'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { findDir } from '../lib/find-pages-dir'
@@ -332,6 +333,11 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
+  protected getActionsManifest(): Record<string, string> {
+    const actionsManifestPath = join(this.serverDistDir, ACTIONS_MANIFEST)
+    return require(actionsManifestPath)
+  }
+
   protected async hasPage(pathname: string): Promise<boolean> {
     return !!getMaybePagePath(
       pathname,
@@ -373,6 +379,43 @@ export default class NextNodeServer extends BaseServer {
       rewrites = customRoutes.rewrites
     }
     return Object.assign(customRoutes, { rewrites })
+  }
+
+  protected generateActionRoutes(): Route[] {
+    return [
+      {
+        match: getPathMatch('/_next/action/:path*'),
+        type: 'route',
+        name: '_next/action catchall',
+        check: true,
+        fn: async (req, res, params, _parsedUrl) => {
+          const [actionKey] = params.path
+
+          if (!actionKey) {
+            await this.render404(req, res, _parsedUrl)
+            return {
+              finished: true,
+            }
+          }
+
+          try {
+            const actionMod = await require(join(
+              this.distDir,
+              'server',
+              'action',
+              `${actionKey}.js`
+            ))
+            actionMod.default(this.normalizeReq(req), this.normalizeRes(res))
+          } catch (err) {
+            await this.render404(req, res, _parsedUrl)
+          }
+
+          return {
+            finished: true,
+          }
+        },
+      },
+    ]
   }
 
   protected generateImageRoutes(): Route[] {
@@ -1045,6 +1088,7 @@ export default class NextNodeServer extends BaseServer {
   } {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
+    const actionRoutes = this.generateActionRoutes()
     const staticFilesRoutes = this.generateStaticRoutes()
 
     const fsRoutes: Route[] = [
@@ -1139,6 +1183,7 @@ export default class NextNodeServer extends BaseServer {
           }
         },
       },
+      ...actionRoutes,
       ...imageRoutes,
       {
         match: getPathMatch('/_next/:path*'),
