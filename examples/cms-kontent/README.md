@@ -1,6 +1,6 @@
-# A statically generated blog example using Next.js and Kontent
+# A statically generated blog example using Next.js and Kontent.ai
 
-This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Kentico Kontent](https://kontent.ai) as the data source.
+This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Kontent.ai](https://kontent.ai) as the data source.
 
 ## Demo
 
@@ -51,45 +51,43 @@ pnpm create next-app --example cms-kontent cms-kontent-app
 
 ## Configuration
 
-### Step 1. Create an account on Kontent
+### **1. Create an account on Kontent.ai**
 
 First, [create an account on Kontent.ai](https://app.kontent.ai/sign-up?utm_source=nextjs_docs_example&utm_medium=devrel&utm_campaign=extended_trial).
 
-> The link above will provide you with the 90-days trial. Once you finish the trial, or even during the trial period, you could switch to the [**developer plan**](https://kontent.ai/developer-plan) which is **free of charge** and offers all the features you'll need to test out the example capabilities.
+> The link above will provide you with the 30-days trial. Once you finish the trial, or even during the trial period, you can switch to the [**developer plan**](https://kontent.ai/developer-plan) which is **free of charge** and offers all the features you'll need to test out the example capabilities.
 
 After signing up, [create an empty project](https://docs.kontent.ai/tutorials/set-up-kontent/projects/manage-projects#a-creating-projects).
 
-### Step 2. Create the content models and fill them with data
+### **2. Create the content models and fill them with data**
 
 The [content model](https://docs.kontent.ai/tutorials/set-up-kontent/content-modeling/what-is-content-modeling) defines the data structures of your application/websites. The structures are flexible and you can tailor them to your needs.
 
-For this example you need to create a content model that defines an `author` and a `post` content type. **You can import these automatically or by doing it manually** to familiarize yourself with the Kontent user interface.
+For this example, you need to create a content model that defines an `author` and a `post` content type. **You can import these automatically or by doing it manually** to familiarize yourself with the Kontent.ai user interface.
 
 To import the content models with their data follow the next steps:
 
-1. Enter [Kontent application](https://app.kontent.ai)
-1. Go to "Project Settings", select API keys
+1. Enter [Kontent.ai application](https://app.kontent.ai)
+1. Go to "Project Settings" and select API keys
 1. Activate Management API
 1. Copy `Project ID` and `Management API` key
-1. Install [Kontent Backup Manager](https://github.com/Kentico/kontent-backup-manager-js) and import data to newly created project from kontent-backup.zip file (place appropriate values for apiKey and projectId arguments):
+1. Install [Kontent.ai Backup Manager](https://github.com/kontent-ai/backup-manager) and import data to the newly created project from kontent-ai-backup.zip file (don't forget to place appropriate values for apiKey and projectId arguments):
 
    ```sh
-   npm i -g @kentico/kontent-backup-manager
-   kbm --action=restore --apiKey=<Management API key> --projectId=<Project ID> --zipFilename=kontent-backup
+   npm i -g @kontent-ai/backup-manager
+   kbm --action=restore --apiKey=<Management API key> --projectId=<Project ID> --zipFilename=kontent-ai-backup
    ```
 
-   > **💡 Alternatively, you can use the [Template Manager UI](https://kentico.github.io/kontent-template-manager/import) for importing the content.**
+1. Go to your Kontent.ai project and publish all the imported items.
+   >Note: You can deactivate the Management API key, as it is not necessary anymore.
 
-1. Go to your Kontent project and publish all the imported items.
-   > You could deactivate Management API key, it is not necessary any more.
+#### **2.1. (Optional) Create the content models manually**
 
-### Step 2.1. Optionally create the content models manually
-
-You can safely ignore this step if you already imported the content models in Step 2.
+You can ignore this step if you already imported the content models in Step 2.
 
 #### Create an `Author` content type
 
-From your Kontent project, go to **Content models** and add a new `Content type`:
+In your Kontent.ai project, go to the **Content models** and add a new `Content type`:
 
 > you don't have to modify the element configuration unless specified
 
@@ -98,7 +96,7 @@ From your Kontent project, go to **Content models** and add a new `Content type`
   - `Name` - **Text** element
   - `Picture` - **Asset** element - configure to allow to select `At most 1` asset and `Limit file types` only to `Adjustable images`
 
-Save the content type and continue.
+Save the content type.
 
 The content type should look like this:
 
@@ -106,7 +104,7 @@ The content type should look like this:
 
 #### Create a `Post` content type
 
-From your Kontent project, go to **Content models** and add a new content type:
+In your Kontent.ai project, go to **Content models** and add a new content type:
 
 > you don't have to modify the element configuration unless specified
 
@@ -119,7 +117,7 @@ From your Kontent project, go to **Content models** and add a new content type:
   - `Cover Image` - **Asset Text** element - configure to allow to select `At most 1` asset and `Limit file types` only to `Adjustable images` - `Content` - `Slug` - **URL slug** element - auto-generated from `Title` element
   - `Author` - **Linked items** element - configure to accept `Exactly 1` item of type `Author`
 
-Save the content type and continue.
+Save the content type.
 
 The content type should look like this:
 
@@ -135,12 +133,12 @@ Go to `Content & Assets` section in your project and click `Create new` on the `
 
 Next, create another item based on **Post** content type:
 
-- It's recommend to create at least **2 post items**.
+- It's recommended to create at least **2 post items**.
 - Use dummy data for the text.
 - For images, you can download them from [Unsplash](https://unsplash.com/).
 - Pick the **author** you created earlier.
 
-**Important:** For each item, you need to click on **Publish**. If not, the entry will be in draft workflow step.
+**Important:** For each item, you need to click on **Publish**. If not, the entry will be in the draft workflow step.
 
 ![Published post item overview](./docs/publish-post-overview.png)
 
@@ -174,7 +172,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 5. Try preview mode
 
-In your Kontent project, go to **Project Settings > Preview URLs** and set a new preview URL for the `Post` content type to:
+In your Kontent.ai project, go to **Project Settings > Preview URLs** and set a new preview URL for the `Post` content type to:
 
 ```plain
 http://localhost:3000/api/preview?secret=<KONTENT_PREVIEW_SECRET>&slug={URLslug}
@@ -188,8 +186,8 @@ Once saved, go to one of the posts you've created and:
 
 - Create a new version of the post
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
-  > Mind the title also regenerates the URL slug, if you want to change any other field that does not influence URL slug, feel free to do so.
-- **Do not** publish it. By doing this, the post will be in draft workflow step.
+  > Mind the title also regenerates the URL slug, if you want to change any other field that does not influence the URL slug, feel free to do so.
+- **Do not** publish it. By doing this, the post will be in the draft workflow step.
 - On the menu, you will see the **Preview** button. Click on it!
 
 ![Post preview button](./docs/post-preview-button.png).
@@ -202,7 +200,7 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 
 #### Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import it to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 

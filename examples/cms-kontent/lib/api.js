@@ -1,4 +1,4 @@
-import { DeliveryClient } from '@kentico/kontent-delivery'
+import { DeliveryClient } from '@kontent-ai/delivery-sdk'
 import pkg from '../package.json'
 
 const sourceTrackingHeaderName = 'X-KC-SOURCE'

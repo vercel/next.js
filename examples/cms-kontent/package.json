@@ -6,13 +6,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "@kentico/kontent-delivery": "^11.13.0",
+    "@kontent-ai/delivery-sdk": "^12.4.2",
     "classnames": "2.3.1",
     "date-fns": "2.28.0",
     "gray-matter": "4.0.3",
     "next": "latest",
-    "react": "^18.1.0",
-    "react-dom": "^18.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "remark": "14.0.2",
     "remark-html": "15.0.1"
   },

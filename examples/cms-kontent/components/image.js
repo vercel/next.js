@@ -1,5 +1,5 @@
 import NextImage from 'next/image'
-import { transformImageUrl } from '@kentico/kontent-delivery'
+import { transformImageUrl } from '@kontent-ai/delivery-sdk'
 
 const srcIsKontentAsset = (src) => {
   try {
