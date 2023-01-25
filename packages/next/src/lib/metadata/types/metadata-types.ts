@@ -64,7 +64,8 @@ export type Robots = {
   googleBot?: string | Robots
 }
 
-export type Icon = string | IconDescriptor | URL
+export type IconURL = string | URL
+export type Icon = IconURL | IconDescriptor
 export type IconDescriptor = {
   url: string | URL
   type?: string
@@ -74,20 +75,27 @@ export type IconDescriptor = {
 }
 export type Icons = {
   // rel="icon"
-  icon?: Icon | Array<Icon>
+  icon?: Icon | Icon[]
   // rel="shortcut icon"
-  shortcut?: Icon | Array<Icon>
+  shortcut?: Icon | Icon[]
   // rel="apple-touch-icon"
-  apple?: Icon | Array<Icon>
+  apple?: Icon | Icon[]
   // rel inferred from descriptor, defaults to "icon"
-  other?: Icon | Array<Icon>
+  other?: IconDescriptor | IconDescriptor[]
 }
 
 export type Verification = {
-  google?: null | string | number | Array<string | number>
-  yahoo?: null | string | number | Array<string | number>
+  google?: null | string | number | (string | number)[]
+  yahoo?: null | string | number | (string | number)[]
   // if you ad-hoc additional verification
   other?: {
-    [name: string]: string | number | Array<string | number>
+    [name: string]: string | number | (string | number)[]
   }
+}
+
+export type ResolvedIcons = {
+  icon?: IconDescriptor[]
+  shortcut?: IconDescriptor[]
+  apple?: IconDescriptor[]
+  other?: IconDescriptor[]
 }
