@@ -79,6 +79,9 @@ pub struct TransformOptions {
     pub pages_dir: Option<PathBuf>,
 
     #[serde(default)]
+    pub app_dir: Option<PathBuf>,
+
+    #[serde(default)]
     pub is_page_file: bool,
 
     #[serde(default)]
@@ -162,6 +165,7 @@ where
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
+                    opts.app_dir.clone()
                 )),
             _ => Either::Right(noop()),
         },
@@ -235,7 +239,7 @@ where
                                 config.clone(),
                                 path,
                                 cm,
-                                comments,
+                                comments.clone(),
                             ),
                         )
                     })
@@ -257,8 +261,11 @@ where
             None => Either::Right(noop()),
         },
         match &opts.server_actions {
-            Some(config) =>
-                Either::Left(server_actions::server_actions(&file.name, config.clone())),
+            Some(config) => Either::Left(server_actions::server_actions(
+                &file.name,
+                config.clone(),
+                comments,
+            )),
             None => Either::Right(noop()),
         },
     )

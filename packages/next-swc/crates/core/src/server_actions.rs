@@ -1,11 +1,16 @@
 use next_binding::swc::core::{
-    common::{errors::HANDLER, util::take::Take, FileName, DUMMY_SP},
+    common::{
+        comments::{Comment, CommentKind, Comments},
+        errors::HANDLER,
+        util::take::Take,
+        BytePos, FileName, DUMMY_SP,
+    },
     ecma::{
         ast::{
             op, ArrayLit, AssignExpr, BlockStmt, CallExpr, ComputedPropName, Decl, ExportDecl,
             Expr, ExprStmt, FnDecl, Function, Id, Ident, KeyValueProp, Lit, MemberExpr, MemberProp,
-            ModuleDecl, ModuleItem, PatOrExpr, Prop, PropName, ReturnStmt, Stmt, Str, VarDecl,
-            VarDeclKind, VarDeclarator,
+            Module, ModuleDecl, ModuleItem, PatOrExpr, Prop, PropName, ReturnStmt, Stmt, Str,
+            VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident, ExprFactory},
@@ -19,14 +24,23 @@ use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub struct Config {}
+pub struct Config {
+    pub is_server: bool,
+}
 
-pub fn server_actions(file_name: &FileName, config: Config) -> impl VisitMut + Fold {
+pub fn server_actions<C: Comments>(
+    file_name: &FileName,
+    config: Config,
+    comments: C,
+) -> impl VisitMut + Fold {
     as_folder(ServerActions {
         config,
+        comments,
         file_name: file_name.clone(),
+        start_pos: BytePos(0),
         in_action_file: false,
         in_export_decl: false,
+        has_action: false,
         top_level: false,
         closure_candidates: Default::default(),
         annotations: Default::default(),
@@ -34,13 +48,16 @@ pub fn server_actions(file_name: &FileName, config: Config) -> impl VisitMut + F
     })
 }
 
-struct ServerActions {
+struct ServerActions<C: Comments> {
     #[allow(unused)]
     config: Config,
     file_name: FileName,
+    comments: C,
 
+    start_pos: BytePos,
     in_action_file: bool,
     in_export_decl: bool,
+    has_action: bool,
     top_level: bool,
 
     closure_candidates: Vec<Id>,
@@ -49,7 +66,7 @@ struct ServerActions {
     extra_items: Vec<ModuleItem>,
 }
 
-impl VisitMut for ServerActions {
+impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_export_decl(&mut self, decl: &mut ExportDecl) {
         let old = self.in_export_decl;
         self.in_export_decl = true;
@@ -97,6 +114,8 @@ impl VisitMut for ServerActions {
         let action_name: JsWord = format!("$ACTION_{}", f.ident.sym).into();
         let action_ident = private_ident!(action_name.clone());
 
+        self.has_action = true;
+
         // myAction.$$typeof = Symbol.for('react.action.reference');
         self.annotations.push(annotate(
             &f.ident,
@@ -124,22 +143,24 @@ impl VisitMut for ServerActions {
             .push(annotate(&f.ident, "$$name", action_name.into()));
 
         if self.top_level {
-            // export const $ACTION_myAction = myAction;
-            self.extra_items
-                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    span: DUMMY_SP,
-                    decl: Decl::Var(Box::new(VarDecl {
+            if !(self.in_action_file && self.in_export_decl) {
+                // export const $ACTION_myAction = myAction;
+                self.extra_items
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                         span: DUMMY_SP,
-                        kind: VarDeclKind::Const,
-                        declare: Default::default(),
-                        decls: vec![VarDeclarator {
+                        decl: Decl::Var(Box::new(VarDecl {
                             span: DUMMY_SP,
-                            name: action_ident.into(),
-                            init: Some(f.ident.clone().into()),
-                            definite: Default::default(),
-                        }],
-                    })),
-                })));
+                            kind: VarDeclKind::Const,
+                            declare: Default::default(),
+                            decls: vec![VarDeclarator {
+                                span: DUMMY_SP,
+                                name: action_ident.into(),
+                                init: Some(f.ident.clone().into()),
+                                definite: Default::default(),
+                            }],
+                        })),
+                    })));
+            }
         } else {
             // Hoist the function to the top level.
 
@@ -215,18 +236,9 @@ impl VisitMut for ServerActions {
         }
     }
 
-    fn visit_mut_module_item(&mut self, s: &mut ModuleItem) {
-        s.visit_mut_children_with(self);
-
-        if self.in_action_file {
-            if let ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                decl: decl @ Decl::Fn(..),
-                ..
-            })) = s
-            {
-                *s = ModuleItem::Stmt(Stmt::Decl(decl.take()));
-            }
-        }
+    fn visit_mut_module(&mut self, m: &mut Module) {
+        self.start_pos = m.span.lo;
+        m.visit_mut_children_with(self);
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
@@ -234,6 +246,7 @@ impl VisitMut for ServerActions {
             match &*first.expr {
                 Expr::Lit(Lit::Str(Str { value, .. })) if value == "use action" => {
                     self.in_action_file = true;
+                    self.has_action = true;
                 }
                 _ => {}
             }
@@ -258,6 +271,18 @@ impl VisitMut for ServerActions {
         *stmts = new;
 
         self.annotations = old_annotations;
+
+        if self.has_action {
+            // Prepend a special comment to the top of the file.
+            self.comments.add_leading(
+                self.start_pos,
+                Comment {
+                    span: DUMMY_SP,
+                    kind: CommentKind::Block,
+                    text: " __next_internal_action_entry_do_not_use__ ".into(),
+                },
+            );
+        }
     }
 
     fn visit_mut_stmts(&mut self, stmts: &mut Vec<Stmt>) {

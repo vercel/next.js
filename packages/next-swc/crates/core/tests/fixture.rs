@@ -252,6 +252,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: true },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,
@@ -272,6 +273,7 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: false },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,
@@ -305,7 +307,8 @@ fn server_actions_fixture(input: PathBuf) {
         &|_tr| {
             server_actions(
                 &FileName::Real("/app/item.js".into()),
-                server_actions::Config {},
+                server_actions::Config { is_server: true },
+                _tr.comments.as_ref().clone(),
             )
         },
         &input,
