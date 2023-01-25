@@ -64,6 +64,7 @@ interface IEntry {
       ? "runtime?: 'nodejs' | 'experimental-edge' | 'edge'"
       : ''
   }
+  metadata?: any
 }
 
 // =============

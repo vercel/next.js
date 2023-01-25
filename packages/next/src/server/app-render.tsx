@@ -45,8 +45,8 @@ import {
   RSC,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
-import { DefaultHead } from '../client/components/head'
 import { formatServerError } from '../lib/format-server-error'
+import { Metadata } from '../lib/metadata/metadata'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
@@ -975,6 +975,12 @@ export async function renderToHTMLOrFlight(
      */
     const loaderTree: LoaderTree = ComponentMod.tree
 
+    /**
+     * The metadata items array created in next-app-loader with all relevant information
+     * that we need to resolve the final metadata.
+     */
+    const metadataItems = ComponentMod.metadata
+
     stripInternalQueries(query)
 
     const LayoutRouter =
@@ -1058,8 +1064,7 @@ export async function renderToHTMLOrFlight(
 
     async function resolveHead(
       [segment, parallelRoutes, { head }]: LoaderTree,
-      parentParams: { [key: string]: any },
-      isRootHead: boolean
+      parentParams: { [key: string]: any }
     ): Promise<React.ReactNode> {
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
@@ -1077,7 +1082,7 @@ export async function renderToHTMLOrFlight(
             parentParams
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const returnedHead = await resolveHead(childTree, currentParams, false)
+        const returnedHead = await resolveHead(childTree, currentParams)
         if (returnedHead) {
           return returnedHead
         }
@@ -1086,8 +1091,6 @@ export async function renderToHTMLOrFlight(
       if (head) {
         const Head = await interopDefault(await head[0]())
         return <Head params={currentParams} />
-      } else if (isRootHead) {
-        return <DefaultHead />
       }
 
       return null
@@ -1694,7 +1697,7 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const rscPayloadHead = await resolveHead(loaderTree, {}, true)
+      const rscPayloadHead = await resolveHead(loaderTree, {})
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1705,7 +1708,13 @@ export async function renderToHTMLOrFlight(
             parentParams: {},
             flightRouterState: providedFlightRouterState,
             isFirst: true,
-            rscPayloadHead,
+            rscPayloadHead: (
+              <>
+                {/* @ts-expect-error allow to use async server component */}
+                <Metadata metadata={metadataItems} />
+                {rscPayloadHead}
+              </>
+            ),
             injectedCSS: new Set(),
             rootLayoutIncluded: false,
           })
@@ -1772,7 +1781,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const initialHead = await resolveHead(loaderTree, {}, true)
+    const initialHead = await resolveHead(loaderTree, {})
 
     /**
      * A new React Component that renders the provided React Component
@@ -1789,18 +1798,27 @@ export async function renderToHTMLOrFlight(
           injectedCSS: new Set(),
           rootLayoutIncluded: false,
         })
+
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
         return (
-          <AppRouter
-            assetPrefix={assetPrefix}
-            initialCanonicalUrl={initialCanonicalUrl}
-            initialTree={initialTree}
-            initialHead={initialHead}
-            globalErrorComponent={GlobalError}
-          >
-            <ComponentTree />
-          </AppRouter>
+          <>
+            <AppRouter
+              assetPrefix={assetPrefix}
+              initialCanonicalUrl={initialCanonicalUrl}
+              initialTree={initialTree}
+              initialHead={
+                <>
+                  {/* @ts-expect-error allow to use async server component */}
+                  <Metadata metadata={metadataItems} />
+                  {initialHead}
+                </>
+              }
+              globalErrorComponent={GlobalError}
+            >
+              <ComponentTree />
+            </AppRouter>
+          </>
         )
       },
       ComponentMod,
