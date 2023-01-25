@@ -3,6 +3,7 @@ extern crate test_generator;
 
 use std::{
     env,
+    fmt::Write,
     net::SocketAddr,
     path::{Path, PathBuf},
     time::Duration,
@@ -11,6 +12,13 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use chromiumoxide::{
     browser::{Browser, BrowserConfig},
+    cdp::{
+        browser_protocol::network::EventResponseReceived,
+        js_protocol::runtime::{
+            AddBindingParams, EventBindingCalled, EventConsoleApiCalled, EventExceptionThrown,
+            PropertyPreview, RemoteObject,
+        },
+    },
     error::CdpError::Ws,
 };
 use futures::StreamExt;
@@ -207,49 +215,152 @@ async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinHandle<()>)>
 }
 
 async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
-    if *DEBUG_BROWSER {
-        run_debug_browser(addr).await?;
-    }
-
-    run_test_browser(addr).await
+    run_test_browser(addr, *DEBUG_BROWSER).await
 }
 
-async fn run_debug_browser(addr: SocketAddr) -> Result<()> {
-    let (browser, handle) = create_browser(true).await?;
-    let page = browser.new_page(format!("http://{}", addr)).await?;
-
-    let run_tests_msg =
-        "Entering debug mode. Run `await __jest__.run()` in the browser console to run tests.";
-    println!("\n\n{}", run_tests_msg);
-    page.evaluate(format!(
-        r#"console.info("%cTurbopack tests:", "font-weight: bold;", "{}");"#,
-        run_tests_msg
-    ))
-    .await?;
-
-    // Wait for the user to close the browser
-    handle.await?;
-
-    Ok(())
-}
-
-async fn run_test_browser(addr: SocketAddr) -> Result<JestRunResult> {
-    let (browser, _) = create_browser(false).await?;
+async fn run_test_browser(addr: SocketAddr, is_debugging: bool) -> Result<JestRunResult> {
+    let (browser, mut handle) = create_browser(is_debugging).await?;
 
     // `browser.new_page()` opens a tab, navigates to the destination, and waits for
     // the page to load. chromiumoxide/Chrome DevTools Protocol has been flakey,
     // returning `ChannelSendError`s (WEB-259). Retry if necessary.
     let page = retry_async(
         (),
-        |_| browser.new_page(format!("http://{}", addr)),
+        |_| browser.new_page("about:blank"),
         5,
         Duration::from_millis(100),
     )
     .await
     .context("Failed to create new browser page")?;
 
-    let value = page.evaluate("globalThis.waitForTests?.() ?? __jest__.run()");
-    Ok(value.await?.into_value()?)
+    page.execute(AddBindingParams::new("READY")).await?;
+
+    let mut errors = page
+        .event_listener::<EventExceptionThrown>()
+        .await
+        .context("Unable to listen to exception events")?;
+    let mut binding_events = page
+        .event_listener::<EventBindingCalled>()
+        .await
+        .context("Unable to listen to binding events")?;
+    let mut console_events = page
+        .event_listener::<EventConsoleApiCalled>()
+        .await
+        .context("Unable to listen to console events")?;
+    let mut network_response_events = page
+        .event_listener::<EventResponseReceived>()
+        .await
+        .context("Unable to listen to response received events")?;
+
+    page.evaluate_expression(format!("window.location='http://{addr}'"))
+        .await
+        .context("Unable to evaluate javascript to naviagate to target page")?;
+
+    // Wait for the next network response event
+    // This is the HTML page that we're testing
+    network_response_events.next().await.context(
+        "Network events channel ended unexpectedly while waiting on the network response",
+    )?;
+
+    if is_debugging {
+        let _ = page.evaluate(
+            r#"console.info("%cTurbopack tests:", "font-weight: bold;", "Waiting for READY to be signaled by page...");"#,
+        )
+        .await;
+    }
+
+    let mut errors_next = errors.next();
+    let mut bindings_next = binding_events.next();
+    let mut console_next = console_events.next();
+    let mut network_next = network_response_events.next();
+
+    loop {
+        tokio::select! {
+            event = &mut console_next => {
+                if let Some(event) = event {
+                    println!(
+                        "console {:?}: {}",
+                        event.r#type,
+                        event
+                            .args
+                            .iter()
+                            .filter_map(|a| a.value.as_ref().map(|v| format!("{:?}", v)))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                } else {
+                    return Err(anyhow!("Console events channel ended unexpectedly"));
+                }
+                console_next = console_events.next();
+            }
+            event = &mut errors_next => {
+                if let Some(event) = event {
+                    let mut message = String::new();
+                    let d = &event.exception_details;
+                    writeln!(message, "{}", d.text)?;
+                    if let Some(RemoteObject { preview: Some(ref exception), .. }) = d.exception {
+                        if let Some(PropertyPreview{ value: Some(ref exception_message), .. }) = exception.properties.iter().find(|p| p.name == "message") {
+                            writeln!(message, "{}", exception_message)?;
+                        }
+                    }
+                    if let Some(stack_trace) = &d.stack_trace {
+                        for frame in &stack_trace.call_frames {
+                            writeln!(message, "    at {} ({}:{}:{})", frame.function_name, frame.url, frame.line_number, frame.column_number)?;
+                        }
+                    }
+                    let message = message.trim_end();
+                    if !is_debugging {
+                        return Err(anyhow!(
+                            "Exception throw in page: {}",
+                            message
+                        ))
+                    } else {
+                        println!("Exception throw in page (this would fail the test case without TURBOPACK_DEBUG_BROWSER):\n{}", message);
+                    }
+                } else {
+                    return Err(anyhow!("Error events channel ended unexpectedly"));
+                }
+                errors_next = errors.next();
+            }
+            event = &mut bindings_next => {
+                if event.is_some() {
+                    if is_debugging {
+                        let run_tests_msg =
+                            "Entering debug mode. Run `await __jest__.run()` in the browser console to run tests.";
+                        println!("\n\n{}", run_tests_msg);
+                        page.evaluate(format!(
+                            r#"console.info("%cTurbopack tests:", "font-weight: bold;", "{}");"#,
+                            run_tests_msg
+                        ))
+                        .await?;
+                    } else {
+                        let value = page.evaluate("__jest__.run()").await?.into_value()?;
+                        return Ok(value);
+                    }
+                } else {
+                    return Err(anyhow!("Binding events channel ended unexpectedly"));
+                }
+                bindings_next = binding_events.next();
+            }
+            event = &mut network_next => {
+                if let Some(event) = event {
+                    println!("network {} [{}]", event.response.url, event.response.status);
+                } else {
+                    return Err(anyhow!("Network events channel ended unexpectedly"));
+                }
+                network_next = network_response_events.next();
+            }
+            result = &mut handle => {
+                result?;
+                return Err(anyhow!("Browser closed"));
+            }
+            () = tokio::time::sleep(Duration::from_secs(60)) => {
+                if !is_debugging {
+                    return Err(anyhow!("Test timeout while waiting for READY"));
+                }
+            }
+        };
+    }
 }
 
 fn get_free_local_addr() -> Result<SocketAddr, std::io::Error> {

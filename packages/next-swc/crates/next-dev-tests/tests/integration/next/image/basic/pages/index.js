@@ -2,10 +2,6 @@ import Image from "next/image";
 import { img } from "../components/img";
 import { useEffect } from "react";
 
-import { Deferred } from "@turbo/pack-test-harness/deferred";
-
-let testResult = new Deferred();
-
 export default function Home() {
   useEffect(() => {
     // Only run on client
@@ -30,10 +26,6 @@ export default function Home() {
   ];
 }
 
-globalThis.waitForTests = function () {
-  return testResult.promise;
-};
-
 function runTests() {
   console.log(document.querySelectorAll("img"));
   it("it should link to imported image", function () {
@@ -45,6 +37,4 @@ function runTests() {
     const img = document.querySelector("#local");
     expect(img.src).toContain("triangle-black");
   });
-
-  testResult.resolve(__jest__.run());
 }

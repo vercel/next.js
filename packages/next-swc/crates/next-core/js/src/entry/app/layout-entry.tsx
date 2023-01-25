@@ -9,3 +9,4 @@ export { serverHooks };
 export { renderToReadableStream } from "next/dist/compiled/react-server-dom-webpack/server.browser";
 
 export { default } from ".";
+export * from ".";
