@@ -126,6 +126,7 @@ impl EcmascriptChunkVc {
             .resolve()
             .await?;
         for path in paths {
+            let path = path.resolve().await?;
             while !*path.is_inside_or_equal(current).await? {
                 let parent = current.parent().resolve().await?;
                 if parent == current {
