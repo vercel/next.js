@@ -810,8 +810,9 @@ impl FileSystemPathVc {
             )
         }
         if let Some((path, ext)) = this.path.rsplit_once('.') {
-            // check if `ext` is a real extension, and not a "." in a directory name
-            if !ext.contains('/') {
+            // check if `ext` is a real extension, and not a "." in a directory name or a
+            // .dotfile
+            if !ext.contains('/') && !(path.ends_with('/') && !path.is_empty()) {
                 return Ok(Self::new_normalized(
                     this.fs,
                     format!("{}{}.{}", path, appending, ext),

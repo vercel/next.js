@@ -67,7 +67,7 @@ const LOCAL_CHUNK_MERGE_THRESHOLD: usize = 10;
 const TOTAL_CHUNK_MERGE_THRESHOLD: usize = 10;
 
 #[turbo_tasks::function]
-async fn optimize_css(local: Option<ChunksVc>, children: Option<ChunksVc>) -> Result<ChunksVc> {
+async fn optimize_css(local: Option<ChunksVc>, children: Vec<ChunksVc>) -> Result<ChunksVc> {
     let mut chunks = Vec::new();
     // TODO optimize
     if let Some(local) = local {
@@ -83,7 +83,7 @@ async fn optimize_css(local: Option<ChunksVc>, children: Option<ChunksVc>) -> Re
         }
         chunks.append(&mut local);
     }
-    if let Some(children) = children {
+    for children in children {
         let mut children = children.await?.iter().copied().map(css).try_join().await?;
         chunks.append(&mut children);
     }
@@ -96,6 +96,7 @@ async fn optimize_css(local: Option<ChunksVc>, children: Option<ChunksVc>) -> Re
     if chunks.len() > TOTAL_CHUNK_MERGE_THRESHOLD {
         let size = chunks.len().div_ceil(TOTAL_CHUNK_MERGE_THRESHOLD);
         // TODO be smarter in selecting the chunks to merge
+        // see ecmascript implementation
         for merged in take(&mut chunks).chunks(size) {
             chunks.push(merge_chunks(*merged.first().unwrap(), merged).await?);
         }
