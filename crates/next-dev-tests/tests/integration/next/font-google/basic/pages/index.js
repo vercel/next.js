@@ -1,10 +1,7 @@
 import { useEffect } from "react";
 import { Inter } from "@next/font/google";
-import { Deferred } from "@turbo/pack-test-harness/deferred";
 
 const interNoArgs = Inter();
-
-let testResult = new Deferred();
 
 export default function Home() {
   useEffect(() => {
@@ -14,10 +11,6 @@ export default function Home() {
 
   return <div className={interNoArgs.className}>Test</div>;
 }
-
-globalThis.waitForTests = function () {
-  return testResult.promise;
-};
 
 function runTests() {
   it("returns structured data about the font styles from the font function", () => {
@@ -55,6 +48,4 @@ function runTests() {
     expect(matchingRule.style.fontFamily).toEqual("__Inter_34ab8b4d");
     expect(matchingRule.style.fontStyle).toEqual("normal");
   });
-
-  testResult.resolve(__jest__.run());
 }

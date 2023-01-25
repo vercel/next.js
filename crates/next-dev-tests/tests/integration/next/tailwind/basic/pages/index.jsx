@@ -1,9 +1,6 @@
 import Head from "next/head";
 import Image from "next/image";
 import { useEffect } from "react";
-import { Deferred } from "@turbo/pack-test-harness/deferred";
-
-let testResult = new Deferred();
 
 const Home = () => {
   useEffect(() => {
@@ -92,15 +89,10 @@ const Home = () => {
 
 export default Home;
 
-globalThis.waitForTests = function () {
-  return testResult.promise;
-};
-
 function runTests() {
   console.log(document.querySelectorAll("footer"));
   it("it should apply tailwind styles", function () {
     const footer = document.querySelector("footer");
     expect(getComputedStyle(footer).alignItems).toBe("center");
   });
-  testResult.resolve(__jest__.run());
 }

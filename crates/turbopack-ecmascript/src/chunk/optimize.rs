@@ -317,11 +317,11 @@ async fn merge_to_limit(
     while merged.len() > 1 && merged.len() + fully_merged.len() > target_count {
         let target = target_count - fully_merged.len();
         let size = merged.len().div_ceil(target);
-        let old_merged = std::mem::replace(&mut merged, Vec::new());
+        let old_merged = std::mem::take(&mut merged);
         for some in old_merged.chunks(size) {
             // TODO this collect looks unnecessary, but rust will complain about a
             // higher-level lifetime error otherwise
-            let some = some.iter().map(|c| *c).collect::<Vec<_>>();
+            let some = some.iter().copied().collect::<Vec<_>>();
             let mut part = merge_by_size(some).await?;
             merged.extend(part.pop().into_iter());
             fully_merged.append(&mut part);
