@@ -56,7 +56,7 @@ export interface Metadata {
   robots?: null | string | Robots
 
   // The canonical and alternate URLs for this location
-  alternates: AlternateURLs
+  alternates?: null | AlternateURLs
 
   // Defaults to rel="icon" but the Icons type can be used
   // to get more specific about rel types
@@ -71,7 +71,7 @@ export interface Metadata {
 
   // Apple web app metadata
   // https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
-  appleWebApp?: null | AppleWebApp
+  appleWebApp?: null | boolean | AppleWebApp
 
   // Should devices try to interpret various formats and make actionable links
   // out of them? The canonical example is telephone numbers on mobile that can

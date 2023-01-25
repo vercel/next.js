@@ -70,9 +70,9 @@ export type AppleImageDescriptor = {
 
 export type ResolvedAppleWebApp = {
   capable: boolean
-  title: string | null
-  startupImage: AppleImageDescriptor[] | null
-  statusBarStyle: 'default' | 'black' | 'black-translucent'
+  title?: string | null
+  startupImage?: AppleImageDescriptor[] | null
+  statusBarStyle?: 'default' | 'black' | 'black-translucent'
 }
 
 // Format Detection

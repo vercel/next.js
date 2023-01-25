@@ -76,6 +76,26 @@ function resolveViewport(
   return resolved
 }
 
+function resolveVerification(
+  verification: Metadata['verification']
+): ResolvedMetadata['verification'] {
+  const google = resolveAsArrayOrUndefined(verification?.google)
+  const yahoo = resolveAsArrayOrUndefined(verification?.yahoo)
+  let other: Record<string, (string | number)[]> | undefined
+  if (verification?.other) {
+    other = {}
+    for (const key in verification.other) {
+      const value = resolveAsArrayOrUndefined(verification.other[key])
+      if (value) other[key] = value
+    }
+  }
+  return {
+    google,
+    yahoo,
+    other,
+  }
+}
+
 function isUrlIcon(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
 }
@@ -111,6 +131,12 @@ function resolveAppleWebApp(
   appWebApp: Metadata['appleWebApp']
 ): ResolvedMetadata['appleWebApp'] {
   if (!appWebApp) return null
+  if (appWebApp === true) {
+    return {
+      capable: true,
+    }
+  }
+
   const startupImages = resolveAsArrayOrUndefined(appWebApp.startupImage)?.map(
     (item) => (typeof item === 'string' ? { url: item } : item)
   )
@@ -161,12 +187,20 @@ function merge(
       }
       case 'twitter': {
         if (source.twitter) {
+          // TODO: improve typing of merging
           target.twitter = source.twitter as ResolvedTwitterMetadata
           mergeTitle(target.twitter, templateStrings.twitter)
+          target.twitter.card = target.twitter.card || 'summary'
         } else {
           target.twitter = null
         }
         break
+      }
+      case 'verification':
+        target.verification = resolveVerification(source.verification)
+        break
+      case 'keywords': {
+        target.keywords = resolveAsArrayOrUndefined(source.keywords) || null
       }
       case 'viewport': {
         target.viewport = resolveViewport(source.viewport)
@@ -186,20 +220,29 @@ function merge(
       case 'assets':
       case 'bookmarks':
       case 'keywords':
+      case 'authors': {
+        // FIXME: type inferring
+        // @ts-ignore
         target[key] = resolveAsArrayOrUndefined(source[key]) || null
-        break
-      case 'authors':
-        // TODO: improve type infer for resolveAsArrayOrUndefined
-        target[key] = resolveAsArrayOrUndefined(source[key]) || null
-        break
-      default: {
-        // TODO: Make sure the type is correct.
-        if (!invalidKeys.includes(key)) {
-          // @ts-ignore
-          target[key] = source[key] || null
-        }
         break
       }
+      // directly assign fields that fallback to null
+      case 'applicationName':
+      case 'description':
+      case 'generator':
+      case 'themeColor':
+      case 'creator':
+      case 'publisher':
+      case 'referrer':
+      case 'colorScheme':
+        // TODO: support inferring
+        // @ts-ignore
+        target[key] = source[key] || null
+        break
+      // TODO: support more fields
+      // case 'robots':
+      default:
+        break
     }
   }
 }

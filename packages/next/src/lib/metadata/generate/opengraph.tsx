@@ -221,3 +221,51 @@ export function ResolvedOpenGraphMetadata({
     </>
   )
 }
+
+export function TwitterMetadata({
+  twitter,
+}: {
+  twitter: ResolvedMetadata['twitter']
+}) {
+  if (!twitter) return null
+  const { card } = twitter
+
+  return (
+    <>
+      <Meta name="twitter:card" content={card} />
+      <Meta name="twitter:site" content={twitter.site} />
+      <Meta name="twitter:creator" content={twitter.card} />
+      <Meta name="twitter:title" content={twitter.card} />
+      <Meta name="twitter:description" content={twitter.card} />
+      <MultiMeta propertyPrefix="twitter:image" contents={twitter.images} />
+      {card === 'player'
+        ? twitter.players.map((player) => (
+            <>
+              <Meta name="twitter:player" content={player.url.toString()} />
+              <Meta name="twitter:player:width" content={player.width} />
+              <Meta name="twitter:player:height" content={player.height} />
+            </>
+          ))
+        : null}
+      {card === 'app' ? (
+        <>
+          <Meta name="twitter:app:id:player" content={twitter.app.id?.iphone} />
+          <Meta name="twitter:app:id:ipad" content={twitter.app.id?.ipad} />
+          <Meta
+            name="twitter:app:id:googleplay"
+            content={twitter.app.id?.googleplay}
+          />
+          <Meta
+            name="twitter:app:url:iphone"
+            content={twitter.app.url?.iphone}
+          />
+          <Meta name="twitter:app:url:ipad" content={twitter.app.url?.ipad} />
+          <Meta
+            name="twitter:app:url:googleplay"
+            content={twitter.app.url?.googleplay}
+          />
+        </>
+      ) : null}
+    </>
+  )
+}

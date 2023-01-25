@@ -8,7 +8,10 @@ import {
   ResolvedBasicMetadata,
 } from './generate/basic'
 import { ResolvedAlternatesMetadata } from './generate/alternate'
-import { ResolvedOpenGraphMetadata } from './generate/opengraph'
+import {
+  ResolvedOpenGraphMetadata,
+  TwitterMetadata,
+} from './generate/opengraph'
 import { resolveMetadata } from './resolve-metadata'
 import { ResolvedIconsMetadata } from './generate/icons'
 
@@ -25,6 +28,7 @@ export async function Metadata({ metadata }: { metadata: any }) {
       <FormatDetectionMeta formatDetection={resolved.formatDetection} />
       <AppleWebAppMeta appleWebApp={resolved.appleWebApp} />
       <ResolvedOpenGraphMetadata openGraph={resolved.openGraph} />
+      <TwitterMetadata twitter={resolved.twitter} />
       <ResolvedIconsMetadata icons={resolved.icons} />
     </>
   )

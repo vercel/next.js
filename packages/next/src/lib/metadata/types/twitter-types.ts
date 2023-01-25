@@ -55,12 +55,27 @@ type TwitterImageDescriptor = {
   height?: string | number
 }
 type TwitterPlayerDescriptor = {
-  playerUrl: string | URL
-  streamUrl: string | URL
+  url: string | URL
   width: number
   height: number
 }
 
-export type ResolvedTwitterMetadata = Omit<TwitterMetadata, 'title'> & {
-  title: AbsoluteTemplateString | null
+type ResolvedTwitterSummary = {
+  site: string
+  siteId: string
+  creator: string
+  creatorId: string
+  description: string
+  title: AbsoluteTemplateString
+  images: Array<TwitterImage>
 }
+type ResolvedTwitterPlayer = ResolvedTwitterSummary & {
+  players: Array<TwitterPlayerDescriptor>
+}
+type ResolvedTwitterApp = ResolvedTwitterSummary & { app: TwitterAppDescriptor }
+
+export type ResolvedTwitterMetadata =
+  | ({ card: 'summary' } & ResolvedTwitterSummary)
+  | ({ card: 'summary_large_image' } & ResolvedTwitterSummary)
+  | ({ card: 'player' } & ResolvedTwitterPlayer)
+  | ({ card: 'app' } & ResolvedTwitterApp)
