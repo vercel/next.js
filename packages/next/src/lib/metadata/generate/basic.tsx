@@ -1,13 +1,9 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
-import { Meta, MultiMeta } from './meta'
+import { Meta } from './meta'
 
-export function ResolvedBasicMetadata({
-  metadata,
-}: {
-  metadata: ResolvedMetadata
-}) {
+export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
   return (
     <>
       <meta charSet="utf-8" />

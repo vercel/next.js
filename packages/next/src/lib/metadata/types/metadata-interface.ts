@@ -145,7 +145,7 @@ export interface ResolvedMetadata {
   robots: null | string
 
   // The canonical and alternate URLs for this location
-  alternates: ResolvedAlternateURLs
+  alternates: null | ResolvedAlternateURLs
 
   // Defaults to rel="icon" but the Icons type can be used
   // to get more specific about rel types

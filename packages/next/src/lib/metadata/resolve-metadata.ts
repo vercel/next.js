@@ -25,8 +25,6 @@ const viewPortKeys = {
   viewportFit: 'viewport-fit',
 } as const
 
-const invalidKeys = ['apple-touch-fullscreen', 'apple-touch-icon-precomposed']
-
 type Item =
   | {
       type: 'layout' | 'page'
@@ -268,13 +266,20 @@ function merge(
       case 'classification':
       case 'referrer':
       case 'colorScheme':
+      case 'itunes':
+      case 'alternates':
+      case 'formatDetection':
       case 'other':
-        // TODO: support inferring
-        // @ts-ignore
+        // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
         break
       // TODO: support more fields
-      // case 'robots':
+      case 'robots': {
+        // TODO: resolve robots
+        if (typeof source.robots === 'string') {
+          target.robots = source.robots
+        }
+      }
       default:
         break
     }

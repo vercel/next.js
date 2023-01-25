@@ -4,7 +4,7 @@ import React from 'react'
 import { Meta, MultiMeta } from './meta'
 import { TwitterAppDescriptor } from '../types/twitter-types'
 
-export function ResolvedOpenGraphMetadata({
+export function OpenGraphMetadata({
   openGraph,
 }: {
   openGraph: ResolvedMetadata['openGraph']
@@ -251,6 +251,7 @@ export function TwitterMetadata({
     <>
       <Meta name="twitter:card" content={card} />
       <Meta name="twitter:site" content={twitter.site} />
+      <Meta name="twitter:site:id" content={twitter.siteId} />
       <Meta name="twitter:creator" content={twitter.creator} />
       <Meta name="twitter:creator:id" content={twitter.creatorId} />
       <Meta name="twitter:title" content={twitter.title?.absolute} />

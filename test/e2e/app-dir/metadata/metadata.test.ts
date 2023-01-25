@@ -45,12 +45,26 @@ createNextDescribe(
         if (Array.isArray(content)) {
           expect(values).toEqual(content)
         } else {
-          expect(values[0]).toContain(content)
+          expect(values[0]).toBe(content)
         }
       }
 
-      const checkLink = (browser, name, content) =>
-        checkMeta(browser, name, content, 'rel', 'link', 'href')
+      const checkMetaPropertyContentPair = (
+        browser: BrowserInterface,
+        name: string,
+        content: string | string[]
+      ) => checkMeta(browser, name, content, 'property')
+      const checkMetaNameContentPair = (
+        browser: BrowserInterface,
+        name: string,
+        content: string | string[]
+      ) => checkMeta(browser, name, content, 'name')
+
+      const checkLink = (
+        browser: BrowserInterface,
+        name: string,
+        content: string | string[]
+      ) => checkMeta(browser, name, content, 'rel', 'link', 'href')
 
       describe('basic', () => {
         it('should support title and description', async () => {
@@ -58,11 +72,10 @@ createNextDescribe(
           expect(await browser.eval(`document.title`)).toBe(
             'this is the page title'
           )
-          await checkMeta(
+          await checkMetaNameContentPair(
             browser,
             'description',
-            'this is the layout description',
-            'name'
+            'this is the layout description'
           )
         })
 
@@ -87,76 +100,67 @@ createNextDescribe(
 
         it('should support other basic tags', async () => {
           const browser = await next.browser('/basic')
-          await checkMeta(browser, 'generator', 'next.js', 'name')
-          await checkMeta(browser, 'application-name', 'test', 'name')
-          await checkMeta(
+          await checkMetaNameContentPair(browser, 'generator', 'next.js')
+          await checkMetaNameContentPair(browser, 'application-name', 'test')
+          await checkMetaNameContentPair(
             browser,
             'referrer',
-            'origin-when-crossorigin',
-            'name'
+            'origin-when-crossorigin'
           )
-          await checkMeta(
+          await checkMetaNameContentPair(
             browser,
             'keywords',
-            'next.js,react,javascript',
-            'name'
+            'next.js,react,javascript'
           )
-          await checkMeta(browser, 'author', 'John Doe,Jane Doe', 'name')
-          await checkMeta(browser, 'theme-color', 'cyan', 'name')
-          await checkMeta(browser, 'color-scheme', 'dark', 'name')
-          await checkMeta(
+          await checkMetaNameContentPair(browser, 'author', 'John Doe,Jane Doe')
+          await checkMetaNameContentPair(browser, 'theme-color', 'cyan')
+          await checkMetaNameContentPair(browser, 'color-scheme', 'dark')
+          await checkMetaNameContentPair(
             browser,
             'viewport',
-            'width=device-width, initial-scale=1, shrink-to-fit=no',
-            'name'
+            'width=device-width, initial-scale=1, shrink-to-fit=no'
           )
-          await checkMeta(browser, 'creator', 'shu', 'name')
-          await checkMeta(browser, 'publisher', 'vercel', 'name')
-          await checkMeta(browser, 'robots', 'index, follow', 'name')
+          await checkMetaNameContentPair(browser, 'creator', 'shu')
+          await checkMetaNameContentPair(browser, 'publisher', 'vercel')
+          await checkMetaNameContentPair(browser, 'robots', 'index, follow')
 
-          await checkMeta(
+          await checkMetaNameContentPair(
             browser,
             'format-detection',
-            'telephone=no, address=no, email=no',
-            'name'
+            'telephone=no, address=no, email=no'
           )
         })
 
         it('should support object viewport', async () => {
           const browser = await next.browser('/viewport/object')
-          await checkMeta(
+          await checkMetaNameContentPair(
             browser,
             'viewport',
-            'width=device-width, initial-scale=1, maximum-scale=1',
-            'name'
+            'width=device-width, initial-scale=1, maximum-scale=1'
           )
         })
 
         it('should support apple related tags `itunes` and `appWebApp`', async () => {
           const browser = await next.browser('/apple')
-          await checkMeta(
+          await checkMetaNameContentPair(
             browser,
             'apple-itunes-app',
-            'app-id=myAppStoreID, app-argument=myAppArgument',
-            'name'
+            'app-id=myAppStoreID, app-argument=myAppArgument'
           )
-          await checkMeta(
+          await checkMetaNameContentPair(
             browser,
             'apple-mobile-web-app-capable',
-            'yes',
-            'name'
+            'yes'
           )
-          await checkMeta(
+          await checkMetaNameContentPair(
             browser,
             'apple-mobile-web-app-title',
-            'Apple Web App',
-            'name'
+            'Apple Web App'
           )
-          await checkMeta(
+          await checkMetaNameContentPair(
             browser,
             'apple-mobile-web-app-status-bar-style',
-            'black-translucent',
-            'name'
+            'black-translucent'
           )
 
           expect(
@@ -186,14 +190,7 @@ createNextDescribe(
 
         it('should support alternate tags', async () => {
           const browser = await next.browser('/alternate')
-          await checkMeta(
-            browser,
-            'canonical',
-            'https://example.com',
-            'rel',
-            'link',
-            'href'
-          )
+          await checkLink(browser, 'canonical', 'https://example.com')
           await checkMeta(
             browser,
             'en-US',
@@ -237,11 +234,10 @@ createNextDescribe(
             .click()
             .waitForElementByCss('#basic', 2000)
 
-          await checkMeta(
+          await checkMetaNameContentPair(
             browser,
             'referrer',
-            'origin-when-crossorigin',
-            'name'
+            'origin-when-crossorigin'
           )
           await browser.back().waitForElementByCss('#index', 2000)
           expect(await getTitle(browser)).toBe('index page')
@@ -256,32 +252,66 @@ createNextDescribe(
       describe('opengraph', () => {
         it('should support opengraph tags', async () => {
           const browser = await next.browser('/opengraph')
-          await checkMeta(browser, 'og:title', 'My custom title')
-          await checkMeta(browser, 'og:description', 'My custom description')
-          await checkMeta(browser, 'og:url', 'https://example.com')
-          await checkMeta(browser, 'og:site_name', 'My custom site name')
-          await checkMeta(browser, 'og:locale', 'en-US')
-          await checkMeta(browser, 'og:type', 'website')
-          await checkMeta(browser, 'og:image:url', [
+          await checkMetaPropertyContentPair(
+            browser,
+            'og:title',
+            'My custom title'
+          )
+          await checkMetaPropertyContentPair(
+            browser,
+            'og:description',
+            'My custom description'
+          )
+          await checkMetaPropertyContentPair(
+            browser,
+            'og:url',
+            'https://example.com/'
+          )
+          await checkMetaPropertyContentPair(
+            browser,
+            'og:site_name',
+            'My custom site name'
+          )
+          await checkMetaPropertyContentPair(browser, 'og:locale', 'en-US')
+          await checkMetaPropertyContentPair(browser, 'og:type', 'website')
+          await checkMetaPropertyContentPair(browser, 'og:image:url', [
             'https://example.com/image.png',
             'https://example.com/image2.png',
           ])
-          await checkMeta(browser, 'og:image:width', ['800', '1800'])
-          await checkMeta(browser, 'og:image:height', ['600', '1600'])
-          await checkMeta(browser, 'og:image:alt', 'My custom alt')
+          await checkMetaPropertyContentPair(browser, 'og:image:width', [
+            '800',
+            '1800',
+          ])
+          await checkMetaPropertyContentPair(browser, 'og:image:height', [
+            '600',
+            '1600',
+          ])
+          await checkMetaPropertyContentPair(
+            browser,
+            'og:image:alt',
+            'My custom alt'
+          )
         })
 
         it('should support opengraph with article type', async () => {
           const browser = await next.browser('/opengraph/article')
-          await checkMeta(browser, 'og:title', 'My custom title')
-          await checkMeta(browser, 'og:description', 'My custom description')
-          await checkMeta(browser, 'og:type', 'article')
-          await checkMeta(
+          await checkMetaPropertyContentPair(
+            browser,
+            'og:title',
+            'My custom title'
+          )
+          await checkMetaPropertyContentPair(
+            browser,
+            'og:description',
+            'My custom description'
+          )
+          await checkMetaPropertyContentPair(browser, 'og:type', 'article')
+          await checkMetaPropertyContentPair(
             browser,
             'article:published_time',
             '2023-01-01T00:00:00.000Z'
           )
-          await checkMeta(browser, 'article:author', [
+          await checkMetaPropertyContentPair(browser, 'article:author', [
             'author1',
             'author2',
             'author3',
@@ -342,7 +372,7 @@ createNextDescribe(
           const expected = {
             title: 'Twitter Title',
             description: 'Twitter Description',
-            siteId: 'siteId',
+            'site:id': 'siteId',
             creator: 'creator',
             'creator:id': 'creatorId',
             image: 'https://twitter.com/image.png',
@@ -351,7 +381,11 @@ createNextDescribe(
 
           await Promise.all(
             Object.keys(expected).map(async (key) => {
-              await checkMeta(browser, `twitter:${key}`, expected[key], 'name')
+              return checkMetaNameContentPair(
+                browser,
+                `twitter:${key}`,
+                expected[key]
+              )
             })
           )
         })
@@ -361,7 +395,7 @@ createNextDescribe(
           const expected = {
             title: 'Twitter Title',
             description: 'Twitter Description',
-            siteId: 'siteId',
+            'site:id': 'siteId',
             creator: 'creator',
             'creator:id': 'creatorId',
             image: 'https://twitter.com/image.png',
@@ -369,8 +403,12 @@ createNextDescribe(
           }
 
           await Promise.all(
-            Object.keys(expected).map(async (key) => {
-              await checkMeta(browser, `twitter:${key}`, expected[key], 'name')
+            Object.keys(expected).map((key) => {
+              return checkMetaNameContentPair(
+                browser,
+                `twitter:${key}`,
+                expected[key]
+              )
             })
           )
         })
@@ -380,7 +418,7 @@ createNextDescribe(
           const expected = {
             title: 'Twitter Title',
             description: 'Twitter Description',
-            siteId: 'siteId',
+            'site:id': 'siteId',
             creator: 'creator',
             'creator:id': 'creatorId',
             image: 'https://twitter.com/image.png',
@@ -393,8 +431,12 @@ createNextDescribe(
           }
 
           await Promise.all(
-            Object.keys(expected).map(async (key) => {
-              await checkMeta(browser, `twitter:${key}`, expected[key], 'name')
+            Object.keys(expected).map((key) => {
+              return checkMetaNameContentPair(
+                browser,
+                `twitter:${key}`,
+                expected[key]
+              )
             })
           )
         })
@@ -404,7 +446,7 @@ createNextDescribe(
           const expected = {
             title: 'Twitter Title',
             description: 'Twitter Description',
-            siteId: 'siteId',
+            'site:id': 'siteId',
             creator: 'creator',
             'creator:id': 'creatorId',
             image: [
@@ -422,8 +464,12 @@ createNextDescribe(
           }
 
           await Promise.all(
-            Object.keys(expected).map(async (key) => {
-              await checkMeta(browser, `twitter:${key}`, expected[key], 'name')
+            Object.keys(expected).map((key) => {
+              return checkMetaNameContentPair(
+                browser,
+                `twitter:${key}`,
+                expected[key]
+              )
             })
           )
         })
