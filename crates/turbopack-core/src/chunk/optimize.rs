@@ -209,7 +209,7 @@ impl ContainmentTree {
         fn skip_unnessary_nodes(trees: &mut IndexMap<FileSystemPathVc, Rc<RefCell<Node>>>) {
             for tree in trees.values_mut() {
                 let mut tree = tree.borrow_mut();
-                if tree.chunks.len() == 0 && tree.children.len() == 1 {
+                if tree.chunks.is_empty() && tree.children.len() == 1 {
                     let child = tree.children.pop().unwrap();
                     let mut child = child.borrow_mut();
                     tree.path = child.path;

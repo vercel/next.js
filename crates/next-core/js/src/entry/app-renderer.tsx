@@ -112,6 +112,26 @@ async function runOperation(renderData: RenderData) {
   const pageItem = LAYOUT_INFO[LAYOUT_INFO.length - 1];
   const pageModule = pageItem.page!.module;
   const Page = pageModule.default;
+  const metadata = [];
+  for (let i = 0; i < LAYOUT_INFO.length; i++) {
+    const info = LAYOUT_INFO[i];
+    if (info.layout) {
+      metadata.push({
+        type: "layout",
+        layer: i,
+        mod: () => info.layout!.module,
+        path: `layout${i}.js`,
+      });
+    }
+    if (info.page) {
+      metadata.push({
+        type: "page",
+        layer: i - 1,
+        mod: () => info.page!.module,
+        path: "page.js",
+      });
+    }
+  }
   let tree: LoaderTree = ["", {}, { page: [() => Page, "page.js"] }];
   layoutInfoChunks["page"] = pageItem.page!.chunks;
   for (let i = LAYOUT_INFO.length - 2; i >= 0; i--) {
@@ -198,6 +218,7 @@ async function runOperation(renderData: RenderData) {
       default: undefined,
       tree,
       pages: ["page.js"],
+      metadata,
     },
     serverComponentManifest: manifest,
     serverCSSManifest,
