@@ -713,6 +713,7 @@ export default async function getBaseWebpackConfig(
         isServer: isNodeServer || isEdgeServer,
         rootDir: dir,
         pagesDir,
+        appDir,
         hasServerComponents,
         hasReactRefresh: dev && isClient,
         fileReading: config.experimental.swcFileReading,
@@ -1349,6 +1350,7 @@ export default async function getBaseWebpackConfig(
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
       isClient || isEdgeServer
