@@ -37,5 +37,5 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // Matcher ignoring `/_next/`, `/public/` and `/api/`
-  matcher: '\\/((?!_next\\/)(?!public\\/)(?!api\\/).*',
+  matcher: '/((?!_next)(?!public)(?!api)(/.*)?',
 }
