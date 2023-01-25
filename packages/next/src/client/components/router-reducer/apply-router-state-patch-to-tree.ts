@@ -1,11 +1,14 @@
-import { FlightRouterState, FlightData } from '../../../server/app-render'
+import {
+  FlightRouterState,
+  FlightSegmentPath,
+} from '../../../server/app-render'
 import { matchSegment } from '../match-segments'
 
 /**
  * Apply the router state from the Flight response. Creates a new router state tree.
  */
 export function applyRouterStatePatchToTree(
-  flightSegmentPath: FlightData[0],
+  flightSegmentPath: FlightSegmentPath,
   flightRouterState: FlightRouterState,
   treePatch: FlightRouterState
 ): FlightRouterState | null {
