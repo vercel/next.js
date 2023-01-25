@@ -2,6 +2,7 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
 import { Meta, MultiMeta } from './meta'
+import { TwitterAppDescriptor } from '../types/twitter-types'
 
 export function ResolvedOpenGraphMetadata({
   openGraph,
@@ -222,6 +223,22 @@ export function ResolvedOpenGraphMetadata({
   )
 }
 
+function TwitterAppItem({
+  app,
+  type,
+}: {
+  app: TwitterAppDescriptor
+  type: 'iphone' | 'ipad' | 'googleplay'
+}) {
+  return (
+    <>
+      <Meta name={`twitter:app:id:${type}`} content={app.id?.[type]} />
+      <Meta name={`twitter:app:id:${type}`} content={app.id?.iphone} />
+      <Meta name={`twitter:app:url:${type}`} content={app.url?.iphone} />
+    </>
+  )
+}
+
 export function TwitterMetadata({
   twitter,
 }: {
@@ -234,14 +251,22 @@ export function TwitterMetadata({
     <>
       <Meta name="twitter:card" content={card} />
       <Meta name="twitter:site" content={twitter.site} />
-      <Meta name="twitter:creator" content={twitter.card} />
-      <Meta name="twitter:title" content={twitter.card} />
-      <Meta name="twitter:description" content={twitter.card} />
-      <MultiMeta propertyPrefix="twitter:image" contents={twitter.images} />
+      <Meta name="twitter:creator" content={twitter.creator} />
+      <Meta name="twitter:creator:id" content={twitter.creatorId} />
+      <Meta name="twitter:title" content={twitter.title?.absolute} />
+      <Meta name="twitter:description" content={twitter.description} />
+      <MultiMeta namePrefix="twitter:image" contents={twitter.images} />
       {card === 'player'
         ? twitter.players.map((player) => (
             <>
-              <Meta name="twitter:player" content={player.url.toString()} />
+              <Meta
+                name="twitter:player"
+                content={player.playerUrl.toString()}
+              />
+              <Meta
+                name="twitter:player:stream"
+                content={player.streamUrl.toString()}
+              />
               <Meta name="twitter:player:width" content={player.width} />
               <Meta name="twitter:player:height" content={player.height} />
             </>
@@ -249,21 +274,9 @@ export function TwitterMetadata({
         : null}
       {card === 'app' ? (
         <>
-          <Meta name="twitter:app:id:player" content={twitter.app.id?.iphone} />
-          <Meta name="twitter:app:id:ipad" content={twitter.app.id?.ipad} />
-          <Meta
-            name="twitter:app:id:googleplay"
-            content={twitter.app.id?.googleplay}
-          />
-          <Meta
-            name="twitter:app:url:iphone"
-            content={twitter.app.url?.iphone}
-          />
-          <Meta name="twitter:app:url:ipad" content={twitter.app.url?.ipad} />
-          <Meta
-            name="twitter:app:url:googleplay"
-            content={twitter.app.url?.googleplay}
-          />
+          <TwitterAppItem app={twitter.app} type="iphone" />
+          <TwitterAppItem app={twitter.app} type="ipad" />
+          <TwitterAppItem app={twitter.app} type="googleplay" />
         </>
       ) : null}
     </>

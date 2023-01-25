@@ -335,6 +335,99 @@ createNextDescribe(
           ).toEqual({ sizes: '180x180', type: 'image/png' })
         })
       })
+
+      describe('twitter', () => {
+        it('should support default twitter summary card', async () => {
+          const browser = await next.browser('/twitter')
+          const expected = {
+            title: 'Twitter Title',
+            description: 'Twitter Description',
+            siteId: 'siteId',
+            creator: 'creator',
+            'creator:id': 'creatorId',
+            image: 'https://twitter.com/image.png',
+            card: 'summary',
+          }
+
+          await Promise.all(
+            Object.keys(expected).map(async (key) => {
+              await checkMeta(browser, `twitter:${key}`, expected[key], 'name')
+            })
+          )
+        })
+
+        it('should support default twitter summary_large_image card', async () => {
+          const browser = await next.browser('/twitter/large-image')
+          const expected = {
+            title: 'Twitter Title',
+            description: 'Twitter Description',
+            siteId: 'siteId',
+            creator: 'creator',
+            'creator:id': 'creatorId',
+            image: 'https://twitter.com/image.png',
+            card: 'summary_large_image',
+          }
+
+          await Promise.all(
+            Object.keys(expected).map(async (key) => {
+              await checkMeta(browser, `twitter:${key}`, expected[key], 'name')
+            })
+          )
+        })
+
+        it('should support default twitter player card', async () => {
+          const browser = await next.browser('/twitter/player')
+          const expected = {
+            title: 'Twitter Title',
+            description: 'Twitter Description',
+            siteId: 'siteId',
+            creator: 'creator',
+            'creator:id': 'creatorId',
+            image: 'https://twitter.com/image.png',
+            // player properties
+            card: 'player',
+            player: 'https://twitter.com/player',
+            'player:stream': 'https://twitter.com/stream',
+            'player:width': '100',
+            'player:height': '100',
+          }
+
+          await Promise.all(
+            Object.keys(expected).map(async (key) => {
+              await checkMeta(browser, `twitter:${key}`, expected[key], 'name')
+            })
+          )
+        })
+
+        it('should support default twitter app card', async () => {
+          const browser = await next.browser('/twitter/app')
+          const expected = {
+            title: 'Twitter Title',
+            description: 'Twitter Description',
+            siteId: 'siteId',
+            creator: 'creator',
+            'creator:id': 'creatorId',
+            image: [
+              'https://twitter.com/image-100x100.png',
+              'https://twitter.com/image-200x200.png',
+            ],
+            // app properties
+            card: 'app',
+            'app:id:iphone': 'twitter_app://iphone',
+            'app:url:iphone': 'twitter_app://iphone',
+            'app:id:ipad': 'twitter_app://iphone',
+            'app:url:ipad': 'twitter_app://iphone',
+            'app:id:googleplay': 'twitter_app://iphone',
+            'app:url:googleplay': 'twitter_app://iphone',
+          }
+
+          await Promise.all(
+            Object.keys(expected).map(async (key) => {
+              await checkMeta(browser, `twitter:${key}`, expected[key], 'name')
+            })
+          )
+        })
+      })
     })
   }
 )

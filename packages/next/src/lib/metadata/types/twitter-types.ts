@@ -1,3 +1,5 @@
+// Reference: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup
+
 import type { AbsoluteTemplateString, TemplateString } from './metadata-types'
 
 export type Twitter =
@@ -13,8 +15,8 @@ type TwitterMetadata = {
   siteId?: string // id for account associated to the site itself
   creator?: string // username for the account associated to the creator of the content on the site
   creatorId?: string // id for the account associated to the creator of the content on the site
-  title?: string | TemplateString
   description?: string
+  title?: string | TemplateString
   images?: TwitterImage | Array<TwitterImage>
 }
 type TwitterSummary = TwitterMetadata & {
@@ -31,7 +33,7 @@ type TwitterApp = TwitterMetadata & {
   card: 'app'
   app: TwitterAppDescriptor
 }
-type TwitterAppDescriptor = {
+export type TwitterAppDescriptor = {
   id: {
     iphone?: string | number
     ipad?: string | number
@@ -42,7 +44,7 @@ type TwitterAppDescriptor = {
     ipad?: string | URL
     googleplay?: string | URL
   }
-  country?: string
+  name?: string
 }
 
 type TwitterImage = string | TwitterImageDescriptor | URL
@@ -55,17 +57,18 @@ type TwitterImageDescriptor = {
   height?: string | number
 }
 type TwitterPlayerDescriptor = {
-  url: string | URL
+  playerUrl: string | URL
+  streamUrl: string | URL
   width: number
   height: number
 }
 
 type ResolvedTwitterSummary = {
-  site: string
-  siteId: string
-  creator: string
-  creatorId: string
-  description: string
+  site: string | null
+  siteId: string | null
+  creator: string | null
+  creatorId: string | null
+  description: string | null
   title: AbsoluteTemplateString
   images: Array<TwitterImage>
 }

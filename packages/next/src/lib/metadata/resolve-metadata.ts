@@ -107,6 +107,13 @@ function resolveIcon(icon: Icon): IconDescriptor {
 }
 
 const IconKeys = ['icon', 'shortcut', 'apple', 'other'] as (keyof Icons)[]
+const TwitterBasicInfoKeys = [
+  'site',
+  'siteId',
+  'creator',
+  'creatorId',
+  'description',
+] as const
 
 function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
   if (!icons) {
@@ -163,10 +170,6 @@ function merge(
     const key = key_ as keyof Metadata
 
     switch (key) {
-      case 'other': {
-        Object.assign(target.other, source.other)
-        break
-      }
       case 'title': {
         if (source.title) {
           target.title = source.title as AbsoluteTemplateString
@@ -188,9 +191,37 @@ function merge(
       case 'twitter': {
         if (source.twitter) {
           // TODO: improve typing of merging
-          target.twitter = source.twitter as ResolvedTwitterMetadata
-          mergeTitle(target.twitter, templateStrings.twitter)
-          target.twitter.card = target.twitter.card || 'summary'
+          const resolved = {
+            title: source.twitter.title,
+          } as ResolvedTwitterMetadata
+          for (const key of TwitterBasicInfoKeys) {
+            resolved[key] = source.twitter[key] || null
+          }
+          mergeTitle(resolved, templateStrings.twitter)
+          resolved.images =
+            resolveAsArrayOrUndefined(source.twitter.images) || []
+          if ('card' in source.twitter) {
+            resolved.card = source.twitter.card
+            switch (source.twitter.card) {
+              case 'player': {
+                // @ts-ignore
+                resolved.players =
+                  resolveAsArrayOrUndefined(source.twitter.players) || []
+                break
+              }
+              case 'app': {
+                // @ts-ignore
+                resolved.app = source.twitter.app || {}
+                break
+              }
+              default:
+                break
+            }
+          } else {
+            resolved.card = 'summary'
+          }
+
+          target.twitter = resolved
         } else {
           target.twitter = null
         }
@@ -233,8 +264,11 @@ function merge(
       case 'themeColor':
       case 'creator':
       case 'publisher':
+      case 'category':
+      case 'classification':
       case 'referrer':
       case 'colorScheme':
+      case 'other':
         // TODO: support inferring
         // @ts-ignore
         target[key] = source[key] || null

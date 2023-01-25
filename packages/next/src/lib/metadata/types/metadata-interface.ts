@@ -189,7 +189,7 @@ export interface ResolvedMetadata {
   classification: null | string
 
   // Arbitrary name/value pairs
-  other: {
+  other: null | {
     [name: string]: string | number | Array<string | number>
   }
 

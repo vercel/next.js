@@ -1,7 +1,7 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
-import { Meta } from './meta'
+import { Meta, MultiMeta } from './meta'
 
 export function ResolvedBasicMetadata({
   metadata,
@@ -44,13 +44,15 @@ export function ResolvedBasicMetadata({
         : null}
       <Meta name="category" content={metadata.category} />
       <Meta name="classification" content={metadata.classification} />
-      {Object.entries(metadata.other).map(([name, content]) => (
-        <Meta
-          key={name}
-          name={name}
-          content={Array.isArray(content) ? content.join(',') : content}
-        />
-      ))}
+      {metadata.other
+        ? Object.entries(metadata.other).map(([name, content]) => (
+            <Meta
+              key={name}
+              name={name}
+              content={Array.isArray(content) ? content.join(',') : content}
+            />
+          ))
+        : null}
     </>
   )
 }
