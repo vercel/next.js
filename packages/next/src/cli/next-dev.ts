@@ -204,6 +204,7 @@ const nextDev: CliCommand = async (argv) => {
     'experimental.serverComponentsExternalPackages',
     'experimental.turbopackLoaders',
     'images',
+    'pageExtensions',
     'reactStrictMode',
     'swcMinify',
     'transpilePackages',
