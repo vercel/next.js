@@ -1,8 +1,9 @@
 'use client'
 
-import React from 'react'
-import type { FocusAndScrollRef } from '../../client/components/reducer'
+import type { FocusAndScrollRef } from '../../client/components/router-reducer/router-reducer'
+import type { fetchServerResponse } from '../../client/components/router-reducer/fetch-server-response'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
+import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>
 
@@ -22,9 +23,7 @@ export type CacheNode =
       /**
        * In-flight request for this node.
        */
-      data: ReturnType<
-        typeof import('../../client/components/app-router').fetchServerResponse
-      > | null
+      data: ReturnType<typeof fetchServerResponse> | null
       head?: React.ReactNode
       /**
        * React Component for this node.
