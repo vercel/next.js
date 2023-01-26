@@ -71,8 +71,6 @@
     "@next/polyfill-module": "workspace:*",
     "@next/polyfill-nomodule": "workspace:*",
     "@next/swc": "workspace:*",
-    "@replayio/jest": "27.5.1-alpha.4",
-    "@replayio/playwright": "0.2.26",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.2.203",
