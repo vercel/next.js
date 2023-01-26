@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{BoolVc, StringVc},
+    primitives::{BoolVc, StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
@@ -230,6 +230,7 @@ pub async fn create_page_source(
         server_data_context,
         client_context,
         pages_dir,
+        next_config.page_extensions(),
         SpecificityVc::exact(),
         0,
         pages_dir,
@@ -410,6 +411,7 @@ async fn create_page_source_for_directory(
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
+    page_extensions: StringsVc,
     specificity: SpecificityVc,
     position: u32,
     input_dir: FileSystemPathVc,
@@ -421,6 +423,8 @@ async fn create_page_source_for_directory(
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
 ) -> Result<CombinedContentSourceVc> {
+    let page_extensions_raw = &*page_extensions.await?;
+
     let mut sources = vec![];
     let dir_content = input_dir.read_dir().await?;
     if let DirectoryContent::Entries(entries) = &*dir_content {
@@ -435,51 +439,49 @@ async fn create_page_source_for_directory(
             match entry {
                 DirectoryEntry::File(file) => {
                     if let Some((basename, extension)) = name.rsplit_once('.') {
-                        match extension {
-                            // pageExtensions option from next.js
-                            // defaults: https://github.com/vercel/next.js/blob/611e13f5159457fedf96d850845650616a1f75dd/packages/next/server/config-shared.ts#L499
-                            "js" | "ts" | "jsx" | "tsx" | "mdx" => {
-                                let (dev_server_path, intermediate_output_path, specificity) =
-                                    if basename == "index" {
-                                        (
-                                            server_path.join("index.html"),
-                                            intermediate_output_path,
-                                            specificity,
-                                        )
-                                    } else if basename == "404" {
-                                        (
-                                            server_path.join("[...].html"),
-                                            intermediate_output_path.join(basename),
-                                            specificity.with_fallback(position),
-                                        )
-                                    } else {
-                                        (
-                                            server_path.join(basename).join("index.html"),
-                                            intermediate_output_path.join(basename),
-                                            specificity,
-                                        )
-                                    };
-                                sources.push((
-                                    name,
-                                    create_page_source_for_file(
-                                        context_path,
-                                        server_context,
-                                        server_data_context,
-                                        client_context,
-                                        pages_dir,
-                                        specificity,
-                                        *file,
-                                        runtime_entries,
-                                        fallback_page,
-                                        server_root,
-                                        dev_server_path,
-                                        dev_server_path.is_inside(server_api_path),
+                        if page_extensions_raw
+                            .iter()
+                            .any(|allowed| allowed == extension)
+                        {
+                            let (dev_server_path, intermediate_output_path, specificity) =
+                                if basename == "index" {
+                                    (
+                                        server_path.join("index.html"),
                                         intermediate_output_path,
-                                        output_root,
-                                    ),
-                                ));
-                            }
-                            _ => {}
+                                        specificity,
+                                    )
+                                } else if basename == "404" {
+                                    (
+                                        server_path.join("[...].html"),
+                                        intermediate_output_path.join(basename),
+                                        specificity.with_fallback(position),
+                                    )
+                                } else {
+                                    (
+                                        server_path.join(basename).join("index.html"),
+                                        intermediate_output_path.join(basename),
+                                        specificity,
+                                    )
+                                };
+                            sources.push((
+                                name,
+                                create_page_source_for_file(
+                                    context_path,
+                                    server_context,
+                                    server_data_context,
+                                    client_context,
+                                    pages_dir,
+                                    specificity,
+                                    *file,
+                                    runtime_entries,
+                                    fallback_page,
+                                    server_root,
+                                    dev_server_path,
+                                    dev_server_path.is_inside(server_api_path),
+                                    intermediate_output_path,
+                                    output_root,
+                                ),
+                            ));
                         }
                     }
                 }
@@ -492,6 +494,7 @@ async fn create_page_source_for_directory(
                             server_data_context,
                             client_context,
                             pages_dir,
+                            page_extensions,
                             specificity,
                             position + 1,
                             *dir,
