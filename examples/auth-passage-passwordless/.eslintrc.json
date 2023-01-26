@@ -1,3 +1,18 @@
 {
-    "extends": ["eslint:recommended", "next"]
+    "parser": "@typescript-eslint/parser",
+    "extends": [
+       "plugin:@next/next/recommended",
+
+       "plugin:prettier/recommended",
+      "prettier" 
+    ],
+    "plugins": [
+      "prettier"
+    ],
+    "rules": {
+      "react/react-in-jsx-scope": "off"
+    },
+    "globals": {
+      "React": "writable"
+    }
   }

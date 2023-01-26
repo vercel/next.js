@@ -1,17 +1,14 @@
-
 import { GetStaticProps, NextPage } from 'next'
-import { useEffect } from 'react';
+import { useEffect } from 'react'
 
 interface AppProps {
-appID: string;
+  appID: string
 }
 
-
-const Index: NextPage<AppProps> = ({appID}) => {
-
-  useEffect(()=>{
-    require('@passageidentity/passage-elements/passage-auth');
-}, []);
+const Index: NextPage<AppProps> = ({ appID }) => {
+  useEffect(() => {
+    require('@passageidentity/passage-elements/passage-auth')
+  }, [])
 
   return (
     <>
@@ -23,9 +20,9 @@ const Index: NextPage<AppProps> = ({appID}) => {
 export const getStaticProps: GetStaticProps = async () => {
   return {
     props: {
-      appID: process.env.PASSAGE_APP_ID
-    }
-  };
+      appID: process.env.PASSAGE_APP_ID,
+    },
+  }
 }
 
 export default Index
