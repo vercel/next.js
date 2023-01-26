@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>app links</p>
+  return 'app links'
 }
 
 export const metadata = {

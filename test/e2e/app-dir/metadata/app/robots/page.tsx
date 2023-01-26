@@ -1,5 +1,5 @@
 export default function page() {
-  return <p>robots</p>
+  return 'robots'
 }
 
 export const metadata = {

@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>hello</p>
+  return 'opengraph'
 }
 
 export const metadata = {

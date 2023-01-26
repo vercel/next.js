@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>viewport</p>
+  return 'viewport'
 }
 
 export const metadata = {
