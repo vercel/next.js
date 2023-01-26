@@ -2,6 +2,7 @@
 import Passage from "@passageidentity/passage-node";
 import { GetServerSideProps, GetServerSidePropsContext, NextPage } from "next";
 import Link from "next/link"
+import { useEffect } from "react";
 import styles from '../styles/App.module.css'
 
 
