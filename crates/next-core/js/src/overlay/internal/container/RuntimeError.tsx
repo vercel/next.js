@@ -8,6 +8,7 @@ import { clsx } from "../helpers/clsx";
 import { getErrorSource } from "../helpers/nodeStackFrames";
 import { noop as css } from "../helpers/noop-template";
 import { ReadyRuntimeError } from "../helpers/getErrorByType";
+import { decodeMagicIdentifiers } from "../helpers/magic-identifier";
 import { getFrameSource, OriginalStackFrame } from "../helpers/stack-frame";
 import { usePagination } from "../hooks/usePagination";
 import { ExternalLink } from "../icons";
@@ -251,7 +252,9 @@ export function RuntimeErrorsDialogBody({
       </div>
       <h2 id="errors_desc" data-severity="error">
         {activeError.error.name}:{" "}
-        <HotlinkedText text={activeError.error.message} />
+        <HotlinkedText
+          text={decodeMagicIdentifiers(activeError.error.message)}
+        />
       </h2>
       {isServerError ? (
         <div>

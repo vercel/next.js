@@ -49,6 +49,7 @@ mod tests {
         assert_eq!(encode("Hello World"), "__TURBOPACK__Hello__World__");
         assert_eq!(encode("Hello_World"), "__TURBOPACK__Hello_World__");
         assert_eq!(encode("Hello__World"), "__TURBOPACK__Hello_$5f$World__");
+        assert_eq!(encode("Hello___World"), "__TURBOPACK__Hello_$5f$_World__");
         assert_eq!(encode("Hello/World"), "__TURBOPACK__Hello$2f$World__");
         assert_eq!(encode("Hello///World"), "__TURBOPACK__Hello$2f2f2f$World__");
         assert_eq!(encode("Hello/_World"), "__TURBOPACK__Hello$2f$_World__");
