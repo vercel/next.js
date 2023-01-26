@@ -345,6 +345,7 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     color: var(--color-error);
     white-space: pre-wrap;
+    overflow-wrap: break-word;
   }
 
   .errors-body > h2[data-severity="error"] {
