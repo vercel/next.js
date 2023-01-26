@@ -6,7 +6,7 @@ import Link from 'next/link'
 type HeroPostProps = {
   title: string,
   coverImage: string,
-  date: string,
+  date: string | null,
   excerpt: string,
   author: {
     name: string,

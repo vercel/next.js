@@ -7,7 +7,7 @@ import { Author } from '@/viewmodels/author'
 type PostHeaderType = {
   title: string,
   coverImage: string,
-  date: string,
+  date: string|null,
   author: Author
 }
 

@@ -15,8 +15,15 @@ import {
 import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
+import { Post as PostModel } from '@/viewmodels/post'
 
-export default function Post({ post, morePosts = [], preview }) {
+type PostProps = {
+  post: PostModel,
+  morePosts: Array<PostModel>,
+  preview: boolean
+}
+
+export default function Post({ post, morePosts = [], preview }: PostProps) {
   const router = useRouter()
   if (!router.isFallback && !post?.slug) {
     return <ErrorPage statusCode={404} />
@@ -26,7 +33,7 @@ export default function Post({ post, morePosts = [], preview }) {
       <Container>
         <Header />
         {router.isFallback ? (
-          <PostTitle>Loading…</PostTitle>
+          <PostTitle title="Loading..."></PostTitle>
         ) : (
           <>
             <article className="mb-32">
@@ -34,7 +41,7 @@ export default function Post({ post, morePosts = [], preview }) {
                 <title>
                   {post.title} | Next.js Blog Example with {CMS_NAME}
                 </title>
-                <meta property="og:image" content={post.coverImage.url} />
+                <meta property="og:image" content={post.coverImage} />
               </Head>
               <PostHeader
                 title={post.title}
@@ -53,10 +60,17 @@ export default function Post({ post, morePosts = [], preview }) {
   )
 }
 
-export async function getStaticProps({ params, preview = null }) {
+type StaticProps = {
+  params: {
+    slug: string
+  },
+  preview: boolean | null
+}
+
+export async function getStaticProps({ params, preview = null }: StaticProps) {
   return await Promise.all([
-    getPostBySlug(params.slug, preview),
-    getMorePostsForSlug(params.slug, preview),
+    getPostBySlug(params.slug, preview ?? false),
+    getMorePostsForSlug(params.slug, preview ?? false),
   ]).then((values) => ({
     props: {
       post: values[0],
@@ -67,7 +81,7 @@ export async function getStaticProps({ params, preview = null }) {
 }
 
 export async function getStaticPaths() {
-  const slugs = await getAllPostSlugs(['slug'])
+  const slugs = await getAllPostSlugs()
   return {
     paths: slugs.map(
       (slug) =>

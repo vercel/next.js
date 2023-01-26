@@ -4,7 +4,7 @@ import Meta from './meta'
 
 type LayoutProps = {
   preview: boolean,
-  children: JSX.Element
+  children: JSX.Element | JSX.Element[]
 }
 
 export default function Layout({ preview, children }: LayoutProps) {

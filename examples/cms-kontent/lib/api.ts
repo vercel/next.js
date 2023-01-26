@@ -25,7 +25,6 @@ function parseAuthor(author:Author): ViewModelAuthor {
 }
 
 function parsePost(post: Post): ViewModelPost {
-  debugger;
   return {
     title: post.elements.title.value,
     slug: post.elements.slug.value,
@@ -71,9 +70,7 @@ export async function getPostBySlug(slug: string, preview: boolean) {
     })
     .equalsFilter('elements.slug', slug)
     .toPromise()
-    .then((response) => { console.log(response.data)
-      parsePost(response.data.items[0])
-    })
+    .then((response) => parsePost(response.data.items[0]))
 }
 
 export async function getAllPosts(preview: boolean) {

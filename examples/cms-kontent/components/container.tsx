@@ -1,7 +1,7 @@
 import { ReactElement } from "react"
 
 type ContainerProps = {
-  children: ReactElement
+  children: JSX.Element[] | JSX.Element
 }
 
 export default function Container({ children }: ContainerProps) {
