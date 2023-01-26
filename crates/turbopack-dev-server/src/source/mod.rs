@@ -407,10 +407,10 @@ impl ContentSourceDataVary {
         if other.cache_buster && !cache_buster {
             return false;
         }
-        if !ContentSourceDataFilter::fulfills(&query, &other.query) {
+        if !ContentSourceDataFilter::fulfills(query, &other.query) {
             return false;
         }
-        if !ContentSourceDataFilter::fulfills(&headers, &other.headers) {
+        if !ContentSourceDataFilter::fulfills(headers, &other.headers) {
             return false;
         }
         true

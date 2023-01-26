@@ -77,7 +77,7 @@ impl MemoryBackend {
             backend_job_id_factory: IdFactory::new(),
             task_cache: DashMap::default(),
             memory_limit,
-            gc_queue: (memory_limit != usize::MAX).then(|| GcQueue::new()),
+            gc_queue: (memory_limit != usize::MAX).then(GcQueue::new),
             idle_gc_active: AtomicBool::new(false),
             scope_add_remove_priority: PriorityPair::new(),
         }
