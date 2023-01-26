@@ -57,8 +57,9 @@ function runTests(dev = false) {
     expect(res2.headers.get('transfer-encoding')).toBe(null)
 
     if (dev) {
-      expect(stderr.slice(stderrIdx)).toContain(
-        'A body was attempted to be set with a 204 statusCode'
+      await check(
+        () => stderr.slice(stderrIdx),
+        /A body was attempted to be set with a 204 statusCode/
       )
     }
   })
