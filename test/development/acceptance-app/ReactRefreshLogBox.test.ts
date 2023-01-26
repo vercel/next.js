@@ -1413,9 +1413,9 @@ for (const variant of ['default', 'turbo']) {
       async (type: string) => {
         const { session, cleanup } = await sandbox(next, undefined, '/' + type)
 
-        await session.patch('index.js', "throw new Error('module error')")
+        await next.patchFile('index.js', "throw new Error('module error')")
         expect(await session.hasRedbox(true)).toBe(true)
-        await session.patch(
+        await next.patchFile(
           'index.js',
           'export default function Page() {return <p>hello world</p>}'
         )
