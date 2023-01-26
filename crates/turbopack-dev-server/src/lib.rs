@@ -9,7 +9,7 @@ pub mod update;
 
 use std::{
     borrow::Cow,
-    collections::{btree_map::Entry, BTreeMap},
+    collections::btree_map::Entry,
     future::Future,
     net::{SocketAddr, TcpListener},
     pin::Pin,
@@ -29,7 +29,10 @@ use hyper::{
     Request, Response, Server,
 };
 use mime_guess::mime;
-use source::{Body, Bytes};
+use source::{
+    headers::{HeaderValue, Headers},
+    Body, Bytes,
+};
 use turbo_tasks::{
     run_once, trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi, Value,
 };
@@ -44,7 +47,7 @@ use self::{
     },
     update::{protocol::ResourceIdentifier, UpdateServer},
 };
-use crate::source::{ContentSourceData, HeaderValue};
+use crate::source::ContentSourceData;
 
 pub trait SourceProvider: Send + Clone + 'static {
     /// must call a turbo-tasks function internally
@@ -129,7 +132,7 @@ async fn get_from_source(
             if *vary != *content_vary {
                 GetFromSourceResult::NeedData {
                     source: ContentSourceResultVc::exact(*get_content).into(),
-                    path: String::new(),
+                    path: path.to_string(),
                     vary: content_vary.clone_value(),
                 }
             } else {
@@ -396,7 +399,7 @@ async fn request_to_data(
         }
     }
     if let Some(filter) = vary.headers.as_ref() {
-        let mut headers = BTreeMap::new();
+        let mut headers = Headers::default();
         for (header_name, header_value) in request.headers().iter() {
             if !filter.contains(header_name.as_str()) {
                 continue;
@@ -445,7 +448,7 @@ pub(crate) fn resource_to_data(
         data.query = Some(Query::default())
     }
     if let Some(filter) = vary.headers.as_ref() {
-        let mut headers = BTreeMap::new();
+        let mut headers = Headers::default();
         if let Some(resource_headers) = resource.headers {
             for (header_name, header_value) in resource_headers {
                 if !filter.contains(header_name.as_str()) {

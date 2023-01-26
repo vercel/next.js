@@ -1,8 +1,6 @@
-use std::collections::BTreeMap;
-
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbopack_dev_server::source::{query::Query, HeaderValue};
+use turbopack_dev_server::source::{headers::Headers, query::Query};
 
 use crate::{ResponseHeaders, StructuredError};
 
@@ -18,7 +16,7 @@ pub struct RenderData {
     method: String,
     url: String,
     query: Query,
-    headers: BTreeMap<String, HeaderValue>,
+    headers: Headers,
     path: String,
 }
 

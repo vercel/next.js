@@ -1,15 +1,14 @@
-use std::{hash::Hash, ops::DerefMut};
+use std::{collections::BTreeMap, hash::Hash, ops::DerefMut};
 
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 
 use super::ContentSourceDataFilter;
 
 /// A parsed query string from a http request
-#[derive(Clone, Debug, PartialEq, Eq, Default, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Hash, TraceRawVcs, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Query(#[turbo_tasks(trace_ignore)] IndexMap<String, QueryValue>);
+pub struct Query(BTreeMap<String, QueryValue>);
 
 impl Query {
     pub fn filter_with(&mut self, filter: &ContentSourceDataFilter) {
@@ -37,19 +36,8 @@ impl Ord for Query {
     }
 }
 
-// clippy: IndexMap forgot to implement Hash, but PartialEq matches Hash
-#[allow(clippy::derive_hash_xor_eq)]
-impl Hash for Query {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for (k, v) in &self.0 {
-            k.hash(state);
-            v.hash(state);
-        }
-    }
-}
-
 impl std::ops::Deref for Query {
-    type Target = IndexMap<String, QueryValue>;
+    type Target = BTreeMap<String, QueryValue>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
