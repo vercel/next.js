@@ -1,9 +1,8 @@
 import path from 'path'
-import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 describe('router autoscrolling on navigation', () => {
   let next: NextInstance
