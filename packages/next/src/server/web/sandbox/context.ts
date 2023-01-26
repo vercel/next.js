@@ -217,7 +217,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         }
 
       const __fetch = context.fetch
-      context.fetch = async (input, init = {}) => {
+      context.fetch = async (input, { ...init } = {}) => {
         const assetResponse = await fetchInlineAsset({
           input,
           assets: options.edgeFunctionEntry.assets,
