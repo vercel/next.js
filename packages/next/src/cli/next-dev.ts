@@ -247,6 +247,7 @@ const nextDev: CliCommand = async (argv) => {
           // these should not error
           if (
             configKey === 'serverComponentsExternalPackages' ||
+            configKey === 'turbopackLoaders' ||
             configKey === 'appDir' ||
             configKey === 'images' ||
             configKey === 'reactStrictMode' ||
@@ -311,6 +312,7 @@ const nextDev: CliCommand = async (argv) => {
           'reactStrictMode',
           'experimental.appDir',
           'experimental.serverComponentsExternalPackages',
+          'experimental.turbopackLoaders',
           'images',
           'swcMinify',
           'configFileName',
