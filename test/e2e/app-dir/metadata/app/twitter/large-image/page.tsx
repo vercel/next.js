@@ -10,6 +10,9 @@ export const metadata = {
     siteId: 'siteId',
     creator: 'creator',
     creatorId: 'creatorId',
-    images: 'https://twitter.com/image.png',
+    images: {
+      url: 'https://twitter.com/image.png',
+      alt: 'image-alt',
+    },
   },
 }

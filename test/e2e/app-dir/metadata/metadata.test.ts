@@ -442,6 +442,7 @@ createNextDescribe(
             creator: 'creator',
             'creator:id': 'creatorId',
             image: 'https://twitter.com/image.png',
+            'image:alt': 'image-alt',
             card: 'summary_large_image',
           }
 

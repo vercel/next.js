@@ -256,7 +256,14 @@ export function TwitterMetadata({
       <Meta name="twitter:creator:id" content={twitter.creatorId} />
       <Meta name="twitter:title" content={twitter.title?.absolute} />
       <Meta name="twitter:description" content={twitter.description} />
-      <MultiMeta namePrefix="twitter:image" contents={twitter.images} />
+      {twitter.images
+        ? twitter.images.map((image) => (
+            <>
+              <Meta name="twitter:image" content={image.url} />
+              <Meta name="twitter:image:alt" content={image.alt} />
+            </>
+          ))
+        : null}
       {card === 'player'
         ? twitter.players.map((player) => (
             <>

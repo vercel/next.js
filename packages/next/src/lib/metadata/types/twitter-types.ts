@@ -50,8 +50,8 @@ export type TwitterAppDescriptor = {
 type TwitterImage = string | TwitterImageDescriptor | URL
 type TwitterImageDescriptor = {
   url: string | URL
-  secureUrl?: string | URL
   alt?: string
+  secureUrl?: string | URL
   type?: string
   width?: string | number
   height?: string | number
@@ -63,6 +63,10 @@ type TwitterPlayerDescriptor = {
   height: number
 }
 
+type ResolvedTwitterImage = {
+  url: string
+  alt?: string
+}
 type ResolvedTwitterSummary = {
   site: string | null
   siteId: string | null
@@ -70,7 +74,7 @@ type ResolvedTwitterSummary = {
   creatorId: string | null
   description: string | null
   title: AbsoluteTemplateString
-  images: Array<TwitterImage>
+  images?: Array<ResolvedTwitterImage>
 }
 type ResolvedTwitterPlayer = ResolvedTwitterSummary & {
   players: Array<TwitterPlayerDescriptor>

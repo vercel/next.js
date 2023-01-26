@@ -94,12 +94,12 @@ const resolveVerification: FieldResolver<'verification'> = (verification) => {
   }
 }
 
-function isUrlIcon(icon: any): icon is string | URL {
+function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
 }
 
 function resolveIcon(icon: Icon): IconDescriptor {
-  if (isUrlIcon(icon)) return { url: icon }
+  if (isStringOrURL(icon)) return { url: icon }
   else if (Array.isArray(icon)) return icon
   return icon
 }
@@ -121,7 +121,7 @@ const resolveIcons: FieldResolver<'icons'> = (icons) => {
   const resolved: ResolvedMetadata['icons'] = {}
   if (Array.isArray(icons)) {
     resolved.icon = icons.map(resolveIcon).filter(Boolean)
-  } else if (isUrlIcon(icons)) {
+  } else if (isStringOrURL(icons)) {
     resolved.icon = [resolveIcon(icons)]
   } else {
     for (const key of IconKeys) {
@@ -160,7 +160,18 @@ const resolveTwitter: FieldResolver<'twitter'> = (twitter) => {
   for (const infoKey of TwitterBasicInfoKeys) {
     resolved[infoKey] = twitter[infoKey] || null
   }
-  resolved.images = resolveAsArrayOrUndefined(twitter.images) || []
+  resolved.images = resolveAsArrayOrUndefined(twitter.images)?.map((item) => {
+    if (isStringOrURL(item))
+      return {
+        url: item.toString(),
+      }
+    else {
+      return {
+        url: item.url.toString(),
+        alt: item.alt,
+      }
+    }
+  })
   if ('card' in twitter) {
     resolved.card = twitter.card
     switch (twitter.card) {
