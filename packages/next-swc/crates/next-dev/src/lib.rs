@@ -20,7 +20,8 @@ use devserver_options::DevServerOptions;
 use next_core::{
     create_app_source, create_page_source, create_web_entry_source, env::load_env,
     manifest::DevManifestContentSource, next_config::load_next_config,
-    next_image::NextImageContentSourceVc, source_map::NextSourceMapTraceContentSourceVc,
+    next_image::NextImageContentSourceVc, router_source::NextRouterContentSourceVc,
+    source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
 use turbo_malloc::TurboMalloc;
@@ -352,6 +353,7 @@ async fn source(
         CombinedContentSourceVc::new(vec![static_source, page_source]).into(),
     )
     .into();
+    let router_source = NextRouterContentSourceVc::new(main_source, execution_context).into();
     let source = RouterContentSource {
         routes: vec![
             ("__turbopack__/".to_string(), introspect),
@@ -364,7 +366,7 @@ async fn source(
             ("_next/image".to_string(), img_source),
             ("__turbopack_sourcemap__/".to_string(), source_maps),
         ],
-        fallback: main_source,
+        fallback: router_source,
     }
     .cell()
     .into();
