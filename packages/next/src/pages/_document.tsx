@@ -382,7 +382,12 @@ function getFontLoaderLinks(
 
   return {
     preconnect: preconnectToSelf ? (
-      <link rel="preconnect" href="/" crossOrigin="anonymous" />
+      <link
+        data-next-font=""
+        rel="preconnect"
+        href="/"
+        crossOrigin="anonymous"
+      />
     ) : null,
     preload: preloadedFontFiles
       ? preloadedFontFiles.map((fontFile) => {
@@ -395,6 +400,7 @@ function getFontLoaderLinks(
               as="font"
               type={`font/${ext}`}
               crossOrigin="anonymous"
+              data-next-font={fontFile.includes('-s') ? 'size-adjust' : ''}
             />
           )
         })
