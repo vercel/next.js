@@ -4,7 +4,9 @@ import {
   hasRedbox,
   getRedboxSource,
   getRedboxDescription,
+  check,
 } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 createNextDescribe(
   'fetch failures have good stack traces in edge runtime',
@@ -33,7 +35,8 @@ createNextDescribe(
 
     it('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
       await webdriver(next.appPort, '/api/unknown-domain-no-await')
-      expect(next.cliOutput).toMatch(
+      await check(
+        () => stripAnsi(next.cliOutput),
         /at.+\/pages\/api\/unknown-domain-no-await.js/
       )
     })
