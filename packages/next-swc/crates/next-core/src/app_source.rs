@@ -630,6 +630,7 @@ import BOOTSTRAP from {};
             ),
             chunking_context,
             intermediate_output_path,
+            output_root: intermediate_output_path.root(),
         }
         .cell())
     }
