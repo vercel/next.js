@@ -11339,7 +11339,7 @@
       "normal"
     ]
   },
-  "Noto Sans N Ko": {
+  "Noto Sans NKo": {
     "weights": [
       "400"
     ],
@@ -12603,26 +12603,6 @@
     ]
   },
   "Noto Serif NP Hmong": {
-    "weights": [
-      "400",
-      "500",
-      "600",
-      "700",
-      "variable"
-    ],
-    "styles": [
-      "normal"
-    ],
-    "axes": [
-      {
-        "tag": "wght",
-        "min": 400,
-        "max": 700,
-        "defaultValue": 400
-      }
-    ]
-  },
-  "Noto Serif Nyiakeng Puachue Hmong": {
     "weights": [
       "400",
       "500",
