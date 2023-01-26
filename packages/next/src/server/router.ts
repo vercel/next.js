@@ -505,7 +505,6 @@ export default class Router {
 }
 
 export async function makeResolver(dir: string, nextConfig: NextConfig) {
-  console.log('makeResolver')
   // TODO: why are there double defaults here?
   const { default: DevServer } =
     require('./dev/next-dev-server.js') as typeof import('./dev/next-dev-server')
@@ -575,15 +574,12 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
     const req = new NodeNextRequest(_req)
     const res = new NodeNextResponse(_res)
     ;(req as any)._initUrl = req.url
-    console.log('resolveRoute', req.url)
 
-    const matched = await devServer.router.execute.bind(devServer.router)(
+    await devServer.router.execute.bind(devServer.router)(
       req,
       res,
       url.parse(req.url!, true)
     )
-
-    console.log({ url: req.url, matched })
 
     if (!res.originalResponse.headersSent) {
       res.setHeader('x-nextjs-route-result', '1')
@@ -598,12 +594,8 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
         statusCode: 200,
         headers: {},
       }
-      console.log('sending route result', routeResult)
 
       res.body(JSON.stringify(routeResult)).send()
-    } else {
-      // TODO: remove after debugging
-      console.log('already sent a response', req.url)
     }
   }
 }
