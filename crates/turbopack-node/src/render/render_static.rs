@@ -24,6 +24,7 @@ pub async fn render_static(
     fallback_page: DevHtmlAssetVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
+    output_root: FileSystemPathVc,
     data: RenderDataVc,
 ) -> Result<AssetContentVc> {
     let intermediate_asset = get_intermediate_asset(
@@ -33,6 +34,7 @@ pub async fn render_static(
     let renderer_pool = get_renderer_pool(
         intermediate_asset,
         intermediate_output_path,
+        output_root,
         /* debug */ false,
     );
     // Read this strongly consistent, since we don't want to run inconsistent

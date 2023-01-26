@@ -13,7 +13,7 @@ pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
 pub mod magic_identifier;
-pub(crate) mod parse;
+pub mod parse;
 mod path_visitor;
 pub(crate) mod references;
 pub mod resolve;
@@ -58,11 +58,14 @@ use turbopack_core::{
     },
 };
 
-use self::chunk::{
-    EcmascriptChunkItemContent, EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions,
-    EcmascriptExportsVc,
-};
 pub use self::references::AnalyzeEcmascriptModuleResultVc;
+use self::{
+    chunk::{
+        EcmascriptChunkItemContent, EcmascriptChunkItemContentVc, EcmascriptChunkItemOptions,
+        EcmascriptExportsVc,
+    },
+    parse::ParseResultVc,
+};
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
     references::analyze_ecmascript_module,
@@ -153,6 +156,12 @@ impl EcmascriptModuleAssetVc {
             this.transforms,
             this.environment,
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn parse(self) -> Result<ParseResultVc> {
+        let this = self.await?;
+        Ok(parse(this.source, Value::new(this.ty), this.transforms))
     }
 }
 

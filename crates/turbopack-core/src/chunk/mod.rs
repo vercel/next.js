@@ -50,6 +50,8 @@ pub struct ModuleIds(Vec<ModuleIdVc>);
 pub trait ChunkingContext {
     fn output_root(&self) -> FileSystemPathVc;
 
+    // TODO remove this, a chunking context should not be bound to a specific
+    // environment since this can change due to transitions in the module graph
     fn environment(&self) -> EnvironmentVc;
 
     fn chunk_path(&self, path: FileSystemPathVc, extension: &str) -> FileSystemPathVc;

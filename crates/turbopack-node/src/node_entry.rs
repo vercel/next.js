@@ -10,6 +10,7 @@ pub struct NodeRenderingEntry {
     pub module: EcmascriptModuleAssetVc,
     pub chunking_context: ChunkingContextVc,
     pub intermediate_output_path: FileSystemPathVc,
+    pub output_root: FileSystemPathVc,
 }
 
 #[turbo_tasks::value(transparent)]

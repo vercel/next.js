@@ -12,6 +12,7 @@ pub mod next_client;
 mod next_client_chunks;
 mod next_client_component;
 pub mod next_config;
+mod next_edge;
 mod next_font_google;
 pub mod next_image;
 mod next_import_map;

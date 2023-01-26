@@ -19,6 +19,7 @@ pub async fn render_proxy(
     runtime_entries: EcmascriptChunkPlaceablesVc,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
+    output_root: FileSystemPathVc,
     data: RenderDataVc,
     body: BodyVc,
 ) -> Result<ProxyResultVc> {
@@ -29,6 +30,7 @@ pub async fn render_proxy(
     let renderer_pool = get_renderer_pool(
         intermediate_asset,
         intermediate_output_path,
+        output_root,
         /* debug */ false,
     );
     let pool = renderer_pool.await?;

@@ -31,6 +31,8 @@ turbopack-ecmascript = { path = "../turbopack-ecmascript" }
 turbopack-env = { path = "../turbopack-env" }
 turbopack-node = { path = "../turbopack-node" }
 
+swc_core = { workspace = true, features = ["ecma_ast", "common"] }
+
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
 

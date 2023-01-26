@@ -123,7 +123,7 @@ pub enum EnvironmentIntention {
 pub enum ExecutionEnvironment {
     NodeJsBuildTime(NodeJsEnvironmentVc),
     NodeJsLambda(NodeJsEnvironmentVc),
-    EdgeFunction(NodeJsEnvironmentVc),
+    EdgeWorker(EdgeWorkerEnvironmentVc),
     Browser(BrowserEnvironmentVc),
     // TODO allow custom trait here
     Custom(u8),
@@ -138,7 +138,7 @@ impl EnvironmentVc {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
             ExecutionEnvironment::Browser(_) => CompileTargetVc::unknown(),
-            ExecutionEnvironment::EdgeFunction(_) => todo!(),
+            ExecutionEnvironment::EdgeWorker(_) => CompileTargetVc::unknown(),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
@@ -155,7 +155,7 @@ impl EnvironmentVc {
                     &browserslist::Opts::new(),
                 )?)?)
             }
-            ExecutionEnvironment::EdgeFunction(_) => todo!(),
+            ExecutionEnvironment::EdgeWorker(_) => todo!(),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
@@ -168,7 +168,7 @@ impl EnvironmentVc {
                 BoolVc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => BoolVc::cell(false),
-            ExecutionEnvironment::EdgeFunction(_) => BoolVc::cell(false),
+            ExecutionEnvironment::EdgeWorker(_) => BoolVc::cell(false),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
@@ -184,7 +184,7 @@ impl EnvironmentVc {
                     ".json".to_string(),
                 ])
             }
-            ExecutionEnvironment::EdgeFunction(_) | ExecutionEnvironment::Browser(_) => {
+            ExecutionEnvironment::EdgeWorker(_) | ExecutionEnvironment::Browser(_) => {
                 StringsVc::empty()
             }
             ExecutionEnvironment::Custom(_) => todo!(),
@@ -198,7 +198,7 @@ impl EnvironmentVc {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 BoolVc::cell(true)
             }
-            ExecutionEnvironment::EdgeFunction(_) | ExecutionEnvironment::Browser(_) => {
+            ExecutionEnvironment::EdgeWorker(_) | ExecutionEnvironment::Browser(_) => {
                 BoolVc::cell(false)
             }
             ExecutionEnvironment::Custom(_) => todo!(),
@@ -212,9 +212,8 @@ impl EnvironmentVc {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 StringsVc::cell(vec!["node".to_string()])
             }
-            ExecutionEnvironment::EdgeFunction(_) | ExecutionEnvironment::Browser(_) => {
-                StringsVc::empty()
-            }
+            ExecutionEnvironment::Browser(_) => StringsVc::empty(),
+            ExecutionEnvironment::EdgeWorker(_) => StringsVc::cell(vec!["edge-worker".to_string()]),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
@@ -234,8 +233,10 @@ impl EnvironmentVc {
         let env = self.await?;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
-            | ExecutionEnvironment::NodeJsLambda(env)
-            | ExecutionEnvironment::EdgeFunction(env) => {
+            | ExecutionEnvironment::NodeJsLambda(env) => {
+                Rendering::Server(env.await?.server_addr).cell()
+            }
+            ExecutionEnvironment::EdgeWorker(env) => {
                 Rendering::Server(env.await?.server_addr).cell()
             }
             ExecutionEnvironment::Browser(_) => Rendering::Client.cell(),
@@ -247,9 +248,10 @@ impl EnvironmentVc {
     pub async fn chunk_loading(self) -> Result<ChunkLoadingVc> {
         let env = self.await?;
         Ok(match env.execution {
-            ExecutionEnvironment::NodeJsBuildTime(_)
-            | ExecutionEnvironment::NodeJsLambda(_)
-            | ExecutionEnvironment::EdgeFunction(_) => ChunkLoading::NodeJs.cell(),
+            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+                ChunkLoading::NodeJs.cell()
+            }
+            ExecutionEnvironment::EdgeWorker(_) => ChunkLoading::None.cell(),
             ExecutionEnvironment::Browser(_) => ChunkLoading::Dom.cell(),
             _ => ChunkLoading::None.cell(),
         })
@@ -327,6 +329,11 @@ pub struct BrowserEnvironment {
     pub web_worker: bool,
     pub service_worker: bool,
     pub browserslist_query: String,
+}
+
+#[turbo_tasks::value(shared)]
+pub struct EdgeWorkerEnvironment {
+    pub server_addr: ServerAddrVc,
 }
 
 #[turbo_tasks::value(transparent)]
