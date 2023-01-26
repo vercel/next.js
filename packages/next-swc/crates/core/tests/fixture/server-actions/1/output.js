@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ */ export function Item({ id1 , id2  }) {
+/* __next_internal_action_entry_do_not_use__ $ACTION_deleteItem */ export function Item({ id1 , id2  }) {
     async function deleteItem() {
         return $ACTION_deleteItem(deleteItem.$$closure);
     }
