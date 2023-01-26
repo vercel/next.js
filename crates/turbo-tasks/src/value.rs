@@ -20,6 +20,12 @@ impl<T: Typed> Value<T> {
     }
 }
 
+impl<T: Typed> From<T> for Value<T> {
+    fn from(value: T) -> Self {
+        Value::new(value)
+    }
+}
+
 impl<T: Typed> Deref for Value<T> {
     type Target = T;
 

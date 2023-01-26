@@ -22,6 +22,8 @@ mod page_loader;
 mod page_source;
 mod params_matcher;
 pub mod react_refresh;
+pub mod router;
+pub mod router_source;
 mod runtime;
 mod util;
 mod web_entry_source;

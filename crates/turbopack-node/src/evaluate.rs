@@ -30,7 +30,7 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum JavaScriptValue {
     Error,
     Value(Rope),

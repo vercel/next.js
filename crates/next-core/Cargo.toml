@@ -17,6 +17,7 @@ mime = "0.3.16"
 once_cell = "1.13.0"
 qstring = "0.7.2"
 regex = "1.6.0"
+reqwest = { workspace = true, features = ["stream"] }
 serde = "1.0.136"
 serde_json = "1.0.85"
 turbo-tasks = { path = "../turbo-tasks" }

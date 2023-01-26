@@ -1,6 +1,7 @@
 pub mod asset_graph;
 pub mod combined;
 pub mod conditional;
+pub mod headers;
 pub mod lazy_instatiated;
 pub mod query;
 pub mod router;
@@ -8,11 +9,7 @@ pub mod source_maps;
 pub mod specificity;
 pub mod static_assets;
 
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    hash::Hash,
-    mem::replace,
-};
+use std::collections::BTreeSet;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize, Serializer};
@@ -20,7 +17,7 @@ use turbo_tasks::{trace::TraceRawVcs, Value};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::version::VersionedContentVc;
 
-use self::{query::Query, specificity::SpecificityVc};
+use self::{headers::Headers, query::Query, specificity::SpecificityVc};
 
 /// The result of proxying a request to another HTTP server.
 #[turbo_tasks::value(shared)]
@@ -150,63 +147,6 @@ impl From<VersionedContentVc> for ContentSourceContentVc {
     }
 }
 
-/// The value of an http header. HTTP headers might contain non-utf-8 bytes. An
-/// header might also occur multiple times.
-#[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TraceRawVcs, Serialize, Deserialize,
-)]
-#[serde(untagged)]
-pub enum HeaderValue {
-    SingleString(String),
-    SingleBytes(Vec<u8>),
-    MultiStrings(Vec<String>),
-    MultiBytes(Vec<Vec<u8>>),
-}
-
-impl HeaderValue {
-    /// Extends the current value with another occurrence of that header which
-    /// is a string
-    pub fn extend_with_string(&mut self, new: String) {
-        *self = match replace(self, HeaderValue::SingleBytes(Vec::new())) {
-            HeaderValue::SingleString(s) => HeaderValue::MultiStrings(vec![s, new]),
-            HeaderValue::SingleBytes(b) => HeaderValue::MultiBytes(vec![b, new.into()]),
-            HeaderValue::MultiStrings(mut v) => {
-                v.push(new);
-                HeaderValue::MultiStrings(v)
-            }
-            HeaderValue::MultiBytes(mut v) => {
-                v.push(new.into());
-                HeaderValue::MultiBytes(v)
-            }
-        }
-    }
-    /// Extends the current value with another occurrence of that header which
-    /// is a non-utf-8 valid byte sequence
-    pub fn extend_with_bytes(&mut self, new: Vec<u8>) {
-        *self = match replace(self, HeaderValue::SingleBytes(Vec::new())) {
-            HeaderValue::SingleString(s) => HeaderValue::MultiBytes(vec![s.into(), new]),
-            HeaderValue::SingleBytes(b) => HeaderValue::MultiBytes(vec![b, new]),
-            HeaderValue::MultiStrings(v) => {
-                let mut v: Vec<Vec<u8>> = v.into_iter().map(|s| s.into()).collect();
-                v.push(new);
-                HeaderValue::MultiBytes(v)
-            }
-            HeaderValue::MultiBytes(mut v) => {
-                v.push(new);
-                HeaderValue::MultiBytes(v)
-            }
-        }
-    }
-
-    pub fn contains(&self, string_value: &str) -> bool {
-        match self {
-            HeaderValue::SingleString(s) => s.contains(string_value),
-            HeaderValue::MultiStrings(s) => s.iter().any(|s| s.contains(string_value)),
-            _ => false,
-        }
-    }
-}
-
 /// Additional info passed to the ContentSource. It was extracted from the http
 /// request.
 ///
@@ -224,7 +164,7 @@ pub struct ContentSourceData {
     pub query: Option<Query>,
     /// http headers, might contain multiple headers with the same name, if
     /// requested
-    pub headers: Option<BTreeMap<String, HeaderValue>>,
+    pub headers: Option<Headers>,
     /// request body, if requested
     pub body: Option<BodyVc>,
     /// see [ContentSourceDataVary::cache_buster]
