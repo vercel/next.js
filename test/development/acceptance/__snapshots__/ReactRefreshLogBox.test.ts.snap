@@ -43,6 +43,10 @@ exports[`ReactRefreshLogBox default logbox: anchors links in error messages 8`] 
 
 exports[`ReactRefreshLogBox default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
 
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 11`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox default logbox: anchors links in error messages 12`] = `"http://example.com/"`;
+
 exports[`ReactRefreshLogBox default logbox: can recover from a component error 1`] = `
 "child.js (4:16) @ Child
 
@@ -75,8 +79,7 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error
+    Syntax Error
 
 Import trace for requested module:
 ./index.js"
@@ -154,9 +157,8 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error
+    0: error was recoverable, but proceeding would result in wrong codegen
+    1: Syntax Error
 
 Import trace for requested module:
 ./index.js"
@@ -175,9 +177,8 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error
+    0: error was recoverable, but proceeding would result in wrong codegen
+    1: Syntax Error
 
 Import trace for requested module:
 ./index.js"
@@ -205,8 +206,7 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error
+    Syntax Error
 
 Import trace for requested module:
 ./index.js"

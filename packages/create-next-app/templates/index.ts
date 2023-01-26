@@ -70,7 +70,16 @@ export const installTemplate = async ({
   /**
    * Default dependencies.
    */
-  const dependencies = ['react', 'react-dom', 'next', '@next/font']
+  const dependencies = [
+    'react',
+    'react-dom',
+    `next${
+      process.env.NEXT_PRIVATE_TEST_VERSION
+        ? `@${process.env.NEXT_PRIVATE_TEST_VERSION}`
+        : ''
+    }`,
+    '@next/font',
+  ]
   /**
    * TypeScript projects will have type definitions and other devDependencies.
    */
@@ -173,6 +182,21 @@ export const installTemplate = async ({
             }
           })
       })
+    )
+    // Change the `Get started by editing pages/index` / `app/page` to include `src`
+    const indexPageFile = path.join(
+      'src',
+      template === 'app' ? 'app' : 'pages',
+      `${template === 'app' ? 'page' : 'index'}.${mode === 'ts' ? 'tsx' : 'js'}`
+    )
+    await fs.promises.writeFile(
+      indexPageFile,
+      (
+        await fs.promises.readFile(indexPageFile, 'utf8')
+      ).replace(
+        template === 'app' ? 'app/page' : 'pages/index',
+        template === 'app' ? 'src/app/page' : 'src/pages/index'
+      )
     )
   }
 

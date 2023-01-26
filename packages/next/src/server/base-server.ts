@@ -1373,6 +1373,29 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isNotFound = (renderOpts as any).isNotFound
       isRedirect = (renderOpts as any).isRedirect
 
+      if (isAppPath && isSSG && isrRevalidate === 0) {
+        const staticBailoutInfo: {
+          stack?: string
+          description?: string
+        } = (renderOpts as any).staticBailoutInfo || {}
+
+        const err = new Error(
+          `Page changed from static to dynamic at runtime ${urlPathname}${
+            staticBailoutInfo.description
+              ? `, reason: ${staticBailoutInfo.description}`
+              : ``
+          }` +
+            `\nsee more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`
+        )
+
+        if (staticBailoutInfo.stack) {
+          const stack = staticBailoutInfo.stack as string
+          err.stack = err.message + stack.substring(stack.indexOf('\n'))
+        }
+
+        throw err
+      }
+
       let value: ResponseCacheValue | null
       if (isNotFound) {
         value = null
@@ -1918,6 +1941,37 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         this.customErrorNo404Warn()
       }
 
+      if (!result) {
+        // this can occur when a project directory has been moved/deleted
+        // which is handled in the parent process in development
+        if (this.renderOpts.dev) {
+          return {
+            type: 'html',
+            // wait for dev-server to restart before refreshing
+            body: RenderResult.fromStatic(
+              `
+              <pre>missing required error components, refreshing...</pre>
+              <script>
+                async function check() {
+                  const res = await fetch(location.href).catch(() => ({}))
+                  
+                  if (res.status === 200) {
+                    location.reload()
+                  } else {
+                    setTimeout(check, 1000)
+                  }
+                }
+                check()
+              </script>`
+            ),
+          }
+        }
+
+        throw new WrappedBuildError(
+          new Error('missing required error components')
+        )
+      }
+
       try {
         return await this.renderToResponseWithComponents(
           {
@@ -1928,7 +1982,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               err,
             },
           },
-          result!
+          result
         )
       } catch (maybeFallbackError) {
         if (maybeFallbackError instanceof NoFallbackError) {

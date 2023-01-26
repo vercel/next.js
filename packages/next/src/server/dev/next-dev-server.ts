@@ -1443,7 +1443,12 @@ export default class DevServer extends Server {
       // patched global in memory, creating a memory leak.
       this.restorePatchedGlobals()
 
-      return super.findPageComponents({ pathname, query, params, isAppPath })
+      return await super.findPageComponents({
+        pathname,
+        query,
+        params,
+        isAppPath,
+      })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
         throw err

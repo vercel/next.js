@@ -2,6 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import crypto from 'crypto'
 import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
+import stripAnsi from 'strip-ansi'
 
 createNextDescribe(
   'app dir',
@@ -15,6 +16,22 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (isDev) {
+      it('should not have duplicate config warnings', async () => {
+        await next.fetch('/')
+        expect(
+          stripAnsi(next.cliOutput).match(
+            /You have enabled experimental feature/g
+          ).length
+        ).toBe(1)
+        expect(
+          stripAnsi(next.cliOutput).match(
+            /Experimental features are not covered by semver/g
+          ).length
+        ).toBe(1)
+      })
+    }
+
     if (!isNextDeploy) {
       it('should not share edge workers', async () => {
         const controller1 = new AbortController()
@@ -85,7 +102,7 @@ createNextDescribe(
 
     it('should pass props from getServerSideProps in root layout', async () => {
       const $ = await next.render$('/dashboard')
-      expect($('title').text()).toBe('hello world')
+      expect($('title').first().text()).toBe('hello world')
     })
 
     it('should serve from pages', async () => {

@@ -11,8 +11,25 @@ import { getPkgManager } from './helpers/get-pkg-manager'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import ciInfo from 'ci-info'
+import { isFolderEmpty } from './helpers/is-folder-empty'
+import fs from 'fs'
 
 let projectPath: string = ''
+
+const handleSigTerm = () => process.exit(0)
+
+process.on('SIGINT', handleSigTerm)
+process.on('SIGTERM', handleSigTerm)
+
+const onPromptState = (state: any) => {
+  if (state.aborted) {
+    // If we don't re-enable the terminal cursor before exiting
+    // the program, the cursor will remain hidden
+    process.stdout.write('\x1B[?25h')
+    process.stdout.write('\n')
+    process.exit(1)
+  }
+}
 
 const program = new Commander.Command(packageJson.name)
   .version(packageJson.version)
@@ -127,6 +144,7 @@ async function run(): Promise<void> {
 
   if (!projectPath) {
     const res = await prompts({
+      onState: onPromptState,
       type: 'text',
       name: 'path',
       message: 'What is your project named?',
@@ -177,6 +195,17 @@ async function run(): Promise<void> {
     console.error(
       'Please provide an example name or url, otherwise remove the example option.'
     )
+    process.exit(1)
+  }
+
+  /**
+   * Verify the project dir is empty or doesn't exist
+   */
+  const root = path.resolve(resolvedProjectPath)
+  const appName = path.basename(root)
+  const folderExists = fs.existsSync(root)
+
+  if (folderExists && !isFolderEmpty(root, appName)) {
     process.exit(1)
   }
 
@@ -248,6 +277,7 @@ async function run(): Promise<void> {
       } else {
         const styledEslint = chalk.hex('#007acc')('ESLint')
         const { eslint } = await prompts({
+          onState: onPromptState,
           type: 'toggle',
           name: 'eslint',
           message: `Would you like to use ${styledEslint} with this project?`,
@@ -269,6 +299,7 @@ async function run(): Promise<void> {
       } else {
         const styledSrcDir = chalk.hex('#007acc')('`src/` directory')
         const { srcDir } = await prompts({
+          onState: onPromptState,
           type: 'toggle',
           name: 'srcDir',
           message: `Would you like to use ${styledSrcDir} with this project?`,
@@ -292,6 +323,7 @@ async function run(): Promise<void> {
           'experimental `app/` directory'
         )
         const { appDir } = await prompts({
+          onState: onPromptState,
           type: 'toggle',
           name: 'appDir',
           message: `Would you like to use ${styledAppDir} with this project?`,
@@ -312,21 +344,16 @@ async function run(): Promise<void> {
       } else {
         const styledImportAlias = chalk.hex('#007acc')('import alias')
         const { importAlias } = await prompts({
+          onState: onPromptState,
           type: 'text',
           name: 'importAlias',
           message: `What ${styledImportAlias} would you like configured?`,
           initial: getPrefOrDefault('importAlias'),
+          validate: (value) =>
+            /.+\/\*/.test(value)
+              ? true
+              : 'Import alias must follow the pattern <prefix>/*',
         })
-
-        if (!/.+\/\*/.test(importAlias)) {
-          console.error(
-            `${chalk.red(
-              'Error:'
-            )} invalid import alias (${importAlias}), it must follow the pattern <prefix>/*`
-          )
-          process.exit(1)
-        }
-
         program.importAlias = importAlias
         preferences.importAlias = importAlias
       }
@@ -351,6 +378,7 @@ async function run(): Promise<void> {
     }
 
     const res = await prompts({
+      onState: onPromptState,
       type: 'confirm',
       name: 'builtin',
       message:

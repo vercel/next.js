@@ -24,7 +24,6 @@ export interface NextInstanceOpts {
   files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
   packageJson?: PackageJson
-  packageLockPath?: string
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
@@ -59,7 +58,6 @@ export class NextInstance {
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
-  protected packageLockPath?: string
   protected basePath?: string
   protected env?: Record<string, string>
   public forcedPort?: string
@@ -179,7 +177,6 @@ export class NextInstance {
               dependencies: finalDependencies,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
-              packageLockPath: this.packageLockPath,
               dirSuffix: this.dirSuffix,
             })
           }
@@ -266,7 +263,6 @@ export class NextInstance {
         `
           )
         }
-        require('console').log(`Test directory created at ${this.testDir}`)
       })
   }
 

@@ -1048,7 +1048,7 @@ export async function buildStaticPaths({
 export type AppConfig = {
   revalidate?: number | false
   dynamicParams?: true | false
-  dynamic?: 'auto' | 'error' | 'force-static'
+  dynamic?: 'auto' | 'error' | 'force-static' | 'force-dynamic'
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
@@ -1353,6 +1353,10 @@ export async function isPageStatic({
           },
           {}
         )
+
+        if (appConfig.dynamic === 'force-dynamic') {
+          appConfig.revalidate = 0
+        }
 
         if (isDynamicRoute(page)) {
           ;({
