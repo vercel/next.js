@@ -3,7 +3,7 @@ import chalk from 'next/dist/compiled/chalk'
 import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { sep } from 'path'
+import { relative, sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
@@ -290,17 +290,17 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   })
 
   if (!rootLayout) {
-    const errorMessage = `${chalk.bold(
-      pagePath.replace(`${APP_DIR_ALIAS}/`, '')
-    )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
-
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
-      Log.error(errorMessage)
+      Log.error(
+        `${chalk.bold(
+          pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+        )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
+      )
       process.exit(1)
     } else {
       // In dev we'll try to create a root layout
-      const createdRootLayout = await verifyRootLayout({
+      const [createdRootLayout, rootLayoutPath] = await verifyRootLayout({
         appDir: appDir,
         dir: rootDir!,
         tsconfigPath: tsconfigPath!,
@@ -308,7 +308,20 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         pageExtensions,
       })
       if (!createdRootLayout) {
-        throw new Error(errorMessage)
+        let message = `${chalk.bold(
+          pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+        )} doesn't have a root layout. `
+
+        if (rootLayoutPath) {
+          message += `We tried to create ${chalk.bold(
+            relative(this._compiler?.context ?? '', rootLayoutPath)
+          )} for you but something went wrong.`
+        } else {
+          message +=
+            'To fix this error, make sure every page has a root layout.'
+        }
+
+        throw new Error(message)
       }
     }
   }
