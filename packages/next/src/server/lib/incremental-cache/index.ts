@@ -100,7 +100,7 @@ export class IncrementalCache {
     this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
       dev,
       fs,
-      flushToDisk,
+      flushToDisk: flushToDisk && !dev,
       serverDistDir,
       maxMemoryCacheSize,
       _appDir: !!appDir,
@@ -110,11 +110,12 @@ export class IncrementalCache {
 
   private calculateRevalidate(
     pathname: string,
-    fromTime: number
+    fromTime: number,
+    dev?: boolean
   ): number | false {
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
-    if (this.dev) return new Date().getTime() - 1000
+    if (dev) return new Date().getTime() - 1000
 
     // if an entry isn't present in routes we fallback to a default
     // of revalidating after 1 second
@@ -174,7 +175,12 @@ export class IncrementalCache {
   ): Promise<IncrementalCacheEntry | null> {
     // we don't leverage the prerender cache in dev mode
     // so that getStaticProps is always called for easier debugging
-    if (this.dev) return null
+    if (
+      this.dev &&
+      (!fetchCache || this.requestHeaders['cache-control'] === 'no-cache')
+    ) {
+      return null
+    }
 
     pathname = this._getPathname(pathname, fetchCache)
     let entry: IncrementalCacheEntry | null = null
@@ -205,7 +211,8 @@ export class IncrementalCache {
       this.prerenderManifest.routes[toRoute(pathname)]?.initialRevalidateSeconds
     const revalidateAfter = this.calculateRevalidate(
       pathname,
-      cacheData?.lastModified || Date.now()
+      cacheData?.lastModified || Date.now(),
+      this.dev && !fetchCache
     )
     const isStale =
       revalidateAfter !== false && revalidateAfter < Date.now()
@@ -248,7 +255,7 @@ export class IncrementalCache {
     revalidateSeconds?: number | false,
     fetchCache?: boolean
   ) {
-    if (this.dev) return
+    if (this.dev && !fetchCache) return
     pathname = this._getPathname(pathname, fetchCache)
 
     try {
