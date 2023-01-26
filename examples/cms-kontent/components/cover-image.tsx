@@ -1,8 +1,14 @@
 import cn from 'classnames'
-import Image from '../components/image'
+import Image from './image'
 import Link from 'next/link'
 
-export default function CoverImage({ title, src, slug }) {
+type CoverImageProps = {
+  title: string
+  src: string
+  slug?: string
+}
+
+export default function CoverImage({ title, src, slug }: CoverImageProps) {
   const image = (
     <Image
       width={2000}

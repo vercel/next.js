@@ -3,6 +3,18 @@ import DateFormatter from '../components/date-formatter'
 import CoverImage from '../components/cover-image'
 import Link from 'next/link'
 
+type HeroPostProps = {
+  title: string,
+  coverImage: string,
+  date: string,
+  excerpt: string,
+  author: {
+    name: string,
+    picture: string
+  },
+  slug: string
+}
+
 export default function HeroPost({
   title,
   coverImage,
@@ -10,7 +22,7 @@ export default function HeroPost({
   excerpt,
   author,
   slug,
-}) {
+}: HeroPostProps) {
   return (
     <section>
       <div className="mb-8 md:mb-16">

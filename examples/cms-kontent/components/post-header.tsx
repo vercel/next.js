@@ -1,12 +1,20 @@
-import Avatar from '../components/avatar'
-import DateFormatter from '../components/date-formatter'
-import CoverImage from '../components/cover-image'
-import PostTitle from '../components/post-title'
+import Avatar from './avatar'
+import DateFormatter from './date-formatter'
+import CoverImage from './cover-image'
+import PostTitle from './post-title'
+import { Author } from '@/viewmodels/author'
 
-export default function PostHeader({ title, coverImage, date, author }) {
+type PostHeaderType = {
+  title: string,
+  coverImage: string,
+  date: string,
+  author: Author
+}
+
+export default function PostHeader({ title, coverImage, date, author }: PostHeaderType) {
   return (
     <>
-      <PostTitle>{title}</PostTitle>
+      <PostTitle title={title} />
       <div className="hidden md:block md:mb-12">
         <Avatar name={author.name} picture={author.picture} />
       </div>
