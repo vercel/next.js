@@ -142,7 +142,7 @@ Next, create another item based on **Post** content type:
 
 ![Published post item overview](./docs/publish-post-overview.png)
 
-### Step 3. Set up environment variables
+### **3. Set up environment variables**
 
 Copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
@@ -156,7 +156,7 @@ Then set each variable on `.env.local` using the keys `Project settings` > `API 
 - `KONTENT_PREVIEW_API_KEY` - One of the Preview API keys in `Project settings` > `API keys`.
 - `KONTENT_PREVIEW_SECRET` - Can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
-### Step 4. Run Next.js in development mode
+### **4. Run Next.js in development mode**
 
 ```bash
 npm install
@@ -170,7 +170,7 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
-### Step 5. Try preview mode
+### **5. Try preview mode**
 
 In your Kontent.ai project, go to **Project Settings > Preview URLs** and set a new preview URL for the `Post` content type to:
 
@@ -187,14 +187,14 @@ Once saved, go to one of the posts you've created and:
 - Create a new version of the post
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
   > Mind the title also regenerates the URL slug, if you want to change any other field that does not influence the URL slug, feel free to do so.
-- **Do not** publish it. By doing this, the post will be in the draft workflow step.
+- **Do not** publish it. By not publishing it, the post will be in the draft workflow step.
 - On the menu, you will see the **Preview** button. Click on it!
 
 ![Post preview button](./docs/post-preview-button.png).
 
 You will now be able to see the updated title. To exit preview mode, you can click on **Click here to exit preview mode** at the top of the page.
 
-### Step 6. Deploy on Vercel
+### **6. Deploy on Vercel**
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
