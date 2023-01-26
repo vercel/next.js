@@ -246,6 +246,10 @@ const nextDev: CliCommand = async (argv) => {
         try {
           // these should not error
           if (
+            configKey === 'onDemandEntries' ||
+            configKey === 'rewrites' ||
+            configKey === 'redirects' ||
+            configKey === 'headers' ||
             configKey === 'serverComponentsExternalPackages' ||
             configKey === 'appDir' ||
             configKey === 'images' ||
