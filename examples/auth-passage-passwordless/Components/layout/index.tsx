@@ -8,7 +8,7 @@ import styles from "../../styles/App.module.css"
 
 interface LayoutProps {
     children?: ReactNode;
-};
+}
 
 
 export default function Layout({ children, ...props }: LayoutProps) {

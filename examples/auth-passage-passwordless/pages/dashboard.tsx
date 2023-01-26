@@ -11,7 +11,7 @@ interface DashboardProps {
   isAuthorized: boolean;
   username: string;
   appID: string;
-};
+}
 
 const Dashboard: NextPage<DashboardProps> = ({ isAuthorized, username, appID }) => {
 

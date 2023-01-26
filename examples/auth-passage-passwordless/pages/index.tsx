@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 interface AppProps {
 appID: string;
-};
+}
 
 
 const Index: NextPage<AppProps> = ({appID}) => {
