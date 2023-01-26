@@ -1,10 +1,13 @@
+import { Author, contentTypes, Post } from '@/models'
+import { Author as ViewModelAuthor } from '@/viewmodels/author'
+import { Post as ViewModelPost } from '@/viewmodels/post'
 import { DeliveryClient } from '@kontent-ai/delivery-sdk'
 import pkg from '../package.json'
 
 const sourceTrackingHeaderName = 'X-KC-SOURCE'
 
 const client = new DeliveryClient({
-  projectId: process.env.KONTENT_PROJECT_ID,
+  projectId: process.env.KONTENT_PROJECT_ID ?? "",
   previewApiKey: process.env.KONTENT_PREVIEW_API_KEY,
   globalHeaders: (_queryConfig) => [
     {
@@ -14,14 +17,15 @@ const client = new DeliveryClient({
   ],
 })
 
-function parseAuthor(author) {
+function parseAuthor(author:Author): ViewModelAuthor {
   return {
     name: author.elements.name.value,
     picture: author.elements.picture.value[0].url,
   }
 }
 
-function parsePost(post) {
+function parsePost(post: Post): ViewModelPost {
+  debugger;
   return {
     title: post.elements.title.value,
     slug: post.elements.slug.value,
@@ -35,8 +39,8 @@ function parsePost(post) {
 
 export async function getAllPostSlugs() {
   return await client
-    .items()
-    .type('post')
+    .items<Post>()
+    .type(contentTypes.post.codename)
     .elementsParameter(['slug'])
     .toPromise()
     .then((response) =>
@@ -44,13 +48,13 @@ export async function getAllPostSlugs() {
     )
 }
 
-export async function getMorePostsForSlug(slug, preview) {
+export async function getMorePostsForSlug(slug: string, preview: boolean) {
   return client
-    .items()
+    .items<Post>()
+    .type(contentTypes.post.codename)
     .queryConfig({
       usePreviewMode: !!preview,
     })
-    .type('post')
     .orderByDescending('elements.date')
     .notEqualsFilter('elements.slug', slug)
     .limitParameter(2)
@@ -58,25 +62,27 @@ export async function getMorePostsForSlug(slug, preview) {
     .then((response) => response.data.items.map((post) => parsePost(post)))
 }
 
-export async function getPostBySlug(slug, preview) {
+export async function getPostBySlug(slug: string, preview: boolean) {
   return await client
-    .items()
+    .items<Post>()
+    .type(contentTypes.post.codename)
     .queryConfig({
       usePreviewMode: !!preview,
     })
-    .type('post')
     .equalsFilter('elements.slug', slug)
     .toPromise()
-    .then((response) => parsePost(response.data.items[0]))
+    .then((response) => { console.log(response.data)
+      parsePost(response.data.items[0])
+    })
 }
 
-export async function getAllPosts(preview) {
+export async function getAllPosts(preview: boolean) {
   return await client
-    .items()
+    .items<Post>()
+    .type(contentTypes.post.codename)
     .queryConfig({
-      usePreviewMode: !!preview,
+      usePreviewMode: preview,
     })
-    .type('post')
     .orderByDescending('elements.date')
     .toPromise()
     .then((response) => response.data.items.map((post) => parsePost(post)))
