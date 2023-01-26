@@ -35,7 +35,10 @@ export default function resolveRewrites(
 
   const handleRewrite = (rewrite: Rewrite) => {
     const matcher = getPathMatch(
-      rewrite.source + (process.env.__NEXT_TRAILING_SLASH ? '(/)?' : ''),
+      rewrite.source +
+        (rewrite.source !== '/' && process.env.__NEXT_TRAILING_SLASH
+          ? '(/)?'
+          : ''),
       {
         removeUnnamedParams: true,
         strict: true,
