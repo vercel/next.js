@@ -20,13 +20,16 @@ export default function withRouter<
   P extends WithRouterProps,
   C extends BaseContext = NextPageContext
 >(
-  ComposedComponent: NextComponentType<C, any, P>
+  ComposedComponent: NextComponentType<C, any, P> & {
+    getLayout?: (page: React.ReactElement) => React.ReactNode
+  }
 ): React.ComponentType<ExcludeRouterProps<P>> {
   function WithRouterWrapper(props: any): JSX.Element {
     return <ComposedComponent router={useRouter()} {...props} />
   }
 
   WithRouterWrapper.getInitialProps = ComposedComponent.getInitialProps
+  WithRouterWrapper.getLayout = ComposedComponent.getLayout
   // This is needed to allow checking for custom getInitialProps in _app
   ;(WithRouterWrapper as any).origGetInitialProps = (
     ComposedComponent as any
