@@ -132,6 +132,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
             this.runtime_entries,
             entry.chunking_context,
             entry.intermediate_output_path,
+            entry.output_root,
             RenderData {
                 params: params.clone(),
                 method: method.clone(),

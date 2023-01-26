@@ -55,13 +55,17 @@ use crate::{
     },
     next_client_chunks::client_chunks_transition::NextClientChunksTransitionVc,
     next_config::NextConfigVc,
+    next_edge::{
+        context::{get_edge_environment, get_edge_resolve_options_context},
+        transition::NextEdgeTransition,
+    },
     next_server::context::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
     page_loader::create_page_loader,
     params_matcher::NextParamsMatcherVc,
-    util::pathname_for_path,
+    util::{parse_config_from_source, pathname_for_path, NextRuntime},
 };
 
 /// Create a content source serving the `pages` or `src/pages` directory as
@@ -129,8 +133,32 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let mut transitions = HashMap::new();
-    transitions.insert("next-client".to_string(), next_client_transition);
+    let edge_environment = get_edge_environment(server_addr);
+
+    let edge_chunking_context = DevChunkingContextVc::builder(
+        project_path,
+        output_path.join("edge"),
+        output_path.join("edge/chunks"),
+        get_client_assets_path(
+            server_root,
+            Value::new(ClientContextType::Pages { pages_dir }),
+        ),
+        edge_environment,
+    )
+    .build();
+    let edge_resolve_options_context =
+        get_edge_resolve_options_context(project_path, server_ty, next_config);
+
+    let next_edge_transition = NextEdgeTransition {
+        edge_environment,
+        edge_chunking_context,
+        edge_resolve_options_context,
+        output_path,
+        base_path: project_path,
+    }
+    .cell()
+    .into();
+
     let server_environment = get_server_environment(server_ty, env, server_addr);
     let server_resolve_options_context =
         get_server_resolve_options_context(project_path, server_ty, next_config);
@@ -139,6 +167,7 @@ pub async fn create_page_source(
         get_server_module_options_context(project_path, execution_context, server_ty, next_config);
     let server_transitions = TransitionsByNameVc::cell(
         [
+            ("next-edge".to_string(), next_edge_transition),
             ("next-client".to_string(), next_client_transition),
             (
                 "next-client-chunks".to_string(),
@@ -210,6 +239,7 @@ pub async fn create_page_source(
         server_root,
         server_root.join("api"),
         output_path,
+        output_path,
     );
     let fallback_source =
         AssetGraphContentSourceVc::new_eager(server_root, fallback_page.as_asset());
@@ -237,6 +267,7 @@ async fn create_page_source_for_file(
     server_path: FileSystemPathVc,
     is_api_path: BoolVc,
     intermediate_output_path: FileSystemPathVc,
+    output_root: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {
     let source_asset = SourceAssetVc::new(page_file).into();
     let entry_asset = server_context.process(
@@ -284,7 +315,14 @@ async fn create_page_source_for_file(
     let pathname = pathname_for_path(server_root, server_path, true);
     let params_matcher = NextParamsMatcherVc::new(pathname, None, None);
 
+    let page_config = parse_config_from_source(entry_asset);
+
     Ok(if *is_api_path.await? {
+        let ty = if page_config.await?.runtime == NextRuntime::Edge {
+            SsrType::EdgeApi
+        } else {
+            SsrType::Api
+        };
         create_node_api_source(
             specificity,
             server_root,
@@ -293,9 +331,10 @@ async fn create_page_source_for_file(
             SsrEntry {
                 context: server_context,
                 entry_asset,
-                ty: SsrType::Api,
+                ty,
                 chunking_context: server_chunking_context,
                 intermediate_output_path,
+                output_root,
             }
             .cell()
             .into(),
@@ -314,6 +353,7 @@ async fn create_page_source_for_file(
             ty: SsrType::Html,
             chunking_context: server_chunking_context,
             intermediate_output_path,
+            output_root,
         }
         .cell()
         .into();
@@ -324,6 +364,7 @@ async fn create_page_source_for_file(
             ty: SsrType::Data,
             chunking_context: server_data_chunking_context,
             intermediate_output_path: data_intermediate_output_path,
+            output_root,
         }
         .cell()
         .into();
@@ -378,6 +419,7 @@ async fn create_page_source_for_directory(
     server_path: FileSystemPathVc,
     server_api_path: FileSystemPathVc,
     intermediate_output_path: FileSystemPathVc,
+    output_root: FileSystemPathVc,
 ) -> Result<CombinedContentSourceVc> {
     let mut sources = vec![];
     let dir_content = input_dir.read_dir().await?;
@@ -433,6 +475,7 @@ async fn create_page_source_for_directory(
                                         dev_server_path,
                                         dev_server_path.is_inside(server_api_path),
                                         intermediate_output_path,
+                                        output_root,
                                     ),
                                 ));
                             }
@@ -458,6 +501,7 @@ async fn create_page_source_for_directory(
                             server_path.join(name),
                             server_api_path,
                             intermediate_output_path.join(name),
+                            output_root,
                         )
                         .into(),
                     ));
@@ -481,6 +525,7 @@ async fn create_page_source_for_directory(
 )]
 enum SsrType {
     Api,
+    EdgeApi,
     Html,
     Data,
 }
@@ -493,6 +538,7 @@ struct SsrEntry {
     ty: SsrType,
     chunking_context: ChunkingContextVc,
     intermediate_output_path: FileSystemPathVc,
+    output_root: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -504,6 +550,10 @@ impl SsrEntryVc {
             SsrType::Api => VirtualAssetVc::new(
                 this.entry_asset.path().join("server-api.tsx"),
                 next_js_file("entry/server-api.tsx").into(),
+            ),
+            SsrType::EdgeApi => VirtualAssetVc::new(
+                this.entry_asset.path().join("server-edge-api.tsx"),
+                next_js_file("entry/server-edge-api.tsx").into(),
             ),
             SsrType::Data => VirtualAssetVc::new(
                 this.entry_asset.path().join("server-data.tsx"),
@@ -528,6 +578,7 @@ impl SsrEntryVc {
             ),
             chunking_context: this.chunking_context,
             intermediate_output_path: this.intermediate_output_path,
+            output_root: this.output_root,
         }
         .cell())
     }
