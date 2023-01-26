@@ -225,6 +225,49 @@ createNextDescribe(
           )
         })
 
+        it('should support robots tags', async () => {
+          const browser = await next.browser('/robots')
+          await checkMetaNameContentPair(
+            browser,
+            'robots',
+            'noindex, follow, nocache'
+          )
+          await checkMetaNameContentPair(
+            browser,
+            'googlebot',
+            'index, nofollow, noimageindex'
+          )
+        })
+
+        it('should support appLinks tags', async () => {
+          const browser = await next.browser('/app-links')
+          await checkMetaPropertyContentPair(
+            browser,
+            'al:ios:url',
+            'https://example.com/ios'
+          )
+          await checkMetaPropertyContentPair(
+            browser,
+            'al:ios:app_store_id',
+            'app_store_id'
+          )
+          await checkMetaPropertyContentPair(
+            browser,
+            'al:android:package',
+            'com.example.android/package'
+          )
+          await checkMetaPropertyContentPair(
+            browser,
+            'al:android:app_name',
+            'app_name_android'
+          )
+          await checkMetaPropertyContentPair(
+            browser,
+            'al:web:should_fallback',
+            'true'
+          )
+        })
+
         it('should apply metadata when navigating client-side', async () => {
           const browser = await next.browser('/')
 
@@ -456,11 +499,11 @@ createNextDescribe(
             // app properties
             card: 'app',
             'app:id:iphone': 'twitter_app://iphone',
-            'app:url:iphone': 'twitter_app://iphone',
-            'app:id:ipad': 'twitter_app://iphone',
-            'app:url:ipad': 'twitter_app://iphone',
-            'app:id:googleplay': 'twitter_app://iphone',
-            'app:url:googleplay': 'twitter_app://iphone',
+            'app:id:ipad': 'twitter_app://ipad',
+            'app:id:googleplay': 'twitter_app://googleplay',
+            'app:url:iphone': 'https://iphone_url',
+            'app:url:ipad': 'https://ipad_url',
+            'app:url:googleplay': undefined,
           }
 
           await Promise.all(

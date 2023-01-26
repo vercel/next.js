@@ -18,11 +18,12 @@ export const metadata = {
       name: 'twitter_app',
       id: {
         iphone: 'twitter_app://iphone',
-        ipad: 'twitter_app://iphone',
+        ipad: 'twitter_app://ipad',
+        googleplay: 'twitter_app://googleplay',
       },
       url: {
-        iphone: 'twitter_app://iphone',
-        ipad: 'twitter_app://iphone',
+        iphone: 'https://iphone_url',
+        ipad: 'https://ipad_url',
       },
     },
   },

@@ -1,7 +1,7 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
-import { Meta, MultiMeta } from './meta'
+import { ExtendMeta, Meta, MultiMeta } from './meta'
 import { TwitterAppDescriptor } from '../types/twitter-types'
 
 export function OpenGraphMetadata({
@@ -232,9 +232,9 @@ function TwitterAppItem({
 }) {
   return (
     <>
-      <Meta name={`twitter:app:id:${type}`} content={app.id?.[type]} />
-      <Meta name={`twitter:app:id:${type}`} content={app.id?.iphone} />
-      <Meta name={`twitter:app:url:${type}`} content={app.url?.iphone} />
+      <Meta name={`twitter:app:name:${type}`} content={app.name} />
+      <ExtendMeta namePrefix="twitter:app:id" content={app.id} />
+      <ExtendMeta namePrefix="twitter:app:url" content={app.url} />
     </>
   )
 }
@@ -280,6 +280,32 @@ export function TwitterMetadata({
           <TwitterAppItem app={twitter.app} type="googleplay" />
         </>
       ) : null}
+    </>
+  )
+}
+
+export function AppLinksMeta({
+  appLinks,
+}: {
+  appLinks: ResolvedMetadata['appLinks']
+}) {
+  if (!appLinks) return null
+  return (
+    <>
+      <MultiMeta propertyPrefix="al:ios" contents={appLinks.ios} />
+      <MultiMeta propertyPrefix="al:iphone" contents={appLinks.iphone} />
+      <MultiMeta propertyPrefix="al:ipad" contents={appLinks.ipad} />
+      <MultiMeta propertyPrefix="al:android" contents={appLinks.android} />
+      <MultiMeta
+        propertyPrefix="al:windows_phone"
+        contents={appLinks.windows_phone}
+      />
+      <MultiMeta propertyPrefix="al:windows" contents={appLinks.windows} />
+      <MultiMeta
+        propertyPrefix="al:windows_universal"
+        contents={appLinks.windows_universal}
+      />
+      <MultiMeta propertyPrefix="al:web" contents={appLinks.web} />
     </>
   )
 }

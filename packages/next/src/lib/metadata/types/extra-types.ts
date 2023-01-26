@@ -12,6 +12,16 @@ export type AppLinks = {
   windows_universal?: AppLinksWindows | Array<AppLinksWindows>
   web?: AppLinksWeb | Array<AppLinksWeb>
 }
+export type ResolvedAppLinks = {
+  ios?: Array<AppLinksApple>
+  iphone?: Array<AppLinksApple>
+  ipad?: Array<AppLinksApple>
+  android?: Array<AppLinksAndroid>
+  windows_phone?: Array<AppLinksWindows>
+  windows?: Array<AppLinksWindows>
+  windows_universal?: Array<AppLinksWindows>
+  web?: Array<AppLinksWeb>
+}
 export type AppLinksApple = {
   url: string | URL
   app_store_id?: string | number

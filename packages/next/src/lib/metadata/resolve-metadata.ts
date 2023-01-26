@@ -16,6 +16,10 @@ import { resolveOpenGraph } from './resolve-opengraph'
 import { mergeTitle } from './resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 
+type FieldResolver<Key extends keyof Metadata> = (
+  T: Metadata[Key]
+) => ResolvedMetadata[Key]
+
 const viewPortKeys = {
   width: 'width',
   height: 'height',
@@ -54,9 +58,7 @@ type Item =
       path?: string
     }
 
-function resolveViewport(
-  viewport: Metadata['viewport']
-): ResolvedMetadata['viewport'] {
+const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
   let resolved: ResolvedMetadata['viewport'] = null
 
   if (typeof viewport === 'string') {
@@ -74,9 +76,7 @@ function resolveViewport(
   return resolved
 }
 
-function resolveVerification(
-  verification: Metadata['verification']
-): ResolvedMetadata['verification'] {
+const resolveVerification: FieldResolver<'verification'> = (verification) => {
   const google = resolveAsArrayOrUndefined(verification?.google)
   const yahoo = resolveAsArrayOrUndefined(verification?.yahoo)
   let other: Record<string, (string | number)[]> | undefined
@@ -113,7 +113,7 @@ const TwitterBasicInfoKeys = [
   'description',
 ] as const
 
-function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
+const resolveIcons: FieldResolver<'icons'> = (icons) => {
   if (!icons) {
     return null
   }
@@ -132,9 +132,7 @@ function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
   return resolved
 }
 
-function resolveAppleWebApp(
-  appWebApp: Metadata['appleWebApp']
-): ResolvedMetadata['appleWebApp'] {
+const resolveAppleWebApp: FieldResolver<'appleWebApp'> = (appWebApp) => {
   if (!appWebApp) return null
   if (appWebApp === true) {
     return {
@@ -151,6 +149,76 @@ function resolveAppleWebApp(
     title: appWebApp.title || null,
     startupImage: startupImages || null,
     statusBarStyle: appWebApp.statusBarStyle || 'default',
+  }
+}
+
+const resolveTwitter: FieldResolver<'twitter'> = (twitter) => {
+  if (!twitter) return null
+  const resolved = {
+    title: twitter.title,
+  } as ResolvedTwitterMetadata
+  for (const infoKey of TwitterBasicInfoKeys) {
+    resolved[infoKey] = twitter[infoKey] || null
+  }
+  resolved.images = resolveAsArrayOrUndefined(twitter.images) || []
+  if ('card' in twitter) {
+    resolved.card = twitter.card
+    switch (twitter.card) {
+      case 'player': {
+        // @ts-ignore
+        resolved.players = resolveAsArrayOrUndefined(twitter.players) || []
+        break
+      }
+      case 'app': {
+        // @ts-ignore
+        resolved.app = twitter.app || {}
+        break
+      }
+      default:
+        break
+    }
+  } else {
+    resolved.card = 'summary'
+  }
+  return resolved
+}
+
+const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
+  if (!appLinks) return null
+  for (const key in appLinks) {
+    // @ts-ignore // TODO: type infer
+    appLinks[key] = resolveAsArrayOrUndefined(appLinks[key])
+  }
+  return appLinks as ResolvedMetadata['appLinks']
+}
+
+const resolveRobotsValue: (robots: Metadata['robots']) => string | null = (
+  robots
+) => {
+  if (!robots) return null
+  if (typeof robots === 'string') return robots
+
+  const values = []
+
+  if (robots.index) values.push('index')
+  else if (typeof robots.index === 'boolean') values.push('noindex')
+
+  if (robots.follow) values.push('follow')
+  else if (typeof robots.follow === 'boolean') values.push('nofollow')
+  if (robots.noarchive) values.push('noarchive')
+  if (robots.nosnippet) values.push('nosnippet')
+  if (robots.noimageindex) values.push('noimageindex')
+  if (robots.nocache) values.push('nocache')
+
+  return values.join(', ')
+}
+
+const resolveRobots: FieldResolver<'robots'> = (robots) => {
+  if (!robots) return null
+  return {
+    basic: resolveRobotsValue(robots),
+    googleBot:
+      typeof robots !== 'string' ? resolveRobotsValue(robots.googleBot) : null,
   }
 }
 
@@ -187,41 +255,9 @@ function merge(
         break
       }
       case 'twitter': {
-        if (source.twitter) {
-          // TODO: improve typing of merging
-          const resolved = {
-            title: source.twitter.title,
-          } as ResolvedTwitterMetadata
-          for (const infoKey of TwitterBasicInfoKeys) {
-            resolved[infoKey] = source.twitter[infoKey] || null
-          }
-          mergeTitle(resolved, templateStrings.twitter)
-          resolved.images =
-            resolveAsArrayOrUndefined(source.twitter.images) || []
-          if ('card' in source.twitter) {
-            resolved.card = source.twitter.card
-            switch (source.twitter.card) {
-              case 'player': {
-                // @ts-ignore
-                resolved.players =
-                  resolveAsArrayOrUndefined(source.twitter.players) || []
-                break
-              }
-              case 'app': {
-                // @ts-ignore
-                resolved.app = source.twitter.app || {}
-                break
-              }
-              default:
-                break
-            }
-          } else {
-            resolved.card = 'summary'
-          }
-
-          target.twitter = resolved
-        } else {
-          target.twitter = null
+        target.twitter = resolveTwitter(source.twitter)
+        if (target.twitter) {
+          mergeTitle(target.twitter, templateStrings.twitter)
         }
         break
       }
@@ -236,12 +272,15 @@ function merge(
         target.icons = resolveIcons(source.icons)
         break
       }
-      case 'appLinks':
-      case 'verification':
-        break
       case 'appleWebApp':
         target.appleWebApp = resolveAppleWebApp(source.appleWebApp)
         break
+      case 'appLinks':
+        target.appLinks = resolveAppLinks(source.appLinks)
+      case 'robots': {
+        target.robots = resolveRobots(source.robots)
+        break
+      }
       case 'archives':
       case 'assets':
       case 'bookmarks':
@@ -270,14 +309,6 @@ function merge(
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
         break
-      // TODO: support more fields
-      case 'robots': {
-        // TODO: resolve robots
-        if (typeof source.robots === 'string') {
-          target.robots = source.robots
-        }
-        break
-      }
       default:
         break
     }

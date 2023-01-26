@@ -21,7 +21,8 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
       <Meta name="viewport" content={metadata.viewport} />
       <Meta name="creator" content={metadata.creator} />
       <Meta name="publisher" content={metadata.publisher} />
-      <Meta name="robots" content={metadata.robots} />
+      <Meta name="robots" content={metadata.robots?.basic} />
+      <Meta name="googlebot" content={metadata.robots?.googleBot} />
       <Meta name="abstract" content={metadata.abstract} />
       {metadata.archives
         ? metadata.archives.map((archive) => (

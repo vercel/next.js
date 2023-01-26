@@ -8,6 +8,7 @@ import type {
   FormatDetection,
   ItunesApp,
   ResolvedAppleWebApp,
+  ResolvedAppLinks,
   Viewport,
 } from './extra-types'
 import type {
@@ -21,6 +22,7 @@ import type {
   ResolvedIcons,
   ResolvedVerification,
   Robots,
+  ResolvedRobots,
   TemplateString,
   Verification,
 } from './metadata-types'
@@ -142,7 +144,7 @@ export interface ResolvedMetadata {
   publisher: null | string
 
   // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name#other_metadata_names
-  robots: null | string
+  robots: null | ResolvedRobots
 
   // The canonical and alternate URLs for this location
   alternates: null | ResolvedAlternateURLs
@@ -177,7 +179,7 @@ export interface ResolvedMetadata {
   abstract: null | string
 
   // Facebook AppLinks
-  appLinks: null | AppLinks
+  appLinks: null | ResolvedAppLinks
 
   // link rel properties
   archives: null | Array<string>
