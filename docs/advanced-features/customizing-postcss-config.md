@@ -76,11 +76,11 @@ To customize browserslist, create a `browserslist` key in your `package.json` li
 
 ```json
 {
-  "browserslist": [">0.3%", "not ie 11", "not dead", "not op_mini all"]
+  "browserslist": [">0.3%", "not dead", "not op_mini all"]
 }
 ```
 
-You can use the [browserl.ist](https://browserl.ist/?q=%3E0.3%25%2C+not+ie+11%2C+not+dead%2C+not+op_mini+all) tool to visualize what browsers you are targeting.
+You can use the [browsersl.ist](https://browsersl.ist/?q=%3E0.3%25%2C+not+ie+11%2C+not+dead%2C+not+op_mini+all) tool to visualize what browsers you are targeting.
 
 ## CSS Modules
 

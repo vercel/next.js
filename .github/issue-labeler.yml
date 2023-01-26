@@ -1,0 +1,64 @@
+# https://github.com/github/issue-labeler#basic-examples
+
+# Should match  the list "Which area(s) of Next.js are affected?" in:
+# https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml
+'area: app':
+  - 'App directory (appDir: true)'
+'area: create-next-app':
+  - 'CLI (create-next-app)'
+'area: data fetching':
+  - 'Data fetching (gS(S)P, getInitialProps)'
+'area: next/dynamic':
+  - 'Dynamic imports (next/dynamic)'
+'area: ESLint':
+  - 'ESLint (eslint-config-next)'
+'area: Font Optimization':
+  - 'Font optimization (@next/font)'
+'area: next/head / head.js':
+  - 'Head component/file (next/head / head.js)'
+'area: I18n':
+  - 'Internationalzation (i18n)'
+'area: next/image':
+  - 'Image optmization (next/image, next/legacy/image)'
+'area: Jest':
+  - 'Jest (next/jest)'
+'area: Edge':
+  - 'Middleware / Edge (API routes, runtime)'
+'area: package manager':
+  - 'Package manager (npm, pnpm, Yarn)'
+'area: Routing':
+  - 'Routing (next/router, next/navigation, next/link)'
+'area: next/script':
+  - 'Script optimizatzion (next/script)'
+'area: standalone mode':
+  - 'Standalone mode (output: "standalone")'
+'area: export':
+  - 'Static HTML Export (next export)'
+'area: SWC Minify':
+  - 'SWC minifier (swcMinify: true)'
+'area: SWC transforms':
+  - 'SWC transpilation'
+'area: Turbopack':
+  - 'Turbopack (--turbo)'
+'area: TypeScript':
+  - 'TypeScript'
+# Less used/old/redundant labels
+# area: AMP
+# area: API routes
+# area: Application Code
+# area: Codemods
+# area: Compiler Performance
+# area: Compiler
+# area: Concurrent Features
+# area: Debugger
+# area: Developer Experience
+# area: Ecosystem
+# area: experimental
+# area: Middleware
+# area: Reliability
+# area: Repository Maintenance
+# area: Server Components
+# area: Static Generation
+# area: styled-jsx
+# area: Tracing
+# area: URL Imports

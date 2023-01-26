@@ -13,7 +13,7 @@ description: Dynamically import JavaScript modules and React Components and spli
 
 Next.js supports lazy loading external libraries with `import()` and React components with `next/dynamic`. Deferred loading helps improve the initial loading performance by decreasing the amount of JavaScript necessary to render the page. Components or libraries are only imported and included in the JavaScript bundle when they're used.
 
-`next/dynamic` is an extension of [`React.lazy`](https://reactjs.org/docs/code-splitting.html#reactlazy). When used in combination with [`Suspense`](https://reactjs.org/docs/react-api.html#reactsuspense), components can delay hydration until the Suspense boundary is resolved.
+`next/dynamic` is a composite extension of [`React.lazy`](https://reactjs.org/docs/code-splitting.html#reactlazy) and [`Suspense`](https://reactjs.org/docs/react-api.html#reactsuspense), components can delay hydration until the Suspense boundary is resolved.
 
 ## Example
 
@@ -21,30 +21,17 @@ By using `next/dynamic`, the header component will not be included in the page's
 
 ```jsx
 import dynamic from 'next/dynamic'
-import { Suspense } from 'react'
 
 const DynamicHeader = dynamic(() => import('../components/header'), {
-  suspense: true,
+  loading: () => 'Loading...',
 })
 
 export default function Home() {
-  return (
-    <Suspense fallback={`Loading...`}>
-      <DynamicHeader />
-    </Suspense>
-  )
+  return <DynamicHeader />
 }
 ```
 
 > **Note**: In `import('path/to/component')`, the path must be explicitly written. It can't be a template string nor a variable. Furthermore the `import()` has to be inside the `dynamic()` call for Next.js to be able to match webpack bundles / module ids to the specific `dynamic()` call and preload them before rendering. `dynamic()` can't be used inside of React rendering as it needs to be marked in the top level of the module for preloading to work, similar to `React.lazy`.
-
-If you are not using React 18, you can use the `loading` attribute in place of the Suspense `fallback`.
-
-```jsx
-const DynamicHeader = dynamic(() => import('../components/header'), {
-  loading: () => <div>Loading...</div>,
-})
-```
 
 ## With named exports
 

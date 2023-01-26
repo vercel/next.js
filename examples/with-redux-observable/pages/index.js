@@ -20,9 +20,7 @@ const Counter = () => {
       <UserInfo />
       <br />
       <nav>
-        <Link href="/other">
-          <a>Navigate to "/other"</a>
-        </Link>
+        <Link href="/other">Navigate to "/other"</Link>
       </nav>
     </div>
   )

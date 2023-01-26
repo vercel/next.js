@@ -1,33 +1,34 @@
 # React 18
 
-[React 18](https://reactjs.org/blog/2022/03/29/react-v18.html) adds new features including Suspense, automatic batching of updates, APIs like `startTransition`, and a new streaming API for server rendering with support for `React.lazy`.
+Next.js 13 requires using React 18, unlocking:
 
-React 18 is now released. Read more about [React 18](https://reactjs.org/blog/2022/03/29/react-v18.html).
-
-## Using React 18 with Next.js
-
-Install the latest version of React:
-
-```jsx
-npm install next@latest react@latest react-dom@latest
-```
-
-You can now start using React 18's new APIs like `startTransition` and `Suspense` in Next.js.
+- [Streaming SSR](#streaming-ssr)
+- [React Server Components](#react-server-components)
+- [Edge and Node.js Runtimes](#edge-and-nodejs-runtimes)
+- New APIs like `startTransition` and more.
 
 ## Streaming SSR
 
-Next.js supports React 18 streaming server-rendering (SSR) out of the box.
+In Next.js 13, you can start using the `app/` directory (beta) to take advantage of streaming server-rendering. Learn more by reading the `app/` directory (beta) documentation:
 
-[Learn more about streaming in Next.js](/docs/advanced-features/react-18/streaming.md).
+- [Streaming and Suspense](https://beta.nextjs.org/docs/data-fetching/streaming-and-suspense)
+- [Instant Loading UI](https://beta.nextjs.org/docs/routing/loading-ui)
 
-## React Server Components (Alpha)
+[Deploy the `app/` directory example](https://vercel.com/templates/next.js/app-directory) to try Streaming SSR.
 
-Server Components are a new feature in React that let you reduce your JavaScript bundle size by separating server and client-side code. Server Components allow developers to build apps that span the server and client, combining the rich interactivity of client-side apps with the improved performance of traditional server rendering.
+## React Server Components
 
-Server Components are still in research and development. [Learn how to try Server Components](/docs/advanced-features/react-18/server-components.md) as an experimental feature in Next.js.
+In Next.js 13, you can start using the `app/` directory (beta) which use Server Components by default. Learn more by reading the `app/` directory (beta) documentation:
 
-## Switchable Runtime (Alpha)
+- [Rendering Fundamentals](https://beta.nextjs.org/docs/rendering/fundamentals)
+- [Server and Client Components](https://beta.nextjs.org/docs/rendering/server-and-client-components)
 
-Next.js supports changing the runtime of your application between Node.js and the [Edge Runtime](/docs/api-reference/edge-runtime.md) at the page level. For example, you can selectively configure specific pages to be server-side rendered in the Edge Runtime.
+[Deploy the `app/` directory example](https://vercel.com/templates/next.js/app-directory) to try Server Components.
 
-This feature is still experimental. [Learn more about the switchable runtime](/docs/advanced-features/react-18/switchable-runtime.md).
+## Edge and Node.js Runtimes
+
+Next.js has two **server runtimes** where you can render parts of your application code: the **Node.js Runtime** and the [**Edge Runtime**](/docs/api-reference/edge-runtime.md). Depending on your deployment infrastructure, both runtimes support streaming.
+
+By default, Next.js uses the Node.js runtime. [Middleware](https://nextjs.org/docs/advanced-features/middleware) and [Edge API Routes](https://nextjs.org/docs/api-routes/edge-api-routes) use the Edge runtime.
+
+[Learn more about the different runtimes](/docs/advanced-features/react-18/switchable-runtime.md).

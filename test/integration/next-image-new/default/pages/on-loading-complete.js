@@ -29,7 +29,6 @@ const Page = () => {
       <ImageWithMessage
         id="3"
         src="/test.svg"
-        layout="responsive"
         width="1200"
         height="1200"
         idToCount={idToCount}

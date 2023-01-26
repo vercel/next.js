@@ -659,8 +659,10 @@ describe('basePath', () => {
         },
       })
 
-      const html = await browser.eval('document.documentElement.innerHTML')
-      expect(html).toContain('This page could not be found')
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /This page could not be found/
+      )
     })
 
     it('should 404 when manually adding basePath with router.push', async () => {

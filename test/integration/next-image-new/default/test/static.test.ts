@@ -142,6 +142,28 @@ const runTests = (isDev) => {
       `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 100 200'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage preserveAspectRatio='none' filter='url(%23b)' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNM/s/wBwAFjwJgf8HDLgAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
     )
   })
+
+  it('should load direct imported image', async () => {
+    const src = await browser.elementById('basic-static').getAttribute('src')
+    expect(src).toMatch(
+      /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect(.+)\.jpg&w=828&q=75/
+    )
+    const fullSrc = new URL(src, `http://localhost:${appPort}`)
+    const res = await fetch(fullSrc)
+    expect(res.status).toBe(200)
+  })
+
+  it('should load staticprops imported image', async () => {
+    const src = await browser
+      .elementById('basic-staticprop')
+      .getAttribute('src')
+    expect(src).toMatch(
+      /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fexif-rotation(.+)\.jpg&w=256&q=75/
+    )
+    const fullSrc = new URL(src, `http://localhost:${appPort}`)
+    const res = await fetch(fullSrc)
+    expect(res.status).toBe(200)
+  })
 }
 
 describe('Build Error Tests', () => {

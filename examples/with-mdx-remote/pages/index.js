@@ -20,7 +20,7 @@ export default function Index({ posts }) {
               as={`/posts/${post.filePath.replace(/\.mdx?$/, '')}`}
               href={`/posts/[slug]`}
             >
-              <a>{post.data.title}</a>
+              {post.data.title}
             </Link>
           </li>
         ))}

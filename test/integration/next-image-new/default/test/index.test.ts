@@ -4,6 +4,7 @@ import cheerio from 'cheerio'
 import validateHTML from 'html-validator'
 import {
   check,
+  fetchViaHTTP,
   findPort,
   getRedboxHeader,
   hasRedbox,
@@ -669,11 +670,69 @@ function runTests(mode) {
     ).toBe('color:transparent')
   })
 
+  it('should warn when legacy prop layout=fill', async () => {
+    let browser = await webdriver(appPort, '/legacy-layout-fill')
+    const img = await browser.elementById('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('data-nimg')).toBe('fill')
+    expect(await img.getAttribute('sizes')).toBe('200px')
+    expect(await img.getAttribute('src')).toBe(
+      '/_next/image?url=%2Ftest.jpg&w=3840&q=50'
+    )
+    expect(await img.getAttribute('srcset')).toContain(
+      '/_next/image?url=%2Ftest.jpg&w=640&q=50 640w,'
+    )
+    expect(await img.getAttribute('style')).toBe(
+      'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
+    )
+    if (mode === 'dev') {
+      expect(await hasRedbox(browser, false)).toBe(false)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "layout". Did you forget to run the codemod?'
+      )
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "objectFit". Did you forget to run the codemod?'
+      )
+      expect(warnings).toContain(
+        'Image with src "/test.jpg" has legacy prop "objectPosition". Did you forget to run the codemod?'
+      )
+    }
+  })
+
+  it('should warn when legacy prop layout=responsive', async () => {
+    let browser = await webdriver(appPort, '/legacy-layout-responsive')
+    const img = await browser.elementById('img')
+    expect(img).toBeDefined()
+    expect(await img.getAttribute('sizes')).toBe('100vw')
+    expect(await img.getAttribute('data-nimg')).toBe('1')
+    expect(await img.getAttribute('src')).toBe(
+      '/_next/image?url=%2Ftest.png&w=3840&q=75'
+    )
+    expect(await img.getAttribute('srcset')).toContain(
+      '/_next/image?url=%2Ftest.png&w=640&q=75 640w,'
+    )
+    expect(await img.getAttribute('style')).toBe(
+      'color:transparent;width:100%;height:auto'
+    )
+    if (mode === 'dev') {
+      expect(await hasRedbox(browser, false)).toBe(false)
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toContain(
+        'Image with src "/test.png" has legacy prop "layout". Did you forget to run the codemod?'
+      )
+    }
+  })
+
   if (mode === 'dev') {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
 
-      expect(await hasRedbox(browser)).toBe(false)
+      expect(await hasRedbox(browser, false)).toBe(false)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -683,7 +742,7 @@ function runTests(mode) {
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
@@ -692,7 +751,7 @@ function runTests(mode) {
     it('should show invalid src error when protocol-relative', async () => {
       const browser = await webdriver(appPort, '/invalid-src-proto-relative')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
@@ -701,7 +760,7 @@ function runTests(mode) {
     it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
       const browser = await webdriver(appPort, '/invalid-placeholder-blur')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
       )
@@ -710,7 +769,7 @@ function runTests(mode) {
     it('should show error when invalid width prop', async () => {
       const browser = await webdriver(appPort, '/invalid-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "width" property. Expected a numeric value in pixels but received "100%".`
       )
@@ -719,7 +778,7 @@ function runTests(mode) {
     it('should show error when invalid height prop', async () => {
       const browser = await webdriver(appPort, '/invalid-height')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" has invalid "height" property. Expected a numeric value in pixels but received "50vh".`
       )
@@ -728,7 +787,7 @@ function runTests(mode) {
     it('should show missing alt error', async () => {
       const browser = await webdriver(appPort, '/missing-alt')
 
-      expect(await hasRedbox(browser)).toBe(false)
+      expect(await hasRedbox(browser, false)).toBe(false)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -738,7 +797,7 @@ function runTests(mode) {
     it('should show error when missing width prop', async () => {
       const browser = await webdriver(appPort, '/missing-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" is missing required "width" property.`
       )
@@ -747,7 +806,7 @@ function runTests(mode) {
     it('should show error when missing height prop', async () => {
       const browser = await webdriver(appPort, '/missing-height')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/test.jpg" is missing required "height" property.`
       )
@@ -756,7 +815,7 @@ function runTests(mode) {
     it('should show error when width prop on fill image', async () => {
       const browser = await webdriver(appPort, '/invalid-fill-width')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/wide.png" has both "width" and "fill" properties.`
       )
@@ -765,7 +824,7 @@ function runTests(mode) {
     it('should show error when CSS position changed on fill image', async () => {
       const browser = await webdriver(appPort, '/invalid-fill-position')
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         `Image with src "/wide.png" has both "fill" and "style.position" properties. Images with "fill" always use position absolute - it cannot be modified.`
       )
@@ -777,7 +836,7 @@ function runTests(mode) {
         '/invalid-placeholder-blur-static'
       )
 
-      expect(await hasRedbox(browser)).toBe(true)
+      expect(await hasRedbox(browser, true)).toBe(true)
       expect(await getRedboxHeader(browser)).toMatch(
         /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
       )
@@ -789,7 +848,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      expect(await hasRedbox(browser, false)).toBe(false)
       expect(warnings).toMatch(
         /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
@@ -801,7 +860,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      expect(await hasRedbox(browser, false)).toBe(false)
       expect(warnings).not.toMatch(
         /Expected server HTML to contain a matching/gm
       )
@@ -826,7 +885,7 @@ function runTests(mode) {
         const warnings = (await browser.log('browser'))
           .map((log) => log.message)
           .join('\n')
-        expect(await hasRedbox(browser)).toBe(false)
+        expect(await hasRedbox(browser, false)).toBe(false)
         expect(warnings).toMatch(
           /Image with src (.*)wide.png(.*) was detected as the Largest Contentful Paint/gm
         )
@@ -843,7 +902,7 @@ function runTests(mode) {
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      expect(await hasRedbox(browser, false)).toBe(false)
       expect(warnings).toMatch(
         /Image with src (.*)png(.*) has a "loader" property that does not implement width/gm
       )
@@ -861,13 +920,24 @@ function runTests(mode) {
       )
     })
 
+    it('should not warn when data url image with fill and sizes props', async () => {
+      const browser = await webdriver(appPort, '/data-url-with-fill-and-sizes')
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(warnings).not.toMatch(
+        /Image with src (.*) has "fill" but is missing "sizes" prop. Please add it to improve page performance/gm
+      )
+    })
+
     it('should not warn when svg, even if with loader prop or without', async () => {
       const browser = await webdriver(appPort, '/loader-svg')
       await browser.eval(`document.querySelector("footer").scrollIntoView()`)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
-      expect(await hasRedbox(browser)).toBe(false)
+      expect(await hasRedbox(browser, false)).toBe(false)
       expect(warnings).not.toMatch(
         /Image with src (.*) has a "loader" property that does not implement width/gm
       )
@@ -882,7 +952,7 @@ function runTests(mode) {
       ).toBe('/test.svg')
       expect(
         await browser.elementById('without-loader').getAttribute('srcset')
-      ).toBe('/test.svg 1x, /test.svg 2x')
+      ).toBeFalsy()
     })
 
     it('should warn at most once even after state change', async () => {
@@ -911,20 +981,6 @@ function runTests(mode) {
         'Image with src "/test.png" was detected as the Largest Contentful Paint (LCP).'
       )
       expect(warnings.length).toBe(1)
-    })
-
-    it('should show console error for objectFit and objectPosition', async () => {
-      const browser = await webdriver(appPort, '/invalid-objectfit')
-
-      expect(await hasRedbox(browser)).toBe(false)
-
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image has unknown prop "objectFit"/gm)
-
-      await check(async () => {
-        return (await browser.log()).map((log) => log.message).join('\n')
-      }, /Image has unknown prop "objectPosition"/gm)
     })
   } else {
     //server-only tests
@@ -1039,6 +1095,15 @@ function runTests(mode) {
       await getComputedStyle(browser, 'img-blur', 'background-position')
     ).toBe('1px 2px')
   })
+
+  it('should emit image for next/dynamic with non ssr case', async () => {
+    let browser = await webdriver(appPort, '/dynamic-static-img')
+    const img = await browser.elementById('dynamic-loaded-static-jpg')
+    const src = await img.getAttribute('src')
+    const { status } = await fetchViaHTTP(appPort, src)
+    expect(status).toBe(200)
+  })
+
   describe('Fill-mode tests', () => {
     let browser
     beforeAll(async () => {

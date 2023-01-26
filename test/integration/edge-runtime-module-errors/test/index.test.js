@@ -68,7 +68,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: basename() })
           }
 
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -129,7 +129,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: writeFile() })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -188,7 +188,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: await throwAsync() })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -267,7 +267,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: true })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -325,7 +325,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: true })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -384,7 +384,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: true })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -445,7 +445,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: true })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -503,7 +503,7 @@ describe('Edge runtime code with imports', () => {
             return response
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -564,7 +564,7 @@ describe('Edge runtime code with imports', () => {
             return response
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -656,9 +656,9 @@ function expectModuleNotFoundProdError(
   output = context.logs.output
 ) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
-  expect(output).not.toContain(moduleNotSupportedMessage)
+  expect(stripAnsi(output)).not.toContain(moduleNotSupportedMessage)
   const moduleNotFoundMessage = getModuleNotFound(moduleName)
-  expect(output).toContain(moduleNotFoundMessage)
+  expect(stripAnsi(output)).toContain(moduleNotFoundMessage)
 }
 
 function expectModuleNotFoundDevError(

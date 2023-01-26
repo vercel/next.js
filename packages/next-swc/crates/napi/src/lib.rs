@@ -26,30 +26,30 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-#![feature(future_join)]
 #![recursion_limit = "2048"]
 //#![deny(clippy::all)]
 
 #[macro_use]
 extern crate napi_derive;
 /// Explicit extern crate to use allocator.
-extern crate swc_core;
+extern crate next_binding;
 
 use std::{env, panic::set_hook, sync::Arc};
 
 use backtrace::Backtrace;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use swc_core::{
+use next_binding::swc::core::{
     base::{Compiler, TransformOutput},
     common::{sync::Lazy, FilePathMapping, SourceMap},
 };
 
+pub mod mdx;
 pub mod minify;
 pub mod parse;
 pub mod transform;
-pub mod turbo_tracing;
 pub mod turbopack;
+pub mod turbotrace;
 pub mod util;
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {

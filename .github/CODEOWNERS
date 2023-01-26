@@ -1,7 +1,7 @@
 # Learn how to add code owners here:
 # https://help.github.com/en/articles/about-code-owners
 
-*          @timneutkens @ijjk @shuding @huozhi
+*          @timneutkens @ijjk @shuding @huozhi @feedthejim
 /.github/  @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @balazsorban44
 /docs/     @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @balazsorban44
 /errors/   @timneutkens @ijjk @shuding @styfle @huozhi @padmaia @leerob @balazsorban44
@@ -11,7 +11,8 @@
 
 /packages/next/build/   @timneutkens @ijjk @shuding @padmaia @huozhi
 /packages/next/telemetry/ @timneutkens @ijjk @shuding @padmaia
-/packages/next-swc/ @timneutkens @ijjk @shuding @padmaia
+/packages/next-swc/ @timneutkens @ijjk @shuding @vercel/web-tooling
+/packages/next/build/swc/ @timneutkens @ijjk @shuding @vercel/web-tooling
 
 # Image Component (@styfle)
 

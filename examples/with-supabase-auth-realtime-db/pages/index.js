@@ -99,9 +99,7 @@ const Index = () => {
             )}
 
             <Typography.Text>
-              <Link href="/profile">
-                <a>SSR example with getServerSideProps</a>
-              </Link>
+              <Link href="/profile">SSR example with getServerSideProps</Link>
             </Typography.Text>
           </>
         )}

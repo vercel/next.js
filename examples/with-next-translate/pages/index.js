@@ -24,7 +24,7 @@ export default function Home() {
         </p>
 
         <div className="grid">
-          <Link href="/" locale="en">
+          <Link href="/" locale="en" legacyBehavior>
             <div className="card">
               <h3>{t('home:english')}</h3>
               <p>
@@ -33,7 +33,7 @@ export default function Home() {
             </div>
           </Link>
 
-          <Link href="/" locale="ca">
+          <Link href="/" locale="ca" legacyBehavior>
             <div className="card">
               <h3>{t('home:catalan')}</h3>
               <p>
@@ -42,7 +42,7 @@ export default function Home() {
             </div>
           </Link>
 
-          <Link href="/" locale="ar">
+          <Link href="/" locale="ar" legacyBehavior>
             <div className="card">
               <h3>{t('home:arabic')}</h3>
               <p>
@@ -51,7 +51,7 @@ export default function Home() {
             </div>
           </Link>
 
-          <Link href="/" locale="he">
+          <Link href="/" locale="he" legacyBehavior>
             <div className="card">
               <h3>{t('home:hebrew')}</h3>
               <p>

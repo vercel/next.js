@@ -5,9 +5,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "tailwind": "tailwindcss -i styles/globals.css -o styles/dist.css",
-    "format": "prettier --write \"**/*.{js,ts,tsx,md}\"",
-    "postinstall": "npm run tailwind"
+    "format": "prettier --write \"**/*.{js,ts,tsx,md}\""
   },
   "prettier": {
     "arrowParens": "always",
@@ -17,7 +15,6 @@
   },
   "dependencies": {
     "clsx": "1.2.1",
-    "concurrently": "7.5.0",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -32,6 +29,7 @@
     "autoprefixer": "^10.4.7",
     "eslint": "8.19.0",
     "eslint-config-next": "latest",
+    "postcss": "^8.4.14",
     "prettier": "^2.7.1",
     "prettier-plugin-tailwindcss": "^0.1.12",
     "tailwindcss": "^3.1.6",

@@ -35,8 +35,8 @@ export function middleware(request) {
       ? 'rewrite'
       : 'redirect'
 
-    const internal = ['__rsc__', '__next_router_state_tree__']
-    if (internal.some((name) => request.headers.has(name))) {
+    const internal = ['RSC', 'Next-Router-State-Tree']
+    if (internal.some((name) => request.headers.has(name.toLowerCase()))) {
       return NextResponse[method](new URL('/internal/failure', request.url))
     }
 
