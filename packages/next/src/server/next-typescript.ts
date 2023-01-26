@@ -28,7 +28,13 @@ const DISALLOWED_SERVER_REACT_APIS: string[] = [
   'createFactory',
 ]
 
-const ALLOWED_EXPORTS = ['config', 'generateStaticParams']
+const LEGACY_CONFIG_EXPORT = 'config'
+const ALLOWED_EXPORTS = [
+  'config',
+  'generateStaticParams',
+  'metadata',
+  'generateMetadata',
+]
 
 const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
 const ALLOWED_LAYOUT_PROPS = ['params', 'children']
@@ -39,6 +45,7 @@ const NEXT_TS_ERRORS = {
   INVALID_OPTION_VALUE: 71003,
   MISPLACED_CLIENT_ENTRY: 71004,
   INVALID_PAGE_PROP: 71005,
+  INVALID_CONFIG_OPTION: 71006,
 }
 
 const API_DOCS: Record<
@@ -303,15 +310,15 @@ export function createTSPlugin(modules: {
               )
             ) {
               if (ts.isVariableDeclarationList(node.declarationList)) {
-                for (const declarartion of node.declarationList.declarations) {
+                for (const declaration of node.declarationList.declarations) {
                   if (
-                    declarartion.getFullStart() <= position &&
+                    declaration.getFullStart() <= position &&
                     position <=
-                      declarartion.getFullStart() + declarartion.getFullWidth()
+                      declaration.getFullStart() + declaration.getFullWidth()
                   ) {
                     // `export const ... = ...`
-                    const text = declarartion.name.getText()
-                    callback(text, declarartion)
+                    const text = declaration.name.getText()
+                    callback(text, declaration)
                   }
                 }
               }
@@ -367,13 +374,12 @@ export function createTSPlugin(modules: {
       }
 
       // Auto completion for entry exported configs.
-      visitEntryConfig(fileName, position, (entryConfig, declarartion) => {
+      visitEntryConfig(fileName, position, (entryConfig, declaration) => {
         if (!API_DOCS[entryConfig]) {
           if (
-            declarartion.name.getFullStart() <= position &&
+            declaration.name.getFullStart() <= position &&
             position <=
-              declarartion.name.getFullStart() +
-                declarartion.name.getFullWidth()
+              declaration.name.getFullStart() + declaration.name.getFullWidth()
           ) {
             prior.entries = [
               ...prior.entries,
@@ -567,11 +573,11 @@ export function createTSPlugin(modules: {
       }
 
       let overriden: ts.QuickInfo | undefined
-      visitEntryConfig(fileName, position, (entryConfig, declarartion) => {
+      visitEntryConfig(fileName, position, (entryConfig, declaration) => {
         if (!API_DOCS[entryConfig]) return
 
-        const name = declarartion.name
-        const value = declarartion.initializer
+        const name = declaration.name
+        const value = declaration.initializer
 
         const docsLink = {
           kind: 'text',
@@ -710,8 +716,8 @@ export function createTSPlugin(modules: {
         ) {
           // Check if it has correct option exports
           if (ts.isVariableDeclarationList(node.declarationList)) {
-            for (const declarartion of node.declarationList.declarations) {
-              const name = declarartion.name
+            for (const declaration of node.declarationList.declarations) {
+              const name = declaration.name
               if (ts.isIdentifier(name)) {
                 if (
                   !ALLOWED_EXPORTS.includes(name.text) &&
@@ -727,7 +733,7 @@ export function createTSPlugin(modules: {
                   })
                 } else if (API_DOCS[name.text]) {
                   // Check if the value is valid
-                  const value = declarartion.initializer
+                  const value = declaration.initializer
 
                   if (value) {
                     let displayedValue = ''
@@ -801,6 +807,28 @@ export function createTSPlugin(modules: {
                         start: value.getStart(),
                         length: value.getWidth(),
                       })
+                    }
+                  }
+                } else if (name.text === LEGACY_CONFIG_EXPORT) {
+                  // export const config = { ... }
+                  // Error if using `amp: ...`
+                  const value = declaration.initializer
+                  if (value && ts.isObjectLiteralExpression(value)) {
+                    for (const prop of value.properties) {
+                      if (
+                        ts.isPropertyAssignment(prop) &&
+                        ts.isIdentifier(prop.name) &&
+                        prop.name.text === 'amp'
+                      ) {
+                        prior.push({
+                          file: source,
+                          category: ts.DiagnosticCategory.Error,
+                          code: NEXT_TS_ERRORS.INVALID_CONFIG_OPTION,
+                          messageText: `AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.`,
+                          start: prop.getStart(),
+                          length: prop.getWidth(),
+                        })
+                      }
                     }
                   }
                 }
