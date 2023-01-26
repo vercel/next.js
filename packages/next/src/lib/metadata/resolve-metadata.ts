@@ -288,6 +288,7 @@ function merge(
         break
       case 'appLinks':
         target.appLinks = resolveAppLinks(source.appLinks)
+        break
       case 'robots': {
         target.robots = resolveRobots(source.robots)
         break

@@ -980,6 +980,8 @@ export async function renderToHTMLOrFlight(
      * The metadata items array created in next-app-loader with all relevant information
      * that we need to resolve the final metadata.
      */
+
+    const requestId = nanoid(12)
     const metadataItems = ComponentMod.metadata
 
     stripInternalQueries(query)
@@ -1759,8 +1761,6 @@ export async function renderToHTMLOrFlight(
 
     // TODO-APP: validate req.url as it gets passed to render.
     const initialCanonicalUrl = req.url!
-
-    const requestId = nanoid(12)
 
     // Get the nonce from the incoming request if it has one.
     const csp = req.headers['content-security-policy']
