@@ -9,7 +9,7 @@ import type {
   ChildProp,
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
-import type { FocusAndScrollRef } from './reducer'
+import type { FocusAndScrollRef } from './router-reducer/router-reducer'
 
 import React, { useContext, useEffect, use } from 'react'
 import ReactDOM from 'react-dom'
@@ -19,7 +19,7 @@ import {
   GlobalLayoutRouterContext,
   TemplateContext,
 } from '../../shared/lib/app-router-context'
-import { fetchServerResponse } from './app-router'
+import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'

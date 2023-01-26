@@ -312,7 +312,7 @@ describe('Middleware Runtime trailing slash', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('AboutA')
 
-      const browser = await webdriver(next.url, `/`)
+      const browser = await webdriver(next.url, `/404`)
       await browser.eval(`next.router.push('/rewrite-2')`)
       await check(async () => {
         const content = await browser.eval('document.documentElement.innerHTML')
