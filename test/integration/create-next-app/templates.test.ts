@@ -51,7 +51,7 @@ const startsWithoutError = async (
 let testVersion
 
 describe('create-next-app templates', () => {
-  if (!process.env.NEXT_TEST_CNA) {
+  if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
   }
@@ -213,9 +213,10 @@ describe('create-next-app templates', () => {
 
       expect(exitCode).toBe(0)
       shouldBeJavascriptProject({ cwd, projectName, template: 'default' })
-      // TODO: enable turbo mode as well once jsconfig paths support
-      // is landed
-      await startsWithoutError(path.join(cwd, projectName), ['default'])
+      await startsWithoutError(path.join(cwd, projectName), [
+        'default',
+        'turbo',
+      ])
     })
   })
 
@@ -245,15 +246,16 @@ describe('create-next-app templates', () => {
         template: 'default',
         srcDir: true,
       })
-      // TODO: enable turbo mode as well once jsconfig paths support
-      // is landed
-      await startsWithoutError(path.join(cwd, projectName), ['default'])
+      await startsWithoutError(path.join(cwd, projectName), [
+        'default',
+        'turbo',
+      ])
     })
   })
 })
 
 describe('create-next-app --experimental-app-dir', () => {
-  if (!process.env.NEXT_TEST_CNA) {
+  if (!process.env.NEXT_TEST_CNA && process.env.NEXT_TEST_JOB) {
     it('should skip when env is not set', () => {})
     return
   }
@@ -314,9 +316,11 @@ describe('create-next-app --experimental-app-dir', () => {
       const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'js' })
-      // TODO: enable turbo mode as well once jsconfig paths support
       // is landed
-      await startsWithoutError(path.join(cwd, projectName), ['default'])
+      await startsWithoutError(path.join(cwd, projectName), [
+        'default',
+        'turbo',
+      ])
     })
   })
 
@@ -348,9 +352,10 @@ describe('create-next-app --experimental-app-dir', () => {
         mode: 'js',
         srcDir: true,
       })
-      // TODO: enable turbo mode as well once jsconfig paths support
-      // is landed
-      await startsWithoutError(path.join(cwd, projectName), ['default'])
+      await startsWithoutError(path.join(cwd, projectName), [
+        'default',
+        'turbo',
+      ])
     })
   })
 })

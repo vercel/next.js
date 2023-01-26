@@ -618,6 +618,42 @@ export const defaultConfig: NextConfig = {
   },
 }
 
+export function setFontLoaderDefaults(config: NextConfig) {
+  try {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('@next/font/package.json')
+
+    const googleFontLoader = {
+      loader: '@next/font/google',
+    }
+    const localFontLoader = {
+      loader: '@next/font/local',
+    }
+    if (!config.experimental) {
+      config.experimental = {}
+    }
+    if (!config.experimental.fontLoaders) {
+      config.experimental.fontLoaders = []
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === googleFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(googleFontLoader)
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === localFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(localFontLoader)
+    }
+  } catch {}
+}
+
+setFontLoaderDefaults(defaultConfig)
+
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
