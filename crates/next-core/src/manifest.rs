@@ -5,7 +5,8 @@ use turbo_tasks::primitives::StringsVc;
 use turbo_tasks_fs::File;
 use turbopack_core::asset::AssetContentVc;
 use turbopack_dev_server::source::{
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceResultVc,
+    ContentSourceVc,
 };
 use turbopack_node::render::{
     node_api_source::NodeApiContentSourceVc, rendered_source::NodeRenderContentSourceVc,
@@ -77,9 +78,7 @@ impl ContentSource for DevManifestContentSource {
         let file = File::from(manifest_content).with_content_type(APPLICATION_JSON);
 
         Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Static(AssetContentVc::from(file).into())
-                .cell()
-                .into(),
+            ContentSourceContentVc::static_content(AssetContentVc::from(file).into()).into(),
         ))
     }
 }

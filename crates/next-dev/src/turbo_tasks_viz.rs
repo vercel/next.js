@@ -10,7 +10,7 @@ use turbo_tasks_memory::{
 };
 use turbopack_core::asset::AssetContentVc;
 use turbopack_dev_server::source::{
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
+    ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceDataFilter,
     ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc, NeededData,
 };
 
@@ -106,10 +106,9 @@ impl ContentSource for TurboTasksSource {
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
         Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Static(
+            ContentSourceContentVc::static_content(
                 AssetContentVc::from(File::from(html).with_content_type(TEXT_HTML_UTF_8)).into(),
             )
-            .cell()
             .into(),
         ))
     }

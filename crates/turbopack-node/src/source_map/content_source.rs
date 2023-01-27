@@ -5,8 +5,9 @@ use turbopack_core::{
     source_map::GenerateSourceMapVc,
 };
 use turbopack_dev_server::source::{
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    ContentSourceResult, ContentSourceResultVc, ContentSourceVc, ContentSourcesVc, NeededData,
+    ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
+    ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
+    ContentSourcesVc, NeededData,
 };
 use url::Url;
 
@@ -87,7 +88,7 @@ impl ContentSource for NextSourceMapTraceContentSource {
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
         let file = match &*content {
-            ContentSourceContent::Static(f) => *f,
+            ContentSourceContent::Static { content: f, .. } => *f,
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
 
@@ -108,9 +109,7 @@ impl ContentSource for NextSourceMapTraceContentSource {
 
         let traced = SourceMapTraceVc::new(sm, line, column, frame.name);
         Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Static(traced.content().into())
-                .cell()
-                .into(),
+            ContentSourceContentVc::static_content(traced.content().into()).into(),
         ))
     }
 

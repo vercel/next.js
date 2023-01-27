@@ -210,7 +210,11 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
             .cell(),
         );
         Ok(match *result.await? {
-            StaticResult::Content(content) => ContentSourceContent::Static(content.into()).cell(),
+            StaticResult::Content {
+                content,
+                status_code,
+                headers,
+            } => ContentSourceContentVc::static_with_headers(content.into(), status_code, headers),
             StaticResult::Rewrite(rewrite) => ContentSourceContent::Rewrite(rewrite).cell(),
         })
     }

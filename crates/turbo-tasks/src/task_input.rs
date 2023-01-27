@@ -330,6 +330,8 @@ pub enum TaskInput {
     String(String),
     Bool(bool),
     Usize(usize),
+    I16(i16),
+    U16(u16),
     I32(i32),
     U32(u32),
     U64(u64),
@@ -513,6 +515,8 @@ impl Display for TaskInput {
             TaskInput::String(s) => write!(f, "string {:?}", s),
             TaskInput::Bool(b) => write!(f, "bool {:?}", b),
             TaskInput::Usize(v) => write!(f, "usize {}", v),
+            TaskInput::I16(v) => write!(f, "i16 {}", v),
+            TaskInput::U16(v) => write!(f, "u16 {}", v),
             TaskInput::I32(v) => write!(f, "i32 {}", v),
             TaskInput::U32(v) => write!(f, "u32 {}", v),
             TaskInput::U64(v) => write!(f, "u64 {}", v),
@@ -541,6 +545,18 @@ impl From<&str> for TaskInput {
 impl From<bool> for TaskInput {
     fn from(b: bool) -> Self {
         TaskInput::Bool(b)
+    }
+}
+
+impl From<i16> for TaskInput {
+    fn from(v: i16) -> Self {
+        TaskInput::I16(v)
+    }
+}
+
+impl From<u16> for TaskInput {
+    fn from(v: u16) -> Self {
+        TaskInput::U16(v)
     }
 }
 
@@ -674,6 +690,28 @@ impl<'a, T: FromTaskInput<'a, Error = anyhow::Error>> FromTaskInput<'a> for Vec<
                 .map(|i| FromTaskInput::try_from(i))
                 .collect::<Result<Vec<_>, _>>()?),
             _ => Err(anyhow!("invalid task input type, expected list")),
+        }
+    }
+}
+
+impl FromTaskInput<'_> for u16 {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::U16(value) => Ok(*value),
+            _ => Err(anyhow!("invalid task input type, expected u16")),
+        }
+    }
+}
+
+impl FromTaskInput<'_> for i16 {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &TaskInput) -> Result<Self, Self::Error> {
+        match value {
+            TaskInput::I16(value) => Ok(*value),
+            _ => Err(anyhow!("invalid task input type, expected i16")),
         }
     }
 }

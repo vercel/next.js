@@ -8,9 +8,9 @@ use turbopack_core::{
 };
 
 use super::{
-    query::QueryValue, ContentSource, ContentSourceContent, ContentSourceData,
-    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc,
-    ContentSourceVc, NeededData,
+    query::QueryValue, ContentSource, ContentSourceContent, ContentSourceContentVc,
+    ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult,
+    ContentSourceResultVc, ContentSourceVc, NeededData,
 };
 
 /// SourceMapContentSource allows us to serve full source maps, and individual
@@ -78,7 +78,7 @@ impl ContentSource for SourceMapContentSource {
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
         let file = match &*content {
-            ContentSourceContent::Static(f) => *f,
+            ContentSourceContent::Static { content: f, .. } => *f,
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
 
@@ -100,7 +100,7 @@ impl ContentSource for SourceMapContentSource {
 
         let asset = AssetContentVc::from(File::from(content));
         Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Static(asset.into()).cell().into(),
+            ContentSourceContentVc::static_content(asset.into()).into(),
         ))
     }
 }

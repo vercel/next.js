@@ -10,7 +10,8 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::FormatIter;
 
 use crate::source::{
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceResultVc, ContentSourceVc,
+    ContentSource, ContentSourceContentVc, ContentSourceData, ContentSourceResultVc,
+    ContentSourceVc,
 };
 
 #[turbo_tasks::value(shared)]
@@ -140,7 +141,7 @@ impl ContentSource for IntrospectionSource {
             children = FormatIter(|| children.iter())
         );
         Ok(ContentSourceResultVc::exact(
-            ContentSourceContent::Static(
+            ContentSourceContentVc::static_content(
                 AssetContent::File(
                     FileContent::Content(File::from(html).with_content_type(mime::TEXT_HTML_UTF_8))
                         .cell(),
@@ -148,7 +149,6 @@ impl ContentSource for IntrospectionSource {
                 .cell()
                 .into(),
             )
-            .cell()
             .into(),
         ))
     }
