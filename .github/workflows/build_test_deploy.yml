@@ -796,7 +796,7 @@ jobs:
   testDeployE2E:
     name: E2E (deploy)
     runs-on: ubuntu-latest
-    needs: [publishRelease, build, build-native-test]
+    needs: [build, build-native-test]
     env:
       NEXT_TELEMETRY_DISABLED: 1
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
