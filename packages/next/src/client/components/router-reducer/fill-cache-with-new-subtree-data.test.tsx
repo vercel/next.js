@@ -1,40 +1,31 @@
 import React from 'react'
-import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
+import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
 import { FlightData } from '../../../server/app-render'
 
 const getFlightData = (): FlightData => {
   return [
     [
+      'children',
+      'linking',
+      'children',
+      'about',
       [
-        '',
+        'about',
         {
-          children: [
-            'linking',
-            {
-              children: [
-                'about',
-                {
-                  children: ['', {}],
-                },
-              ],
-            },
-          ],
+          children: ['', {}],
         },
-        null,
-        null,
-        true,
       ],
-      <h1>About Page!</h1>,
+      <h1>SubTreeData Injected!</h1>,
       <>
-        <title>About page!</title>
+        <title>Head Injected!</title>
       </>,
     ],
   ]
 }
 
-describe('fillLazyItemsTillLeafWithHead', () => {
-  it('should fill lazy items till leaf with head', () => {
+describe('fillCacheWithNewSubtreeData', () => {
+  it('should apply subTreeData and head property', () => {
     const cache: CacheNode = {
       status: CacheStates.LAZY_INITIALIZED,
       data: null,
@@ -86,9 +77,8 @@ describe('fillLazyItemsTillLeafWithHead', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [treePatch, _subTreeData, head] = flightDataPath.slice(-3)
-    fillLazyItemsTillLeafWithHead(cache, existingCache, treePatch, head)
+
+    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath)
 
     const expectedCache: CacheNode = {
       data: null,
@@ -102,12 +92,22 @@ describe('fillLazyItemsTillLeafWithHead', () => {
               'linking',
               {
                 data: null,
-                status: CacheStates.LAZY_INITIALIZED,
-                subTreeData: null,
+                status: CacheStates.READY,
+                subTreeData: <>Linking</>,
                 parallelRoutes: new Map([
                   [
                     'children',
                     new Map([
+                      // TODO-APP: this segment should be preserved when creating the new cache
+                      [
+                        '',
+                        {
+                          data: null,
+                          status: CacheStates.READY,
+                          subTreeData: <>Page</>,
+                          parallelRoutes: new Map(),
+                        },
+                      ],
                       [
                         'about',
                         {
@@ -125,7 +125,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                                     parallelRoutes: new Map(),
                                     head: (
                                       <>
-                                        <title>About page!</title>
+                                        <title>Head Injected!</title>
                                       </>
                                     ),
                                   },
@@ -133,20 +133,10 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                               ]),
                             ],
                           ]),
-                          subTreeData: null,
-                          status: CacheStates.LAZY_INITIALIZED,
+                          subTreeData: <h1>SubTreeData Injected!</h1>,
+                          status: CacheStates.READY,
                         },
                       ],
-                      // TODO-APP: this segment should be preserved when creating the new cache
-                      // [
-                      //   '',
-                      //   {
-                      //     data: null,
-                      //     status: CacheStates.READY,
-                      //     subTreeData: <>Page</>,
-                      //     parallelRoutes: new Map(),
-                      //   },
-                      // ],
                     ]),
                   ],
                 ]),
