@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use indoc::formatdoc;
 use once_cell::sync::Lazy;
 use turbo_tasks::primitives::{OptionStringVc, OptionU16Vc, StringVc, U32Vc};
+#[allow(unused_imports, /* reason = "this is used in tests" */)]
 use turbo_tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
 use turbo_tasks_fetch::fetch;
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
@@ -87,7 +88,8 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
                                 style: {{
                                     fontFamily: "{}",
                                     {}{}
-                                }}
+                                }},
+                                variable: cssModule.variable
                             }};
                         "#,
                         // Pass along whichever options we received to the css handler
@@ -187,6 +189,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         };
 
         let properties = get_font_css_properties(scoped_font_family, options).await?;
+        let font_family = properties.font_family.await?;
         let css_asset = VirtualAssetVc::new(
             css_virtual_path,
             FileContent::Content(
@@ -198,9 +201,11 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
                             font-family: {};
                             {}{}
                         }}
+
+                        {}
                         "#,
                     stylesheet.unwrap_or_else(|| "".to_owned()),
-                    properties.font_family.await?,
+                    font_family,
                     properties
                         .weight
                         .await?
@@ -212,6 +217,12 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
                         .as_ref()
                         .map(|s| format!("font-style: {};\n", s))
                         .unwrap_or_else(|| "".to_owned()),
+                    properties
+                        .variable
+                        .await?
+                        .as_ref()
+                        .map(|v| { format!(".variable {{ {}: {}; }} ", v, *font_family) })
+                        .unwrap_or_else(|| "".to_owned())
                 )
                 .into(),
             )
@@ -310,6 +321,7 @@ struct FontCssProperties {
     font_family: StringVc,
     weight: OptionU16Vc,
     style: OptionStringVc,
+    variable: OptionStringVc,
 }
 
 #[turbo_tasks::function]
@@ -338,6 +350,7 @@ async fn get_font_css_properties(
             FontWeights::Fixed(weights) => weights.first().cloned(),
         }),
         style: OptionStringVc::cell(options.styles.first().cloned()),
+        variable: OptionStringVc::cell(options.variable.clone()),
     }))
 }
 
