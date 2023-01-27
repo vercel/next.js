@@ -84,24 +84,37 @@ export default async function route(
     // the serverRequest to Next.js to handle.
     clientRequest.end();
 
-    const [_, response] = await Promise.all([
-      resolveRoute(serverRequest, serverResponse),
-      handleClientResponse(ipc, clientResponsePromise),
-    ]);
-    server.close();
+    // The route promise must not block us from starting the client response
+    // handling, so we cannot await it yet. By making the call, we allow
+    // Next.js to start writing to the response whenever it's ready.
+    const routePromise = resolveRoute(serverRequest, serverResponse);
 
+    // Now that the Next.js has started processing the route, the
+    // clientResponsePromise will resolve once they write data and then we can
+    // begin streaming.
+    // We again cannot block on the clientResponsePromise, because an error may
+    // occur in the routePromise while we're waiting.
+    const responsePromise = clientResponsePromise.then((c) =>
+      handleClientResponse(ipc, c)
+    );
+
+    // Now that both promises are in progress, we await both so that a
+    // rejection in either will end the routing.
+    const [response] = await Promise.all([responsePromise, routePromise]);
+
+    server.close();
     return response;
   } catch (e) {
+    // Server doesn't need to be closed, because the sendError will terminate
+    // the process.
     ipc.sendError(e as Error);
   }
 }
 
 async function handleClientResponse(
   _ipc: Ipc<RouterRequest, IpcOutgoingMessage>,
-  clientResponsePromise: Promise<IncomingMessage>
+  clientResponse: IncomingMessage
 ): Promise<MessageData | void> {
-  const clientResponse = await clientResponsePromise;
-
   if (clientResponse.headers["x-nextjs-route-result"] === "1") {
     clientResponse.setEncoding("utf8");
     // We're either a redirect or a rewrite
