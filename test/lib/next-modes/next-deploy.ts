@@ -33,6 +33,8 @@ export class NextDeployInstance extends NextInstance {
       await execa('npm', ['i', '-g', 'vercel@latest'], {
         stdio: 'inherit',
       })
+      const res = await execa('vercel', ['--version'])
+      require('console').log(`Using Vercel CLI version:`, res.stdout)
     }
     const vercelFlags = ['--scope', TEST_TEAM_NAME]
     const vercelEnv = { ...process.env, TOKEN: TEST_TOKEN }
