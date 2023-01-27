@@ -21,8 +21,6 @@ createNextDescribe(
       await session.patch(
         'app/page.js',
         `
-        'use client'
-
         export const config = { amp: true }
 
         import Component from '../index'
@@ -33,24 +31,9 @@ createNextDescribe(
       )
 
       await session.hasRedbox(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./app/page.js
-        Error: 
-          x AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.
-           ,-[1:1]
-         1 | 
-         2 |         'use client'
-         3 | 
-         4 |         export const config = { amp: true }
-           :         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         5 | 
-         6 |         import Component from '../index'
-         7 |         export default function Page() {
-           \`----
-
-        Import trace for requested module:
-        ./app/page.js"
-      `)
+      expect(await session.getRedboxDescription()).toInclude(
+        'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
+      )
 
       await cleanup()
     })

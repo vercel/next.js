@@ -49,7 +49,6 @@ use next_binding::swc::core::{
 
 pub mod amp_attributes;
 mod auto_cjs;
-pub mod disallow_amp_config_in_app_dir;
 pub mod disallow_re_export_all_in_page;
 pub mod next_dynamic;
 pub mod next_font_loaders;
@@ -160,15 +159,6 @@ where
 
     chain!(
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
-        match &opts.app_dir {
-            Some(app_dir) => Either::Left(
-                disallow_amp_config_in_app_dir::disallow_amp_config_in_app_dir(
-                    file.name.clone(),
-                    app_dir.clone()
-                )
-            ),
-            _ => Either::Right(noop()),
-        },
         match &opts.server_components {
             Some(config) if config.truthy() =>
                 Either::Left(react_server_components::server_components(
