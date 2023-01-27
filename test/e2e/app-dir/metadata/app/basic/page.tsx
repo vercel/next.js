@@ -22,4 +22,9 @@ export const metadata = {
   creator: 'shu',
   publisher: 'vercel',
   robots: 'index, follow',
+  formatDetection: {
+    email: 'no',
+    address: 'no',
+    telephone: 'no',
+  },
 }
