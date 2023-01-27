@@ -16,6 +16,10 @@ import { resolveOpenGraph } from './resolve-opengraph'
 import { mergeTitle } from './resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 
+type FieldResolver<Key extends keyof Metadata> = (
+  T: Metadata[Key]
+) => ResolvedMetadata[Key]
+
 const viewPortKeys = {
   width: 'width',
   height: 'height',
@@ -54,9 +58,7 @@ type Item =
       path?: string
     }
 
-function resolveViewport(
-  viewport: Metadata['viewport']
-): ResolvedMetadata['viewport'] {
+const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
   let resolved: ResolvedMetadata['viewport'] = null
 
   if (typeof viewport === 'string') {
@@ -74,19 +76,44 @@ function resolveViewport(
   return resolved
 }
 
-function isUrlIcon(icon: any): icon is string | URL {
+const resolveVerification: FieldResolver<'verification'> = (verification) => {
+  const google = resolveAsArrayOrUndefined(verification?.google)
+  const yahoo = resolveAsArrayOrUndefined(verification?.yahoo)
+  let other: Record<string, (string | number)[]> | undefined
+  if (verification?.other) {
+    other = {}
+    for (const key in verification.other) {
+      const value = resolveAsArrayOrUndefined(verification.other[key])
+      if (value) other[key] = value
+    }
+  }
+  return {
+    google,
+    yahoo,
+    other,
+  }
+}
+
+function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
 }
 
 function resolveIcon(icon: Icon): IconDescriptor {
-  if (isUrlIcon(icon)) return { url: icon }
+  if (isStringOrURL(icon)) return { url: icon }
   else if (Array.isArray(icon)) return icon
   return icon
 }
 
 const IconKeys = ['icon', 'shortcut', 'apple', 'other'] as (keyof Icons)[]
+const TwitterBasicInfoKeys = [
+  'site',
+  'siteId',
+  'creator',
+  'creatorId',
+  'description',
+] as const
 
-function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
+const resolveIcons: FieldResolver<'icons'> = (icons) => {
   if (!icons) {
     return null
   }
@@ -94,7 +121,7 @@ function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
   const resolved: ResolvedMetadata['icons'] = {}
   if (Array.isArray(icons)) {
     resolved.icon = icons.map(resolveIcon).filter(Boolean)
-  } else if (isUrlIcon(icons)) {
+  } else if (isStringOrURL(icons)) {
     resolved.icon = [resolveIcon(icons)]
   } else {
     for (const key of IconKeys) {
@@ -103,6 +130,107 @@ function resolveIcons(icons: Metadata['icons']): ResolvedMetadata['icons'] {
     }
   }
   return resolved
+}
+
+const resolveAppleWebApp: FieldResolver<'appleWebApp'> = (appWebApp) => {
+  if (!appWebApp) return null
+  if (appWebApp === true) {
+    return {
+      capable: true,
+    }
+  }
+
+  const startupImages = resolveAsArrayOrUndefined(appWebApp.startupImage)?.map(
+    (item) => (typeof item === 'string' ? { url: item } : item)
+  )
+
+  return {
+    capable: 'capable' in appWebApp ? !!appWebApp.capable : true,
+    title: appWebApp.title || null,
+    startupImage: startupImages || null,
+    statusBarStyle: appWebApp.statusBarStyle || 'default',
+  }
+}
+
+const resolveTwitter: FieldResolver<'twitter'> = (twitter) => {
+  if (!twitter) return null
+  const resolved = {
+    title: twitter.title,
+  } as ResolvedTwitterMetadata
+  for (const infoKey of TwitterBasicInfoKeys) {
+    resolved[infoKey] = twitter[infoKey] || null
+  }
+  resolved.images = resolveAsArrayOrUndefined(twitter.images)?.map((item) => {
+    if (isStringOrURL(item))
+      return {
+        url: item.toString(),
+      }
+    else {
+      return {
+        url: item.url.toString(),
+        alt: item.alt,
+      }
+    }
+  })
+  if ('card' in twitter) {
+    resolved.card = twitter.card
+    switch (twitter.card) {
+      case 'player': {
+        // @ts-ignore
+        resolved.players = resolveAsArrayOrUndefined(twitter.players) || []
+        break
+      }
+      case 'app': {
+        // @ts-ignore
+        resolved.app = twitter.app || {}
+        break
+      }
+      default:
+        break
+    }
+  } else {
+    resolved.card = 'summary'
+  }
+  return resolved
+}
+
+const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
+  if (!appLinks) return null
+  for (const key in appLinks) {
+    // @ts-ignore // TODO: type infer
+    appLinks[key] = resolveAsArrayOrUndefined(appLinks[key])
+  }
+  return appLinks as ResolvedMetadata['appLinks']
+}
+
+const resolveRobotsValue: (robots: Metadata['robots']) => string | null = (
+  robots
+) => {
+  if (!robots) return null
+  if (typeof robots === 'string') return robots
+
+  const values = []
+
+  if (robots.index) values.push('index')
+  else if (typeof robots.index === 'boolean') values.push('noindex')
+
+  if (robots.follow) values.push('follow')
+  else if (typeof robots.follow === 'boolean') values.push('nofollow')
+  if (robots.noarchive) values.push('noarchive')
+  if (robots.nosnippet) values.push('nosnippet')
+  if (robots.noimageindex) values.push('noimageindex')
+  if (robots.nocache) values.push('nocache')
+
+  return values.join(', ')
+}
+
+const resolveRobots: FieldResolver<'robots'> = (robots) => {
+  if (!robots) return null
+  return {
+    basic: resolveRobotsValue(robots),
+    googleBot:
+      typeof robots !== 'string' ? resolveRobotsValue(robots.googleBot) : null,
+  }
 }
 
 // Merge the source metadata into the resolved target metadata.
@@ -119,10 +247,6 @@ function merge(
     const key = key_ as keyof Metadata
 
     switch (key) {
-      case 'other': {
-        Object.assign(target.other, source.other)
-        break
-      }
       case 'title': {
         if (source.title) {
           target.title = source.title as AbsoluteTemplateString
@@ -142,14 +266,15 @@ function merge(
         break
       }
       case 'twitter': {
-        if (source.twitter) {
-          target.twitter = source.twitter as ResolvedTwitterMetadata
+        target.twitter = resolveTwitter(source.twitter)
+        if (target.twitter) {
           mergeTitle(target.twitter, templateStrings.twitter)
-        } else {
-          target.twitter = null
         }
         break
       }
+      case 'verification':
+        target.verification = resolveVerification(source.verification)
+        break
       case 'viewport': {
         target.viewport = resolveViewport(source.viewport)
         break
@@ -158,12 +283,46 @@ function merge(
         target.icons = resolveIcons(source.icons)
         break
       }
-      default: {
-        // TODO: Make sure the type is correct.
-        // @ts-ignore
-        target[key] = source[key]
+      case 'appleWebApp':
+        target.appleWebApp = resolveAppleWebApp(source.appleWebApp)
+        break
+      case 'appLinks':
+        target.appLinks = resolveAppLinks(source.appLinks)
+        break
+      case 'robots': {
+        target.robots = resolveRobots(source.robots)
         break
       }
+      case 'archives':
+      case 'assets':
+      case 'bookmarks':
+      case 'keywords':
+      case 'authors': {
+        // FIXME: type inferring
+        // @ts-ignore
+        target[key] = resolveAsArrayOrUndefined(source[key]) || null
+        break
+      }
+      // directly assign fields that fallback to null
+      case 'applicationName':
+      case 'description':
+      case 'generator':
+      case 'themeColor':
+      case 'creator':
+      case 'publisher':
+      case 'category':
+      case 'classification':
+      case 'referrer':
+      case 'colorScheme':
+      case 'itunes':
+      case 'alternates':
+      case 'formatDetection':
+      case 'other':
+        // @ts-ignore TODO: support inferring
+        target[key] = source[key] || null
+        break
+      default:
+        break
     }
   }
 }
