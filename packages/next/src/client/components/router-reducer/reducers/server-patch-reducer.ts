@@ -4,10 +4,14 @@ import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with
 import { fillCacheWithNewSubTreeData } from '../fill-cache-with-new-subtree-data'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import { ServerPatchAction, ReducerState } from '../router-reducer-types'
+import {
+  ServerPatchAction,
+  ReducerState,
+  ReadonlyReducerState,
+} from '../router-reducer-types'
 
 export function serverPatchReducer(
-  state: ReducerState,
+  state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
   const { flightData, previousTree, overrideCanonicalUrl, cache, mutable } =

@@ -1,8 +1,12 @@
 import { createHrefFromUrl } from '../create-href-from-url'
-import { ReducerState, RestoreAction } from '../router-reducer-types'
+import {
+  ReadonlyReducerState,
+  ReducerState,
+  RestoreAction,
+} from '../router-reducer-types'
 
 export function restoreReducer(
-  state: ReducerState,
+  state: ReadonlyReducerState,
   action: RestoreAction
 ): ReducerState {
   const { url, tree } = action

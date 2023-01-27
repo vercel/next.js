@@ -1,10 +1,4 @@
 import {
-  AppRouterState,
-  RefreshAction,
-  NavigateAction,
-  RestoreAction,
-  ServerPatchAction,
-  PrefetchAction,
   ACTION_NAVIGATE,
   ACTION_SERVER_PATCH,
   ACTION_RESTORE,
@@ -12,6 +6,7 @@ import {
   ACTION_PREFETCH,
   ReducerActions,
   ReducerState,
+  ReadonlyReducerState,
 } from './router-reducer-types'
 import { navigateReducer } from './reducers/navigate-reducer'
 import { serverPatchReducer } from './reducers/server-patch-reducer'
@@ -23,9 +18,9 @@ import { prefetchReducer } from './reducers/prefetch-reducer'
  * Reducer that handles the app-router state updates.
  */
 function clientReducer(
-  state: ReducerState,
+  state: ReadonlyReducerState,
   action: ReducerActions
-): AppRouterState {
+): ReducerState {
   switch (action.type) {
     case ACTION_NAVIGATE: {
       return navigateReducer(state, action)
@@ -49,15 +44,9 @@ function clientReducer(
 }
 
 function serverReducer(
-  state: Readonly<AppRouterState>,
-  _action: Readonly<
-    | RefreshAction
-    | NavigateAction
-    | RestoreAction
-    | ServerPatchAction
-    | PrefetchAction
-  >
-): AppRouterState {
+  state: ReadonlyReducerState,
+  _action: ReducerActions
+): ReducerState {
   return state
 }
 

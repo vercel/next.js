@@ -12,10 +12,14 @@ import { createOptimisticTree } from '../create-optimistic-tree'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import { NavigateAction, ReducerState } from '../router-reducer-types'
+import {
+  NavigateAction,
+  ReadonlyReducerState,
+  ReducerState,
+} from '../router-reducer-types'
 
 export function navigateReducer(
-  state: ReducerState,
+  state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
   const { url, navigateType, cache, mutable, forceOptimisticNavigation } =
