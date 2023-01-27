@@ -2404,6 +2404,37 @@ describe('Custom routes', () => {
     runTests(true)
   })
 
+  describe('dev mode turbo', () => {
+    let nextConfigContent
+
+    beforeAll(async () => {
+      // ensure cache with rewrites disabled doesn't persist
+      // after enabling rewrites
+      await fs.remove(join(appDir, '.next'))
+      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+      await fs.writeFile(
+        nextConfigPath,
+        nextConfigContent.replace('// no-rewrites comment', 'return []')
+      )
+
+      const tempPort = await findPort()
+      const tempApp = await launchApp(appDir, tempPort, { turbo: true })
+      await renderViaHTTP(tempPort, '/')
+
+      await killApp(tempApp)
+      await fs.writeFile(nextConfigPath, nextConfigContent)
+
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+      buildId = 'development'
+    })
+    afterAll(async () => {
+      await fs.writeFile(nextConfigPath, nextConfigContent)
+      await killApp(app)
+    })
+    runTests(true)
+  })
+
   describe('no-op rewrite', () => {
     beforeAll(async () => {
       appPort = await findPort()

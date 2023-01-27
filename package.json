@@ -8,7 +8,7 @@
   "scripts": {
     "new-error": "plop error",
     "new-test": "plop test",
-    "clean": "pnpm lerna clean -y && pnpm lerna bootstrap && pnpm lerna exec 'rm -rf ./dist'",
+    "clean": "pnpm lerna clean -y && pnpm lerna bootstrap && pnpm lerna run clean && pnpm lerna exec 'rm -rf ./dist'",
     "build": "turbo run build",
     "lerna": "lerna",
     "dev": "turbo run dev --parallel",
