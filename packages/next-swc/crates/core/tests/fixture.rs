@@ -307,7 +307,8 @@ fn server_actions_fixture(input: PathBuf) {
         &|_tr| {
             server_actions(
                 &FileName::Real("/app/item.js".into()),
-                server_actions::Config {},
+                server_actions::Config { is_server: true },
+                _tr.comments.as_ref().clone(),
             )
         },
         &input,

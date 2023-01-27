@@ -258,13 +258,10 @@ function createErrorHandler(
   }
 }
 
-let isFetchPatched = false
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 function patchFetch(ComponentMod: any) {
-  if (isFetchPatched) return
-  isFetchPatched = true
+  if ((globalThis.fetch as any).patched) return
 
   const { DynamicServerError } =
     ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
@@ -449,6 +446,7 @@ function patchFetch(ComponentMod: any) {
 
     return doOriginalFetch()
   }
+  ;(globalThis.fetch as any).patched = true
 }
 
 interface FlightResponseRef {
@@ -639,8 +637,8 @@ type LoaderTree = [
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string,
-  refresh?: 'refetch',
+  url?: string | null,
+  refresh?: 'refetch' | null,
   isRootLayout?: boolean
 ]
 
