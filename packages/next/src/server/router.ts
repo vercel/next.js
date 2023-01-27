@@ -514,7 +514,9 @@ if (
     dir: string,
     nextConfig: NextConfig
   ) {
-    const _require = require
+    // use separate require variable so that these aren't
+    // included in next-server tracing
+    const _require = globalThis['require']
     const { default: DevServer } = _require(
       './dev/next-dev-server.js'
     ) as typeof import('./dev/next-dev-server')
