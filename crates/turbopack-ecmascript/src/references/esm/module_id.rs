@@ -1,5 +1,5 @@
 use anyhow::Result;
-use swc_core::ecma::ast::Expr;
+use swc_core::{ecma::ast::Expr, quote};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbopack_core::{
     chunk::{
@@ -73,6 +73,15 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
                         ModuleId::String(s) => s.clone().into(),
                         ModuleId::Number(n) => (*n as f64).into(),
                     })
+                }),
+            );
+        } else {
+            // If the referenced asset can't be found, replace the expression with null.
+            // This can happen if the referenced asset is an external, or doesn't resolve
+            // to anything.
+            visitors.push(
+                create_visitor!(self.ast_path.await?, visit_mut_expr(expr: &mut Expr) {
+                    *expr = quote!("null" as Expr);
                 }),
             );
         }

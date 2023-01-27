@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
-use turbo_tasks::{primitives::StringVc, Value, ValueToString};
+use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetsSetVc},
@@ -25,10 +25,13 @@ use turbopack_dev_server::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
-use super::{render_static::render_static, RenderData};
+use super::{
+    render_static::{render_static, StaticResult},
+    RenderData,
+};
 use crate::{
-    external_asset_entrypoints, get_intermediate_asset, match_params::MatchParamsVc,
-    node_entry::NodeEntryVc,
+    external_asset_entrypoints, get_intermediate_asset, node_entry::NodeEntryVc,
+    route_matcher::RouteMatcherVc,
 };
 
 /// Creates a content source that renders something in Node.js with the passed
@@ -41,8 +44,8 @@ use crate::{
 pub fn create_node_rendered_source(
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
+    route_match: RouteMatcherVc,
     pathname: StringVc,
-    match_params: MatchParamsVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
@@ -50,8 +53,8 @@ pub fn create_node_rendered_source(
     let source = NodeRenderContentSource {
         specificity,
         server_root,
+        route_match,
         pathname,
-        match_params,
         entry,
         runtime_entries,
         fallback_page,
@@ -73,8 +76,8 @@ pub fn create_node_rendered_source(
 pub struct NodeRenderContentSource {
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
+    route_match: RouteMatcherVc,
     pathname: StringVc,
-    match_params: MatchParamsVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
@@ -136,7 +139,7 @@ impl ContentSource for NodeRenderContentSource {
         _data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
         let this = self_vc.await?;
-        if *this.match_params.is_match(path).await? {
+        if *this.route_match.matches(path).await? {
             return Ok(ContentSourceResult::Result {
                 specificity: this.specificity,
                 get_content: NodeRenderGetContentResult {
@@ -171,10 +174,11 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
         }
         .cell()
     }
+
     #[turbo_tasks::function]
     async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
         let this = self.source.await?;
-        let Some(params) = &*this.match_params.get_matches(&self.path).await? else {
+        let Some(params) = &*this.route_match.params(&self.path).await? else {
             return Err(anyhow!("Non matching path provided"));
         };
         let ContentSourceData {
@@ -187,7 +191,7 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
             return Err(anyhow!("Missing request data"));
         };
         let entry = this.entry.entry(data.clone()).await?;
-        let asset = render_static(
+        let result = render_static(
             this.server_root.join(&self.path),
             entry.module,
             this.runtime_entries,
@@ -205,7 +209,10 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
             }
             .cell(),
         );
-        Ok(ContentSourceContent::Static(asset.into()).cell())
+        Ok(match *result.await? {
+            StaticResult::Content(content) => ContentSourceContent::Static(content.into()).cell(),
+            StaticResult::Rewrite(rewrite) => ContentSourceContent::Rewrite(rewrite).cell(),
+        })
     }
 }
 
@@ -223,7 +230,7 @@ impl Introspectable for NodeRenderContentSource {
 
     #[turbo_tasks::function]
     fn title(&self) -> StringVc {
-        self.match_params.to_string()
+        self.pathname
     }
 
     #[turbo_tasks::function]

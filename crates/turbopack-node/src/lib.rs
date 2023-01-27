@@ -35,10 +35,10 @@ pub mod bootstrap;
 mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
-pub mod match_params;
 mod node_entry;
 mod pool;
 pub mod render;
+pub mod route_matcher;
 pub mod source_map;
 pub mod transforms;
 

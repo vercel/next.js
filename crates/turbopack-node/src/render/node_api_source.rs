@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::{anyhow, Result};
-use turbo_tasks::{primitives::StringVc, Value, ValueToString};
+use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::introspect::{
     asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
@@ -15,7 +15,7 @@ use turbopack_dev_server::source::{
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
 use super::{render_proxy::render_proxy, RenderData};
-use crate::{get_intermediate_asset, match_params::MatchParamsVc, node_entry::NodeEntryVc};
+use crate::{get_intermediate_asset, node_entry::NodeEntryVc, route_matcher::RouteMatcherVc};
 
 /// Creates a [NodeApiContentSource].
 #[turbo_tasks::function]
@@ -23,7 +23,7 @@ pub fn create_node_api_source(
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     pathname: StringVc,
-    match_params: MatchParamsVc,
+    route_match: RouteMatcherVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
 ) -> ContentSourceVc {
@@ -31,7 +31,7 @@ pub fn create_node_api_source(
         specificity,
         server_root,
         pathname,
-        match_params,
+        route_match,
         entry,
         runtime_entries,
     }
@@ -50,7 +50,7 @@ pub struct NodeApiContentSource {
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     pathname: StringVc,
-    match_params: MatchParamsVc,
+    route_match: RouteMatcherVc,
     entry: NodeEntryVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
 }
@@ -72,7 +72,7 @@ impl ContentSource for NodeApiContentSource {
         _data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<ContentSourceResultVc> {
         let this = self_vc.await?;
-        if *this.match_params.is_match(path).await? {
+        if *this.route_match.matches(path).await? {
             return Ok(ContentSourceResult::Result {
                 specificity: this.specificity,
                 get_content: NodeApiGetContentResult {
@@ -112,7 +112,7 @@ impl GetContentSourceContent for NodeApiGetContentResult {
     #[turbo_tasks::function]
     async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
         let this = self.source.await?;
-        let Some(params) = &*this.match_params.get_matches(&self.path).await? else {
+        let Some(params) = &*this.route_match.params(&self.path).await? else {
             return Err(anyhow!("Non matching path provided"));
         };
         let ContentSourceData {
@@ -162,7 +162,7 @@ impl Introspectable for NodeApiContentSource {
 
     #[turbo_tasks::function]
     fn title(&self) -> StringVc {
-        self.match_params.to_string()
+        self.pathname
     }
 
     #[turbo_tasks::function]
