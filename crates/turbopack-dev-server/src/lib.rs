@@ -31,7 +31,7 @@ use hyper::{
 use mime_guess::mime;
 use source::{
     headers::{HeaderValue, Headers},
-    Body, Bytes,
+    Body, Bytes, RewriteReadRef,
 };
 use turbo_tasks::{
     run_once, trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi, Value,
@@ -103,6 +103,7 @@ async fn handle_issues<T: Into<RawVc>>(
 #[turbo_tasks::value(serialization = "none")]
 enum GetFromSourceResult {
     Static(FileContentReadRef),
+    Rewrite(RewriteReadRef),
     HttpProxy(ProxyResultReadRef),
     NeedData {
         source: ContentSourceVc,
@@ -138,6 +139,9 @@ async fn get_from_source(
             } else {
                 let content = get_content.get(data).await?;
                 match &*content {
+                    ContentSourceContent::Rewrite(rewrite) => {
+                        GetFromSourceResult::Rewrite(rewrite.await?)
+                    }
                     ContentSourceContent::NotFound => GetFromSourceResult::NotFound,
                     ContentSourceContent::Static(content_vc) => {
                         if let AssetContent::File(file) = &*content_vc.content().await? {
@@ -158,17 +162,19 @@ async fn get_from_source(
 
 async fn process_request_with_content_source(
     path: &str,
-    mut resolved_source: ContentSourceVc,
-    mut asset_path: Cow<'_, str>,
+    source: ContentSourceVc,
+    asset_path: Cow<'_, str>,
     mut request: Request<hyper::Body>,
     console_ui: ConsoleUiVc,
 ) -> Result<Response<hyper::Body>> {
     let mut data = ContentSourceData::default();
     let mut data_vary = ContentSourceDataVary::default();
+    let mut current_source = source;
+    let mut current_asset_path = asset_path.clone();
     loop {
         let content_source_result = get_from_source(
-            resolved_source,
-            &asset_path,
+            current_source,
+            &current_asset_path,
             Value::new(data),
             Value::new(data_vary),
         );
@@ -202,10 +208,11 @@ async fn process_request_with_content_source(
                         |m| m.to_string(),
                     );
 
+                    let status_code = content.status_code().unwrap_or(200);
                     let content = content.content();
                     let bytes = content.read();
                     return Ok(Response::builder()
-                        .status(200)
+                        .status(status_code)
                         .header("Content-Type", content_type)
                         .header("Content-Length", content.len().to_string())
                         .body(hyper::Body::wrap_stream(bytes))?);
@@ -224,9 +231,20 @@ async fn process_request_with_content_source(
 
                 return Ok(response.body(hyper::Body::wrap_stream(proxy_result.body.read()))?);
             }
+            GetFromSourceResult::Rewrite(rewrite) => {
+                let new_asset_path = rewrite.path();
+                if asset_path == new_asset_path {
+                    bail!("rewrite loop detected: {}", asset_path);
+                }
+                current_source = source;
+                current_asset_path = Cow::Owned(new_asset_path.to_string());
+                data = ContentSourceData::default();
+                data_vary = ContentSourceDataVary::default();
+                continue;
+            }
             GetFromSourceResult::NeedData { source, path, vary } => {
-                resolved_source = *source;
-                asset_path = Cow::Owned(path.to_string());
+                current_source = *source;
+                current_asset_path = Cow::Owned(path.to_string());
                 data = request_to_data(&mut request, vary).await?;
                 data_vary = vary.clone();
                 continue;

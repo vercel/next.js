@@ -101,6 +101,7 @@ pub enum ContentSourceContent {
     NotFound,
     Static(VersionedContentVc),
     HttpProxy(ProxyResultVc),
+    Rewrite(RewriteVc),
 }
 
 #[turbo_tasks::value_impl]
@@ -401,5 +402,27 @@ impl ContentSource for NoContentSource {
     #[turbo_tasks::function]
     fn get(&self, _path: &str, _data: Value<ContentSourceData>) -> ContentSourceResultVc {
         ContentSourceResultVc::not_found()
+    }
+}
+
+/// A rewrite returned from a [ContentSource].
+#[turbo_tasks::value(shared)]
+pub struct Rewrite {
+    path: String,
+}
+
+impl Rewrite {
+    /// The path to rewrite to.
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl RewriteVc {
+    /// Creates a new [RewriteVc].
+    #[turbo_tasks::function]
+    pub fn new(path: String) -> RewriteVc {
+        Rewrite { path }.cell()
     }
 }
