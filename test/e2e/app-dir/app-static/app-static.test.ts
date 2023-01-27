@@ -3,7 +3,8 @@ import cheerio from 'cheerio'
 import { promisify } from 'util'
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check, normalizeRegEx, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
 
@@ -11,6 +12,9 @@ createNextDescribe(
   'app-dir static/dynamic handling',
   {
     files: __dirname,
+    env: {
+      NEXT_DEBUG_BUILD: '1',
+    },
   },
   ({ next, isNextDev: isDev, isNextStart }) => {
     if (isNextStart) {
@@ -272,9 +276,51 @@ createNextDescribe(
           },
         })
       })
+
+      it('should output debug info for static bailouts', async () => {
+        const cleanedOutput = stripAnsi(next.cliOutput)
+
+        expect(cleanedOutput).toContain(
+          'Static generation failed due to dynamic usage on /force-static, reason: headers'
+        )
+        expect(cleanedOutput).toContain(
+          'Static generation failed due to dynamic usage on /ssr-auto/cache-no-store, reason: no-store fetch'
+        )
+      })
     }
 
-    if (!isDev) {
+    if (isDev) {
+      it('should bypass fetch cache with cache-control: no-cache', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3'
+        )
+
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3',
+          undefined,
+          {
+            headers: {
+              'cache-control': 'no-cache',
+            },
+          }
+        )
+
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+        expect($2('#layout-data').text()).not.toBe(layoutData)
+        expect($2('#page-data').text()).not.toBe(pageData)
+      })
+    } else {
       it('should properly error when static page switches to dynamic at runtime', async () => {
         const res = await next.fetch(
           '/static-to-dynamic-error/static-bailout-1'
@@ -284,8 +330,8 @@ createNextDescribe(
 
         if (isNextStart) {
           await check(
-            () => next.cliOutput,
-            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1/
+            () => stripAnsi(next.cliOutput),
+            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1, reason: cookies/
           )
         }
       })
@@ -302,12 +348,40 @@ createNextDescribe(
         expect(html).toMatch(/id:.*?static-bailout-1/)
 
         if (isNextStart) {
-          expect(next.cliOutput.substring(outputIndex)).not.toMatch(
-            /Page changed from static to dynamic at runtime \/static-to-dynamic-error\/static-bailout-1/
+          expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
+            /Page changed from static to dynamic at runtime \/static-to-dynamic-error-forced\/static-bailout-1, reason: cookies/
           )
         }
       })
     }
+
+    it('should honor fetch cache correctly', async () => {
+      await fetchViaHTTP(next.url, '/variable-revalidate/revalidate-3')
+
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate/revalidate-3'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const layoutData = $('#layout-data').text()
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
+    })
 
     it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
       const browserOnIndexPage = await next.browser('/ssg-preview')

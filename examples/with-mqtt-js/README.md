@@ -14,8 +14,14 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-mqtt-js with-mqtt-js-app
-# or
-yarn create-next-app --example with-mqtt-js with-mqtt-js-app
+```
+
+```bash
+yarn create next-app --example with-mqtt-js with-mqtt-js-app
+```
+
+```bash
+pnpm create next-app --example with-mqtt-js with-mqtt-js-app
 ```
 
 To set up a connection URI with a mqtt client, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):

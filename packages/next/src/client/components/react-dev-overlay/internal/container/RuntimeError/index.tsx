@@ -6,6 +6,7 @@ import { OriginalStackFrame } from '../../helpers/stack-frame'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { CallStackFrame } from './CallStackFrame'
 import { GroupedStackFrames } from './GroupedStackFrames'
+import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -84,6 +85,19 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
           />
         </React.Fragment>
       ) : undefined}
+
+      {error.componentStackFrames ? (
+        <>
+          <h5>Component Stack</h5>
+          {error.componentStackFrames.map((componentStackFrame, index) => (
+            <ComponentStackFrameRow
+              key={index}
+              componentStackFrame={componentStackFrame}
+            />
+          ))}
+        </>
+      ) : null}
+
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
           <h5>Call Stack</h5>
@@ -119,11 +133,13 @@ export const styles = css`
     color: var(--color-accents-3);
   }
 
-  [data-nextjs-call-stack-frame]:not(:last-child) {
+  [data-nextjs-call-stack-frame]:not(:last-child),
+  [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-call-stack-frame] > h6 {
+  [data-nextjs-call-stack-frame] > h6,
+  [data-nextjs-component-stack-frame] > h6 {
     margin-top: 0;
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
@@ -132,14 +148,16 @@ export const styles = css`
   [data-nextjs-call-stack-frame] > h6[data-nextjs-frame-expanded='false'] {
     color: #666;
   }
-  [data-nextjs-call-stack-frame] > div {
+  [data-nextjs-call-stack-frame] > div,
+  [data-nextjs-component-stack-frame] > div {
     display: flex;
     align-items: center;
     padding-left: calc(var(--size-gap) + var(--size-gap-half));
     font-size: var(--size-font-small);
     color: #999;
   }
-  [data-nextjs-call-stack-frame] > div > svg {
+  [data-nextjs-call-stack-frame] > div > svg,
+  [data-nextjs-component-stack-frame] > div > svg {
     width: auto;
     height: var(--size-font-small);
     margin-left: var(--size-gap);
@@ -147,13 +165,16 @@ export const styles = css`
     display: none;
   }
 
-  [data-nextjs-call-stack-frame] > div[data-has-source] {
+  [data-nextjs-call-stack-frame] > div[data-has-source],
+  [data-nextjs-component-stack-frame] > div {
     cursor: pointer;
   }
-  [data-nextjs-call-stack-frame] > div[data-has-source]:hover {
+  [data-nextjs-call-stack-frame] > div[data-has-source]:hover,
+  [data-nextjs-component-stack-frame] > div:hover {
     text-decoration: underline dotted;
   }
-  [data-nextjs-call-stack-frame] > div[data-has-source] > svg {
+  [data-nextjs-call-stack-frame] > div[data-has-source] > svg,
+  [data-nextjs-component-stack-frame] > div > svg {
     display: unset;
   }
 

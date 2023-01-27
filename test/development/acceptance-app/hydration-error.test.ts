@@ -5,7 +5,7 @@ import path from 'path'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js
 createNextDescribe(
-  'Error Overlay for server components',
+  'Error overlay for hydration errors',
   {
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
