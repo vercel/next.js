@@ -335,8 +335,7 @@ function clientReducer(
             shouldHardNavigate(
               // TODO-APP: remove ''
               ['', ...flightSegmentPath],
-              state.tree,
-              newTree
+              state.tree
             )
 
           if (hardNavigate) {
