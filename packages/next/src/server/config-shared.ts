@@ -155,6 +155,10 @@ export interface ExperimentalConfig {
   fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+
+  // webpack loaders to use when running turbopack
+  turbopackLoaders?: Record<string, string | string[]>
+
   turbotrace?: {
     logLevel?:
       | 'bug'
