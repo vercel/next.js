@@ -128,7 +128,7 @@ export default class DevServer extends Server {
         maxRetries: 1,
         // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
         // This helps reusing the memory a lot.
-        numWorkers: 2,
+        numWorkers: Math.min(this.nextConfig.experimental.cpus || 2, 2),
         enableWorkerThreads: this.nextConfig.experimental.workerThreads,
         forkOptions: {
           env: {
