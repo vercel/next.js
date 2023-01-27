@@ -660,8 +660,6 @@ function clientReducer(
         tree: tree,
       }
     }
-    // TODO-APP: Add test for not scrolling to nearest layout when calling refresh.
-    // TODO-APP: Add test for startTransition(() => {router.push('/'); router.refresh();}), that case should scroll.
     case ACTION_REFRESH: {
       const { cache, mutable } = action
       const href = state.canonicalUrl
