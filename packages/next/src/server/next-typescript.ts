@@ -29,7 +29,12 @@ const DISALLOWED_SERVER_REACT_APIS: string[] = [
 ]
 
 const LEGACY_CONFIG_EXPORT = 'config'
-const ALLOWED_EXPORTS = ['config', 'generateStaticParams']
+const ALLOWED_EXPORTS = [
+  'config',
+  'generateStaticParams',
+  'metadata',
+  'generateMetadata',
+]
 
 const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
 const ALLOWED_LAYOUT_PROPS = ['params', 'children']

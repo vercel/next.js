@@ -6,6 +6,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
 import { NotFound as DefaultNotFound } from '../client/components/error'
+import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -45,9 +46,9 @@ import {
   RSC,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
+import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { formatServerError } from '../lib/format-server-error'
 import { Metadata } from '../lib/metadata/metadata'
-import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 
@@ -636,8 +637,8 @@ type LoaderTree = [
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string,
-  refresh?: 'refetch',
+  url?: string | null,
+  refresh?: 'refetch' | null,
   isRootLayout?: boolean
 ]
 
@@ -977,6 +978,8 @@ export async function renderToHTMLOrFlight(
      * The metadata items array created in next-app-loader with all relevant information
      * that we need to resolve the final metadata.
      */
+
+    const requestId = nanoid(12)
     const metadataItems = ComponentMod.metadata
 
     stripInternalQueries(query)
@@ -1708,8 +1711,9 @@ export async function renderToHTMLOrFlight(
             isFirst: true,
             rscPayloadHead: (
               <>
+                {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
-                <Metadata metadata={metadataItems} />
+                <Metadata key={requestId} metadata={metadataItems} />
                 {rscPayloadHead}
               </>
             ),
@@ -1807,8 +1811,9 @@ export async function renderToHTMLOrFlight(
               initialTree={initialTree}
               initialHead={
                 <>
+                  {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
-                  <Metadata metadata={metadataItems} />
+                  <Metadata key={requestId} metadata={metadataItems} />
                   {initialHead}
                 </>
               }

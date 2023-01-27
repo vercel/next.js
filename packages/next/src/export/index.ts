@@ -25,6 +25,7 @@ import {
   FLIGHT_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   FONT_LOADER_MANIFEST,
+  MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -48,6 +49,7 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from '../build/webpack/require-hook'
+import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -508,13 +510,24 @@ export default async function exportApp(
         )
       }
     }
+    let hasMiddleware = false
+
+    try {
+      const middlewareManifest = require(join(
+        distDir,
+        SERVER_DIRECTORY,
+        MIDDLEWARE_MANIFEST
+      )) as MiddlewareManifest
+
+      hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
+    } catch (_) {}
 
     // Warn if the user defines a path for an API page
-    if (hasApiRoutes) {
+    if (hasApiRoutes || hasMiddleware) {
       if (!options.silent) {
         Log.warn(
           chalk.yellow(
-            `Statically exporting a Next.js application via \`next export\` disables API routes.`
+            `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
           ) +
             `\n` +
             chalk.yellow(
