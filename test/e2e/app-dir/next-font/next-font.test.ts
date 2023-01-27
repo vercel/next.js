@@ -348,7 +348,7 @@ createNextDescribe(
               crossorigin: 'anonymous',
               href: '/',
               rel: 'preconnect',
-              'data-next-font': '',
+              'data-next-font': 'size-adjust',
             })
             // Preload
             expect($('link[as="font"]').length).toBe(0)

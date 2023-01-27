@@ -49,7 +49,7 @@ describe('@next/font/google without-preloaded-fonts without _app', () => {
       crossorigin: 'anonymous',
       href: '/',
       rel: 'preconnect',
-      'data-next-font': '',
+      'data-next-font': 'size-adjust',
     })
 
     // Preload
@@ -109,7 +109,7 @@ describe('@next/font/google no preloads with _app', () => {
       crossorigin: 'anonymous',
       href: '/',
       rel: 'preconnect',
-      'data-next-font': '',
+      'data-next-font': 'size-adjust',
     })
 
     // Preload
@@ -126,7 +126,7 @@ describe('@next/font/google no preloads with _app', () => {
       crossorigin: 'anonymous',
       href: '/',
       rel: 'preconnect',
-      'data-next-font': '',
+      'data-next-font': 'size-adjust',
     })
 
     // Preload

@@ -383,7 +383,9 @@ function getFontLoaderLinks(
   return {
     preconnect: preconnectToSelf ? (
       <link
-        data-next-font=""
+        data-next-font={
+          fontLoaderManifest.pagesUsingSizeAdjust ? 'size-adjust' : ''
+        }
         rel="preconnect"
         href="/"
         crossOrigin="anonymous"

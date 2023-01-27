@@ -1492,7 +1492,9 @@ export async function renderToHTMLOrFlight(
             <>
               {preloadedFontFiles?.length === 0 ? (
                 <link
-                  data-next-font=""
+                  data-next-font={
+                    fontLoaderManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+                  }
                   rel="preconnect"
                   href="/"
                   crossOrigin="anonymous"
