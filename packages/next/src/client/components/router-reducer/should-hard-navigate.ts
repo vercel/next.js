@@ -5,10 +5,10 @@ import {
 } from '../../../server/app-render'
 import { matchSegment } from '../match-segments'
 
+// TODO-APP: flightSegmentPath will be empty in case of static response, needs to be handled.
 export function shouldHardNavigate(
   flightSegmentPath: FlightDataPath,
-  flightRouterState: FlightRouterState,
-  treePatch: FlightRouterState
+  flightRouterState: FlightRouterState
 ): boolean {
   const [segment, parallelRoutes] = flightRouterState
   // TODO-APP: Check if `as` can be replaced.
@@ -35,7 +35,6 @@ export function shouldHardNavigate(
 
   return shouldHardNavigate(
     flightSegmentPath.slice(2),
-    parallelRoutes[parallelRouteKey],
-    treePatch
+    parallelRoutes[parallelRouteKey]
   )
 }
