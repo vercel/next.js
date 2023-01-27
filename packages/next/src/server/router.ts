@@ -506,22 +506,28 @@ export default class Router {
 
 let _makeResolver: any = () => {}
 
-if (process.env.NEXT_RUNTIME !== 'edge') {
+if (
+  process.env.NEXT_RUNTIME !== 'edge' &&
+  process.env.NODE_ENV !== 'production'
+) {
   _makeResolver = async function makeResolver(
     dir: string,
     nextConfig: NextConfig
   ) {
-    // TODO: why are there double defaults here?
-    const { default: DevServer } =
-      require('./dev/next-dev-server.js') as typeof import('./dev/next-dev-server')
+    const _require = require
+    const { default: DevServer } = _require(
+      './dev/next-dev-server.js'
+    ) as typeof import('./dev/next-dev-server')
 
-    const { default: loadCustomRoutes } =
-      require('../lib/load-custom-routes') as typeof import('../lib/load-custom-routes')
+    const { default: loadCustomRoutes } = _require(
+      '../lib/load-custom-routes'
+    ) as typeof import('../lib/load-custom-routes')
 
-    const { NodeNextRequest, NodeNextResponse } =
-      require('./base-http/node') as typeof import('./base-http/node')
+    const { NodeNextRequest, NodeNextResponse } = _require(
+      './base-http/node'
+    ) as typeof import('./base-http/node')
 
-    const url = require('url') as typeof import('url')
+    const url = _require('url') as typeof import('url')
 
     const devServer = new DevServer({
       dir,
