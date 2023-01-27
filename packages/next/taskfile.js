@@ -99,9 +99,6 @@ export async function ncc_next_server(task, opts) {
       // minify: false,
       externals: {
         ...externals,
-
-        '/(.*)next-dev-server(.*)/': '$1next-dev-server$1',
-
         sharp: 'sharp',
         react: 'react',
         'react-dom': 'react-dom',
