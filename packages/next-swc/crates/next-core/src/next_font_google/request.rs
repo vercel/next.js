@@ -24,7 +24,7 @@ pub struct NextFontRequestArguments {
     pub fallback: Option<Vec<String>>,
     #[serde(default)]
     pub adjust_font_fallback: bool,
-    pub variable: Option<Vec<String>>,
+    pub variable: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

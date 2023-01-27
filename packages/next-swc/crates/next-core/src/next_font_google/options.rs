@@ -20,7 +20,7 @@ pub struct NextFontGoogleOptions {
     pub selected_variable_axes: Option<Vec<String>>,
     pub fallback: Option<Vec<String>>,
     pub adjust_font_fallback: bool,
-    pub variable: Option<Vec<String>>,
+    pub variable: Option<String>,
     pub subsets: Option<Vec<String>>,
 }
 
