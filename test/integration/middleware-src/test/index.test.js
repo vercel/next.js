@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { promises as fs } from 'fs'
+import fs from 'fs-extra'
 import { join } from 'path'
 import {
   fetchViaHTTP,
@@ -9,6 +9,7 @@ import {
   killApp,
   nextBuild,
   nextStart,
+  nextExport,
 } from 'next-test-utils'
 
 let app
@@ -38,7 +39,7 @@ function runDoubleMiddlewareTests() {
 }
 
 async function writeRootMiddleware() {
-  await fs.cp(join(appDir, 'src/pages'), join(appDir, 'pages'), {
+  await fs.copy(join(appDir, 'src/pages'), join(appDir, 'pages'), {
     force: true,
     recursive: true,
   })
@@ -67,9 +68,9 @@ return response
 }
 
 async function removeRootMiddleware() {
-  await fs.rm(rootMiddlewareJSFile, { force: true })
-  await fs.rm(rootMiddlewareTSFile, { force: true })
-  await fs.rm(join(appDir, 'pages'), { force: true, recursive: true })
+  await fs.remove(rootMiddlewareJSFile, { force: true })
+  await fs.remove(rootMiddlewareTSFile, { force: true })
+  await fs.remove(join(appDir, 'pages'), { force: true, recursive: true })
 }
 
 describe.each([
@@ -100,12 +101,34 @@ describe.each([
   })
 
   describe('production mode', () => {
+    let exportOutput = ''
+
     beforeAll(async () => {
       await nextBuild(appDir)
+
+      const outdir = join(__dirname, '..', 'out')
+      await fs.remove(outdir).catch(() => {})
+
+      const result = await nextExport(
+        appDir,
+        { outdir },
+        {
+          stderr: true,
+          stdout: true,
+        }
+      )
+      exportOutput = result.stderr + result.stdout
+
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
+
+    it('should warn about middleware on export', async () => {
+      expect(exportOutput).toContain(
+        'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
+      )
+    })
 
     runTest()
   })

@@ -45,7 +45,7 @@ export type ColorSchemeEnum =
   | 'dark light'
   | 'only light'
 
-export type Robots = {
+type RobotsInfo = {
   // all and none will be inferred from index/follow boolean options
   index?: boolean
   follow?: boolean
@@ -59,9 +59,15 @@ export type Robots = {
   nosnippet?: boolean
   noimageindex?: boolean
   nocache?: boolean
-
+}
+export type Robots = RobotsInfo & {
   // if you want to specify an alternate robots just for google
-  googleBot?: string | Robots
+  googleBot?: string | RobotsInfo
+}
+
+export type ResolvedRobots = {
+  basic: string | null
+  googleBot: string | null
 }
 
 export type IconURL = string | URL
@@ -90,6 +96,14 @@ export type Verification = {
   // if you ad-hoc additional verification
   other?: {
     [name: string]: string | number | (string | number)[]
+  }
+}
+
+export type ResolvedVerification = {
+  google?: null | (string | number)[]
+  yahoo?: null | (string | number)[]
+  other?: {
+    [name: string]: (string | number)[]
   }
 }
 
