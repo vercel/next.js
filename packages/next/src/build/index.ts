@@ -2760,7 +2760,6 @@ export default async function build(
         .traceChild('telemetry-flush')
         .traceAsyncFn(() => telemetry.flush())
     })
-    debugger
     return buildResult
   } finally {
     // Ensure we wait for lockfile patching if present
