@@ -53,7 +53,7 @@ type IpcIncomingMessage = {
 type IpcOutgoingMessage = {
   type: "response";
   statusCode: number;
-  contentType: string;
+  headers: Array<[string, string]>;
   body: string;
 };
 
@@ -260,7 +260,7 @@ async function runOperation(renderData: RenderData) {
     body = result.toUnchunkedString();
   }
   return {
-    contentType: result.contentType() ?? MIME_TEXT_HTML_UTF8,
+    headers: [["Content-Type", result.contentType() ?? MIME_TEXT_HTML_UTF8]],
     body,
   };
 }
