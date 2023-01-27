@@ -51,9 +51,13 @@ type IpcIncomingMessage = {
 };
 
 type IpcOutgoingMessage = {
-  type: "result";
-  result: string | { body: string; contentType?: string };
+  type: "response";
+  statusCode: number;
+  contentType: string;
+  body: string;
 };
+
+const MIME_TEXT_HTML_UTF8 = "text/html; charset=utf-8";
 
 (async () => {
   while (true) {
@@ -71,15 +75,16 @@ type IpcOutgoingMessage = {
       }
     }
 
-    const html = await runOperation(renderData);
+    const result = await runOperation(renderData);
 
-    if (html == null) {
+    if (result == null) {
       throw new Error("no html returned");
     }
 
     ipc.send({
-      type: "result",
-      result: html,
+      type: "response",
+      statusCode: 200,
+      ...result,
     });
   }
 })().catch((err) => {
@@ -255,7 +260,7 @@ async function runOperation(renderData: RenderData) {
     body = result.toUnchunkedString();
   }
   return {
-    contentType: result.contentType(),
+    contentType: result.contentType() ?? MIME_TEXT_HTML_UTF8,
     body,
   };
 }

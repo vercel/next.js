@@ -6,6 +6,7 @@ import App from "@vercel/turbopack-next/pages/_app";
 import Document from "@vercel/turbopack-next/pages/_document";
 
 import Component, * as otherExports from ".";
+
 ("TURBOPACK { transition: next-client }");
 import chunkGroup from ".";
 

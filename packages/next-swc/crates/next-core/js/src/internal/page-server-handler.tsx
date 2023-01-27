@@ -23,10 +23,17 @@ type IpcIncomingMessage = {
   data: RenderData;
 };
 
-type IpcOutgoingMessage = {
-  type: "result";
-  result: string | { body: string; contentType?: string };
-};
+type IpcOutgoingMessage =
+  | {
+      type: "response";
+      statusCode: number;
+      contentType: string;
+      body: string;
+    }
+  | { type: "rewrite"; path: string };
+
+const MIME_APPLICATION_JAVASCRIPT = "application/javascript";
+const MIME_TEXT_HTML_UTF8 = "text/html; charset=utf-8";
 
 export default function startHandler({
   isDataReq,
@@ -59,35 +66,9 @@ export default function startHandler({
         }
       }
 
-      let res = await runOperation(renderData);
+      const res = await runOperation(renderData);
 
-      if (isDataReq) {
-        if (res === undefined) {
-          // Page data is only returned if the page had getXxyProps.
-          res = {};
-        }
-        ipc.send({
-          type: "result",
-          result: {
-            contentType: "application/json",
-            body: JSON.stringify(res),
-          },
-        });
-      } else {
-        if (res == null) {
-          throw new Error("no render result returned");
-        }
-        if (typeof res !== "string") {
-          throw new Error("Non-string render result returned");
-        }
-        ipc.send({
-          type: "result",
-          result: {
-            contentType: undefined,
-            body: res,
-          },
-        });
-      }
+      ipc.send(res);
     }
   })().catch((err) => {
     ipc.sendError(err);
@@ -95,7 +76,7 @@ export default function startHandler({
 
   async function runOperation(
     renderData: RenderData
-  ): Promise<Object | string | null> {
+  ): Promise<IpcOutgoingMessage> {
     // TODO(alexkirsz) This is missing *a lot* of data, but it's enough to get a
     // basic render working.
 
@@ -188,6 +169,19 @@ export default function startHandler({
       headers: renderData.headers,
     } as any;
     const res: ServerResponse = new ServerResponseShim(req) as any;
+
+    // Both _error and 404 should receive a 404 status code.
+    const statusCode =
+      renderData.path === "/404"
+        ? 404
+        : renderData.path === "/_error"
+        ? 404
+        : 200;
+
+    // Setting the status code on the response object is necessary for
+    // `Error.getInitialProps` to detect the status code.
+    res.statusCode = statusCode;
+
     const query = { ...renderData.query, ...renderData.params };
 
     const renderResult = await renderToHTML(
@@ -203,23 +197,54 @@ export default function startHandler({
       renderOpts
     );
 
+    // This is set when `getStaticProps` returns `notFound: true`.
+    const isNotFound = (renderOpts as any).isNotFound;
+
+    if (isNotFound) {
+      if (isDataReq) {
+        return {
+          type: "response",
+          statusCode,
+          body: '{"notFound":true}',
+          contentType: MIME_APPLICATION_JAVASCRIPT,
+        };
+      }
+
+      return {
+        type: "rewrite",
+        // _next/404 is a Turbopack-internal route that will always redirect to
+        // the 404 page.
+        path: "_next/404",
+      };
+    }
+
     if (isDataReq) {
       // TODO(from next.js): change this to a different passing mechanism
       const pageData = (renderOpts as any).pageData;
-      return pageData;
+      return {
+        type: "response",
+        statusCode,
+        contentType: MIME_APPLICATION_JAVASCRIPT,
+        // Page data is only returned if the page had getXxyProps.
+        body: JSON.stringify(pageData === undefined ? {} : pageData),
+      };
     }
 
     if (!renderResult) {
-      return null;
+      throw new Error("no render result returned");
     }
 
     const body = renderResult.toUnchunkedString();
     // TODO: handle these
     // const sprRevalidate = (renderOpts as any).revalidate;
-    // const isNotFound = (renderOpts as any).isNotFound;
     // const isRedirect = (renderOpts as any).isRedirect;
 
-    return body;
+    return {
+      type: "response",
+      statusCode,
+      contentType: renderResult.contentType() ?? MIME_TEXT_HTML_UTF8,
+      body,
+    };
   }
 }
 

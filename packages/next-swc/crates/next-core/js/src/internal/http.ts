@@ -8,6 +8,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 export class ServerResponseShim {
   headersSent = false;
   #headers: Map<string, number | string | ReadonlyArray<string>> = new Map();
+  #statusCode: number = 200;
   req: IncomingMessage;
 
   constructor(req: IncomingMessage) {
@@ -40,11 +41,11 @@ export class ServerResponseShim {
   }
 
   get statusCode() {
-    throw new Error("statusCode is not implemented");
+    return this.#statusCode;
   }
 
   set statusCode(code) {
-    throw new Error("set statusCode is not implemented");
+    this.#statusCode = code;
   }
 
   get statusMessage() {

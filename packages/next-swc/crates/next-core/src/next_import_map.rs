@@ -56,6 +56,14 @@ pub async fn get_next_client_import_map(
                     request_to_import_mapping(pages_dir, "next/document"),
                 ],
             );
+            insert_alias_to_alternatives(
+                &mut import_map,
+                format!("{VIRTUAL_PACKAGE_NAME}/internal/_error"),
+                vec![
+                    request_to_import_mapping(pages_dir, "./_error"),
+                    request_to_import_mapping(pages_dir, "next/error"),
+                ],
+            );
         }
         ClientContextType::App { app_dir } => {
             import_map.insert_exact_alias(
@@ -290,6 +298,14 @@ pub async fn insert_next_server_special_aliases(
                 vec![
                     request_to_import_mapping(pages_dir, "./_document"),
                     external_request_to_import_mapping("next/document"),
+                ],
+            );
+            insert_alias_to_alternatives(
+                import_map,
+                format!("{VIRTUAL_PACKAGE_NAME}/internal/_error"),
+                vec![
+                    request_to_import_mapping(pages_dir, "./_error"),
+                    external_request_to_import_mapping("next/error"),
                 ],
             );
         }

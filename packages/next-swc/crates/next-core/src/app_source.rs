@@ -60,11 +60,11 @@ use crate::{
         ssr_client_module_transition::NextSSRClientModuleTransition,
     },
     next_config::NextConfigVc,
+    next_route_matcher::NextParamsMatcherVc,
     next_server::context::{
         get_server_environment, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
-    params_matcher::NextParamsMatcherVc,
     util::pathname_for_path,
 };
 
@@ -409,13 +409,13 @@ async fn create_app_source_for_directory(
         layouts = LayoutSegmentsVc::cell(list);
         if let Some(page_path) = page {
             let pathname = pathname_for_path(server_root, target, false);
-            let params_matcher = NextParamsMatcherVc::new(pathname, None, None);
+            let params_matcher = NextParamsMatcherVc::new(pathname);
 
             sources.push(create_node_rendered_source(
                 specificity,
                 server_root,
-                pathname,
                 params_matcher.into(),
+                pathname,
                 AppRenderer {
                     context_ssr,
                     context,
