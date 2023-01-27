@@ -6,9 +6,16 @@ import { createHrefFromUrl } from '../create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import { ReducerState, RefreshAction } from '../router-reducer-types'
+import {
+  ReadonlyReducerState,
+  ReducerState,
+  RefreshAction,
+} from '../router-reducer-types'
 
-export function refreshReducer(state: ReducerState, action: RefreshAction) {
+export function refreshReducer(
+  state: ReadonlyReducerState,
+  action: RefreshAction
+): ReducerState {
   const { cache, mutable } = action
   const href = state.canonicalUrl
 

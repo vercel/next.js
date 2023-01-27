@@ -178,7 +178,8 @@ export type AppRouterState = {
   canonicalUrl: string
 }
 
-export type ReducerState = Readonly<AppRouterState>
+export type ReadonlyReducerState = Readonly<AppRouterState>
+export type ReducerState = AppRouterState
 export type ReducerActions = Readonly<
   | RefreshAction
   | NavigateAction

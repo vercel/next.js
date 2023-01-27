@@ -1,8 +1,15 @@
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { PrefetchAction, ReducerState } from '../router-reducer-types'
+import {
+  PrefetchAction,
+  ReducerState,
+  ReadonlyReducerState,
+} from '../router-reducer-types'
 
-export function prefetchReducer(state: ReducerState, action: PrefetchAction) {
+export function prefetchReducer(
+  state: ReadonlyReducerState,
+  action: PrefetchAction
+): ReducerState {
   const { url, serverResponse } = action
   const [flightData, canonicalUrlOverride] = serverResponse
 
