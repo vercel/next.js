@@ -7,7 +7,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
 } from '../shared/lib/constants'
-import { __ApiPreviewProps } from '../server/api-utils'
 import { runCompiler } from './compiler'
 import * as Log from './output/log'
 import getBaseWebpackConfig from './webpack-config'
