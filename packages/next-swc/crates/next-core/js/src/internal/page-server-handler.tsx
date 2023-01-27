@@ -8,6 +8,8 @@ import "@vercel/turbopack-next/internal/shims";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { renderToHTML, RenderOpts } from "next/dist/server/render";
+import { getRedirectStatus } from "next/dist/lib/redirect-status";
+import { PERMANENT_REDIRECT_STATUS } from "next/dist/shared/lib/constants";
 import type { BuildManifest } from "next/dist/server/get-page-files";
 import type { ReactLoadableManifest } from "next/dist/server/load-components";
 
@@ -27,7 +29,7 @@ type IpcOutgoingMessage =
   | {
       type: "response";
       statusCode: number;
-      contentType: string;
+      headers: Array<[string, string]>;
       body: string;
     }
   | { type: "rewrite"; path: string };
@@ -197,7 +199,7 @@ export default function startHandler({
       renderOpts
     );
 
-    // This is set when `getStaticProps` returns `notFound: true`.
+    // Set when `getStaticProps` returns `notFound: true`.
     const isNotFound = (renderOpts as any).isNotFound;
 
     if (isNotFound) {
@@ -206,7 +208,7 @@ export default function startHandler({
           type: "response",
           statusCode,
           body: '{"notFound":true}',
-          contentType: MIME_APPLICATION_JAVASCRIPT,
+          headers: [["Content-Type", MIME_APPLICATION_JAVASCRIPT]],
         };
       }
 
@@ -218,13 +220,49 @@ export default function startHandler({
       };
     }
 
+    // Set when `getStaticProps` returns `redirect: { destination, permanent, statusCode }`.
+    const isRedirect = (renderOpts as any).isRedirect;
+
+    if (isRedirect && !isDataReq) {
+      const pageProps = (renderOpts as any).pageData.pageProps;
+      const redirect = {
+        destination: pageProps.__N_REDIRECT,
+        statusCode: pageProps.__N_REDIRECT_STATUS,
+        basePath: pageProps.__N_REDIRECT_BASE_PATH,
+      };
+      const statusCode = getRedirectStatus(redirect);
+
+      // TODO(alexkirsz) Handle basePath.
+      // if (
+      //   basePath &&
+      //   redirect.basePath !== false &&
+      //   redirect.destination.startsWith("/")
+      // ) {
+      //   redirect.destination = `${basePath}${redirect.destination}`;
+      // }
+
+      const headers: Array<[string, string]> = [
+        ["Location", redirect.destination],
+      ];
+      if (statusCode === PERMANENT_REDIRECT_STATUS) {
+        headers.push(["Refresh", `0;url=${redirect.destination}`]);
+      }
+
+      return {
+        type: "response",
+        statusCode,
+        headers,
+        body: redirect.destination,
+      };
+    }
+
     if (isDataReq) {
       // TODO(from next.js): change this to a different passing mechanism
       const pageData = (renderOpts as any).pageData;
       return {
         type: "response",
         statusCode,
-        contentType: MIME_APPLICATION_JAVASCRIPT,
+        headers: [["Content-Type", MIME_APPLICATION_JAVASCRIPT]],
         // Page data is only returned if the page had getXxyProps.
         body: JSON.stringify(pageData === undefined ? {} : pageData),
       };
@@ -235,14 +273,16 @@ export default function startHandler({
     }
 
     const body = renderResult.toUnchunkedString();
-    // TODO: handle these
+
+    // TODO: handle revalidate
     // const sprRevalidate = (renderOpts as any).revalidate;
-    // const isRedirect = (renderOpts as any).isRedirect;
 
     return {
       type: "response",
       statusCode,
-      contentType: renderResult.contentType() ?? MIME_TEXT_HTML_UTF8,
+      headers: [
+        ["Content-Type", renderResult.contentType() ?? MIME_TEXT_HTML_UTF8],
+      ],
       body,
     };
   }
