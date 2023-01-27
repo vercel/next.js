@@ -10,7 +10,7 @@ import { readRecordValue } from './read-record-value'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
-import { invalidateCacheBelowFlightSegmentPath } from './invalidateCacheBelowFlightSegmentPath'
+import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-flight-segmentpath'
 import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
 import { createOptimisticTree } from './create-optimistic-tree'
 import { applyRouterStatePatchToTree } from './apply-router-state-patch-to-tree'
@@ -335,8 +335,7 @@ function clientReducer(
             shouldHardNavigate(
               // TODO-APP: remove ''
               ['', ...flightSegmentPath],
-              state.tree,
-              newTree
+              state.tree
             )
 
           if (hardNavigate) {
@@ -392,13 +391,7 @@ function clientReducer(
 
         // Optimistic tree case.
         // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
-        const optimisticTree = createOptimisticTree(
-          segments,
-          state.tree,
-          true,
-          false,
-          href
-        )
+        const optimisticTree = createOptimisticTree(segments, state.tree, false)
 
         // Copy subTreeData for the root node of the cache.
         cache.status = CacheStates.READY
