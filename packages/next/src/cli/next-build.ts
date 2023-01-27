@@ -72,7 +72,7 @@ const nextBuild: CliCommand = (argv) => {
     dir,
     null,
     args['--profile'],
-    args['--debug'],
+    args['--debug'] || process.env.NEXT_DEBUG_BUILD,
     !args['--no-lint'],
     args['--no-mangling']
   ).catch((err) => {
