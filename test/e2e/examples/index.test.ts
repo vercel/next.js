@@ -53,7 +53,7 @@ const testedExamples = [
   'with-absolute-imports',
   'with-app-layout',
   'with-context-api',
-  'with-env-from-next-config',
+  'with-env-from-next-config-js',
   'with-loading',
   'with-shallow-routing',
   'with-sitemap',
@@ -67,7 +67,7 @@ const testedExamples = [
   'with-jest-babel',
   'with-mdx',
   'with-mdx-remote',
-  'with-tailwind-css',
+  'with-tailwindcss',
   'with-turbopack',
   'with-vercel-fetch',
 ]
