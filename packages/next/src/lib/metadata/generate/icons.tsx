@@ -22,11 +22,7 @@ function IconLink({ rel, icon }: { rel?: string; icon: Icon }) {
   }
 }
 
-export function ResolvedIconsMetadata({
-  icons,
-}: {
-  icons: ResolvedMetadata['icons']
-}) {
+export function IconsMetadata({ icons }: { icons: ResolvedMetadata['icons'] }) {
   if (!icons) return null
 
   const shortcutList = icons.shortcut
