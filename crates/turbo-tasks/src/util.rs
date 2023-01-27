@@ -1,4 +1,5 @@
 use std::{
+    any::Provider,
     fmt::{Debug, Display},
     sync::Arc,
     time::Duration,
@@ -31,7 +32,7 @@ impl std::error::Error for SharedError {
     }
 
     fn provide<'a>(&'a self, req: &mut std::any::Demand<'a>) {
-        self.inner.provide(req);
+        Provider::provide(&*self.inner, req);
     }
 }
 

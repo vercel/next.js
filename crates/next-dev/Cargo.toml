@@ -39,7 +39,7 @@ native-tls = ["next-core/native-tls"]
 rustls-tls = ["next-core/rustls-tls"]
 
 [dependencies]
-anyhow = "1.0.47"
+anyhow = { version = "1.0.47", features = ["backtrace"] }
 clap = { version = "4.0.18", features = ["derive", "env"], optional = true }
 console-subscriber = { version = "0.1.8", optional = true }
 futures = "0.3.25"
