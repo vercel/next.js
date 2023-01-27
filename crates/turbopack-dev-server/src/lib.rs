@@ -102,7 +102,11 @@ async fn handle_issues<T: Into<RawVc>>(
 
 #[turbo_tasks::value(serialization = "none")]
 enum GetFromSourceResult {
-    Static(FileContentReadRef),
+    Static {
+        content: FileContentReadRef,
+        status_code: u16,
+        headers: Vec<(String, String)>,
+    },
     Rewrite(RewriteReadRef),
     HttpProxy(ProxyResultReadRef),
     NeedData {
@@ -143,9 +147,17 @@ async fn get_from_source(
                         GetFromSourceResult::Rewrite(rewrite.await?)
                     }
                     ContentSourceContent::NotFound => GetFromSourceResult::NotFound,
-                    ContentSourceContent::Static(content_vc) => {
+                    ContentSourceContent::Static {
+                        content: content_vc,
+                        status_code,
+                        headers,
+                    } => {
                         if let AssetContent::File(file) = &*content_vc.content().await? {
-                            GetFromSourceResult::Static(file.await?)
+                            GetFromSourceResult::Static {
+                                content: file.await?,
+                                status_code: *status_code,
+                                headers: headers.await?.clone(),
+                            }
                         } else {
                             GetFromSourceResult::NotFound
                         }
@@ -186,15 +198,37 @@ async fn process_request_with_content_source(
         )
         .await?;
         match &*content_source_result.strongly_consistent().await? {
-            GetFromSourceResult::Static(file) => {
+            GetFromSourceResult::Static {
+                content: file,
+                status_code,
+                headers,
+            } => {
                 if let FileContent::Content(content) = &**file {
-                    let content_type = content.content_type().map_or_else(
-                        || {
-                            let guess =
-                                mime_guess::from_path(asset_path.as_ref()).first_or_octet_stream();
-                            // If a text type, application/javascript, or application/json was
-                            // guessed, use a utf-8 charset as  we most likely generated it as
-                            // such.
+                    let mut response = Response::builder().status(*status_code);
+
+                    let header_map = response.headers_mut().expect("headers must be defined");
+
+                    for (header_name, header_value) in headers {
+                        header_map.append(
+                            HeaderName::try_from(header_name.clone())?,
+                            hyper::header::HeaderValue::try_from(header_value.as_str())?,
+                        );
+                    }
+
+                    if let Some(content_type) = content.content_type() {
+                        header_map.append(
+                            "content-type",
+                            hyper::header::HeaderValue::try_from(content_type.to_string())?,
+                        );
+                    } else if let hyper::header::Entry::Vacant(entry) =
+                        header_map.entry("content-type")
+                    {
+                        let guess =
+                            mime_guess::from_path(asset_path.as_ref()).first_or_octet_stream();
+                        // If a text type, application/javascript, or application/json was
+                        // guessed, use a utf-8 charset as  we most likely generated it as
+                        // such.
+                        entry.insert(hyper::header::HeaderValue::try_from(
                             if (guess.type_() == mime::TEXT
                                 || guess.subtype() == mime::JAVASCRIPT
                                 || guess.subtype() == mime::JSON)
@@ -203,19 +237,18 @@ async fn process_request_with_content_source(
                                 guess.to_string() + "; charset=utf-8"
                             } else {
                                 guess.to_string()
-                            }
-                        },
-                        |m| m.to_string(),
+                            },
+                        )?);
+                    }
+
+                    let content = content.content();
+                    header_map.insert(
+                        "Content-Length",
+                        hyper::header::HeaderValue::try_from(content.len().to_string())?,
                     );
 
-                    let status_code = content.status_code().unwrap_or(200);
-                    let content = content.content();
                     let bytes = content.read();
-                    return Ok(Response::builder()
-                        .status(status_code)
-                        .header("Content-Type", content_type)
-                        .header("Content-Length", content.len().to_string())
-                        .body(hyper::Body::wrap_stream(bytes))?);
+                    return Ok(response.body(hyper::Body::wrap_stream(bytes))?);
                 }
             }
             GetFromSourceResult::HttpProxy(proxy_result) => {

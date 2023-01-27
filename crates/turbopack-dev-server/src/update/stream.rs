@@ -74,7 +74,10 @@ async fn get_update_stream_item(
     let content = get_content_wrapper(resource, get_content);
 
     match &*content.await? {
-        ContentSourceContent::Static(resolved_content) => {
+        ContentSourceContent::Static {
+            content: resolved_content,
+            ..
+        } => {
             let from = from.get();
             let update = resolved_content.update(from);
 
@@ -174,7 +177,7 @@ impl UpdateStream {
         // We can ignore issues reported in content here since [compute_update_stream]
         // will handle them
         let version = match &*content.await? {
-            ContentSourceContent::Static(content) => content.version(),
+            ContentSourceContent::Static { content, .. } => content.version(),
             _ => NotFoundVersionVc::new().into(),
         };
         let version_state = VersionStateVc::new(version).await?;

@@ -48,7 +48,7 @@ enum RenderStaticIncomingMessage {
     #[serde(rename_all = "camelCase")]
     Response {
         status_code: u16,
-        content_type: String,
+        headers: Vec<(String, String)>,
         body: String,
     },
     Rewrite {

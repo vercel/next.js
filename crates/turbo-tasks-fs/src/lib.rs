@@ -1238,26 +1238,16 @@ impl File {
         }
     }
 
+    /// Returns the content type associated with this file.
     pub fn content_type(&self) -> Option<&Mime> {
         self.meta.content_type.as_ref()
     }
 
-    /// Returns the status code associated with this file.
-    pub fn status_code(&self) -> Option<u16> {
-        self.meta.status_code
-    }
-
+    /// Sets the content type associated with this file.
     pub fn with_content_type(mut self, content_type: Mime) -> Self {
         self.meta.content_type = Some(content_type);
         self
     }
-
-    /// Sets the status code associated with this file.
-    pub fn with_status_code(mut self, status_code: u16) -> Self {
-        self.meta.status_code = Some(status_code);
-        self
-    }
-
     /// Returns a Read/AsyncRead/Stream/Iterator to access the File's contents.
     pub fn read(&self) -> RopeReader {
         self.content.read()
@@ -1389,7 +1379,6 @@ pub struct FileMeta {
     #[serde(with = "mime_option_serde")]
     #[turbo_tasks(trace_ignore)]
     content_type: Option<Mime>,
-    status_code: Option<u16>,
 }
 
 impl From<std::fs::Metadata> for FileMeta {
@@ -1399,7 +1388,6 @@ impl From<std::fs::Metadata> for FileMeta {
         Self {
             permissions,
             content_type: None,
-            status_code: None,
         }
     }
 }

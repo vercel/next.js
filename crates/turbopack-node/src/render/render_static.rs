@@ -1,14 +1,14 @@
-use std::str::FromStr;
-
 use anyhow::{bail, Context, Result};
-use mime::Mime;
 use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::ChunkingContextVc,
 };
-use turbopack_dev_server::{html::DevHtmlAssetVc, source::RewriteVc};
+use turbopack_dev_server::{
+    html::DevHtmlAssetVc,
+    source::{HeaderListVc, RewriteVc},
+};
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
 use super::{
@@ -18,15 +18,24 @@ use crate::{get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation, tr
 
 #[turbo_tasks::value]
 pub enum StaticResult {
-    Content(AssetContentVc),
+    Content {
+        content: AssetContentVc,
+        status_code: u16,
+        headers: HeaderListVc,
+    },
     Rewrite(RewriteVc),
 }
 
 #[turbo_tasks::value_impl]
 impl StaticResultVc {
     #[turbo_tasks::function]
-    pub fn content(content: AssetContentVc) -> Self {
-        StaticResult::Content(content).cell()
+    pub fn content(content: AssetContentVc, status_code: u16, headers: HeaderListVc) -> Self {
+        StaticResult::Content {
+            content,
+            status_code,
+            headers,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -65,6 +74,8 @@ pub async fn render_static(
         Err(err) => {
             return Ok(StaticResultVc::content(
                 static_error(path, err, None, fallback_page).await?,
+                500,
+                HeaderListVc::empty(),
             ))
         }
     };
@@ -81,6 +92,8 @@ pub async fn render_static(
             Ok(result) => result,
             Err(err) => StaticResultVc::content(
                 static_error(path, err, Some(operation), fallback_page).await?,
+                500,
+                HeaderListVc::empty(),
             ),
         },
     )
@@ -109,15 +122,12 @@ async fn run_static_operation(
             }
             RenderStaticIncomingMessage::Response {
                 status_code,
-                content_type,
+                headers,
                 body,
             } => StaticResultVc::content(
-                FileContent::Content({
-                    File::from(body)
-                        .with_status_code(status_code)
-                        .with_content_type(Mime::from_str(&content_type)?)
-                })
-                .into(),
+                FileContent::Content({ File::from(body) }.into()).into(),
+                status_code,
+                HeaderListVc::cell(headers),
             ),
             RenderStaticIncomingMessage::Error(error) => {
                 bail!(trace_stack(error, intermediate_asset, intermediate_output_path).await?)
