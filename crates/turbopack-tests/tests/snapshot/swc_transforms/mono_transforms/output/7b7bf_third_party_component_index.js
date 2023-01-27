@@ -6,7 +6,7 @@ __turbopack_esm__({
     "default": ()=>ThirdPartyComponent
 });
 function ThirdPartyComponent() {
-    return <div >Should not be transformed</div>;
+    return <div>Should not be transformed</div>;
 }
 
 })()),
