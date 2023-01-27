@@ -126,7 +126,9 @@ export default class DevServer extends Server {
       require.resolve('./static-paths-worker'),
       {
         maxRetries: 1,
-        numWorkers: this.nextConfig.experimental.cpus,
+        // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
+        // This helps reusing the memory a lot.
+        numWorkers: 2,
         enableWorkerThreads: this.nextConfig.experimental.workerThreads,
         forkOptions: {
           env: {
