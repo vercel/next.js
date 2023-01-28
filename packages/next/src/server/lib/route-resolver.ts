@@ -2,20 +2,27 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NextConfig } from '../config'
 import type { Route } from '../router'
-import url from 'url'
-import Router from '../router'
-import { getPathMatch } from '../../shared/lib/router/utils/path-match'
-import DevServer from '../dev/next-dev-server'
-import loadCustomRoutes from '../../lib/load-custom-routes'
-import { NodeNextRequest, NodeNextResponse } from '../base-http/node'
 
 export async function makeResolver(dir: string, nextConfig: NextConfig) {
+  const url = require('url') as typeof import('url')
+  const { default: Router } = require('../router') as typeof import('../router')
+  const { getPathMatch } =
+    require('../../shared/lib/router/utils/path-match') as typeof import('../../shared/lib/router/utils/path-match')
+  const { default: DevServer } =
+    require('../dev/next-dev-server') as typeof import('../dev/next-dev-server')
+
+  const { NodeNextRequest, NodeNextResponse } =
+    require('../base-http/node') as typeof import('../base-http/node')
+
+  const { default: loadCustomRoutes } =
+    require('../../lib/load-custom-routes') as typeof import('../../lib/load-custom-routes')
+
   const devServer = new DevServer({
     dir,
     conf: nextConfig,
   }) as any as {
     customRoutes: UnwrapPromise<ReturnType<typeof loadCustomRoutes>>
-    router: Router
+    router: InstanceType<typeof Router>
     generateRoutes: any
   }
   devServer.customRoutes = await loadCustomRoutes(nextConfig)
@@ -49,7 +56,7 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
 
   // @ts-expect-error internal field
   devServer.router.compiledRoutes = devServer.router.compiledRoutes.filter(
-    (route) => {
+    (route: Route) => {
       return (
         route.type === 'rewrite' ||
         route.type === 'redirect' ||
