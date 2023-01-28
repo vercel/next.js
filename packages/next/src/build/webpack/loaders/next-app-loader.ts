@@ -179,9 +179,13 @@ async function createTreeCodeFromPath({
 
   const { treeCode, treeMetadataCode } =
     await createSubtreePropsFromSegmentPath([])
+
+  console.log('treeMetadataCode', treeMetadataCode, 'treeCode', treeCode)
   return {
     treeCode: `const tree = ${treeCode}.children;`,
-    treeMetadataCode: `const metadata = [${treeMetadataCode}];`,
+    treeMetadataCode: `const metadata = ${
+      treeMetadataCode ? `[${treeMetadataCode}]` : 'null'
+    };`,
     pages: `const pages = ${JSON.stringify(pages)};`,
     rootLayout,
     globalError,

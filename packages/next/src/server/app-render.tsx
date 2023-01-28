@@ -51,6 +51,9 @@ import { formatServerError } from '../lib/format-server-error'
 import { Metadata } from '../lib/metadata/metadata'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
+import { mergeMetadata } from '../lib/metadata/resolve-metadata'
+import { createDefaultMetadata } from '../lib/metadata/default-metadata'
+// import { ResolvedMetadata } from '../lib/metadata/types/metadata-interface'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -980,7 +983,8 @@ export async function renderToHTMLOrFlight(
      */
 
     const requestId = nanoid(12)
-    const metadataItems = ComponentMod.metadata
+    // const metadataItems = ComponentMod.metadata
+    const resolvedMetadata = createDefaultMetadata()
 
     stripInternalQueries(query)
 
@@ -1185,11 +1189,7 @@ export async function renderToHTMLOrFlight(
      */
     const createComponentTree = async ({
       createSegmentPath,
-      loaderTree: [
-        segment,
-        parallelRoutes,
-        { layout, template, error, loading, page, 'not-found': notFound },
-      ],
+      loaderTree: [segment, parallelRoutes, mod],
       parentParams,
       firstItem,
       rootLayoutIncluded,
@@ -1202,6 +1202,14 @@ export async function renderToHTMLOrFlight(
       firstItem?: boolean
       injectedCSS: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
+      const {
+        layout,
+        template,
+        error,
+        loading,
+        page,
+        'not-found': notFound,
+      } = mod
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
@@ -1468,12 +1476,12 @@ export async function renderToHTMLOrFlight(
       // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
       if (!Component) {
         return {
+          // metadata: resolvedMetadata,
           Component: () => <>{parallelRouteComponents.children}</>,
         }
       }
 
-      const props = {
-        ...parallelRouteComponents,
+      const pageProps = {
         // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
         // Params are always the current params that apply to the layout
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
@@ -1482,10 +1490,19 @@ export async function renderToHTMLOrFlight(
         ...(isPage ? { searchParams: query } : {}),
       }
 
+      const props = {
+        ...parallelRouteComponents,
+        ...pageProps,
+      }
+
       // Eagerly execute layout/page component to trigger fetches early.
       Component = await Promise.resolve().then(() => {
         return preloadComponent(Component, props)
       })
+
+      // Accumulate metadata
+      console.log('layoutOrPageMod', layoutOrPageMod.default)
+      await mergeMetadata(layoutOrPageMod, props, resolvedMetadata)
 
       return {
         Component: () => {
@@ -1577,7 +1594,8 @@ export async function renderToHTMLOrFlight(
         injectedCSS: Set<string>
         rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
-        const [segment, parallelRoutes, { layout }] = loaderTreeToFilter
+        const [segment, parallelRoutes, mod] = loaderTreeToFilter
+        const { layout } = mod
         const isLayout = typeof layout !== 'undefined'
         const parallelRoutesKeys = Object.keys(parallelRoutes)
 
@@ -1667,6 +1685,23 @@ export async function renderToHTMLOrFlight(
           )
         }
 
+        // const mod = loaderTree[2]
+        const { page } = mod
+        // const isLayout = typeof layout !== 'undefined'
+        const isPage = typeof page !== 'undefined'
+        const layoutOrPageMod = isLayout
+          ? await layout[0]()
+          : isPage
+          ? await page[0]()
+          : undefined
+
+        const props = {
+          params: currentParams,
+        }
+
+        console.log('params', currentParams)
+        await mergeMetadata(layoutOrPageMod, props, resolvedMetadata)
+
         // Walk through all parallel routes.
         for (const parallelRouteKey of parallelRoutesKeys) {
           const parallelRoute = parallelRoutes[parallelRouteKey]
@@ -1701,6 +1736,7 @@ export async function renderToHTMLOrFlight(
       const rscPayloadHead = await resolveHead(loaderTree, {})
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
+      console.log('flight:metadata', resolvedMetadata.title)
       const flightData: FlightData = [
         (
           await walkTreeWithFlightRouterState({
@@ -1713,7 +1749,7 @@ export async function renderToHTMLOrFlight(
               <>
                 {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
-                <Metadata key={requestId} metadata={metadataItems} />
+                <Metadata key={requestId} metadata={resolvedMetadata} />
                 {rscPayloadHead}
               </>
             ),
@@ -1802,7 +1838,7 @@ export async function renderToHTMLOrFlight(
         })
 
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
-
+        // console.log('resolvedMetadata', resolvedMetadata)
         return (
           <>
             <AppRouter
@@ -1813,7 +1849,7 @@ export async function renderToHTMLOrFlight(
                 <>
                   {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
-                  <Metadata key={requestId} metadata={metadataItems} />
+                  <Metadata key={requestId} metadata={resolvedMetadata} />
                   {initialHead}
                 </>
               }

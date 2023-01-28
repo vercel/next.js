@@ -29,7 +29,7 @@ const viewPortKeys = {
   viewportFit: 'viewport-fit',
 } as const
 
-type Item =
+export type MetadataItem =
   | {
       type: 'layout' | 'page'
       // A number that represents which layer or routes that the item is in. Starting from 0.
@@ -327,76 +327,71 @@ function merge(
   }
 }
 
-export async function resolveMetadata(metadataItems: Item[]) {
-  const resolvedMetadata = createDefaultMetadata()
-
-  let committedTitleTemplate: string | null = null
-  let committedOpenGraphTitleTemplate: string | null = null
-  let committedTwitterTitleTemplate: string | null = null
-
-  let lastLayer = 0
-  // from root layout to page metadata
-  for (let i = 0; i < metadataItems.length; i++) {
-    const item = metadataItems[i]
-    const isLayout = item.type === 'layout'
-    const isPage = item.type === 'page'
-    if (isLayout || isPage) {
-      let layerMod = await item.mod()
-
-      // Layer is a client component, we just skip it. It can't have metadata
-      // exported. Note that during our SWC transpilation, it should check if
-      // the exports are valid and give specific error messages.
-      if (
-        '$$typeof' in layerMod &&
-        (layerMod as any).$$typeof === Symbol.for('react.module.reference')
-      ) {
-        continue
-      }
-
-      if (layerMod.metadata && layerMod.generateMetadata) {
-        throw new Error(
-          `A ${item.type} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this ${item.type} is static use the metadata export, otherwise use generateMetadata. File: ` +
-            item.path
-        )
-      }
-
-      // If we resolved all items in this layer, commit the stashed titles.
-      if (item.layer >= lastLayer) {
-        committedTitleTemplate = resolvedMetadata.title?.template || null
-        committedOpenGraphTitleTemplate =
-          resolvedMetadata.openGraph?.title?.template || null
-        committedTwitterTitleTemplate =
-          resolvedMetadata.twitter?.title?.template || null
-
-        lastLayer = item.layer
-      }
-
-      if (layerMod.metadata) {
-        merge(resolvedMetadata, layerMod.metadata, {
-          title: committedTitleTemplate,
-          openGraph: committedOpenGraphTitleTemplate,
-          twitter: committedTwitterTitleTemplate,
-        })
-      } else if (layerMod.generateMetadata) {
-        merge(
-          resolvedMetadata,
-          await layerMod.generateMetadata(
-            // TODO: Rewrite this to pass correct params and resolving metadata value.
-            {},
-            Promise.resolve(resolvedMetadata)
-          ),
-          {
-            title: committedTitleTemplate,
-            openGraph: committedOpenGraphTitleTemplate,
-            twitter: committedTwitterTitleTemplate,
-          }
-        )
-      }
-    }
+// TODO-APP: add type for mod
+async function getDefinedMetadata(
+  mod: any,
+  props: any,
+  resolvedMetadata: ResolvedMetadata
+): Promise<Metadata | null> {
+  if (mod.metadata && mod.generateMetadata) {
+    throw new Error(
+      `${mod.path} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this page/layout is static use the metadata export, otherwise use generateMetadata. File: ${mod.path}`
+    )
+  }
+  // Layer is a client component, we just skip it. It can't have metadata
+  // exported. Note that during our SWC transpilation, it should check if
+  // the exports are valid and give specific error messages.
+  if (
+    '$$typeof' in mod &&
+    (mod as any).$$typeof === Symbol.for('react.module.reference')
+  ) {
+    return null
   }
 
-  return resolvedMetadata
+  return mod.generateMetadata
+    ? await mod.generateMetadata(props, Promise.resolve(resolvedMetadata))
+    : mod.metadata
 }
+
+export async function mergeMetadata(
+  mod: any,
+  props: any,
+  resolvedMetadata: ResolvedMetadata
+) {
+  console.log('mod >>', mod.default)
+  const metadata = await getDefinedMetadata(mod, props, resolvedMetadata)
+  if (!metadata) return resolvedMetadata
+
+  merge(resolvedMetadata, metadata, {
+    title: resolvedMetadata.title?.template || null,
+    openGraph: resolvedMetadata.openGraph?.title?.template || null,
+    twitter: resolvedMetadata.twitter?.title?.template || null,
+  })
+}
+
+// export async function resolveMetadata(
+//   metadataItems: MetadataItem[],
+//   pageProps: any
+// ) {
+//   const resolvedMetadata = createDefaultMetadata()
+
+//   let committedTitleTemplate: string | null = null
+//   let committedOpenGraphTitleTemplate: string | null = null
+//   let committedTwitterTitleTemplate: string | null = null
+
+//   let lastLayer = 0
+//   // from root layout to page metadata
+//   for (let i = 0; i < metadataItems.length; i++) {
+//     const item = metadataItems[i]
+//     const isLayout = item.type === 'layout'
+//     const isPage = item.type === 'page'
+//     if (isLayout || isPage) {
+
+//     }
+//   }
+
+//   return resolvedMetadata
+// }
 
 // TODO: Implement this function.
 export async function resolveFileBasedMetadataForLoader(

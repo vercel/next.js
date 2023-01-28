@@ -13,25 +13,23 @@ import {
   TwitterMetadata,
   AppLinksMeta,
 } from './generate/opengraph'
-import { resolveMetadata } from './resolve-metadata'
 import { IconsMetadata } from './generate/icons'
 
 // Generate the actual React elements from the resolved metadata.
-export async function Metadata({ metadata }: { metadata: any }) {
+export async function Metadata({ metadata }: { metadata: ResolvedMetadata }) {
   if (!metadata) return null
 
-  const resolved: ResolvedMetadata = await resolveMetadata(metadata)
   return (
     <>
-      <BasicMetadata metadata={resolved} />
-      <AlternatesMetadata alternates={resolved.alternates} />
-      <ItunesMeta itunes={resolved.itunes} />
-      <FormatDetectionMeta formatDetection={resolved.formatDetection} />
-      <AppleWebAppMeta appleWebApp={resolved.appleWebApp} />
-      <OpenGraphMetadata openGraph={resolved.openGraph} />
-      <TwitterMetadata twitter={resolved.twitter} />
-      <AppLinksMeta appLinks={resolved.appLinks} />
-      <IconsMetadata icons={resolved.icons} />
+      <BasicMetadata metadata={metadata} />
+      <AlternatesMetadata alternates={metadata.alternates} />
+      <ItunesMeta itunes={metadata.itunes} />
+      <FormatDetectionMeta formatDetection={metadata.formatDetection} />
+      <AppleWebAppMeta appleWebApp={metadata.appleWebApp} />
+      <OpenGraphMetadata openGraph={metadata.openGraph} />
+      <TwitterMetadata twitter={metadata.twitter} />
+      <AppLinksMeta appLinks={metadata.appLinks} />
+      <IconsMetadata icons={metadata.icons} />
     </>
   )
 }
