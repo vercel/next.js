@@ -24,6 +24,10 @@ export function getTs() {
   return ts
 }
 
+export function getTypeChecker() {
+  return info.languageService.getProgram()?.getTypeChecker()
+}
+
 export function log(message: string) {
   info.project.projectService.logger.info(message)
 }
@@ -41,7 +45,9 @@ export const isPositionInsideNode = (position: number, node: ts.Node) => {
   return start <= position && position <= node.getFullWidth() + start
 }
 
-export const isDefaultFunctionExport = (node: ts.Node) => {
+export const isDefaultFunctionExport = (
+  node: ts.Node
+): node is ts.FunctionDeclaration => {
   if (ts.isFunctionDeclaration(node)) {
     let hasExportKeyword = false
     let hasDefaultKeyword = false

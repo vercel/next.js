@@ -21,6 +21,7 @@ import { NEXT_TS_ERRORS } from './constant'
 import entryConfig from './rules/config'
 import serverLayer from './rules/server'
 import entryDefault from './rules/entry'
+import clientBoundary from './rules/client-boundary'
 
 export function createTSPlugin(modules: {
   typescript: typeof import('typescript/lib/tsserverlibrary')
@@ -147,12 +148,11 @@ export function createTSPlugin(modules: {
     // Show errors for disallowed imports
     proxy.getSemanticDiagnostics = (fileName: string) => {
       const prior = info.languageService.getSemanticDiagnostics(fileName)
-      if (!isAppEntryFile(fileName)) return prior
-
       const source = getSource(fileName)
       if (!source) return prior
 
       let isClientEntry = false
+      const isAppEntry = isAppEntryFile(fileName)
 
       try {
         isClientEntry = getIsClientEntry(fileName, true)
@@ -168,33 +168,72 @@ export function createTSPlugin(modules: {
 
       ts.forEachChild(source!, (node) => {
         if (ts.isImportDeclaration(node)) {
-          if (!isClientEntry) {
-            // Check if it has valid imports in the server layer
-            const diagnostics =
-              serverLayer.getSemanticDiagnosticsForImportDeclaration(
-                source,
-                node
-              )
-            prior.push(...diagnostics)
+          if (isAppEntry) {
+            if (!isClientEntry) {
+              // Check if it has valid imports in the server layer
+              const diagnostics =
+                serverLayer.getSemanticDiagnosticsForImportDeclaration(
+                  source,
+                  node
+                )
+              prior.push(...diagnostics)
+            }
           }
         } else if (
           ts.isVariableStatement(node) &&
           node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
-          // Check if it has correct option exports
-          const diagnostics =
-            entryConfig.getSemanticDiagnosticsForExportVariableStatement(
+          // export const ...
+          if (isAppEntry) {
+            // Check if it has correct option exports
+            const diagnostics =
+              entryConfig.getSemanticDiagnosticsForExportVariableStatement(
+                source,
+                node
+              )
+            prior.push(...diagnostics)
+          }
+
+          if (isClientEntry) {
+            prior.push(
+              ...clientBoundary.getSemanticDiagnosticsForExportVariableStatement(
+                source,
+                node
+              )
+            )
+          }
+        } else if (isDefaultFunctionExport(node)) {
+          // export default function ...
+          if (isAppEntry) {
+            const diagnostics = entryDefault.getSemanticDiagnostics(
+              fileName,
               source,
               node
             )
-          prior.push(...diagnostics)
-        } else if (isDefaultFunctionExport(node)) {
-          const diagnostics = entryDefault.getSemanticDiagnostics(
-            fileName,
-            source,
-            node
-          )
-          prior.push(...diagnostics)
+            prior.push(...diagnostics)
+          }
+
+          if (isClientEntry) {
+            prior.push(
+              ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
+                source,
+                node
+              )
+            )
+          }
+        } else if (
+          ts.isFunctionDeclaration(node) &&
+          node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+        ) {
+          // export function ...
+          if (isClientEntry) {
+            prior.push(
+              ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
+                source,
+                node
+              )
+            )
+          }
         }
       })
 

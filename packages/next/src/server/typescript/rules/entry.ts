@@ -110,7 +110,7 @@ const entry = {
   getSemanticDiagnostics(
     fileName: string,
     source: ts.SourceFile,
-    node: ts.Node
+    node: ts.FunctionDeclaration
   ) {
     const ts = getTs()
 
@@ -138,7 +138,7 @@ const entry = {
 
     const diagnostics: ts.Diagnostic[] = []
 
-    const props = (node as ts.FunctionDeclaration).parameters?.[0]?.name
+    const props = node.parameters?.[0]?.name
     if (props && ts.isObjectBindingPattern(props)) {
       for (const prop of (props as ts.ObjectBindingPattern).elements) {
         const propName = (prop.propertyName || prop.name).getText()
