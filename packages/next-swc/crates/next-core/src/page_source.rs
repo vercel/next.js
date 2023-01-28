@@ -241,7 +241,7 @@ pub async fn create_page_source(
         server_runtime_entries,
         fallback_page,
         server_root,
-        output_path,
+        output_path.join("force_not_found"),
         SpecificityVc::exact(),
         NextExactMatcherVc::new(StringVc::cell("_next/404".to_string())).into(),
     );
@@ -254,7 +254,7 @@ pub async fn create_page_source(
         server_runtime_entries,
         fallback_page,
         server_root,
-        output_path,
+        output_path.join("fallback_not_found"),
         SpecificityVc::not_found(),
         NextFallbackMatcherVc::new().into(),
     );
