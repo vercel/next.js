@@ -177,3 +177,13 @@ export type AppRouterState = {
    */
   canonicalUrl: string
 }
+
+export type ReadonlyReducerState = Readonly<AppRouterState>
+export type ReducerState = AppRouterState
+export type ReducerActions = Readonly<
+  | RefreshAction
+  | NavigateAction
+  | RestoreAction
+  | ServerPatchAction
+  | PrefetchAction
+>
