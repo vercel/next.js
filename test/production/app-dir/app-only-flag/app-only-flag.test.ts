@@ -4,7 +4,7 @@ createNextDescribe(
   'app-only-flag',
   {
     files: __dirname,
-    buildCommand: 'next build --experimental-app-only',
+    buildCommand: 'pnpm next build --experimental-app-only',
   },
   ({ next }) => {
     it('should serve app route', async () => {
