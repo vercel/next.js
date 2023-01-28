@@ -15,3 +15,23 @@ export const ALLOWED_EXPORTS = [
 ]
 
 export const LEGACY_CONFIG_EXPORT = 'config'
+
+export const DISALLOWED_SERVER_REACT_APIS: string[] = [
+  'useState',
+  'useEffect',
+  'useLayoutEffect',
+  'useDeferredValue',
+  'useImperativeHandle',
+  'useInsertionEffect',
+  'useReducer',
+  'useRef',
+  'useSyncExternalStore',
+  'useTransition',
+  'Component',
+  'PureComponent',
+  'createContext',
+  'createFactory',
+]
+
+export const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
+export const ALLOWED_LAYOUT_PROPS = ['params', 'children']

@@ -5,12 +5,12 @@ import {
   isPositionInsideNode,
   getTs,
   removeStringQuotes,
-} from './utils'
+} from '../utils'
 import {
   NEXT_TS_ERRORS,
   ALLOWED_EXPORTS,
   LEGACY_CONFIG_EXPORT,
-} from './constant'
+} from '../constant'
 
 const API_DOCS: Record<
   string,
@@ -194,7 +194,7 @@ function getAPIDescription(api: string): string {
       .join('\n')
   )
 }
-const entryConfig = {
+const config = {
   // Auto completion for entry exported configs.
   getCompletionsAtPosition(fileName: string, position: number) {
     const entries: ts.CompletionEntry[] = []
@@ -471,4 +471,4 @@ const entryConfig = {
   },
 }
 
-export default entryConfig
+export default config

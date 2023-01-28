@@ -8,41 +8,19 @@
  * - Hover hint and docs for entry configurations.
  */
 
-import path from 'path'
-import fs from 'fs'
-
 import {
   init,
   getIsClientEntry,
   isAppEntryFile,
-  isPageFile,
   isDefaultFunctionExport,
   isPositionInsideNode,
   getSource,
 } from './utils'
-
-import entryConfig from './entry-config'
 import { NEXT_TS_ERRORS } from './constant'
 
-const DISALLOWED_SERVER_REACT_APIS: string[] = [
-  'useState',
-  'useEffect',
-  'useLayoutEffect',
-  'useDeferredValue',
-  'useImperativeHandle',
-  'useInsertionEffect',
-  'useReducer',
-  'useRef',
-  'useSyncExternalStore',
-  'useTransition',
-  'Component',
-  'PureComponent',
-  'createContext',
-  'createFactory',
-]
-
-const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
-const ALLOWED_LAYOUT_PROPS = ['params', 'children']
+import entryConfig from './rules/config'
+import serverLayer from './rules/server'
+import entryDefault from './rules/entry'
 
 export function createTSPlugin(modules: {
   typescript: typeof import('typescript/lib/tsserverlibrary')
@@ -82,115 +60,29 @@ export function createTSPlugin(modules: {
 
       // Remove specified entries from completion list if it's a server entry.
       if (!getIsClientEntry(fileName)) {
-        prior.entries = prior.entries.filter((e: ts.CompletionEntry) => {
-          // Remove disallowed React APIs.
-          if (
-            DISALLOWED_SERVER_REACT_APIS.includes(e.name) &&
-            e.kindModifiers === 'declare'
-          ) {
-            return false
-          }
-          return true
-        })
+        prior.entries = serverLayer.filterCompletionsAtPosition(prior.entries)
       }
 
+      // Add auto completions for export configs.
       const entries = entryConfig.getCompletionsAtPosition(fileName, position)
       prior.entries = [...prior.entries, ...entries]
 
-      const program = info.languageService.getProgram()
-      const source = program?.getSourceFile(fileName)
-      if (!source || !program) return prior
+      const source = getSource(fileName)
+      if (!source) return prior
 
       ts.forEachChild(source!, (node) => {
         // Auto completion for default export function's props.
         if (
-          isDefaultFunctionExport(node) &&
-          isPositionInsideNode(position, node)
+          isPositionInsideNode(position, node) &&
+          isDefaultFunctionExport(node)
         ) {
-          // Default export function might not accept parameters
-          const paramNode = (node as ts.FunctionDeclaration).parameters?.[0] as
-            | ts.ParameterDeclaration
-            | undefined
-
-          if (paramNode && isPositionInsideNode(position, paramNode)) {
-            const props = paramNode?.name
-            if (props && ts.isObjectBindingPattern(props)) {
-              let validProps = []
-              let validPropsWithType = []
-              let type: string
-
-              if (isPageFile(fileName)) {
-                // For page entries (page.js), it can only have `params` and `searchParams`
-                // as the prop names.
-                validProps = ALLOWED_PAGE_PROPS
-                validPropsWithType = ALLOWED_PAGE_PROPS
-                type = 'page'
-              } else {
-                // For layout entires, check if it has any named slots.
-                const currentDir = path.dirname(fileName)
-                const items = fs.readdirSync(currentDir, {
-                  withFileTypes: true,
-                })
-                const slots = []
-                for (const item of items) {
-                  if (item.isDirectory() && item.name.startsWith('@')) {
-                    slots.push(item.name.slice(1))
-                  }
-                }
-                validProps = ALLOWED_LAYOUT_PROPS.concat(slots)
-                validPropsWithType = ALLOWED_LAYOUT_PROPS.concat(
-                  slots.map((s) => `${s}: React.ReactNode`)
-                )
-                type = 'layout'
-              }
-
-              // Auto completion for props
-              for (const element of props.elements) {
-                if (isPositionInsideNode(position, element)) {
-                  const nameNode = element.propertyName || element.name
-
-                  if (isPositionInsideNode(position, nameNode)) {
-                    for (const name of validProps) {
-                      prior.entries.push({
-                        name,
-                        insertText: name,
-                        sortText: '_' + name,
-                        kind: ts.ScriptElementKind.memberVariableElement,
-                        kindModifiers: ts.ScriptElementKindModifier.none,
-                        labelDetails: {
-                          description: `Next.js ${type} prop`,
-                        },
-                      } as ts.CompletionEntry)
-                    }
-                  }
-
-                  break
-                }
-              }
-
-              // Auto completion for types
-              if (paramNode.type && ts.isTypeLiteralNode(paramNode.type)) {
-                for (const member of paramNode.type.members) {
-                  if (isPositionInsideNode(position, member)) {
-                    for (const name of validPropsWithType) {
-                      prior.entries.push({
-                        name,
-                        insertText: name,
-                        sortText: '_' + name,
-                        kind: ts.ScriptElementKind.memberVariableElement,
-                        kindModifiers: ts.ScriptElementKindModifier.none,
-                        labelDetails: {
-                          description: `Next.js ${type} prop type`,
-                        },
-                      } as ts.CompletionEntry)
-                    }
-
-                    break
-                  }
-                }
-              }
-            }
-          }
+          prior.entries.push(
+            ...entryDefault.getCompletionsAtPosition(
+              fileName,
+              node as ts.FunctionDeclaration,
+              position
+            )
+          )
         }
       })
 
@@ -211,11 +103,9 @@ export function createTSPlugin(modules: {
         entryName,
         data
       )
-      if (entryCompletionEntryDetails) {
-        return entryCompletionEntryDetails
-      }
+      if (entryCompletionEntryDetails) return entryCompletionEntryDetails
 
-      const prior = info.languageService.getCompletionEntryDetails(
+      return info.languageService.getCompletionEntryDetails(
         fileName,
         position,
         entryName,
@@ -224,8 +114,6 @@ export function createTSPlugin(modules: {
         preferences,
         data
       )
-
-      return prior
     }
 
     // Quick info
@@ -243,11 +131,8 @@ export function createTSPlugin(modules: {
           position
         )
         if (
-          definitions?.some(
-            (d) =>
-              DISALLOWED_SERVER_REACT_APIS.includes(d.name) &&
-              d.containerName === 'React'
-          )
+          definitions &&
+          serverLayer.hasDisallowedReactAPIDefinition(definitions)
         ) {
           return
         }
@@ -284,30 +169,13 @@ export function createTSPlugin(modules: {
       ts.forEachChild(source!, (node) => {
         if (ts.isImportDeclaration(node)) {
           if (!isClientEntry) {
-            const importPath = node.moduleSpecifier.getText(source!)
-            if (importPath === "'react'" || importPath === '"react"') {
-              // Check if it imports "useState"
-              const importClause = node.importClause
-              if (importClause) {
-                const namedBindings = importClause.namedBindings
-                if (namedBindings && ts.isNamedImports(namedBindings)) {
-                  const elements = namedBindings.elements
-                  for (const element of elements) {
-                    const name = element.name.getText(source!)
-                    if (DISALLOWED_SERVER_REACT_APIS.includes(name)) {
-                      prior.push({
-                        file: source,
-                        category: ts.DiagnosticCategory.Error,
-                        code: NEXT_TS_ERRORS.INVALID_SERVER_API,
-                        messageText: `"${name}" is not allowed in Server Components.`,
-                        start: element.name.getStart(),
-                        length: element.name.getWidth(),
-                      })
-                    }
-                  }
-                }
-              }
-            }
+            // Check if it has valid imports in the server layer
+            const diagnostics =
+              serverLayer.getSemanticDiagnosticsForImportDeclaration(
+                source,
+                node
+              )
+            prior.push(...diagnostics)
           }
         } else if (
           ts.isVariableStatement(node) &&
@@ -321,45 +189,12 @@ export function createTSPlugin(modules: {
             )
           prior.push(...diagnostics)
         } else if (isDefaultFunctionExport(node)) {
-          // `export default function`
-          let validProps = []
-          let type: string
-
-          if (isPageFile(fileName)) {
-            // For page entries (page.js), it can only have `params` and `searchParams`
-            // as the prop names.
-            validProps = ALLOWED_PAGE_PROPS
-            type = 'page'
-          } else {
-            // For layout entires, check if it has any named slots.
-            const currentDir = path.dirname(fileName)
-            const items = fs.readdirSync(currentDir, { withFileTypes: true })
-            const slots = []
-            for (const item of items) {
-              if (item.isDirectory() && item.name.startsWith('@')) {
-                slots.push(item.name.slice(1))
-              }
-            }
-            validProps = ALLOWED_LAYOUT_PROPS.concat(slots)
-            type = 'layout'
-          }
-
-          const props = (node as ts.FunctionDeclaration).parameters?.[0]?.name
-          if (props && ts.isObjectBindingPattern(props)) {
-            for (const prop of (props as ts.ObjectBindingPattern).elements) {
-              const propName = (prop.propertyName || prop.name).getText()
-              if (!validProps.includes(propName)) {
-                prior.push({
-                  file: source,
-                  category: ts.DiagnosticCategory.Error,
-                  code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
-                  messageText: `"${propName}" is not a valid ${type} prop.`,
-                  start: prop.getStart(),
-                  length: prop.getWidth(),
-                })
-              }
-            }
-          }
+          const diagnostics = entryDefault.getSemanticDiagnostics(
+            fileName,
+            source,
+            node
+          )
+          prior.push(...diagnostics)
         }
       })
 
