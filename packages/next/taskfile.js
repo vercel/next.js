@@ -100,7 +100,7 @@ export async function ncc_next_server(task, opts) {
       externals: {
         ...externals,
 
-        '/(.*)route-resolver(.*)/': '$1route-resolver$2',
+        '/(.*)route-resolver/': '$1route-resolver',
 
         sharp: 'sharp',
         react: 'react',
