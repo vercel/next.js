@@ -4,7 +4,10 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt, Value, ValueToString};
+use turbo_tasks::{
+    primitives::{StringVc, StringsVc},
+    TryJoinIterExt, Value, ValueToString,
+};
 use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::{
     rope::RopeBuilder, DirectoryContent, DirectoryEntry, File, FileContent, FileContentVc,
@@ -314,6 +317,7 @@ pub async fn create_app_source(
         SpecificityVc::exact(),
         0,
         app_dir,
+        next_config.page_extensions(),
         server_root,
         EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
         fallback_page,
@@ -333,6 +337,7 @@ async fn create_app_source_for_directory(
     specificity: SpecificityVc,
     position: u32,
     input_dir: FileSystemPathVc,
+    page_extensions: StringsVc,
     server_root: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
@@ -344,131 +349,149 @@ async fn create_app_source_for_directory(
     let mut sources = Vec::new();
     let mut page = None;
     let mut files = HashMap::new();
-    if let DirectoryContent::Entries(entries) = &*input_dir.read_dir().await? {
-        for (name, entry) in entries.iter() {
-            if let &DirectoryEntry::File(file) = entry {
-                if let Some((name, _)) = name.rsplit_once('.') {
-                    match name {
-                        "page" => {
-                            page = Some(file);
-                        }
-                        "layout" | "error" | "loading" | "template" | "not-found" | "head" => {
-                            files.insert(name.to_string(), file);
-                        }
-                        _ => {
-                            // Any other file is ignored
-                        }
+
+    let DirectoryContent::Entries(entries) = &*input_dir.read_dir().await? else {
+        return Ok(CombinedContentSource { sources }.cell());
+    };
+
+    let allowed_extensions = &*page_extensions.await?;
+
+    for (name, entry) in entries.iter() {
+        if let &DirectoryEntry::File(file) = entry {
+            if let Some((name, ext)) = name.rsplit_once('.') {
+                if !allowed_extensions.iter().any(|allowed| allowed == ext) {
+                    continue;
+                }
+
+                match name {
+                    "page" => {
+                        page = Some(file);
+                    }
+                    "layout" | "error" | "loading" | "template" | "not-found" | "head" => {
+                        files.insert(name.to_string(), file);
+                    }
+                    _ => {
+                        // Any other file is ignored
                     }
                 }
             }
         }
+    }
 
-        let layout = files.get("layout");
+    let layout = files.get("layout");
 
-        // If a page exists but no layout exists, create a basic root layout
-        // in `app/layout.js` or `app/layout.tsx`.
-        //
-        // TODO: Use let Some(page_file) = page in expression below when
-        // https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands
-        if let (Some(page_file), None, true) = (page, layout, target == server_root) {
-            // Use the extension to determine if the page file is TypeScript.
-            // TODO: Use the presence of a tsconfig.json instead, like Next.js
-            // stable does.
-            let is_tsx = *page_file.extension().await? == "tsx";
+    // If a page exists but no layout exists, create a basic root layout
+    // in `app/layout.js` or `app/layout.tsx`.
+    //
+    // TODO: Use let Some(page_file) = page in expression below when
+    // https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands
+    if let (Some(page_file), None, true) = (page, layout, target == server_root) {
+        // Use the extension to determine if the page file is TypeScript.
+        // TODO: Use the presence of a tsconfig.json instead, like Next.js
+        // stable does.
+        let is_tsx = *page_file.extension().await? == "tsx";
 
-            let layout = if is_tsx {
-                input_dir.join("layout.tsx")
-            } else {
-                input_dir.join("layout.js")
-            };
-            files.insert("layout".to_string(), layout);
-            let content = if is_tsx {
-                include_str!("assets/layout.tsx")
-            } else {
-                include_str!("assets/layout.js")
-            };
+        let layout = if is_tsx {
+            input_dir.join("layout.tsx")
+        } else {
+            input_dir.join("layout.js")
+        };
+        files.insert("layout".to_string(), layout);
+        let content = if is_tsx {
+            include_str!("assets/layout.tsx")
+        } else {
+            include_str!("assets/layout.js")
+        };
 
-            layout.write(FileContentVc::from(File::from(content)));
+        layout.write(FileContentVc::from(File::from(content)));
 
-            AppSourceIssue {
-                severity: IssueSeverity::Warning.into(),
-                path: page_file,
-                message: StringVc::cell(format!(
-                    "Your page {} did not have a root layout, we created {} for you.",
-                    page_file.await?.path,
-                    layout.await?.path,
-                )),
+        AppSourceIssue {
+            severity: IssueSeverity::Warning.into(),
+            path: page_file,
+            message: StringVc::cell(format!(
+                "Your page {} did not have a root layout, we created {} for you.",
+                page_file.await?.path,
+                layout.await?.path,
+            )),
+        }
+        .cell()
+        .as_issue()
+        .emit();
+    }
+
+    let mut list = layouts.await?.clone_value();
+    list.push(LayoutSegment { files, target }.cell());
+    layouts = LayoutSegmentsVc::cell(list);
+
+    if let Some(page_path) = page {
+        let pathname = pathname_for_path(server_root, target, false);
+        let params_matcher = NextParamsMatcherVc::new(pathname);
+
+        sources.push(create_node_rendered_source(
+            specificity,
+            server_root,
+            params_matcher.into(),
+            pathname,
+            AppRenderer {
+                context_ssr,
+                context,
+                server_root,
+                layout_path: layouts,
+                page_path,
+                target,
+                project_path,
+                intermediate_output_path,
             }
             .cell()
-            .as_issue()
-            .emit();
-        }
+            .into(),
+            runtime_entries,
+            fallback_page,
+        ));
+    }
 
-        let mut list = layouts.await?.clone_value();
-        list.push(LayoutSegment { files, target }.cell());
-        layouts = LayoutSegmentsVc::cell(list);
-        if let Some(page_path) = page {
-            let pathname = pathname_for_path(server_root, target, false);
-            let params_matcher = NextParamsMatcherVc::new(pathname);
+    for (name, entry) in entries.iter() {
+        let DirectoryEntry::Directory(dir) = entry else {
+            continue;
+        };
 
-            sources.push(create_node_rendered_source(
+        let intermediate_output_path = intermediate_output_path.join(name);
+
+        let specificity = if name.starts_with("[[") || name.starts_with("[...") {
+            specificity.with_catch_all(position)
+        } else if name.starts_with('[') {
+            specificity.with_dynamic_segment(position)
+        } else {
+            specificity
+        };
+
+        let (new_target, position) = if name.starts_with('(') && name.ends_with(')') {
+            // This doesn't affect the url
+            (target, position)
+        } else {
+            // This adds to the url
+            (target.join(name), position + 1)
+        };
+
+        sources.push(
+            create_app_source_for_directory(
+                context_ssr,
+                context,
+                project_path,
                 specificity,
+                position,
+                *dir,
+                page_extensions,
                 server_root,
-                params_matcher.into(),
-                pathname,
-                AppRenderer {
-                    context_ssr,
-                    context,
-                    server_root,
-                    layout_path: layouts,
-                    page_path,
-                    target,
-                    project_path,
-                    intermediate_output_path,
-                }
-                .cell()
-                .into(),
                 runtime_entries,
                 fallback_page,
-            ));
-        }
-        for (name, entry) in entries.iter() {
-            if let DirectoryEntry::Directory(dir) = entry {
-                let intermediate_output_path = intermediate_output_path.join(name);
-                let specificity = if name.starts_with("[[") || name.starts_with("[...") {
-                    specificity.with_catch_all(position)
-                } else if name.starts_with('[') {
-                    specificity.with_dynamic_segment(position)
-                } else {
-                    specificity
-                };
-                let (new_target, position) = if name.starts_with('(') && name.ends_with(')') {
-                    // This doesn't affect the url
-                    (target, position)
-                } else {
-                    // This adds to the url
-                    (target.join(name), position + 1)
-                };
-                sources.push(
-                    create_app_source_for_directory(
-                        context_ssr,
-                        context,
-                        project_path,
-                        specificity,
-                        position,
-                        *dir,
-                        server_root,
-                        runtime_entries,
-                        fallback_page,
-                        new_target,
-                        layouts,
-                        intermediate_output_path,
-                    )
-                    .into(),
-                );
-            }
-        }
+                new_target,
+                layouts,
+                intermediate_output_path,
+            )
+            .into(),
+        );
     }
+
     Ok(CombinedContentSource { sources }.cell())
 }
 
@@ -493,6 +516,7 @@ impl AppRendererVc {
         let page = this.page_path;
         let path = page.parent();
         let path_value = &*path.await?;
+
         let layout_and_page = layout_path
             .iter()
             .copied()
@@ -505,6 +529,7 @@ impl AppRendererVc {
             ))
             .try_join()
             .await?;
+
         let segments: Vec<_> = layout_and_page
             .into_iter()
             .fold(
@@ -551,6 +576,7 @@ impl AppRendererVc {
             .into_iter()
             .try_join()
             .await?;
+
         // IPC need to be the first import to allow it to catch errors happening during
         // the other imports
         let mut result =
