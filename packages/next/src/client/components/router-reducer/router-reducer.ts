@@ -1,18 +1,30 @@
+import { CacheStates } from '../../../shared/lib/app-router-context'
+import type { FlightSegmentPath } from '../../../server/app-render'
+import { fetchServerResponse } from './fetch-server-response'
+import { createRecordFromThenable } from './create-record-from-thenable'
+import { readRecordValue } from './read-record-value'
+import { createHrefFromUrl } from './create-href-from-url'
+import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
+import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
+import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-flight-segmentpath'
+import { fillCacheWithDataProperty } from './fill-cache-with-data-property'
+import { createOptimisticTree } from './create-optimistic-tree'
+import { applyRouterStatePatchToTree } from './apply-router-state-patch-to-tree'
+import { shouldHardNavigate } from './should-hard-navigate'
+import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
 import {
+  AppRouterState,
+  RefreshAction,
+  NavigateAction,
+  RestoreAction,
+  ServerPatchAction,
+  PrefetchAction,
   ACTION_NAVIGATE,
   ACTION_SERVER_PATCH,
   ACTION_RESTORE,
   ACTION_REFRESH,
   ACTION_PREFETCH,
-  ReducerActions,
-  ReducerState,
-  ReadonlyReducerState,
 } from './router-reducer-types'
-import { navigateReducer } from './reducers/navigate-reducer'
-import { serverPatchReducer } from './reducers/server-patch-reducer'
-import { restoreReducer } from './reducers/restore-reducer'
-import { refreshReducer } from './reducers/refresh-reducer'
-import { prefetchReducer } from './reducers/prefetch-reducer'
 
 /**
  * Reducer that handles the app-router state updates.
