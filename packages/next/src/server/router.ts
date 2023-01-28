@@ -21,8 +21,6 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { getRequestMeta } from './request-meta'
 import { formatNextPathnameInfo } from '../shared/lib/router/utils/format-next-pathname-info'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { UnwrapPromise } from '../lib/coalesced-function'
 
 type RouteResult = {
   finished: boolean
