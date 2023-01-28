@@ -505,8 +505,10 @@ export default class Router {
 let _makeResolver: any = () => {}
 
 if (
+  // ensure this isn't bundled for edge runtime
   process.env.NEXT_RUNTIME !== 'edge' &&
-  process.env.NODE_ENV !== 'production'
+  // only load if we are inside of the turbopack handler
+  process.argv.some((arg) => arg.endsWith('router.js'))
 ) {
   _makeResolver = require('./lib/route-resolver').makeResolver
 }
