@@ -260,7 +260,8 @@ export default async function build(
   reactProductionProfiling = false,
   debugOutput = false,
   runLint = true,
-  noMangling = false
+  noMangling = false,
+  appDirOnly = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -481,16 +482,17 @@ export default async function build(
         prefixText: `${Log.prefixes.info} Creating an optimized production build`,
       })
 
-      const pagesPaths = pagesDir
-        ? await nextBuildSpan
-            .traceChild('collect-pages')
-            .traceAsyncFn(() =>
-              recursiveReadDir(
-                pagesDir,
-                new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+      const pagesPaths =
+        !appDirOnly && pagesDir
+          ? await nextBuildSpan
+              .traceChild('collect-pages')
+              .traceAsyncFn(() =>
+                recursiveReadDir(
+                  pagesDir,
+                  new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+                )
               )
-            )
-        : []
+          : []
 
       let appPaths: string[] | undefined
 
