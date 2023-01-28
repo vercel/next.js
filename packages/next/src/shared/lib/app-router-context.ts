@@ -1,6 +1,6 @@
 'use client'
 
-import type { FocusAndScrollRef } from '../../client/components/router-reducer/router-reducer'
+import { FocusAndScrollRef } from '../../client/components/router-reducer/router-reducer-types'
 import type { fetchServerResponse } from '../../client/components/router-reducer/fetch-server-response'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import React from 'react'

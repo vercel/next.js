@@ -10,7 +10,7 @@ createNextDescribe(
   ({ next, isNextDev }) => {
     // TODO: re-enable for dev after https://vercel.slack.com/archives/C035J346QQL/p1663822388387959 is resolved (Sep 22nd 2022)
     if (isNextDev) {
-      it('should skip next deploy for now', () => {})
+      it('should skip next dev for now', () => {})
       return
     }
 
@@ -50,12 +50,13 @@ createNextDescribe(
     })
 
     it('should not fetch again when a static page was prefetched', async () => {
-      const browser = await next.browser('/', { waitHydration: false })
+      const browser = await next.browser('/404')
       let requests: string[] = []
 
       browser.on('request', (req) => {
         requests.push(new URL(req.url()).pathname)
       })
+      await browser.eval('location.href = "/"')
 
       await browser.eval('window.nd.router.prefetch("/static-page")')
       await check(() => {
