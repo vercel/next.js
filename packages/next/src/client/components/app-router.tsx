@@ -14,14 +14,14 @@ import type {
 } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
+import { reducer } from './router-reducer/router-reducer'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
-  reducer,
-} from './router-reducer/router-reducer'
+} from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
