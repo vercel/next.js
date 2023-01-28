@@ -308,16 +308,24 @@ function runTests(dev = false) {
 
   it('should show friendly error for invalid redirect', async () => {
     await fetchViaHTTP(appPort, '/api/redirect-error', null, {})
-    expect(stderr).toContain(
-      `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
-    )
+
+    await check(() => {
+      expect(stderr).toContain(
+        `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
+      )
+      return 'yes'
+    }, 'yes')
   })
 
   it('should show friendly error in case of passing null as first argument redirect', async () => {
     await fetchViaHTTP(appPort, '/api/redirect-null', null, {})
-    expect(stderr).toContain(
-      `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
-    )
+
+    check(() => {
+      expect(stderr).toContain(
+        `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
+      )
+      return 'yes'
+    }, 'yes')
   })
 
   it('should redirect with status code 307', async () => {
@@ -547,10 +555,14 @@ function runTests(dev = false) {
     it('should show false positive warning if not using externalResolver flag', async () => {
       const apiURL = '/api/external-resolver-false-positive'
       const req = await fetchViaHTTP(appPort, apiURL)
-      expect(stderr).toContain(
-        `API resolved without sending a response for ${apiURL}, this may result in stalled requests.`
-      )
       expect(await req.text()).toBe('hello world')
+
+      check(() => {
+        expect(stderr).toContain(
+          `API resolved without sending a response for ${apiURL}, this may result in stalled requests.`
+        )
+        return 'yes'
+      }, 'yes')
     })
 
     it('should not show warning if using externalResolver flag', async () => {
