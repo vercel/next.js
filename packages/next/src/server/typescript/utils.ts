@@ -6,6 +6,10 @@ let ts: TypeScript
 let info: ts.server.PluginCreateInfo
 let appDirRegExp: RegExp
 
+export function log(message: string) {
+  info.project.projectService.logger.info(message)
+}
+
 // This function has to be called initially.
 export function init(opts: {
   ts: TypeScript
@@ -26,10 +30,6 @@ export function getTs() {
 
 export function getTypeChecker() {
   return info.languageService.getProgram()?.getTypeChecker()
-}
-
-export function log(message: string) {
-  info.project.projectService.logger.info(message)
 }
 
 export function getSource(fileName: string) {
