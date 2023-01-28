@@ -163,6 +163,11 @@ describe('Production Usage', () => {
         file.includes('next/dist/server/send-payload/index.js')
       )
     ).toBe(true)
+    expect(
+      serverTrace.files.some((file) =>
+        file.includes('next/dist/server/lib/route-resolver.js')
+      )
+    ).toBe(false)
     const repoRoot = join(__dirname, '../../../../')
     expect(
       serverTrace.files.some((file) => {
