@@ -1,10 +1,15 @@
+import Link from 'next/link'
 import Button from '@/ui/button'
-import React from 'react'
 
 export default function page() {
-  if ('useState' in React) {
-    throw new Error('React is not resolved correctly.')
-  }
-
-  return <Button>click</Button>
+  return (
+    <>
+      <Link href="/buttno" />
+      <Link href="/aaa" />
+      <Link href="/typing" />
+      <Link href="/button" />
+      <Link href="/" />
+      <Button>click</Button>
+    </>
+  )
 }

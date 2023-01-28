@@ -2116,7 +2116,6 @@ export default async function getBaseWebpackConfig(
             })),
       hasAppDir &&
         !isClient &&
-        !dev &&
         new FlightTypesPlugin({
           dir,
           distDir: config.distDir,
