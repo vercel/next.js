@@ -180,7 +180,6 @@ async function createTreeCodeFromPath({
   const { treeCode, treeMetadataCode } =
     await createSubtreePropsFromSegmentPath([])
 
-  console.log('treeMetadataCode', treeMetadataCode, 'treeCode', treeCode)
   return {
     treeCode: `const tree = ${treeCode}.children;`,
     treeMetadataCode: `const metadata = ${

@@ -353,45 +353,30 @@ async function getDefinedMetadata(
     : mod.metadata
 }
 
-export async function mergeMetadata(
+export async function collectMetadata(
   mod: any,
   props: any,
-  resolvedMetadata: ResolvedMetadata
+  resolvedMetadata: ResolvedMetadata,
+  array: Metadata[]
 ) {
-  console.log('mod >>', mod.default)
   const metadata = await getDefinedMetadata(mod, props, resolvedMetadata)
-  if (!metadata) return resolvedMetadata
-
-  merge(resolvedMetadata, metadata, {
-    title: resolvedMetadata.title?.template || null,
-    openGraph: resolvedMetadata.openGraph?.title?.template || null,
-    twitter: resolvedMetadata.twitter?.title?.template || null,
-  })
+  if (metadata) {
+    array.unshift(metadata)
+  }
 }
 
-// export async function resolveMetadata(
-//   metadataItems: MetadataItem[],
-//   pageProps: any
-// ) {
-//   const resolvedMetadata = createDefaultMetadata()
+export async function accumulateMetadata(metadataItems: Metadata[]) {
+  const resolvedMetadata = createDefaultMetadata()
 
-//   let committedTitleTemplate: string | null = null
-//   let committedOpenGraphTitleTemplate: string | null = null
-//   let committedTwitterTitleTemplate: string | null = null
-
-//   let lastLayer = 0
-//   // from root layout to page metadata
-//   for (let i = 0; i < metadataItems.length; i++) {
-//     const item = metadataItems[i]
-//     const isLayout = item.type === 'layout'
-//     const isPage = item.type === 'page'
-//     if (isLayout || isPage) {
-
-//     }
-//   }
-
-//   return resolvedMetadata
-// }
+  for (const metadata of metadataItems) {
+    merge(resolvedMetadata, metadata, {
+      title: resolvedMetadata.title?.template || null,
+      openGraph: resolvedMetadata.openGraph?.title?.template || null,
+      twitter: resolvedMetadata.twitter?.title?.template || null,
+    })
+  }
+  return resolvedMetadata
+}
 
 // TODO: Implement this function.
 export async function resolveFileBasedMetadataForLoader(

@@ -51,7 +51,7 @@ import { formatServerError } from '../lib/format-server-error'
 import { Metadata } from '../lib/metadata/metadata'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
-import { mergeMetadata } from '../lib/metadata/resolve-metadata'
+import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import { createDefaultMetadata } from '../lib/metadata/default-metadata'
 // import { ResolvedMetadata } from '../lib/metadata/types/metadata-interface'
 
@@ -983,7 +983,7 @@ export async function renderToHTMLOrFlight(
      */
 
     const requestId = nanoid(12)
-    // const metadataItems = ComponentMod.metadata
+    const metadataItems: any[] = []
     const resolvedMetadata = createDefaultMetadata()
 
     stripInternalQueries(query)
@@ -1476,7 +1476,6 @@ export async function renderToHTMLOrFlight(
       // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
       if (!Component) {
         return {
-          // metadata: resolvedMetadata,
           Component: () => <>{parallelRouteComponents.children}</>,
         }
       }
@@ -1500,9 +1499,12 @@ export async function renderToHTMLOrFlight(
         return preloadComponent(Component, props)
       })
 
-      // Accumulate metadata
-      console.log('layoutOrPageMod', layoutOrPageMod.default)
-      await mergeMetadata(layoutOrPageMod, props, resolvedMetadata)
+      await collectMetadata(
+        layoutOrPageMod,
+        props,
+        resolvedMetadata,
+        metadataItems
+      )
 
       return {
         Component: () => {
@@ -1699,8 +1701,12 @@ export async function renderToHTMLOrFlight(
           params: currentParams,
         }
 
-        console.log('params', currentParams)
-        await mergeMetadata(layoutOrPageMod, props, resolvedMetadata)
+        await collectMetadata(
+          layoutOrPageMod,
+          props,
+          resolvedMetadata,
+          metadataItems
+        )
 
         // Walk through all parallel routes.
         for (const parallelRouteKey of parallelRoutesKeys) {
@@ -1736,7 +1742,6 @@ export async function renderToHTMLOrFlight(
       const rscPayloadHead = await resolveHead(loaderTree, {})
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
-      console.log('flight:metadata', resolvedMetadata.title)
       const flightData: FlightData = [
         (
           await walkTreeWithFlightRouterState({
@@ -1749,7 +1754,7 @@ export async function renderToHTMLOrFlight(
               <>
                 {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
-                <Metadata key={requestId} metadata={resolvedMetadata} />
+                <Metadata key={requestId} metadata={metadataItems} />
                 {rscPayloadHead}
               </>
             ),
@@ -1838,7 +1843,6 @@ export async function renderToHTMLOrFlight(
         })
 
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
-        // console.log('resolvedMetadata', resolvedMetadata)
         return (
           <>
             <AppRouter
@@ -1849,7 +1853,7 @@ export async function renderToHTMLOrFlight(
                 <>
                   {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
-                  <Metadata key={requestId} metadata={resolvedMetadata} />
+                  <Metadata key={requestId} metadata={metadataItems} />
                   {initialHead}
                 </>
               }
