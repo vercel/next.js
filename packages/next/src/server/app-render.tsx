@@ -48,11 +48,11 @@ import {
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { formatServerError } from '../lib/format-server-error'
-import { Metadata } from '../lib/metadata/metadata'
+import { Metas } from '../lib/metadata/metadata'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
-import { createDefaultMetadata } from '../lib/metadata/default-metadata'
+import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -990,8 +990,7 @@ export async function renderToHTMLOrFlight(
      */
 
     const requestId = nanoid(12)
-    const metadataItems: any[] = []
-    const resolvedMetadata = createDefaultMetadata()
+    const metadataItems: MetadataItems = []
 
     stripInternalQueries(query)
 
@@ -1502,12 +1501,7 @@ export async function renderToHTMLOrFlight(
         return preloadComponent(Component, props)
       })
 
-      await collectMetadata(
-        layoutOrPageMod,
-        props,
-        resolvedMetadata,
-        metadataItems
-      )
+      await collectMetadata(layoutOrPageMod, props, metadataItems)
 
       return {
         Component: () => {
@@ -1647,12 +1641,7 @@ export async function renderToHTMLOrFlight(
         }
 
         if (layoutOrPageMod) {
-          await collectMetadata(
-            layoutOrPageMod,
-            props,
-            resolvedMetadata,
-            metadataItems
-          )
+          await collectMetadata(layoutOrPageMod, props, metadataItems)
         }
 
         if (!parentRendered && renderComponentsOnThisLevel) {
@@ -1661,7 +1650,7 @@ export async function renderToHTMLOrFlight(
             // Create router state using the slice of the loaderTree
             createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
             // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-            isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
+            isPrefetch && !Boolean(components.loading)
               ? null
               : // Create component tree using the slice of the loaderTree
                 // @ts-expect-error TODO-APP: fix async component type
@@ -1732,17 +1721,10 @@ export async function renderToHTMLOrFlight(
           }
         }
 
-        await collectMetadata(
-          layoutOrPageMod,
-          props,
-          resolvedMetadata,
-          metadataItems
-        )
-
         return [actualSegment]
       }
 
-      const rscPayloadHead = await resolveHead(loaderTree, {})
+      const resolvedHead = await resolveHead(loaderTree, {})
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1757,8 +1739,8 @@ export async function renderToHTMLOrFlight(
               <>
                 {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
-                <Metadata key={requestId} metadata={metadataItems} />
-                {rscPayloadHead}
+                <Metas key={requestId} metadata={metadataItems} />
+                {resolvedHead}
               </>
             ),
             injectedCSS: new Set(),
@@ -1846,6 +1828,7 @@ export async function renderToHTMLOrFlight(
         })
 
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
+
         return (
           <>
             <AppRouter
@@ -1856,7 +1839,7 @@ export async function renderToHTMLOrFlight(
                 <>
                   {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
-                  <Metadata key={requestId} metadata={metadataItems} />
+                  <Metas key={requestId} metadata={metadataItems} />
                   {initialHead}
                 </>
               }

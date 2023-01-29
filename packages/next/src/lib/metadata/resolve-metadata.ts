@@ -1,8 +1,4 @@
-import type {
-  Metadata,
-  ResolvedMetadata,
-  ResolvingMetadata,
-} from './types/metadata-interface'
+import type { Metadata, ResolvedMetadata } from './types/metadata-interface'
 import type { Viewport } from './types/extra-types'
 import type { ResolvedTwitterMetadata } from './types/twitter-types'
 import type {
@@ -28,35 +24,6 @@ const viewPortKeys = {
   maximumScale: 'maximum-scale',
   viewportFit: 'viewport-fit',
 } as const
-
-export type MetadataItem =
-  | {
-      type: 'layout' | 'page'
-      // A number that represents which layer or routes that the item is in. Starting from 0.
-      // Layout and page in the same level will share the same `layer`.
-      layer: number
-      mod: () => Promise<{
-        metadata?: Metadata
-        generateMetadata?: (
-          props: any,
-          parent: ResolvingMetadata
-        ) => Promise<Metadata>
-      }>
-      path: string
-    }
-  | {
-      type: 'icon'
-      // A number that represents which layer the item is in. Starting from 0.
-      layer: number
-      mod?: () => Promise<{
-        metadata?: Metadata
-        generateMetadata?: (
-          props: any,
-          parent: ResolvingMetadata
-        ) => Promise<Metadata>
-      }>
-      path?: string
-    }
 
 const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
   let resolved: ResolvedMetadata['viewport'] = null
@@ -327,12 +294,13 @@ function merge(
   }
 }
 
-// TODO-APP: add type for mod
+type MetadataResolver = (_parent: ResolvedMetadata) => Promise<Metadata | null>
+export type MetadataItems = (Metadata | MetadataResolver)[]
+
 async function getDefinedMetadata(
   mod: any,
-  props: any,
-  resolvedMetadata: ResolvedMetadata
-): Promise<Metadata | null> {
+  props: any
+): Promise<Metadata | MetadataResolver | null> {
   if (mod.metadata && mod.generateMetadata) {
     throw new Error(
       `${mod.path} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this page/layout is static use the metadata export, otherwise use generateMetadata. File: ${mod.path}`
@@ -349,26 +317,33 @@ async function getDefinedMetadata(
   }
 
   return mod.generateMetadata
-    ? await mod.generateMetadata(props, Promise.resolve(resolvedMetadata))
+    ? (parent: ResolvedMetadata) => mod.generateMetadata(props, parent)
     : mod.metadata
 }
 
 export async function collectMetadata(
   mod: any,
   props: any,
-  resolvedMetadata: ResolvedMetadata,
-  array: Metadata[]
+  array: MetadataItems
 ) {
-  const metadata = await getDefinedMetadata(mod, props, resolvedMetadata)
+  const metadata = await getDefinedMetadata(mod, props)
   if (metadata) {
     array.unshift(metadata)
   }
 }
 
-export async function accumulateMetadata(metadataItems: Metadata[]) {
+export async function accumulateMetadata(metadataItems: MetadataItems) {
   const resolvedMetadata = createDefaultMetadata()
 
-  for (const metadata of metadataItems) {
+  for (const item of metadataItems) {
+    let metadata = null
+    if (typeof item === 'function') {
+      metadata = await item(resolvedMetadata)
+    } else {
+      metadata = item
+    }
+    if (!metadata) continue
+
     merge(resolvedMetadata, metadata, {
       title: resolvedMetadata.title?.template || null,
       openGraph: resolvedMetadata.openGraph?.title?.template || null,

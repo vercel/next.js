@@ -33,7 +33,6 @@ export function mergeTitle<T extends { title?: Metadata['title'] }>(
   const target = source
   if (source.title && typeof source.title !== 'string') {
     const targetTitle = source.title as AbsoluteTemplateString
-    console.log('targetTitle', targetTitle)
     targetTitle.template = template
     targetTitle.absolute = resolved || ''
   } else {
