@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
 
 createNextDescribe(
@@ -289,6 +290,17 @@ createNextDescribe(
             .click()
             .waitForElementByCss('#title')
           expect(await getTitle(browser)).toBe('this is the page title')
+        })
+
+        it('should support generateMetadata export', async () => {
+          const browser = await next.browser('/params/slug')
+          expect(await getTitle(browser)).toBe('params - slug')
+
+          await browser.loadPage(next.url + '/params/blog?q=xxx')
+          await check(
+            () => browser.elementByCss('p').text(),
+            /params - blog query - xxx/
+          )
         })
       })
 

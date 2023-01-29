@@ -2,9 +2,7 @@ export default function page() {
   return 'apple'
 }
 
-export async function generateMetadata(props) {
-  console.log('/apple params', props.params, props.searchParams)
-
+export async function generateMetadata() {
   const metadata = {
     itunes: {
       appId: 'myAppStoreID',
