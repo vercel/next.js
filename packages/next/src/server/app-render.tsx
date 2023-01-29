@@ -53,7 +53,6 @@ import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import { createDefaultMetadata } from '../lib/metadata/default-metadata'
-// import { ResolvedMetadata } from '../lib/metadata/types/metadata-interface'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -95,6 +94,14 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
 }
+
+async function getLayoutOrPageModule(components: ComponentsType) {
+  const { layout, page } = components
+  const isLayout = typeof layout !== 'undefined'
+  const isPage = typeof page !== 'undefined'
+  return isLayout ? await layout[0]() : isPage ? await page[0]() : undefined
+}
+
 export class ReadonlyHeaders {
   [INTERNAL_HEADERS_INSTANCE]: Headers
 
@@ -1189,7 +1196,7 @@ export async function renderToHTMLOrFlight(
      */
     const createComponentTree = async ({
       createSegmentPath,
-      loaderTree: [segment, parallelRoutes, mod],
+      loaderTree: [segment, parallelRoutes, components],
       parentParams,
       firstItem,
       rootLayoutIncluded,
@@ -1209,7 +1216,7 @@ export async function renderToHTMLOrFlight(
         loading,
         page,
         'not-found': notFound,
-      } = mod
+      } = components
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
@@ -1261,11 +1268,7 @@ export async function renderToHTMLOrFlight(
 
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
-      const layoutOrPageMod = isLayout
-        ? await layout[0]()
-        : isPage
-        ? await page[0]()
-        : undefined
+      const layoutOrPageMod = await getLayoutOrPageModule(components)
 
       /**
        * Checks if the current segment is a root layout.
@@ -1596,10 +1599,11 @@ export async function renderToHTMLOrFlight(
         injectedCSS: Set<string>
         rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
-        const [segment, parallelRoutes, mod] = loaderTreeToFilter
-        const { layout } = mod
-        const isLayout = typeof layout !== 'undefined'
+        const [segment, parallelRoutes, components] = loaderTreeToFilter
         const parallelRoutesKeys = Object.keys(parallelRoutes)
+        const { layout } = components
+        const isLayout = typeof layout !== 'undefined'
+        const layoutOrPageMod = await getLayoutOrPageModule(components)
 
         /**
          * Checks if the current segment is a root layout.
@@ -1637,6 +1641,19 @@ export async function renderToHTMLOrFlight(
           parallelRoutesKeys.length === 0 ||
           // Explicit refresh
           flightRouterState[3] === 'refetch'
+
+        const props = {
+          params: currentParams,
+        }
+
+        if (layoutOrPageMod) {
+          await collectMetadata(
+            layoutOrPageMod,
+            props,
+            resolvedMetadata,
+            metadataItems
+          )
+        }
 
         if (!parentRendered && renderComponentsOnThisLevel) {
           return [
@@ -1687,27 +1704,6 @@ export async function renderToHTMLOrFlight(
           )
         }
 
-        // const mod = loaderTree[2]
-        const { page } = mod
-        // const isLayout = typeof layout !== 'undefined'
-        const isPage = typeof page !== 'undefined'
-        const layoutOrPageMod = isLayout
-          ? await layout[0]()
-          : isPage
-          ? await page[0]()
-          : undefined
-
-        const props = {
-          params: currentParams,
-        }
-
-        await collectMetadata(
-          layoutOrPageMod,
-          props,
-          resolvedMetadata,
-          metadataItems
-        )
-
         // Walk through all parallel routes.
         for (const parallelRouteKey of parallelRoutesKeys) {
           const parallelRoute = parallelRoutes[parallelRouteKey]
@@ -1735,6 +1731,13 @@ export async function renderToHTMLOrFlight(
             return [actualSegment, parallelRouteKey, ...path]
           }
         }
+
+        await collectMetadata(
+          layoutOrPageMod,
+          props,
+          resolvedMetadata,
+          metadataItems
+        )
 
         return [actualSegment]
       }
