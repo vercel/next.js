@@ -22,8 +22,33 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, navigateType, cache, mutable, forceOptimisticNavigation } =
-    action
+  const {
+    url,
+    isExternalUrl,
+    navigateType,
+    cache,
+    mutable,
+    forceOptimisticNavigation,
+  } = action
+
+  if (isExternalUrl) {
+    return {
+      // Set href.
+      canonicalUrl: url.toString(),
+      pushRef: {
+        pendingPush: false,
+        mpaNavigation: true,
+      },
+      // All navigation requires scroll and focus management to trigger.
+      focusAndScrollRef: { apply: false },
+      // Apply cache.
+      cache: state.cache,
+      prefetchCache: state.prefetchCache,
+      // Apply patched router state.
+      tree: state.tree,
+    }
+  }
+
   const { pathname, search } = url
   const href = createHrefFromUrl(url)
   const pendingPush = navigateType === 'push'

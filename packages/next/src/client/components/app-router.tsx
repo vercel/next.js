@@ -180,9 +180,12 @@ function Router({
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
+      const url = new URL(href, location.origin)
+
       return dispatch({
         type: ACTION_NAVIGATE,
-        url: new URL(href, location.origin),
+        url,
+        isExternalUrl: url.origin !== location.origin,
         forceOptimisticNavigation,
         navigateType,
         cache: {
