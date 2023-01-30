@@ -130,6 +130,12 @@ pub struct CommonArgs {
     #[cfg_attr(feature = "cli", clap(short, long))]
     #[cfg_attr(feature = "node-api", serde(default))]
     enable_mdx: bool,
+
+    /// Enable experimental garbage collection with the provided memory limit in
+    /// MB.
+    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "serializable", serde(default))]
+    pub memory_limit: Option<usize>,
 }
 
 #[cfg_attr(feature = "cli", derive(Parser))]
@@ -341,6 +347,7 @@ pub async fn start(args: Arc<Args>) -> Result<Vec<String>> {
     register();
     let &CommonArgs {
         visualize_graph,
+        memory_limit,
         #[cfg(feature = "persistent_cache")]
             cache: CacheArgs {
             ref cache,
@@ -399,7 +406,7 @@ pub async fn start(args: Arc<Args>) -> Result<Vec<String>> {
 
     run(
         args.clone(),
-        || TurboTasks::new(MemoryBackend::default()),
+        || TurboTasks::new(MemoryBackend::new(memory_limit.unwrap_or(usize::MAX))),
         |tt, root_task, _| async move {
             if visualize_graph {
                 let mut stats = Stats::new();
