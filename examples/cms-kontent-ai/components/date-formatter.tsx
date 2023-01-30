@@ -1,6 +1,6 @@
 import { parseISO, format } from 'date-fns'
 
-type DateFormatterProps = { dateString: string | null}
+type DateFormatterProps = { dateString: string | null }
 
 export default function DateFormatter({ dateString }: DateFormatterProps) {
   if (dateString === null) {

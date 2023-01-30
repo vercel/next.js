@@ -1,7 +1,7 @@
 import Image from './image'
 
 type AvatarProps = {
-  name: string,
+  name: string
   picture: string
 }
 

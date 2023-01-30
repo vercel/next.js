@@ -3,7 +3,7 @@ import Footer from './footer'
 import Meta from './meta'
 
 type LayoutProps = {
-  preview: boolean,
+  preview: boolean
   children: JSX.Element | JSX.Element[]
 }
 

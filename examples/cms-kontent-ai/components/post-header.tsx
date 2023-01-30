@@ -5,13 +5,18 @@ import PostTitle from './post-title'
 import { Author } from '@/viewmodels/author'
 
 type PostHeaderType = {
-  title: string,
-  coverImage: string,
-  date: string|null,
+  title: string
+  coverImage: string
+  date: string | null
   author: Author
 }
 
-export default function PostHeader({ title, coverImage, date, author }: PostHeaderType) {
+export default function PostHeader({
+  title,
+  coverImage,
+  date,
+  author,
+}: PostHeaderType) {
   return (
     <>
       <PostTitle title={title} />

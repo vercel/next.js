@@ -8,7 +8,7 @@ type PostPreviewProps = {
   post: Post
 }
 
-export default function PostPreview({post}: PostPreviewProps) {
+export default function PostPreview({ post }: PostPreviewProps) {
   return (
     <div>
       <div className="mb-5">
@@ -18,7 +18,7 @@ export default function PostPreview({post}: PostPreviewProps) {
         <Link href={`/posts/${post.slug}`} className="hover:underline">
           {post.title}
         </Link>
-      </h3> 
+      </h3>
       <div className="text-lg mb-4">
         <DateFormatter dateString={post.date} />
       </div>
