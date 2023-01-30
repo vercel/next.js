@@ -16,7 +16,10 @@ const main = async () => {
   const getPackageJsonPath = (pkgDirname: string) =>
     path.join(pkgsDir, pkgDirname, `package.json`)
 
-  const allPkgDirnames = await fs.readdir(pkgsDir)
+  const allPkgDirnames = (await fs.readdir(pkgsDir)).filter(
+    (item) => !item.startsWith('.')
+  )
+
   if (!allPkgDirnames.includes(currentPkgDirname)) {
     throw new Error(`Unknown package '${currentPkgDirname}'`)
   }
@@ -62,7 +65,7 @@ const main = async () => {
   // Ensure that we bundle binaries with swc
   if (currentPkgDirname === 'next-swc') {
     packageJson.files = packageJson.files ?? []
-    packageJson.files.push('native')
+    packageJson.files.push('native/*')
 
     console.log('using swc binaries:')
     await execa('ls', [
@@ -93,7 +96,7 @@ const main = async () => {
         packageJson.version
       }.tgz`
     )
-    await execa('yarn', ['pack', '-f', tmpTarball], {
+    await execa('pnpm', ['pack'], {
       cwd: tmpPkgPath,
     })
     await fs.copyFile(tmpTarball, getPackedPkgPath(currentPkgDirname))

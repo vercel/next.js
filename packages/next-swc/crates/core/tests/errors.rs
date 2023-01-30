@@ -89,6 +89,7 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: true },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,
@@ -112,6 +113,7 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: false },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,

@@ -6,6 +6,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
 import { NotFound as DefaultNotFound } from '../client/components/error'
+import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -45,9 +46,9 @@ import {
   RSC,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
-import { DefaultHead } from '../client/components/head'
-import { formatServerError } from '../lib/format-server-error'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
+import { formatServerError } from '../lib/format-server-error'
+import { Metadata } from '../lib/metadata/metadata'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 
@@ -184,6 +185,7 @@ export type RenderOptsPartial = {
   isBot?: boolean
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
+  nextExport?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -214,6 +216,7 @@ function createErrorHandler(
    * Used for debugging
    */
   _source: string,
+  isNextExport: boolean,
   capturedErrors: Error[],
   allCapturedErrors?: Error[]
 ) {
@@ -236,20 +239,29 @@ function createErrorHandler(
     }
     // Used for debugging error source
     // console.error(_source, err)
-    console.error(err)
+
+    // Don't log the suppressed error during export
+    if (
+      !(
+        isNextExport &&
+        err?.message?.includes(
+          'The specific message is omitted in production builds to avoid leaking sensitive details.'
+        )
+      )
+    ) {
+      console.error(err)
+    }
+
     capturedErrors.push(err)
     // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
     return stringHash(err.message + err.stack + (err.digest || '')).toString()
   }
 }
 
-let isFetchPatched = false
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 function patchFetch(ComponentMod: any) {
-  if (isFetchPatched) return
-  isFetchPatched = true
+  if ((globalThis.fetch as any).patched) return
 
   const { DynamicServerError } =
     ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
@@ -279,11 +291,11 @@ function patchFetch(ComponentMod: any) {
     }
 
     if (
-      !staticGenerationStore.fetchRevalidate ||
+      !staticGenerationStore.revalidate ||
       (typeof revalidate === 'number' &&
-        revalidate < staticGenerationStore.fetchRevalidate)
+        revalidate < staticGenerationStore.revalidate)
     ) {
-      staticGenerationStore.fetchRevalidate = revalidate
+      staticGenerationStore.revalidate = revalidate
     }
 
     let cacheKey: string | undefined
@@ -385,39 +397,47 @@ function patchFetch(ComponentMod: any) {
           delete init.cache
         }
         if (cache === 'no-store') {
-          staticGenerationStore.fetchRevalidate = 0
+          staticGenerationStore.revalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
-          throw new DynamicServerError(
-            `no-store fetch ${input}${
-              staticGenerationStore.pathname
-                ? ` ${staticGenerationStore.pathname}`
-                : ''
-            }`
-          )
+          const dynamicUsageReason = `no-store fetch ${input}${
+            staticGenerationStore.pathname
+              ? ` ${staticGenerationStore.pathname}`
+              : ''
+          }`
+          const err = new DynamicServerError(dynamicUsageReason)
+          staticGenerationStore.dynamicUsageStack = err.stack
+          staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+
+          throw err
         }
 
         const hasNextConfig = 'next' in init
         const next = init.next || {}
         if (
           typeof next.revalidate === 'number' &&
-          (typeof staticGenerationStore.fetchRevalidate === 'undefined' ||
-            next.revalidate < staticGenerationStore.fetchRevalidate)
+          (typeof staticGenerationStore.revalidate === 'undefined' ||
+            next.revalidate < staticGenerationStore.revalidate)
         ) {
           const forceDynamic = staticGenerationStore.forceDynamic
 
           if (!forceDynamic || next.revalidate !== 0) {
-            staticGenerationStore.fetchRevalidate = next.revalidate
+            staticGenerationStore.revalidate = next.revalidate
           }
 
           if (!forceDynamic && next.revalidate === 0) {
-            throw new DynamicServerError(
-              `revalidate: ${next.revalidate} fetch ${input}${
-                staticGenerationStore.pathname
-                  ? ` ${staticGenerationStore.pathname}`
-                  : ''
-              }`
-            )
+            const dynamicUsageReason = `revalidate: ${
+              next.revalidate
+            } fetch ${input}${
+              staticGenerationStore.pathname
+                ? ` ${staticGenerationStore.pathname}`
+                : ''
+            }`
+            const err = new DynamicServerError(dynamicUsageReason)
+            staticGenerationStore.dynamicUsageStack = err.stack
+            staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+
+            throw err
           }
         }
         if (hasNextConfig) delete init.next
@@ -426,6 +446,7 @@ function patchFetch(ComponentMod: any) {
 
     return doOriginalFetch()
   }
+  ;(globalThis.fetch as any).patched = true
 }
 
 interface FlightResponseRef {
@@ -616,8 +637,8 @@ type LoaderTree = [
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string,
-  refresh?: 'refetch',
+  url?: string | null,
+  refresh?: 'refetch' | null,
   isRootLayout?: boolean
 ]
 
@@ -882,16 +903,20 @@ export async function renderToHTMLOrFlight(
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
 
+  const isNextExport = !!renderOpts.nextExport
   const serverComponentsErrorHandler = createErrorHandler(
     'serverComponentsRenderer',
+    isNextExport,
     capturedErrors
   )
   const flightDataRendererErrorHandler = createErrorHandler(
     'flightDataRenderer',
+    isNextExport,
     capturedErrors
   )
   const htmlRendererErrorHandler = createErrorHandler(
     'htmlRenderer',
+    isNextExport,
     capturedErrors,
     allCapturedErrors
   )
@@ -948,6 +973,14 @@ export async function renderToHTMLOrFlight(
      * The tree created in next-app-loader that holds component segments and modules
      */
     const loaderTree: LoaderTree = ComponentMod.tree
+
+    /**
+     * The metadata items array created in next-app-loader with all relevant information
+     * that we need to resolve the final metadata.
+     */
+
+    const requestId = nanoid(12)
+    const metadataItems = ComponentMod.metadata
 
     stripInternalQueries(query)
 
@@ -1032,8 +1065,7 @@ export async function renderToHTMLOrFlight(
 
     async function resolveHead(
       [segment, parallelRoutes, { head }]: LoaderTree,
-      parentParams: { [key: string]: any },
-      isRootHead: boolean
+      parentParams: { [key: string]: any }
     ): Promise<React.ReactNode> {
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
@@ -1051,7 +1083,7 @@ export async function renderToHTMLOrFlight(
             parentParams
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const returnedHead = await resolveHead(childTree, currentParams, false)
+        const returnedHead = await resolveHead(childTree, currentParams)
         if (returnedHead) {
           return returnedHead
         }
@@ -1060,8 +1092,6 @@ export async function renderToHTMLOrFlight(
       if (head) {
         const Head = await interopDefault(await head[0]())
         return <Head params={currentParams} />
-      } else if (isRootHead) {
-        return <DefaultHead />
       }
 
       return null
@@ -1270,7 +1300,11 @@ export async function renderToHTMLOrFlight(
           const { DynamicServerError } =
             ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
-          throw new DynamicServerError(`revalidate: 0 configured ${segment}`)
+          const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
+          staticGenerationStore.dynamicUsageDescription =
+            dynamicUsageDescription
+
+          throw new DynamicServerError(dynamicUsageDescription)
         }
       }
 
@@ -1664,7 +1698,7 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const rscPayloadHead = await resolveHead(loaderTree, {}, true)
+      const rscPayloadHead = await resolveHead(loaderTree, {})
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1675,7 +1709,14 @@ export async function renderToHTMLOrFlight(
             parentParams: {},
             flightRouterState: providedFlightRouterState,
             isFirst: true,
-            rscPayloadHead,
+            rscPayloadHead: (
+              <>
+                {/* Adding key={requestId} to make metadata remount for each render */}
+                {/* @ts-expect-error allow to use async server component */}
+                <Metadata key={requestId} metadata={metadataItems} />
+                {rscPayloadHead}
+              </>
+            ),
             injectedCSS: new Set(),
             rootLayoutIncluded: false,
           })
@@ -1742,7 +1783,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const initialHead = await resolveHead(loaderTree, {}, true)
+    const initialHead = await resolveHead(loaderTree, {})
 
     /**
      * A new React Component that renders the provided React Component
@@ -1759,18 +1800,28 @@ export async function renderToHTMLOrFlight(
           injectedCSS: new Set(),
           rootLayoutIncluded: false,
         })
+
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
         return (
-          <AppRouter
-            assetPrefix={assetPrefix}
-            initialCanonicalUrl={initialCanonicalUrl}
-            initialTree={initialTree}
-            initialHead={initialHead}
-            globalErrorComponent={GlobalError}
-          >
-            <ComponentTree />
-          </AppRouter>
+          <>
+            <AppRouter
+              assetPrefix={assetPrefix}
+              initialCanonicalUrl={initialCanonicalUrl}
+              initialTree={initialTree}
+              initialHead={
+                <>
+                  {/* Adding key={requestId} to make metadata remount for each render */}
+                  {/* @ts-expect-error allow to use async server component */}
+                  <Metadata key={requestId} metadata={metadataItems} />
+                  {initialHead}
+                </>
+              }
+              globalErrorComponent={GlobalError}
+            >
+              <ComponentTree />
+            </AppRouter>
+          </>
         )
       },
       ComponentMod,
@@ -1941,7 +1992,7 @@ export async function renderToHTMLOrFlight(
       )
 
       if (staticGenerationStore.forceStatic === false) {
-        staticGenerationStore.fetchRevalidate = 0
+        staticGenerationStore.revalidate = 0
       }
 
       // TODO: investigate why `pageData` is not in RenderOpts
@@ -1949,7 +2000,15 @@ export async function renderToHTMLOrFlight(
 
       // TODO: investigate why `revalidate` is not in RenderOpts
       ;(renderOpts as any).revalidate =
-        staticGenerationStore.fetchRevalidate ?? defaultRevalidate
+        staticGenerationStore.revalidate ?? defaultRevalidate
+
+      // provide bailout info for debugging
+      if ((renderOpts as any).revalidate === 0) {
+        ;(renderOpts as any).staticBailoutInfo = {
+          description: staticGenerationStore.dynamicUsageDescription,
+          stack: staticGenerationStore.dynamicUsageStack,
+        }
+      }
 
       return new RenderResult(htmlResult)
     }

@@ -260,7 +260,8 @@ export default async function build(
   reactProductionProfiling = false,
   debugOutput = false,
   runLint = true,
-  noMangling = false
+  noMangling = false,
+  appDirOnly = false
 ): Promise<void> {
   try {
     const nextBuildSpan = trace('next-build', undefined, {
@@ -481,16 +482,17 @@ export default async function build(
         prefixText: `${Log.prefixes.info} Creating an optimized production build`,
       })
 
-      const pagesPaths = pagesDir
-        ? await nextBuildSpan
-            .traceChild('collect-pages')
-            .traceAsyncFn(() =>
-              recursiveReadDir(
-                pagesDir,
-                new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+      const pagesPaths =
+        !appDirOnly && pagesDir
+          ? await nextBuildSpan
+              .traceChild('collect-pages')
+              .traceAsyncFn(() =>
+                recursiveReadDir(
+                  pagesDir,
+                  new RegExp(`\\.(?:${config.pageExtensions.join('|')})$`)
+                )
               )
-            )
-        : []
+          : []
 
       let appPaths: string[] | undefined
 
@@ -1950,6 +1952,7 @@ export default async function build(
                 '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
                 '**/node_modules/webpack5/**/*',
                 '**/next/dist/server/lib/squoosh/**/*.wasm',
+                '**/next/dist/server/lib/route-resolver*',
                 ...(ciEnvironment.hasNextSupport
                   ? [
                       // only ignore image-optimizer code when
@@ -2210,6 +2213,7 @@ export default async function build(
           const exportOptions = {
             silent: false,
             buildExport: true,
+            debugOutput,
             threads: config.experimental.cpus,
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
@@ -2358,7 +2362,9 @@ export default async function build(
           for (const [originalAppPath, routes] of appStaticPaths) {
             const page = appNormalizedPaths.get(originalAppPath) || ''
             const appConfig = appDefaultConfigs.get(originalAppPath) || {}
-            let hasDynamicData = appConfig.revalidate === 0
+            let hasDynamicData =
+              appConfig.revalidate === 0 ||
+              exportConfig.initialPageRevalidationMap[page] === 0
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
