@@ -301,7 +301,6 @@ async function getDefinedMetadata(
   mod: any,
   props: any
 ): Promise<Metadata | MetadataResolver | null> {
-  console.log('mod', mod)
   // Layer is a client component, we just skip it. It can't have metadata
   // exported. Note that during our SWC transpilation, it should check if
   // the exports are valid and give specific error messages.
@@ -337,7 +336,7 @@ export async function collectMetadata(
 
 export async function accumulateMetadata(metadataItems: MetadataItems) {
   const resolvedMetadata = createDefaultMetadata()
-  console.log('metadataItems:acc', metadataItems)
+  console.trace('metadataItems:acc', metadataItems)
   for (const item of metadataItems) {
     let metadata = null
     if (typeof item === 'function') {

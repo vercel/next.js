@@ -7,7 +7,6 @@ import { sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
-import { resolveFileBasedMetadataForLoader } from '../../../lib/metadata/resolve-metadata'
 
 const FILE_TYPES = {
   layout: 'layout',

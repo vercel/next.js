@@ -1196,7 +1196,7 @@ export async function renderToHTMLOrFlight(
      */
     const createComponentTree = async ({
       createSegmentPath,
-      loaderTree,
+      loaderTree: tree,
       parentParams,
       firstItem,
       rootLayoutIncluded,
@@ -1209,7 +1209,7 @@ export async function renderToHTMLOrFlight(
       firstItem?: boolean
       injectedCSS: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
-      const [segment, parallelRoutes, components] = loaderTree
+      const [segment, parallelRoutes, components] = tree
       const {
         layout,
         template,
@@ -1269,7 +1269,7 @@ export async function renderToHTMLOrFlight(
 
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
-      const layoutOrPageMod = await getLayoutOrPageModule(loaderTree)
+      const layoutOrPageMod = await getLayoutOrPageModule(tree)
 
       /**
        * Checks if the current segment is a root layout.
@@ -1494,12 +1494,12 @@ export async function renderToHTMLOrFlight(
         ...(isPage ? { searchParams: query } : {}),
       }
 
+      await collectMetadata(layoutOrPageMod, pageProps, metadataItems)
+
       const props = {
         ...parallelRouteComponents,
         ...pageProps,
       }
-
-      await collectMetadata(layoutOrPageMod, props, metadataItems)
 
       // Eagerly execute layout/page component to trigger fetches early.
       Component = await Promise.resolve().then(() => {
