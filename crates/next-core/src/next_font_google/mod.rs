@@ -3,8 +3,6 @@ use indexmap::IndexMap;
 use indoc::formatdoc;
 use once_cell::sync::Lazy;
 use turbo_tasks::primitives::{OptionStringVc, OptionU16Vc, StringVc, U32Vc};
-#[allow(unused_imports, /* reason = "this is used in tests" */)]
-use turbo_tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
 use turbo_tasks_fetch::fetch;
 use turbo_tasks_fs::{FileContent, FileSystemPathVc};
 use turbo_tasks_hash::hash_xxh3_hash64;
@@ -292,6 +290,8 @@ async fn get_stylesheet_url_from_options(options: NextFontGoogleOptionsVc) -> Re
     let mut css_url: Option<String> = None;
     #[cfg(debug_assertions)]
     {
+        use turbo_tasks_env::{CommandLineProcessEnvVc, ProcessEnv};
+
         let env = CommandLineProcessEnvVc::new();
         if let Some(url) = &*env.read("TURBOPACK_TEST_ONLY_MOCK_SERVER").await? {
             css_url = Some(format!("{}/css2", url));
