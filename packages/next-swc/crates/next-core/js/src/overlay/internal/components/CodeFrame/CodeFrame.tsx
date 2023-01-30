@@ -64,7 +64,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 
   // TODO: make the caret absolute
   return (
-    <div className="codeframe">
+    <div data-nextjs-codeframe className="codeframe">
       <div>
         <p
           role="link"
