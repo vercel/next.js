@@ -20,6 +20,43 @@ export function Meta({
   return null
 }
 
+type ExtendMetaContent = Record<
+  string,
+  undefined | string | URL | number | boolean | null | undefined
+>
+type MultiMetaContent =
+  | (ExtendMetaContent | string | URL | number)[]
+  | null
+  | undefined
+
+export function ExtendMeta({
+  content,
+  namePrefix,
+  propertyPrefix,
+}: {
+  content?: ExtendMetaContent
+  namePrefix?: string
+  propertyPrefix?: string
+}) {
+  const keyPrefix = namePrefix || propertyPrefix
+  if (!content) return null
+  return (
+    <React.Fragment>
+      {Object.entries(content).map(([k, v], index) => {
+        return typeof v === 'undefined' ? null : (
+          <Meta
+            key={keyPrefix + ':' + k + '_' + index}
+            {...(propertyPrefix
+              ? { property: propertyPrefix + ':' + k }
+              : { name: namePrefix + ':' + k })}
+            content={typeof v === 'string' ? v : v?.toString()}
+          />
+        )
+      })}
+    </React.Fragment>
+  )
+}
+
 export function MultiMeta({
   propertyPrefix,
   namePrefix,
@@ -27,15 +64,7 @@ export function MultiMeta({
 }: {
   propertyPrefix?: string
   namePrefix?: string
-  contents:
-    | (
-        | Record<string, undefined | string | URL | number>
-        | string
-        | URL
-        | number
-      )[]
-    | null
-    | undefined
+  contents?: MultiMetaContent | null
 }) {
   if (typeof contents === 'undefined' || contents === null) {
     return null
@@ -61,19 +90,11 @@ export function MultiMeta({
           )
         } else {
           return (
-            <React.Fragment key={keyPrefix + '_' + index}>
-              {Object.entries(content).map(([k, v]) => {
-                return typeof v === 'undefined' ? null : (
-                  <Meta
-                    key={keyPrefix + ':' + k + '_' + index}
-                    {...(propertyPrefix
-                      ? { property: propertyPrefix + ':' + k }
-                      : { name: namePrefix + ':' + k })}
-                    content={typeof v === 'string' ? v : v.toString()}
-                  />
-                )
-              })}
-            </React.Fragment>
+            <ExtendMeta
+              namePrefix={namePrefix}
+              propertyPrefix={propertyPrefix}
+              content={content}
+            />
           )
         }
       })}
