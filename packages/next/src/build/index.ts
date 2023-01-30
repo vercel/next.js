@@ -248,7 +248,6 @@ function pageToRoute(page: string) {
 
 export default async function build(
   dir: string,
-  conf = null,
   reactProductionProfiling = false,
   debugOutput = false,
   runLint = true,
@@ -270,7 +269,7 @@ export default async function build(
 
       const config: NextConfigComplete = await nextBuildSpan
         .traceChild('load-next-config')
-        .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
+        .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir))
 
       const distDir = path.join(dir, config.distDir)
       setGlobal('phase', PHASE_PRODUCTION_BUILD)

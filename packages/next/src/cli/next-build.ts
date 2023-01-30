@@ -72,7 +72,6 @@ const nextBuild: CliCommand = (argv) => {
 
   return build(
     dir,
-    null,
     args['--profile'],
     args['--debug'] || process.env.NEXT_DEBUG_BUILD,
     !args['--no-lint'],
