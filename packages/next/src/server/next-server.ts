@@ -99,10 +99,6 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
-import {
-  customAppRouteResolver,
-  CustomRouteMod,
-} from './api-utils/app/custom-app-route-resolver'
 
 export * from './base-server'
 
@@ -1181,12 +1177,13 @@ export default class NextNodeServer extends BaseServer {
           }
         }
 
-        const route = await this.matchAppCustomRoute(pathname)
+        const route = await this.resolvers.resolve(req)
         if (route) {
-          // TODO: is this needed for this route?
-          delete query._nextBubbleNoFallback
+          // Handle the given route.
+          await this.handlers.handle(route, req, res)
 
-          return await this.handleAppCustomRouteRequest(req, res, route, query)
+          // Mark the request as finished.
+          return { state: RouteResultState.FINISHED }
         }
 
         try {
@@ -1271,56 +1268,6 @@ export default class NextNodeServer extends BaseServer {
     }
 
     return this.runApi(req, res, query, params, page, builtPagePath)
-  }
-
-  protected async handleAppCustomRouteRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    route: AppCustomRoute,
-    query: ParsedUrlQuery
-  ): Promise<RouteResult> {
-    if (!this.appPathsManifest) {
-      throw new Error(
-        'could not find app paths manifest, unable to lookup route file'
-      )
-    }
-
-    // Get the underlying file to load for this pathname.
-    const routeFilePath = this.appPathsManifest[route.pathname]
-    if (!routeFilePath) {
-      throw new Error(
-        `could not find the path in the manifest, this shouldn't happen: ${route.pathname}`
-      )
-    }
-
-    // TODO: patch fetch
-    // TODO: ensure to "ensure" that the app custom route page is built, like this.ensureApiPage
-
-    // Try to load the route module.
-    const mod: CustomRouteMod = await require(join(
-      this.distDir,
-      SERVER_DIRECTORY,
-      routeFilePath
-    ))
-
-    const result = await customAppRouteResolver({
-      req,
-      res,
-      route,
-      mod,
-      minimalMode: this.minimalMode,
-    })
-
-    // When the condition for rewrite is returned, then the response should be
-    // handed to the middleware rewrite function. We indicate here that we also
-    // want the rewind to occur, because technically a rewrite could occur
-    // within the handler. This `true` enables the router to re-run the current
-    // middleware layer so it can possibly hit.
-    if (result?.condition === 'rewrite') {
-      return await this.handleMiddlewareRewrite(req, res, result.response, true)
-    }
-
-    return { state: RouteResultState.FINISHED }
   }
 
   protected getCacheFilesystem(): CacheFs {

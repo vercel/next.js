@@ -81,7 +81,13 @@ import {
   FLIGHT_PARAMETERS,
   FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
-import { isCustomAppRoutePathname } from '../lib/is-custom-app-route'
+import { Resolver } from './resolvers/resolver'
+import { Route, RouteType } from './routes/route'
+import { Resolvers } from './resolvers/resolvers'
+import { RouteHandler } from './handlers/handler'
+import { Handlers } from './handlers/handlers'
+import { AppRouteResolver } from './resolvers/app-route-resolver'
+import { AppRouteHandler } from './handlers/app-route/handler'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -262,6 +268,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected fontLoaderManifest?: FontLoaderManifest
   public readonly hostname?: string
   public readonly port?: number
+
+  /**
+   * resolvers will match a given request to a given supported route. The route
+   * can then be used with a handler that can handle the route.
+   */
+  protected readonly resolvers: Resolver<Route>
+
+  /**
+   * handlers will handle the given route for a given request.
+   */
+  protected readonly handlers: RouteHandler<Route>
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
@@ -447,6 +464,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.setAssetPrefix(assetPrefix)
 
     this.responseCache = this.getResponseCache({ dev })
+
+    // Configure the resolvers.
+    const resolvers: Array<Resolver<Route>> = []
+    if (this.hasAppDir && this.appPathsManifest) {
+      // The app directory is enabled for this application, so add the app route
+      // resolver.
+      resolvers.push(new AppRouteResolver(this.distDir, this.appPathsManifest))
+    }
+    this.resolvers = new Resolvers(resolvers)
+
+    // Configure the handlers.
+    const handlers: Partial<Record<RouteType, RouteHandler<Route>>> = {}
+    if (this.hasAppDir) {
+      // The app directory is enabled for this application, so add the app route
+      // handler.
+      handlers[RouteType.APP_ROUTE] = new AppRouteHandler()
+    }
+    this.handlers = new Handlers(handlers)
   }
 
   public logError(err: Error): void {
@@ -1690,44 +1725,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (!originalAppPath) return null
 
     return originalAppPath
-  }
-
-  protected async matchAppCustomRoute(
-    pathname: string
-  ): Promise<AppCustomRoute | false> {
-    if (!this.hasAppDir) return false
-
-    let appPathname = isCustomAppRoutePathname(pathname, this.appPathRoutes)
-    if (appPathname) {
-      return { page: pathname, pathname: appPathname }
-    }
-
-    // TODO: handle case where a url is requested with the literal matching params like `/accounts/[id]`, similar to below
-    // // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
-    // // route correctly and not loaded immediately without parsing params.
-    // if (!isDynamicRoute(page)) {
-    //   const result = await this.renderPageComponent(ctx, bubbleNoFallback)
-    //   if (result !== false) return result
-    // }
-
-    // Check to see if the route is a dynamic route.
-    if (this.dynamicRoutes) {
-      for (const route of this.dynamicRoutes) {
-        // See if this route matches the inputted pathname.
-        const params = route.match(pathname)
-        if (!params) continue
-
-        // It did! So check if this route pathname is an app route.
-        appPathname = isCustomAppRoutePathname(route.page, this.appPathRoutes)
-        if (!appPathname) continue
-
-        // It is! We found the route, which was a dynamic custom route.
-        return { page: route.page, params, pathname: appPathname }
-      }
-    }
-
-    // We couldn't find a suitable custom app route for this pathname.
-    return false
   }
 
   protected async renderPageComponent(
