@@ -95,8 +95,8 @@ function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
 }
 
-async function getLayoutOrPageModule(components: ComponentsType) {
-  const { layout, page } = components
+async function getLayoutOrPageModule(loaderTree: LoaderTree) {
+  const { layout, page } = loaderTree[2]
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
   return isLayout ? await layout[0]() : isPage ? await page[0]() : undefined
@@ -990,6 +990,7 @@ export async function renderToHTMLOrFlight(
      */
 
     const requestId = nanoid(12)
+    console.log('id', requestId)
     const metadataItems: MetadataItems = []
 
     stripInternalQueries(query)
@@ -1195,7 +1196,7 @@ export async function renderToHTMLOrFlight(
      */
     const createComponentTree = async ({
       createSegmentPath,
-      loaderTree: [segment, parallelRoutes, components],
+      loaderTree,
       parentParams,
       firstItem,
       rootLayoutIncluded,
@@ -1208,6 +1209,7 @@ export async function renderToHTMLOrFlight(
       firstItem?: boolean
       injectedCSS: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
+      const [segment, parallelRoutes, components] = loaderTree
       const {
         layout,
         template,
@@ -1267,7 +1269,7 @@ export async function renderToHTMLOrFlight(
 
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
-      const layoutOrPageMod = await getLayoutOrPageModule(components)
+      const layoutOrPageMod = await getLayoutOrPageModule(loaderTree)
 
       /**
        * Checks if the current segment is a root layout.
@@ -1383,7 +1385,8 @@ export async function renderToHTMLOrFlight(
               ? [parallelRouteKey]
               : [actualSegment, parallelRouteKey]
 
-            const childSegment = parallelRoutes[parallelRouteKey][0]
+            const parallelRoute = parallelRoutes[parallelRouteKey]
+            const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
             if (isPrefetch && Loading) {
@@ -1424,7 +1427,7 @@ export async function renderToHTMLOrFlight(
               createSegmentPath: (child) => {
                 return createSegmentPath([...currentSegmentPath, ...child])
               },
-              loaderTree: parallelRoutes[parallelRouteKey],
+              loaderTree: parallelRoute,
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
@@ -1496,12 +1499,12 @@ export async function renderToHTMLOrFlight(
         ...pageProps,
       }
 
+      await collectMetadata(layoutOrPageMod, props, metadataItems)
+
       // Eagerly execute layout/page component to trigger fetches early.
       Component = await Promise.resolve().then(() => {
         return preloadComponent(Component, props)
       })
-
-      await collectMetadata(layoutOrPageMod, props, metadataItems)
 
       return {
         Component: () => {
@@ -1597,7 +1600,7 @@ export async function renderToHTMLOrFlight(
         const parallelRoutesKeys = Object.keys(parallelRoutes)
         const { layout } = components
         const isLayout = typeof layout !== 'undefined'
-        const layoutOrPageMod = await getLayoutOrPageModule(components)
+        const layoutOrPageMod = await getLayoutOrPageModule(loaderTreeToFilter)
 
         /**
          * Checks if the current segment is a root layout.
@@ -1640,9 +1643,7 @@ export async function renderToHTMLOrFlight(
           params: currentParams,
         }
 
-        if (layoutOrPageMod) {
-          await collectMetadata(layoutOrPageMod, props, metadataItems)
-        }
+        await collectMetadata(layoutOrPageMod, props, metadataItems)
 
         if (!parentRendered && renderComponentsOnThisLevel) {
           return [

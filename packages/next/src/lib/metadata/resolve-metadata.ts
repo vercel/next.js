@@ -301,11 +301,7 @@ async function getDefinedMetadata(
   mod: any,
   props: any
 ): Promise<Metadata | MetadataResolver | null> {
-  if (mod.metadata && mod.generateMetadata) {
-    throw new Error(
-      `${mod.path} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this page/layout is static use the metadata export, otherwise use generateMetadata. File: ${mod.path}`
-    )
-  }
+  console.log('mod', mod)
   // Layer is a client component, we just skip it. It can't have metadata
   // exported. Note that during our SWC transpilation, it should check if
   // the exports are valid and give specific error messages.
@@ -314,6 +310,12 @@ async function getDefinedMetadata(
     (mod as any).$$typeof === Symbol.for('react.module.reference')
   ) {
     return null
+  }
+
+  if (mod.metadata && mod.generateMetadata) {
+    throw new Error(
+      `${mod.path} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this page/layout is static use the metadata export, otherwise use generateMetadata. File: ${mod.path}`
+    )
   }
 
   return mod.generateMetadata
@@ -326,6 +328,7 @@ export async function collectMetadata(
   props: any,
   array: MetadataItems
 ) {
+  if (!mod) return
   const metadata = await getDefinedMetadata(mod, props)
   if (metadata) {
     array.unshift(metadata)
@@ -334,7 +337,7 @@ export async function collectMetadata(
 
 export async function accumulateMetadata(metadataItems: MetadataItems) {
   const resolvedMetadata = createDefaultMetadata()
-
+  console.log('metadataItems:acc', metadataItems)
   for (const item of metadataItems) {
     let metadata = null
     if (typeof item === 'function') {
