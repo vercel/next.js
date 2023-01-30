@@ -1,4 +1,12 @@
 {
   "singleQuote": true,
-  "semi": false
+  "semi": false,
+  "overrides": [
+    {
+      "files": "packages/next/src/lib/metadata/types/*.ts",
+      "options": {
+        "printWidth": 120
+      }
+    }
+  ]
 }

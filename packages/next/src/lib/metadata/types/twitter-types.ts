@@ -1,88 +1,123 @@
 // Reference: https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup
 
-import type { AbsoluteTemplateString, TemplateString } from './metadata-types'
+import z from 'next/dist/compiled/zod'
 
-export type Twitter =
-  | TwitterSummary
-  | TwitterSummaryLargeImage
-  | TwitterPlayer
-  | TwitterApp
-  | TwitterMetadata
+import { AbsoluteTemplateStringSchema, TemplateStringSchema } from './metadata-types'
 
-type TwitterMetadata = {
-  // defaults to card="summary"
-  site?: string // username for account associated to the site itself
-  siteId?: string // id for account associated to the site itself
-  creator?: string // username for the account associated to the creator of the content on the site
-  creatorId?: string // id for the account associated to the creator of the content on the site
-  description?: string
-  title?: string | TemplateString
-  images?: TwitterImage | Array<TwitterImage>
-}
-type TwitterSummary = TwitterMetadata & {
-  card: 'summary'
-}
-type TwitterSummaryLargeImage = TwitterMetadata & {
-  card: 'summary_large_image'
-}
-type TwitterPlayer = TwitterMetadata & {
-  card: 'player'
-  players: TwitterPlayerDescriptor | Array<TwitterPlayerDescriptor>
-}
-type TwitterApp = TwitterMetadata & {
-  card: 'app'
-  app: TwitterAppDescriptor
-}
-export type TwitterAppDescriptor = {
-  id: {
-    iphone?: string | number
-    ipad?: string | number
-    googleplay?: string
+const TwitterAppDescriptorSchema = z.object({
+  id: z.object({
+    iphone: z.union([z.string(), z.number()]).optional(),
+    ipad: z.union([z.string(), z.number()]).optional(),
+    googleplay: z.string().optional(),
+  }),
+  url: z.object({
+    iphone: z.union([z.string(), z.instanceof(URL)]).optional(),
+    ipad: z.union([z.string(), z.instanceof(URL)]).optional(),
+    googleplay: z.union([z.string(), z.instanceof(URL)]).optional(),
+  }),
+  name: z.string().optional(),
+})
+
+const TwitterImageDescriptorSchema = z.object({
+  url: z.union([z.string(), z.instanceof(URL)]),
+  alt: z.string().optional(),
+  secureUrl: z.union([z.string(), z.instanceof(URL)]).optional(),
+  type: z.string().optional(),
+  width: z.union([z.string(), z.number()]).optional(),
+  height: z.union([z.string(), z.number()]).optional(),
+})
+
+const TwitterImageSchema = z.union([z.string(), TwitterImageDescriptorSchema, z.instanceof(URL)])
+
+const TwitterPlayerDescriptorSchema = z.object({
+  playerUrl: z.union([z.string(), z.instanceof(URL)]),
+  streamUrl: z.union([z.string(), z.instanceof(URL)]),
+  width: z.number(),
+  height: z.number(),
+})
+
+const ResolvedTwitterImageSchema = z.object({
+  url: z.string(),
+  alt: z.string().optional(),
+})
+const ResolvedTwitterSummarySchema = z.object({
+  site: z.union([z.string(), z.null()]),
+  siteId: z.union([z.string(), z.null()]),
+  creator: z.union([z.string(), z.null()]),
+  creatorId: z.union([z.string(), z.null()]),
+  description: z.union([z.string(), z.null()]),
+  title: AbsoluteTemplateStringSchema,
+  images: z.array(ResolvedTwitterImageSchema).optional(),
+})
+
+const ResolvedTwitterPlayerSchema = ResolvedTwitterSummarySchema.extend({
+  players: z.array(TwitterPlayerDescriptorSchema),
+})
+const ResolvedTwitterAppSchema = ResolvedTwitterSummarySchema.extend({
+  app: TwitterAppDescriptorSchema,
+})
+
+export const ResolvedTwitterMetadataSchema = z.union([
+  ResolvedTwitterSummarySchema.extend({ card: z.literal('summary') }),
+  ResolvedTwitterSummarySchema.extend({ card: z.literal('summary_large_image') }),
+  ResolvedTwitterPlayerSchema.extend({ card: z.literal('player') }),
+  ResolvedTwitterAppSchema.extend({ card: z.literal('app') }),
+])
+
+const TwitterMetadataSchema = z.object(
+  /**
+   * Defaults to card="summary"
+   */
+  {
+    /**
+     * Username for account associated to the site itself
+     */
+    site: z.string().optional(),
+    /**
+     * Id for account associated to the site itself
+     */
+    siteId: z.string().optional(),
+    /**
+     * Username for the account associated to the creator of the content on the site
+     */
+    creator: z.string().optional(),
+    /**
+     * Id for the account associated to the creator of the content on the site
+     */
+    creatorId: z.string().optional(),
+    description: z.string().optional(),
+    title: z.union([z.string(), TemplateStringSchema]).optional(),
+    images: z.union([TwitterImageSchema, z.array(TwitterImageSchema)]).optional(),
   }
-  url?: {
-    iphone?: string | URL
-    ipad?: string | URL
-    googleplay?: string | URL
-  }
-  name?: string
-}
+)
 
-type TwitterImage = string | TwitterImageDescriptor | URL
-type TwitterImageDescriptor = {
-  url: string | URL
-  alt?: string
-  secureUrl?: string | URL
-  type?: string
-  width?: string | number
-  height?: string | number
-}
-type TwitterPlayerDescriptor = {
-  playerUrl: string | URL
-  streamUrl: string | URL
-  width: number
-  height: number
-}
+const TwitterSummarySchema = TwitterMetadataSchema.extend({
+  card: z.literal('summary'),
+})
 
-type ResolvedTwitterImage = {
-  url: string
-  alt?: string
-}
-type ResolvedTwitterSummary = {
-  site: string | null
-  siteId: string | null
-  creator: string | null
-  creatorId: string | null
-  description: string | null
-  title: AbsoluteTemplateString
-  images?: Array<ResolvedTwitterImage>
-}
-type ResolvedTwitterPlayer = ResolvedTwitterSummary & {
-  players: Array<TwitterPlayerDescriptor>
-}
-type ResolvedTwitterApp = ResolvedTwitterSummary & { app: TwitterAppDescriptor }
+const TwitterSummaryLargeImageSchema = TwitterMetadataSchema.extend({
+  card: z.literal('summary_large_image'),
+})
 
-export type ResolvedTwitterMetadata =
-  | ({ card: 'summary' } & ResolvedTwitterSummary)
-  | ({ card: 'summary_large_image' } & ResolvedTwitterSummary)
-  | ({ card: 'player' } & ResolvedTwitterPlayer)
-  | ({ card: 'app' } & ResolvedTwitterApp)
+const TwitterPlayerSchema = TwitterMetadataSchema.extend({
+  card: z.literal('player'),
+  players: z.union([TwitterPlayerDescriptorSchema, z.array(TwitterPlayerDescriptorSchema)]),
+})
+
+const TwitterAppSchema = TwitterMetadataSchema.extend({
+  card: z.literal('app'),
+  app: TwitterAppDescriptorSchema,
+})
+
+export const TwitterSchema = z.union([
+  TwitterSummarySchema,
+  TwitterSummaryLargeImageSchema,
+  TwitterPlayerSchema,
+  TwitterAppSchema,
+  TwitterMetadataSchema,
+])
+
+// Types
+export type Twitter = z.infer<typeof TwitterSchema>
+export type TwitterAppDescriptor = z.infer<typeof TwitterAppDescriptorSchema>
+export type ResolvedTwitterMetadata = z.infer<typeof ResolvedTwitterMetadataSchema>

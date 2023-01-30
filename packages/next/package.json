@@ -289,7 +289,8 @@
     "webpack": "5.74.0",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
-    "ws": "8.2.3"
+    "ws": "8.2.3",
+    "zod": "3.20.2"
   },
   "resolutions": {
     "browserslist": "4.20.2",

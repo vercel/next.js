@@ -59,6 +59,7 @@ const externals = {
 
   'node-fetch': 'node-fetch',
   postcss: 'postcss',
+
   // Ensure latest version is used
   'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
   'cssnano-simple': 'next/dist/build/cssnano-simple',
@@ -107,6 +108,7 @@ export async function ncc_next_server(task, opts) {
         'react-dom': 'react-dom',
 
         'next/dist/compiled/compression': 'next/dist/compiled/compression',
+        'next/dist/compiled/zod': 'next/dist/compiled/zod',
 
         critters: 'critters',
 
@@ -1160,6 +1162,20 @@ export async function ncc_compression(task, opts) {
     .target('src/compiled/compression')
 }
 // eslint-disable-next-line camelcase
+externals['zod'] = 'next/dist/compiled/zod'
+export async function ncc_zod(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('zod')))
+    .ncc({ packageName: 'zod', externals })
+    .target('src/compiled/zod')
+
+  // Copy all the .d.ts to the target directory
+  const zodPath = dirname(
+    relative(__dirname, require.resolve('zod/package.json'))
+  )
+  task.source(join(zodPath, '**/*.d.ts')).target(`src/compiled/zod`)
+}
+// eslint-disable-next-line camelcase
 externals['conf'] = 'next/dist/compiled/conf'
 export async function ncc_conf(task, opts) {
   await task
@@ -2030,6 +2046,7 @@ export async function ncc(task, opts) {
         'ncc_cli_select',
         'ncc_comment_json',
         'ncc_compression',
+        'ncc_zod',
         'ncc_conf',
         'ncc_content_disposition',
         'ncc_content_type',

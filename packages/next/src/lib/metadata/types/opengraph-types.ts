@@ -1,267 +1,365 @@
-import type { AbsoluteTemplateString, TemplateString } from './metadata-types'
+import z from 'next/dist/compiled/zod'
 
-export type OpenGraphType =
-  | 'article'
-  | 'book'
-  | 'music.song'
-  | 'music.album'
-  | 'music.playlist'
-  | 'music.radio_station'
-  | 'profile'
-  | 'website'
-  | 'video.tv_show'
-  | 'video.other'
-  | 'video.movie'
-  | 'video.episode'
+import { AbsoluteTemplateStringSchema, TemplateStringSchema } from './metadata-types'
 
-export type OpenGraph =
-  | OpenGraphWebsite
-  | OpenGraphArticle
-  | OpenGraphBook
-  | OpenGraphProfile
-  | OpenGraphMusicSong
-  | OpenGraphMusicAlbum
-  | OpenGraphMusicPlaylist
-  | OpenGraphRadioStation
-  | OpenGraphVideoMovie
-  | OpenGraphVideoEpisode
-  | OpenGraphVideoTVShow
-  | OpenGraphVideoOther
-  | OpenGraphMetadata
+const OpenGraphTypeSchema = z.enum([
+  'article',
+  'book',
+  'music.song',
+  'music.album',
+  'music.playlist',
+  'music.radio_station',
+  'profile',
+  'website',
+  'video.tv_show',
+  'video.other',
+  'video.movie',
+  'video.episode',
+])
 
 // update this type to reflect actual locales
-type Locale = string
+const LocaleSchema = z.string()
 
-type OpenGraphMetadata = {
-  determiner?: 'a' | 'an' | 'the' | 'auto' | ''
-  title?: TemplateString
-  description?: string
-  emails?: string | Array<string>
-  phoneNumbers?: string | Array<string>
-  faxNumbers?: string | Array<string>
-  siteName?: string
-  locale?: Locale
-  alternateLocale?: Locale | Array<Locale>
-  images?: OGImage | Array<OGImage>
-  audio?: OGAudio | Array<OGAudio>
-  videos?: OGVideo | Array<OGVideo>
-  url?: string | URL
-  countryName?: string
-  ttl?: number
-}
-type OpenGraphWebsite = OpenGraphMetadata & {
-  type: 'website'
-}
-type OpenGraphArticle = OpenGraphMetadata & {
-  type: 'article'
-  publishedTime?: string // datetime
-  modifiedTime?: string // datetime
-  expirationTime?: string // datetime
-  authors?: null | string | URL | Array<string | URL>
-  section?: null | string
-  tags?: null | string | Array<string>
-}
-type OpenGraphBook = OpenGraphMetadata & {
-  type: 'book'
-  isbn?: null | string
-  releaseDate?: null | string // datetime
-  authors?: null | string | URL | Array<string | URL>
-  tags?: null | string | Array<string>
-}
-type OpenGraphProfile = OpenGraphMetadata & {
-  type: 'profile'
-  firstName?: null | string
-  lastName?: null | string
-  username?: null | string
-  gender?: null | string
-}
-type OpenGraphMusicSong = OpenGraphMetadata & {
-  type: 'music.song'
-  duration?: null | number
-  albums?: null | string | URL | OGAlbum | Array<string | URL | OGAlbum>
-  musicians?: null | string | URL | Array<string | URL>
-}
-type OpenGraphMusicAlbum = OpenGraphMetadata & {
-  type: 'music.album'
-  songs?: null | string | URL | OGSong | Array<string | URL | OGSong>
-  musicians?: null | string | URL | Array<string | URL>
-  releaseDate?: null | string // datetime
-}
-type OpenGraphMusicPlaylist = OpenGraphMetadata & {
-  type: 'music.playlist'
-  songs?: null | string | URL | OGSong | Array<string | URL | OGSong>
-  creators?: null | string | URL | Array<string | URL>
-}
-type OpenGraphRadioStation = OpenGraphMetadata & {
-  type: 'music.radio_station'
-  creators?: null | string | URL | Array<string | URL>
-}
-type OpenGraphVideoMovie = OpenGraphMetadata & {
-  type: 'video.movie'
-  actors?: null | string | URL | OGActor | Array<string | URL | OGActor>
-  directors?: null | string | URL | Array<string | URL>
-  writers?: null | string | URL | Array<string | URL>
-  duration?: null | number
-  releaseDate?: null | string // datetime
-  tags?: null | string | Array<string>
-}
-type OpenGraphVideoEpisode = OpenGraphMetadata & {
-  type: 'video.episode'
-  actors?: null | string | URL | OGActor | Array<string | URL | OGActor>
-  directors?: null | string | URL | Array<string | URL>
-  writers?: null | string | URL | Array<string | URL>
-  duration?: null | number
-  releaseDate?: null | string // datetime
-  tags?: null | string | Array<string>
-  series?: null | string | URL
-}
-type OpenGraphVideoTVShow = OpenGraphMetadata & {
-  type: 'video.tv_show'
-}
-type OpenGraphVideoOther = OpenGraphMetadata & {
-  type: 'video.other'
-}
+const OGImageDescriptorSchema = z.object({
+  url: z.union([z.string(), z.instanceof(URL)]),
+  secureUrl: z.union([z.string(), z.instanceof(URL)]).optional(),
+  alt: z.string().optional(),
+  type: z.string().optional(),
+  width: z.union([z.string(), z.number()]).optional(),
+  height: z.union([z.string(), z.number()]).optional(),
+})
+const OGImageSchema = z.union([z.string(), OGImageDescriptorSchema, z.instanceof(URL)])
 
-type OGImage = string | OGImageDescriptor | URL
-type OGImageDescriptor = {
-  url: string | URL
-  secureUrl?: string | URL
-  alt?: string
-  type?: string
-  width?: string | number
-  height?: string | number
-}
-type OGAudio = string | OGAudioDescriptor | URL
-type OGAudioDescriptor = {
-  url: string | URL
-  secure_url?: string | URL
-  type?: string
-}
-type OGVideo = string | OGVideoDescriptor | URL
-type OGVideoDescriptor = {
-  url: string | URL
-  secureUrl?: string | URL
-  type?: string
-  width?: string | number
-  height?: string | number
-}
+const OGAudioDescriptorSchema = z.object({
+  url: z.union([z.string(), z.instanceof(URL)]),
+  secureUrl: z.union([z.string(), z.instanceof(URL)]).optional(),
+  type: z.string().optional(),
+})
 
-export type ResolvedOpenGraph =
-  | ResolvedOpenGraphWebsite
-  | ResolvedOpenGraphArticle
-  | ResolvedOpenGraphBook
-  | ResolvedOpenGraphProfile
-  | ResolvedOpenGraphMusicSong
-  | ResolvedOpenGraphMusicAlbum
-  | ResolvedOpenGraphMusicPlaylist
-  | ResolvedOpenGraphRadioStation
-  | ResolvedOpenGraphVideoMovie
-  | ResolvedOpenGraphVideoEpisode
-  | ResolvedOpenGraphVideoTVShow
-  | ResolvedOpenGraphVideoOther
-  | ResolvedOpenGraphMetadata
+const OGAudioSchema = z.union([z.string(), OGAudioDescriptorSchema, z.instanceof(URL)])
 
-type ResolvedOpenGraphMetadata = {
-  determiner?: 'a' | 'an' | 'the' | 'auto' | ''
-  title?: AbsoluteTemplateString
-  description?: string
-  emails?: Array<string>
-  phoneNumbers?: Array<string>
-  faxNumbers?: Array<string>
-  siteName?: string
-  locale?: Locale
-  alternateLocale?: Array<Locale>
-  images?: Array<OGImage>
-  audio?: Array<OGAudio>
-  videos?: Array<OGVideo>
-  url?: URL
-  countryName?: string
-  ttl?: number
-}
-type ResolvedOpenGraphWebsite = ResolvedOpenGraphMetadata & {
-  type: 'website'
-}
-type ResolvedOpenGraphArticle = ResolvedOpenGraphMetadata & {
-  type: 'article'
-  publishedTime?: string // datetime
-  modifiedTime?: string // datetime
-  expirationTime?: string // datetime
-  authors?: Array<string>
-  section?: string
-  tags?: Array<string>
-}
-type ResolvedOpenGraphBook = ResolvedOpenGraphMetadata & {
-  type: 'book'
-  isbn?: string
-  releaseDate?: string // datetime
-  authors?: Array<string>
-  tags?: Array<string>
-}
-type ResolvedOpenGraphProfile = ResolvedOpenGraphMetadata & {
-  type: 'profile'
-  firstName?: string
-  lastName?: string
-  username?: string
-  gender?: string
-}
-type ResolvedOpenGraphMusicSong = ResolvedOpenGraphMetadata & {
-  type: 'music.song'
-  duration?: number
-  albums?: Array<OGAlbum>
-  musicians?: Array<string | URL>
-}
-type ResolvedOpenGraphMusicAlbum = ResolvedOpenGraphMetadata & {
-  type: 'music.album'
-  songs?: Array<string | URL | OGSong>
-  musicians?: Array<string | URL>
-  releaseDate?: string // datetime
-}
-type ResolvedOpenGraphMusicPlaylist = ResolvedOpenGraphMetadata & {
-  type: 'music.playlist'
-  songs?: Array<string | URL | OGSong>
-  creators?: Array<string | URL>
-}
-type ResolvedOpenGraphRadioStation = ResolvedOpenGraphMetadata & {
-  type: 'music.radio_station'
-  creators?: Array<string | URL>
-}
-type ResolvedOpenGraphVideoMovie = ResolvedOpenGraphMetadata & {
-  type: 'video.movie'
-  actors?: Array<string | URL | OGActor>
-  directors?: Array<string | URL>
-  writers?: Array<string | URL>
-  duration?: number
-  releaseDate?: string // datetime
-  tags?: Array<string>
-}
-type ResolvedOpenGraphVideoEpisode = ResolvedOpenGraphMetadata & {
-  type: 'video.episode'
-  actors?: Array<string | URL | OGActor>
-  directors?: Array<string | URL>
-  writers?: Array<string | URL>
-  duration?: number
-  releaseDate?: string // datetime
-  tags?: Array<string>
-  series?: string | URL
-}
-type ResolvedOpenGraphVideoTVShow = ResolvedOpenGraphMetadata & {
-  type: 'video.tv_show'
-}
-type ResolvedOpenGraphVideoOther = ResolvedOpenGraphMetadata & {
-  type: 'video.other'
-}
+const OGVideoDescriptorSchema = z.object({
+  url: z.union([z.string(), z.instanceof(URL)]),
+  secureUrl: z.union([z.string(), z.instanceof(URL)]).optional(),
+  type: z.string().optional(),
+  width: z.union([z.string(), z.number()]).optional(),
+  height: z.union([z.string(), z.number()]).optional(),
+})
 
-type OGSong = {
-  url: string | URL
-  disc?: number
-  track?: number
-}
-type OGAlbum = {
-  url: string | URL
-  disc?: number
-  track?: number
-}
-type OGActor = {
-  url: string | URL
-  role?: string
-}
+const OGVideoSchema = z.union([z.string(), OGVideoDescriptorSchema, z.instanceof(URL)])
+
+const OpenGraphMetadataSchema = z.object({
+  determiner: z.enum(['a', 'an', 'the', 'auto', '']).optional(),
+  title: TemplateStringSchema.optional(),
+  description: z.string().optional(),
+  emails: z.union([z.string(), z.array(z.string())]).optional(),
+  phoneNumbers: z.union([z.string(), z.array(z.string())]).optional(),
+  faxNumbers: z.union([z.string(), z.array(z.string())]).optional(),
+  siteName: z.string().optional(),
+  locale: LocaleSchema.optional(),
+  alternateLocale: z.union([LocaleSchema, z.array(LocaleSchema)]).optional(),
+  images: z.union([OGImageSchema, z.array(OGImageSchema)]).optional(),
+  audio: z.union([OGAudioSchema, z.array(OGAudioSchema)]).optional(),
+  videos: z.union([OGVideoSchema, z.array(OGVideoSchema)]).optional(),
+  url: z.union([z.string(), z.instanceof(URL)]).optional(),
+  countryName: z.string().optional(),
+  ttl: z.number().optional(),
+})
+
+const OpenGraphWebsiteSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('website'),
+})
+
+const OpenGraphArticleSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('article'),
+  publishedTime: z.string().optional(),
+  modifiedTime: z.string().optional(),
+  expirationTime: z.string().optional(),
+  authors: z.union([z.null(), z.string(), z.array(z.union([z.string(), z.instanceof(URL)]))]).optional(),
+  section: z.union([z.null(), z.string()]).optional(),
+  tags: z.union([z.null(), z.string(), z.array(z.string())]).optional(),
+})
+
+const OpenGraphBookSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('book'),
+  isbn: z.union([z.null(), z.string()]).optional(),
+  releaseDate: z.union([z.null(), z.string()]).optional(),
+  authors: z
+    .union([z.null(), z.string(), z.instanceof(URL), z.array(z.union([z.string(), z.instanceof(URL)]))])
+    .optional(),
+  tags: z.union([z.null(), z.string(), z.array(z.string())]).optional(),
+})
+
+const OpenGraphProfileSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('profile'),
+  firstName: z.union([z.null(), z.string()]).optional(),
+  lastName: z.union([z.null(), z.string()]).optional(),
+  username: z.union([z.null(), z.string()]).optional(),
+  gender: z.union([z.null(), z.string()]).optional(),
+})
+
+const OGSongSchema = z.object({
+  url: z.union([z.string(), z.instanceof(URL)]),
+  disc: z.number().optional(),
+  track: z.number().optional(),
+})
+
+const OGAlbumSchema = z.object({
+  url: z.union([z.string(), z.instanceof(URL)]),
+  disc: z.number().optional(),
+  track: z.number().optional(),
+})
+
+const OGActorSchema = z.object({
+  url: z.union([z.string(), z.instanceof(URL)]),
+  role: z.string().optional(),
+})
+
+const OpenGraphMusicSongSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('music.song'),
+  duration: z.union([z.null(), z.number()]).optional(),
+  albums: z
+    .union([
+      z.null(),
+      z.string(),
+      z.instanceof(URL),
+      OGAlbumSchema,
+      z.array(z.union([z.string(), z.instanceof(URL), OGAlbumSchema])),
+    ])
+    .optional(),
+  musicians: z
+    .union([z.null(), z.string(), z.instanceof(URL), z.array(z.union([z.string(), z.instanceof(URL)]))])
+    .optional(),
+})
+
+const OpenGraphMusicAlbumSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('music.album'),
+  songs: z
+    .union([
+      z.null(),
+      z.string(),
+      z.instanceof(URL),
+      OGSongSchema,
+      z.array(z.union([z.string(), z.instanceof(URL), OGSongSchema])),
+    ])
+    .optional(),
+  musicians: z
+    .union([z.null(), z.string(), z.instanceof(URL), z.array(z.union([z.string(), z.instanceof(URL)]))])
+    .optional(),
+  releaseDate: z.union([z.null(), z.string()]).optional(),
+})
+
+const OpenGraphMusicPlaylistSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('music.playlist'),
+  songs: z
+    .union([
+      z.null(),
+      z.string(),
+      z.instanceof(URL),
+      OGSongSchema,
+      z.array(z.union([z.string(), z.instanceof(URL), OGSongSchema])),
+    ])
+    .optional(),
+  creators: z
+    .union([z.null(), z.string(), z.instanceof(URL), z.array(z.union([z.string(), z.instanceof(URL)]))])
+    .optional(),
+})
+
+const OpenGraphRadioStationSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('music.radio_station'),
+  creators: z
+    .union([z.null(), z.string(), z.instanceof(URL), z.array(z.union([z.string(), z.instanceof(URL)]))])
+    .optional(),
+})
+
+const OpenGraphVideoMovieSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('video.movie'),
+  actors: z
+    .union([
+      z.null(),
+      z.string(),
+      z.instanceof(URL),
+      OGActorSchema,
+      z.array(z.union([z.string(), z.instanceof(URL), OGActorSchema])),
+    ])
+    .optional(),
+  directors: z
+    .union([z.null(), z.string(), z.instanceof(URL), z.array(z.union([z.string(), z.instanceof(URL)]))])
+    .optional(),
+  writers: z
+    .union([z.null(), z.string(), z.instanceof(URL), z.array(z.union([z.string(), z.instanceof(URL)]))])
+    .optional(),
+  duration: z.number().optional(),
+  releaseDate: z.string().optional(),
+  tags: z.union([z.null(), z.string(), z.array(z.string())]).optional(),
+})
+
+const OpenGraphVideoEpisodeSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('video.episode'),
+  actors: z
+    .union([
+      z.null(),
+      z.string(),
+      z.instanceof(URL),
+      OGActorSchema,
+      z.array(z.union([z.string(), z.instanceof(URL), OGActorSchema])),
+    ])
+    .optional(),
+  directors: z
+    .union([z.null(), z.string(), z.instanceof(URL), z.array(z.union([z.string(), z.instanceof(URL)]))])
+    .optional(),
+  writers: z
+    .union([z.null(), z.string(), z.instanceof(URL), z.array(z.union([z.string(), z.instanceof(URL)]))])
+    .optional(),
+  duration: z.union([z.null(), z.number()]).optional(),
+  releaseDate: z.union([z.null(), z.string()]).optional(),
+  tags: z.union([z.null(), z.string(), z.array(z.string())]).optional(),
+  series: z.union([z.null(), z.string(), z.instanceof(URL)]).optional(),
+})
+
+const OpenGraphVideoTVShowSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('video.tv_show'),
+})
+
+const OpenGraphVideoOtherSchema = OpenGraphMetadataSchema.extend({
+  type: z.literal('video.other'),
+})
+
+export const OpenGraphSchema = z.union([
+  OpenGraphWebsiteSchema,
+  OpenGraphArticleSchema,
+  OpenGraphBookSchema,
+  OpenGraphProfileSchema,
+  OpenGraphMusicSongSchema,
+  OpenGraphMusicAlbumSchema,
+  OpenGraphMusicPlaylistSchema,
+  OpenGraphRadioStationSchema,
+  OpenGraphVideoMovieSchema,
+  OpenGraphVideoEpisodeSchema,
+  OpenGraphVideoTVShowSchema,
+  OpenGraphVideoOtherSchema,
+  OpenGraphMetadataSchema,
+])
+
+const ResolvedOpenGraphMetadataSchema = z.object({
+  determiner: z.enum(['a', 'an', 'the', 'auto', '']).optional(),
+  title: AbsoluteTemplateStringSchema.optional(),
+  description: z.string().optional(),
+  emails: z.array(z.string()).optional(),
+  phoneNumbers: z.array(z.string()).optional(),
+  faxNumbers: z.array(z.string()).optional(),
+  siteName: z.string().optional(),
+  locale: LocaleSchema.optional(),
+  alternateLocale: z.array(LocaleSchema).optional(),
+  images: z.array(OGImageSchema).optional(),
+  audio: z.array(OGAudioSchema).optional(),
+  videos: z.array(OGVideoSchema).optional(),
+  url: z.instanceof(URL).optional(),
+  countryName: z.string().optional(),
+  ttl: z.number().optional(),
+})
+
+const ResolvedOpenGraphWebsiteSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('website'),
+})
+
+const ResolvedOpenGraphArticleSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('article'),
+  publishedTime: z.string().optional(),
+  modifiedTime: z.string().optional(),
+  expirationTime: z.string().optional(),
+  authors: z.array(z.string()).optional(),
+  section: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+})
+
+const ResolvedOpenGraphBookSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('book'),
+  isbn: z.string().optional(),
+  releaseDate: z.string().optional(),
+  authors: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+})
+
+const ResolvedOpenGraphProfileSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('profile'),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  username: z.string().optional(),
+  gender: z.string().optional(),
+})
+
+const ResolvedOpenGraphMusicSongSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('music.song'),
+  duration: z.number().optional(),
+  albums: z.array(OGAlbumSchema).optional(),
+  musicians: z.array(z.union([z.string(), z.instanceof(URL)])).optional(),
+})
+
+const ResolvedOpenGraphMusicAlbumSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('music.album'),
+  songs: z.array(z.union([z.string(), z.instanceof(URL), OGSongSchema])).optional(),
+  musicians: z.array(z.union([z.string(), z.instanceof(URL)])).optional(),
+  releaseDate: z.string().optional(),
+})
+
+const ResolvedOpenGraphMusicPlaylistSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('music.playlist'),
+  songs: z.array(z.union([z.string(), z.instanceof(URL), OGSongSchema])).optional(),
+  creators: z.array(z.union([z.string(), z.instanceof(URL)])).optional(),
+})
+
+const ResolvedOpenGraphRadioStationSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('music.radio_station'),
+  creators: z.array(z.union([z.string(), z.instanceof(URL)])).optional(),
+})
+
+const ResolvedOpenGraphVideoMovieSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('video.movie'),
+  actors: z.array(z.union([z.string(), z.instanceof(URL), OGActorSchema])).optional(),
+  directors: z.array(z.union([z.string(), z.instanceof(URL)])).optional(),
+  writers: z.array(z.union([z.string(), z.instanceof(URL)])).optional(),
+  duration: z.number().optional(),
+  releaseDate: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+})
+
+const ResolvedOpenGraphVideoEpisodeSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('video.episode'),
+  actors: z.array(z.union([z.string(), z.instanceof(URL), OGActorSchema])).optional(),
+  directors: z.array(z.union([z.string(), z.instanceof(URL)])).optional(),
+  writers: z.array(z.union([z.string(), z.instanceof(URL)])).optional(),
+  duration: z.number().optional(),
+  releaseDate: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  series: z.union([z.string(), z.instanceof(URL)]).optional(),
+})
+
+const ResolvedOpenGraphVideoTVShowSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('video.tv_show'),
+})
+
+const ResolvedOpenGraphVideoOtherSchema = ResolvedOpenGraphMetadataSchema.extend({
+  type: z.literal('video.other'),
+})
+
+export const ResolvedOpenGraphSchema = z.union([
+  ResolvedOpenGraphWebsiteSchema,
+  ResolvedOpenGraphArticleSchema,
+  ResolvedOpenGraphBookSchema,
+  ResolvedOpenGraphProfileSchema,
+  ResolvedOpenGraphMusicSongSchema,
+  ResolvedOpenGraphMusicAlbumSchema,
+  ResolvedOpenGraphMusicPlaylistSchema,
+  ResolvedOpenGraphRadioStationSchema,
+  ResolvedOpenGraphVideoMovieSchema,
+  ResolvedOpenGraphVideoEpisodeSchema,
+  ResolvedOpenGraphVideoTVShowSchema,
+  ResolvedOpenGraphVideoOtherSchema,
+  ResolvedOpenGraphMetadataSchema,
+])
+
+// Types
+export type OpenGraphType = z.infer<typeof OpenGraphTypeSchema>
+export type OpenGraph = z.infer<typeof OpenGraphSchema>
+export type ResolvedOpenGraph = z.infer<typeof ResolvedOpenGraphSchema>
