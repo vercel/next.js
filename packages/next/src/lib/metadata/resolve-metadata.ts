@@ -87,9 +87,11 @@ const resolveVerification: FieldResolver<'verification'> = (verification) => {
     if (value) {
       if (key === 'other') {
         res.other = {}
-        for (const key in verification.other) {
-          const value = resolveAsArrayOrUndefined(verification.other[key])
-          if (value) res.other[key] = value
+        for (const otherKey in verification.other) {
+          const otherValue = resolveAsArrayOrUndefined(
+            verification.other[otherKey]
+          )
+          if (otherValue) res.other[otherKey] = otherValue
         }
       } else res[key] = resolveAsArrayOrUndefined(value) as (string | number)[]
     }
