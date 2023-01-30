@@ -48,7 +48,7 @@ createNextDescribe(
 
       await cleanup()
     })
-    // TODO: does not throw error, throw to show warning in overlay or remove this test
+    // TODO-APP: Decide if thesee logs should be displayed somewhere. They don't throw, just logs.
     it.skip('should show correct hydration errror when client and server render different html', async () => {
       const { cleanup, session } = await sandbox(
         next,
@@ -83,7 +83,7 @@ createNextDescribe(
 
       await cleanup()
     })
-    // TODO: does not throw error, throw to show warning in overlay or remove this test
+    // TODO-APP: Decide if thesee logs should be displayed somewhere. They don't throw, just logs.
     it.skip('should show correct hydration errror when client and server render different attributes', async () => {
       const { cleanup, session } = await sandbox(
         next,
@@ -114,7 +114,7 @@ createNextDescribe(
 
       await cleanup()
     })
-    // TODO: does not throw error, throw to show warning in overlay or remove this test
+    // TODO-APP: Decide if thesee logs should be displayed somewhere. They don't throw, just logs.
     it.skip('should show correct hydration errror when client renders extra attributes', async () => {
       const { cleanup, session } = await sandbox(
         next,
@@ -146,7 +146,7 @@ createNextDescribe(
 
       await cleanup()
     })
-    // TODO: does not throw error, throw to show warning in overlay or remove this test
+    // TODO-APP: Decide if thesee logs should be displayed somewhere. They don't throw, just logs.
     it.skip('should show correct hydration errror when server renders extra attributes', async () => {
       const { cleanup, session } = await sandbox(
         next,
@@ -178,7 +178,7 @@ createNextDescribe(
 
       await cleanup()
     })
-    // TODO: does not throw error, throw to show warning in overlay or remove this test
+    // TODO-APP: Decide if thesee logs should be displayed somewhere. They don't throw, just logs.
     it.skip('should show correct hydration errror when both client and server render extra attributes', async () => {
       const { cleanup, session } = await sandbox(
         next,
@@ -210,7 +210,7 @@ createNextDescribe(
 
       await cleanup()
     })
-    // TODO: does not throw error, throw to show warning in overlay or remove this test
+    // TODO-APP: Decide if thesee logs should be displayed somewhere. They don't throw, just logs.
     it.skip('should show correct hydration errror when client and server render different styles', async () => {
       const { cleanup, session } = await sandbox(
         next,
@@ -819,7 +819,7 @@ createNextDescribe(
 
       await cleanup()
     })
-    it.skip('should show correct hydration errror when server renders an extra Suspense node in content mode', async () => {
+    it('should show correct hydration errror when server renders an extra Suspense node in content mode', async () => {
       const { cleanup, session } = await sandbox(
         next,
         new Map([
@@ -882,7 +882,6 @@ createNextDescribe(
       function Never() {
         throw new Promise((resolve) => {})
       }
-      
 `,
           ],
         ])
@@ -930,7 +929,7 @@ createNextDescribe(
 
       await cleanup()
     })
-    it.skip('should show correct hydration errror when client renders an extra node inside Suspense content', async () => {
+    it('should show correct hydration errror when client renders an extra node inside Suspense content', async () => {
       const { cleanup, session } = await sandbox(
         next,
         new Map([
@@ -958,11 +957,17 @@ createNextDescribe(
 
       await session.waitForAndOpenRuntimeError()
 
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot()
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
+
+        Warning: Expected server HTML to contain a matching <main> in <div>.
+
+        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+      `)
 
       await cleanup()
     })
-    it.skip('should show correct hydration errror when server renders an extra node inside Suspense content', async () => {
+    it('should show correct hydration errror when server renders an extra node inside Suspense content', async () => {
       const { cleanup, session } = await sandbox(
         next,
         new Map([
@@ -990,7 +995,13 @@ createNextDescribe(
 
       await session.waitForAndOpenRuntimeError()
 
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot()
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
+
+        Warning: Expected server HTML to contain a matching <footer> in <div>.
+
+        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+      `)
 
       await cleanup()
     })
@@ -1016,7 +1027,6 @@ createNextDescribe(
               }
             >
               <main className="only" />
-              <Never />
             </React.Suspense>
           </div>
         );
