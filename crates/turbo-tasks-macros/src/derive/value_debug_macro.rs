@@ -17,7 +17,12 @@ pub fn derive_value_debug(input: TokenStream) -> TokenStream {
         impl turbo_tasks::debug::ValueDebug for #ident {
             #[turbo_tasks::function]
             async fn dbg(&self) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
-                self.#value_debug_format_ident().await
+                self.#value_debug_format_ident(usize::MAX).await
+            }
+
+            #[turbo_tasks::function]
+            async fn dbg_depth(&self, depth: usize) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
+                self.#value_debug_format_ident(depth).await
             }
         }
     }

@@ -53,9 +53,9 @@ impl<T, U: TraceRawVcs> TraceRawVcs for ReadRef<T, U> {
 }
 
 impl<T, U: ValueDebugFormat + 'static> ValueDebugFormat for ReadRef<T, U> {
-    fn value_debug_format(&self) -> ValueDebugFormatString {
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
         let value = &**self;
-        value.value_debug_format()
+        value.value_debug_format(depth)
     }
 }
 

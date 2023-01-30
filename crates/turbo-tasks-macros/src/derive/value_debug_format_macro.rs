@@ -28,7 +28,11 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
         impl #ident {
             #[doc(hidden)]
             #[allow(non_snake_case)]
-            async fn #value_debug_format_ident(&self) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
+            async fn #value_debug_format_ident(&self, depth: usize) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
+                if depth == 0 {
+                    return Ok(turbo_tasks::debug::ValueDebugStringVc::new(stringify!(#ident).to_string()));
+                }
+
                 use turbo_tasks::debug::internal::*;
                 use turbo_tasks::debug::ValueDebugFormat;
                 Ok(turbo_tasks::debug::ValueDebugStringVc::new(format!("{:#?}", #formatting_logic)))
@@ -36,10 +40,10 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
         }
 
         impl turbo_tasks::debug::ValueDebugFormat for #ident {
-            fn value_debug_format<'a>(&'a self) -> turbo_tasks::debug::ValueDebugFormatString<'a> {
+            fn value_debug_format<'a>(&'a self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'a> {
                 turbo_tasks::debug::ValueDebugFormatString::Async(
                     Box::pin(async move {
-                        Ok(self.#value_debug_format_ident().await?.await?.to_string())
+                        Ok(self.#value_debug_format_ident(depth).await?.await?.to_string())
                     })
                 )
             }
@@ -60,7 +64,7 @@ fn format_named(ident: &Ident, fields: &FieldsNamed) -> (TokenStream2, TokenStre
                 vec![#(
                     FormattingField::new(
                         stringify!(#fields_idents),
-                        #fields_idents.value_debug_format().try_to_value_debug_string().await?.await?.to_string(),
+                        #fields_idents.value_debug_format(depth.saturating_sub(1)).try_to_value_debug_string().await?.await?.to_string(),
                     ),
                 )*],
             )
@@ -78,7 +82,7 @@ fn format_unnamed(ident: &Ident, fields: &FieldsUnnamed) -> (TokenStream2, Token
             FormattingStruct::new_unnamed(
                 stringify!(#ident),
                 vec![#(
-                    #fields_idents.value_debug_format().try_to_value_debug_string().await?.await?.to_string(),
+                    #fields_idents.value_debug_format(depth.saturating_sub(1)).try_to_value_debug_string().await?.await?.to_string(),
                 )*],
             )
         },
