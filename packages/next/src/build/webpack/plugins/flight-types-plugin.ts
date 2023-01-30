@@ -4,6 +4,7 @@ import { promises as fs } from 'fs'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
 const PLUGIN_NAME = 'FlightTypesPlugin'
 
@@ -97,7 +98,12 @@ async function collectNamedSlots(layoutPath: string) {
 const nodeRouteTypes: string[] = []
 const edgeRouteTypes: string[] = []
 
+export const pageFiles = new Set<string>()
+
 function createLinkTypeFile() {
+  const fallback =
+    !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
+
   return `
 type SafeSlug<S extends string> = 
   S extends \`\${string}/\${string}\`
@@ -108,18 +114,34 @@ type SafeSlug<S extends string> =
     ? never
     : S
 
-type Route =
+type CatchAllSlug<S extends string> = 
+  S extends \`\${string}?\${string}\`
+    ? never
+    : S extends ''
+    ? never
+    : S
+
+type OptionalCatchAllSlug<S extends string> = 
+  S extends \`\${string}?\${string}\`
+    ? never
+    : S
+  
+import { UrlObject } from 'url'
+
+type Route<T extends string> = ${fallback}
 ${
   edgeRouteTypes.map((route) => `  | ${route}`).join('\n') +
   nodeRouteTypes.map((route) => `  | ${route}`).join('\n')
 }
 
-import { UrlObject } from 'url'
-
-type Url = Route | UrlObject
 declare module 'next/link' {
-  export default function Link(props:{
-    href: Url
+  export default function Link<T extends string>(props: {
+    /**
+     * The path or URL to navigate to. This is the only required prop. It can also be an object.
+     * 
+     * https://nextjs.org/docs/api-reference/next/link
+     */
+    href: Route<T> | UrlObject
   }): JSX.Element
 }`
 }
@@ -141,15 +163,47 @@ export class FlightTypesPlugin {
     this.pagesDir = path.join(this.appDir, '..', 'pages')
   }
 
-  collectPage(filePath: string, isApp?: boolean) {
-    const page = isApp ? normalizeAppPath(filePath) : '/' + filePath
-    const route =
+  collectPage(filePath: string) {
+    const isApp = filePath.startsWith(this.appDir + path.sep)
+
+    // Filter out non-page files in app dir
+    if (isApp && !/[/\\]page\.[^.]+$/.test(filePath)) {
+      return
+    }
+
+    const page = isApp
+      ? normalizeAppPath(path.relative(this.appDir, filePath))
+      : '/' + path.relative(this.pagesDir, filePath)
+
+    let route =
       (isApp
         ? page.replace(/\/page\.[^./]+$/, '')
         : page.replace(/\.[^./]+$/, '')
       ).replace(/\index$/, '') || '/'
 
-    ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).push(`\`${route}\``)
+    if (isDynamicRoute(route)) {
+      route = route
+        .split('/')
+        .map((part) => {
+          if (part.startsWith('[') && part.endsWith(']')) {
+            if (part.startsWith('[...')) {
+              // /[...slug]
+              return '${CatchAllSlug<T>}'
+            } else if (part.startsWith('[[...') && part.endsWith(']]')) {
+              // /[[...slug]]
+              return '${OptionalCatchAllSlug<T>}'
+            }
+            // /[slug]
+            return '${SafeSlug<T>}'
+          }
+          return part
+        })
+        .join('/')
+    }
+
+    ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).push(
+      `\`${route}\${'' | \`?\${string}\`}\``
+    )
   }
 
   apply(compiler: webpack.Compiler) {
@@ -163,13 +217,6 @@ export class FlightTypesPlugin {
       ? '..'
       : '../..'
 
-    // Clear routes
-    if (this.isEdgeServer) {
-      edgeRouteTypes.length = 0
-    } else {
-      nodeRouteTypes.length = 0
-    }
-
     const handleModule = async (_mod: webpack.Module, assets: any) => {
       const mod: webpack.NormalModule = _mod as any
 
@@ -178,8 +225,10 @@ export class FlightTypesPlugin {
       if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
 
       if (!mod.resource.startsWith(this.appDir + path.sep)) {
-        if (mod.resource.startsWith(this.pagesDir + path.sep)) {
-          this.collectPage(path.relative(this.pagesDir, mod.resource))
+        if (!this.dev) {
+          if (mod.resource.startsWith(this.pagesDir + path.sep)) {
+            this.collectPage(mod.resource)
+          }
         }
         return
       }
@@ -191,8 +240,10 @@ export class FlightTypesPlugin {
       const relativePathToApp = path.relative(this.appDir, mod.resource)
       const relativePathToRoot = path.relative(this.dir, mod.resource)
 
-      if (IS_PAGE) {
-        this.collectPage(relativePathToApp, true)
+      if (!this.dev) {
+        if (IS_PAGE) {
+          this.collectPage(mod.resource)
+        }
       }
 
       const typePath = path.join(
@@ -235,6 +286,13 @@ export class FlightTypesPlugin {
         async (assets, callback) => {
           const promises: Promise<any>[] = []
 
+          // Clear routes
+          if (this.isEdgeServer) {
+            edgeRouteTypes.length = 0
+          } else {
+            nodeRouteTypes.length = 0
+          }
+
           compilation.chunkGroups.forEach((chunkGroup: any) => {
             chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
               if (!chunk.name) return
@@ -266,6 +324,10 @@ export class FlightTypesPlugin {
           })
 
           await Promise.all(promises)
+
+          pageFiles.forEach((file) => {
+            this.collectPage(file)
+          })
 
           const linkTypePath = path.join('types', 'link.d.ts')
           const assetPath =
