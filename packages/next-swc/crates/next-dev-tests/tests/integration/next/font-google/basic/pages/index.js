@@ -27,14 +27,14 @@ function runTests() {
     });
   });
 
-  it("includes a rule styling the exported className", () => {
-    const matchingRule = getRuleMatchingClassName(interNoArgs.className);
+  it("includes a rule styling the exported className", async () => {
+    const matchingRule = await getRuleMatchingClassName(interNoArgs.className);
     expect(matchingRule).toBeTruthy();
     expect(matchingRule.style.fontFamily).toEqual("__Inter_34ab8b4d");
     expect(matchingRule.style.fontStyle).toEqual("normal");
   });
 
-  it("supports declaring a css custom property (css variable)", () => {
+  it("supports declaring a css custom property (css variable)", async () => {
     expect(interWithVariableName).toEqual({
       className:
         "className◽[project-with-next]/crates/next-dev-tests/tests/integration/next/font-google/basic/[embedded_modules]/@vercel/turbopack-next/internal/font/google/inter_c6e282f1.module.css",
@@ -46,7 +46,7 @@ function runTests() {
         "variable◽[project-with-next]/crates/next-dev-tests/tests/integration/next/font-google/basic/[embedded_modules]/@vercel/turbopack-next/internal/font/google/inter_c6e282f1.module.css",
     });
 
-    const matchingRule = getRuleMatchingClassName(
+    const matchingRule = await getRuleMatchingClassName(
       interWithVariableName.variable
     );
     expect(matchingRule.styleMap.get("--my-font").toString().trim()).toBe(
@@ -55,17 +55,19 @@ function runTests() {
   });
 }
 
-function getRuleMatchingClassName(className) {
+async function getRuleMatchingClassName(className) {
   const selector = `.${CSS.escape(className)}`;
 
   let matchingRule;
   for (const stylesheet of document.querySelectorAll("link[rel=stylesheet]")) {
-    const sheet = stylesheet.sheet;
-    if (sheet == null) {
-      continue;
+    if (stylesheet.sheet == null) {
+      // Wait for the stylesheet to load completely if it hasn't already
+      await new Promise((resolve) => {
+        stylesheet.addEventListener("load", resolve);
+      });
     }
 
-    for (const rule of sheet.cssRules) {
+    for (const rule of stylesheet.sheet.cssRules) {
       if (rule.selectorText === selector) {
         matchingRule = rule;
         break;
