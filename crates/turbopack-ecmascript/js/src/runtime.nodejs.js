@@ -4,6 +4,13 @@
 const BACKEND = {
   loadChunk(chunkPath, from) {
     return new Promise((resolve, reject) => {
+      if (!chunkPath.endsWith(".js")) {
+        // We only support loading JS chunks in Node.js.
+        // This branch can be hit when trying to load a CSS chunk.
+        resolve();
+        return;
+      }
+
       const fromPath = getFirstModuleChunk(from);
       if (fromPath == null) {
         reject(
