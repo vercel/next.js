@@ -54,7 +54,7 @@ export function DialogHeader({
   }, [close, buttonClose]);
 
   return (
-    <div className={clsx("dialog-header", className)}>
+    <div data-nextjs-dialog-header className={clsx("dialog-header", className)}>
       {children}
       <div className="filler">&nbsp;</div>
       {close ? (
