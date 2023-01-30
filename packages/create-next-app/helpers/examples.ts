@@ -123,7 +123,7 @@ export async function downloadAndExtractExample(root: string, name: string) {
   await tar.x({
     file: tempFile,
     cwd: root,
-    strip: 3,
+    strip: 2 + name.split('/').length,
     filter: (p) => p.includes(`next.js-canary/examples/${name}/`),
   })
 

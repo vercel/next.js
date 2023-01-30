@@ -435,6 +435,9 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        turbopackLoaders: {
+          type: 'object',
+        },
         turbotrace: {
           type: 'object',
           properties: {
