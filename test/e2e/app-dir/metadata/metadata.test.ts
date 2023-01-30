@@ -275,19 +275,19 @@ createNextDescribe(
           await browser
             .elementByCss('#to-basic')
             .click()
-            .waitForElementByCss('#basic', 2000)
+            .waitForElementByCss('#basic')
 
           await checkMetaNameContentPair(
             browser,
             'referrer',
             'origin-when-crossorigin'
           )
-          await browser.back().waitForElementByCss('#index', 2000)
+          await browser.back().waitForElementByCss('#index')
           expect(await getTitle(browser)).toBe('index page')
           await browser
             .elementByCss('#to-title')
             .click()
-            .waitForElementByCss('#title', 2000)
+            .waitForElementByCss('#title')
           expect(await getTitle(browser)).toBe('this is the page title')
         })
       })
