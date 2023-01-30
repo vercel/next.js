@@ -13,7 +13,7 @@ export function Terminal({ content }: TerminalProps) {
   }, [content]);
 
   return (
-    <div className="terminal">
+    <div data-nextjs-terminal className="terminal">
       <pre>
         {decoded.map((entry, index) => (
           <span

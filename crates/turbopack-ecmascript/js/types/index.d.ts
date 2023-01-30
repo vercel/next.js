@@ -87,6 +87,9 @@ export type ChunkUpdateProvider = {
 };
 
 export interface TurbopackGlobals {
+  // This is used by the Next.js integration test suite to notify it when HMR
+  // updates have been completed.
+  __NEXT_HMR_CB?: null | (() => void);
   TURBOPACK?: ChunkRegistration[];
   TURBOPACK_CHUNK_UPDATE_LISTENERS?:
     | ChunkUpdateProvider

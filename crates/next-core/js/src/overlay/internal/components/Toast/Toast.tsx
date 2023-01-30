@@ -8,8 +8,14 @@ export type ToastProps = React.PropsWithChildren & {
 
 export function Toast({ onClick, children, className }: ToastProps) {
   return (
-    <div onClick={onClick} className={clsx("toast", className)}>
-      <div className="toast-wrapper">{children}</div>
+    <div
+      data-nextjs-toast
+      onClick={onClick}
+      className={clsx("toast", className)}
+    >
+      <div data-nextjs-toast-wrapper className="toast-wrapper">
+        {children}
+      </div>
     </div>
   );
 }

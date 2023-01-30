@@ -40,7 +40,7 @@ export function TurbopackIssuesDialogBody({
       className={clsx("issues-body", className)}
     >
       <div className="title-pagination">
-        <h1 id="errors_label">
+        <h1 id="nextjs__container_errors_label">
           {hasIssueWithError
             ? "Turbopack failed to compile"
             : "Turbopack compiled with warnings"}
@@ -58,7 +58,7 @@ export function TurbopackIssuesDialogBody({
       </div>
 
       <h2
-        id="errors_desc"
+        id="nextjs__container_errors_desc"
         data-severity={activeIssueIsError ? "error" : "warning"}
       >
         {activeIssue.title}
