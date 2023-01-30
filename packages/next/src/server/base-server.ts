@@ -180,36 +180,6 @@ type ResponsePayload = {
   revalidateOptions?: any
 }
 
-export type AppCustomRoute = {
-  /**
-   * `page` represents the requested page path, excluding any suffix.
-   */
-  page: string
-
-  /**
-   * `params` if provided is the dynamic route parameters that were parsed by
-   * the router.
-   */
-  params?: Params
-
-  /**
-   * `pathname` represents the pathname to the file (excluding any extension)
-   * that can be used to lookup the file on the filesystem.
-   */
-  pathname: string
-}
-
-// TODO: document
-export type AppCustomRouteContext = {
-  params?: Params
-}
-
-// TODO: narrow type
-export type AppCustomRouteHandler = (
-  req: any,
-  ctx: AppCustomRouteContext
-) => Response
-
 export default abstract class Server<ServerOptions extends Options = Options> {
   protected dir: string
   protected quiet: boolean

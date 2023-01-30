@@ -1,5 +1,5 @@
-import { BaseNextRequest, BaseNextResponse } from '../base-http'
-import { Route } from '../routes/route'
+import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { Route } from '../routes/route'
 
 export type HandlerFn<R extends Route> = (
   route: R,
@@ -13,5 +13,9 @@ export interface RouteHandler<R extends Route> {
    *
    * @param route the route to execute with
    */
-  handle: HandlerFn<R>
+  handle(
+    route: R,
+    req: BaseNextRequest,
+    res: BaseNextResponse
+  ): Promise<void> | void
 }

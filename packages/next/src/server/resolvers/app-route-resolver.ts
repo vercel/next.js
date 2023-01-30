@@ -12,14 +12,14 @@ import {
   RouteMatch,
 } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { BaseNextRequest } from '../base-http'
-import { ModuleLoader } from '../module-loader/module-loader'
+import type { BaseNextRequest } from '../base-http'
+import type { ModuleLoader } from '../module-loader/module-loader'
 import { NodeModuleLoader } from '../module-loader/node-module-loader'
 import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
-import { Normalizer } from '../normalizers/normalizer'
-import { AppRouteModule, AppRouteRoute } from '../routes/app-route-route'
+import type { Normalizer } from '../normalizers/normalizer'
+import type { AppRouteModule, AppRouteRoute } from '../routes/app-route-route'
 import { RouteType } from '../routes/route'
-import { Resolver } from './resolver'
+import type { Resolver } from './resolver'
 
 type RoutingItem = { page: string; pathname: string; filename: string }
 type DynamicRoutingItem = RoutingItem & { match: RouteMatch }
@@ -27,8 +27,8 @@ type DynamicRoutingItem = RoutingItem & { match: RouteMatch }
 type RoutingItemMatch = RoutingItem & { params?: Params }
 
 export class AppRouteResolver implements Resolver<AppRouteRoute> {
-  private readonly normalized: Record<string, RoutingItem> = {}
-  private readonly dynamic: ReadonlyArray<DynamicRoutingItem> = []
+  private readonly normalized: Record<string, RoutingItem>
+  private readonly dynamic: ReadonlyArray<DynamicRoutingItem>
 
   constructor(
     private readonly distDir: string,

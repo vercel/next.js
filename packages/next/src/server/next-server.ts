@@ -72,7 +72,6 @@ import BaseServer, {
   RoutingItem,
   NoFallbackError,
   RequestContext,
-  AppCustomRoute,
 } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
