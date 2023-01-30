@@ -475,6 +475,9 @@ const configSchema = {
             memoryLimit: {
               type: 'integer',
             },
+            skipEntries: {
+              type: 'boolean',
+            },
           },
         },
       },
