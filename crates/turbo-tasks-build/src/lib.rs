@@ -397,23 +397,27 @@ impl<'a> RegisterContext<'a> {
 
     /// Declares the default derive of the `ValueDebug` trait.
     fn register_debug_impl(&mut self, ident: &Ident, dbg_ty: DebugType) -> std::fmt::Result {
-        let fn_ident = Ident::new("dbg", ident.span());
+        for fn_name in ["dbg", "dbg_depth"] {
+            let fn_ident = Ident::new(fn_name, ident.span());
 
-        let (impl_fn_ident, global_name) = match dbg_ty {
-            DebugType::Value => {
-                let trait_ident = Ident::new("ValueDebug", ident.span());
-                (
-                    get_trait_impl_function_ident(ident, &trait_ident, &fn_ident),
-                    self.get_global_name(&[ident, &trait_ident, &fn_ident]),
-                )
-            }
-            DebugType::Trait => (
-                get_impl_function_ident(ident, &fn_ident),
-                self.get_global_name(&[ident, &fn_ident]),
-            ),
-        };
+            let (impl_fn_ident, global_name) = match dbg_ty {
+                DebugType::Value => {
+                    let trait_ident = Ident::new("ValueDebug", ident.span());
+                    (
+                        get_trait_impl_function_ident(ident, &trait_ident, &fn_ident),
+                        self.get_global_name(&[ident, &trait_ident, &fn_ident]),
+                    )
+                }
+                DebugType::Trait => (
+                    get_impl_function_ident(ident, &fn_ident),
+                    self.get_global_name(&[ident, &fn_ident]),
+                ),
+            };
 
-        self.register(impl_fn_ident, global_name)
+            self.register(impl_fn_ident, global_name)?;
+        }
+
+        Ok(())
     }
 }
 

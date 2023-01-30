@@ -490,7 +490,13 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[turbo_tasks::function]
                 async fn dbg(&self) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
                     use turbo_tasks::debug::ValueDebugFormat;
-                    (&self.0).value_debug_format().try_to_value_debug_string().await
+                    (&self.0).value_debug_format(usize::MAX).try_to_value_debug_string().await
+                }
+
+                #[turbo_tasks::function]
+                async fn dbg_depth(&self, depth: usize) -> anyhow::Result<turbo_tasks::debug::ValueDebugStringVc> {
+                    use turbo_tasks::debug::ValueDebugFormat;
+                    (&self.0).value_debug_format(depth).try_to_value_debug_string().await
                 }
             }
         }
@@ -514,10 +520,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let value_debug_format_impl = quote! {
         impl turbo_tasks::debug::ValueDebugFormat for #ref_ident {
-            fn value_debug_format(&self) -> turbo_tasks::debug::ValueDebugFormatString {
+            fn value_debug_format(&self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString {
                 turbo_tasks::debug::ValueDebugFormatString::Async(Box::pin(async move {
                     Ok(if let Some(value_debug) = turbo_tasks::debug::ValueDebugVc::resolve_from(self).await? {
-                        value_debug.dbg().await?.to_string()
+                        value_debug.dbg_depth(depth).await?.to_string()
                     } else {
                         // This case means `SelfVc` does not implement `ValueDebugVc`, which is not possible
                         // if this implementation exists.
