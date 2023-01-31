@@ -1,3 +1,4 @@
+import '../lib/setup-exception-listeners'
 import type { FontManifest, FontConfig } from '../server/font-utils'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
