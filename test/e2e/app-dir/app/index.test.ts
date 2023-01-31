@@ -639,6 +639,22 @@ createNextDescribe(
           await browser.close()
         }
       })
+
+      it('should push to external url', async () => {
+        const browser = await next.browser('/link-external/push')
+        await browser.elementByCss('#external-link').click()
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
+      })
+
+      it('should replace to external url', async () => {
+        const browser = await next.browser('/link-external/replace')
+        await browser.elementByCss('#external-link').click()
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
+      })
     })
 
     describe('server components', () => {
