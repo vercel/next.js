@@ -478,6 +478,8 @@ export default async function build(
         prefixText: `${Log.prefixes.info} Creating an optimized production build`,
       })
 
+      NextBuildContext.buildSpinner = buildSpinner
+
       const pagesPaths =
         !appDirOnly && pagesDir
           ? await nextBuildSpan
