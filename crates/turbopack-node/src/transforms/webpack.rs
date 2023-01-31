@@ -1,9 +1,7 @@
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    primitives::{JsonValueVc, StringsVc},
-    Value,
-};
+use serde_json::json;
+use turbo_tasks::{primitives::JsonValueVc, trace::TraceRawVcs, Value};
 use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
@@ -33,11 +31,26 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WebpackLoaderConfig {
+    LoaderName(String),
+    LoaderNameWithOptions {
+        loader: String,
+        #[turbo_tasks(trace_ignore)]
+        options: serde_json::Map<String, serde_json::Value>,
+    },
+}
+
+#[derive(Debug, Clone)]
+#[turbo_tasks::value(shared)]
+pub struct WebpackLoaderConfigs(Vec<WebpackLoaderConfig>);
+
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
     evaluate_context: AssetContextVc,
     execution_context: ExecutionContextVc,
-    loaders: StringsVc,
+    loaders: WebpackLoaderConfigsVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -46,7 +59,7 @@ impl WebpackLoadersVc {
     pub fn new(
         evaluate_context: AssetContextVc,
         execution_context: ExecutionContextVc,
-        loaders: StringsVc,
+        loaders: WebpackLoaderConfigsVc,
     ) -> Self {
         WebpackLoaders {
             evaluate_context,
@@ -76,7 +89,7 @@ impl SourceTransform for WebpackLoaders {
 struct WebpackLoadersProcessedAsset {
     evaluate_context: AssetContextVc,
     execution_context: ExecutionContextVc,
-    loaders: StringsVc,
+    loaders: WebpackLoaderConfigsVc,
     source: AssetVc,
 }
 
@@ -153,7 +166,7 @@ impl WebpackLoadersProcessedAssetVc {
             vec![
                 JsonValueVc::cell(content.into()),
                 JsonValueVc::cell(resource_path.into()),
-                JsonValueVc::cell(loaders.clone_value().into()),
+                JsonValueVc::cell(json!(*loaders)),
             ],
             /* debug */ false,
         )
