@@ -8,7 +8,7 @@ export default function page(props) {
   return <p>{format(props)}</p>
 }
 
-export function generateMetadata(props) {
+export async function generateMetadata(props) {
   return {
     title: format(props),
   }
