@@ -248,12 +248,13 @@ async function webpackBuildImpl(): Promise<number> {
   }
 }
 
+// the main function when this file is run as a worker
 async function workerMain() {
   const { buildContext } = workerData
-  // setup new build context
+  // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, buildContext)
 
-  // regenerate config
+  /// load the config because it's not serializable
   NextBuildContext.config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!,
@@ -261,7 +262,6 @@ async function workerMain() {
     undefined,
     true
   )
-
   NextBuildContext.nextBuildSpan = trace('next-build')
 
   try {
