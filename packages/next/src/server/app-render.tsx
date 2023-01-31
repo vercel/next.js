@@ -48,7 +48,7 @@ import {
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { formatServerError } from '../lib/format-server-error'
-import { Metas } from '../lib/metadata/metadata'
+import { MetadataTree } from '../lib/metadata/metadata'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
@@ -990,7 +990,6 @@ export async function renderToHTMLOrFlight(
      */
 
     const requestId = nanoid(12)
-    console.log('id', requestId)
     const metadataItems: MetadataItems = []
 
     stripInternalQueries(query)
@@ -1600,7 +1599,6 @@ export async function renderToHTMLOrFlight(
         const parallelRoutesKeys = Object.keys(parallelRoutes)
         const { layout } = components
         const isLayout = typeof layout !== 'undefined'
-        const layoutOrPageMod = await getLayoutOrPageModule(loaderTreeToFilter)
 
         /**
          * Checks if the current segment is a root layout.
@@ -1639,12 +1637,6 @@ export async function renderToHTMLOrFlight(
           // Explicit refresh
           flightRouterState[3] === 'refetch'
 
-        const props = {
-          params: currentParams,
-        }
-
-        await collectMetadata(layoutOrPageMod, props, metadataItems)
-
         if (!parentRendered && renderComponentsOnThisLevel) {
           return [
             actualSegment,
@@ -1670,7 +1662,17 @@ export async function renderToHTMLOrFlight(
                       rootLayoutIncluded: rootLayoutIncluded,
                     }
                   )
-                  return <Component />
+
+                  return (
+                    <>
+                      {/*
+                       * Adding key={requestId} to make metadata remount for each render
+                       */}
+                      {/* @ts-expect-error allow to use async server component */}
+                      <MetadataTree key={requestId} metadata={metadataItems} />
+                      <Component />
+                    </>
+                  )
                 }),
             isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
               <>{rscPayloadHead}</>
@@ -1736,14 +1738,8 @@ export async function renderToHTMLOrFlight(
             parentParams: {},
             flightRouterState: providedFlightRouterState,
             isFirst: true,
-            rscPayloadHead: (
-              <>
-                {/* Adding key={requestId} to make metadata remount for each render */}
-                {/* @ts-expect-error allow to use async server component */}
-                <Metas key={requestId} metadata={metadataItems} />
-                {resolvedHead}
-              </>
-            ),
+            // For flight, render metadata inside leaf page
+            rscPayloadHead: resolvedHead,
             injectedCSS: new Set(),
             rootLayoutIncluded: false,
           })
@@ -1840,7 +1836,7 @@ export async function renderToHTMLOrFlight(
                 <>
                   {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
-                  <Metas key={requestId} metadata={metadataItems} />
+                  <MetadataTree key={requestId} metadata={metadataItems} />
                   {initialHead}
                 </>
               }

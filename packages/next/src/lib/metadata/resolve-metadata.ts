@@ -336,7 +336,6 @@ export async function collectMetadata(
 
 export async function accumulateMetadata(metadataItems: MetadataItems) {
   const resolvedMetadata = createDefaultMetadata()
-  console.trace('metadataItems:acc', metadataItems)
   for (const item of metadataItems) {
     let metadata = null
     if (typeof item === 'function') {
