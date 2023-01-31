@@ -1,13 +1,14 @@
 'use client'
 
-import React from 'react'
-import { UrlObject } from 'url'
-import {
-  isLocalURL,
+import type {
   NextRouter,
   PrefetchOptions as RouterPrefetchOptions,
-  resolveHref,
 } from '../shared/lib/router/router'
+
+import React from 'react'
+import { UrlObject } from 'url'
+import { resolveHref } from '../shared/lib/router/utils/resolve-href'
+import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
