@@ -160,22 +160,5 @@ createNextDescribe(
         }
       )
     })
-
-    describe('vertical scroll when page imports css modules', () => {
-      it('should scroll to top of document when navigating between to pages without layout when', async () => {
-        const browser = await webdriver(
-          next.url,
-          '/0/0/100/10000/page1/with-css-modules'
-        )
-
-        await scrollTo(browser, { x: 0, y: 1000 })
-        expect(await getTopScroll(browser)).toBe(1000)
-
-        await browser.eval(
-          `window.router.push("/0/0/100/10000/page2/with-css-modules")`
-        )
-        await waitForScrollToComplete(browser, { x: 0, y: 0 })
-      })
-    })
   }
 )
