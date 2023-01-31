@@ -19,3 +19,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export const NormalModule: any
   export const ResolvePluginInstance: any
 }
+
+declare module 'next/dist/compiled/ora/ora' {
+  export const Ora: any
+}
