@@ -96,6 +96,10 @@ function findHeadInCache(
   return undefined
 }
 
+function isExternalURL(url: URL) {
+  return url.origin !== location.origin
+}
+
 /**
  * The global router that wraps the application components.
  */
@@ -185,7 +189,7 @@ function Router({
       return dispatch({
         type: ACTION_NAVIGATE,
         url,
-        isExternalUrl: url.origin !== location.origin,
+        isExternalUrl: isExternalURL(url),
         forceOptimisticNavigation,
         navigateType,
         cache: {
@@ -208,6 +212,10 @@ function Router({
         }
         prefetched.add(href)
         const url = new URL(href, location.origin)
+        // External urls can't be prefetched in the same way.
+        if (isExternalURL(url)) {
+          return
+        }
         try {
           const routerTree = window.history.state?.tree || initialTree
           const serverResponse = await fetchServerResponse(
