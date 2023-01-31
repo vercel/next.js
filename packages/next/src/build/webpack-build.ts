@@ -269,6 +269,8 @@ async function workerMain() {
     parentPort!.postMessage(result)
   } catch (e) {
     parentPort!.postMessage(e)
+  } finally {
+    process.exit(0)
   }
 }
 
