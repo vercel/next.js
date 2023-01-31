@@ -642,18 +642,22 @@ createNextDescribe(
 
       it('should push to external url', async () => {
         const browser = await next.browser('/link-external/push')
+        expect(await browser.eval('window.history.length')).toBe(2)
         await browser.elementByCss('#external-link').click()
         expect(await browser.waitForElementByCss('h1').text()).toBe(
           'Example Domain'
         )
+        expect(await browser.eval('window.history.length')).toBe(3)
       })
 
       it('should replace to external url', async () => {
         const browser = await next.browser('/link-external/replace')
+        expect(await browser.eval('window.history.length')).toBe(2)
         await browser.elementByCss('#external-link').click()
         expect(await browser.waitForElementByCss('h1').text()).toBe(
           'Example Domain'
         )
+        expect(await browser.eval('window.history.length')).toBe(2)
       })
     })
 
