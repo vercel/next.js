@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-[https://cms-kontent-ai.vercel.app/](https://cms-kontent-ai.vercel.app/)
+[https://next-blog-kontent-ai.vercel.app/](https://next-blog-kontent-ai.vercel.app/)
 
 ## Deploy your own
 
@@ -79,7 +79,7 @@ To import the content models with their data follow the next steps:
    ```
 
 1. Go to your Kontent.ai project and publish all the imported items.
-   >Note: You can deactivate the Management API key, as it is not necessary anymore.
+   > Note: You can deactivate the Management API key, as it is not necessary anymore.
 
 #### **2.1. (Optional) Create the content models manually**
 
