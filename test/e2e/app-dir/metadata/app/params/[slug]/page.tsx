@@ -8,8 +8,11 @@ export default function page(props) {
   return <p>{format(props)}</p>
 }
 
-export async function generateMetadata(props) {
+export async function generateMetadata(props, parent) {
+  const parentMetadata = await parent
   return {
+    ...parentMetadata,
     title: format(props),
+    keywords: parentMetadata.keywords.concat(['child']),
   }
 }

@@ -296,6 +296,8 @@ createNextDescribe(
           const browser = await next.browser('/params/slug')
           expect(await getTitle(browser)).toBe('params - slug')
 
+          await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
+
           await browser.loadPage(next.url + '/params/blog?q=xxx')
           await check(
             () => browser.elementByCss('p').text(),

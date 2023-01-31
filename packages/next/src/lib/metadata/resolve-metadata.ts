@@ -1,4 +1,8 @@
-import type { Metadata, ResolvedMetadata } from './types/metadata-interface'
+import type {
+  Metadata,
+  ResolvedMetadata,
+  ResolvingMetadata,
+} from './types/metadata-interface'
 import type { Viewport } from './types/extra-types'
 import type { ResolvedTwitterMetadata } from './types/twitter-types'
 import type {
@@ -284,9 +288,11 @@ function merge(
       case 'itunes':
       case 'alternates':
       case 'formatDetection':
-      case 'other':
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
+        break
+      case 'other':
+        target.other = Object.assign({}, target.other, source.other)
         break
       default:
         break
@@ -294,7 +300,7 @@ function merge(
   }
 }
 
-type MetadataResolver = (_parent: ResolvedMetadata) => Promise<Metadata | null>
+type MetadataResolver = (_parent: ResolvingMetadata) => Promise<Metadata>
 export type MetadataItems = (Metadata | MetadataResolver)[]
 
 async function getDefinedMetadata(
@@ -318,10 +324,11 @@ async function getDefinedMetadata(
   }
 
   return mod.generateMetadata
-    ? (parent: ResolvedMetadata) => mod.generateMetadata(props, parent)
+    ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
     : mod.metadata
 }
 
+// layout.metadata -> layout.metadata -> page.metadata
 export async function collectMetadata(
   mod: any,
   props: any,
@@ -334,24 +341,27 @@ export async function collectMetadata(
   }
 }
 
-export async function accumulateMetadata(metadataItems: MetadataItems) {
+export async function accumulateMetadata(
+  metadataItems: MetadataItems
+): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
-  for (const item of metadataItems) {
-    let metadata = null
-    if (typeof item === 'function') {
-      metadata = await item(resolvedMetadata)
-    } else {
-      metadata = item
-    }
-    if (!metadata) continue
+  let parentPromise = Promise.resolve(resolvedMetadata)
 
-    merge(resolvedMetadata, metadata, {
-      title: resolvedMetadata.title?.template || null,
-      openGraph: resolvedMetadata.openGraph?.title?.template || null,
-      twitter: resolvedMetadata.twitter?.title?.template || null,
+  for (const item of metadataItems) {
+    const layerMetadataPromise =
+      typeof item === 'function' ? item(parentPromise) : Promise.resolve(item)
+    parentPromise = parentPromise.then((resolved) => {
+      return layerMetadataPromise.then((metadata) => {
+        merge(resolved, metadata, {
+          title: resolved.title?.template || null,
+          openGraph: resolved.openGraph?.title?.template || null,
+          twitter: resolved.twitter?.title?.template || null,
+        })
+        return resolved
+      })
     })
   }
-  return resolvedMetadata
+  return await parentPromise
 }
 
 // TODO: Implement this function.
