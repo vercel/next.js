@@ -2502,7 +2502,6 @@ createNextDescribe(
           )
         })
 
-        // TODO-APP: Enable in development
         it('should redirect client-side', async () => {
           const browser = await next.browser('/redirect/client-side')
           await browser
@@ -2512,6 +2511,13 @@ createNextDescribe(
           // eslint-disable-next-line jest/no-standalone-expect
           expect(await browser.elementByCss('#result-page').text()).toBe(
             'Result Page'
+          )
+        })
+
+        it('should redirect to external url', async () => {
+          const browser = await next.browser('/redirect/external')
+          expect(await browser.waitForElementByCss('h1').text()).toBe(
+            'Example Domain'
           )
         })
       })
