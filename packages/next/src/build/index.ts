@@ -64,6 +64,7 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -1946,6 +1947,9 @@ export default async function build(
                 processCwd: config.experimental.turbotrace.processCwd,
                 logDetail: config.experimental.turbotrace.logDetail,
                 showAll: config.experimental.turbotrace.logAll,
+                memoryLimit:
+                  config.experimental.turbotrace.memoryLimit ??
+                  TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
               })
             } else {
               const ignores = [
