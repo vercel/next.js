@@ -31,3 +31,8 @@ turbopack-env = { path = "../turbopack-env" }
 
 [build-dependencies]
 turbo-tasks-build = { path = "../turbo-tasks-build" }
+
+[features]
+default = ["native-tls"]
+native-tls = ["next-core/native-tls"]
+rustls-tls = ["next-core/rustls-tls"]
