@@ -116,6 +116,7 @@ class ScrollAndFocusHandler extends React.Component<{
   children: React.ReactNode
 }> {
   componentDidMount() {
+    console.log('scroll and focus handler mounted')
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef } = this.props
     const domNode = findDOMNode(this)
