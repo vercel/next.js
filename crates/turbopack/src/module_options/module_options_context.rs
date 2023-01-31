@@ -1,9 +1,11 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::StringsVc, trace::TraceRawVcs};
+use turbo_tasks::trace::TraceRawVcs;
 use turbopack_core::{environment::EnvironmentVc, resolve::options::ImportMappingVc};
 use turbopack_ecmascript::EcmascriptInputTransform;
-use turbopack_node::execution_context::ExecutionContextVc;
+use turbopack_node::{
+    execution_context::ExecutionContextVc, transforms::webpack::WebpackLoaderConfigsVc,
+};
 
 use super::ModuleRule;
 use crate::condition::ContextCondition;
@@ -17,7 +19,7 @@ pub struct PostCssTransformOptions {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct WebpackLoadersOptions {
-    pub extension_to_loaders: IndexMap<String, StringsVc>,
+    pub extension_to_loaders: IndexMap<String, WebpackLoaderConfigsVc>,
     pub placeholder_for_future_extensions: (),
 }
 

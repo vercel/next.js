@@ -9,6 +9,13 @@ import {
   resolve as pathResolve,
 } from "path";
 
+type LoaderConfig =
+  | string
+  | {
+      loader: string;
+      options: { [k: string]: unknown };
+    };
+
 const { runLoaders } = __turbopack_external_require__(
   "loader-runner"
 ) as typeof import("loader-runner");
@@ -24,21 +31,36 @@ const toPath = (file: string) => {
   return sep !== "/" ? relPath.replaceAll(sep, "/") : relPath;
 };
 
-const transform = (ipc: Ipc, content: string, name: string, loaders: any[]) => {
+const transform = (
+  ipc: Ipc,
+  content: string,
+  name: string,
+  loaders: LoaderConfig[]
+) => {
   return new Promise((resolve, reject) => {
     const resource = pathResolve(contextDir, name);
     const resourceDir = dirname(resource);
-    // TODO this should be handled in turbopack instead to ensure it's watched
-    loaders = loaders.map((loader: any) => {
-      return require.resolve(loader, { paths: [resourceDir] });
-    });
+
+    const loadersWithOptions = loaders.map((loader) =>
+      typeof loader === "string" ? { loader, options: {} } : loader
+    );
+
     runLoaders(
       {
         resource,
         context: {
           rootContext: contextDir,
+          getOptions() {
+            var entry = this.loaders[this.loaderIndex];
+            return entry.options && typeof entry.options === "object"
+              ? entry.options
+              : {};
+          },
         },
-        loaders,
+        loaders: loadersWithOptions.map((loader) => ({
+          loader: require.resolve(loader.loader, { paths: [resourceDir] }),
+          options: loader.options,
+        })),
         readResource: (_filename, callback) => {
           // TODO assuming the filename === resource, but loaders might change that
           callback(null, Buffer.from(content, "utf-8"));

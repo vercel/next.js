@@ -29,6 +29,7 @@ use turbopack_ecmascript::{
 use turbopack_node::{
     evaluate::{evaluate, JavaScriptValue},
     execution_context::{ExecutionContext, ExecutionContextVc},
+    transforms::webpack::{WebpackLoaderConfigs, WebpackLoaderConfigsVc},
 };
 
 use crate::embed_js::next_asset;
@@ -245,7 +246,7 @@ pub struct ExperimentalConfig {
     pub app_dir: Option<bool>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
     pub server_components_external_packages: Option<Vec<String>>,
-    pub turbopack_loaders: Option<IndexMap<String, Vec<String>>>,
+    pub turbopack_loaders: Option<IndexMap<String, WebpackLoaderConfigs>>,
 
     // unsupported
     adjust_font_fallbacks: Option<bool>,
@@ -401,7 +402,7 @@ impl NextConfigVc {
         };
         let mut extension_to_loaders = IndexMap::new();
         for (ext, loaders) in turbopack_loaders {
-            extension_to_loaders.insert(ext.clone(), StringsVc::cell(loaders.clone()));
+            extension_to_loaders.insert(ext.clone(), WebpackLoaderConfigsVc::cell(loaders.clone()));
         }
         Ok(WebpackLoadersOptions {
             extension_to_loaders,
