@@ -366,7 +366,7 @@ export default async function exportPage({
             )
           } else if (isDynamicError) {
             throw new Error(
-              `Page with dynamic = "error" encountered dynamic data method ${path}.`
+              `Page with dynamic = "error" encountered dynamic data method on ${path}.`
             )
           }
 
