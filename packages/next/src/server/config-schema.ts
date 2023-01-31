@@ -272,6 +272,9 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        extensionAlias: {
+          type: 'object',
+        },
         externalDir: {
           type: 'boolean',
         },
