@@ -272,7 +272,12 @@ function Router({
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
     if (pushRef.mpaNavigation) {
-      window.location.href = canonicalUrl
+      const location = window.location
+      if (pushRef.pendingPush) {
+        location.assign(canonicalUrl)
+      } else {
+        location.replace(canonicalUrl)
+      }
       return
     }
 

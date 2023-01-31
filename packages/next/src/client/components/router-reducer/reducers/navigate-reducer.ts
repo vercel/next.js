@@ -30,13 +30,14 @@ export function navigateReducer(
     mutable,
     forceOptimisticNavigation,
   } = action
+  const pendingPush = navigateType === 'push'
 
   if (isExternalUrl) {
     return {
       // Set href.
       canonicalUrl: url.toString(),
       pushRef: {
-        pendingPush: false,
+        pendingPush,
         mpaNavigation: true,
       },
       // All navigation requires scroll and focus management to trigger.
@@ -51,7 +52,6 @@ export function navigateReducer(
 
   const { pathname, search } = url
   const href = createHrefFromUrl(url)
-  const pendingPush = navigateType === 'push'
 
   const isForCurrentTree =
     JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
