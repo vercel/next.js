@@ -36,7 +36,7 @@ export function validateData(functionName: string, fontData: any): FontOptions {
   }
   let {
     src,
-    display = 'optional',
+    display = 'swap',
     weight,
     style,
     fallback,

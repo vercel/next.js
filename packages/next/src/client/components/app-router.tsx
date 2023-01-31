@@ -14,14 +14,14 @@ import type {
 } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
+import { reducer } from './router-reducer/router-reducer'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
-  reducer,
-} from './router-reducer/router-reducer'
+} from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
@@ -94,6 +94,10 @@ function findHeadInCache(
   }
 
   return undefined
+}
+
+function isExternalURL(url: URL) {
+  return url.origin !== location.origin
 }
 
 /**
@@ -180,9 +184,12 @@ function Router({
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
+      const url = new URL(href, location.origin)
+
       return dispatch({
         type: ACTION_NAVIGATE,
-        url: new URL(href, location.origin),
+        url,
+        isExternalUrl: isExternalURL(url),
         forceOptimisticNavigation,
         navigateType,
         cache: {
@@ -205,6 +212,10 @@ function Router({
         }
         prefetched.add(href)
         const url = new URL(href, location.origin)
+        // External urls can't be prefetched in the same way.
+        if (isExternalURL(url)) {
+          return
+        }
         try {
           const routerTree = window.history.state?.tree || initialTree
           const serverResponse = await fetchServerResponse(
@@ -261,7 +272,12 @@ function Router({
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
     if (pushRef.mpaNavigation) {
-      window.location.href = canonicalUrl
+      const location = window.location
+      if (pushRef.pendingPush) {
+        location.assign(canonicalUrl)
+      } else {
+        location.replace(canonicalUrl)
+      }
       return
     }
 

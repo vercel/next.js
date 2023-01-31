@@ -235,8 +235,25 @@ createNextDescribe(
           await checkMetaNameContentPair(
             browser,
             'googlebot',
-            'index, nofollow, noimageindex'
+            'index, nofollow, noimageindex, max-video-preview:standard, max-image-preview:-1, max-snippet:-1'
           )
+        })
+
+        it('should support verification tags', async () => {
+          const browser = await next.browser('/verification')
+
+          await checkMetaNameContentPair(
+            browser,
+            'google-site-verification',
+            'google'
+          )
+          await checkMetaNameContentPair(browser, 'y_key', 'yahoo')
+          await checkMetaNameContentPair(
+            browser,
+            'yandex-verification',
+            'yandex'
+          )
+          await checkMetaNameContentPair(browser, 'me', ['my-email', 'my-link'])
         })
 
         it('should support appLinks tags', async () => {
@@ -275,19 +292,19 @@ createNextDescribe(
           await browser
             .elementByCss('#to-basic')
             .click()
-            .waitForElementByCss('#basic', 2000)
+            .waitForElementByCss('#basic')
 
           await checkMetaNameContentPair(
             browser,
             'referrer',
             'origin-when-crossorigin'
           )
-          await browser.back().waitForElementByCss('#index', 2000)
+          await browser.back().waitForElementByCss('#index')
           expect(await getTitle(browser)).toBe('index page')
           await browser
             .elementByCss('#to-title')
             .click()
-            .waitForElementByCss('#title', 2000)
+            .waitForElementByCss('#title')
           expect(await getTitle(browser)).toBe('this is the page title')
         })
       })
