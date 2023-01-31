@@ -206,7 +206,9 @@ export default function startHandler({
       if (isDataReq) {
         return {
           type: "response",
-          statusCode,
+          // Returning a 404 status code is required for the client-side router
+          // to redirect to the error page.
+          statusCode: 404,
           body: '{"notFound":true}',
           headers: [["Content-Type", MIME_APPLICATION_JAVASCRIPT]],
         };
