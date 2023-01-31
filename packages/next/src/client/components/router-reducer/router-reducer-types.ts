@@ -65,6 +65,7 @@ export interface RefreshAction {
 export interface NavigateAction {
   type: typeof ACTION_NAVIGATE
   url: URL
+  isExternalUrl: boolean
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
   cache: CacheNode

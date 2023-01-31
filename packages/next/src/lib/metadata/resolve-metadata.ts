@@ -10,6 +10,7 @@ import type {
   Icon,
   IconDescriptor,
   Icons,
+  ResolvedVerification,
 } from './types/metadata-types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
@@ -47,22 +48,26 @@ const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
   return resolved
 }
 
+const VerificationKeys = ['google', 'yahoo', 'yandex', 'me', 'other'] as const
 const resolveVerification: FieldResolver<'verification'> = (verification) => {
-  const google = resolveAsArrayOrUndefined(verification?.google)
-  const yahoo = resolveAsArrayOrUndefined(verification?.yahoo)
-  let other: Record<string, (string | number)[]> | undefined
-  if (verification?.other) {
-    other = {}
-    for (const key in verification.other) {
-      const value = resolveAsArrayOrUndefined(verification.other[key])
-      if (value) other[key] = value
+  if (!verification) return null
+  const res = {} as ResolvedVerification
+
+  for (const key of VerificationKeys) {
+    const value = verification[key]
+    if (value) {
+      if (key === 'other') {
+        res.other = {}
+        for (const otherKey in verification.other) {
+          const otherValue = resolveAsArrayOrUndefined(
+            verification.other[otherKey]
+          )
+          if (otherValue) res.other[otherKey] = otherValue
+        }
+      } else res[key] = resolveAsArrayOrUndefined(value) as (string | number)[]
     }
   }
-  return {
-    google,
-    yahoo,
-    other,
-  }
+  return res
 }
 
 function isStringOrURL(icon: any): icon is string | URL {
@@ -174,23 +179,39 @@ const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
   return appLinks as ResolvedMetadata['appLinks']
 }
 
+const robotsKeys = [
+  'noarchive',
+  'nosnippet',
+  'noimageindex',
+  'nocache',
+  'notranslate',
+  'indexifembedded',
+  'nositelinkssearchbox',
+  'unavailable_after',
+  'max-video-preview',
+  'max-image-preview',
+  'max-snippet',
+] as const
 const resolveRobotsValue: (robots: Metadata['robots']) => string | null = (
   robots
 ) => {
   if (!robots) return null
   if (typeof robots === 'string') return robots
 
-  const values = []
+  const values: string[] = []
 
   if (robots.index) values.push('index')
   else if (typeof robots.index === 'boolean') values.push('noindex')
 
   if (robots.follow) values.push('follow')
   else if (typeof robots.follow === 'boolean') values.push('nofollow')
-  if (robots.noarchive) values.push('noarchive')
-  if (robots.nosnippet) values.push('nosnippet')
-  if (robots.noimageindex) values.push('noimageindex')
-  if (robots.nocache) values.push('nocache')
+
+  for (const key of robotsKeys) {
+    const value = robots[key]
+    if (typeof value !== 'undefined' && value !== false) {
+      values.push(typeof value === 'boolean' ? key : `${key}:${value}`)
+    }
+  }
 
   return values.join(', ')
 }

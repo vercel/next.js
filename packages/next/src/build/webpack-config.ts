@@ -882,9 +882,7 @@ export default async function getBaseWebpackConfig(
     extensions: isNodeServer
       ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
       : ['.mjs', '.js', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
-    extensionAlias: {
-      '.js': ['.ts', '.tsx', '.js', '.jsx'],
-    },
+    extensionAlias: config.experimental.extensionAlias,
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
