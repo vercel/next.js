@@ -13,10 +13,9 @@ import getBaseWebpackConfig from './webpack-config'
 import { NextError } from '../lib/is-error'
 import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
-import { Rewrite } from '../lib/load-custom-routes'
-import { NextConfigComplete } from '../server/config-shared'
-import { NextBuildContext } from '.'
-import { CreateEntrypointsParams, createEntrypoints } from './entries'
+import { NextBuildContext } from './build-context'
+
+import { createEntrypoints } from './entries'
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -34,23 +33,7 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
   return plugin instanceof TelemetryPlugin
 }
 
-export async function webpackBuild(
-  commonWebpackOptions: {
-    buildId: string
-    config: NextConfigComplete
-    pagesDir: string | undefined
-    reactProductionProfiling: boolean
-    rewrites: {
-      fallback: Rewrite[]
-      afterFiles: Rewrite[]
-      beforeFiles: Rewrite[]
-    }
-    target: string
-    appDir: string | undefined
-    noMangling: boolean
-  },
-  entrypointsParams: CreateEntrypointsParams
-): Promise<number> {
+export async function webpackBuild(): Promise<number> {
   let result: CompilerResult | null = {
     warnings: [],
     errors: [],
@@ -60,13 +43,41 @@ export async function webpackBuild(
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   const buildSpinner = NextBuildContext.buildSpinner
   const dir = NextBuildContext.dir!
+
   await (async () => {
     // IIFE to isolate locals and avoid retaining memory too long
     const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
 
     const entrypoints = await nextBuildSpan
       .traceChild('create-entrypoints')
-      .traceAsyncFn(() => createEntrypoints(entrypointsParams))
+      .traceAsyncFn(() =>
+        createEntrypoints({
+          buildId: NextBuildContext.buildId!,
+          config: NextBuildContext.config!,
+          envFiles: NextBuildContext.loadedEnvFiles!,
+          isDev: false,
+          rootDir: dir,
+          pageExtensions: NextBuildContext.config!.pageExtensions!,
+          pagesDir: NextBuildContext.pagesDir!,
+          appDir: NextBuildContext.appDir!,
+          pages: NextBuildContext.mappedPages!,
+          appPaths: NextBuildContext.mappedAppPages!,
+          previewMode: NextBuildContext.previewProps!,
+          rootPaths: NextBuildContext.mappedRootPaths!,
+        })
+      )
+
+    const commonWebpackOptions = {
+      isServer: false,
+      buildId: NextBuildContext.buildId!,
+      config: NextBuildContext.config!,
+      target: NextBuildContext.config!.target!,
+      appDir: NextBuildContext.appDir!,
+      pagesDir: NextBuildContext.pagesDir!,
+      rewrites: NextBuildContext.rewrites!,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
+      noMangling: NextBuildContext.noMangling!,
+    }
 
     const configs = await runWebpackSpan
       .traceChild('generate-webpack-config')
@@ -74,8 +85,8 @@ export async function webpackBuild(
         Promise.all([
           getBaseWebpackConfig(dir, {
             ...commonWebpackOptions,
-            runWebpackSpan,
             middlewareMatchers: entrypoints.middlewareMatchers,
+            runWebpackSpan,
             compilerType: COMPILER_NAMES.client,
             entrypoints: entrypoints.client,
           }),
