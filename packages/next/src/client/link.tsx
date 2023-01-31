@@ -553,6 +553,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       prefetchEnabled,
       pagesRouter?.locale,
       router,
+      isAppRouter,
     ])
 
     const childProps: {
@@ -626,12 +627,18 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        prefetch(router, href, as, {
-          locale,
-          priority: true,
-          // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
-          bypassPrefetchedCheck: true,
-        })
+        prefetch(
+          router,
+          href,
+          as,
+          {
+            locale,
+            priority: true,
+            // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
+            bypassPrefetchedCheck: true,
+          },
+          isAppRouter
+        )
       },
       onTouchStart(e) {
         if (!legacyBehavior && typeof onTouchStartProp === 'function') {
@@ -654,12 +661,18 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        prefetch(router, href, as, {
-          locale,
-          priority: true,
-          // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
-          bypassPrefetchedCheck: true,
-        })
+        prefetch(
+          router,
+          href,
+          as,
+          {
+            locale,
+            priority: true,
+            // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
+            bypassPrefetchedCheck: true,
+          },
+          isAppRouter
+        )
       },
     }
 
