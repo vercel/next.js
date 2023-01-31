@@ -165,7 +165,7 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   )
 }
 
-async function createCustomAppRouteCode({
+async function createAppRouteCode({
   pagePath,
   resolver,
 }: {
@@ -252,7 +252,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
   }
 
   if (isAppRoute(name)) {
-    return createCustomAppRouteCode({ pagePath, resolver })
+    return createAppRouteCode({ pagePath, resolver })
   }
 
   const normalizedAppPaths =
