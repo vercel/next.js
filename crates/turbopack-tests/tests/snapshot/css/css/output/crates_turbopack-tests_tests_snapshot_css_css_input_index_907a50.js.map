@@ -3,6 +3,6 @@
   "sections": [
     {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/css/css/input/index.js"],"sourcesContent":["import \"foo/style.css\";\nimport \"foo\";\nimport \"./style.css\";\nimport fooStyle from \"foo/style.module.css\";\nimport style from \"./style.module.css\";\n\nconsole.log(style, fooStyle);\n"],"names":[],"mappings":";;;;;;;;AAMA,QAAQ,GAAG"}},
     {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css.js"],"sourcesContent":["__turbopack_export_value__({\n  \"inner\": \"inner◽[project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css\",\n  \"module-style\": \"module-style◽[project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA;AACA"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css.js"],"sourcesContent":["__turbopack_export_value__({\n  \"inner\": \"inner__style__9bcf751c\",\n  \"module-style\": \"module-style__style__9bcf751c\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA;AACA"}},
     {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }
