@@ -1,3 +1,4 @@
+import '../lib/setup-exception-listeners'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'

@@ -91,6 +91,7 @@ export function MultiMeta({
         } else {
           return (
             <ExtendMeta
+              key={keyPrefix + '_' + index}
               namePrefix={namePrefix}
               propertyPrefix={propertyPrefix}
               content={content}
