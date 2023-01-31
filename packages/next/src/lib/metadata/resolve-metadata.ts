@@ -330,7 +330,7 @@ export async function collectMetadata(
   if (!mod) return
   const metadata = await getDefinedMetadata(mod, props)
   if (metadata) {
-    array.unshift(metadata)
+    array.push(metadata)
   }
 }
 

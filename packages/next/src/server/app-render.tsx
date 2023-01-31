@@ -991,6 +991,7 @@ export async function renderToHTMLOrFlight(
 
     const requestId = nanoid(12)
     const metadataItems: MetadataItems = []
+    const searchParamsProps = { searchParams: query }
 
     stripInternalQueries(query)
 
@@ -1074,9 +1075,11 @@ export async function renderToHTMLOrFlight(
     }
 
     async function resolveHead(
-      [segment, parallelRoutes, { head }]: LoaderTree,
+      tree: LoaderTree,
       parentParams: { [key: string]: any }
     ): Promise<React.ReactNode> {
+      const [segment, parallelRoutes, { head, page }] = tree
+      const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
       /**
@@ -1091,6 +1094,15 @@ export async function renderToHTMLOrFlight(
             }
           : // Pass through parent params to children
             parentParams
+
+      const layerProps = {
+        params: currentParams,
+        ...(isPage && searchParamsProps),
+      }
+
+      const mod = await getLayoutOrPageModule(tree)
+      await collectMetadata(mod, layerProps, metadataItems)
+
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
         const returnedHead = await resolveHead(childTree, currentParams)
@@ -1484,20 +1496,14 @@ export async function renderToHTMLOrFlight(
         }
       }
 
-      const pageProps = {
+      const props = {
+        ...parallelRouteComponents,
         // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
         // Params are always the current params that apply to the layout
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
         params: currentParams,
         // Query is only provided to page
-        ...(isPage ? { searchParams: query } : {}),
-      }
-
-      await collectMetadata(layoutOrPageMod, pageProps, metadataItems)
-
-      const props = {
-        ...parallelRouteComponents,
-        ...pageProps,
+        ...(isPage ? searchParamsProps : {}),
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
@@ -1663,20 +1669,9 @@ export async function renderToHTMLOrFlight(
                     }
                   )
 
-                  return (
-                    <>
-                      {/*
-                       * Adding key={requestId} to make metadata remount for each render
-                       */}
-                      {/* @ts-expect-error allow to use async server component */}
-                      <MetadataTree key={requestId} metadata={metadataItems} />
-                      <Component />
-                    </>
-                  )
+                  return <Component />
                 }),
-            isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
-              <>{rscPayloadHead}</>
-            ),
+            isPrefetch && !Boolean(components.loading) ? null : rscPayloadHead,
           ]
         }
 
@@ -1739,7 +1734,14 @@ export async function renderToHTMLOrFlight(
             flightRouterState: providedFlightRouterState,
             isFirst: true,
             // For flight, render metadata inside leaf page
-            rscPayloadHead: resolvedHead,
+            rscPayloadHead: (
+              <>
+                {/* Adding key={requestId} to make metadata remount for each render */}
+                {/* @ts-expect-error allow to use async server component */}
+                <MetadataTree key={requestId} metadata={metadataItems} />
+                {resolvedHead}
+              </>
+            ),
             injectedCSS: new Set(),
             rootLayoutIncluded: false,
           })
