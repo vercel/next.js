@@ -58,7 +58,7 @@ const HotReloader:
 const prefetched = new Set<string>()
 
 type AppRouterProps = Omit<
-  InitialRouterStateParameters,
+  Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
   initialHead: ReactNode
