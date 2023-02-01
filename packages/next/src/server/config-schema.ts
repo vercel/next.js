@@ -472,6 +472,9 @@ const configSchema = {
             maxFiles: {
               type: 'integer',
             },
+            memoryLimit: {
+              type: 'integer',
+            },
           },
         },
       },

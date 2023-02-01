@@ -30,35 +30,6 @@ const viewPortKeys = {
   viewportFit: 'viewport-fit',
 } as const
 
-type Item =
-  | {
-      type: 'layout' | 'page'
-      // A number that represents which layer or routes that the item is in. Starting from 0.
-      // Layout and page in the same level will share the same `layer`.
-      layer: number
-      mod: () => Promise<{
-        metadata?: Metadata
-        generateMetadata?: (
-          props: any,
-          parent: ResolvingMetadata
-        ) => Promise<Metadata>
-      }>
-      path: string
-    }
-  | {
-      type: 'icon'
-      // A number that represents which layer the item is in. Starting from 0.
-      layer: number
-      mod?: () => Promise<{
-        metadata?: Metadata
-        generateMetadata?: (
-          props: any,
-          parent: ResolvingMetadata
-        ) => Promise<Metadata>
-      }>
-      path?: string
-    }
-
 const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
   let resolved: ResolvedMetadata['viewport'] = null
 
@@ -338,9 +309,11 @@ function merge(
       case 'itunes':
       case 'alternates':
       case 'formatDetection':
-      case 'other':
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
+        break
+      case 'other':
+        target.other = Object.assign({}, target.other, source.other)
         break
       default:
         break
@@ -348,75 +321,68 @@ function merge(
   }
 }
 
-export async function resolveMetadata(metadataItems: Item[]) {
-  const resolvedMetadata = createDefaultMetadata()
+type MetadataResolver = (_parent: ResolvingMetadata) => Promise<Metadata>
+export type MetadataItems = (Metadata | MetadataResolver)[]
 
-  let committedTitleTemplate: string | null = null
-  let committedOpenGraphTitleTemplate: string | null = null
-  let committedTwitterTitleTemplate: string | null = null
-
-  let lastLayer = 0
-  // from root layout to page metadata
-  for (let i = 0; i < metadataItems.length; i++) {
-    const item = metadataItems[i]
-    const isLayout = item.type === 'layout'
-    const isPage = item.type === 'page'
-    if (isLayout || isPage) {
-      let layerMod = await item.mod()
-
-      // Layer is a client component, we just skip it. It can't have metadata
-      // exported. Note that during our SWC transpilation, it should check if
-      // the exports are valid and give specific error messages.
-      if (
-        '$$typeof' in layerMod &&
-        (layerMod as any).$$typeof === Symbol.for('react.module.reference')
-      ) {
-        continue
-      }
-
-      if (layerMod.metadata && layerMod.generateMetadata) {
-        throw new Error(
-          `A ${item.type} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this ${item.type} is static use the metadata export, otherwise use generateMetadata. File: ` +
-            item.path
-        )
-      }
-
-      // If we resolved all items in this layer, commit the stashed titles.
-      if (item.layer >= lastLayer) {
-        committedTitleTemplate = resolvedMetadata.title?.template || null
-        committedOpenGraphTitleTemplate =
-          resolvedMetadata.openGraph?.title?.template || null
-        committedTwitterTitleTemplate =
-          resolvedMetadata.twitter?.title?.template || null
-
-        lastLayer = item.layer
-      }
-
-      if (layerMod.metadata) {
-        merge(resolvedMetadata, layerMod.metadata, {
-          title: committedTitleTemplate,
-          openGraph: committedOpenGraphTitleTemplate,
-          twitter: committedTwitterTitleTemplate,
-        })
-      } else if (layerMod.generateMetadata) {
-        merge(
-          resolvedMetadata,
-          await layerMod.generateMetadata(
-            // TODO: Rewrite this to pass correct params and resolving metadata value.
-            {},
-            Promise.resolve(resolvedMetadata)
-          ),
-          {
-            title: committedTitleTemplate,
-            openGraph: committedOpenGraphTitleTemplate,
-            twitter: committedTwitterTitleTemplate,
-          }
-        )
-      }
-    }
+async function getDefinedMetadata(
+  mod: any,
+  props: any
+): Promise<Metadata | MetadataResolver | null> {
+  // Layer is a client component, we just skip it. It can't have metadata
+  // exported. Note that during our SWC transpilation, it should check if
+  // the exports are valid and give specific error messages.
+  if (
+    '$$typeof' in mod &&
+    (mod as any).$$typeof === Symbol.for('react.module.reference')
+  ) {
+    return null
   }
 
-  return resolvedMetadata
+  if (mod.metadata && mod.generateMetadata) {
+    throw new Error(
+      `${mod.path} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this page/layout is static use the metadata export, otherwise use generateMetadata. File: ${mod.path}`
+    )
+  }
+
+  return mod.generateMetadata
+    ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
+    : mod.metadata
+}
+
+// layout.metadata -> layout.metadata -> page.metadata
+export async function collectMetadata(
+  mod: any,
+  props: any,
+  array: MetadataItems
+) {
+  if (!mod) return
+  const metadata = await getDefinedMetadata(mod, props)
+  if (metadata) {
+    array.push(metadata)
+  }
+}
+
+export async function accumulateMetadata(
+  metadataItems: MetadataItems
+): Promise<ResolvedMetadata> {
+  const resolvedMetadata = createDefaultMetadata()
+  let parentPromise = Promise.resolve(resolvedMetadata)
+
+  for (const item of metadataItems) {
+    const layerMetadataPromise =
+      typeof item === 'function' ? item(parentPromise) : Promise.resolve(item)
+    parentPromise = parentPromise.then((resolved) => {
+      return layerMetadataPromise.then((metadata) => {
+        merge(resolved, metadata, {
+          title: resolved.title?.template || null,
+          openGraph: resolved.openGraph?.title?.template || null,
+          twitter: resolved.twitter?.title?.template || null,
+        })
+        return resolved
+      })
+    })
+  }
+  return await parentPromise
 }
 
 // TODO: Implement this function.
