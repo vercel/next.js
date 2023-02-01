@@ -814,7 +814,12 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           ) {
             const maxFiles =
               this.turbotrace?.maxFiles ?? TURBO_TRACE_DEFAULT_MAX_FILES
-            let chunks = [...this.chunksToTrace]
+            const ignores = [...TRACE_IGNORES, ...this.traceIgnores]
+
+            const ignoreFn = (path: string) => {
+              return isMatch(path, ignores, { contains: true, dot: true })
+            }
+            let chunks = this.chunksToTrace.filter((chunk) => !ignoreFn(chunk))
             let restChunks =
               chunks.length > maxFiles ? chunks.splice(maxFiles) : []
             while (chunks.length) {
