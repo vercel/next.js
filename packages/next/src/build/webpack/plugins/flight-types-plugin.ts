@@ -179,6 +179,7 @@ export class FlightTypesPlugin {
             }
           }
           await Promise.all(promises)
+
           callback()
         }
       )

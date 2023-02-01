@@ -128,11 +128,7 @@ function visitEntryConfig(
         ) {
           if (ts.isVariableDeclarationList(node.declarationList)) {
             for (const declaration of node.declarationList.declarations) {
-              if (
-                declaration.getFullStart() <= position &&
-                position <=
-                  declaration.getFullStart() + declaration.getFullWidth()
-              ) {
+              if (isPositionInsideNode(position, declaration)) {
                 // `export const ... = ...`
                 const text = declaration.name.getText()
                 callback(text, declaration)
@@ -149,8 +145,8 @@ function createAutoCompletionOptionName(sort: number, name: string) {
   const ts = getTs()
   return {
     name,
-    sortText: '' + sort,
-    kind: ts.ScriptElementKind.unknown,
+    sortText: '!' + sort,
+    kind: ts.ScriptElementKind.constElement,
     kindModifiers: ts.ScriptElementKindModifier.exportedModifier,
     labelDetails: {
       description: `Next.js ${name} option`,
@@ -196,17 +192,15 @@ function getAPIDescription(api: string): string {
 }
 const config = {
   // Auto completion for entry exported configs.
-  getCompletionsAtPosition(fileName: string, position: number) {
-    const entries: ts.CompletionEntry[] = []
-
+  addCompletionsAtPosition(
+    fileName: string,
+    position: number,
+    prior: ts.WithMetadata<ts.CompletionInfo>
+  ) {
     visitEntryConfig(fileName, position, (entryConfig, declaration) => {
       if (!API_DOCS[entryConfig]) {
-        if (
-          declaration.name.getFullStart() <= position &&
-          position <=
-            declaration.name.getFullStart() + declaration.name.getFullWidth()
-        ) {
-          entries.push(
+        if (isPositionInsideNode(position, declaration.name)) {
+          prior.entries.push(
             ...Object.keys(API_DOCS).map((name, index) => {
               return createAutoCompletionOptionName(index, name)
             })
@@ -215,14 +209,12 @@ const config = {
         return
       }
 
-      entries.push(
+      prior.entries.push(
         ...Object.keys(API_DOCS[entryConfig].options).map((name, index) => {
           return createAutoCompletionOptionValue(index, name, entryConfig)
         })
       )
     })
-
-    return entries
   },
 
   // Show docs when hovering on the exported configs.
@@ -243,11 +235,7 @@ const config = {
           API_DOCS[entryConfig].link,
       }
 
-      if (
-        value &&
-        value.getFullStart() <= position &&
-        value.getFullStart() + value.getFullWidth() >= position
-      ) {
+      if (value && isPositionInsideNode(position, value)) {
         // Hovers the value of the config
         const isString = ts.isStringLiteral(value)
         const text = removeStringQuotes(value.getText())
