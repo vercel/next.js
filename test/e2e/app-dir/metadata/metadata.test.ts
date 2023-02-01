@@ -557,7 +557,7 @@ createNextDescribe(
         expect(obj.val).toBe(value)
         // Check `fetch()`
         // TODO-APP: Investigate why fetch deduping doesn't apply but cache() does.
-        if (!next.isDev) {
+        if (!next.isNextDev) {
           expect(obj.val2).toBe(value2)
         }
       })
@@ -577,7 +577,7 @@ createNextDescribe(
         expect(obj.val).toBe(value)
         // Check `fetch()`
         // TODO-APP: Investigate why fetch deduping doesn't apply but cache() does.
-        if (!next.isDev) {
+        if (!next.isNextDev) {
           expect(obj.val2).toBe(value2)
         }
       })
