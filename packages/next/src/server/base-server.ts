@@ -4,7 +4,7 @@ import type { DomainLocale } from './config'
 import type { DynamicRoutes, RouterOptions } from './router'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
-import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
+import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
@@ -81,13 +81,11 @@ import {
   FLIGHT_PARAMETERS,
   FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
-import { Resolver } from './resolvers/resolver'
-import { Route, RouteType } from './routes/route'
-import { Resolvers } from './resolvers/resolvers'
-import { RouteHandler } from './handlers/handler'
-import { Handlers } from './handlers/handlers'
-import { AppRouteResolver } from './resolvers/app-route-resolver'
-import { AppRouteHandler } from './handlers/app-route/handler'
+import { RouteType } from './route-matches/route-match'
+import { RouteMatchers } from './route-matchers/route-matchers'
+import { RouteHandlers } from './handlers/route-handlers'
+import { AppRouteRouteMatcher } from './route-matchers/app-route-route-matcher'
+import { AppRouteRouteHandler } from './handlers/app-route/app-route-route-handler'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -96,7 +94,7 @@ export type FindComponentsResult = {
 
 export interface RoutingItem {
   page: string
-  match: RouteMatch
+  match: RouteMatchFn
   re?: RegExp
 }
 
@@ -240,15 +238,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   public readonly port?: number
 
   /**
-   * resolvers will match a given request to a given supported route. The route
+   * matchers will match a given request to a given supported route. The route
    * can then be used with a handler that can handle the route.
    */
-  protected readonly resolvers: Resolver<Route>
+  protected readonly matchers: RouteMatchers
 
   /**
    * handlers will handle the given route for a given request.
    */
-  protected readonly handlers: RouteHandler<Route>
+  protected readonly handlers: RouteHandlers
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
@@ -435,23 +433,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     this.responseCache = this.getResponseCache({ dev })
 
-    // Configure the resolvers.
-    const resolvers: Array<Resolver<Route>> = []
-    if (this.hasAppDir && this.appPathsManifest) {
-      // The app directory is enabled for this application, so add the app route
-      // resolver.
-      resolvers.push(new AppRouteResolver(this.distDir, this.appPathsManifest))
-    }
-    this.resolvers = new Resolvers(resolvers)
+    // Configure the matchers and handlers.
+    this.matchers = new RouteMatchers()
+    this.handlers = new RouteHandlers()
 
-    // Configure the handlers.
-    const handlers: Partial<Record<RouteType, RouteHandler<Route>>> = {}
-    if (this.hasAppDir) {
-      // The app directory is enabled for this application, so add the app route
-      // handler.
-      handlers[RouteType.APP_ROUTE] = new AppRouteHandler()
+    // If the app directory is enabled with the app paths manifest being
+    // available, then add the associated matcher and handler.
+    if (this.hasAppDir && this.appPathsManifest) {
+      this.matchers.push(
+        new AppRouteRouteMatcher(this.distDir, this.appPathsManifest)
+      )
+      this.handlers.set(RouteType.APP_ROUTE, new AppRouteRouteHandler())
     }
-    this.handlers = new Handlers(handlers)
   }
 
   public logError(err: Error): void {

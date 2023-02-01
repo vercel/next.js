@@ -9,24 +9,21 @@ import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   getRouteMatcher,
   Params,
-  RouteMatch,
+  RouteMatchFn,
 } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { BaseNextRequest } from '../base-http'
-import type { ModuleLoader } from '../module-loader/module-loader'
-import { NodeModuleLoader } from '../module-loader/node-module-loader'
 import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
 import type { Normalizer } from '../normalizers/normalizer'
-import type { AppRouteModule, AppRouteRoute } from '../routes/app-route-route'
-import { RouteType } from '../routes/route'
-import type { Resolver } from './resolver'
+import { RouteMatch, RouteType } from '../route-matches/route-match'
+import type { RouteMatcher } from './route-matcher'
 
 type RoutingItem = { page: string; pathname: string; filename: string }
-type DynamicRoutingItem = RoutingItem & { match: RouteMatch }
+type DynamicRoutingItem = RoutingItem & { match: RouteMatchFn }
 
 type RoutingItemMatch = RoutingItem & { params?: Params }
 
-export class AppRouteResolver implements Resolver<AppRouteRoute> {
+export class AppRouteRouteMatcher implements RouteMatcher<RouteType.APP_ROUTE> {
   private readonly normalized: Record<string, RoutingItem>
   private readonly dynamic: ReadonlyArray<DynamicRoutingItem>
 
@@ -37,8 +34,7 @@ export class AppRouteResolver implements Resolver<AppRouteRoute> {
       SERVER_DIRECTORY,
       APP_PATHS_MANIFEST
     )),
-    localeRouteNormalizer: Normalizer = new LocaleRouteNormalizer(),
-    private readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
+    localeRouteNormalizer: Normalizer = new LocaleRouteNormalizer()
   ) {
     // Find all the app routes in the manifest.
     const appRoutes = Object.keys(appPathsManifest).filter((pathname) =>
@@ -93,7 +89,7 @@ export class AppRouteResolver implements Resolver<AppRouteRoute> {
    * @param pathname the request pathname to find a route for
    * @returns the matched route data
    */
-  private match(pathname: string): RoutingItemMatch | null {
+  private _match(pathname: string): RoutingItemMatch | null {
     // Try a direct match, this could be something like `/about`.
     if (pathname in this.normalized) return this.normalized[pathname]
 
@@ -125,24 +121,22 @@ export class AppRouteResolver implements Resolver<AppRouteRoute> {
   }
 
   /**
-   * Resolves the route for the incoming request if it's an AppRouteRoute.
+   * Matches the route for the incoming request if it's for an app route.
    *
    * @param req the request for which the route could be resolved from
    */
-  public resolve(req: BaseNextRequest): AppRouteRoute | null {
+  public match(req: BaseNextRequest): RouteMatch<RouteType.APP_ROUTE> | null {
     const url = new URL(req.url, 'https://n')
 
     // Try to match the pathname of the route to an app route.
-    const match = this.match(url.pathname)
+    const match = this._match(url.pathname)
     if (!match) return null
 
-    // TODO: patch fetch
-    // TODO: ensure to "ensure" that the app custom route page is built, like this.ensureApiPage
-
-    // Load the module for this page.
-    const module: AppRouteModule = this.moduleLoader.load(match.filename)
-
     // Return the built route.
-    return { type: RouteType.APP_ROUTE, module, params: match.params }
+    return {
+      type: RouteType.APP_ROUTE,
+      filename: match.filename,
+      params: match.params,
+    }
   }
 }

@@ -1,7 +1,7 @@
-import { BaseNextRequest } from '../base-http'
-import { AppRouteResolver } from './app-route-resolver'
+import type { BaseNextRequest } from '../base-http'
+import { AppRouteRouteMatcher } from './app-route-route-matcher'
 
-describe('AppRouteResolver', () => {
+describe('AppRouteRouteMatcher', () => {
   describe('successful resolutions', () => {
     const manifest = {
       '/endpoint/route': 'app/endpoint/route.js',
@@ -16,25 +16,14 @@ describe('AppRouteResolver', () => {
       ['/vercel/endpoint', 'app/[tenantID]/endpoint/route.js'],
       ['/endpoint/nested', 'app/(grouped)/endpoint/nested/route.js'],
     ])("will resolve '%s' to '<root>/server/%s'", (pathname, filename) => {
-      const module = {}
-      const loader = {
-        load: jest.fn().mockReturnValue(module),
-      }
+      const resolver = new AppRouteRouteMatcher('<root>', manifest, undefined)
 
-      const resolver = new AppRouteResolver(
-        '<root>',
-        manifest,
-        undefined,
-        loader
-      )
-
-      const route = resolver.resolve({
+      const route = resolver.match({
         url: `http://n${pathname}`,
       } as BaseNextRequest)
 
       expect(route).not.toBeNull()
-      expect(loader.load).toBeCalledWith(`<root>/server/${filename}`)
-      expect(route?.module).toBe(module)
+      expect(route?.filename).toEqual(`<root>/server/${filename}`)
     })
   })
 })

@@ -21,7 +21,7 @@ import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type {
   Params,
-  RouteMatch,
+  RouteMatchFn,
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 
@@ -122,7 +122,7 @@ const MiddlewareMatcherCache = new WeakMap<
 
 const EdgeMatcherCache = new WeakMap<
   MiddlewareManifest['functions'][string],
-  RouteMatch
+  RouteMatchFn
 >()
 
 function getMiddlewareMatcher(
@@ -181,7 +181,7 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
 
 function getEdgeMatcher(
   info: MiddlewareManifest['functions'][string]
-): RouteMatch {
+): RouteMatchFn {
   const stored = EdgeMatcherCache.get(info)
   if (stored) {
     return stored
@@ -1176,7 +1176,7 @@ export default class NextNodeServer extends BaseServer {
           }
         }
 
-        const route = await this.resolvers.resolve(req)
+        const route = await this.matchers.match(req)
         if (route) {
           // Handle the given route.
           await this.handlers.handle(route, req, res)

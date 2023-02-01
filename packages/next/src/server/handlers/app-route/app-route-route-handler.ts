@@ -18,16 +18,41 @@ import { BaseNextRequest, BaseNextResponse } from '../../base-http'
 import { NodeNextRequest, NodeNextResponse } from '../../base-http/node'
 import { getRequestMeta } from '../../request-meta'
 import * as Log from '../../../build/output/log'
-import type {
-  AppRouteHandlerFn,
-  AppRouteRoute,
-} from '../../routes/app-route-route'
 import { HTTP_METHOD, isHTTPMethod } from '../../web/http'
 import { NextRequest } from '../../web/spec-extension/request'
 import { fromNodeHeaders } from '../../web/utils'
-import type { HandlerFn, RouteHandler } from '../handler'
-import { AsyncStorageWrapper } from '../../async-storage/async-storage-wrapper'
-import { RequestStore } from '../../../client/components/request-async-storage'
+import type { RouteHandlerFn, RouteHandler } from '../route-handler'
+import type { AsyncStorageWrapper } from '../../async-storage/async-storage-wrapper'
+import {
+  RequestAsyncStorage,
+  RequestStore,
+} from '../../../client/components/request-async-storage'
+import { RouteMatch, RouteType } from '../../route-matches/route-match'
+import type { ModuleLoader } from '../../module-loader/module-loader'
+import { NodeModuleLoader } from '../../module-loader/node-module-loader'
+import type { Params } from '../../../shared/lib/router/utils/route-matcher'
+
+// TODO: document
+export type AppRouteHandlerFn = (
+  req: Request,
+  ctx: { params?: Params }
+) => Response
+
+/**
+ * AppRouteModule is the specific userland module that is exported. This will
+ * contain the HTTP methods that this route can respond to.
+ */
+export type AppRouteModule = {
+  /**
+   * Contains all the exported userland code.
+   */
+  handlers: Record<HTTP_METHOD, AppRouteHandlerFn>
+
+  /**
+   * The exported async storage object for this worker/module.
+   */
+  requestAsyncStorage: RequestAsyncStorage
+}
 
 /**
  * Wraps the base next request to a request compatible with the app route
@@ -124,15 +149,19 @@ async function sendResponse(
 /**
  *
  */
-export class AppRouteHandler implements RouteHandler<AppRouteRoute> {
+export class AppRouteRouteHandler implements RouteHandler<RouteType.APP_ROUTE> {
   constructor(
     private readonly requestAsyncLocalStorageWrapper: AsyncStorageWrapper<
       RequestStore,
       RequestContext
-    > = new RequestAsyncStorageWrapper()
+    > = new RequestAsyncStorageWrapper(),
+    private readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
   ) {}
 
-  private resolve(req: BaseNextRequest, mod: any): AppRouteHandlerFn {
+  private resolve(
+    req: BaseNextRequest,
+    mod: AppRouteModule
+  ): AppRouteHandlerFn {
     // Ensure that the requested method is a valid method (to prevent RCE's).
     if (!isHTTPMethod(req.method)) return handleBadRequestResponse
 
@@ -190,18 +219,16 @@ export class AppRouteHandler implements RouteHandler<AppRouteRoute> {
   }
 
   private async execute(
-    route: AppRouteRoute,
+    { params }: RouteMatch<RouteType.APP_ROUTE>,
+    module: AppRouteModule,
     req: BaseNextRequest,
     res: BaseNextResponse
   ): Promise<Response> {
     // This is added by the webpack loader, we load it directly from the module.
-    const {
-      params,
-      module: { requestAsyncStorage },
-    } = route
+    const { requestAsyncStorage } = module
 
     // Get the handler function for the given method.
-    const handler = this.resolve(req, route.module)
+    const handle = this.resolve(req, module)
 
     // TODO: patch fetch
 
@@ -213,7 +240,7 @@ export class AppRouteHandler implements RouteHandler<AppRouteRoute> {
         req: (req as NodeNextRequest).originalRequest,
         res: (res as NodeNextResponse).originalResponse,
       },
-      () => handler(wrapRequest(req), { params })
+      () => handle(wrapRequest(req), { params })
     )
 
     // If the handler did't return a valid response, then return the internal
@@ -259,10 +286,20 @@ export class AppRouteHandler implements RouteHandler<AppRouteRoute> {
     return response
   }
 
-  public handle: HandlerFn<AppRouteRoute> = async (route, req, res) => {
+  public handle: RouteHandlerFn<RouteType.APP_ROUTE> = async (
+    match,
+    req,
+    res
+  ) => {
     try {
+      const module: AppRouteModule = await this.moduleLoader.load(
+        match.filename
+      )
+
+      // TODO: patch fetch
+
       // Execute the route to get the response.
-      const response = await this.execute(route, req, res)
+      const response = await this.execute(match, module, req, res)
 
       // Send the response back to the response.
       await sendResponse(req, res, response)

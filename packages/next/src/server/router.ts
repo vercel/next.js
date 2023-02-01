@@ -2,7 +2,7 @@ import type { NextConfig } from './config'
 import type { ParsedUrlQuery } from 'querystring'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type {
-  RouteMatch,
+  RouteMatchFn,
   Params,
 } from '../shared/lib/router/utils/route-matcher'
 import type { RouteHas } from '../lib/load-custom-routes'
@@ -50,7 +50,7 @@ export type RouteResult = {
 }
 
 export type Route = {
-  match: RouteMatch
+  match: RouteMatchFn
   has?: RouteHas[]
   missing?: RouteHas[]
   type: string
@@ -74,7 +74,7 @@ export type Route = {
 // TODO: document
 export type DynamicRoutes = Array<{
   page: string
-  match: RouteMatch
+  match: RouteMatchFn
 }>
 
 export type PageChecker = (pathname: string) => Promise<boolean>
