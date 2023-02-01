@@ -13,7 +13,6 @@ import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
-import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
@@ -54,13 +53,10 @@ import {
   MIDDLEWARE_MANIFEST,
   APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
-  COMPILER_NAMES,
   APP_BUILD_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   RSC_MODULE_TYPES,
   FONT_LOADER_MANIFEST,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
-  APP_CLIENT_INTERNALS,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
@@ -73,7 +69,6 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
-  eventBuildCompleted,
   eventBuildOptimize,
   eventCliSession,
   eventBuildFeatureUsage,
@@ -82,16 +77,16 @@ import {
   EVENT_BUILD_FEATURE_USAGE,
   EventBuildFeatureUsage,
   eventPackageUsedInGetServerSideProps,
+  eventBuildCompleted,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
-import { runCompiler } from './compiler'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace, flushAllTraces, setGlobal } from '../trace'
+import { trace, flushAllTraces, setGlobal, Span } from '../trace'
 import {
   detectConflictingPaths,
   computeFromManifest,
@@ -103,7 +98,6 @@ import {
   isReservedPage,
   AppConfig,
 } from './utils'
-import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -120,7 +114,6 @@ import {
   teardownCrashReporter,
   loadBindings,
 } from './swc'
-import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { RemotePattern } from '../shared/lib/image-config'
@@ -128,6 +121,7 @@ import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
+import { webpackBuild } from './webpack-build'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -150,17 +144,18 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
-type CompilerResult = {
-  errors: webpack.StatsError[]
-  warnings: webpack.StatsError[]
-  stats: (webpack.Stats | undefined)[]
-}
-
-type SingleCompilerResult = {
-  errors: webpack.StatsError[]
-  warnings: webpack.StatsError[]
-  stats: webpack.Stats | undefined
-}
+export const NextBuildContext: Partial<{
+  telemetryPlugin: TelemetryPlugin
+  buildSpinner: any
+  nextBuildSpan: Span
+  entrypoints: {
+    client: webpack.EntryObject
+    server: webpack.EntryObject
+    edgeServer: webpack.EntryObject
+    middlewareMatchers: undefined
+  }
+  dir: string
+}> = {}
 
 /**
  * typescript will be loaded in "next/lib/verifyTypeScriptSetup" and
@@ -241,10 +236,6 @@ function generateClientSsgManifest(
   )
 }
 
-function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
-  return plugin instanceof TelemetryPlugin
-}
-
 function pageToRoute(page: string) {
   const routeRegex = getNamedRouteRegex(page)
   return {
@@ -268,6 +259,8 @@ export default async function build(
     const nextBuildSpan = trace('next-build', undefined, {
       version: process.env.__NEXT_VERSION as string,
     })
+    NextBuildContext.nextBuildSpan = nextBuildSpan
+    NextBuildContext.dir = dir
 
     const buildResult = await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
@@ -308,6 +301,7 @@ export default async function build(
       }
 
       const telemetry = new Telemetry({ distDir })
+
       setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
@@ -483,6 +477,8 @@ export default async function build(
         prefixText: `${Log.prefixes.info} Creating an optimized production build`,
       })
 
+      NextBuildContext.buildSpinner = buildSpinner
+
       const pagesPaths =
         !appDirOnly && pagesDir
           ? await nextBuildSpan
@@ -587,6 +583,7 @@ export default async function build(
             pageExtensions: config.pageExtensions,
           })
         )
+      NextBuildContext.entrypoints = entrypoints
 
       const pagesPageKeys = Object.keys(mappedPages)
 
@@ -950,199 +947,24 @@ export default async function build(
           ignore: [] as string[],
         }))
 
-      let result: CompilerResult = {
-        warnings: [],
-        errors: [],
-        stats: [],
-      }
-      let webpackBuildStart
-      let telemetryPlugin
-      await (async () => {
-        // IIFE to isolate locals and avoid retaining memory too long
-        const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
+      const webpackBuildDuration = await webpackBuild({
+        buildId,
+        config,
+        pagesDir,
+        reactProductionProfiling,
+        rewrites,
+        target,
+        appDir,
+        noMangling,
+        middlewareMatchers: entrypoints.middlewareMatchers,
+      })
 
-        const commonWebpackOptions = {
-          buildId,
-          config,
-          pagesDir,
-          reactProductionProfiling,
-          rewrites,
-          runWebpackSpan,
-          target,
-          appDir,
-          noMangling,
-          middlewareMatchers: entrypoints.middlewareMatchers,
-        }
-
-        const configs = await runWebpackSpan
-          .traceChild('generate-webpack-config')
-          .traceAsyncFn(() =>
-            Promise.all([
-              getBaseWebpackConfig(dir, {
-                ...commonWebpackOptions,
-                compilerType: COMPILER_NAMES.client,
-                entrypoints: entrypoints.client,
-              }),
-              getBaseWebpackConfig(dir, {
-                ...commonWebpackOptions,
-                compilerType: COMPILER_NAMES.server,
-                entrypoints: entrypoints.server,
-              }),
-              getBaseWebpackConfig(dir, {
-                ...commonWebpackOptions,
-                compilerType: COMPILER_NAMES.edgeServer,
-                entrypoints: entrypoints.edgeServer,
-              }),
-            ])
-          )
-
-        const clientConfig = configs[0]
-
-        if (
-          clientConfig.optimization &&
-          (clientConfig.optimization.minimize !== true ||
-            (clientConfig.optimization.minimizer &&
-              clientConfig.optimization.minimizer.length === 0))
-        ) {
-          Log.warn(
-            `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
-          )
-        }
-
-        webpackBuildStart = process.hrtime()
-
-        // We run client and server compilation separately to optimize for memory usage
-        await runWebpackSpan.traceAsyncFn(async () => {
-          // Run the server compilers first and then the client
-          // compiler to track the boundary of server/client components.
-          let clientResult: SingleCompilerResult | null = null
-
-          // During the server compilations, entries of client components will be
-          // injected to this set and then will be consumed by the client compiler.
-          injectedClientEntries.clear()
-
-          const serverResult = await runCompiler(configs[1], {
-            runWebpackSpan,
-          })
-          const edgeServerResult = configs[2]
-            ? await runCompiler(configs[2], { runWebpackSpan })
-            : null
-
-          // Only continue if there were no errors
-          if (!serverResult.errors.length && !edgeServerResult?.errors.length) {
-            injectedClientEntries.forEach((value, key) => {
-              const clientEntry = clientConfig.entry as webpack.EntryObject
-              if (key === APP_CLIENT_INTERNALS) {
-                clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = [
-                  // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
-                  // @ts-expect-error clientEntry['main-app'] is type EntryDescription { import: ... }
-                  ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
-                  value,
-                ]
-              } else {
-                clientEntry[key] = {
-                  dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
-                  import: value,
-                }
-              }
-            })
-
-            clientResult = await runCompiler(clientConfig, {
-              runWebpackSpan,
-            })
-          }
-
-          result = {
-            warnings: ([] as any[])
-              .concat(
-                clientResult?.warnings,
-                serverResult?.warnings,
-                edgeServerResult?.warnings
-              )
-              .filter(nonNullable),
-            errors: ([] as any[])
-              .concat(
-                clientResult?.errors,
-                serverResult?.errors,
-                edgeServerResult?.errors
-              )
-              .filter(nonNullable),
-            stats: [
-              clientResult?.stats,
-              serverResult?.stats,
-              edgeServerResult?.stats,
-            ],
-          }
+      telemetry.record(
+        eventBuildCompleted(pagesPaths, {
+          durationInSeconds: webpackBuildDuration,
+          totalAppPagesCount,
         })
-        result = nextBuildSpan
-          .traceChild('format-webpack-messages')
-          .traceFn(() => formatWebpackMessages(result, true))
-
-        telemetryPlugin = (clientConfig as webpack.Configuration).plugins?.find(
-          isTelemetryPlugin
-        )
-      })()
-      const webpackBuildEnd = process.hrtime(webpackBuildStart)
-      if (buildSpinner) {
-        buildSpinner.stopAndPersist()
-      }
-
-      if (result.errors.length > 0) {
-        // Only keep the first few errors. Others are often indicative
-        // of the same problem, but confuse the reader with noise.
-        if (result.errors.length > 5) {
-          result.errors.length = 5
-        }
-        let error = result.errors.filter(Boolean).join('\n\n')
-
-        console.error(chalk.red('Failed to compile.\n'))
-
-        if (
-          error.indexOf('private-next-pages') > -1 &&
-          error.indexOf('does not contain a default export') > -1
-        ) {
-          const page_name_regex = /'private-next-pages\/(?<page_name>[^']*)'/
-          const parsed = page_name_regex.exec(error)
-          const page_name = parsed && parsed.groups && parsed.groups.page_name
-          throw new Error(
-            `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.`
-          )
-        }
-
-        console.error(error)
-        console.error()
-
-        if (
-          error.indexOf('private-next-pages') > -1 ||
-          error.indexOf('__next_polyfill__') > -1
-        ) {
-          const err = new Error(
-            'webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
-          ) as NextError
-          err.code = 'INVALID_RESOLVE_ALIAS'
-          throw err
-        }
-        const err = new Error(
-          'Build failed because of webpack errors'
-        ) as NextError
-        err.code = 'WEBPACK_ERRORS'
-        throw err
-      } else {
-        telemetry.record(
-          eventBuildCompleted(pagesPaths, {
-            durationInSeconds: webpackBuildEnd[0],
-            totalAppPagesCount,
-          })
-        )
-
-        if (result.warnings.length > 0) {
-          Log.warn('Compiled with warnings\n')
-          console.warn(result.warnings.filter(Boolean).join('\n\n'))
-          console.warn()
-        } else {
-          Log.info('Compiled successfully')
-        }
-      }
+      )
 
       // For app directory, we run type checking after build.
       if (appDir) {
@@ -2739,10 +2561,12 @@ export default async function build(
         })
       )
 
-      if (telemetryPlugin) {
-        const events = eventBuildFeatureUsage(telemetryPlugin)
+      if (NextBuildContext.telemetryPlugin) {
+        const events = eventBuildFeatureUsage(NextBuildContext.telemetryPlugin)
         telemetry.record(events)
-        telemetry.record(eventPackageUsedInGetServerSideProps(telemetryPlugin))
+        telemetry.record(
+          eventPackageUsedInGetServerSideProps(NextBuildContext.telemetryPlugin)
+        )
       }
 
       if (ssgPages.size > 0 || appDir) {
