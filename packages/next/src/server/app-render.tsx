@@ -1519,7 +1519,6 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           return (
             <>
-              <Component {...props} />
               {preloadedFontFiles?.length === 0 ? (
                 <link
                   data-next-font={
@@ -1567,6 +1566,7 @@ export async function renderToHTMLOrFlight(
                     />
                   ))
                 : null}
+              <Component {...props} />
             </>
           )
         },
