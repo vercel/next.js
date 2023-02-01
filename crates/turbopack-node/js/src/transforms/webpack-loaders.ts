@@ -1,4 +1,6 @@
-declare const __turbopack_external_require__: (id: string) => any;
+declare const __turbopack_external_require__: {
+  resolve: (name: string, opt: { paths: string[] }) => string;
+} & ((id: string) => any);
 
 import type { Ipc } from "../ipc/evaluate";
 import {
@@ -58,7 +60,9 @@ const transform = (
           },
         },
         loaders: loadersWithOptions.map((loader) => ({
-          loader: require.resolve(loader.loader, { paths: [resourceDir] }),
+          loader: __turbopack_external_require__.resolve(loader.loader, {
+            paths: [resourceDir],
+          }),
           options: loader.options,
         })),
         readResource: (_filename, callback) => {

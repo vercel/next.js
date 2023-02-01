@@ -263,6 +263,9 @@ function externalRequire(id, esm) {
   interopEsm(raw, ns, true);
   return ns;
 }
+externalRequire.resolve = (name, opt) => {
+  return require.resolve(name, opt);
+};
 
 /**
  * @param {ModuleId} from
