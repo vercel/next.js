@@ -69,9 +69,13 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxDescription()).toInclude(
-        'This module cannot be imported from a Server Component module. It should only be used from a Client Component.'
+      const description = await session.getRedboxDescription()
+      expect(description).toInclude(
+        "Error: 'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component."
       )
+      expect(description).toInclude('Import trace for requested module:')
+      expect(description).toInclude('client-only/error.js')
+      expect(description).toInclude('app/server-with-errors/styled-jsx/page.js')
 
       await cleanup()
     })
