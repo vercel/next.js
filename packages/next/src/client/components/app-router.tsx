@@ -120,7 +120,7 @@ function Router({
         initialTree,
         initialParallelRoutes,
         isServer,
-        location: window.location,
+        location: !isServer ? window.location : null,
       }),
     [children, initialCanonicalUrl, initialTree]
   )
