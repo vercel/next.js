@@ -1,29 +1,22 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_css_css_input_index_907a50.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_env_env_input_79db8d.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/css/css/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$css$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css (css module)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$css$2f$css$2f$input$2f$style$2e$module$2e$css__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css (css module)");
-"__TURBOPACK__ecmascript__hoisting__location__";
-;
-;
-;
-;
-;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$css$2f$css$2f$input$2f$style$2e$module$2e$css__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$css$2f$css$2f$input$2f$node_modules$2f$foo$2f$style$2e$module$2e$css__["default"]);
+const env = process.env = {...process.env};
+
+env["FOO"] = foo;
+env["FOOBAR"] = foobar;
 
 })()),
-"[project]/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css (css module)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/env/env/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
 
-__turbopack_export_value__({
-  "inner": "inner__style__9bcf751c",
-  "module-style": "module-style__style__9bcf751c",
-});
+console.log(process.env.FOOBAR);
 
-})()),
+}.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_css_css_input_index_5c791d.js") && loadedChunks.has("output/8697f_foo_style.module.css.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/css/css/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_env_env_input_fd3a00.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/env/env/input/.env/.env.js");
+instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/env/env/input/index.js (ecmascript)");
 }]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -1069,4 +1062,4 @@ globalThis.TURBOPACK = {
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_css_css_input_index_907a50.js.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_env_env_input_79db8d.js.map

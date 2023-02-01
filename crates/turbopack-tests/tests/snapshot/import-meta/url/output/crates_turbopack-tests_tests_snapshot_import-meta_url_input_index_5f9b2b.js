@@ -1,39 +1,30 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_export-alls_cjs-2_input_index_176583.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_import-meta_url_input_index_5f9b2b.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
+"[project]/crates/turbopack-tests/tests/snapshot/import-meta/url/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$b$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$import$2d$meta$2f$url$2f$input$2f$mod$2e$mjs__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$b$2e$js__);
 
 }.call(this) }),
-"[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
 
-__turbopack_esm__({});
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$c$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js (ecmascript)");
-__turbopack__cjs__(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$c$2e$js__);
+const __TURBOPACK__import$2e$meta__ = {
+    url: "file:///ROOT/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs"
+};
 "__TURBOPACK__ecmascript__hoisting__location__";
-;
-
-})()),
-"[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
-
-__turbopack_esm__({});
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$commonjs$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js (ecmascript)");
-__turbopack__cjs__(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$commonjs$2e$js__);
-"__TURBOPACK__ecmascript__hoisting__location__";
-;
-
-})()),
-"[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
-
-exports.hello = "World";
+const assetUrl = new URL(__turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static)"), location.origin);
+console.log(assetUrl);
+fetch(assetUrl).then((res)=>res.text()).then(console.log);
 
 }.call(this) }),
+"[project]/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+
+__turbopack_export_value__("/crates/turbopack-tests/tests/snapshot/import-meta/url/static/05254cf29a922ae2.txt");
+})()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_export-alls_cjs-2_input_index_8b9f40.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_import-meta_url_input_index_ac6b60.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/import-meta/url/input/index.js (ecmascript)");
 }]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -1079,4 +1070,4 @@ globalThis.TURBOPACK = {
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_export-alls_cjs-2_input_index_176583.js.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_import-meta_url_input_index_5f9b2b.js.map

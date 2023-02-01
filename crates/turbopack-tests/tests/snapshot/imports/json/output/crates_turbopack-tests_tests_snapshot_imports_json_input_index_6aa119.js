@@ -1,34 +1,27 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/79fb1_turbopack-tests_tests_snapshot_imports_static-and-dynamic_input_index_bbeff3.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_imports_json_input_index_6aa119.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2d$and$2d$dynamic$2f$input$2f$vercel$2e$mjs__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$package$2e$json__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$invalid$2e$json__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2d$and$2d$dynamic$2f$input$2f$vercel$2e$mjs__["default"]);
-__turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs/manifest-loader.js")(__turbopack_import__).then(console.log);
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$package$2e$json__["default"].name);
+;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$json$2f$input$2f$invalid$2e$json__["default"]["this-is"]);
 
 })()),
-"[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-__turbopack_esm__({
-    "default": ()=>__TURBOPACK__default__export__
-});
-const __TURBOPACK__default__export__ = "turbopack";
-
+__turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
 })()),
-"[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs/manifest-loader.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-
-__turbopack_export_value__((__turbopack_import__) => {
-    return __turbopack_load__("output/a587c_tests_snapshot_imports_static-and-dynamic_input_vercel.mjs_manifest-chunk.js").then(() => {
-        return __turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs/manifest-chunk.js");
-    }).then(() => __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs (ecmascript)"));
-});
+throw new Error("An error occurred while importing a JSON module: \"File is not valid JSON\"")
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/79fb1_turbopack-tests_tests_snapshot_imports_static-and-dynamic_input_index_ebc4cc.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_imports_json_input_index_1b747d.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/index.js (ecmascript)");
 }]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -1074,4 +1067,4 @@ globalThis.TURBOPACK = {
 })();
 
 
-//# sourceMappingURL=79fb1_turbopack-tests_tests_snapshot_imports_static-and-dynamic_input_index_bbeff3.js.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_imports_json_input_index_6aa119.js.map
