@@ -31,7 +31,7 @@ pub async fn get_edge_resolve_options_context(
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: true,
-        custom_conditions: vec!["development".to_string()],
+        custom_conditions: vec!["worker".to_string(), "development".to_string()],
         import_map: Some(next_edge_import_map),
         module: true,
         ..Default::default()
