@@ -554,11 +554,11 @@ createNextDescribe(
         const title = await browser.eval(`document.title`)
         const obj = JSON.parse(title)
         // Check `cache()`
-        expect(obj.val).toBe(value)
+        expect(obj.val.toString()).toBe(value)
         // Check `fetch()`
         // TODO-APP: Investigate why fetch deduping doesn't apply but cache() does.
         if (!isNextDev) {
-          expect(obj.val2).toBe(value2)
+          expect(obj.val2.toString()).toBe(value2)
         }
       })
 
@@ -574,11 +574,11 @@ createNextDescribe(
         const title = await browser.eval(`document.title`)
         const obj = JSON.parse(title)
         // Check `cache()`
-        expect(obj.val).toBe(value)
+        expect(obj.val.toString()).toBe(value)
         // Check `fetch()`
         // TODO-APP: Investigate why fetch deduping doesn't apply but cache() does.
         if (!isNextDev) {
-          expect(obj.val2).toBe(value2)
+          expect(obj.val2.toString()).toBe(value2)
         }
       })
     })
