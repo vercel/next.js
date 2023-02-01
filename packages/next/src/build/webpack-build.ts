@@ -6,6 +6,7 @@ import {
   COMPILER_NAMES,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   APP_CLIENT_INTERNALS,
+  PHASE_PRODUCTION_BUILD,
 } from '../shared/lib/constants'
 import { runCompiler } from './compiler'
 import * as Log from './output/log'
@@ -14,8 +15,10 @@ import { NextError } from '../lib/is-error'
 import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { NextBuildContext } from './build-context'
-
+import { isMainThread, parentPort, Worker, workerData } from 'worker_threads'
 import { createEntrypoints } from './entries'
+import loadConfig from '../server/config'
+import { trace } from '../trace'
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -33,7 +36,7 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
   return plugin instanceof TelemetryPlugin
 }
 
-export async function webpackBuild(): Promise<number> {
+async function webpackBuildImpl(): Promise<number> {
   let result: CompilerResult | null = {
     warnings: [],
     errors: [],
@@ -45,7 +48,6 @@ export async function webpackBuild(): Promise<number> {
   const dir = NextBuildContext.dir!
 
   const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
-
   const entrypoints = await nextBuildSpan
     .traceChild('create-entrypoints')
     .traceAsyncFn(() =>
@@ -243,5 +245,72 @@ export async function webpackBuild(): Promise<number> {
       Log.info('Compiled successfully')
     }
     return webpackBuildEnd[0]
+  }
+}
+
+// the main function when this file is run as a worker
+async function workerMain() {
+  const { buildContext } = workerData
+  // setup new build context from the serialized data passed from the parent
+  Object.assign(NextBuildContext, buildContext)
+
+  /// load the config because it's not serializable
+  NextBuildContext.config = await loadConfig(
+    PHASE_PRODUCTION_BUILD,
+    NextBuildContext.dir!,
+    undefined,
+    undefined,
+    true
+  )
+  NextBuildContext.nextBuildSpan = trace('next-build')
+
+  try {
+    const result = await webpackBuildImpl()
+    parentPort!.postMessage(result)
+  } catch (e) {
+    parentPort!.postMessage(e)
+  } finally {
+    process.exit(0)
+  }
+}
+
+if (!isMainThread) {
+  workerMain()
+}
+
+async function webpackBuildWithWorker() {
+  const {
+    config,
+    telemetryPlugin,
+    buildSpinner,
+    nextBuildSpan,
+    ...prunedBuildContext
+  } = NextBuildContext
+  const worker = new Worker(new URL(import.meta.url), {
+    workerData: {
+      buildContext: prunedBuildContext,
+    },
+  })
+
+  const result = await new Promise((resolve, reject) => {
+    worker.on('message', resolve)
+    worker.on('error', reject)
+    worker.on('exit', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Worker stopped with exit code ${code}`))
+      }
+    })
+  })
+
+  return result as number
+}
+
+export async function webpackBuild() {
+  const config = NextBuildContext.config!
+
+  if (config.experimental.webpackBuildWorker) {
+    return await webpackBuildWithWorker()
+  } else {
+    return await webpackBuildImpl()
   }
 }
