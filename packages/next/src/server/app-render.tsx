@@ -206,6 +206,39 @@ function interopDefault(mod: any) {
   return mod.default || mod
 }
 
+/**
+ * Logs error stack and digest but ignores stack frames irrelevant to the user.
+ */
+function logServerError(isDev: boolean, err: any) {
+  if (
+    isDev &&
+    typeof err?.message === 'string' &&
+    typeof err?.stack === 'string'
+  ) {
+    const filteredStack = err.stack
+      .split('\n')
+      .map((line: string) =>
+        // Remove 'webpack-internal:' noise from the path
+        line.replace(/(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/, '')
+      )
+      .filter(
+        (line: string) =>
+          !/next[\\/]dist[\\/]compiled/.test(line) &&
+          !/node_modules[\\/]/.test(line) &&
+          !/node:internal[\\/]/.test(line)
+      )
+      .join('\n')
+    console.log() // new line
+    console.error(filteredStack)
+    if (err.digest) {
+      console.error(`digest: ${JSON.stringify(err.digest)}`)
+    }
+  } else {
+    console.log() // new line
+    console.error(err)
+  }
+}
+
 // tolerate dynamic server errors during prerendering so console
 // isn't spammed with unactionable errors
 /**
@@ -216,6 +249,7 @@ function createErrorHandler(
    * Used for debugging
    */
   _source: string,
+  isDev: boolean,
   isNextExport: boolean,
   capturedErrors: Error[],
   allCapturedErrors?: Error[]
@@ -234,7 +268,7 @@ function createErrorHandler(
     }
 
     // Format server errors in development to add more helpful error messages
-    if (process.env.NODE_ENV !== 'production') {
+    if (isDev) {
       formatServerError(err)
     }
     // Used for debugging error source
@@ -249,7 +283,7 @@ function createErrorHandler(
         )
       )
     ) {
-      console.error(err)
+      logServerError(isDev, err)
     }
 
     capturedErrors.push(err)
@@ -898,29 +932,6 @@ export async function renderToHTMLOrFlight(
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
-  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
-
-  const capturedErrors: Error[] = []
-  const allCapturedErrors: Error[] = []
-
-  const isNextExport = !!renderOpts.nextExport
-  const serverComponentsErrorHandler = createErrorHandler(
-    'serverComponentsRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const flightDataRendererErrorHandler = createErrorHandler(
-    'flightDataRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const htmlRendererErrorHandler = createErrorHandler(
-    'htmlRenderer',
-    isNextExport,
-    capturedErrors,
-    allCapturedErrors
-  )
-
   const {
     buildManifest,
     subresourceIntegrityManifest,
@@ -931,6 +942,32 @@ export async function renderToHTMLOrFlight(
     fontLoaderManifest,
     supportsDynamicHTML,
   } = renderOpts
+
+  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+
+  const capturedErrors: Error[] = []
+  const allCapturedErrors: Error[] = []
+
+  const isNextExport = !!renderOpts.nextExport
+  const serverComponentsErrorHandler = createErrorHandler(
+    'serverComponentsRenderer',
+    !!dev,
+    isNextExport,
+    capturedErrors
+  )
+  const flightDataRendererErrorHandler = createErrorHandler(
+    'flightDataRenderer',
+    !!dev,
+    isNextExport,
+    capturedErrors
+  )
+  const htmlRendererErrorHandler = createErrorHandler(
+    'htmlRenderer',
+    !!dev,
+    isNextExport,
+    capturedErrors,
+    allCapturedErrors
+  )
 
   patchFetch(ComponentMod)
   const generateStaticHTML = supportsDynamicHTML !== true
