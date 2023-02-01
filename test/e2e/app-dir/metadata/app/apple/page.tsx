@@ -1,8 +1,10 @@
+import type { Metadata } from 'next'
+
 export default function page() {
   return 'apple'
 }
 
-export async function generateMetadata() {
+export async function generateMetadata(): Promise<Metadata> {
   const metadata = {
     itunes: {
       appId: 'myAppStoreID',

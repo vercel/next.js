@@ -990,7 +990,6 @@ export async function renderToHTMLOrFlight(
      */
 
     const requestId = nanoid(12)
-    const metadataItems: MetadataItems = []
     const searchParamsProps = { searchParams: query }
 
     stripInternalQueries(query)
@@ -1076,8 +1075,9 @@ export async function renderToHTMLOrFlight(
 
     async function resolveHead(
       tree: LoaderTree,
-      parentParams: { [key: string]: any }
-    ): Promise<React.ReactNode> {
+      parentParams: { [key: string]: any },
+      metadataItems: MetadataItems
+    ): Promise<[React.ReactNode, MetadataItems]> {
       const [segment, parallelRoutes, { head, page }] = tree
       const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
@@ -1105,18 +1105,22 @@ export async function renderToHTMLOrFlight(
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const returnedHead = await resolveHead(childTree, currentParams)
+        const [returnedHead] = await resolveHead(
+          childTree,
+          currentParams,
+          metadataItems
+        )
         if (returnedHead) {
-          return returnedHead
+          return [returnedHead, metadataItems]
         }
       }
 
       if (head) {
         const Head = await interopDefault(await head[0]())
-        return <Head params={currentParams} />
+        return [<Head params={currentParams} />, metadataItems]
       }
 
-      return null
+      return [null, metadataItems]
     }
 
     const createFlightRouterStateFromLoaderTree = (
@@ -1722,7 +1726,11 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const resolvedHead = await resolveHead(loaderTree, {})
+      const [resolvedHead, metadataItems] = await resolveHead(
+        loaderTree,
+        {},
+        []
+      )
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1808,7 +1816,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const initialHead = await resolveHead(loaderTree, {})
+    const [initialHead, metadataItems] = await resolveHead(loaderTree, {}, [])
 
     /**
      * A new React Component that renders the provided React Component
