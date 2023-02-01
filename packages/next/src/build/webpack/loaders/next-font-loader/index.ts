@@ -59,12 +59,19 @@ export default async function nextFontLoader(this: any) {
       })
     )
 
-    const emitFontFile = (content: Buffer, ext: string, preload: boolean) => {
+    const emitFontFile = (
+      content: Buffer,
+      ext: string,
+      preload: boolean,
+      isUsingSizeAdjust?: boolean
+    ) => {
       const opts = { context: this.rootContext, content }
       const interpolatedName = loaderUtils.interpolateName(
         this,
         // Font files ending with .p.(woff|woff2|eot|ttf|otf) are preloaded
-        `static/media/[hash]${preload ? '.p' : ''}.${ext}`,
+        `static/media/[hash]${isUsingSizeAdjust ? '-s' : ''}${
+          preload ? '.p' : ''
+        }.${ext}`,
         opts
       )
       const outputPath = `${assetPrefix}/_next/${interpolatedName}`
