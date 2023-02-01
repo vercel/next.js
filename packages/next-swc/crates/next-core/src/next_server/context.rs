@@ -12,7 +12,9 @@ use turbopack_core::environment::{
 use turbopack_ecmascript::EcmascriptInputTransform;
 use turbopack_node::execution_context::ExecutionContextVc;
 
-use super::transforms::get_next_server_transforms_rules;
+use super::{
+    resolve::ExternalCjsModulesResolvePluginVc, transforms::get_next_server_transforms_rules,
+};
 use crate::{
     next_build::get_postcss_package_mapping,
     next_config::NextConfigVc,
@@ -36,25 +38,50 @@ pub async fn get_server_resolve_options_context(
     next_config: NextConfigVc,
 ) -> Result<ResolveOptionsContextVc> {
     let next_server_import_map = get_next_server_import_map(project_path, ty, next_config);
+    let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
 
     Ok(match ty.into_value() {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::AppSSR { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+            let external_cjs_modules_plugin = ExternalCjsModulesResolvePluginVc::new(
+                project_path,
+                next_config.transpile_packages(),
+            );
+
             let resolve_options_context = ResolveOptionsContext {
                 enable_node_modules: true,
                 enable_node_externals: true,
                 enable_node_native_modules: true,
+                module: true,
                 custom_conditions: vec!["development".to_string()],
                 import_map: Some(next_server_import_map),
-                module: true,
+                plugins: vec![external_cjs_modules_plugin.into()],
                 ..Default::default()
             };
             ResolveOptionsContext {
                 enable_typescript: true,
                 enable_react: true,
                 rules: vec![(
-                    foreign_code_context_condition(next_config).await?,
+                    foreign_code_context_condition,
+                    resolve_options_context.clone().cell(),
+                )],
+                ..resolve_options_context
+            }
+        }
+        ServerContextType::AppSSR { .. } => {
+            let resolve_options_context = ResolveOptionsContext {
+                enable_node_modules: true,
+                enable_node_externals: true,
+                enable_node_native_modules: true,
+                module: true,
+                custom_conditions: vec!["development".to_string()],
+                import_map: Some(next_server_import_map),
+                ..Default::default()
+            };
+            ResolveOptionsContext {
+                enable_typescript: true,
+                enable_react: true,
+                rules: vec![(
+                    foreign_code_context_condition,
                     resolve_options_context.clone().cell(),
                 )],
                 ..resolve_options_context
@@ -65,16 +92,16 @@ pub async fn get_server_resolve_options_context(
                 enable_node_modules: true,
                 enable_node_externals: true,
                 enable_node_native_modules: true,
+                module: true,
                 custom_conditions: vec!["development".to_string(), "react-server".to_string()],
                 import_map: Some(next_server_import_map),
-                module: true,
                 ..Default::default()
             };
             ResolveOptionsContext {
                 enable_typescript: true,
                 enable_react: true,
                 rules: vec![(
-                    foreign_code_context_condition(next_config).await?,
+                    foreign_code_context_condition,
                     resolve_options_context.clone().cell(),
                 )],
                 ..resolve_options_context
@@ -112,6 +139,12 @@ pub async fn get_server_module_options_context(
     next_config: NextConfigVc,
 ) -> Result<ModuleOptionsContextVc> {
     let custom_rules = get_next_server_transforms_rules(ty.into_value()).await?;
+    let foreign_code_context_condition = foreign_code_context_condition(next_config).await?;
+    let enable_postcss_transform = Some(PostCssTransformOptions {
+        postcss_package: Some(get_postcss_package_mapping(project_path)),
+        ..Default::default()
+    });
+    let enable_webpack_loaders = next_config.webpack_loaders_options().await?.clone_if();
 
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
@@ -122,14 +155,11 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: true,
                 enable_styled_jsx: true,
-                enable_postcss_transform: Some(PostCssTransformOptions {
-                    postcss_package: Some(get_postcss_package_mapping(project_path)),
-                    ..Default::default()
-                }),
-                enable_webpack_loaders: next_config.webpack_loaders_options().await?.clone_if(),
+                enable_postcss_transform,
+                enable_webpack_loaders,
                 enable_typescript_transform: true,
                 rules: vec![(
-                    foreign_code_context_condition(next_config).await?,
+                    foreign_code_context_condition,
                     module_options_context.clone().cell(),
                 )],
                 custom_rules,
@@ -144,14 +174,11 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: true,
                 enable_styled_jsx: true,
-                enable_postcss_transform: Some(PostCssTransformOptions {
-                    postcss_package: Some(get_postcss_package_mapping(project_path)),
-                    ..Default::default()
-                }),
-                enable_webpack_loaders: next_config.webpack_loaders_options().await?.clone_if(),
+                enable_postcss_transform,
+                enable_webpack_loaders,
                 enable_typescript_transform: true,
                 rules: vec![(
-                    foreign_code_context_condition(next_config).await?,
+                    foreign_code_context_condition,
                     module_options_context.clone().cell(),
                 )],
                 custom_rules,
@@ -168,14 +195,11 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_jsx: true,
-                enable_postcss_transform: Some(PostCssTransformOptions {
-                    postcss_package: Some(get_postcss_package_mapping(project_path)),
-                    ..Default::default()
-                }),
-                enable_webpack_loaders: next_config.webpack_loaders_options().await?.clone_if(),
+                enable_postcss_transform,
+                enable_webpack_loaders,
                 enable_typescript_transform: true,
                 rules: vec![(
-                    foreign_code_context_condition(next_config).await?,
+                    foreign_code_context_condition,
                     module_options_context.clone().cell(),
                 )],
                 custom_rules,
