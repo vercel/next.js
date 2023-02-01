@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDeploy }) => {
+  ({ next, isNextDev, isNextDeploy }) => {
     if (isNextDeploy) {
       it('should skip for deploy currently', () => {})
       return
@@ -557,7 +557,7 @@ createNextDescribe(
         expect(obj.val).toBe(value)
         // Check `fetch()`
         // TODO-APP: Investigate why fetch deduping doesn't apply but cache() does.
-        if (!next.isNextDev) {
+        if (!isNextDev) {
           expect(obj.val2).toBe(value2)
         }
       })
@@ -577,7 +577,7 @@ createNextDescribe(
         expect(obj.val).toBe(value)
         // Check `fetch()`
         // TODO-APP: Investigate why fetch deduping doesn't apply but cache() does.
-        if (!next.isNextDev) {
+        if (!isNextDev) {
           expect(obj.val2).toBe(value2)
         }
       })
