@@ -15,7 +15,6 @@ import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plu
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { Rewrite } from '../lib/load-custom-routes'
 import { NextConfigComplete } from '../server/config-shared'
-import { MiddlewareMatcher } from './analysis/get-page-static-info'
 import { NextBuildContext } from '.'
 import { CreateEntrypointsParams, createEntrypoints } from './entries'
 
