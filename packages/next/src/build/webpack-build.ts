@@ -15,8 +15,8 @@ import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plu
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 import { Rewrite } from '../lib/load-custom-routes'
 import { NextConfigComplete } from '../server/config-shared'
-import { MiddlewareMatcher } from './analysis/get-page-static-info'
 import { NextBuildContext } from '.'
+import { CreateEntrypointsParams, createEntrypoints } from './entries'
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -34,21 +34,23 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
   return plugin instanceof TelemetryPlugin
 }
 
-export async function webpackBuild(commonWebpackOptions: {
-  buildId: string
-  config: NextConfigComplete
-  pagesDir: string | undefined
-  reactProductionProfiling: boolean
-  rewrites: {
-    fallback: Rewrite[]
-    afterFiles: Rewrite[]
-    beforeFiles: Rewrite[]
-  }
-  target: string
-  appDir: string | undefined
-  noMangling: boolean
-  middlewareMatchers: MiddlewareMatcher[] | undefined
-}): Promise<number> {
+export async function webpackBuild(
+  commonWebpackOptions: {
+    buildId: string
+    config: NextConfigComplete
+    pagesDir: string | undefined
+    reactProductionProfiling: boolean
+    rewrites: {
+      fallback: Rewrite[]
+      afterFiles: Rewrite[]
+      beforeFiles: Rewrite[]
+    }
+    target: string
+    appDir: string | undefined
+    noMangling: boolean
+  },
+  entrypointsParams: CreateEntrypointsParams
+): Promise<number> {
   let result: CompilerResult | null = {
     warnings: [],
     errors: [],
@@ -62,7 +64,10 @@ export async function webpackBuild(commonWebpackOptions: {
     // IIFE to isolate locals and avoid retaining memory too long
     const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
 
-    const entrypoints = NextBuildContext.entrypoints!
+    const entrypoints = await nextBuildSpan
+      .traceChild('create-entrypoints')
+      .traceAsyncFn(() => createEntrypoints(entrypointsParams))
+
     const configs = await runWebpackSpan
       .traceChild('generate-webpack-config')
       .traceAsyncFn(() =>
@@ -70,18 +75,21 @@ export async function webpackBuild(commonWebpackOptions: {
           getBaseWebpackConfig(dir, {
             ...commonWebpackOptions,
             runWebpackSpan,
+            middlewareMatchers: entrypoints.middlewareMatchers,
             compilerType: COMPILER_NAMES.client,
             entrypoints: entrypoints.client,
           }),
           getBaseWebpackConfig(dir, {
             ...commonWebpackOptions,
             runWebpackSpan,
+            middlewareMatchers: entrypoints.middlewareMatchers,
             compilerType: COMPILER_NAMES.server,
             entrypoints: entrypoints.server,
           }),
           getBaseWebpackConfig(dir, {
             ...commonWebpackOptions,
             runWebpackSpan,
+            middlewareMatchers: entrypoints.middlewareMatchers,
             compilerType: COMPILER_NAMES.edgeServer,
             entrypoints: entrypoints.edgeServer,
           }),
