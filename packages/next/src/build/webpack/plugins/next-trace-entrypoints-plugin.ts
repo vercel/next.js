@@ -7,7 +7,10 @@ import {
   nodeFileTrace,
   NodeFileTraceReasons,
 } from 'next/dist/compiled/@vercel/nft'
-import { TRACE_OUTPUT_VERSION } from '../../../shared/lib/constants'
+import {
+  TRACE_OUTPUT_VERSION,
+  TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
+} from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   NODE_ESM_RESOLVE_OPTIONS,
@@ -430,6 +433,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                             this.turbotrace?.processCwd ?? this.appDir,
                           logLevel: this.turbotrace?.logLevel,
                           showAll: this.turbotrace?.logAll,
+                          memoryLimit:
+                            this.turbotrace?.memoryLimit ??
+                            TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
                         })
                       )
                       chunks = restChunks
@@ -831,6 +837,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 processCwd: this.turbotrace?.processCwd ?? this.appDir,
                 showAll: this.turbotrace?.logAll,
                 logLevel: this.turbotrace?.logLevel,
+                memoryLimit:
+                  this.turbotrace?.memoryLimit ??
+                  TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
               })
               chunks = restChunks
               if (restChunks.length) {
@@ -846,7 +855,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                   version: TRACE_OUTPUT_VERSION,
                   files: [],
                 }))
-              console.log(this.turbotraceOutputPath, this.turbotraceFiles)
+
               existedNftFile.files.push(...this.turbotraceFiles)
               const filesSet = new Set(existedNftFile.files)
               existedNftFile.files = [...filesSet]
