@@ -49,7 +49,6 @@ export async function webpackBuild(
     target: string
     appDir: string | undefined
     noMangling: boolean
-    middlewareMatchers: MiddlewareMatcher[] | undefined
   },
   entrypointsParams: CreateEntrypointsParams
 ): Promise<number> {
@@ -77,18 +76,21 @@ export async function webpackBuild(
           getBaseWebpackConfig(dir, {
             ...commonWebpackOptions,
             runWebpackSpan,
+            middlewareMatchers: entrypoints.middlewareMatchers,
             compilerType: COMPILER_NAMES.client,
             entrypoints: entrypoints.client,
           }),
           getBaseWebpackConfig(dir, {
             ...commonWebpackOptions,
             runWebpackSpan,
+            middlewareMatchers: entrypoints.middlewareMatchers,
             compilerType: COMPILER_NAMES.server,
             entrypoints: entrypoints.server,
           }),
           getBaseWebpackConfig(dir, {
             ...commonWebpackOptions,
             runWebpackSpan,
+            middlewareMatchers: entrypoints.middlewareMatchers,
             compilerType: COMPILER_NAMES.edgeServer,
             entrypoints: entrypoints.edgeServer,
           }),
