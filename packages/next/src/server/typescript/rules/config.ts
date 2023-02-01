@@ -16,8 +16,8 @@ const API_DOCS: Record<
   string,
   {
     description: string
-    options: Record<string, string>
-    link: string
+    options?: Record<string, string>
+    link?: string
     type?: string
     isValid?: (value: string) => boolean
     getHint?: (value: any) => string
@@ -108,6 +108,10 @@ const API_DOCS: Record<
     },
     link: 'https://beta.nextjs.org/docs/api-reference/segment-config#runtime',
   },
+  metadata: {
+    description: 'Next.js Metadata configurations',
+    link: 'https://beta.nextjs.org/docs/',
+  },
 }
 
 function visitEntryConfig(
@@ -185,7 +189,7 @@ function getAPIDescription(api: string): string {
   return (
     API_DOCS[api].description +
     '\n\n' +
-    Object.entries(API_DOCS[api].options)
+    Object.entries(API_DOCS[api].options || {})
       .map(([key, value]) => `- \`${key}\`: ${value}`)
       .join('\n')
   )
@@ -210,9 +214,11 @@ const config = {
       }
 
       prior.entries.push(
-        ...Object.keys(API_DOCS[entryConfig].options).map((name, index) => {
-          return createAutoCompletionOptionValue(index, name, entryConfig)
-        })
+        ...Object.keys(API_DOCS[entryConfig].options || {}).map(
+          (name, index) => {
+            return createAutoCompletionOptionValue(index, name, entryConfig)
+          }
+        )
       )
     })
   },
@@ -243,7 +249,7 @@ const config = {
 
         const isValid = API_DOCS[entryConfig].isValid
           ? API_DOCS[entryConfig].isValid?.(key)
-          : !!API_DOCS[entryConfig].options[key]
+          : !!API_DOCS[entryConfig].options?.[key]
 
         if (isValid) {
           overriden = {
@@ -258,7 +264,7 @@ const config = {
               {
                 kind: 'text',
                 text:
-                  API_DOCS[entryConfig].options[key] ||
+                  API_DOCS[entryConfig].options?.[key] ||
                   API_DOCS[entryConfig].getHint?.(key) ||
                   '',
               },
@@ -313,7 +319,9 @@ const config = {
       if (data.moduleSpecifier === 'next/typescript/entry_option_name') {
         content = getAPIDescription(entryName)
       } else {
-        content = API_DOCS[data.exportName].options[entryName]
+        const options = API_DOCS[data.exportName].options
+        if (!options) return
+        content = options[entryName]
       }
       return {
         name: entryName,
@@ -356,8 +364,9 @@ const config = {
           } else if (API_DOCS[name.text]) {
             // Check if the value is valid
             const value = declaration.initializer
+            const options = API_DOCS[name.text].options
 
-            if (value) {
+            if (value && options) {
               let displayedValue = ''
               let errorMessage = ''
               let isInvalid = false
@@ -367,7 +376,7 @@ const config = {
                 ts.isNoSubstitutionTemplateLiteral(value)
               ) {
                 const text = removeStringQuotes(value.getText())
-                const allowedValues = Object.keys(API_DOCS[name.text].options)
+                const allowedValues = Object.keys(options)
                   .filter((v) => /^['"]/.test(v))
                   .map(removeStringQuotes)
 

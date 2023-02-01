@@ -66,7 +66,12 @@ export function createTSPlugin(modules: {
         prior.entries = serverLayer.filterCompletionsAtPosition(prior.entries)
 
         // Provide autocompletion for metadata fields
-        prior = metadata.filterCompletionsAtPosition(fileName, position, prior)
+        prior = metadata.filterCompletionsAtPosition(
+          fileName,
+          position,
+          options,
+          prior
+        )
       }
 
       // Add auto completions for export configs.

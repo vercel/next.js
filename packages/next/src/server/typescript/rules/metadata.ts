@@ -1,5 +1,8 @@
 import { getInfo, getSource, getTs, isPositionInsideNode } from '../utils'
 
+const TYPE_ANOTATION = ': Metadata'
+const TYPE_IMPORT = `import type { Metadata } from 'next'`
+
 // Find the `export const metadata = ...` node.
 function getMetadataExport(fileName: string, position: number) {
   const source = getSource(fileName)
@@ -155,13 +158,11 @@ function isTyped(node: ts.VariableDeclaration) {
   return node.type !== undefined
 }
 
-const TYPE_ANOTATION = ': Metadata'
-const TYPE_IMPORT = `import { Metadata } from 'next/dist/lib/metadata/types/metadata-interface'`
-
 const metadata = {
   filterCompletionsAtPosition(
     fileName: string,
     position: number,
+    options: any,
     prior: ts.WithMetadata<ts.CompletionInfo>
   ) {
     const node = getMetadataExport(fileName, position)
@@ -185,13 +186,26 @@ const metadata = {
     )
 
     if (completions) {
+      completions.isIncomplete = true
+
       completions.entries = completions.entries
         .filter((e) => {
-          return e.kind === ts.ScriptElementKind.memberVariableElement
+          return [
+            ts.ScriptElementKind.memberVariableElement,
+            ts.ScriptElementKind.typeElement,
+            ts.ScriptElementKind.string,
+          ].includes(e.kind)
         })
         .map((e) => {
+          const insertText =
+            e.kind === ts.ScriptElementKind.memberVariableElement &&
+            /^[a-zA-Z0-9_]+$/.test(e.name)
+              ? e.name + ': '
+              : e.name
+
           return {
             name: e.name,
+            insertText,
             kind: e.kind,
             kindModifiers: e.kindModifiers,
             sortText: '!' + e.name,
@@ -279,7 +293,7 @@ const metadata = {
     const newPos =
       position <= nodeEnd ? position : position + TYPE_ANOTATION.length
 
-    return languageService.getCompletionEntryDetails(
+    const details = languageService.getCompletionEntryDetails(
       fileName,
       newPos,
       entryName,
@@ -288,6 +302,7 @@ const metadata = {
       preferences,
       data
     )
+    return details
   },
 
   getQuickInfoAtPosition(fileName: string, position: number) {
