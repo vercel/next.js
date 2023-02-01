@@ -60,7 +60,7 @@ impl<'a> std::fmt::Debug for FormattingStruct<'a> {
 }
 
 /// Debug implementation that prints an unquoted, unescaped string.
-pub(super) struct PassthroughDebug<'a>(Cow<'a, str>);
+pub struct PassthroughDebug<'a>(Cow<'a, str>);
 
 impl<'a> PassthroughDebug<'a> {
     pub fn new_str(s: &'a str) -> Self {

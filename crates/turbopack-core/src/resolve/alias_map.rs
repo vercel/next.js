@@ -11,7 +11,10 @@ use serde::{
     ser::SerializeMap,
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use turbo_tasks::trace::{TraceRawVcs, TraceRawVcsContext};
+use turbo_tasks::{
+    debug::{internal::PassthroughDebug, ValueDebugFormat, ValueDebugFormatString},
+    trace::{TraceRawVcs, TraceRawVcsContext},
+};
 
 /// A map of [`AliasPattern`]s to the [`Template`]s they resolve to.
 ///
@@ -113,6 +116,50 @@ where
                 value.trace_raw_vcs(context);
             }
         }
+    }
+}
+
+impl<T> ValueDebugFormat for AliasMap<T>
+where
+    T: ValueDebugFormat,
+{
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+        if depth == 0 {
+            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+        }
+
+        let values = self
+            .map
+            .iter()
+            .flat_map(|(key, map)| {
+                let key = String::from_utf8(key).expect("invalid UTF-8 key in AliasMap");
+                map.iter().map(move |(alias_key, value)| match alias_key {
+                    AliasKey::Exact => (
+                        key.clone(),
+                        value.value_debug_format(depth.saturating_sub(1)),
+                    ),
+                    AliasKey::Wildcard { suffix } => (
+                        format!("{}*{}", key, suffix),
+                        value.value_debug_format(depth.saturating_sub(1)),
+                    ),
+                })
+            })
+            .collect::<Vec<_>>();
+
+        ValueDebugFormatString::Async(Box::pin(async move {
+            let mut values_string = std::collections::HashMap::new();
+            for (key, value) in values {
+                match value {
+                    ValueDebugFormatString::Sync(string) => {
+                        values_string.insert(key, PassthroughDebug::new_string(string));
+                    }
+                    ValueDebugFormatString::Async(future) => {
+                        values_string.insert(key, PassthroughDebug::new_string(future.await?));
+                    }
+                }
+            }
+            Ok(format!("{:#?}", values_string))
+        }))
     }
 }
 

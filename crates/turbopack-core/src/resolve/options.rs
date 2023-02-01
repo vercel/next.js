@@ -12,7 +12,7 @@ use super::{
     alias_map::{AliasMap, AliasTemplate},
     AliasPattern, ResolveResult, ResolveResultVc, SpecialType,
 };
-use crate::resolve::parse::RequestVc;
+use crate::resolve::{parse::RequestVc, plugin::ResolvePluginVc};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
@@ -374,6 +374,7 @@ pub struct ResolveOptions {
     /// An import map to use when a request is otherwise unresolveable.
     pub fallback_import_map: Option<ImportMapVc>,
     pub resolved_map: Option<ResolvedMapVc>,
+    pub plugins: Vec<ResolvePluginVc>,
     pub placeholder_for_future_extensions: (),
 }
 
