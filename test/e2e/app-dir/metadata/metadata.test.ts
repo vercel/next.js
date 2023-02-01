@@ -544,5 +544,37 @@ createNextDescribe(
         )
       })
     })
+
+    describe('react cache', () => {
+      it('should have same title and page value on initial load', async () => {
+        const browser = await next.browser('/cache-deduping')
+        const value = await browser.elementByCss('#value').text()
+        const value2 = await browser.elementByCss('#value2').text()
+        // Value in the title should match what's shown on the page component
+        const title = await browser.eval(`document.title`)
+        const obj = JSON.parse(title)
+        // Check `cache()`
+        expect(obj.val).toBe(value)
+        // Check `fetch()`
+        expect(obj.val2).toBe(value2)
+      })
+
+      it('should have same title and page value when navigating', async () => {
+        const browser = await next.browser('/cache-deduping/navigating')
+        await browser
+          .elementByCss('#link-to-deduping-page')
+          .click()
+          .waitForElementByCss('#value')
+        const value = await browser.elementByCss('#value').text()
+        const value2 = await browser.elementByCss('#value2').text()
+        // Value in the title should match what's shown on the page component
+        const title = await browser.eval(`document.title`)
+        const obj = JSON.parse(title)
+        // Check `cache()`
+        expect(obj.val).toBe(value)
+        // Check `fetch()`
+        expect(obj.val2).toBe(value2)
+      })
+    })
   }
 )
