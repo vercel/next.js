@@ -122,7 +122,6 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
-import { Ora } from 'next/dist/compiled/ora'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -147,7 +146,7 @@ export type PrerenderManifest = {
 
 export const NextBuildContext: Partial<{
   telemetryPlugin: TelemetryPlugin
-  buildSpinner: Ora
+  buildSpinner: any
   nextBuildSpan: Span
   entrypoints: {
     client: webpack.EntryObject
