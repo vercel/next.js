@@ -133,7 +133,7 @@ export function createPagesMapping({
   }
 }
 
-interface CreateEntrypointsParams {
+export interface CreateEntrypointsParams {
   buildId: string
   config: NextConfigComplete
   envFiles: LoadedEnvFiles

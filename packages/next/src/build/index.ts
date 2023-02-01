@@ -1,5 +1,4 @@
 import '../lib/setup-exception-listeners'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
@@ -82,7 +81,7 @@ import {
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
-import { createEntrypoints, createPagesMapping } from './entries'
+import { createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
@@ -149,12 +148,6 @@ export const NextBuildContext: Partial<{
   telemetryPlugin: TelemetryPlugin
   buildSpinner: any
   nextBuildSpan: Span
-  entrypoints: {
-    client: webpack.EntryObject
-    server: webpack.EntryObject
-    edgeServer: webpack.EntryObject
-    middlewareMatchers: undefined
-  }
   dir: string
 }> = {}
 
@@ -565,26 +558,6 @@ export default async function build(
         })
       }
 
-      const entrypoints = await nextBuildSpan
-        .traceChild('create-entrypoints')
-        .traceAsyncFn(() =>
-          createEntrypoints({
-            buildId,
-            config,
-            envFiles: loadedEnvFiles,
-            isDev: false,
-            pages: mappedPages,
-            pagesDir,
-            previewMode: previewProps,
-            rootDir: dir,
-            rootPaths: mappedRootPaths,
-            appDir,
-            appPaths: mappedAppPages,
-            pageExtensions: config.pageExtensions,
-          })
-        )
-      NextBuildContext.entrypoints = entrypoints
-
       const pagesPageKeys = Object.keys(mappedPages)
 
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
@@ -947,17 +920,32 @@ export default async function build(
           ignore: [] as string[],
         }))
 
-      const webpackBuildDuration = await webpackBuild({
-        buildId,
-        config,
-        pagesDir,
-        reactProductionProfiling,
-        rewrites,
-        target,
-        appDir,
-        noMangling,
-        middlewareMatchers: entrypoints.middlewareMatchers,
-      })
+      const webpackBuildDuration = await webpackBuild(
+        {
+          buildId,
+          config,
+          pagesDir,
+          reactProductionProfiling,
+          rewrites,
+          target,
+          appDir,
+          noMangling,
+        },
+        {
+          buildId,
+          config,
+          envFiles: loadedEnvFiles,
+          isDev: false,
+          pages: mappedPages,
+          pagesDir,
+          previewMode: previewProps,
+          rootDir: dir,
+          rootPaths: mappedRootPaths,
+          appDir,
+          appPaths: mappedAppPages,
+          pageExtensions: config.pageExtensions,
+        }
+      )
 
       telemetry.record(
         eventBuildCompleted(pagesPaths, {
