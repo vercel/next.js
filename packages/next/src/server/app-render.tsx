@@ -1492,7 +1492,14 @@ export async function renderToHTMLOrFlight(
           return (
             <>
               {preloadedFontFiles?.length === 0 ? (
-                <link rel="preconnect" href="/" crossOrigin="anonymous" />
+                <link
+                  data-next-font={
+                    fontLoaderManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+                  }
+                  rel="preconnect"
+                  href="/"
+                  crossOrigin="anonymous"
+                />
               ) : null}
               {preloadedFontFiles
                 ? preloadedFontFiles.map((fontFile) => {
@@ -1505,6 +1512,9 @@ export async function renderToHTMLOrFlight(
                         as="font"
                         type={`font/${ext}`}
                         crossOrigin="anonymous"
+                        data-next-font={
+                          fontFile.includes('-s') ? 'size-adjust' : ''
+                        }
                       />
                     )
                   })
