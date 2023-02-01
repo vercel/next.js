@@ -9,6 +9,8 @@ export type FontLoaderManifest = {
   app: {
     [moduleRequest: string]: string[]
   }
+  appUsingSizeAdjust: boolean
+  pagesUsingSizeAdjust: boolean
 }
 const PLUGIN_NAME = 'FontLoaderManifestPlugin'
 
@@ -50,6 +52,8 @@ export class FontLoaderManifestPlugin {
           const fontLoaderManifest: FontLoaderManifest = {
             pages: {},
             app: {},
+            appUsingSizeAdjust: false,
+            pagesUsingSizeAdjust: false,
           }
 
           if (this.appDirEnabled) {
@@ -59,6 +63,12 @@ export class FontLoaderManifestPlugin {
               const fontFiles: string[] = modAssets.filter((file: string) =>
                 /\.(woff|woff2|eot|ttf|otf)$/.test(file)
               )
+
+              if (!fontLoaderManifest.appUsingSizeAdjust) {
+                fontLoaderManifest.appUsingSizeAdjust = fontFiles.some((file) =>
+                  file.includes('-s')
+                )
+              }
 
               // Font files ending with .p.(woff|woff2|eot|ttf|otf) are preloaded
               const preloadedFontFiles: string[] = fontFiles.filter(
@@ -85,6 +95,12 @@ export class FontLoaderManifestPlugin {
               .filter((file: string) =>
                 /\.(woff|woff2|eot|ttf|otf)$/.test(file)
               )
+
+            if (!fontLoaderManifest.pagesUsingSizeAdjust) {
+              fontLoaderManifest.pagesUsingSizeAdjust = fontFiles.some((file) =>
+                file.includes('-s')
+              )
+            }
 
             // Font files ending with .p.(woff|woff2|eot|ttf|otf) are preloaded
             const preloadedFontFiles: string[] = fontFiles.filter(

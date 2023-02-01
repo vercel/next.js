@@ -11,7 +11,12 @@ export type FontLoader = (options: {
   variableName: string
   data: any[]
   config: any
-  emitFontFile: (content: Buffer, ext: string, preload: boolean) => string
+  emitFontFile: (
+    content: Buffer,
+    ext: string,
+    preload: boolean,
+    isUsingSizeAdjust?: boolean
+  ) => string
   resolve: (src: string) => string
   isDev: boolean
   isServer: boolean
