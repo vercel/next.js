@@ -42,19 +42,18 @@ const deepProxyHandlers = {
             `Instead, you can export a Client Component wrapper ` +
             `that itself renders a Client Context Provider.`
         )
+      default:
+        break
     }
     let expression
     switch (target.name) {
       case '':
-        // eslint-disable-next-line react-internal/safe-string-coercion
         expression = String(name)
         break
       case '*':
-        // eslint-disable-next-line react-internal/safe-string-coercion
         expression = String(name)
         break
       default:
-        // eslint-disable-next-line react-internal/safe-string-coercion
         expression = String(target.name) + '.' + String(name)
     }
     throw new Error(
@@ -176,13 +175,14 @@ const proxyHandlers = {
           // if we check further.
           return undefined
         }
+      default:
+        break
     }
     let cachedReference = target[name]
     if (!cachedReference) {
       const reference = Object.defineProperties(
         function () {
           throw new Error(
-            // eslint-disable-next-line react-internal/safe-string-coercion
             `Attempted to call ${String(name)}() from the server but ${String(
               name
             )} is on the client. ` +
