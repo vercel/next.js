@@ -50,7 +50,7 @@ function pushErrorFilterDuplicates(
 function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   switch (ev.type) {
     case Bus.TYPE_BUILD_OK: {
-      return { ...state, issues: [] };
+      return { ...state };
     }
     case Bus.TYPE_TURBOPACK_ISSUES: {
       return { ...state, issues: ev.issues };
@@ -61,7 +61,6 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
     case Bus.TYPE_REFRESH: {
       return {
         ...state,
-        issues: [],
         errors:
           // Errors can come in during updates. In this case, UNHANDLED_ERROR
           // and UNHANDLED_REJECTION events might be dispatched between the
@@ -173,9 +172,16 @@ export default function ReactDevOverlay({
   return (
     <React.Fragment>
       <ErrorBoundary
-        globalOverlay={globalOverlay}
-        isMounted={isMounted}
         onError={onComponentError}
+        fallback={
+          // When the overlay is global for the application and it wraps a component rendering `<html>`
+          // we have to render the html shell otherwise the shadow root will not be able to attach
+          globalOverlay ? (
+            <html>
+              <body></body>
+            </html>
+          ) : null
+        }
       >
         {children ?? null}
       </ErrorBoundary>

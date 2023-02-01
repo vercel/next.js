@@ -6,9 +6,15 @@ export type ToastProps = React.PropsWithChildren & {
   className?: string;
 };
 
-export function Toast({ onClick, children, className }: ToastProps) {
+export function Toast({
+  onClick,
+  children,
+  className,
+  ...rest
+}: ToastProps & React.HTMLProps<HTMLDivElement>) {
   return (
     <div
+      {...rest}
       data-nextjs-toast
       onClick={onClick}
       className={clsx("toast", className)}

@@ -163,15 +163,20 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 function HotlinkedText(props: { text: string }) {
   const { text } = props;
 
-  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i;
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i;
   return (
     <>
       {linkRegex.test(text)
         ? text.split(" ").map((word, index, array) => {
             if (linkRegex.test(word)) {
+              const link = linkRegex.exec(word);
               return (
                 <React.Fragment key={`link-${index}`}>
-                  <a href={word}>{word}</a>
+                  {link && (
+                    <a href={link[0]} target="_blank" rel="noreferrer noopener">
+                      {word}
+                    </a>
+                  )}
                   {index === array.length - 1 ? "" : " "}
                 </React.Fragment>
               );
