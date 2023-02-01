@@ -16,7 +16,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{
     embed_file, rope::Rope, File, FileContent, FileSystemPathOptionVc, FileSystemPathVc,
 };
-use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHasher, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
@@ -969,11 +969,15 @@ impl Asset for EcmascriptChunk {
         // evalute only contributes to the hashed info
         if let Some(evaluate) = this.evaluate {
             let evaluate = evaluate.content(this.context, self_vc).await?;
-            for path in evaluate.chunks_server_paths.await?.iter() {
+            let chunks_server_paths = evaluate.chunks_server_paths.await?;
+            hasher.write_usize(chunks_server_paths.len());
+            for path in chunks_server_paths.iter() {
                 hasher.write_ref(path);
                 need_hash = true;
             }
-            for id in evaluate.entry_modules_ids.await?.iter() {
+            let entry_modules_ids = evaluate.entry_modules_ids.await?;
+            hasher.write_usize(entry_modules_ids.len());
+            for id in entry_modules_ids.iter() {
                 hasher.write_value(id.await?);
                 need_hash = true;
             }
@@ -986,6 +990,7 @@ impl Asset for EcmascriptChunk {
             let main_entry = main_entries.iter().next().unwrap();
             main_entry.path()
         } else {
+            hasher.write_usize(main_entries.len());
             for entry in &main_entries {
                 let path = entry.path().to_string().await?;
                 hasher.write_value(path);
@@ -1001,6 +1006,15 @@ impl Asset for EcmascriptChunk {
                 main_entry.path()
             }
         };
+        if let Some(omit_entries) = this.omit_entries {
+            let omit_entries = omit_entries.await?;
+            hasher.write_usize(omit_entries.len());
+            for omit_entry in &omit_entries {
+                let path = omit_entry.path().to_string().await?;
+                hasher.write_value(path);
+            }
+            need_hash = true;
+        }
 
         if need_hash {
             let hash = hasher.finish();

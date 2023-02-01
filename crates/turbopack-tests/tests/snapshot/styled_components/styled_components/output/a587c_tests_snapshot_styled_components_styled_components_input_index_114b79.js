@@ -1,21 +1,22 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/79fb1_turbopack-tests_tests_snapshot_imports_resolve_error_esm_input_index_1a5dd4.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/a587c_tests_snapshot_styled_components_styled_components_input_index_114b79.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/styled_components/styled_components/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-(()=>{
-    const e = new Error("Cannot find module 'does-not-exist/path'");
-    e.code = 'MODULE_NOT_FOUND';
-    throw e;
-})();
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f$styled$2d$components$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/node_modules/styled-components/index.js (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(dne);
-console.log({}[dne]);
+const MyButton = __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f$styled$2d$components$2f$index$2e$js__["default"].button.withConfig({
+    displayName: "MyButton",
+    componentId: "sc-39afcc54-0"
+})`
+  background: blue;
+`;
+console.log(MyButton);
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/79fb1_turbopack-tests_tests_snapshot_imports_resolve_error_esm_input_index_bc728c.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/63a02_styled-components_index.js") && loadedChunks.has("output/a587c_tests_snapshot_styled_components_styled_components_input_index_85f9b1.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/styled_components/styled_components/input/index.js (ecmascript)");
 }]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -1061,4 +1062,4 @@ globalThis.TURBOPACK = {
 })();
 
 
-//# sourceMappingURL=79fb1_turbopack-tests_tests_snapshot_imports_resolve_error_esm_input_index_1a5dd4.js.map
+//# sourceMappingURL=a587c_tests_snapshot_styled_components_styled_components_input_index_114b79.js.map

@@ -1,15 +1,24 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/79fb1_turbopack-tests_tests_snapshot_node_node_protocol_external_input_index_6a3d80.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_import-meta_esm-object_input_index_3e4780.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/node/node_protocol_external/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/import-meta/esm-object/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
 
-var __TURBOPACK__external__node$3a$fs__ = __turbopack_external_require__("node:fs", true);
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$import$2d$meta$2f$esm$2d$object$2f$input$2f$mod$2e$mjs__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/import-meta/esm-object/input/mod.mjs (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 
-})()),
+}.call(this) }),
+"[project]/crates/turbopack-tests/tests/snapshot/import-meta/esm-object/input/mod.mjs (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
+
+const __TURBOPACK__import$2e$meta__ = {
+    url: "file:///ROOT/crates/turbopack-tests/tests/snapshot/import-meta/esm-object/input/mod.mjs"
+};
+"__TURBOPACK__ecmascript__hoisting__location__";
+console.log(__TURBOPACK__import$2e$meta__);
+
+}.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/79fb1_turbopack-tests_tests_snapshot_node_node_protocol_external_input_index_4c221c.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/node/node_protocol_external/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_import-meta_esm-object_input_index_682cfc.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/import-meta/esm-object/input/index.js (ecmascript)");
 }]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -1055,4 +1064,4 @@ globalThis.TURBOPACK = {
 })();
 
 
-//# sourceMappingURL=79fb1_turbopack-tests_tests_snapshot_node_node_protocol_external_input_index_6a3d80.js.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_import-meta_esm-object_input_index_3e4780.js.map

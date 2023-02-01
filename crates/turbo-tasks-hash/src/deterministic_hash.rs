@@ -123,6 +123,12 @@ impl DeterministicHash for &str {
     }
 }
 
+impl DeterministicHash for bool {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        state.write_u8(*self as u8);
+    }
+}
+
 impl<T: DeterministicHash> DeterministicHash for Option<T> {
     fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
         match self {

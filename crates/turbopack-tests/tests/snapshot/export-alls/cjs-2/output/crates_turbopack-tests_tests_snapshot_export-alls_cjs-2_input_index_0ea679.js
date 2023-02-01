@@ -1,18 +1,39 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_5da042.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_export-alls_cjs-2_input_index_0ea679.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/component/index.js (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/third_party_component/index.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$b$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
+console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$b$2e$js__);
+
+}.call(this) }),
+"[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+
+__turbopack_esm__({});
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$c$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js (ecmascript)");
+__turbopack__cjs__(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$c$2e$js__);
+"__TURBOPACK__ecmascript__hoisting__location__";
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$packages$2f$component$2f$index$2e$js__["default"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$swc_transforms$2f$mono_transforms$2f$input$2f$node_modules$2f$third_party_component$2f$index$2e$js__["default"]);
 
 })()),
+"[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+
+__turbopack_esm__({});
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$commonjs$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js (ecmascript)");
+__turbopack__cjs__(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$2$2f$input$2f$commonjs$2e$js__);
+"__TURBOPACK__ecmascript__hoisting__location__";
+;
+
+})()),
+"[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
+
+exports.hello = "World";
+
+}.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/63a02_react_jsx-dev-runtime.js") && loadedChunks.has("output/a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_164a90.js") && loadedChunks.has("output/a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_component_index.js") && loadedChunks.has("output/7b7bf_third_party_component_index.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/packages/app/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_export-alls_cjs-2_input_index_7d75e2.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js (ecmascript)");
 }]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -1058,4 +1079,4 @@ globalThis.TURBOPACK = {
 })();
 
 
-//# sourceMappingURL=a587c_tests_snapshot_swc_transforms_mono_transforms_input_packages_app_index_5da042.js.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_export-alls_cjs-2_input_index_0ea679.js.map
