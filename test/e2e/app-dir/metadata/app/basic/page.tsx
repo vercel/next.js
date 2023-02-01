@@ -6,6 +6,10 @@ export default function Page() {
       <Link id="to-index" href="/">
         to index
       </Link>
+      <br />
+      <Link href="/title-template/extra/inner" id="to-nested">
+        to /title-template/extra/inner
+      </Link>
     </div>
   )
 }
@@ -22,6 +26,7 @@ export const metadata = {
   creator: 'shu',
   publisher: 'vercel',
   robots: 'index, follow',
+  alternates: {},
   formatDetection: {
     email: 'no',
     address: 'no',
