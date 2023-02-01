@@ -221,6 +221,7 @@ async fn base_resolve_options(
         },
         import_map: Some(import_map),
         resolved_map: opt.resolved_map,
+        plugins: opt.plugins.clone(),
         ..Default::default()
     }
     .into())

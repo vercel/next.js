@@ -50,6 +50,7 @@ pub mod options;
 pub mod origin;
 pub mod parse;
 pub mod pattern;
+pub mod plugin;
 
 pub use alias_map::{
     AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern, AliasTemplate,
@@ -125,17 +126,17 @@ impl ResolveResult {
             ResolveResult::Single(asset, list) => {
                 *self = ResolveResult::Alternatives(vec![*asset], take(list))
             }
-            ResolveResult::Keyed(_, list) | ResolveResult::Special(_, list) => {
+            ResolveResult::Keyed(_, list) => {
                 *self = ResolveResult::Unresolveable(take(list));
             }
-            ResolveResult::Alternatives(_, _) | ResolveResult::Unresolveable(_) => {
+            ResolveResult::Alternatives(_, _)
+            | ResolveResult::Special(_, _)
+            | ResolveResult::Unresolveable(_) => {
                 // already is appropriate type
             }
         }
         match self {
-            ResolveResult::Single(_, _)
-            | ResolveResult::Keyed(_, _)
-            | ResolveResult::Special(_, _) => {
+            ResolveResult::Single(_, _) | ResolveResult::Keyed(_, _) => {
                 unreachable!()
             }
             ResolveResult::Alternatives(assets, list) => match other {
@@ -153,6 +154,18 @@ impl ResolveResult {
                     list.extend(other.get_references().iter().cloned());
                 }
             },
+            ResolveResult::Special(special, list) => match other {
+                ResolveResult::Special(special2, list2) if special2 == special => {
+                    list.extend(list2.iter().cloned());
+                }
+                ResolveResult::Unresolveable(list2) => {
+                    list.extend(list2.iter().cloned());
+                }
+                _ => {
+                    list.extend(other.get_references().iter().cloned());
+                    *self = ResolveResult::Unresolveable(take(list));
+                }
+            },
             ResolveResult::Unresolveable(list) => match other {
                 ResolveResult::Single(asset, list2) => {
                     list.extend(list2.iter().cloned());
@@ -162,9 +175,11 @@ impl ResolveResult {
                     list.extend(list2.iter().cloned());
                     *self = ResolveResult::Alternatives(assets.clone(), take(list));
                 }
-                ResolveResult::Keyed(_, _)
-                | ResolveResult::Special(_, _)
-                | ResolveResult::Unresolveable(_) => {
+                ResolveResult::Special(special, list2) => {
+                    list.extend(list2.iter().cloned());
+                    *self = ResolveResult::Special(special.clone(), take(list));
+                }
+                ResolveResult::Keyed(_, _) | ResolveResult::Unresolveable(_) => {
                     list.extend(other.get_references().iter().cloned());
                 }
             },
@@ -318,6 +333,22 @@ impl ResolveResultVc {
             ResolveResult::Alternatives(assets, _) => assets.clone(),
             ResolveResult::Special(_, _) | ResolveResult::Unresolveable(_) => Vec::new(),
         }))
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ResolveResultOption(Option<ResolveResultVc>);
+
+#[turbo_tasks::value_impl]
+impl ResolveResultOptionVc {
+    #[turbo_tasks::function]
+    pub fn some(result: ResolveResultVc) -> Self {
+        ResolveResultOption(Some(result)).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn none() -> Self {
+        ResolveResultOption(None).cell()
     }
 }
 
@@ -1010,6 +1041,7 @@ async fn resolved(
     ResolveOptions {
         resolved_map,
         in_package,
+        plugins,
         ..
     }: &ResolveOptions,
     options: ResolveOptionsVc,
@@ -1046,6 +1078,15 @@ async fn resolved(
             }
         }
     }
+
+    for plugin in plugins {
+        if *plugin.condition().matches(*path).await? {
+            if let Some(result) = *plugin.after_resolve(*path, original_request).await? {
+                return Ok(result);
+            }
+        }
+    }
+
     if let Some(resolved_map) = resolved_map {
         let result = resolved_map.lookup(*path, original_request).await?;
         if !matches!(&*result, ImportMapResult::NoEntry) {
@@ -1059,6 +1100,7 @@ async fn resolved(
             .await;
         }
     }
+
     Ok(ResolveResult::Single(
         SourceAssetVc::new(*path).into(),
         symlinks
@@ -1101,7 +1143,7 @@ fn handle_exports_field(
     let mut resolved_results = Vec::new();
     for path in results {
         if let Some(path) = normalize_path(path) {
-            let request = RequestVc::parse(Value::new(format!("./{}", path).into()));
+            let request = RequestVc::relative(Value::new(format!("./{}", path).into()), false);
             resolved_results.push(resolve(package_path, request, options));
         }
     }

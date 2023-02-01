@@ -1,7 +1,10 @@
 use anyhow::Result;
 use turbopack_core::{
     environment::EnvironmentVc,
-    resolve::options::{ImportMapVc, ResolvedMapVc},
+    resolve::{
+        options::{ImportMapVc, ResolvedMapVc},
+        plugin::ResolvePluginVc,
+    },
 };
 
 use crate::condition::ContextCondition;
@@ -40,6 +43,9 @@ pub struct ResolveOptionsContext {
     /// A list of rules to use a different resolve option context for certain
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ResolveOptionsContextVc)>,
+    /// A list of plugins which get applied before (in the future) and after
+    /// resolving.
+    pub plugins: Vec<ResolvePluginVc>,
     pub placeholder_for_future_extensions: (),
 }
 

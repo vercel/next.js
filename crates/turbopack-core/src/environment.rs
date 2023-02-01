@@ -16,8 +16,8 @@ use crate::target::CompileTargetVc;
 
 static DEFAULT_NODEJS_VERSION: &str = "16.0.0";
 
-#[derive(Default)]
 #[turbo_tasks::value(shared)]
+#[derive(Default)]
 pub struct ServerAddr(#[turbo_tasks(trace_ignore)] Option<SocketAddr>);
 
 impl ServerAddr {
@@ -48,8 +48,8 @@ impl ServerAddrVc {
     }
 }
 
-#[derive(Default)]
 #[turbo_tasks::value]
+#[derive(Default)]
 pub enum Rendering {
     #[default]
     None,
@@ -63,8 +63,8 @@ impl Rendering {
     }
 }
 
-#[derive(Default)]
 #[turbo_tasks::value]
+#[derive(Default)]
 pub enum ChunkLoading {
     #[default]
     None,
