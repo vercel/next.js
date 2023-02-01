@@ -139,6 +139,10 @@ impl TestAppBuilder {
                             .display()
                             .to_string()
                     };
+
+                    #[cfg(windows)]
+                    let relative_effect = relative_effect.replace("\\", "/");
+
                     formatdoc! {r#"
                         {SETUP_IMPORTS}
                         import Effect from "{relative_effect}";

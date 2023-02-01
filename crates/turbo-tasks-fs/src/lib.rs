@@ -1606,6 +1606,16 @@ impl FileSystem for NullFileSystem {
     fn write(&self, _fs_path: FileSystemPathVc, _content: FileContentVc) -> CompletionVc {
         CompletionVc::new()
     }
+
+    #[turbo_tasks::function]
+    fn write_link(&self, _fs_path: FileSystemPathVc, _target: LinkContentVc) -> CompletionVc {
+        CompletionVc::new()
+    }
+
+    #[turbo_tasks::function]
+    fn metadata(&self, _fs_path: FileSystemPathVc) -> FileMetaVc {
+        FileMeta::default().cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
