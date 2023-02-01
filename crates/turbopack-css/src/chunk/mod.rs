@@ -2,8 +2,6 @@ pub(crate) mod optimize;
 pub mod source_map;
 pub(crate) mod writer;
 
-use std::io::Write;
-
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
@@ -16,6 +14,7 @@ use turbopack_core::{
         optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
         Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem, ChunkItemVc,
         ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset,
+        ModuleId, ModuleIdVc,
     },
     code_builder::{CodeBuilder, CodeVc},
     reference::{AssetReferenceVc, AssetReferencesVc},
@@ -113,6 +112,8 @@ impl CssChunkContentVc {
 
     #[turbo_tasks::function]
     async fn code(self) -> Result<CodeVc> {
+        use std::io::Write;
+
         let this = self.await?;
         let chunk_name = this.chunk_path.to_string();
 
@@ -345,6 +346,23 @@ impl CssChunkContextVc {
     pub fn of(context: ChunkingContextVc) -> CssChunkContextVc {
         CssChunkContext { context }.cell()
     }
+
+    #[turbo_tasks::function]
+    pub async fn chunk_item_id(self, chunk_item: CssChunkItemVc) -> Result<ModuleIdVc> {
+        use std::fmt::Write;
+
+        let layer = &*self.await?.context.layer().await?;
+        let mut s = chunk_item.to_string().await?.clone_value();
+        if !layer.is_empty() {
+            if s.ends_with(')') {
+                s.pop();
+                write!(s, ", {layer})")?;
+            } else {
+                write!(s, " ({layer})")?;
+            }
+        }
+        Ok(ModuleId::String(s).cell())
+    }
 }
 
 #[turbo_tasks::value_trait]
@@ -373,6 +391,9 @@ pub struct CssChunkItemContent {
 pub trait CssChunkItem: ChunkItem + ValueToString {
     fn content(&self) -> CssChunkItemContentVc;
     fn chunking_context(&self) -> ChunkingContextVc;
+    fn id(&self) -> ModuleIdVc {
+        CssChunkContextVc::of(self.chunking_context()).chunk_item_id(*self)
+    }
 }
 
 #[async_trait::async_trait]

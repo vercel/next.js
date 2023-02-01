@@ -55,7 +55,6 @@ function runTests() {
 async function getRuleMatchingClassName(className) {
   const selector = `.${CSS.escape(className)}`;
 
-  let matchingRule;
   for (const stylesheet of document.querySelectorAll("link[rel=stylesheet]")) {
     if (stylesheet.sheet == null) {
       // Wait for the stylesheet to load completely if it hasn't already
@@ -64,13 +63,30 @@ async function getRuleMatchingClassName(className) {
       });
     }
 
-    for (const rule of stylesheet.sheet.cssRules) {
-      if (rule.selectorText === selector) {
-        matchingRule = rule;
-        break;
+    const sheet = stylesheet.sheet;
+
+    const res = getRuleMatchingClassNameRec(selector, sheet.cssRules);
+    if (res != null) {
+      return res;
+    }
+  }
+
+  return null;
+}
+
+function getRuleMatchingClassNameRec(selector, rules) {
+  for (const rule of rules) {
+    if (rule instanceof CSSStyleRule && rule.selectorText === selector) {
+      return rule;
+    }
+
+    if (rule instanceof CSSLayerBlockRule) {
+      const res = getRuleMatchingClassNameRec(selector, rule.cssRules);
+      if (res != null) {
+        return res;
       }
     }
   }
 
-  return matchingRule;
+  return null;
 }
