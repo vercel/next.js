@@ -162,7 +162,7 @@ const metadata = {
   filterCompletionsAtPosition(
     fileName: string,
     position: number,
-    options: any,
+    _options: any,
     prior: ts.WithMetadata<ts.CompletionInfo>
   ) {
     const node = getMetadataExport(fileName, position)
