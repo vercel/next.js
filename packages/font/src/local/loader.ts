@@ -75,7 +75,12 @@ const fetchFonts: FontLoader = async ({
     src.map(async ({ path, style, weight, ext, format }) => {
       const resolved = await resolve(path)
       const fileBuffer = await promisify(loaderContext.fs.readFile)(resolved)
-      const fontUrl = emitFontFile(fileBuffer, ext, preload)
+      const fontUrl = emitFontFile(
+        fileBuffer,
+        ext,
+        preload,
+        typeof adjustFontFallback === 'undefined' || !!adjustFontFallback
+      )
 
       let fontMetadata: any
       try {

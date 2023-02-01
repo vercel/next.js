@@ -235,8 +235,25 @@ createNextDescribe(
           await checkMetaNameContentPair(
             browser,
             'googlebot',
-            'index, nofollow, noimageindex'
+            'index, nofollow, noimageindex, max-video-preview:standard, max-image-preview:-1, max-snippet:-1'
           )
+        })
+
+        it('should support verification tags', async () => {
+          const browser = await next.browser('/verification')
+
+          await checkMetaNameContentPair(
+            browser,
+            'google-site-verification',
+            'google'
+          )
+          await checkMetaNameContentPair(browser, 'y_key', 'yahoo')
+          await checkMetaNameContentPair(
+            browser,
+            'yandex-verification',
+            'yandex'
+          )
+          await checkMetaNameContentPair(browser, 'me', ['my-email', 'my-link'])
         })
 
         it('should support appLinks tags', async () => {
