@@ -26,6 +26,7 @@ export const metadata = {
   creator: 'shu',
   publisher: 'vercel',
   robots: 'index, follow',
+  alternates: {},
   formatDetection: {
     email: 'no',
     address: 'no',
