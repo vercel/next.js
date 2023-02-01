@@ -1,24 +1,27 @@
 import { Toast } from "../components/Toast";
-import { AlertOctagon, CloseIcon } from "../icons";
+import { AlertOctagon, AlertTriangle, CloseIcon } from "../icons";
 import { noop as css } from "../helpers/noop-template";
 
 export type ErrorsToastProps = {
   errorCount: number;
+  severity: "error" | "warning";
   onClick: () => void;
   onClose: () => void;
 };
 
 export function ErrorsToast({
   errorCount,
+  severity,
   onClick,
   onClose,
 }: ErrorsToastProps) {
   return (
-    <Toast className="toast-errors" onClick={onClick}>
+    <Toast className="toast-errors" onClick={onClick} data-severity={severity}>
       <div className="toast-errors-body">
-        <AlertOctagon />
+        {severity == "error" && <AlertOctagon />}
+        {severity == "warning" && <AlertTriangle />}
         <span>
-          {errorCount} error
+          {errorCount} {severity}
           {errorCount > 1 ? "s" : ""}
         </span>
         <button
@@ -29,7 +32,9 @@ export function ErrorsToast({
             e.stopPropagation();
             onClose();
           }}
-          aria-label="Hide Errors"
+          aria-label={
+            { error: "Hide Errors", warning: "Hide Warnings" }[severity]
+          }
         >
           <CloseIcon />
         </button>
