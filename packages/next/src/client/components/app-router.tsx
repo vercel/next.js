@@ -97,8 +97,10 @@ function findHeadInCache(
 }
 
 function isExternalURL(url: URL) {
-  return url.origin !== location.origin
+  return url.origin !== window.location.origin
 }
+
+const isServer = typeof window === 'undefined'
 
 /**
  * The global router that wraps the application components.
@@ -117,6 +119,8 @@ function Router({
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
+        isServer,
+        location: window.location,
       }),
     [children, initialCanonicalUrl, initialTree]
   )
