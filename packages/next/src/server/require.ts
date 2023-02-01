@@ -31,7 +31,7 @@ function lookupModuleFilename(
 
   // If the file in the manifest exists or there is no locales, then
   // we got the right file.
-  if (manifest[file] || !locales) return file
+  if (file || !locales) return file
 
   // Try to find the file in the manifest without locales.
   for (const key of Object.keys(manifest)) {
