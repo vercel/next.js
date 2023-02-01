@@ -35,14 +35,12 @@ function runTests() {
 
   it("supports declaring a css custom property (css variable)", async () => {
     expect(interWithVariableName).toEqual({
-      className:
-        "className◽[project-with-next]/crates/next-dev-tests/tests/integration/next/font-google/basic/[embedded_modules]/@vercel/turbopack-next/internal/font/google/inter_c6e282f1.module.css",
+      className: "className__inter_c6e282f1__d812ce46",
       style: {
         fontFamily: "'__Inter_c6e282f1'",
         fontStyle: "normal",
       },
-      variable:
-        "variable◽[project-with-next]/crates/next-dev-tests/tests/integration/next/font-google/basic/[embedded_modules]/@vercel/turbopack-next/internal/font/google/inter_c6e282f1.module.css",
+      variable: "variable__inter_c6e282f1__d812ce46",
     });
 
     const matchingRule = await getRuleMatchingClassName(
