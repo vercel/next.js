@@ -1104,7 +1104,7 @@ export async function renderToHTMLOrFlight(
       }
 
       const mod = await getLayoutOrPageModule(tree)
-      await collectMetadata(mod, layerProps, metadataItems)
+      await collectMetadata(mod, layerProps, metadataItems) // export meadata or export async generateMetadata
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
@@ -1119,6 +1119,8 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
+        console.warn(`\`head.js\` is deprecated, please use`)
+
         const Head = await interopDefault(await head[0]())
         return [<Head params={currentParams} />, metadataItems]
       }

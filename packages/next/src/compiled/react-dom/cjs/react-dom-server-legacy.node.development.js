@@ -18,7 +18,7 @@ var React = require('react');
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-next-3ba7add60-20221201';
+var ReactVersion = '18.3.0-next-b0671f9ea-20230130';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -191,13 +191,13 @@ function checkHtmlStringCoercion(value) {
 }
 
 // -----------------------------------------------------------------------------
-var enableFloat = true; // When a node is unmounted, recurse into the Fiber subtree and clean out
+var enableFloat = true;
 
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 
-// A reserved attribute.
 // It is handled by React separately and shouldn't be written to the DOM.
+
 var RESERVED = 0; // A simple string attribute.
 // Attributes that aren't in the filter are presumed to have this type.
 
@@ -222,8 +222,8 @@ var NUMERIC = 5; // An attribute that must be positive numeric or parse as a pos
 // When falsy, it should be removed.
 
 var POSITIVE_NUMERIC = 6;
-
 /* eslint-disable max-len */
+
 var ATTRIBUTE_NAME_START_CHAR = ":A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD";
 /* eslint-enable max-len */
 
@@ -284,7 +284,7 @@ function shouldRemoveAttributeWithWarning(name, value, propertyInfo, isCustomCom
 }
 function getPropertyInfo(name) {
   return properties.hasOwnProperty(name) ? properties[name] : null;
-}
+} // $FlowFixMe[missing-this-annot]
 
 function PropertyInfoRecord(name, type, mustUseProperty, attributeName, attributeNamespace, sanitizeURL, removeEmptyString) {
   this.acceptsBooleans = type === BOOLEANISH_STRING || type === BOOLEAN || type === OVERLOADED_BOOLEAN;
@@ -822,6 +822,7 @@ var possibleStandardNames = {
   draggable: 'draggable',
   enctype: 'encType',
   enterkeyhint: 'enterKeyHint',
+  fetchpriority: 'fetchPriority',
   for: 'htmlFor',
   form: 'form',
   formmethod: 'formMethod',
@@ -2080,7 +2081,6 @@ function getValueDescriptorExpectingEnumForWarning(thing) {
   return thing === null ? 'null' : thing === undefined ? 'undefined' : thing === '' ? 'an empty string' : typeof thing === 'string' ? JSON.stringify(thing) : "something with type \"" + typeof thing + "\"";
 }
 
-// @TODO add bootstrap script to implicit preloads
 function createResources() {
   return {
     // persistent
@@ -2123,7 +2123,7 @@ function finishRenderingResources() {
 function setCurrentlyRenderingBoundaryResourcesTarget(resources, boundaryResources) {
   resources.boundaryResources = boundaryResources;
 }
-var ReactDOMServerDispatcher = {
+var ReactDOMServerFloatDispatcher = {
   preload: preload,
   preinit: preinit
 };
@@ -2485,20 +2485,25 @@ function resourcesFromElement(type, props) {
   switch (type) {
     case 'title':
       {
-        var child = props.children;
+        var children = props.children;
+        var child;
 
-        if (Array.isArray(child) && child.length === 1) {
-          child = child[0];
+        if (Array.isArray(children)) {
+          child = children.length === 1 ? children[0] : null;
+        } else {
+          child = children;
         }
 
-        if (typeof child === 'string' || typeof child === 'number') {
-          var key = 'title::' + child;
+        if (typeof child !== 'function' && typeof child !== 'symbol' && child !== null && child !== undefined) {
+          // eslint-disable-next-line react-internal/safe-string-coercion
+          var childString = '' + child;
+          var key = 'title::' + childString;
           var resource = resources.headsMap.get(key);
 
           if (!resource) {
             resource = {
               type: 'title',
-              props: titlePropsFromRawProps(child, props),
+              props: titlePropsFromRawProps(childString, props),
               flushed: false
             };
             resources.headsMap.set(key, resource);
@@ -2619,14 +2624,12 @@ function resourcesFromLink(props) {
           // client
           {
             validateLinkPropsForStyleResource(props);
-          } // $FlowFixMe[incompatible-use] found when upgrading Flow
-
+          }
 
           var preloadResource = resources.preloadsMap.get(href);
 
           if (!preloadResource) {
-            preloadResource = createPreloadResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
-            resources, href, 'style', preloadAsStylePropsFromProps(href, props));
+            preloadResource = createPreloadResource(resources, href, 'style', preloadAsStylePropsFromProps(href, props));
 
             {
               preloadResource._dev_implicit_construction = true;
@@ -2778,8 +2781,7 @@ function resourcesFromScript(props) {
       var preloadResource = resources.preloadsMap.get(src);
 
       if (!preloadResource) {
-        preloadResource = createPreloadResource( // $FlowFixMe[incompatible-call] found when upgrading Flow
-        resources, src, 'script', preloadAsScriptPropsFromProps(src, props));
+        preloadResource = createPreloadResource(resources, src, 'script', preloadAsScriptPropsFromProps(src, props));
 
         {
           preloadResource._dev_implicit_construction = true;
@@ -2835,6 +2837,7 @@ var completeSegment = '$RS=function(a,b){a=document.getElementById(a);b=document
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
+var ReactDOMServerDispatcher =  ReactDOMServerFloatDispatcher ;
 function prepareToRender(resources) {
   prepareToRenderResources(resources);
   var previousHostDispatcher = ReactDOMCurrentDispatcher.current;
@@ -2875,11 +2878,11 @@ var scriptRegex = /(<\/|<)(s)(cript)/gi;
 
 var scriptReplacer = function (match, prefix, s, suffix) {
   return "" + prefix + (s === 's' ? "\\u0073" : "\\u0053") + suffix;
-};
-
-// Allows us to keep track of what we've already written so we can refer back to it.
+}; // Allows us to keep track of what we've already written so we can refer back to it.
 // if passed externalRuntimeConfig and the enableFizzExternalRuntime feature flag
 // is set, the server will send instructions via data attributes (instead of inline scripts)
+
+
 function createResponseState(identifierPrefix, nonce, bootstrapScriptContent, bootstrapScripts, bootstrapModules, externalRuntimeConfig) {
   var idPrefix = identifierPrefix === undefined ? '' : identifierPrefix;
   var inlineScriptWithNonce = nonce === undefined ? startInlineScript : stringToPrecomputedChunk('<script nonce="' + escapeTextForBrowser(nonce) + '">');
@@ -2953,6 +2956,7 @@ var HTML_TABLE_BODY_MODE = 5;
 var HTML_TABLE_ROW_MODE = 6;
 var HTML_COLGROUP_MODE = 7; // We have a greater than HTML_TABLE_MODE check elsewhere. If you add more cases here, make sure it
 // still makes sense
+// Lets us keep track of contextual state and pick it back up after suspending.
 
 function createFormatContext(insertionMode, selectedValue, noscriptTagInScope) {
   return {
@@ -3148,7 +3152,8 @@ var attributeAssign = stringToPrecomputedChunk('="');
 var attributeEnd = stringToPrecomputedChunk('"');
 var attributeEmptyString = stringToPrecomputedChunk('=""');
 
-function pushAttribute(target, responseState, name, value) {
+function pushAttribute(target, responseState, name, value) // not null or undefined
+{
   switch (name) {
     case 'style':
       {
@@ -3878,10 +3883,11 @@ function pushTitleImpl(target, props, responseState) {
   }
 
   target.push(endOfStartTag);
-  var child = Array.isArray(children) && children.length < 2 ? children[0] || null : children;
+  var child = Array.isArray(children) ? children.length < 2 ? children[0] : null : children;
 
-  if (typeof child === 'string' || typeof child === 'number') {
-    target.push(stringToChunk(escapeTextForBrowser(child)));
+  if (typeof child !== 'function' && typeof child !== 'symbol' && child !== null && child !== undefined) {
+    // eslint-disable-next-line react-internal/safe-string-coercion
+    target.push(stringToChunk(escapeTextForBrowser('' + child)));
   }
 
   target.push(endTag1, stringToChunk('title'), endTag2);
@@ -4770,6 +4776,7 @@ var precedencePlaceholderStart = stringToPrecomputedChunk('<style data-precedenc
 var precedencePlaceholderEnd = stringToPrecomputedChunk('"></style>');
 function writeInitialResources(destination, resources, responseState, willFlushAllSegments) {
 
+
   function flushLinkResource(resource) {
     if (!resource.flushed) {
       pushLinkImpl(target, resource.props, responseState);
@@ -4881,6 +4888,7 @@ function writeInitialResources(destination, resources, responseState, willFlushA
   return r;
 }
 function writeImmediateResources(destination, resources, responseState) {
+  // $FlowFixMe[missing-local-annot]
   function flushLinkResource(resource) {
     if (!resource.flushed) {
       pushLinkImpl(target, resource.props, responseState);
@@ -5080,7 +5088,8 @@ function writeStyleResourceDependencyInJS(destination, href, precedence, props) 
   return null;
 }
 
-function writeStyleResourceAttributeInJS(destination, name, value) {
+function writeStyleResourceAttributeInJS(destination, name, value) // not null or undefined
+{
   var attributeName = name.toLowerCase();
   var attributeValue;
 
@@ -5798,8 +5807,7 @@ var warnedAboutMissingGetChildContext;
 
 {
   warnedAboutMissingGetChildContext = {};
-} // $FlowFixMe[incompatible-exact]
-
+}
 
 var emptyContextObject = {};
 
@@ -5871,6 +5879,8 @@ var rendererSigil;
   rendererSigil = {};
 } // Used to store the parent path of all context overrides in a shared linked list.
 // Forming a reverse tree.
+// The structure of a context snapshot is an implementation of this file.
+// Currently, it's implemented as tracking the current active node.
 
 
 var rootContextSnapshot = null; // We assume that this runtime owns the "current" field on all ReactContext instances.
@@ -6154,6 +6164,7 @@ var classComponentUpdater = {
   isMounted: function (inst) {
     return false;
   },
+  // $FlowFixMe[missing-local-annot]
   enqueueSetState: function (inst, payload, callback) {
     var internals = get(inst);
 
@@ -6180,6 +6191,7 @@ var classComponentUpdater = {
       }
     }
   },
+  // $FlowFixMe[missing-local-annot]
   enqueueForceUpdate: function (inst, callback) {
     var internals = get(inst);
 
@@ -6393,9 +6405,9 @@ function checkClassInstance(instance, ctor, newProps) {
       error('%s: getSnapshotBeforeUpdate() is defined as a static method ' + 'and will be ignored. Instead, declare it as an instance method.', name);
     }
 
-    var _state = instance.state;
+    var state = instance.state;
 
-    if (_state && (typeof _state !== 'object' || isArray(_state))) {
+    if (state && (typeof state !== 'object' || isArray(state))) {
       error('%s.state: must be set to an object or null', name);
     }
 
@@ -6410,7 +6422,7 @@ function callComponentWillMount(type, instance) {
 
   if (typeof instance.componentWillMount === 'function') {
     {
-      if ( instance.componentWillMount.__suppressDeprecationWarning !== true) {
+      if (instance.componentWillMount.__suppressDeprecationWarning !== true) {
         var componentName = getComponentNameFromType(type) || 'Unknown';
 
         if (!didWarnAboutDeprecatedWillMount[componentName]) {
@@ -7358,8 +7370,7 @@ var ABORTED = 3;
 var ERRORED = 4;
 var OPEN = 0;
 var CLOSING = 1;
-var CLOSED = 2;
-// This is a default heuristic for how to split up the HTML content into progressive
+var CLOSED = 2; // This is a default heuristic for how to split up the HTML content into progressive
 // loading. Our goal is to be able to display additional new content about every 500ms.
 // Faster than that is unnecessary and should be throttled on the client. It also
 // adds unnecessary overhead to do more splits. We don't know if it's a higher or lower
@@ -7374,6 +7385,7 @@ var CLOSED = 2;
 // about 12.5kb of content per 500ms. Not counting starting latency for the first
 // paint.
 // 500 * 1024 / 8 * .8 * 0.5 / 2
+
 var DEFAULT_PROGRESSIVE_CHUNK_SIZE = 12800;
 
 function defaultErrorHandler(error) {
@@ -7874,7 +7886,7 @@ function validateFunctionComponentInDev(Component) {
       }
     }
 
-    if ( Component.defaultProps !== undefined) {
+    if (Component.defaultProps !== undefined) {
       var componentName = getComponentNameFromType(Component) || 'Unknown';
 
       if (!didWarnAboutDefaultPropsOnFunctionComponent[componentName]) {
@@ -8145,7 +8157,8 @@ function renderElement(request, task, prevThenableState, type, props, ref) {
   }
 
   throw new Error('Element type is invalid: expected a string (for built-in ' + 'components) or a class/function (for composite components) ' + ("but got: " + (type == null ? type : typeof type) + "." + info));
-}
+} // $FlowFixMe[missing-local-annot]
+
 
 function validateIterable(iterable, iteratorFn) {
   {
@@ -9122,10 +9135,9 @@ function abort(request, reason) {
     var abortableTasks = request.abortableTasks;
 
     if (abortableTasks.size > 0) {
-      var _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
-
+      var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
       abortableTasks.forEach(function (task) {
-        return abortTask(task, request, _error);
+        return abortTask(task, request, error);
       });
       abortableTasks.clear();
     }
@@ -9147,6 +9159,7 @@ function renderToStringImpl(children, options, generateStaticMarkup, abortReason
   var fatalError = null;
   var result = '';
   var destination = {
+    // $FlowFixMe[missing-local-annot]
     push: function (chunk) {
       if (chunk !== null) {
         result += chunk;
@@ -9154,6 +9167,7 @@ function renderToStringImpl(children, options, generateStaticMarkup, abortReason
 
       return true;
     },
+    // $FlowFixMe[missing-local-annot]
     destroy: function (error) {
       didFatal = true;
       fatalError = error;
@@ -9201,10 +9215,13 @@ var ReactMarkupReadableStream = /*#__PURE__*/function (_Readable) {
     // Calls the stream.Readable(options) constructor. Consider exposing built-in
     // features like highWaterMark in the future.
     _this = _Readable.call(this, {}) || this;
+    _this.request = void 0;
+    _this.startedFlowing = void 0;
     _this.request = null;
     _this.startedFlowing = false;
     return _this;
-  }
+  } // $FlowFixMe[missing-local-annot]
+
 
   var _proto = ReactMarkupReadableStream.prototype;
 
@@ -9212,7 +9229,8 @@ var ReactMarkupReadableStream = /*#__PURE__*/function (_Readable) {
     abort(this.request); // $FlowFixMe: The type definition for the callback should allow undefined and null.
 
     callback(err);
-  };
+  } // $FlowFixMe[missing-local-annot]
+  ;
 
   _proto._read = function _read(size) {
     if (this.startedFlowing) {

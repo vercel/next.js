@@ -102,7 +102,7 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 
 var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 
-var REACT_MODULE_REFERENCE = Symbol.for('react.module.reference');
+var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
 function isValidElementType(type) {
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
@@ -118,7 +118,7 @@ function isValidElementType(type) {
     // types supported by any Flight configuration anywhere since
     // we don't know which Flight build this will end up being used
     // with.
-    type.$$typeof === REACT_MODULE_REFERENCE || type.getModuleId !== undefined) {
+    type.$$typeof === REACT_CLIENT_REFERENCE || type.getModuleId !== undefined) {
       return true;
     }
   }

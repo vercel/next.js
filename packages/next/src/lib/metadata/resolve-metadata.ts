@@ -333,7 +333,7 @@ async function getDefinedMetadata(
   // the exports are valid and give specific error messages.
   if (
     '$$typeof' in mod &&
-    (mod as any).$$typeof === Symbol.for('react.module.reference')
+    (mod as any).$$typeof.value === Symbol.for('react.client.reference')
   ) {
     return null
   }

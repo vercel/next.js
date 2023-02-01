@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-next-3ba7add60-20221201';
+          var ReactVersion = '18.3.0-next-b0671f9ea-20230130';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -108,8 +108,7 @@ var ReactCurrentOwner = {
   current: null
 };
 
-var ReactDebugCurrentFrame = // $FlowFixMe[incompatible-exact]
-{};
+var ReactDebugCurrentFrame = {};
 var currentExtraStackFrame = null;
 function setExtraStackFrame(stack) {
   {
@@ -1164,7 +1163,6 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
 
   return subtreeCount;
 }
-
 /**
  * Maps children that are typically specified as `props.children`.
  *
@@ -1178,6 +1176,8 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
  * @param {*} context Context for mapFunction.
  * @return {object} Object containing the ordered map of results.
  */
+
+
 function mapChildren(children, func, context) {
   if (children == null) {
     return children;
@@ -1208,7 +1208,6 @@ function countChildren(children) {
   });
   return n;
 }
-
 /**
  * Iterates through children that are typically specified as `props.children`.
  *
@@ -1221,8 +1220,11 @@ function countChildren(children) {
  * @param {function(*, int)} forEachFunc
  * @param {*} forEachContext Context for forEachContext.
  */
+
+
 function forEachChildren(children, forEachFunc, forEachContext) {
-  mapChildren(children, function () {
+  mapChildren(children, // $FlowFixMe[missing-this-annot]
+  function () {
     forEachFunc.apply(this, arguments); // Don't return anything.
   }, forEachContext);
 }
@@ -1462,6 +1464,7 @@ function lazy(ctor) {
         get: function () {
           return defaultProps;
         },
+        // $FlowFixMe[missing-local-annot]
         set: function (newDefaultProps) {
           error('React.lazy(...): It is not supported to assign `defaultProps` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
 
@@ -1478,6 +1481,7 @@ function lazy(ctor) {
         get: function () {
           return propTypes;
         },
+        // $FlowFixMe[missing-local-annot]
         set: function (newPropTypes) {
           error('React.lazy(...): It is not supported to assign `propTypes` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
 
@@ -1546,7 +1550,7 @@ function forwardRef(render) {
   return elementType;
 }
 
-var REACT_MODULE_REFERENCE = Symbol.for('react.module.reference');
+var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
 function isValidElementType(type) {
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
@@ -1562,7 +1566,7 @@ function isValidElementType(type) {
     // types supported by any Flight configuration anywhere since
     // we don't know which Flight build this will end up being used
     // with.
-    type.$$typeof === REACT_MODULE_REFERENCE || type.getModuleId !== undefined) {
+    type.$$typeof === REACT_CLIENT_REFERENCE || type.getModuleId !== undefined) {
       return true;
     }
   }
@@ -2654,11 +2658,11 @@ function startTransition(scope, options) {
       if (prevTransition === null && currentTransition._updatedFibers) {
         var updatedFibersCount = currentTransition._updatedFibers.size;
 
+        currentTransition._updatedFibers.clear();
+
         if (updatedFibersCount > 10) {
           warn('Detected a large number of updates inside startTransition. ' + 'If this is due to a subscription please re-write it to use React provided hooks. ' + 'Otherwise concurrent mode guarantees are off the table.');
         }
-
-        currentTransition._updatedFibers.clear();
       }
     }
   }

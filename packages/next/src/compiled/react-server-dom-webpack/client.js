@@ -41,7 +41,7 @@ function parseModel(response, json) {
 }
 
 // eslint-disable-next-line no-unused-vars
-function resolveModuleReference(bundlerConfig, moduleData) {
+function resolveClientReference(bundlerConfig, moduleData) {
   if (bundlerConfig) {
     var resolvedModuleData = bundlerConfig[moduleData.id][moduleData.name];
 
@@ -182,7 +182,7 @@ var BLOCKED = 'blocked';
 var RESOLVED_MODEL = 'resolved_model';
 var RESOLVED_MODULE = 'resolved_module';
 var INITIALIZED = 'fulfilled';
-var ERRORED = 'rejected';
+var ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
 
 function Chunk(status, value, reason, response) {
   this.status = status;
@@ -397,10 +397,10 @@ function initializeModelChunk(chunk) {
   initializingChunkBlockedModel = null;
 
   try {
-    var _value = parseModel(chunk._response, chunk.value);
+    var value = parseModel(chunk._response, chunk.value);
 
     if (initializingChunkBlockedModel !== null && initializingChunkBlockedModel.deps > 0) {
-      initializingChunkBlockedModel.value = _value; // We discovered new dependencies on modules that are not yet resolved.
+      initializingChunkBlockedModel.value = value; // We discovered new dependencies on modules that are not yet resolved.
       // We have to go the BLOCKED state until they're resolved.
 
       var blockedChunk = chunk;
@@ -410,7 +410,7 @@ function initializeModelChunk(chunk) {
     } else {
       var initializedChunk = chunk;
       initializedChunk.status = INITIALIZED;
-      initializedChunk.value = _value;
+      initializedChunk.value = value;
     }
   } catch (error) {
     var erroredChunk = chunk;
@@ -424,11 +424,10 @@ function initializeModelChunk(chunk) {
 
 function initializeModuleChunk(chunk) {
   try {
-    var _value2 = requireModule(chunk.value);
-
+    var value = requireModule(chunk.value);
     var initializedChunk = chunk;
     initializedChunk.status = INITIALIZED;
-    initializedChunk.value = _value2;
+    initializedChunk.value = value;
   } catch (error) {
     var erroredChunk = chunk;
     erroredChunk.status = ERRORED;
@@ -523,7 +522,8 @@ function createModelResolver(chunk, parentObject, key) {
       deps: 1,
       value: null
     };
-  }
+  } // $FlowFixMe[missing-local-annot]
+
 
   return function (value) {
     parentObject[key] = value;
@@ -643,7 +643,7 @@ function resolveModule(response, id, model) {
   var chunks = response._chunks;
   var chunk = chunks.get(id);
   var moduleMetaData = parseModel(response, model);
-  var moduleReference = resolveModuleReference(response._bundlerConfig, moduleMetaData); // TODO: Add an option to encode modules that are lazy loaded.
+  var moduleReference = resolveClientReference(response._bundlerConfig, moduleMetaData); // TODO: Add an option to encode modules that are lazy loaded.
   // For now we preload all modules as early as possible since it's likely
   // that we'll need them.
 
@@ -796,6 +796,7 @@ function processBinaryChunk(response, chunk) {
 }
 
 function createFromJSONCallback(response) {
+  // $FlowFixMe[missing-this-annot]
   return function (key, value) {
     if (typeof value === 'string') {
       // We can't use .bind here because we need the "this" value.

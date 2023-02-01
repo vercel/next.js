@@ -227,17 +227,17 @@ function processSymbolChunk(request, id, name) {
 }
 
 // eslint-disable-next-line no-unused-vars
-var MODULE_TAG = Symbol.for('react.module.reference');
-function getModuleKey(reference) {
+var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+function getClientReferenceKey(reference) {
   return reference.filepath + '#' + reference.name + (reference.async ? '#async' : '');
 }
-function isModuleReference(reference) {
-  return reference.$$typeof === MODULE_TAG;
+function isClientReference(reference) {
+  return reference.$$typeof === CLIENT_REFERENCE_TAG;
 }
-function resolveModuleMetaData(config, moduleReference) {
-  var resolvedModuleData = config[moduleReference.filepath][moduleReference.name];
+function resolveModuleMetaData(config, clientReference) {
+  var resolvedModuleData = config[clientReference.filepath][clientReference.name];
 
-  if (moduleReference.async) {
+  if (clientReference.async) {
     return {
       id: resolvedModuleData.id,
       chunks: resolvedModuleData.chunks,
@@ -265,8 +265,8 @@ var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 
-// A reserved attribute.
 // It is handled by React separately and shouldn't be written to the DOM.
+
 var RESERVED = 0; // A simple string attribute.
 // Attributes that aren't in the filter are presumed to have this type.
 
@@ -691,6 +691,8 @@ var rendererSigil;
   rendererSigil = {};
 } // Used to store the parent path of all context overrides in a shared linked list.
 // Forming a reverse tree.
+// The structure of a context snapshot is an implementation of this file.
+// Currently, it's implemented as tracking the current active node.
 
 
 var rootContextSnapshot = null; // We assume that this runtime owns the "current" field on all ReactContext instances.
@@ -1010,7 +1012,11 @@ function getThenableStateAfterSuspending() {
 function readContext$1(context) {
   {
     if (context.$$typeof !== REACT_SERVER_CONTEXT_TYPE) {
-      error('Only createServerContext is supported in Server Components.');
+      if (isClientReference(context)) {
+        error('Cannot read a Client Context from a Server Component.');
+      } else {
+        error('Only createServerContext is supported in Server Components.');
+      }
     }
 
     if (currentRequest === null) {
@@ -1077,7 +1083,7 @@ function useId() {
 }
 
 function use(usable) {
-  if (usable !== null && typeof usable === 'object') {
+  if (usable !== null && typeof usable === 'object' || typeof usable === 'function') {
     // $FlowFixMe[method-unbinding]
     if (typeof usable.then === 'function') {
       // This is a thenable.
@@ -1094,6 +1100,12 @@ function use(usable) {
     } else if (usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext$1(context);
+    }
+  }
+
+  {
+    if (isClientReference(usable)) {
+      error('Cannot use() an already resolved Client Reference.');
     }
   } // eslint-disable-next-line react-internal/safe-string-coercion
 
@@ -1125,8 +1137,7 @@ var DefaultCacheDispatcher = {
     var entry = cache.get(createSignal);
 
     if (entry === undefined) {
-      entry = createSignal(); // $FlowFixMe[incompatible-use] found when upgrading Flow
-
+      entry = createSignal();
       cache.set(createSignal, entry);
     }
 
@@ -1138,7 +1149,6 @@ var DefaultCacheDispatcher = {
 
     if (entry === undefined) {
       entry = resourceType(); // TODO: Warn if undefined?
-      // $FlowFixMe[incompatible-use] found when upgrading Flow
 
       cache.set(resourceType, entry);
     }
@@ -1206,6 +1216,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     identifierPrefix: identifierPrefix || '',
     identifierCount: 1,
     onError: onError === undefined ? defaultErrorHandler : onError,
+    // $FlowFixMe[missing-this-annot]
     toJSON: function (key, value) {
       return resolveModelToJSON(request, this, key, value);
     }
@@ -1300,7 +1311,7 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
   }
 
   if (typeof type === 'function') {
-    if (isModuleReference(type)) {
+    if (isClientReference(type)) {
       // This is a reference to a Client Component.
       return [REACT_ELEMENT_TYPE, type, key, props];
     } // This is a server-side component.
@@ -1330,7 +1341,7 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
 
     return [REACT_ELEMENT_TYPE, type, key, props];
   } else if (type != null && typeof type === 'object') {
-    if (isModuleReference(type)) {
+    if (isClientReference(type)) {
       // This is a reference to a Client Component.
       return [REACT_ELEMENT_TYPE, type, key, props];
     }
@@ -1422,8 +1433,8 @@ function serializeByRefID(id) {
   return '@' + id.toString(16);
 }
 
-function serializeModuleReference(request, parent, key, moduleReference) {
-  var moduleKey = getModuleKey(moduleReference);
+function serializeClientReference(request, parent, key, moduleReference) {
+  var moduleKey = getClientReferenceKey(moduleReference);
   var writtenModules = request.writtenModules;
   var existingId = writtenModules.get(moduleKey);
 
@@ -1642,16 +1653,16 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
       var array = objectOrArray;
 
       for (var i = 0; i < array.length; i++) {
-        var _value = array[i];
+        var value = array[i];
         var substr = void 0;
 
-        if (typeof _value === 'string') {
-          substr = _value;
-        } else if (typeof _value === 'object' && _value !== null) {
+        if (typeof value === 'string') {
+          substr = value;
+        } else if (typeof value === 'object' && value !== null) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
-          substr = '{' + describeObjectForErrorMessage(_value) + '}';
+          substr = '{' + describeObjectForErrorMessage(value) + '}';
         } else {
-          substr = '{' + describeValueForErrorMessage(_value) + '}';
+          substr = '{' + describeValueForErrorMessage(value) + '}';
         }
 
         if ('' + i === expandedName) {
@@ -1676,15 +1687,15 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           str += ', ';
         }
 
-        var _value2 = _array[_i];
+        var _value = _array[_i];
 
         var _substr = void 0;
 
-        if (typeof _value2 === 'object' && _value2 !== null) {
+        if (typeof _value === 'object' && _value !== null) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
-          _substr = describeObjectForErrorMessage(_value2);
+          _substr = describeObjectForErrorMessage(_value);
         } else {
-          _substr = describeValueForErrorMessage(_value2);
+          _substr = describeValueForErrorMessage(_value);
         }
 
         if ('' + _i === expandedName) {
@@ -1715,18 +1726,18 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         str += ' ';
         var name = names[_i2];
         str += describeKeyForErrorMessage(name) + '=';
-        var _value3 = object[name];
+        var _value2 = object[name];
 
         var _substr2 = void 0;
 
-        if (name === expandedName && typeof _value3 === 'object' && _value3 !== null) {
+        if (name === expandedName && typeof _value2 === 'object' && _value2 !== null) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
-          _substr2 = describeObjectForErrorMessage(_value3);
+          _substr2 = describeObjectForErrorMessage(_value2);
         } else {
-          _substr2 = describeValueForErrorMessage(_value3);
+          _substr2 = describeValueForErrorMessage(_value2);
         }
 
-        if (typeof _value3 !== 'string') {
+        if (typeof _value2 !== 'string') {
           _substr2 = '{' + _substr2 + '}';
         }
 
@@ -1756,15 +1767,15 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 
         var _name = _names[_i3];
         str += describeKeyForErrorMessage(_name) + ': ';
-        var _value4 = _object[_name];
+        var _value3 = _object[_name];
 
         var _substr3 = void 0;
 
-        if (typeof _value4 === 'object' && _value4 !== null) {
+        if (typeof _value3 === 'object' && _value3 !== null) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
-          _substr3 = describeObjectForErrorMessage(_value4);
+          _substr3 = describeObjectForErrorMessage(_value3);
         } else {
-          _substr3 = describeValueForErrorMessage(_value4);
+          _substr3 = describeValueForErrorMessage(_value3);
         }
 
         if (_name === expandedName) {
@@ -1901,8 +1912,8 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'object') {
-    if (isModuleReference(value)) {
-      return serializeModuleReference(request, parent, key, value);
+    if (isClientReference(value)) {
+      return serializeClientReference(request, parent, key, value);
     } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
       var providerKey = value._context._globalName;
       var writtenProviders = request.writtenProviders;
@@ -1957,8 +1968,8 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'function') {
-    if (isModuleReference(value)) {
-      return serializeModuleReference(request, parent, key, value);
+    if (isClientReference(value)) {
+      return serializeClientReference(request, parent, key, value);
     }
 
     if (/^on[A-Z]/.test(key)) {
@@ -1989,8 +2000,7 @@ function resolveModelToJSON(request, parent, key, value) {
     emitSymbolChunk(request, symbolId, name);
     writtenSymbols.set(value, symbolId);
     return serializeByValueID(symbolId);
-  } // $FlowFixMe: bigint isn't added to Flow yet.
-
+  }
 
   if (typeof value === 'bigint') {
     throw new Error("BigInt (" + value + ") is not yet supported in Client Component props." + describeObjectForErrorMessage(parent, key));
@@ -2081,34 +2091,34 @@ function retryTask(request, task) {
   switchContext(task.context);
 
   try {
-    var _value5 = task.model;
+    var value = task.model;
 
-    if (typeof _value5 === 'object' && _value5 !== null && _value5.$$typeof === REACT_ELEMENT_TYPE) {
+    if (typeof value === 'object' && value !== null && value.$$typeof === REACT_ELEMENT_TYPE) {
       // TODO: Concatenate keys of parents onto children.
-      var element = _value5; // When retrying a component, reuse the thenableState from the
+      var element = value; // When retrying a component, reuse the thenableState from the
       // previous attempt.
 
       var prevThenableState = task.thenableState; // Attempt to render the Server Component.
       // Doing this here lets us reuse this same task if the next component
       // also suspends.
 
-      task.model = _value5;
-      _value5 = attemptResolveElement(element.type, element.key, element.ref, element.props, prevThenableState); // Successfully finished this component. We're going to keep rendering
+      task.model = value;
+      value = attemptResolveElement(element.type, element.key, element.ref, element.props, prevThenableState); // Successfully finished this component. We're going to keep rendering
       // using the same task, but we reset its thenable state before continuing.
 
       task.thenableState = null; // Keep rendering and reuse the same task. This inner loop is separate
       // from the render above because we don't need to reset the thenable state
       // until the next time something suspends and retries.
 
-      while (typeof _value5 === 'object' && _value5 !== null && _value5.$$typeof === REACT_ELEMENT_TYPE) {
+      while (typeof value === 'object' && value !== null && value.$$typeof === REACT_ELEMENT_TYPE) {
         // TODO: Concatenate keys of parents onto children.
-        var nextElement = _value5;
-        task.model = _value5;
-        _value5 = attemptResolveElement(nextElement.type, nextElement.key, nextElement.ref, nextElement.props, null);
+        var nextElement = value;
+        task.model = value;
+        value = attemptResolveElement(nextElement.type, nextElement.key, nextElement.ref, nextElement.props, null);
       }
     }
 
-    var processedChunk = processModelChunk(request, task.id, _value5);
+    var processedChunk = processModelChunk(request, task.id, value);
     request.completedJSONChunks.push(processedChunk);
     request.abortableTasks.delete(task);
     task.status = COMPLETED;
@@ -2294,14 +2304,13 @@ function abort(request, reason) {
     if (abortableTasks.size > 0) {
       // We have tasks to abort. We'll emit one error row and then emit a reference
       // to that row from every row that's still remaining.
-      var _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
-
-      var digest = logRecoverableError(request, _error);
+      var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+      var digest = logRecoverableError(request, error);
       request.pendingChunks++;
       var errorId = request.nextChunkId++;
 
       if (true) {
-        var _getErrorMessageAndSt4 = getErrorMessageAndStackDev(_error),
+        var _getErrorMessageAndSt4 = getErrorMessageAndStackDev(error),
             message = _getErrorMessageAndSt4.message,
             stack = _getErrorMessageAndSt4.stack;
 
@@ -2331,9 +2340,9 @@ function importServerContexts(contexts) {
     for (var i = 0; i < contexts.length; i++) {
       var _contexts$i = contexts[i],
           name = _contexts$i[0],
-          _value6 = _contexts$i[1];
+          value = _contexts$i[1];
       var context = getOrCreateServerContext(name);
-      pushProvider(context, _value6);
+      pushProvider(context, value);
     }
 
     var importedContext = getActiveContext();
@@ -2398,7 +2407,7 @@ exports.renderToReadableStream = renderToReadableStream;
  * LICENSE file in the root directory of this source tree.
  */
 var ea=__nccwpck_require__(522);var e="function"===typeof AsyncLocalStorage,fa=e?new AsyncLocalStorage:null,m=null,n=0;function p(a,b){if(0!==b.length)if(512<b.length)0<n&&(a.enqueue(new Uint8Array(m.buffer,0,n)),m=new Uint8Array(512),n=0),a.enqueue(b);else{var d=m.length-n;d<b.length&&(0===d?a.enqueue(m):(m.set(b.subarray(0,d),n),a.enqueue(m),b=b.subarray(d)),m=new Uint8Array(512),n=0);m.set(b,n);n+=b.length}return!0}var q=new TextEncoder;
-function r(a){return q.encode(a)}function ha(a,b){"function"===typeof a.error?a.error(b):a.close()}var t=JSON.stringify,u=Symbol.for("react.module.reference"),v=Symbol.for("react.element"),ia=Symbol.for("react.fragment"),ja=Symbol.for("react.provider"),ka=Symbol.for("react.server_context"),la=Symbol.for("react.forward_ref"),ma=Symbol.for("react.suspense"),na=Symbol.for("react.suspense_list"),oa=Symbol.for("react.memo"),w=Symbol.for("react.lazy"),pa=Symbol.for("react.default_value"),qa=Symbol.for("react.memo_cache_sentinel");
+function r(a){return q.encode(a)}function ha(a,b){"function"===typeof a.error?a.error(b):a.close()}var t=JSON.stringify,u=Symbol.for("react.client.reference"),v=Symbol.for("react.element"),ia=Symbol.for("react.fragment"),ja=Symbol.for("react.provider"),ka=Symbol.for("react.server_context"),la=Symbol.for("react.forward_ref"),ma=Symbol.for("react.suspense"),na=Symbol.for("react.suspense_list"),oa=Symbol.for("react.memo"),w=Symbol.for("react.lazy"),pa=Symbol.for("react.default_value"),qa=Symbol.for("react.memo_cache_sentinel");
 function x(a,b,d,c,f,g,h){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=c;this.attributeNamespace=f;this.mustUseProperty=d;this.propertyName=a;this.type=b;this.sanitizeURL=g;this.removeEmptyString=h}"children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ").forEach(function(a){new x(a,0,!1,a,null,!1,!1)});
 [["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){new x(a[0],1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){new x(a,2,!1,a.toLowerCase(),null,!1,!1)});["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){new x(a,2,!1,a,null,!1,!1)});
 "allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope".split(" ").forEach(function(a){new x(a,3,!1,a.toLowerCase(),null,!1,!1)});["checked","multiple","muted","selected"].forEach(function(a){new x(a,3,!0,a,null,!1,!1)});["capture","download"].forEach(function(a){new x(a,4,!1,a,null,!1,!1)});
@@ -2421,7 +2430,7 @@ function ya(){}function za(a,b,d){d=a[d];void 0===d?a.push(b):d!==b&&(b.then(ya,
 function Aa(){if(null===I)throw Error("Expected a suspended thenable. This is a bug in React. Please file an issue.");var a=I;I=null;return a}var J=null,K=0,L=null;function Ba(){var a=L;L=null;return a}function Ca(a){return a._currentValue}
 var Ha={useMemo:function(a){return a()},useCallback:function(a){return a},useDebugValue:function(){},useDeferredValue:M,useTransition:M,readContext:Ca,useContext:Ca,useReducer:M,useRef:M,useState:M,useInsertionEffect:M,useLayoutEffect:M,useImperativeHandle:M,useEffect:M,useId:Da,useMutableSource:M,useSyncExternalStore:M,useCacheRefresh:function(){return Fa},useMemoCache:function(a){for(var b=Array(a),d=0;d<a;d++)b[d]=qa;return b},use:Ga};
 function M(){throw Error("This Hook is not supported in Server Components.");}function Fa(){throw Error("Refreshing the cache is not supported in Server Components.");}function Da(){if(null===J)throw Error("useId can only be used while React is rendering");var a=J.identifierCount++;return":"+J.identifierPrefix+"S"+a.toString(32)+":"}
-function Ga(a){if(null!==a&&"object"===typeof a){if("function"===typeof a.then){var b=K;K+=1;null===L&&(L=[]);return za(L,a,b)}if(a.$$typeof===ka)return a._currentValue}throw Error("An unsupported type was passed to use(): "+String(a));}function N(){return(new AbortController).signal}function Ia(){if(O)return O;if(e){var a=fa.getStore();if(a)return a}return new Map}
+function Ga(a){if(null!==a&&"object"===typeof a||"function"===typeof a){if("function"===typeof a.then){var b=K;K+=1;null===L&&(L=[]);return za(L,a,b)}if(a.$$typeof===ka)return a._currentValue}throw Error("An unsupported type was passed to use(): "+String(a));}function N(){return(new AbortController).signal}function Ia(){if(O)return O;if(e){var a=fa.getStore();if(a)return a}return new Map}
 var Ja={getCacheSignal:function(){var a=Ia(),b=a.get(N);void 0===b&&(b=N(),a.set(N,b));return b},getCacheForType:function(a){var b=Ia(),d=b.get(a);void 0===d&&(d=a(),b.set(a,d));return d}},O=null,P=ea.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,Q=P.ContextRegistry,R=P.ReactCurrentDispatcher,S=P.ReactCurrentCache;function Ka(a){console.error(a)}
 function La(a,b,d,c,f){if(null!==S.current&&S.current!==Ja)throw Error("Currently React only supports one RSC renderer at a time.");S.current=Ja;var g=new Set,h=[],k={status:0,fatalError:null,destination:null,bundlerConfig:b,cache:new Map,nextChunkId:0,pendingChunks:0,abortableTasks:g,pingedTasks:h,completedModuleChunks:[],completedJSONChunks:[],completedErrorChunks:[],writtenSymbols:new Map,writtenModules:new Map,writtenProviders:new Map,identifierPrefix:f||"",identifierCount:1,onError:void 0===
 d?Ka:d,toJSON:function(a,b){return Ma(k,this,a,b)}};k.pendingChunks++;b=Na(c);a=Oa(k,a,b,g);h.push(a);return k}var Pa={};function Qa(a){if("fulfilled"===a.status)return a.value;if("rejected"===a.status)throw a.reason;throw a;}
