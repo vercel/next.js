@@ -1615,6 +1615,7 @@ export default async function getBaseWebpackConfig(
         'next-swc-loader',
         'next-client-pages-loader',
         'next-image-loader',
+        'next-metadata-image-loader',
         'next-serverless-loader',
         'next-style-loader',
         'next-flight-loader',
@@ -1853,6 +1854,9 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
+                resourceQuery(queryString: string) {
+                  return queryString !== '?__next_metadata'
+                },
                 options: {
                   isServer: isNodeServer || isEdgeServer,
                   isDev: dev,

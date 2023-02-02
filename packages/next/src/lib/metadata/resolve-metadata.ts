@@ -16,6 +16,12 @@ import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { mergeTitle } from './resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
+import {
+  getLayoutOrPageModule,
+  LoaderTree,
+} from '../../server/lib/app-dir-module'
+import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import { interopDefault } from '../interop-default'
 
 type FieldResolver<Key extends keyof Metadata> = (
   T: Metadata[Key]
@@ -322,7 +328,10 @@ function merge(
 }
 
 type MetadataResolver = (_parent: ResolvingMetadata) => Promise<Metadata>
-export type MetadataItems = (Metadata | MetadataResolver)[]
+export type MetadataItems = [
+  Metadata | MetadataResolver | null,
+  Metadata | null
+][]
 
 async function getDefinedMetadata(
   mod: any,
@@ -349,17 +358,35 @@ async function getDefinedMetadata(
     : mod.metadata
 }
 
+async function resolveStaticMetadata(
+  components: ComponentsType
+): Promise<Metadata | null> {
+  const { metadata } = components
+  if (!metadata) return null
+
+  const iconPromises = metadata?.icons.map(
+    // TODO-APP: share the typing between next-metadata-image-loader and here
+    async (iconResolver) =>
+      interopDefault(await iconResolver()) as { url: string; sizes: string }
+  )
+  const staticIcons = iconPromises ? await Promise.all(iconPromises) : null
+
+  return {
+    icons: staticIcons,
+  }
+}
+
 // layout.metadata -> layout.metadata -> page.metadata
 export async function collectMetadata(
-  mod: any,
+  loaderTree: LoaderTree,
   props: any,
   array: MetadataItems
 ) {
-  if (!mod) return
-  const metadata = await getDefinedMetadata(mod, props)
-  if (metadata) {
-    array.push(metadata)
-  }
+  const mod = await getLayoutOrPageModule(loaderTree)
+  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
+
+  const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
+  array.push([metadataExport, staticFilesMetadata])
 }
 
 export async function accumulateMetadata(
@@ -369,15 +396,27 @@ export async function accumulateMetadata(
   let parentPromise = Promise.resolve(resolvedMetadata)
 
   for (const item of metadataItems) {
+    const [metadataExport, staticFilesMetadata] = item
     const layerMetadataPromise =
-      typeof item === 'function' ? item(parentPromise) : Promise.resolve(item)
+      typeof metadataExport === 'function'
+        ? metadataExport(parentPromise)
+        : Promise.resolve(metadataExport)
+
     parentPromise = parentPromise.then((resolved) => {
-      return layerMetadataPromise.then((metadata) => {
-        merge(resolved, metadata, {
-          title: resolved.title?.template || null,
-          openGraph: resolved.openGraph?.title?.template || null,
-          twitter: resolved.twitter?.title?.template || null,
-        })
+      return layerMetadataPromise.then((exportedMetadata) => {
+        const metadata = exportedMetadata || staticFilesMetadata
+
+        if (metadata) {
+          // Overriding the metadata if static files metadata is present
+          Object.assign(metadata, staticFilesMetadata)
+
+          merge(resolved, metadata, {
+            title: resolved.title?.template || null,
+            openGraph: resolved.openGraph?.title?.template || null,
+            twitter: resolved.twitter?.title?.template || null,
+          })
+        }
+
         return resolved
       })
     })

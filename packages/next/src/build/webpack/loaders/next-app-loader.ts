@@ -1,9 +1,12 @@
 import type webpack from 'webpack'
-import chalk from 'next/dist/compiled/chalk'
 import type { ValueOf } from '../../../shared/lib/constants'
+
+import path from 'path'
+import fs from 'fs/promises'
+import { stringify } from 'querystring'
+import chalk from 'next/dist/compiled/chalk'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { relative, sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
@@ -20,20 +23,29 @@ const FILE_TYPES = {
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 
 const PAGE_SEGMENT = 'page$'
+const METADATA_TYPE = 'metadata'
+
+const staticAssetIconImageRegex = /^icon\d*\.(ico|jpg|png|svg)$/
 
 // TODO-APP: check if this can be narrowed.
 type ComponentModule = () => any
 type ModuleReference = [componentModule: ComponentModule, filePath: string]
+type CollectedMetadata = {
+  icons: ComponentModule[]
+}
 export type ComponentsType = {
   readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
   readonly page?: ModuleReference
+} & {
+  readonly metadata?: CollectedMetadata
 }
 
 async function createTreeCodeFromPath({
   pagePath,
   resolve,
   resolveParallelSegments,
+  isDev,
 }: {
   pagePath: string
   resolve: (
@@ -43,6 +55,7 @@ async function createTreeCodeFromPath({
   resolveParallelSegments: (
     pathname: string
   ) => [key: string, segment: string][]
+  isDev: boolean
 }) {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
@@ -50,6 +63,44 @@ async function createTreeCodeFromPath({
 
   let rootLayout: string | undefined
   let globalError: string | undefined
+
+  async function discoverStaticMetadataFiles(
+    routerDirPath: string,
+    isDev: boolean
+  ) {
+    let hasStaticMetadataFiles = false
+    const metadata: { icons: string[] } = {
+      icons: [],
+    }
+
+    // collect metadata if there's any from the folder of the page
+    const resolvedRouteDir = await resolve(routerDirPath, true)
+    if (resolvedRouteDir) {
+      const files = await fs.readdir(resolvedRouteDir, {
+        encoding: 'utf-8',
+        withFileTypes: true,
+      })
+
+      files.forEach((file) => {
+        if (!file.isFile()) return
+        // Match files without case sensitivity
+        if (staticAssetIconImageRegex.test(file.name.toLowerCase())) {
+          hasStaticMetadataFiles = true
+
+          const filepath = path.join(resolvedRouteDir, file.name)
+          metadata.icons.push(
+            `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+              `next-metadata-image-loader?${stringify({ isDev })}!` +
+                filepath +
+                '?__next_metadata'
+            )})`
+          )
+        }
+      })
+    }
+
+    return hasStaticMetadataFiles ? metadata : null
+  }
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
@@ -68,6 +119,11 @@ async function createTreeCodeFromPath({
     } else {
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
+
+    const metadata = await discoverStaticMetadataFiles(
+      `${appDirPrefix}${segmentPath}`,
+      isDev
+    )
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
@@ -131,6 +187,13 @@ async function createTreeCodeFromPath({
               )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
+          ${
+            metadata
+              ? `\n'${METADATA_TYPE}': {
+              icons: [${metadata.icons.join(',')}]
+            }`
+              : ''
+          }
         }
       ]`
     }
@@ -158,7 +221,7 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   return (
     pathToTurnAbsolute
       // Replace all POSIX path separators with the current OS path separator
-      .replace(/\//g, sep)
+      .replace(/\//g, path.sep)
       .replace(/^private-next-app-dir/, appDir)
   )
 }
@@ -252,6 +315,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     pagePath,
     resolve: resolver,
     resolveParallelSegments,
+    isDev: !!isDev,
   })
 
   if (!rootLayout) {
@@ -279,7 +343,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
         if (rootLayoutPath) {
           message += `We tried to create ${chalk.bold(
-            relative(this._compiler?.context ?? '', rootLayoutPath)
+            path.relative(this._compiler?.context ?? '', rootLayoutPath)
           )} for you but something went wrong.`
         } else {
           message +=
