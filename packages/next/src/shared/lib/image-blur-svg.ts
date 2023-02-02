@@ -2,19 +2,19 @@
  * A shared function, used on both client and server, to generate a SVG blur placeholder.
  */
 export function getImageBlurSvg({
-  objectFit,
   widthInt,
   heightInt,
   blurWidth,
   blurHeight,
   blurDataURL,
+  objectFit,
 }: {
-  objectFit?: string
   widthInt?: number
   heightInt?: number
   blurWidth?: number
   blurHeight?: number
   blurDataURL: string
+  objectFit?: string
 }): string {
   const std = blurWidth && blurHeight ? '1' : '20'
   const svgWidth = blurWidth || widthInt

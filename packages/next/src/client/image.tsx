@@ -832,12 +832,12 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             backgroundRepeat: 'no-repeat',
             backgroundImage: `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg(
               {
-                objectFit: imgStyle.objectFit,
                 widthInt,
                 heightInt,
                 blurWidth,
                 blurHeight,
                 blurDataURL,
+                objectFit: imgStyle.objectFit,
               }
             )}")`,
           }
