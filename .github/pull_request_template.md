@@ -1,7 +1,7 @@
 <!--
 Thanks for opening a PR! Your contribution is much appreciated.
 To make sure your PR is handled as smoothly as possible we request that you follow the checklist sections below.
-Choose the right checklist for the change that you're making:
+Choose the right checklist for the change(s) that you're making:
 -->
 
 ## Bug

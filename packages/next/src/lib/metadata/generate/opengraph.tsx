@@ -2,8 +2,9 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
 import { Meta, MultiMeta } from './meta'
+import { TwitterAppDescriptor } from '../types/twitter-types'
 
-export function ResolvedOpenGraphMetadata({
+export function OpenGraphMetadata({
   openGraph,
 }: {
   openGraph: ResolvedMetadata['openGraph']
@@ -218,6 +219,103 @@ export function ResolvedOpenGraphMetadata({
         contents={openGraph.alternateLocale}
       />
       {typedOpenGraph}
+    </>
+  )
+}
+
+function TwitterAppItem({
+  app,
+  type,
+}: {
+  app: TwitterAppDescriptor
+  type: 'iphone' | 'ipad' | 'googleplay'
+}) {
+  return (
+    <>
+      <Meta name={`twitter:app:name:${type}`} content={app.name} />
+      <Meta name={`twitter:app:id:${type}`} content={app.id[type]} />
+      <Meta
+        name={`twitter:app:url:${type}`}
+        content={app.url?.[type]?.toString()}
+      />
+    </>
+  )
+}
+
+export function TwitterMetadata({
+  twitter,
+}: {
+  twitter: ResolvedMetadata['twitter']
+}) {
+  if (!twitter) return null
+  const { card } = twitter
+
+  return (
+    <>
+      <Meta name="twitter:card" content={card} />
+      <Meta name="twitter:site" content={twitter.site} />
+      <Meta name="twitter:site:id" content={twitter.siteId} />
+      <Meta name="twitter:creator" content={twitter.creator} />
+      <Meta name="twitter:creator:id" content={twitter.creatorId} />
+      <Meta name="twitter:title" content={twitter.title?.absolute} />
+      <Meta name="twitter:description" content={twitter.description} />
+      {twitter.images
+        ? twitter.images.map((image) => (
+            <>
+              <Meta name="twitter:image" content={image.url} />
+              <Meta name="twitter:image:alt" content={image.alt} />
+            </>
+          ))
+        : null}
+      {card === 'player'
+        ? twitter.players.map((player) => (
+            <>
+              <Meta
+                name="twitter:player"
+                content={player.playerUrl.toString()}
+              />
+              <Meta
+                name="twitter:player:stream"
+                content={player.streamUrl.toString()}
+              />
+              <Meta name="twitter:player:width" content={player.width} />
+              <Meta name="twitter:player:height" content={player.height} />
+            </>
+          ))
+        : null}
+      {card === 'app' ? (
+        <>
+          <TwitterAppItem app={twitter.app} type="iphone" />
+          <TwitterAppItem app={twitter.app} type="ipad" />
+          <TwitterAppItem app={twitter.app} type="googleplay" />
+        </>
+      ) : null}
+    </>
+  )
+}
+
+export function AppLinksMeta({
+  appLinks,
+}: {
+  appLinks: ResolvedMetadata['appLinks']
+}) {
+  if (!appLinks) return null
+  return (
+    <>
+      <MultiMeta propertyPrefix="al:ios" contents={appLinks.ios} />
+      <MultiMeta propertyPrefix="al:iphone" contents={appLinks.iphone} />
+      <MultiMeta propertyPrefix="al:ipad" contents={appLinks.ipad} />
+      <MultiMeta propertyPrefix="al:android" contents={appLinks.android} />
+      <MultiMeta
+        propertyPrefix="al:windows_phone"
+        contents={appLinks.windows_phone}
+      />
+      <MultiMeta propertyPrefix="al:windows" contents={appLinks.windows} />
+      <MultiMeta
+        propertyPrefix="al:windows_universal"
+        contents={appLinks.windows_universal}
+      />
+      <MultiMeta propertyPrefix="al:web" contents={appLinks.web} />
     </>
   )
 }

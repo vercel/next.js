@@ -35,7 +35,11 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next-env/README.md',
   ],
   cna: ['packages/create-next-app'],
-  'next-swc': ['packages/next-swc', 'scripts/normalize-version-bump.js'],
+  'next-swc': [
+    'packages/next-swc',
+    'scripts/normalize-version-bump.js',
+    'test/integration/create-next-app',
+  ],
 }
 
 async function main() {
