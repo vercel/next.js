@@ -25,6 +25,7 @@ export interface RefreshAction {
   type: typeof ACTION_REFRESH
   cache: CacheNode
   mutable: Mutable
+  origin: Location['origin']
 }
 
 /**
