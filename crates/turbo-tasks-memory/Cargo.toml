@@ -43,6 +43,7 @@ log_activate_tasks = []
 log_connect_tasks = []
 report_expensive = []
 print_scope_updates = []
+print_task_invalidation = []
 
 [[bench]]
 name = "mod"

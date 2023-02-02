@@ -1,6 +1,7 @@
 use std::{
     any::Any,
     borrow::Cow,
+    fmt,
     fmt::{Debug, Display},
     future::Future,
     pin::Pin,
@@ -73,6 +74,19 @@ pub enum PersistentTaskType {
     /// The method call will do a cache lookup and might resolve arguments
     /// before.
     ResolveTrait(TraitTypeId, Cow<'static, str>, Vec<TaskInput>),
+}
+
+impl Display for PersistentTaskType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Native(fid, _) | Self::ResolveNative(fid, _) => {
+                Display::fmt(&registry::get_function(*fid).name, f)
+            }
+            Self::ResolveTrait(tid, n, _) => {
+                write!(f, "{}::{n}", registry::get_trait(*tid).name)
+            }
+        }
+    }
 }
 
 impl PersistentTaskType {

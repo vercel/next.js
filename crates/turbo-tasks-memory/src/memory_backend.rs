@@ -316,7 +316,7 @@ impl Backend for MemoryBackend {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         self.with_task(task, |task| {
-            task.execution_result(result, turbo_tasks);
+            task.execution_result(result, self, turbo_tasks);
         })
     }
 

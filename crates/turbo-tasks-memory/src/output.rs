@@ -60,32 +60,8 @@ impl Output {
     }
 
     pub fn link(&mut self, target: RawVc, turbo_tasks: &dyn TurboTasksBackendApi) {
-        let change;
-        let mut _type_change = false;
-        match &self.content {
-            OutputContent::Link(old_target) => {
-                if match (old_target, &target) {
-                    (RawVc::TaskOutput(old_task), RawVc::TaskOutput(new_task)) => {
-                        old_task == new_task
-                    }
-                    (
-                        RawVc::TaskCell(old_task, old_index),
-                        RawVc::TaskCell(new_task, new_index),
-                    ) => old_task == new_task && *old_index == *new_index,
-                    _ => false,
-                } {
-                    change = None;
-                } else {
-                    change = Some(target);
-                }
-            }
-            OutputContent::Empty | OutputContent::Error(_) | OutputContent::Panic(_) => {
-                change = Some(target);
-            }
-        };
-        if let Some(target) = change {
-            self.assign(OutputContent::Link(target), turbo_tasks)
-        }
+        debug_assert!(*self != target);
+        self.assign(OutputContent::Link(target), turbo_tasks)
     }
 
     pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksBackendApi) {
@@ -127,6 +103,15 @@ impl Output {
         // notify
         if !self.dependent_tasks.is_empty() {
             turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);
+        }
+    }
+}
+
+impl PartialEq<RawVc> for Output {
+    fn eq(&self, rhs: &RawVc) -> bool {
+        match &self.content {
+            OutputContent::Link(old_target) => old_target == rhs,
+            OutputContent::Empty | OutputContent::Error(_) | OutputContent::Panic(_) => false,
         }
     }
 }
