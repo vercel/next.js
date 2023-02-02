@@ -2,7 +2,7 @@ import type { CacheFs } from '../../../shared/lib/utils'
 import FileSystemCache from './file-system-cache'
 import { PrerenderManifest } from '../../../build'
 import path from '../../../shared/lib/isomorphic/path'
-import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../../../shared/lib/page-path/normalize-page-route'
 import FetchCache from './fetch-cache'
 import {
   IncrementalCacheValue,
@@ -133,7 +133,7 @@ export class IncrementalCache {
   }
 
   _getPathname(pathname: string, fetchCache?: boolean) {
-    return fetchCache ? pathname : normalizePagePath(pathname)
+    return fetchCache ? pathname : normalizePageRoute(pathname)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
@@ -266,7 +266,7 @@ export class IncrementalCache {
         this.prerenderManifest.routes[pathname] = {
           dataRoute: path.posix.join(
             '/_next/data',
-            `${normalizePagePath(pathname)}.json`
+            `${normalizePageRoute(pathname)}.json`
           ),
           srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
           initialRevalidateSeconds: revalidateSeconds,

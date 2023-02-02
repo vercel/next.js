@@ -25,7 +25,7 @@ import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic-route'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
 import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
@@ -45,7 +45,7 @@ import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../shared/lib/page-path/normalize-page-route'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { getRuntimeContext } from '../server/web/sandbox'
 import {
@@ -1707,7 +1707,7 @@ export async function copyTracedFiles(
       distDir,
       'server',
       'pages',
-      `${normalizePagePath(page)}.js`
+      `${normalizePageRoute(page)}.js`
     )
     const pageTraceFile = `${pageFile}.nft.json`
     await handleTraceFiles(pageTraceFile).catch((err) => {

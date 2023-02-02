@@ -7,7 +7,7 @@ import { sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
-import { isAppRoute } from '../../../lib/is-app-route'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -251,7 +251,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  if (isAppRoute(name)) {
+  if (isAppRouteRoute(name)) {
     return createAppRouteCode({ pagePath, resolver })
   }
 

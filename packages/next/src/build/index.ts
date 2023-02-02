@@ -65,7 +65,7 @@ import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
 import { BuildManifest } from '../server/get-page-files'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../shared/lib/page-path/normalize-page-route'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
 import {
@@ -117,7 +117,7 @@ import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { normalizeAppRoute } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
@@ -574,7 +574,7 @@ export default async function build(
       if (mappedAppPages) {
         denormalizedAppPages = Object.keys(mappedAppPages)
         for (const appKey of denormalizedAppPages) {
-          const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
+          const normalizedAppPageKey = normalizeAppRoute(appKey)
           const pagePath = mappedPages[normalizedAppPageKey]
           if (pagePath) {
             const appPath = mappedAppPages[appKey]
@@ -1002,7 +1002,7 @@ export default async function build(
         )
 
         Object.keys(appPathsManifest).forEach((entry) => {
-          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+          appPathRoutes[entry] = normalizeAppRoute(entry)
         })
         await promises.writeFile(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
@@ -1168,7 +1168,7 @@ export default async function build(
                 page,
               })
               return checkPageSpan.traceAsyncFn(async () => {
-                const actualPage = normalizePagePath(page)
+                const actualPage = normalizePageRoute(page)
                 const [selfSize, allSize] = await getJsPageSizeInKb(
                   pageType,
                   actualPage,
@@ -1614,7 +1614,7 @@ export default async function build(
               .traceAsyncFn(async () => {
                 const includeGlobs = pageTraceIncludes.get(page)
                 const excludeGlobs = pageTraceExcludes.get(page)
-                page = normalizePagePath(page)
+                page = normalizePageRoute(page)
 
                 if (!includeGlobs?.length && !excludeGlobs?.length) {
                   return
@@ -1810,7 +1810,7 @@ export default async function build(
           ...serverPropsPages,
           ...ssgPages,
         ]).map((page) => {
-          const pagePath = normalizePagePath(page)
+          const pagePath = normalizePageRoute(page)
           const dataRoute = path.posix.join(
             '/_next/data',
             buildId,
@@ -2187,7 +2187,7 @@ export default async function build(
               }
 
               if (revalidate !== 0) {
-                const normalizedRoute = normalizePagePath(route)
+                const normalizedRoute = normalizePageRoute(route)
                 const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
                 finalPrerenderRoutes[route] = {
                   initialRevalidateSeconds: revalidate,
@@ -2207,7 +2207,7 @@ export default async function build(
             })
 
             if (!hasDynamicData && isDynamicRoute(originalAppPath)) {
-              const normalizedRoute = normalizePagePath(page)
+              const normalizedRoute = normalizePageRoute(page)
               const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
 
               // TODO: create a separate manifest to allow enforcing
@@ -2355,7 +2355,7 @@ export default async function build(
             const isStaticSsgFallback = ssgStaticFallbackPages.has(page)
             const isDynamic = isDynamicRoute(page)
             const hasAmp = hybridAmpPages.has(page)
-            const file = normalizePagePath(page)
+            const file = normalizePageRoute(page)
 
             const pageInfo = pageInfos.get(page)
             const durationInfo = exportConfig.pageDurationMap[page]
@@ -2433,7 +2433,7 @@ export default async function build(
                 // `getStaticPaths` (additionalSsgPaths).
                 const extraRoutes = additionalSsgPaths.get(page) || []
                 for (const route of extraRoutes) {
-                  const pageFile = normalizePagePath(route)
+                  const pageFile = normalizePageRoute(route)
                   await moveExportedPage(
                     page,
                     route,
@@ -2478,7 +2478,7 @@ export default async function build(
                     dataRoute: path.posix.join(
                       '/_next/data',
                       buildId,
-                      `${normalizePagePath(route)}.json`
+                      `${normalizePageRoute(route)}.json`
                     ),
                   }
 
@@ -2548,7 +2548,7 @@ export default async function build(
 
       if (ssgPages.size > 0 || appDir) {
         tbdPrerenderRoutes.forEach((tbdRoute) => {
-          const normalizedRoute = normalizePagePath(tbdRoute)
+          const normalizedRoute = normalizePageRoute(tbdRoute)
           const dataRoute = path.posix.join(
             '/_next/data',
             buildId,

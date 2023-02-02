@@ -90,7 +90,7 @@ export interface Routes {
   }
   catchAll: Route
   catchAllMiddleware?: ReadonlyArray<Route>
-  dynamic?: DynamicRoutes
+  dynamic?: Readonly<DynamicRoutes>
 }
 
 export interface RouterOptions {

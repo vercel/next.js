@@ -7,7 +7,7 @@ import {
   APP_PATHS_MANIFEST,
 } from '../shared/lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../shared/lib/page-path/normalize-page-route'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
@@ -50,7 +50,7 @@ export function getMaybePagePath(
   )) as PagesManifest
 
   try {
-    page = denormalizePagePath(normalizePagePath(page))
+    page = denormalizePagePath(normalizePageRoute(page))
   } catch (err) {
     console.error(err)
     throw new PageNotFoundError(page)

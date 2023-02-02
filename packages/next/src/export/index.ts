@@ -36,7 +36,7 @@ import { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../shared/lib/page-path/normalize-page-route'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
@@ -472,7 +472,7 @@ export default async function exportApp(
     const exportPaths = [
       ...new Set(
         Object.keys(exportPathMap).map((path) =>
-          denormalizePagePath(normalizePagePath(path))
+          denormalizePagePath(normalizePageRoute(path))
         )
       ),
     ]
@@ -697,7 +697,7 @@ export default async function exportApp(
           if (prerenderManifest!.notFoundRoutes.includes(route)) {
             return
           }
-          route = normalizePagePath(route)
+          route = normalizePageRoute(route)
 
           const pagePath = getPagePath(pageName, distDir)
           const distPagesDir = join(

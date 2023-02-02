@@ -75,7 +75,7 @@ import BaseServer, {
 } from './base-server'
 import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../shared/lib/page-path/normalize-page-route'
 import { loadComponents } from './load-components'
 import isError, { getProperError } from '../lib/is-error'
 import { FontManifest } from './font-utils'
@@ -94,7 +94,7 @@ import { getClonableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { normalizeAppRoute } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
@@ -928,8 +928,9 @@ export default class NextNodeServer extends BaseServer {
     if (query.amp) {
       // try serving a static AMP version first
       paths.unshift(
-        (isAppPath ? normalizeAppPath(pathname) : normalizePagePath(pathname)) +
-          '.amp'
+        (isAppPath
+          ? normalizeAppRoute(pathname)
+          : normalizePageRoute(pathname)) + '.amp'
       )
     }
 
@@ -1010,7 +1011,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getFallback(page: string): Promise<string> {
-    page = normalizePagePath(page)
+    page = normalizePageRoute(page)
     const cacheFs = this.getCacheFilesystem()
     return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
@@ -1179,10 +1180,10 @@ export default class NextNodeServer extends BaseServer {
         const route = await this.matchers.match(req)
         if (route) {
           // Handle the given route.
-          await this.handlers.handle(route, req, res)
-
-          // Mark the request as finished.
-          return { state: RouteResultState.FINISHED }
+          const handled = await this.handlers.handle(route, req, res)
+          if (handled) {
+            return { state: RouteResultState.FINISHED }
+          }
         }
 
         try {
@@ -1603,7 +1604,7 @@ export default class NextNodeServer extends BaseServer {
     let foundPage: string
 
     try {
-      foundPage = denormalizePagePath(normalizePagePath(params.page))
+      foundPage = denormalizePagePath(normalizePageRoute(params.page))
     } catch (err) {
       return null
     }

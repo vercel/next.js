@@ -36,7 +36,7 @@ import {
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../../shared/lib/page-path/normalize-page-route'
 import { absolutePathToPage } from '../../shared/lib/page-path/absolute-path-to-page'
 import Router, { RouteResult, RouteResultState, RouterOptions } from '../router'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
@@ -68,7 +68,7 @@ import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { normalizeAppRoute } from '../../shared/lib/router/utils/app-paths'
 import {
   getPossibleMiddlewareFilenames,
   isMiddlewareFile,
@@ -417,7 +417,7 @@ export default class DevServer extends Server {
             }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName) || '/'
+            pageName = normalizeAppRoute(pageName)
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }
@@ -778,7 +778,7 @@ export default class DevServer extends Server {
   protected async hasPage(pathname: string): Promise<boolean> {
     let normalizedPath: string
     try {
-      normalizedPath = normalizePagePath(pathname)
+      normalizedPath = normalizePageRoute(pathname)
     } catch (err) {
       console.error(err)
       // if normalizing the page fails it means it isn't valid

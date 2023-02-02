@@ -32,7 +32,10 @@ function parseParameter(param: string) {
 }
 
 function getParametrizedRoute(route: string) {
-  const segments = removeTrailingSlash(route).slice(1).split('/')
+  const segments = removeTrailingSlash(route)
+    // Remove the leading `/`.
+    .slice(1)
+    .split('/')
   const groups: { [groupName: string]: Group } = {}
   let groupIndex = 1
   return {

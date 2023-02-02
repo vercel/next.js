@@ -1,2 +1,2 @@
 export { getSortedRoutes } from './sorted-routes'
-export { isDynamicRoute } from './is-dynamic'
+export { isDynamicRoute } from './is-dynamic-route'

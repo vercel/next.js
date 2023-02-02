@@ -9,7 +9,7 @@ import { findPageFile } from '../lib/find-page-file'
 import { runDependingOnPageType } from '../../build/entries'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
-import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../../shared/lib/page-path/normalize-page-route'
 import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-tail'
 import { reportTrigger } from '../../build/output'
@@ -266,7 +266,7 @@ function disposeInactiveEntries(maxInactiveAge: number) {
 // Normalize both app paths and page paths
 function tryToNormalizePagePath(page: string) {
   try {
-    return normalizePagePath(page)
+    return normalizePageRoute(page)
   } catch (err) {
     console.error(err)
     throw new PageNotFoundError(page)
@@ -331,7 +331,7 @@ async function findPagePathData(
 
       return {
         absolutePagePath: join(appDir, pagePath),
-        bundlePath: posix.join('app', normalizePagePath(pageUrl)),
+        bundlePath: posix.join('app', normalizePageRoute(pageUrl)),
         page: posix.normalize(pageUrl),
       }
     }
@@ -355,7 +355,7 @@ async function findPagePathData(
 
     return {
       absolutePagePath: join(pagesDir, pagePath),
-      bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
+      bundlePath: posix.join('pages', normalizePageRoute(pageUrl)),
       page: posix.normalize(pageUrl),
     }
   }

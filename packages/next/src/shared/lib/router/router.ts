@@ -27,7 +27,7 @@ import {
   ST,
   NEXT_DATA,
 } from '../utils'
-import { isDynamicRoute } from './utils/is-dynamic'
+import { isDynamicRoute } from './utils/is-dynamic-route'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'

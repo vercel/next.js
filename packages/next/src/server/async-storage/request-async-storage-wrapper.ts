@@ -32,7 +32,7 @@ export class RequestAsyncStorageWrapper
    * Tries to get the preview data on the request for the given route. This
    * isn't enabled in the edge runtime yet.
    */
-  private readonly tryGetPreviewData: typeof tryGetPreviewData | null =
+  private static readonly tryGetPreviewData: typeof tryGetPreviewData | null =
     process.env.NEXT_RUNTIME !== 'edge'
       ? require('../api-utils/node').tryGetPreviewData
       : null
@@ -48,6 +48,17 @@ export class RequestAsyncStorageWrapper
    */
   public wrap<Result>(
     storage: AsyncLocalStorage<RequestStore>,
+    context: RequestContext,
+    callback: () => Result
+  ): Result {
+    return RequestAsyncStorageWrapper.wrap(storage, context, callback)
+  }
+
+  /**
+   * @deprecated instance method should be used in favor of the static method
+   */
+  public static wrap<Result>(
+    storage: AsyncLocalStorage<RequestStore>,
     { req, res, renderOpts }: RequestContext,
     callback: () => Result
   ): Result {
@@ -55,9 +66,13 @@ export class RequestAsyncStorageWrapper
     // instantly. There's no need to pass this data down from a previous
     // invoke, where we'd have to consider server & serverless.
     const previewData: PreviewData =
-      renderOpts && this.tryGetPreviewData
+      renderOpts && RequestAsyncStorageWrapper.tryGetPreviewData
         ? // TODO: investigate why previewProps isn't on RenderOpts
-          this.tryGetPreviewData(req, res, (renderOpts as any).previewProps)
+          RequestAsyncStorageWrapper.tryGetPreviewData(
+            req,
+            res,
+            (renderOpts as any).previewProps
+          )
         : false
 
     let cachedHeadersInstance: ReadonlyHeaders

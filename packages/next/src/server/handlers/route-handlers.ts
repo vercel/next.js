@@ -6,25 +6,30 @@ import { RouteHandler } from './route-handler'
  * Handlers provides a single entrypoint to configuring the available handler
  * for this application.
  */
-export class RouteHandlers implements RouteHandler<RouteType> {
+export class RouteHandlers {
   private readonly handlers: Partial<{
     [R in RouteType]: RouteHandler<R>
   }> = {}
 
   public set(type: RouteType, handler: RouteHandler<RouteType>) {
+    if (type in this.handlers) {
+      throw new Error(
+        'Invariant: a route handler for this route type has already been configured'
+      )
+    }
+
     this.handlers[type] = handler
   }
 
-  public handle<R extends RouteType>(
+  public async handle<R extends RouteType>(
     route: RouteMatch<R>,
     req: BaseNextRequest,
     res: BaseNextResponse
   ) {
     const handler = this.handlers[route.type]
-    if (!handler) {
-      throw new Error(`RouteType not supported: ${route.type}`)
-    }
+    if (!handler) return false
 
-    return handler.handle(route, req, res)
+    await handler.handle(route, req, res)
+    return true
   }
 }

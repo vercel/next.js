@@ -56,7 +56,7 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import Loadable from '../shared/lib/loadable'
 import { LoadableContext } from '../shared/lib/loadable-context'
 import { RouterContext } from '../shared/lib/router-context'
-import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic-route'
 import {
   ComponentsEnhancer,
   getDisplayName,
@@ -64,7 +64,7 @@ import {
   loadGetInitialProps,
 } from '../shared/lib/utils'
 import { HtmlContext } from '../shared/lib/html-context'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../shared/lib/page-path/normalize-page-route'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta, NextParsedUrlQuery } from './request-meta'
 import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
@@ -1074,7 +1074,7 @@ export async function renderToHTML(
   // to speed up hydrating query values
   let filteredBuildManifest = buildManifest
   if (isAutoExport && pageIsDynamic) {
-    const page = denormalizePagePath(normalizePagePath(pathname))
+    const page = denormalizePagePath(normalizePageRoute(pathname))
     // This code would be much cleaner using `immer` and directly pushing into
     // the result from `getPageFiles`, we could maybe consider that in the
     // future.

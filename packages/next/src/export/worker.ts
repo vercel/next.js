@@ -15,10 +15,10 @@ import { extname, join, dirname, sep } from 'path'
 import fs, { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { loadComponents } from '../server/load-components'
-import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic-route'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../shared/lib/page-path/normalize-page-route'
 import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
 import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -28,7 +28,7 @@ import { setHttpClientAndAgentOptions } from '../server/config'
 import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { normalizeAppRoute } from '../shared/lib/router/utils/app-paths'
 import { isRedirectError } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { isNotFoundError } from '../client/components/not-found'
@@ -144,7 +144,7 @@ export default async function exportPage({
       const { page } = pathMap
       const isAppDir = (pathMap as any)._isAppDir
       const isDynamicError = (pathMap as any)._isDynamicError
-      const filePath = normalizePagePath(path)
+      const filePath = normalizePageRoute(path)
       const isDynamic = isDynamicRoute(page)
       const ampPath = `${filePath}.amp`
       let renderAmpPath = ampPath
@@ -168,7 +168,7 @@ export default async function exportPage({
           locale = localePathResult.detectedLocale
 
           if (locale === renderOpts.defaultLocale) {
-            renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
+            renderAmpPath = `${normalizePageRoute(updatedPath)}.amp`
           }
         }
       }
@@ -191,7 +191,7 @@ export default async function exportPage({
       ).pathname
 
       if (isDynamic && page !== nonLocalizedPath) {
-        const normalizedPage = isAppDir ? normalizeAppPath(page) : page
+        const normalizedPage = isAppDir ? normalizeAppRoute(page) : page
 
         params =
           getRouteMatcher(getRouteRegex(normalizedPage))(updatedPath) ||

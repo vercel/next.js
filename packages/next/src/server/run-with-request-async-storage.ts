@@ -9,12 +9,14 @@ type RunWithRequestAsyncStorageContext = {
   renderOpts?: RenderOpts
 }
 
-const wrapper = new RequestAsyncStorageWrapper()
-
 export function runWithRequestAsyncStorage<Result>(
   requestAsyncStorage: RequestAsyncStorage,
   { req, res, renderOpts }: RunWithRequestAsyncStorageContext,
   callback: () => Promise<Result> | Result
 ): Promise<Result> | Result {
-  return wrapper.wrap(requestAsyncStorage, { req, res, renderOpts }, callback)
+  return RequestAsyncStorageWrapper.wrap(
+    requestAsyncStorage,
+    { req, res, renderOpts },
+    callback
+  )
 }

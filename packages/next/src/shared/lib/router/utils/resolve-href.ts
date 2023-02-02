@@ -6,7 +6,7 @@ import { omit } from './omit'
 import { normalizeRepeatedSlashes } from '../../utils'
 import { normalizePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
 import { isLocalURL } from './is-local-url'
-import { isDynamicRoute } from './is-dynamic'
+import { isDynamicRoute } from './is-dynamic-route'
 import { interpolateAs } from './interpolate-as'
 
 /**

@@ -11,7 +11,18 @@ export type RequestContext = {
 export class StaticGenerationAsyncStorageWrapper
   implements AsyncStorageWrapper<StaticGenerationStore, RequestContext>
 {
-  wrap<Result>(
+  public wrap<Result>(
+    storage: AsyncLocalStorage<StaticGenerationStore>,
+    context: RequestContext,
+    callback: () => Result
+  ): Result {
+    return StaticGenerationAsyncStorageWrapper.wrap(storage, context, callback)
+  }
+
+  /**
+   * @deprecated instance method should be used in favor of the static method
+   */
+  public static wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
     { pathname, renderOpts }: RequestContext,
     callback: () => Result

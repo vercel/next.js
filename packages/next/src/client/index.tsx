@@ -15,7 +15,7 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
 import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
-import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic-route'
 import {
   urlQueryToSearchParams,
   assign,

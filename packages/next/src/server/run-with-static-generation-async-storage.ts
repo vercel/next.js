@@ -7,12 +7,14 @@ type RunWithStaticGenerationAsyncStorageContext = {
   renderOpts: RenderOpts
 }
 
-const wrapper = new StaticGenerationAsyncStorageWrapper()
-
 export function runWithStaticGenerationAsyncStorage<Result>(
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage,
   context: RunWithStaticGenerationAsyncStorageContext,
   callback: () => Promise<Result>
 ): Promise<Result> {
-  return wrapper.wrap(staticGenerationAsyncStorage, context, callback)
+  return StaticGenerationAsyncStorageWrapper.wrap(
+    staticGenerationAsyncStorage,
+    context,
+    callback
+  )
 }

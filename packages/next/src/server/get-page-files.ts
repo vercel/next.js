@@ -1,5 +1,5 @@
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../shared/lib/page-path/normalize-page-route'
 
 export type BuildManifest = {
   devFiles: readonly string[]
@@ -18,7 +18,7 @@ export function getPageFiles(
   buildManifest: BuildManifest,
   page: string
 ): readonly string[] {
-  const normalizedPage = denormalizePagePath(normalizePagePath(page))
+  const normalizedPage = denormalizePagePath(normalizePageRoute(page))
   let files = buildManifest.pages[normalizedPage]
 
   if (!files) {

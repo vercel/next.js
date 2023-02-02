@@ -66,7 +66,7 @@ import { addRequestMeta, getRequestMeta } from './request-meta'
 import { ImageConfigComplete } from '../shared/lib/image-config'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import {
-  normalizeAppPath,
+  normalizeAppRoute,
   normalizeRscPath,
 } from '../shared/lib/router/utils/app-paths'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
@@ -84,8 +84,12 @@ import {
 import { RouteType } from './route-matches/route-match'
 import { RouteMatchers } from './route-matchers/route-matchers'
 import { RouteHandlers } from './handlers/route-handlers'
-import { AppRouteRouteMatcher } from './route-matchers/app-route-route-matcher'
 import { AppRouteRouteHandler } from './handlers/app-route/app-route-route-handler'
+import { AppRouteRouteMatcher } from './route-matchers/app-route-route-matcher'
+import { PagesRouteMatcher } from './route-matchers/pages-route-matcher'
+import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
+import { PagesAPIRouteMatcher } from './route-matchers/pages-api-route-matcher'
+import { AppPageRouteMatcher } from './route-matchers/app-page-route-matcher'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -433,18 +437,47 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     this.responseCache = this.getResponseCache({ dev })
 
+    const localeNormalizer = this.nextConfig.i18n?.locales
+      ? new LocaleRouteNormalizer(this.nextConfig.i18n.locales)
+      : undefined
+
     // Configure the matchers and handlers.
-    this.matchers = new RouteMatchers()
+    this.matchers = new RouteMatchers(localeNormalizer)
     this.handlers = new RouteHandlers()
+
+    // If the pages manifest is available, then we should create the pages
+    // manifest.
+    if (this.pagesManifest) {
+      // Match pages under `pages/`.
+      this.matchers.push(
+        new PagesRouteMatcher(
+          this.distDir,
+          this.pagesManifest,
+          localeNormalizer
+        )
+      )
+      // Match api routes under `pages/api/`.
+      this.matchers.push(
+        new PagesAPIRouteMatcher(this.distDir, this.pagesManifest)
+      )
+    }
 
     // If the app directory is enabled with the app paths manifest being
     // available, then add the associated matcher and handler.
     if (this.hasAppDir && this.appPathsManifest) {
+      // Match app pages under `app/`.
+      this.matchers.push(
+        new AppPageRouteMatcher(this.distDir, this.appPathsManifest)
+      )
+
       this.matchers.push(
         new AppRouteRouteMatcher(this.distDir, this.appPathsManifest)
       )
       this.handlers.set(RouteType.APP_ROUTE, new AppRouteRouteHandler())
     }
+
+    // Compile the matchers.
+    this.matchers.compile()
   }
 
   public logError(err: Error): void {
@@ -851,7 +884,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const appPathRoutes: Record<string, string[]> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      const normalizedPath = normalizeAppPath(entry) || '/'
+      const normalizedPath = normalizeAppRoute(entry)
       if (!appPathRoutes[normalizedPath]) {
         appPathRoutes[normalizedPath] = []
       }

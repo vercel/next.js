@@ -1,6 +1,6 @@
 // Translate a pages asset path (relative from a common prefix) back into its logical route
 
-import { isDynamicRoute } from './is-dynamic'
+import { isDynamicRoute } from './is-dynamic-route'
 
 // "asset path" being its javascript file, data file, prerendered html,...
 export default function getRouteFromAssetPath(

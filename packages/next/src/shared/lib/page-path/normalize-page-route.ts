@@ -11,13 +11,13 @@ import { NormalizeError } from '../utils'
  *  - `/index/foo` -> `/index/index/foo`
  *  - `/index` -> `/index/index`
  */
-export function normalizePagePath(page: string): string {
+export function normalizePageRoute(route: string): string {
   const normalized = ensureLeadingSlash(
-    /^\/index(\/|$)/.test(page) && !isDynamicRoute(page)
-      ? `/index${page}`
-      : page === '/'
+    /^\/index(\/|$)/.test(route) && !isDynamicRoute(route)
+      ? `/index${route}`
+      : route === '/'
       ? '/index'
-      : page
+      : route
   )
 
   if (process.env.NEXT_RUNTIME !== 'edge') {

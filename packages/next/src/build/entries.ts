@@ -39,9 +39,9 @@ import {
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
+import { normalizePageRoute } from '../shared/lib/page-path/normalize-page-route'
 import { ServerRuntime } from '../../types'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { normalizeAppRoute } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 
@@ -309,7 +309,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   let appPathsPerRoute: Record<string, string[]> = {}
   if (appDir && appPaths) {
     for (const pathname in appPaths) {
-      const normalizedPath = normalizeAppPath(pathname) || '/'
+      const normalizedPath = normalizeAppRoute(pathname)
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
@@ -325,7 +325,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   const getEntryHandler =
     (mappings: Record<string, string>, pagesType: 'app' | 'pages' | 'root') =>
     async (page: string) => {
-      const bundleFile = normalizePagePath(page)
+      const bundleFile = normalizePageRoute(page)
       const clientBundlePath = posix.join(pagesType, bundleFile)
       const serverBundlePath =
         pagesType === 'pages'
@@ -402,8 +402,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         },
         onServer: () => {
           if (pagesType === 'app' && appDir) {
-            const matchedAppPaths =
-              appPathsPerRoute[normalizeAppPath(page) || '/']
+            const matchedAppPaths = appPathsPerRoute[normalizeAppRoute(page)]
             server[serverBundlePath] = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
@@ -418,8 +417,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         onEdgeServer: () => {
           let appDirLoader: string = ''
           if (pagesType === 'app') {
-            const matchedAppPaths =
-              appPathsPerRoute[normalizeAppPath(page) || '/']
+            const matchedAppPaths = appPathsPerRoute[normalizeAppRoute(page)]
             appDirLoader = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
