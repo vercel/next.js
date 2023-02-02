@@ -172,6 +172,11 @@ impl EcmascriptChunkItem for MdxChunkItem {
         self.context
     }
 
+    #[turbo_tasks::function]
+    fn related_path(&self) -> FileSystemPathVc {
+        self.module.path()
+    }
+
     /// Once we have mdx contents, we should treat it as j|tsx components and
     /// apply all of the ecma transforms
     #[turbo_tasks::function]

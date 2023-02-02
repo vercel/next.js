@@ -15,10 +15,11 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 
 __turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
 })()),
-"[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)": (() => {{
 
-throw new Error("An error occurred while importing a JSON module: \"File is not valid JSON\"")
-})()),
+throw new Error("An error occurred while generating the chunk item [project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)\n  at Execution of module_factory failed\n  at Execution of JsonChunkItem::content failed\n  at Unable to make a module from invalid JSON\n  at Execution of FileJsonContent::to_string failed\n  at File is not valid JSON");
+
+}}),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
     if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_imports_json_input_index_1b747d.js"))) return true;
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/index.js (ecmascript)");

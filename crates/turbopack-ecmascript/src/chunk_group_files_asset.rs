@@ -119,6 +119,11 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
     }
 
     #[turbo_tasks::function]
+    fn related_path(&self) -> FileSystemPathVc {
+        self.inner.path()
+    }
+
+    #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let chunks = self.inner.chunks();
         let mut data = Vec::new();

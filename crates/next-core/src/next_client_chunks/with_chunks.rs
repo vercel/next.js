@@ -106,6 +106,11 @@ impl EcmascriptChunkItem for WithChunksChunkItem {
     }
 
     #[turbo_tasks::function]
+    fn related_path(&self) -> FileSystemPathVc {
+        self.inner.path()
+    }
+
+    #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let inner = self.inner.await?;
         let group = ChunkGroupVc::from_asset(inner.asset.into(), self.inner_context);

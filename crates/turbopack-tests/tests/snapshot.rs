@@ -11,7 +11,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use similar::TextDiff;
 use test_generator::test_resources;
-use turbo_tasks::{debug::ValueDebug, NothingVc, TryJoinIterExt, TurboTasks, Value};
+use turbo_tasks::{debug::ValueDebug, NothingVc, TryJoinIterExt, TurboTasks, Value, ValueToString};
 use turbo_tasks_env::DotenvProcessEnvVc;
 use turbo_tasks_fs::{
     util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, File, FileContent,
@@ -101,7 +101,9 @@ async fn run(resource: &'static str) -> Result<()> {
     let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
         let out = run_test(resource.to_string());
-        handle_issues(out).await?;
+        handle_issues(out)
+            .await
+            .context("Unable to handle issues")?;
         Ok(NothingVc::new().into())
     });
     tt.wait_task_completion(task, true).await?;
@@ -238,10 +240,17 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
     }
 
     while let Some(asset) = queue.pop_front() {
-        walk_asset(asset, &mut seen, &mut queue).await?;
+        walk_asset(asset, &mut seen, &mut queue)
+            .await
+            .context(format!(
+                "Failed to walk asset {}",
+                asset.path().to_string().await.context("to_string failed")?
+            ))?;
     }
 
-    matches_expected(expected_paths, seen).await?;
+    matches_expected(expected_paths, seen)
+        .await
+        .context("Actual assets doesn't match with expected assets")?;
 
     Ok(path)
 }
@@ -273,28 +282,38 @@ async fn walk_asset(
     Ok(())
 }
 
-async fn get_contents(file: AssetContentVc) -> Result<Option<String>> {
-    Ok(match &*file.await? {
-        AssetContent::File(file) => match &*file.await? {
-            FileContent::NotFound => None,
-            FileContent::Content(expected) => Some(expected.content().to_str()?.trim().to_string()),
+async fn get_contents(file: AssetContentVc, path: FileSystemPathVc) -> Result<Option<String>> {
+    Ok(
+        match &*file.await.context(format!(
+            "Unable to read AssetContent of {}",
+            path.to_string().await?
+        ))? {
+            AssetContent::File(file) => match &*file.await.context(format!(
+                "Unable to read FileContent of {}",
+                path.to_string().await?
+            ))? {
+                FileContent::NotFound => None,
+                FileContent::Content(expected) => {
+                    Some(expected.content().to_str()?.trim().to_string())
+                }
+            },
+            AssetContent::Redirect { target, link_type } => Some(format!(
+                "Redirect {{ target: {target}, link_type: {:?} }}",
+                link_type
+            )),
         },
-        AssetContent::Redirect { target, link_type } => Some(format!(
-            "Redirect {{ target: {target}, link_type: {:?} }}",
-            link_type
-        )),
-    })
+    )
 }
 
 async fn diff(path: FileSystemPathVc, actual: AssetContentVc) -> Result<()> {
     let path_str = &path.await?.path;
     let expected = path.read().into();
 
-    let actual = match get_contents(actual).await? {
+    let actual = match get_contents(actual, path).await? {
         Some(s) => s,
         None => bail!("could not generate {} contents", path_str),
     };
-    let expected = get_contents(expected).await?;
+    let expected = get_contents(expected, path).await?;
 
     if Some(&actual) != expected.as_ref() {
         if *UPDATE {

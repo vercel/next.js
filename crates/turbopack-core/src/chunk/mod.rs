@@ -1,7 +1,10 @@
 pub mod dev;
 pub mod optimize;
 
-use std::{collections::VecDeque, fmt::Debug};
+use std::{
+    collections::VecDeque,
+    fmt::{Debug, Display},
+};
 
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
@@ -30,6 +33,23 @@ use crate::{
 pub enum ModuleId {
     Number(u32),
     String(String),
+}
+
+impl Display for ModuleId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModuleId::Number(i) => write!(f, "{}", i),
+            ModuleId::String(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ModuleId {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> StringVc {
+        StringVc::cell(self.to_string())
+    }
 }
 
 impl ModuleId {

@@ -114,6 +114,11 @@ impl EcmascriptChunkItem for ProcessEnvChunkItem {
     }
 
     #[turbo_tasks::function]
+    fn related_path(&self) -> FileSystemPathVc {
+        self.inner.path()
+    }
+
+    #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let asset = self.inner.await?;
         let env = asset.env.read_all().await?;

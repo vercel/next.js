@@ -7,10 +7,7 @@
 
 #![feature(min_specialization)]
 
-pub mod issue;
-
-use anyhow::Result;
-use issue::{JsonIssue, JsonIssueVc};
+use anyhow::{Context, Result};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
@@ -105,29 +102,23 @@ impl EcmascriptChunkItem for JsonChunkItem {
     }
 
     #[turbo_tasks::function]
+    fn related_path(&self) -> FileSystemPathVc {
+        self.module.path()
+    }
+
+    #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         // We parse to JSON and then stringify again to ensure that the
         // JSON is valid.
-        let inner_code = match self.module.path().read_json().to_string().await {
-            Ok(content) => {
-                let js_str_content = serde_json::to_string(content.as_str())?;
-                format!("__turbopack_export_value__(JSON.parse({js_str_content}));",)
-            }
-            Err(error) => {
-                let error_message = format!("{:?}", error.to_string());
-                let js_error_message = serde_json::to_string(&format!(
-                    "An error occurred while importing a JSON module: {}",
-                    &error_message
-                ))?;
-                let issue: JsonIssueVc = JsonIssue {
-                    path: self.module.path(),
-                    error_message: StringVc::cell(error_message),
-                }
-                .into();
-                issue.as_issue().emit();
-                format!("throw new Error({error})", error = &js_error_message,)
-            }
-        };
+        let content = self
+            .module
+            .path()
+            .read_json()
+            .to_string()
+            .await
+            .context("Unable to make a module from invalid JSON")?;
+        let js_str_content = serde_json::to_string(content.as_str())?;
+        let inner_code = format!("__turbopack_export_value__(JSON.parse({js_str_content}));");
         Ok(EcmascriptChunkItemContent {
             inner_code: inner_code.into(),
             ..Default::default()

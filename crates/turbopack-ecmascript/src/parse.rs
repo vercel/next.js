@@ -1,6 +1,6 @@
 use std::{future::Future, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use swc_core::{
     base::SwcComments,
     common::{
@@ -19,7 +19,7 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::{primitives::U64Vc, Value};
+use turbo_tasks::{primitives::U64Vc, Value, ValueToString};
 use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
 use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher};
 use turbopack_core::{
@@ -141,7 +141,7 @@ pub async fn parse(
             FileContent::Content(file) => match file.content().to_str() {
                 Ok(string) => {
                     let transforms = &*transforms.await?;
-                    parse_content(
+                    match parse_content(
                         string.into_owned(),
                         fs_path,
                         file_path_hash,
@@ -149,7 +149,16 @@ pub async fn parse(
                         ty,
                         transforms,
                     )
-                    .await?
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(e) => {
+                            return Err(e).context(anyhow!(
+                                "Transforming and/or parsing of {} failed",
+                                source.path().to_string().await?
+                            ));
+                        }
+                    }
                 }
                 // FIXME: report error
                 Err(_) => ParseResult::Unparseable.cell(),

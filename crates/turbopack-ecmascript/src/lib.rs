@@ -273,6 +273,11 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
+    fn related_path(&self) -> FileSystemPathVc {
+        self.module.path()
+    }
+
+    #[turbo_tasks::function]
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         let AnalyzeEcmascriptModuleResult {
             references,

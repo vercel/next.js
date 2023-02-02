@@ -52,7 +52,7 @@ impl Output {
     pub fn read_untracked(&mut self) -> Result<RawVc> {
         match &self.content {
             OutputContent::Empty => Err(anyhow!("Output is empty")),
-            OutputContent::Error(err) => Err(err.clone().into()),
+            OutputContent::Error(err) => Err(anyhow::Error::new(err.clone())),
             OutputContent::Link(raw_vc) => Ok(*raw_vc),
             OutputContent::Panic(Some(message)) => Err(anyhow!("A task panicked: {message}")),
             OutputContent::Panic(None) => Err(anyhow!("A task panicked")),
