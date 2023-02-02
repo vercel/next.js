@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCache?: boolean
   optimisticClientCache?: boolean
@@ -155,6 +156,10 @@ export interface ExperimentalConfig {
   fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+
+  // webpack loaders to use when running turbopack
+  turbopackLoaders?: Record<string, string | string[]>
+
   turbotrace?: {
     logLevel?:
       | 'bug'
@@ -170,8 +175,13 @@ export interface ExperimentalConfig {
     contextDirectory?: string
     processCwd?: string
     maxFiles?: number
+    memoryLimit?: number
   }
   mdxRs?: boolean
+  /**
+   * This option is to enable running the Webpack build in a worker thread.
+   */
+  webpackBuildWorker?: boolean
 }
 
 export type ExportPathMap = {

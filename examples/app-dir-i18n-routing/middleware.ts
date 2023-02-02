@@ -19,23 +19,35 @@ function getLocale(request: NextRequest): string | undefined {
 }
 
 export function middleware(request: NextRequest) {
-  // Skip next internal requests
-  if (request.nextUrl.pathname.startsWith('/_next')) return
+  const pathname = request.nextUrl.pathname
+
+  // // `/_next/` and `/api/` are ignored by the watcher, but we need to ignore files in `public` manually.
+  // // If you have one
+  // if (
+  //   [
+  //     '/manifest.json',
+  //     '/favicon.ico',
+  //     // Your other files in `public`
+  //   ].includes(pathname)
+  // )
+  //   return
 
   // Check if there is any supported locale in the pathname
-  const pathname = request.nextUrl.pathname
   const pathnameIsMissingLocale = i18n.locales.every(
     (locale) => !pathname.startsWith(`/${locale}/`) && pathname !== `/${locale}`
   )
 
-  // Let's redirect if there is no locale
+  // Redirect if there is no locale
   if (pathnameIsMissingLocale) {
     const locale = getLocale(request)
+
+    // e.g. incoming request is /products
+    // The new URL is now /en-US/products
     return NextResponse.redirect(new URL(`/${locale}/${pathname}`, request.url))
   }
 }
 
 export const config = {
-  // We can enable redirect just from root
-  // matcher: "/"
+  // Matcher ignoring `/_next/` and `/api/`
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 }
