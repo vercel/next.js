@@ -8,28 +8,40 @@ const blurDataURL =
 export default function Page() {
   return (
     <>
-      <h1>Image with fill with blurDataURL</h1>
-      <div style={{ position: 'relative', display: 'flex', minHeight: '44vh' }}>
+      <p>Image with fill with blurDataURL</p>
+      <div style={{ position: 'relative', display: 'flex', minHeight: '30vh' }}>
         <Image
           fill
-          id="wide-cover"
-          alt="wide-cover"
+          alt="alt"
           src="/wide.png"
           placeholder="blur"
           blurDataURL={blurDataURL}
+          id="fit-cover"
           style={{ objectFit: 'cover' }}
         />
       </div>
 
-      <div style={{ position: 'relative', display: 'flex', minHeight: '44vh' }}>
+      <div style={{ position: 'relative', display: 'flex', minHeight: '30vh' }}>
         <Image
           fill
-          id="wide-contain"
-          alt="wide-contain"
+          alt="alt"
           src="/wide.png"
           placeholder="blur"
           blurDataURL={blurDataURL}
+          id="fit-contain"
           style={{ objectFit: 'contain' }}
+        />
+      </div>
+
+      <div style={{ position: 'relative', display: 'flex', minHeight: '30vh' }}>
+        <Image
+          fill
+          alt="alt"
+          src="/wide.png"
+          placeholder="blur"
+          blurDataURL={blurDataURL}
+          id="fit-fill"
+          style={{ objectFit: 'fill' }}
         />
       </div>
     </>

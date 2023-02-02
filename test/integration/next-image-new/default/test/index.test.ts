@@ -1250,12 +1250,16 @@ function runTests(mode) {
     const html = await renderViaHTTP(appPort, '/fill-blur')
     const $ = cheerio.load(html)
 
-    expect($('#wide-cover')[0].attribs.style).toBe(
+    expect($('#fit-cover')[0].attribs.style).toBe(
       `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg'%3E%3Cimage style='filter:blur(20px)' preserveAspectRatio='xMidYMid slice' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
     )
 
-    expect($('#wide-contain')[0].attribs.style).toBe(
+    expect($('#fit-contain')[0].attribs.style).toBe(
       `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:contain;color:transparent;background-size:contain;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg'%3E%3Cimage style='filter:blur(20px)' preserveAspectRatio='xMidYMid' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
+    )
+
+    expect($('#fit-fill')[0].attribs.style).toBe(
+      `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:fill;color:transparent;background-size:fill;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http%3A//www.w3.org/2000/svg'%3E%3Cimage style='filter:blur(20px)' preserveAspectRatio='none' x='0' y='0' height='100%25' width='100%25' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAFCAAAAABd+vKJAAAANklEQVR42mNg4GRwdWBgZ2BgUGI4dYhBmYFBgiHy308PBlEGKYbr//9fYJBlYDBYv3nzGkUGANGMDBq2MCnBAAAAAElFTkSuQmCC'/%3E%3C/svg%3E")`
     )
   })
 
