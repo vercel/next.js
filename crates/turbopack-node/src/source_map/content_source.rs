@@ -88,7 +88,7 @@ impl ContentSource for NextSourceMapTraceContentSource {
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
         let file = match &*content {
-            ContentSourceContent::Static { content: f, .. } => *f,
+            ContentSourceContent::Static(static_content) => static_content.await?.content,
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
 
