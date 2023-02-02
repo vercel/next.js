@@ -81,6 +81,7 @@ export const createHeaderRoute = ({
     matchesLocaleAPIRoutes: true,
     matchesTrailingSlash: true,
     has: headerRoute.has,
+    missing: headerRoute.missing,
     type: headerRoute.type,
     name: `${headerRoute.type} ${headerRoute.source} header route`,
     fn: async (_req, res, params, _parsedUrl) => {
@@ -146,6 +147,7 @@ export const createRedirectRoute = ({
     matchesLocaleAPIRoutes: true,
     matchesTrailingSlash: true,
     has: redirectRoute.has,
+    missing: redirectRoute.missing,
     statusCode: redirectRoute.statusCode,
     name: `Redirect route ${redirectRoute.source}`,
     fn: async (req, res, params, parsedUrl) => {

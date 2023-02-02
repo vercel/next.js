@@ -113,6 +113,8 @@ export const DEFAULT_SANS_SERIF_FONT = {
 }
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
+// in `MB`
+export const TURBO_TRACE_DEFAULT_MEMORY_LIMIT = 6000
 
 export const RSC_MODULE_TYPES = {
   client: 'client',

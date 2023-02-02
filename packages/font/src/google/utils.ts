@@ -29,9 +29,7 @@ export function validateData(
     weight,
     style,
     preload = true,
-    // If preload is disabled set display to 'swap' by default.
-    // If display is 'optional' and we don't preload, we will never fetch the font in time to display it, not even in dev.
-    display = preload ? 'optional' : 'swap',
+    display = 'swap',
     axes,
     fallback,
     adjustFontFallback = true,
@@ -52,9 +50,8 @@ export function validateData(
 
   const availableSubsets = fontFamilyData.subsets
   if (availableSubsets.length === 0) {
-    // If the font doesn't have any preloaded subsets, disable preload and set display to 'swap'
+    // If the font doesn't have any preloaded subsets, disable preload
     preload = false
-    display = 'swap'
   } else {
     if (preload && !callSubsets && !config?.subsets) {
       nextFontError(

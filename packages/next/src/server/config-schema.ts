@@ -272,6 +272,9 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        extensionAlias: {
+          type: 'object',
+        },
         externalDir: {
           type: 'boolean',
         },
@@ -435,6 +438,12 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        webpackBuildWorker: {
+          type: 'boolean',
+        },
+        turbopackLoaders: {
+          type: 'object',
+        },
         turbotrace: {
           type: 'object',
           properties: {
@@ -464,6 +473,9 @@ const configSchema = {
               type: 'string',
             },
             maxFiles: {
+              type: 'integer',
+            },
+            memoryLimit: {
               type: 'integer',
             },
           },

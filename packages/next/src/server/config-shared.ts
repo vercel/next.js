@@ -79,6 +79,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCache?: boolean
   optimisticClientCache?: boolean
@@ -155,6 +156,10 @@ export interface ExperimentalConfig {
   fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+
+  // webpack loaders to use when running turbopack
+  turbopackLoaders?: Record<string, string | string[]>
+
   turbotrace?: {
     logLevel?:
       | 'bug'
@@ -170,8 +175,13 @@ export interface ExperimentalConfig {
     contextDirectory?: string
     processCwd?: string
     maxFiles?: number
+    memoryLimit?: number
   }
   mdxRs?: boolean
+  /**
+   * This option is to enable running the Webpack build in a worker thread.
+   */
+  webpackBuildWorker?: boolean
 }
 
 export type ExportPathMap = {
@@ -617,6 +627,42 @@ export const defaultConfig: NextConfig = {
     turbotrace: undefined,
   },
 }
+
+export function setFontLoaderDefaults(config: NextConfig) {
+  try {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('@next/font/package.json')
+
+    const googleFontLoader = {
+      loader: '@next/font/google',
+    }
+    const localFontLoader = {
+      loader: '@next/font/local',
+    }
+    if (!config.experimental) {
+      config.experimental = {}
+    }
+    if (!config.experimental.fontLoaders) {
+      config.experimental.fontLoaders = []
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === googleFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(googleFontLoader)
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === localFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(localFontLoader)
+    }
+  } catch {}
+}
+
+setFontLoaderDefaults(defaultConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
