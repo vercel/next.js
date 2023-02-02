@@ -15,7 +15,7 @@ use turbopack_dev_server::{
     source::{
         asset_graph::AssetGraphContentSourceVc,
         conditional::ConditionalContentSourceVc,
-        lazy_instatiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
+        lazy_instantiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
         specificity::SpecificityVc,
         ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
         ContentSourceDataFilter, ContentSourceDataVary, ContentSourceDataVaryVc,
