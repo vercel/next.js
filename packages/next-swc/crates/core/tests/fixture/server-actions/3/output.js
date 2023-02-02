@@ -4,4 +4,4 @@
 }
 myAction.$$typeof = Symbol.for("react.action.reference");
 myAction.$$filepath = "/app/item.js";
-myAction.$$name = "$ACTION_myAction";
+myAction.$$name = "myAction";
