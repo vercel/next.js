@@ -1,0 +1,10 @@
+schema @sdl(files: ["githubstatus/index.graphql"]) {
+  query: Query
+}
+
+type Query {
+  """
+  The StepZen healthcheck endpoint
+  """
+  szHealthCheck: JSON @rest(endpoint: "https://demo.stepzen.io/ping")
+}
