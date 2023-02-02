@@ -6,7 +6,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::{
     self as turbo_tasks, registry::register_function, task_input::TaskInput, util::SharedError,
@@ -56,7 +56,9 @@ impl NativeFunction {
 
     /// Creates a functor for execution from a fixed set of inputs.
     pub fn bind(&'static self, inputs: &Vec<TaskInput>) -> NativeTaskFn {
-        match (self.bind_fn)(inputs) {
+        match (self.bind_fn)(inputs)
+            .with_context(|| format!("Error during argument binding of {}", self.name))
+        {
             Ok(native_fn) => Box::new(move || {
                 let r = native_fn();
                 if cfg!(feature = "log_function_stats") {
