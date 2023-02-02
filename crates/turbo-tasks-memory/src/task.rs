@@ -33,7 +33,7 @@ use crate::{
     count_hash_set::CountHashSet,
     gc::{to_exp_u8, GcPriority, GcStats, GcTaskState},
     memory_backend::Job,
-    output::Output,
+    output::{Output, OutputContent},
     scope::{ScopeChildChangeEffect, TaskScopeId, TaskScopes},
     stats::{ReferenceType, StatsReferences, StatsTaskType},
     MemoryBackend,
@@ -89,7 +89,17 @@ impl Debug for TaskType {
         match self {
             Self::Root(..) => f.debug_tuple("Root").finish(),
             Self::Once(..) => f.debug_tuple("Once").finish(),
-            Self::Persistent(ty) => ty.fmt(f),
+            Self::Persistent(ty) => Debug::fmt(ty, f),
+        }
+    }
+}
+
+impl Display for TaskType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Root(..) => f.debug_tuple("Root").finish(),
+            Self::Once(..) => f.debug_tuple("Once").finish(),
+            Self::Persistent(ty) => Display::fmt(ty, f),
         }
     }
 }
@@ -116,7 +126,8 @@ pub struct Task {
 impl Debug for Task {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut result = f.debug_struct("Task");
-        result.field("type", &self.ty);
+        result.field("id", &self.id);
+        result.field("ty", &self.ty);
         if let Some(state) = self.try_state() {
             match state {
                 TaskMetaStateReadGuard::Full(state) => {
@@ -707,12 +718,30 @@ impl Task {
     pub(crate) fn execution_result(
         &self,
         result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) {
         let mut state = self.full_state_mut();
         match state.state_type {
             InProgress { .. } => match result {
-                Ok(Ok(result)) => state.output.link(result, turbo_tasks),
+                Ok(Ok(result)) => {
+                    if state.output != result {
+                        if cfg!(feature = "print_task_invalidation")
+                            && !matches!(state.output.content, OutputContent::Empty)
+                        {
+                            println!(
+                                "Task {{ id: {}, name: {} }} invalidates:",
+                                *self.id, self.ty
+                            );
+                            for dep in state.output.dependent_tasks.iter() {
+                                backend.with_task(*dep, |task| {
+                                    println!("\tTask {{ id: {}, name: {} }}", *task.id, task.ty);
+                                });
+                            }
+                        }
+                        state.output.link(result, turbo_tasks)
+                    }
+                }
                 Ok(Err(mut err)) => {
                     if let Some(name) = self.get_function_name() {
                         err = err.context(format!("Execution of {} failed", name));
@@ -894,6 +923,10 @@ impl Task {
                             }),
                         };
                         drop(state);
+
+                        if cfg!(feature = "print_task_invalidation") {
+                            println!("invalidated Task {{ id: {}, name: {} }}", *self.id, self.ty);
+                        }
                         turbo_tasks.schedule(self.id);
                     } else {
                         state.state_type = Dirty {
