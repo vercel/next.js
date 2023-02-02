@@ -13,16 +13,18 @@ export function AlternatesMetadata({
       {alternates.canonical ? (
         <link rel="canonical" href={alternates.canonical.toString()} />
       ) : null}
-      {Object.entries(alternates.languages).map(([locale, url]) =>
-        url ? (
-          <link
-            key={locale}
-            rel="alternate"
-            hrefLang={locale}
-            href={url.toString()}
-          />
-        ) : null
-      )}
+      {alternates.languages
+        ? Object.entries(alternates.languages).map(([locale, url]) =>
+            url ? (
+              <link
+                key={locale}
+                rel="alternate"
+                hrefLang={locale}
+                href={url.toString()}
+              />
+            ) : null
+          )
+        : null}
       {alternates.media
         ? Object.entries(alternates.media).map(([media, url]) =>
             url ? (

@@ -21,6 +21,8 @@ function setMessage(error: Error, message: string): void {
 }
 
 export function formatServerError(error: Error): void {
+  if (typeof error?.message !== 'string') return
+
   if (
     error.message.includes(
       'Class extends value undefined is not a constructor or null'
