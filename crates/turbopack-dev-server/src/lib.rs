@@ -3,51 +3,34 @@
 #![feature(array_chunks)]
 
 pub mod html;
+mod http;
 pub mod introspect;
 pub mod source;
 pub mod update;
 
 use std::{
-    borrow::Cow,
-    collections::btree_map::Entry,
     future::Future,
     net::{SocketAddr, TcpListener},
     pin::Pin,
-    sync::{
-        atomic::{AtomicU64, Ordering},
-        Arc,
-    },
+    sync::Arc,
     time::{Duration, Instant},
 };
 
 use anyhow::{bail, Context, Result};
-use futures::{StreamExt, TryStreamExt};
 use hyper::{
-    header::HeaderName,
     server::{conn::AddrIncoming, Builder},
     service::{make_service_fn, service_fn},
     Request, Response, Server,
 };
-use mime_guess::mime;
-use source::{
-    headers::{HeaderValue, Headers},
-    Body, Bytes, RewriteReadRef,
-};
 use turbo_tasks::{
-    run_once, trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi, Value,
+    run_once, trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi,
 };
-use turbo_tasks_fs::{FileContent, FileContentReadRef};
 use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc};
-use turbopack_core::asset::AssetContent;
 
 use self::{
-    source::{
-        query::Query, ContentSourceContent, ContentSourceDataVary, ContentSourceResult,
-        ContentSourceResultVc, ContentSourceVc, ProxyResultReadRef,
-    },
-    update::{protocol::ResourceIdentifier, UpdateServer},
+    source::{ContentSourceResultVc, ContentSourceVc},
+    update::UpdateServer,
 };
-use crate::source::ContentSourceData;
 
 pub trait SourceProvider: Send + Clone + 'static {
     /// must call a turbo-tasks function internally
@@ -100,194 +83,6 @@ async fn handle_issues<T: Into<RawVc>>(
     Ok(())
 }
 
-#[turbo_tasks::value(serialization = "none")]
-enum GetFromSourceResult {
-    Static {
-        content: FileContentReadRef,
-        status_code: u16,
-        headers: Vec<(String, String)>,
-    },
-    Rewrite(RewriteReadRef),
-    HttpProxy(ProxyResultReadRef),
-    NeedData {
-        source: ContentSourceVc,
-        path: String,
-        vary: ContentSourceDataVary,
-    },
-    NotFound,
-}
-
-#[turbo_tasks::function]
-async fn get_from_source(
-    source: ContentSourceVc,
-    path: &str,
-    data: Value<ContentSourceData>,
-    vary: Value<ContentSourceDataVary>,
-) -> Result<GetFromSourceResultVc> {
-    let result = source.get(path, data.clone()).await?;
-    Ok(match &*result {
-        ContentSourceResult::NotFound => GetFromSourceResult::NotFound,
-        ContentSourceResult::NeedData(data) => GetFromSourceResult::NeedData {
-            source: data.source.resolve().await?,
-            path: data.path.clone(),
-            vary: data.vary.clone(),
-        },
-        ContentSourceResult::Result { get_content, .. } => {
-            let content_vary = get_content.vary().await?;
-            if *vary != *content_vary {
-                GetFromSourceResult::NeedData {
-                    source: ContentSourceResultVc::exact(*get_content).into(),
-                    path: path.to_string(),
-                    vary: content_vary.clone_value(),
-                }
-            } else {
-                let content = get_content.get(data).await?;
-                match &*content {
-                    ContentSourceContent::Rewrite(rewrite) => {
-                        GetFromSourceResult::Rewrite(rewrite.await?)
-                    }
-                    ContentSourceContent::NotFound => GetFromSourceResult::NotFound,
-                    ContentSourceContent::Static {
-                        content: content_vc,
-                        status_code,
-                        headers,
-                    } => {
-                        if let AssetContent::File(file) = &*content_vc.content().await? {
-                            GetFromSourceResult::Static {
-                                content: file.await?,
-                                status_code: *status_code,
-                                headers: headers.await?.clone(),
-                            }
-                        } else {
-                            GetFromSourceResult::NotFound
-                        }
-                    }
-                    ContentSourceContent::HttpProxy(proxy) => {
-                        GetFromSourceResult::HttpProxy(proxy.await?)
-                    }
-                }
-            }
-        }
-    }
-    .cell())
-}
-
-async fn process_request_with_content_source(
-    path: &str,
-    source: ContentSourceVc,
-    asset_path: Cow<'_, str>,
-    mut request: Request<hyper::Body>,
-    console_ui: ConsoleUiVc,
-) -> Result<Response<hyper::Body>> {
-    let mut data = ContentSourceData::default();
-    let mut data_vary = ContentSourceDataVary::default();
-    let mut current_source = source;
-    let mut current_asset_path = asset_path.clone();
-    loop {
-        let content_source_result = get_from_source(
-            current_source,
-            &current_asset_path,
-            Value::new(data),
-            Value::new(data_vary),
-        );
-        handle_issues(
-            content_source_result,
-            path,
-            "get content from source",
-            console_ui,
-        )
-        .await?;
-        match &*content_source_result.strongly_consistent().await? {
-            GetFromSourceResult::Static {
-                content: file,
-                status_code,
-                headers,
-            } => {
-                if let FileContent::Content(content) = &**file {
-                    let mut response = Response::builder().status(*status_code);
-
-                    let header_map = response.headers_mut().expect("headers must be defined");
-
-                    for (header_name, header_value) in headers {
-                        header_map.append(
-                            HeaderName::try_from(header_name.clone())?,
-                            hyper::header::HeaderValue::try_from(header_value.as_str())?,
-                        );
-                    }
-
-                    if let Some(content_type) = content.content_type() {
-                        header_map.append(
-                            "content-type",
-                            hyper::header::HeaderValue::try_from(content_type.to_string())?,
-                        );
-                    } else if let hyper::header::Entry::Vacant(entry) =
-                        header_map.entry("content-type")
-                    {
-                        let guess =
-                            mime_guess::from_path(asset_path.as_ref()).first_or_octet_stream();
-                        // If a text type, application/javascript, or application/json was
-                        // guessed, use a utf-8 charset as  we most likely generated it as
-                        // such.
-                        entry.insert(hyper::header::HeaderValue::try_from(
-                            if (guess.type_() == mime::TEXT
-                                || guess.subtype() == mime::JAVASCRIPT
-                                || guess.subtype() == mime::JSON)
-                                && guess.get_param("charset").is_none()
-                            {
-                                guess.to_string() + "; charset=utf-8"
-                            } else {
-                                guess.to_string()
-                            },
-                        )?);
-                    }
-
-                    let content = content.content();
-                    header_map.insert(
-                        "Content-Length",
-                        hyper::header::HeaderValue::try_from(content.len().to_string())?,
-                    );
-
-                    let bytes = content.read();
-                    return Ok(response.body(hyper::Body::wrap_stream(bytes))?);
-                }
-            }
-            GetFromSourceResult::HttpProxy(proxy_result) => {
-                let mut response = Response::builder().status(proxy_result.status);
-                let headers = response.headers_mut().expect("headers must be defined");
-
-                for [name, value] in proxy_result.headers.array_chunks() {
-                    headers.append(
-                        HeaderName::from_bytes(name.as_bytes())?,
-                        hyper::header::HeaderValue::from_str(value)?,
-                    );
-                }
-
-                return Ok(response.body(hyper::Body::wrap_stream(proxy_result.body.read()))?);
-            }
-            GetFromSourceResult::Rewrite(rewrite) => {
-                let new_asset_path = rewrite.path();
-                if asset_path == new_asset_path {
-                    bail!("rewrite loop detected: {}", asset_path);
-                }
-                current_source = source;
-                current_asset_path = Cow::Owned(new_asset_path.to_string());
-                data = ContentSourceData::default();
-                data_vary = ContentSourceDataVary::default();
-                continue;
-            }
-            GetFromSourceResult::NeedData { source, path, vary } => {
-                current_source = *source;
-                current_asset_path = Cow::Owned(path.to_string());
-                data = request_to_data(&mut request, vary).await?;
-                data_vary = vary.clone();
-                continue;
-            }
-            GetFromSourceResult::NotFound => {}
-        }
-        return Ok(Response::builder().status(404).body(hyper::Body::empty())?);
-    }
-}
-
 impl DevServer {
     pub fn listen(addr: SocketAddr) -> Result<DevServerBuilder, anyhow::Error> {
         // This is annoying. The hyper::Server doesn't allow us to know which port was
@@ -324,49 +119,49 @@ impl DevServerBuilder {
                     let tt = tt.clone();
                     let source_provider = source_provider.clone();
                     let future = async move {
-                        if hyper_tungstenite::is_upgrade_request(&request) {
-                            let uri = request.uri();
-                            let path = uri.path();
-
-                            if path == "/turbopack-hmr" {
-                                let (response, websocket) =
-                                    hyper_tungstenite::upgrade(request, None)?;
-                                let update_server = UpdateServer::new(source_provider);
-                                update_server.run(&*tt, websocket);
-                                return Ok(response);
-                            }
-
-                            println!("[404] {} (WebSocket)", path);
-                            if path == "/_next/webpack-hmr" {
-                                // Special-case requests to webpack-hmr as these are made by Next.js
-                                // clients built without turbopack, which may be making requests in
-                                // development.
-                                println!("A non-turbopack next.js client is trying to connect.");
-                                println!(
-                                    "Make sure to reload/close any browser window which has been \
-                                     opened without --turbo."
-                                );
-                            }
-
-                            return Ok(Response::builder()
-                                .status(404)
-                                .body(hyper::Body::empty())?);
-                        }
-
-                        run_once(tt, async move {
+                        run_once(tt.clone(), async move {
                             let console_ui = (*console_ui).clone().cell();
+
+                            if hyper_tungstenite::is_upgrade_request(&request) {
+                                let uri = request.uri();
+                                let path = uri.path();
+
+                                if path == "/turbopack-hmr" {
+                                    let (response, websocket) =
+                                        hyper_tungstenite::upgrade(request, None)?;
+                                    let update_server =
+                                        UpdateServer::new(source_provider, console_ui);
+                                    update_server.run(&*tt, websocket);
+                                    return Ok(response);
+                                }
+
+                                println!("[404] {} (WebSocket)", path);
+                                if path == "/_next/webpack-hmr" {
+                                    // Special-case requests to webpack-hmr as these are made by
+                                    // Next.js clients built
+                                    // without turbopack, which may be making requests in
+                                    // development.
+                                    println!(
+                                        "A non-turbopack next.js client is trying to connect."
+                                    );
+                                    println!(
+                                        "Make sure to reload/close any browser window which has \
+                                         been opened without --turbo."
+                                    );
+                                }
+
+                                return Ok(Response::builder()
+                                    .status(404)
+                                    .body(hyper::Body::empty())?);
+                            }
+
                             let uri = request.uri();
-                            let path = uri.path();
-                            // Remove leading slash.
-                            let path = &path[1..].to_string();
-                            let asset_path = urlencoding::decode(path)?;
+                            let path = uri.path().to_string();
                             let source = source_provider.get_source();
-                            handle_issues(source, path, "get source", console_ui).await?;
+                            handle_issues(source, &path, "get source", console_ui).await?;
                             let resolved_source = source.resolve_strongly_consistent().await?;
-                            let response = process_request_with_content_source(
-                                path,
+                            let response = http::process_request_with_content_source(
                                 resolved_source,
-                                asset_path,
                                 request,
                                 console_ui,
                             )
@@ -380,7 +175,7 @@ impl DevServerBuilder {
                                     && elapsed > Duration::from_secs(1))
                             {
                                 println!(
-                                    "[{status}] /{path} ({duration})",
+                                    "[{status}] {path} ({duration})",
                                     duration = FormatDuration(elapsed)
                                 );
                             }
@@ -417,110 +212,6 @@ impl DevServerBuilder {
             }),
         }
     }
-}
-
-static CACHE_BUSTER: AtomicU64 = AtomicU64::new(0);
-
-async fn request_to_data(
-    request: &mut Request<hyper::Body>,
-    vary: &ContentSourceDataVary,
-) -> Result<ContentSourceData> {
-    let mut data = ContentSourceData::default();
-    if vary.method {
-        data.method = Some(request.method().to_string());
-    }
-    if vary.url {
-        data.url = Some(request.uri().to_string());
-    }
-    if vary.body {
-        let bytes: Vec<_> = request
-            .body_mut()
-            .map(|bytes| bytes.map(Bytes::from))
-            .try_collect::<Vec<_>>()
-            .await?;
-        data.body = Some(Body::new(bytes).into());
-    }
-    if let Some(filter) = vary.query.as_ref() {
-        if let Some(query) = request.uri().query() {
-            let mut query: Query = serde_qs::from_str(query)?;
-            query.filter_with(filter);
-            data.query = Some(query);
-        } else {
-            data.query = Some(Query::default())
-        }
-    }
-    if let Some(filter) = vary.headers.as_ref() {
-        let mut headers = Headers::default();
-        for (header_name, header_value) in request.headers().iter() {
-            if !filter.contains(header_name.as_str()) {
-                continue;
-            }
-            match headers.entry(header_name.to_string()) {
-                Entry::Vacant(e) => {
-                    if let Ok(s) = header_value.to_str() {
-                        e.insert(HeaderValue::SingleString(s.to_string()));
-                    } else {
-                        e.insert(HeaderValue::SingleBytes(header_value.as_bytes().to_vec()));
-                    }
-                }
-                Entry::Occupied(mut e) => {
-                    if let Ok(s) = header_value.to_str() {
-                        e.get_mut().extend_with_string(s.to_string());
-                    } else {
-                        e.get_mut()
-                            .extend_with_bytes(header_value.as_bytes().to_vec());
-                    }
-                }
-            }
-        }
-        data.headers = Some(headers);
-    }
-    if vary.cache_buster {
-        data.cache_buster = CACHE_BUSTER.fetch_add(1, Ordering::SeqCst);
-    }
-    Ok(data)
-}
-
-pub(crate) fn resource_to_data(
-    resource: ResourceIdentifier,
-    vary: &ContentSourceDataVary,
-) -> ContentSourceData {
-    let mut data = ContentSourceData::default();
-    if vary.method {
-        data.method = Some("GET".to_string());
-    }
-    if vary.url {
-        data.url = Some(resource.path);
-    }
-    if vary.body {
-        data.body = Some(Body::new(Vec::new()).into());
-    }
-    if vary.query.is_some() {
-        data.query = Some(Query::default())
-    }
-    if let Some(filter) = vary.headers.as_ref() {
-        let mut headers = Headers::default();
-        if let Some(resource_headers) = resource.headers {
-            for (header_name, header_value) in resource_headers {
-                if !filter.contains(header_name.as_str()) {
-                    continue;
-                }
-                match headers.entry(header_name) {
-                    Entry::Vacant(e) => {
-                        e.insert(HeaderValue::SingleString(header_value));
-                    }
-                    Entry::Occupied(mut e) => {
-                        e.get_mut().extend_with_string(header_value);
-                    }
-                }
-            }
-        }
-        data.headers = Some(headers);
-    }
-    if vary.cache_buster {
-        data.cache_buster = CACHE_BUSTER.fetch_add(1, Ordering::SeqCst);
-    }
-    data
 }
 
 pub fn register() {

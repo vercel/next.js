@@ -118,14 +118,14 @@ async fn run_static_operation(
             .context("receiving from node.js process")?
         {
             RenderStaticIncomingMessage::Rewrite { path } => {
-                StaticResultVc::rewrite(RewriteVc::new(path))
+                StaticResultVc::rewrite(RewriteVc::new_path_query(path))
             }
             RenderStaticIncomingMessage::Response {
                 status_code,
                 headers,
                 body,
             } => StaticResultVc::content(
-                FileContent::Content({ File::from(body) }.into()).into(),
+                FileContent::Content(File::from(body)).into(),
                 status_code,
                 HeaderListVc::cell(headers),
             ),

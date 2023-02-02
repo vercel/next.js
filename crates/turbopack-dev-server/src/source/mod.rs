@@ -4,12 +4,14 @@ pub mod conditional;
 pub mod headers;
 pub mod lazy_instatiated;
 pub mod query;
+pub mod request;
+pub(crate) mod resolve;
 pub mod router;
 pub mod source_maps;
 pub mod specificity;
 pub mod static_assets;
 
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, sync::Arc};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize, Serializer};
@@ -93,17 +95,19 @@ pub trait GetContentSourceContent {
     fn get(&self, data: Value<ContentSourceData>) -> ContentSourceContentVc;
 }
 
+#[turbo_tasks::value]
+pub struct StaticContent {
+    pub content: VersionedContentVc,
+    pub status_code: u16,
+    pub headers: HeaderListVc,
+}
+
 #[turbo_tasks::value(shared)]
-#[derive(Debug)]
 // TODO add Dynamic variant in future to allow streaming and server responses
 /// The content of a result that is returned by a content source.
 pub enum ContentSourceContent {
     NotFound,
-    Static {
-        content: VersionedContentVc,
-        status_code: u16,
-        headers: HeaderListVc,
-    },
+    Static(StaticContentVc),
     HttpProxy(ProxyResultVc),
     Rewrite(RewriteVc),
 }
@@ -123,11 +127,14 @@ impl GetContentSourceContent for ContentSourceContent {
 impl ContentSourceContentVc {
     #[turbo_tasks::function]
     pub fn static_content(content: VersionedContentVc) -> ContentSourceContentVc {
-        ContentSourceContent::Static {
-            content,
-            status_code: 200,
-            headers: HeaderListVc::empty(),
-        }
+        ContentSourceContent::Static(
+            StaticContent {
+                content,
+                status_code: 200,
+                headers: HeaderListVc::empty(),
+            }
+            .cell(),
+        )
         .cell()
     }
 
@@ -137,11 +144,14 @@ impl ContentSourceContentVc {
         status_code: u16,
         headers: HeaderListVc,
     ) -> ContentSourceContentVc {
-        ContentSourceContent::Static {
-            content,
-            status_code,
-            headers,
-        }
+        ContentSourceContent::Static(
+            StaticContent {
+                content,
+                status_code,
+                headers,
+            }
+            .cell(),
+        )
         .cell()
     }
 
@@ -214,16 +224,18 @@ pub struct ContentSourceData {
 
 /// A request body.
 #[turbo_tasks::value(shared)]
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 pub struct Body {
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    chunks: Vec<Bytes>,
+    chunks: Arc<Vec<Bytes>>,
 }
 
 impl Body {
     /// Creates a new body from a list of chunks.
     pub fn new(chunks: Vec<Bytes>) -> Self {
-        Self { chunks }
+        Self {
+            chunks: Arc::new(chunks),
+        }
     }
 
     /// Returns an iterator over the body's chunks.
@@ -234,7 +246,7 @@ impl Body {
 
 /// A wrapper around [hyper::body::Bytes] that implements [Serialize] and
 /// [Deserialize].
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Bytes(hyper::body::Bytes);
 
 impl Bytes {
@@ -445,24 +457,44 @@ impl ContentSource for NoContentSource {
     }
 }
 
-/// A rewrite returned from a [ContentSource].
+/// A rewrite returned from a [ContentSource]. This tells the dev server to
+/// update its parsed url, path, and queries with this new information, and any
+/// later [NeededData] will receive data out of t these new values.
+#[derive(Debug)]
 #[turbo_tasks::value(shared)]
 pub struct Rewrite {
-    path: String,
-}
+    /// The new path and query used to lookup content. This _does not_ need to
+    /// be the original path or query.
+    pub path_and_query: String,
 
-impl Rewrite {
-    /// The path to rewrite to.
-    pub fn path(&self) -> &str {
-        &self.path
-    }
+    /// A [ContentSource] from which to restart the lookup process. This _does
+    /// not_ need to be the original content source. Having [None] source will
+    /// restart the lookup process from the original ContentSource.
+    pub source: Option<ContentSourceVc>,
 }
 
 #[turbo_tasks::value_impl]
 impl RewriteVc {
-    /// Creates a new [RewriteVc].
+    /// Creates a new [RewriteVc] and starts lookup from the provided
+    /// [ContentSource].
     #[turbo_tasks::function]
-    pub fn new(path: String) -> RewriteVc {
-        Rewrite { path }.cell()
+    pub fn new(path_query: String, source: ContentSourceVc) -> RewriteVc {
+        debug_assert!(path_query.starts_with('/'));
+        Rewrite {
+            path_and_query: path_query,
+            source: Some(source),
+        }
+        .cell()
+    }
+
+    /// Creates a new [RewriteVc] and restarts lookup from the root.
+    #[turbo_tasks::function]
+    pub fn new_path_query(path_query: String) -> RewriteVc {
+        debug_assert!(path_query.starts_with('/'));
+        Rewrite {
+            path_and_query: path_query,
+            source: None,
+        }
+        .cell()
     }
 }

@@ -218,7 +218,7 @@ export default function startHandler({
         type: "rewrite",
         // _next/404 is a Turbopack-internal route that will always redirect to
         // the 404 page.
-        path: "_next/404",
+        path: "/_next/404",
       };
     }
 

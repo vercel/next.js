@@ -5,29 +5,38 @@ use std::{
 
 use anyhow::{Context as _, Error, Result};
 use futures::{prelude::*, ready, stream::FusedStream, SinkExt};
-use hyper::upgrade::Upgraded;
+use hyper::{upgrade::Upgraded, HeaderMap, Uri};
 use hyper_tungstenite::{tungstenite::Message, HyperWebsocket, WebSocketStream};
 use pin_project_lite::pin_project;
 use tokio::select;
 use tokio_stream::StreamMap;
-use turbo_tasks::{TransientInstance, TurboTasksApi, Value};
+use turbo_tasks::{TransientInstance, TurboTasksApi};
+use turbopack_cli_utils::issue::ConsoleUiVc;
 use turbopack_core::version::Update;
 
 use super::{
     protocol::{ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier},
     stream::UpdateStream,
 };
-use crate::{update::stream::UpdateStreamItem, SourceProvider};
+use crate::{
+    source::{request::SourceRequest, resolve::resolve_source_request, Body},
+    update::stream::UpdateStreamItem,
+    SourceProvider,
+};
 
 /// A server that listens for updates and sends them to connected clients.
 pub(crate) struct UpdateServer<P: SourceProvider> {
     source_provider: P,
+    console_ui: ConsoleUiVc,
 }
 
 impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
     /// Create a new update server with the given websocket and content source.
-    pub fn new(source_provider: P) -> Self {
-        Self { source_provider }
+    pub fn new(source_provider: P, console_ui: ConsoleUiVc) -> Self {
+        Self {
+            source_provider,
+            console_ui,
+        }
     }
 
     /// Run the update server loop.
@@ -52,13 +61,18 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                         Some(ClientMessage::Subscribe { resource }) => {
                             let get_content = {
                                 let source_provider = self.source_provider.clone();
-                                let resource = resource.clone();
+                                let request = resource_to_request(&resource)?;
                                 move || {
+                                    let request = request.clone();
                                     let source = source_provider.get_source();
-                                    source.get(&resource.path, Value::new(Default::default()))
+                                    resolve_source_request(
+                                        source,
+                                        TransientInstance::new(request),
+                                        self.console_ui
+                                    )
                                 }
                             };
-                            let stream = UpdateStream::new(resource.clone(), TransientInstance::new(Box::new(get_content))).await?;
+                            let stream = UpdateStream::new(TransientInstance::new(Box::new(get_content))).await?;
                             streams.insert(resource, stream);
                         }
                         Some(ClientMessage::Unsubscribe { resource }) => {
@@ -116,6 +130,26 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
 
         Ok(())
     }
+}
+
+fn resource_to_request(resource: &ResourceIdentifier) -> Result<SourceRequest> {
+    let mut headers = HeaderMap::new();
+
+    if let Some(res_headers) = &resource.headers {
+        for (name, value) in res_headers {
+            headers.append(
+                hyper::header::HeaderName::from_bytes(name.as_bytes()).unwrap(),
+                hyper::header::HeaderValue::from_bytes(value.as_bytes()).unwrap(),
+            );
+        }
+    }
+
+    Ok(SourceRequest {
+        uri: Uri::try_from(format!("/{}", resource.path))?,
+        headers,
+        method: "GET".to_string(),
+        body: Body::new(vec![]),
+    })
 }
 
 pin_project! {
