@@ -70,7 +70,7 @@ async function runPromiseThrowChain(fn: any): Promise<any> {
   }
 }
 
-describe('navigateReducer', () => {
+describe('prefetchReducer', () => {
   it('should apply navigation', async () => {
     const initialTree = getInitialRouterStateTree()
     const initialCanonicalUrl = '/linking'
@@ -132,6 +132,147 @@ describe('navigateReducer', () => {
 
     const newState = await runPromiseThrowChain(() =>
       prefetchReducer(state, action)
+    )
+
+    const expectedState: ReturnType<typeof prefetchReducer> = {
+      prefetchCache: new Map([
+        [
+          '/linking/about',
+          {
+            canonicalUrlOverride: undefined,
+            flightData: serverResponse[0],
+            tree: [
+              '',
+              {
+                children: [
+                  'linking',
+                  {
+                    children: [
+                      'about',
+                      {
+                        children: ['', {}],
+                      },
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
+        ],
+      ]),
+      pushRef: {
+        mpaNavigation: false,
+        pendingPush: false,
+      },
+      focusAndScrollRef: {
+        apply: false,
+      },
+      canonicalUrl: '/linking',
+      cache: {
+        status: CacheStates.READY,
+        data: null,
+        subTreeData: (
+          <html>
+            <head></head>
+            <body>Root layout</body>
+          </html>
+        ),
+        parallelRoutes: initialParallelRoutes,
+      },
+      tree: [
+        '',
+        {
+          children: [
+            'linking',
+            {
+              children: ['', {}],
+            },
+          ],
+        },
+        undefined,
+        undefined,
+        true,
+      ],
+    }
+
+    expect(newState).toMatchObject(expectedState)
+  })
+
+  it('should apply navigation (concurrent)', async () => {
+    const initialTree = getInitialRouterStateTree()
+    const initialCanonicalUrl = '/linking'
+    const children = (
+      <html>
+        <head></head>
+        <body>Root layout</body>
+      </html>
+    )
+    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+      [
+        'children',
+        new Map([
+          [
+            'linking',
+            {
+              status: CacheStates.READY,
+              parallelRoutes: new Map([
+                [
+                  'children',
+                  new Map([
+                    [
+                      '',
+                      {
+                        status: CacheStates.READY,
+                        data: null,
+                        subTreeData: <>Linking page</>,
+                        parallelRoutes: new Map(),
+                      },
+                    ],
+                  ]),
+                ],
+              ]),
+              data: null,
+              subTreeData: <>Linking layout level</>,
+            },
+          ],
+        ]),
+      ],
+    ])
+
+    const state = createInitialRouterState({
+      initialTree,
+      initialCanonicalUrl,
+      children,
+      initialParallelRoutes,
+      isServer: false,
+      location: new URL('/linking', 'https://localhost') as any,
+    })
+
+    const state2 = createInitialRouterState({
+      initialTree,
+      initialCanonicalUrl,
+      children,
+      initialParallelRoutes,
+      isServer: false,
+      location: new URL('/linking', 'https://localhost') as any,
+    })
+
+    const url = new URL('/linking/about', 'https://localhost')
+    const serverResponse = await fetchServerResponse(url, initialTree, true)
+    const action: PrefetchAction = {
+      type: ACTION_PREFETCH,
+      url,
+      tree: initialTree,
+      serverResponse,
+    }
+
+    await runPromiseThrowChain(() => prefetchReducer(state, action))
+
+    const newState = await runPromiseThrowChain(() =>
+      prefetchReducer(state2, action)
     )
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
