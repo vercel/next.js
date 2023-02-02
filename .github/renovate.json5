@@ -1,0 +1,21 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  commitMessageTopic: 'Rust crate {{depName}}',
+  enabledManagers: ['cargo'],
+  rangeStrategy: 'bump',
+  packageRules: [
+    // Update next-binding whenever a new GH tag is released.
+    {
+      matchPackageNames: ['next-binding'],
+      matchDatasources: ['github-tags'],
+      // Turbopack's fast releases use tags like `turbopack-YYMMDD.XYZ`
+      versioning: 'regex:^turbopack-(?<major>\\d{2})(?<minor>\\d{2})(?<patch>\\d{2})\\.(?<prerelease>\\d+)$',
+    },
+    // Ignore any packages that aren't next-binding
+    {
+      matchPackagePatterns: ['*'],
+      excludePackageNames: ['next-binding'],
+      enabled: false,
+    },
+  ],
+}
