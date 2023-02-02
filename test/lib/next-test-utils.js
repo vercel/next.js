@@ -769,22 +769,13 @@ export function readNextBuildClientPageFile(appDir, page) {
 export function getPagesManifest(dir) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return readJson(serverFile)
-  }
-  return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+  return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir, content) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return writeFile(serverFile, content)
-  }
-  return writeFile(
-    path.join(dir, '.next/serverless/pages-manifest.json'),
-    content
-  )
+  return writeFile(serverFile, content)
 }
 
 export function getPageFileFromPagesManifest(dir, page) {

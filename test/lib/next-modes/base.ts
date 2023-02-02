@@ -66,15 +66,17 @@ export class NextInstance {
   constructor(opts: NextInstanceOpts) {
     Object.assign(this, opts)
 
-    this.env = {
-      ...this.env,
-      // remove node_modules/.bin repo path from env
-      // to match CI $PATH value and isolate further
-      PATH: process.env.PATH.split(path.delimiter)
-        .filter((part) => {
-          return !part.includes(path.join('node_modules', '.bin'))
-        })
-        .join(path.delimiter),
+    if (!(global as any).isNextDeploy) {
+      this.env = {
+        ...this.env,
+        // remove node_modules/.bin repo path from env
+        // to match CI $PATH value and isolate further
+        PATH: process.env.PATH.split(path.delimiter)
+          .filter((part) => {
+            return !part.includes(path.join('node_modules', '.bin'))
+          })
+          .join(path.delimiter),
+      }
     }
   }
 
