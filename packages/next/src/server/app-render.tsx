@@ -1519,6 +1519,7 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           return (
             <>
+              {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
               <Component {...props} />
               {preloadedFontFiles?.length === 0 ? (
                 <link
