@@ -16,7 +16,7 @@ export function refreshReducer(
   state: ReadonlyReducerState,
   action: RefreshAction
 ): ReducerState {
-  const { cache, mutable } = action
+  const { cache, mutable, origin } = action
   const href = state.canonicalUrl
 
   const isForCurrentTree =
@@ -62,9 +62,10 @@ export function refreshReducer(
   }
 
   if (!cache.data) {
+    // TODO-APP: verify that `href` is not an external url.
     // Fetch data from the root of the tree.
     cache.data = createRecordFromThenable(
-      fetchServerResponse(new URL(href, location.origin), [
+      fetchServerResponse(new URL(href, origin), [
         state.tree[0],
         state.tree[1],
         state.tree[2],

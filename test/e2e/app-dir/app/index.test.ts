@@ -639,6 +639,26 @@ createNextDescribe(
           await browser.close()
         }
       })
+
+      it('should push to external url', async () => {
+        const browser = await next.browser('/link-external/push')
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementByCss('#external-link').click()
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
+        expect(await browser.eval('window.history.length')).toBe(3)
+      })
+
+      it('should replace to external url', async () => {
+        const browser = await next.browser('/link-external/replace')
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementByCss('#external-link').click()
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
+        expect(await browser.eval('window.history.length')).toBe(2)
+      })
     })
 
     describe('server components', () => {
@@ -2502,7 +2522,6 @@ createNextDescribe(
           )
         })
 
-        // TODO-APP: Enable in development
         it('should redirect client-side', async () => {
           const browser = await next.browser('/redirect/client-side')
           await browser
@@ -2512,6 +2531,13 @@ createNextDescribe(
           // eslint-disable-next-line jest/no-standalone-expect
           expect(await browser.elementByCss('#result-page').text()).toBe(
             'Result Page'
+          )
+        })
+
+        it('should redirect to external url', async () => {
+          const browser = await next.browser('/redirect/external')
+          expect(await browser.waitForElementByCss('h1').text()).toBe(
+            'Example Domain'
           )
         })
       })

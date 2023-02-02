@@ -8,6 +8,14 @@ export const ACTION_RESTORE = 'restore'
 export const ACTION_SERVER_PATCH = 'server-patch'
 export const ACTION_PREFETCH = 'prefetch'
 
+export interface Mutable {
+  mpaNavigation?: boolean
+  previousTree?: FlightRouterState
+  patchedTree?: FlightRouterState
+  canonicalUrlOverride?: string
+  useExistingCache?: true
+}
+
 /**
  * Refresh triggers a refresh of the full page data.
  * - fetches the Flight data and fills subTreeData at the root of the cache.
@@ -16,12 +24,8 @@ export const ACTION_PREFETCH = 'prefetch'
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
   cache: CacheNode
-  mutable: {
-    previousTree?: FlightRouterState
-    patchedTree?: FlightRouterState
-    mpaNavigation?: boolean
-    canonicalUrlOverride?: string
-  }
+  mutable: Mutable
+  origin: Location['origin']
 }
 
 /**
@@ -62,16 +66,11 @@ export interface RefreshAction {
 export interface NavigateAction {
   type: typeof ACTION_NAVIGATE
   url: URL
+  isExternalUrl: boolean
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
   cache: CacheNode
-  mutable: {
-    mpaNavigation?: boolean
-    previousTree?: FlightRouterState
-    patchedTree?: FlightRouterState
-    canonicalUrlOverride?: string
-    useExistingCache?: true
-  }
+  mutable: Mutable
 }
 
 /**
@@ -98,11 +97,7 @@ export interface ServerPatchAction {
   previousTree: FlightRouterState
   overrideCanonicalUrl: URL | undefined
   cache: CacheNode
-  mutable: {
-    patchedTree?: FlightRouterState
-    mpaNavigation?: boolean
-    canonicalUrlOverride?: string
-  }
+  mutable: Mutable
 }
 
 /**
