@@ -254,7 +254,7 @@ createNextDescribe(
 
           expect($('link[as="font"]').length).toBe(3)
           // From root layout
-          expect($('link[as="font"]').get(0).attribs).toEqual({
+          expect($('link[as="font"]').get(2).attribs).toEqual({
             as: 'font',
             crossorigin: '',
             href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
@@ -263,7 +263,7 @@ createNextDescribe(
             'data-next-font': 'size-adjust',
           })
 
-          expect($('link[as="font"]').get(1).attribs).toEqual({
+          expect($('link[as="font"]').get(0).attribs).toEqual({
             as: 'font',
             crossorigin: '',
             href: '/_next/static/media/e1053f04babc7571-s.p.woff2',
@@ -271,7 +271,7 @@ createNextDescribe(
             type: 'font/woff2',
             'data-next-font': 'size-adjust',
           })
-          expect($('link[as="font"]').get(2).attribs).toEqual({
+          expect($('link[as="font"]').get(1).attribs).toEqual({
             as: 'font',
             crossorigin: '',
             href: '/_next/static/media/feab2c68f2a8e9a4-s.p.woff2',
@@ -289,7 +289,7 @@ createNextDescribe(
 
           expect($('link[as="font"]').length).toBe(2)
           // From root layout
-          expect($('link[as="font"]').get(0).attribs).toEqual({
+          expect($('link[as="font"]').get(1).attribs).toEqual({
             as: 'font',
             crossorigin: '',
             href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
@@ -298,7 +298,7 @@ createNextDescribe(
             'data-next-font': 'size-adjust',
           })
 
-          expect($('link[as="font"]').get(1).attribs).toEqual({
+          expect($('link[as="font"]').get(0).attribs).toEqual({
             as: 'font',
             crossorigin: '',
             href: '/_next/static/media/75c5faeeb9c86969-s.p.woff2',
