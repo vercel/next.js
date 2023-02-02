@@ -25,6 +25,7 @@ export interface RefreshAction {
   type: typeof ACTION_REFRESH
   cache: CacheNode
   mutable: Mutable
+  origin: Location['origin']
 }
 
 /**
@@ -65,6 +66,7 @@ export interface RefreshAction {
 export interface NavigateAction {
   type: typeof ACTION_NAVIGATE
   url: URL
+  isExternalUrl: boolean
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
   cache: CacheNode
