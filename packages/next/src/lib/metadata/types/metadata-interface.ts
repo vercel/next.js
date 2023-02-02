@@ -64,6 +64,21 @@ export interface Metadata {
   // to get more specific about rel types
   icons?: null | IconURL | Array<Icon> | Icons
 
+  /**
+   * @example
+   * Example of Open Graph field:
+   * ```
+   * {
+   *   type: "website",
+   *   url: "https://example.com",
+   *   siteName: "My Website",
+   *   title: "My Website",
+   *   images: [{
+   *     url: "https://example.com/og.png",
+   *   }],
+   * }
+   * ```
+   */
   openGraph?: null | OpenGraph
 
   twitter?: null | Twitter
