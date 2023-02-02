@@ -24,7 +24,7 @@ If your issue has not been resolved in that time and it has been closed/locked, 
 
 ### **I did not open this issue, but it is relevant to me, what can I do to help?**
 
-Anyone experiencing the same issue is welcome to provide a minimal reproduction following the above steps. Furthermore, you can upvote the issue using the :+1: reaction on the topmost comment (please **do not** comment "I have the same issue" without repro steps). Then, we can sort issues by votes to prioritize.
+Anyone experiencing the same issue is welcome to provide a minimal reproduction following the above steps. Furthermore, you can upvote the issue using the :+1: reaction on the topmost comment (please **do not** comment "I have the same issue" without reproduction steps). Then, we can sort issues by votes to prioritize.
 
 ### **I think my reproduction is good enough, why aren't you looking into it quicker?**
 

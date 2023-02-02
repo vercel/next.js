@@ -17,8 +17,8 @@ const app = next({ dev, hostname: 'localhost', port, dir })
 const handleNextRequests = app.getRequestHandler()
 
 const httpOptions = {
-  key: readFileSync(join(__dirname, 'ssh/privkey.pem')),
-  cert: readFileSync(join(__dirname, 'ssh/cert.pem')),
+  key: readFileSync(join(__dirname, 'ssh/localhost-key.pem')),
+  cert: readFileSync(join(__dirname, 'ssh/localhost.pem')),
 }
 
 app.prepare().then(() => {

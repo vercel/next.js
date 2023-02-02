@@ -6,6 +6,7 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
 import { NotFound as DefaultNotFound } from '../client/components/error'
+import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -45,11 +46,13 @@ import {
   RSC,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
-import { formatServerError } from '../lib/format-server-error'
-import { Metadata } from '../lib/metadata/metadata'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
+import { formatServerError } from '../lib/format-server-error'
+import { MetadataTree } from '../lib/metadata/metadata'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
+import { collectMetadata } from '../lib/metadata/resolve-metadata'
+import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -91,6 +94,14 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
 }
+
+async function getLayoutOrPageModule(loaderTree: LoaderTree) {
+  const { layout, page } = loaderTree[2]
+  const isLayout = typeof layout !== 'undefined'
+  const isPage = typeof page !== 'undefined'
+  return isLayout ? await layout[0]() : isPage ? await page[0]() : undefined
+}
+
 export class ReadonlyHeaders {
   [INTERNAL_HEADERS_INSTANCE]: Headers
 
@@ -257,13 +268,10 @@ function createErrorHandler(
   }
 }
 
-let isFetchPatched = false
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 function patchFetch(ComponentMod: any) {
-  if (isFetchPatched) return
-  isFetchPatched = true
+  if ((globalThis.fetch as any).patched) return
 
   const { DynamicServerError } =
     ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
@@ -448,6 +456,7 @@ function patchFetch(ComponentMod: any) {
 
     return doOriginalFetch()
   }
+  ;(globalThis.fetch as any).patched = true
 }
 
 interface FlightResponseRef {
@@ -638,8 +647,8 @@ type LoaderTree = [
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string,
-  refresh?: 'refetch',
+  url?: string | null,
+  refresh?: 'refetch' | null,
   isRootLayout?: boolean
 ]
 
@@ -979,7 +988,9 @@ export async function renderToHTMLOrFlight(
      * The metadata items array created in next-app-loader with all relevant information
      * that we need to resolve the final metadata.
      */
-    const metadataItems = ComponentMod.metadata
+
+    const requestId = nanoid(12)
+    const searchParamsProps = { searchParams: query }
 
     stripInternalQueries(query)
 
@@ -1063,9 +1074,12 @@ export async function renderToHTMLOrFlight(
     }
 
     async function resolveHead(
-      [segment, parallelRoutes, { head }]: LoaderTree,
-      parentParams: { [key: string]: any }
-    ): Promise<React.ReactNode> {
+      tree: LoaderTree,
+      parentParams: { [key: string]: any },
+      metadataItems: MetadataItems
+    ): Promise<[React.ReactNode, MetadataItems]> {
+      const [segment, parallelRoutes, { head, page }] = tree
+      const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
       /**
@@ -1080,20 +1094,33 @@ export async function renderToHTMLOrFlight(
             }
           : // Pass through parent params to children
             parentParams
+
+      const layerProps = {
+        params: currentParams,
+        ...(isPage && searchParamsProps),
+      }
+
+      const mod = await getLayoutOrPageModule(tree)
+      await collectMetadata(mod, layerProps, metadataItems)
+
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const returnedHead = await resolveHead(childTree, currentParams)
+        const [returnedHead] = await resolveHead(
+          childTree,
+          currentParams,
+          metadataItems
+        )
         if (returnedHead) {
-          return returnedHead
+          return [returnedHead, metadataItems]
         }
       }
 
       if (head) {
         const Head = await interopDefault(await head[0]())
-        return <Head params={currentParams} />
+        return [<Head params={currentParams} />, metadataItems]
       }
 
-      return null
+      return [null, metadataItems]
     }
 
     const createFlightRouterStateFromLoaderTree = (
@@ -1184,11 +1211,7 @@ export async function renderToHTMLOrFlight(
      */
     const createComponentTree = async ({
       createSegmentPath,
-      loaderTree: [
-        segment,
-        parallelRoutes,
-        { layout, template, error, loading, page, 'not-found': notFound },
-      ],
+      loaderTree: tree,
       parentParams,
       firstItem,
       rootLayoutIncluded,
@@ -1201,6 +1224,15 @@ export async function renderToHTMLOrFlight(
       firstItem?: boolean
       injectedCSS: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
+      const [segment, parallelRoutes, components] = tree
+      const {
+        layout,
+        template,
+        error,
+        loading,
+        page,
+        'not-found': notFound,
+      } = components
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
@@ -1252,11 +1284,7 @@ export async function renderToHTMLOrFlight(
 
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
-      const layoutOrPageMod = isLayout
-        ? await layout[0]()
-        : isPage
-        ? await page[0]()
-        : undefined
+      const layoutOrPageMod = await getLayoutOrPageModule(tree)
 
       /**
        * Checks if the current segment is a root layout.
@@ -1372,7 +1400,8 @@ export async function renderToHTMLOrFlight(
               ? [parallelRouteKey]
               : [actualSegment, parallelRouteKey]
 
-            const childSegment = parallelRoutes[parallelRouteKey][0]
+            const parallelRoute = parallelRoutes[parallelRouteKey]
+            const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
             if (isPrefetch && Loading) {
@@ -1413,7 +1442,7 @@ export async function renderToHTMLOrFlight(
               createSegmentPath: (child) => {
                 return createSegmentPath([...currentSegmentPath, ...child])
               },
-              loaderTree: parallelRoutes[parallelRouteKey],
+              loaderTree: parallelRoute,
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
@@ -1478,7 +1507,7 @@ export async function renderToHTMLOrFlight(
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
         params: currentParams,
         // Query is only provided to page
-        ...(isPage ? { searchParams: query } : {}),
+        ...(isPage ? searchParamsProps : {}),
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
@@ -1491,7 +1520,14 @@ export async function renderToHTMLOrFlight(
           return (
             <>
               {preloadedFontFiles?.length === 0 ? (
-                <link rel="preconnect" href="/" crossOrigin="anonymous" />
+                <link
+                  data-next-font={
+                    fontLoaderManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+                  }
+                  rel="preconnect"
+                  href="/"
+                  crossOrigin="anonymous"
+                />
               ) : null}
               {preloadedFontFiles
                 ? preloadedFontFiles.map((fontFile) => {
@@ -1504,6 +1540,9 @@ export async function renderToHTMLOrFlight(
                         as="font"
                         type={`font/${ext}`}
                         crossOrigin="anonymous"
+                        data-next-font={
+                          fontFile.includes('-s') ? 'size-adjust' : ''
+                        }
                       />
                     )
                   })
@@ -1576,9 +1615,10 @@ export async function renderToHTMLOrFlight(
         injectedCSS: Set<string>
         rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
-        const [segment, parallelRoutes, { layout }] = loaderTreeToFilter
-        const isLayout = typeof layout !== 'undefined'
+        const [segment, parallelRoutes, components] = loaderTreeToFilter
         const parallelRoutesKeys = Object.keys(parallelRoutes)
+        const { layout } = components
+        const isLayout = typeof layout !== 'undefined'
 
         /**
          * Checks if the current segment is a root layout.
@@ -1623,7 +1663,7 @@ export async function renderToHTMLOrFlight(
             // Create router state using the slice of the loaderTree
             createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
             // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-            isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
+            isPrefetch && !Boolean(components.loading)
               ? null
               : // Create component tree using the slice of the loaderTree
                 // @ts-expect-error TODO-APP: fix async component type
@@ -1642,11 +1682,10 @@ export async function renderToHTMLOrFlight(
                       rootLayoutIncluded: rootLayoutIncluded,
                     }
                   )
+
                   return <Component />
                 }),
-            isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
-              <>{rscPayloadHead}</>
-            ),
+            isPrefetch && !Boolean(components.loading) ? null : rscPayloadHead,
           ]
         }
 
@@ -1697,7 +1736,11 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const rscPayloadHead = await resolveHead(loaderTree, {})
+      const [resolvedHead, metadataItems] = await resolveHead(
+        loaderTree,
+        {},
+        []
+      )
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1708,11 +1751,13 @@ export async function renderToHTMLOrFlight(
             parentParams: {},
             flightRouterState: providedFlightRouterState,
             isFirst: true,
+            // For flight, render metadata inside leaf page
             rscPayloadHead: (
               <>
+                {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
-                <Metadata metadata={metadataItems} />
-                {rscPayloadHead}
+                <MetadataTree key={requestId} metadata={metadataItems} />
+                {resolvedHead}
               </>
             ),
             injectedCSS: new Set(),
@@ -1781,7 +1826,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const initialHead = await resolveHead(loaderTree, {})
+    const [initialHead, metadataItems] = await resolveHead(loaderTree, {}, [])
 
     /**
      * A new React Component that renders the provided React Component
@@ -1809,8 +1854,9 @@ export async function renderToHTMLOrFlight(
               initialTree={initialTree}
               initialHead={
                 <>
+                  {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
-                  <Metadata metadata={metadataItems} />
+                  <MetadataTree key={requestId} metadata={metadataItems} />
                   {initialHead}
                 </>
               }
