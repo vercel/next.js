@@ -106,6 +106,10 @@ module.exports = {
       maxFiles?: number
       // control the maximum memory usage of the `turbotrace`, in `MB`
       memoryLimit?: number
+      // control if the webpack entries should be skipped when tracing
+      // tracing the entries is not necessary for applications that all assets could be traced in the dist files
+      // default is `false`
+      skipEntries?: boolean
     },
   },
 }
