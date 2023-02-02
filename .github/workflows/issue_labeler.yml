@@ -13,7 +13,7 @@ jobs:
     name: Triage
     runs-on: ubuntu-latest
     steps:
-      - uses: github/issue-labeler@v2.5
+      - uses: github/issue-labeler@v2.6
         with:
           repo-token: '${{ secrets.GITHUB_TOKEN }}'
           configuration-path: '.github/issue-labeler.yml'
