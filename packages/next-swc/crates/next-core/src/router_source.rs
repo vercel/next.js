@@ -6,6 +6,7 @@ use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, Intro
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataFilter,
     ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc, NeededData, ProxyResult,
+    RewriteVc,
 };
 use turbopack_node::execution_context::ExecutionContextVc;
 
@@ -91,10 +92,12 @@ impl ContentSource for NextRouterContentSource {
                     .get(path, Value::new(ContentSourceData::default()))
             }
             RouterResult::Rewrite(data) => {
-                let path = data.url.strip_prefix('/').unwrap_or(&data.url);
-                // TODO: We can't set response headers and query for a source.
-                this.inner
-                    .get(path, Value::new(ContentSourceData::default()))
+                // TODO: We can't set response headers on the returned content.
+                ContentSourceResultVc::exact(
+                    ContentSourceContent::Rewrite(RewriteVc::new(data.url.clone(), this.inner))
+                        .cell()
+                        .into(),
+                )
             }
             RouterResult::FullMiddleware(data) => ContentSourceResultVc::exact(
                 ContentSourceContent::HttpProxy(
