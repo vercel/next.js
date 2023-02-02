@@ -253,6 +253,7 @@ export class TerserPlugin {
                     name,
                     output.map,
                     input,
+                    inputSourceMap,
                     true
                   )
                 } else {

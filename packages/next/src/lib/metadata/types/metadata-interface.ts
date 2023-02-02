@@ -7,6 +7,8 @@ import type {
   AppLinks,
   FormatDetection,
   ItunesApp,
+  ResolvedAppleWebApp,
+  ResolvedAppLinks,
   Viewport,
 } from './extra-types'
 import type {
@@ -18,17 +20,19 @@ import type {
   IconURL,
   ReferrerEnum,
   ResolvedIcons,
+  ResolvedVerification,
   Robots,
+  ResolvedRobots,
   TemplateString,
   Verification,
 } from './metadata-types'
 import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
-import { ResolvedTwitterMetadata, Twitter } from './twitter-types'
+import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
 
 export interface Metadata {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
-  metadataBase: null | URL
+  metadataBase?: null | URL
 
   // The Document title
   title?: null | string | TemplateString
@@ -38,7 +42,7 @@ export interface Metadata {
 
   // Standard metadata names
   // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name
-  applicationName?: null | string | Array<string>
+  applicationName?: null | string
   authors?: null | Author | Array<Author>
   generator?: null | string
   // if you provide an array it will be flattened into a single tag with comma separation
@@ -54,12 +58,27 @@ export interface Metadata {
   robots?: null | string | Robots
 
   // The canonical and alternate URLs for this location
-  alternates: AlternateURLs
+  alternates?: null | AlternateURLs
 
   // Defaults to rel="icon" but the Icons type can be used
   // to get more specific about rel types
   icons?: null | IconURL | Array<Icon> | Icons
 
+  /**
+   * @example
+   * Example of Open Graph field:
+   * ```
+   * {
+   *   type: "website",
+   *   url: "https://example.com",
+   *   siteName: "My Website",
+   *   title: "My Website",
+   *   images: [{
+   *     url: "https://example.com/og.png",
+   *   }],
+   * }
+   * ```
+   */
   openGraph?: null | OpenGraph
 
   twitter?: null | Twitter
@@ -140,10 +159,10 @@ export interface ResolvedMetadata {
   publisher: null | string
 
   // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name#other_metadata_names
-  robots: null | string
+  robots: null | ResolvedRobots
 
   // The canonical and alternate URLs for this location
-  alternates: ResolvedAlternateURLs
+  alternates: null | ResolvedAlternateURLs
 
   // Defaults to rel="icon" but the Icons type can be used
   // to get more specific about rel types
@@ -154,11 +173,11 @@ export interface ResolvedMetadata {
   twitter: null | ResolvedTwitterMetadata
 
   // common verification tokens
-  verification: Verification
+  verification: null | ResolvedVerification
 
   // Apple web app metadata
   // https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
-  appleWebApp: null | AppleWebApp
+  appleWebApp: null | ResolvedAppleWebApp
 
   // Should devices try to interpret various formats and make actionable links
   // out of them? The canonical example is telephone numbers on mobile that can
@@ -175,7 +194,7 @@ export interface ResolvedMetadata {
   abstract: null | string
 
   // Facebook AppLinks
-  appLinks: null | AppLinks
+  appLinks: null | ResolvedAppLinks
 
   // link rel properties
   archives: null | Array<string>
@@ -187,7 +206,7 @@ export interface ResolvedMetadata {
   classification: null | string
 
   // Arbitrary name/value pairs
-  other: {
+  other: null | {
     [name: string]: string | number | Array<string | number>
   }
 
