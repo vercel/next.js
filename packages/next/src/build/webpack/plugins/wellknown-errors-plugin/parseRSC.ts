@@ -1,6 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
-import { getImportTrace } from './getImportTrace'
+import { getModuleTrace, getImportTraceForOverlay } from './getModuleTrace'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 function formatRSCErrorMessage(
@@ -127,7 +127,7 @@ export function getRscError(
     return false
   }
 
-  const { isPagesDir, importTrace } = getImportTrace(
+  const { isPagesDir, moduleTrace } = getModuleTrace(
     module,
     compilation,
     compiler
@@ -144,7 +144,7 @@ export function getRscError(
     'ReactServerComponentsError:\n' +
       formattedError[0] +
       formattedError[1] +
-      importTrace.join('\n')
+      getImportTraceForOverlay(compiler, moduleTrace)
   )
 
   // Delete the stack because it's created here.

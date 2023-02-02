@@ -10,7 +10,7 @@ import { SimpleWebpackError } from './simpleWebpackError'
 import isError from '../../../../lib/is-error'
 import { getRscError } from './parseRSC'
 import { getNextFontError } from './parseNextFontError'
-import { getNextImportTraceError } from './parseNextImportTraceError'
+import { getNextInvalidImportError } from './parseNextInvalidImportError'
 
 function getFileData(
   compilation: webpack.Compilation,
@@ -109,14 +109,14 @@ export async function getModuleBuildError(
     return nextFont
   }
 
-  const importTraceError = getNextImportTraceError(
+  const invalidImportError = getNextInvalidImportError(
     err,
     input.module,
     compilation,
     compiler
   )
-  if (importTraceError !== false) {
-    return importTraceError
+  if (invalidImportError !== false) {
+    return invalidImportError
   }
 
   return false

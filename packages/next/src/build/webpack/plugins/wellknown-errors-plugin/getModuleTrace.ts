@@ -1,7 +1,21 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { relative } from 'path'
 
-export function getImportTrace(
+export function formatModule(compiler: webpack.Compiler, module: any) {
+  return relative(compiler.context, module.resource).replace(/\?.+$/, '')
+}
+
+export function getImportTraceForOverlay(
+  compiler: webpack.Compiler,
+  moduleTrace: any[]
+) {
+  return moduleTrace
+    .map((m) => (m.resource ? '  ' + formatModule(compiler, m) : ''))
+    .filter(Boolean)
+    .join('\n')
+}
+
+export function getModuleTrace(
   module: any,
   compilation: webpack.Compilation,
   compiler: webpack.Compiler
@@ -25,16 +39,8 @@ export function getImportTrace(
     current = origin
   }
 
-  const importTrace = moduleTrace
-    .map((m) =>
-      m.resource
-        ? '  ' + relative(compiler.context, m.resource).replace(/\?.+$/, '')
-        : ''
-    )
-    .filter(Boolean)
-
   return {
-    importTrace,
+    moduleTrace,
     isPagesDir,
   }
 }

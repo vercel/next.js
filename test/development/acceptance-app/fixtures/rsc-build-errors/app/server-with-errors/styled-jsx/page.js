@@ -1,11 +1,5 @@
+import { Comp1 } from './comp1'
+
 export default function Page() {
-  return (
-    <div>
-      <style jsx>{`
-        p {
-          color: red;
-        }
-      `}</style>
-    </div>
-  )
+  return <Comp1 />
 }

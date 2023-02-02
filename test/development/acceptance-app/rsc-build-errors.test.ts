@@ -70,12 +70,16 @@ createNextDescribe(
 
       expect(await session.hasRedbox(true)).toBe(true)
       const description = await session.getRedboxDescription()
-      expect(description).toInclude(
-        "Error: 'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component."
-      )
-      expect(description).toInclude('Import trace for requested module:')
-      expect(description).toInclude('client-only/error.js')
-      expect(description).toInclude('app/server-with-errors/styled-jsx/page.js')
+      expect(description).toMatchInlineSnapshot(`
+        "Error: 'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
+
+        The error was caused by importing 'styled-jsx/style.js' in 'app/server-with-errors/styled-jsx/comp2.js'.
+
+        Import trace for requested module:
+          app/server-with-errors/styled-jsx/comp2.js
+          app/server-with-errors/styled-jsx/comp1.js
+          app/server-with-errors/styled-jsx/page.js"
+      `)
 
       await cleanup()
     })
@@ -300,6 +304,25 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app/editor-links/component.js
+        ReactServerComponentsError:
+
+        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
+
+           ,-[/private/var/folders/_z/5px_j1193hgc3gczglwq7ksr0000gn/T/next-install-8d65b596ee8aa170684897f1306b9ad6b5a3530d787c454762ad47d3f295fe35/app/editor-links/component.js:1:1]
+         1 | import { useState } from 'react'
+           :          ^^^^^^^^
+         2 | export default function Component() {
+         3 |   return <div>Component</div>
+         4 | }
+           \`----
+
+        Maybe one of these should be marked as a client entry with \\"use client\\":
+        app/editor-links/component.js
+        app/editor-links/page.js"
+      `)
+
       await browser.waitForElementByCss('[data-with-open-in-editor-link]')
       const collapsedFrameworkGroups = await browser.elementsByCss(
         '[data-with-open-in-editor-link]'

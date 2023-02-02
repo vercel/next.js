@@ -1627,7 +1627,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-wasm-loader',
         'next-app-loader',
         'next-font-loader',
-        'next-import-trace-error-loader',
+        'next-invalid-import-error-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1973,7 +1973,7 @@ export default async function getBaseWebpackConfig(
           : []),
         {
           test: /node_modules\/client-only\/error.js/,
-          loader: 'next-import-trace-error-loader',
+          loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.server,
           options: {
             message:
