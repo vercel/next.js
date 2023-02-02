@@ -2,8 +2,14 @@ import loadConfig from "next/dist/server/config";
 import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
 import assert from "assert";
 
-const loadNextConfig = async () => {
-  const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, process.cwd());
+const loadNextConfig = async (silent) => {
+  const nextConfig = await loadConfig(
+    PHASE_DEVELOPMENT_SERVER,
+    process.cwd(),
+    undefined,
+    undefined,
+    silent
+  );
 
   nextConfig.generateBuildId = await nextConfig.generateBuildId?.();
 

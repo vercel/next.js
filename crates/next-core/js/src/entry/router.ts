@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Buffer } from "node:buffer";
 import { createServer, makeRequest } from "@vercel/turbopack-next/ipc/server";
 import loadNextConfig from "@vercel/turbopack-next/entry/config/next";
+import { makeResolver } from "next/dist/server/router.js";
 
 import "next/dist/server/node-polyfill-fetch.js";
 
@@ -50,9 +51,7 @@ let resolveRouteMemo: Promise<
   (req: IncomingMessage, res: ServerResponse) => Promise<unknown>
 >;
 async function getResolveRoute(dir: string) {
-  // Deferring the import allows us to not error while we wait for Next.js to implement.
-  const { makeResolver } = (await import("next/dist/server/router.js")) as any;
-  const nextConfig = await loadNextConfig();
+  const nextConfig = await loadNextConfig(true);
   return await makeResolver(dir, nextConfig);
 }
 
