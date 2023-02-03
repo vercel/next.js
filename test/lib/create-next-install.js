@@ -27,7 +27,7 @@ async function createNextInstall({
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
-      await rootSpan.traceChild(' enruse swc binary').traceAsyncFn(async () => {
+      await rootSpan.traceChild('ensure swc binary').traceAsyncFn(async () => {
         // ensure swc binary is present in the native folder if
         // not already built
         for (const folder of await fs.readdir(
@@ -129,4 +129,5 @@ async function createNextInstall({
 
 module.exports = {
   createNextInstall,
+  getPkgPaths: linkPackages,
 }

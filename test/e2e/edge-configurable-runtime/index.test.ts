@@ -4,14 +4,16 @@ import { fetchViaHTTP, File, nextBuild } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 
-const appDir = join(__dirname, './app')
 const pagePath = 'pages/index.jsx'
 const apiPath = 'pages/api/edge.js'
-const page = new File(join(appDir, pagePath))
-const api = new File(join(appDir, apiPath))
 
-describe('Configurable runtime for pages and API routes', () => {
+describe.each([
+  { appDir: join(__dirname, './app/src'), title: 'src/pages and API routes' },
+  { appDir: join(__dirname, './app'), title: 'pages and API routes' },
+])('Configurable runtime for $title', ({ appDir }) => {
   let next: NextInstance
+  const page = new File(join(appDir, pagePath))
+  const api = new File(join(appDir, apiPath))
 
   if ((global as any).isNextDev) {
     describe('In dev mode', () => {

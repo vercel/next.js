@@ -279,6 +279,7 @@ async function main() {
           '--runInBand',
           '--forceExit',
           '--verbose',
+          '--silent',
           ...(isTestJob
             ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
             : []),

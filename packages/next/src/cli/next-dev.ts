@@ -35,7 +35,13 @@ const handleSessionStop = async () => {
     const { eventCliSession } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+    const config = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      dir,
+      undefined,
+      undefined,
+      true
+    )
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -190,6 +196,24 @@ const nextDev: CliCommand = async (argv) => {
     port,
   }
 
+  const supportedTurbopackNextConfigOptions = [
+    'configFileName',
+    'env',
+    'experimental.appDir',
+    'experimental.resolveAlias',
+    'experimental.serverComponentsExternalPackages',
+    'experimental.turbopackLoaders',
+    'images',
+    'pageExtensions',
+    'onDemandEntries',
+    'rewrites',
+    'redirects',
+    'headers',
+    'reactStrictMode',
+    'swcMinify',
+    'transpilePackages',
+  ]
+
   // check for babelrc, swc plugins
   async function validateNextConfig(isCustomTurbopack: boolean) {
     const { getPkgManager } =
@@ -240,12 +264,10 @@ const nextDev: CliCommand = async (argv) => {
         try {
           // these should not error
           if (
-            configKey === 'serverComponentsExternalPackages' ||
-            configKey === 'appDir' ||
-            configKey === 'images' ||
-            configKey === 'reactStrictMode' ||
-            configKey === 'swcMinify' ||
-            configKey === 'configFileName'
+            // we only want the key after the dot for experimental options
+            supportedTurbopackNextConfigOptions
+              .map((key) => key.split('.').splice(-1)[0])
+              .includes(configKey)
           ) {
             return false
           }
@@ -301,14 +323,7 @@ const nextDev: CliCommand = async (argv) => {
       unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
         'next.config.js'
       )})\n  ${chalk.dim(
-        `The only configurations options supported are:\n${[
-          'reactStrictMode',
-          'experimental.appDir',
-          'experimental.serverComponentsExternalPackages',
-          'images',
-          'swcMinify',
-          'configFileName',
-        ]
+        `The only configurations options supported are:\n${supportedTurbopackNextConfigOptions
           .map((name) => `    - ${chalk.cyan(name)}\n`)
           .join('')}  To use Turbopack, remove other configuration options.`
       )}   `
@@ -493,7 +508,13 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       cluster.settings.stdio = ['ipc', 'pipe', 'pipe']
 
       setupFork()
-      config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+      config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        undefined,
+        true
+      )
 
       const handleProjectDirRename = (newDir: string) => {
         clusterExitUnsub()

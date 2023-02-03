@@ -159,7 +159,9 @@ function getMiddlewareMatchers(
     const isRoot = source === '/'
 
     if (i18n?.locales && r.locale !== false) {
-      source = `/:nextInternalLocale([^/.]{1,})${isRoot ? '' : source}`
+      source = `/:nextInternalLocale((?!_next/)[^/.]{1,})${
+        isRoot ? '' : source
+      }`
     }
 
     source = `/:nextData(_next/data/[^/]{1,})?${source}${
@@ -332,7 +334,7 @@ export async function getPageStaticInfo(params: {
 
     const requiresServerRuntime = ssr || ssg || pageType === 'app'
 
-    const isAnAPIRoute = isAPIRoute(page?.replace(/^\/pages\//, '/'))
+    const isAnAPIRoute = isAPIRoute(page?.replace(/^(?:\/src)?\/pages\//, '/'))
 
     resolvedRuntime = isEdgeRuntime(resolvedRuntime)
       ? resolvedRuntime

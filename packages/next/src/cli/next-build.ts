@@ -16,6 +16,7 @@ const nextBuild: CliCommand = (argv) => {
     '--debug': Boolean,
     '--no-lint': Boolean,
     '--no-mangling': Boolean,
+    '--experimental-app-only': Boolean,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -43,9 +44,10 @@ const nextBuild: CliCommand = (argv) => {
       If no directory is provided, the current directory will be used.
 
       Options
-      --profile     Can be used to enable React Production Profiling
-      --no-lint     Disable linting
-      --no-mangling Disable mangling
+      --profile                 Can be used to enable React Production Profiling
+      --no-lint                 Disable linting
+      --no-mangling             Disable mangling
+      --experimental-app-only   Only build 'app' routes
     `,
       0
     )
@@ -70,11 +72,11 @@ const nextBuild: CliCommand = (argv) => {
 
   return build(
     dir,
-    null,
     args['--profile'],
-    args['--debug'],
+    args['--debug'] || process.env.NEXT_DEBUG_BUILD,
     !args['--no-lint'],
-    args['--no-mangling']
+    args['--no-mangling'],
+    args['--experimental-app-only']
   ).catch((err) => {
     console.error('')
     if (

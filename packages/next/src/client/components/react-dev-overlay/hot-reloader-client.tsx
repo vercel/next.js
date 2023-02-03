@@ -33,6 +33,7 @@ import {
   useWebsocket,
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
+import { parseComponentStack } from './internal/helpers/parse-component-stack'
 
 import type { VersionInfo } from './internal/container/Errors'
 
@@ -432,10 +433,14 @@ export default function HotReload({
   }, [dispatch])
 
   const handleOnUnhandledError = useCallback((error: Error): void => {
+    // Component stack is added to the error in use-error-handler
+    const componentStack = (error as any)._componentStack
     dispatch({
       type: ACTION_UNHANDLED_ERROR,
       reason: error,
       frames: parseStack(error.stack!),
+      componentStackFrames:
+        componentStack && parseComponentStack(componentStack),
     })
   }, [])
   const handleOnUnhandledRejection = useCallback((reason: Error): void => {

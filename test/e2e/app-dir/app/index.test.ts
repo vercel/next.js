@@ -2,6 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import crypto from 'crypto'
 import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
+import stripAnsi from 'strip-ansi'
 
 createNextDescribe(
   'app dir',
@@ -15,6 +16,22 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (isDev) {
+      it('should not have duplicate config warnings', async () => {
+        await next.fetch('/')
+        expect(
+          stripAnsi(next.cliOutput).match(
+            /You have enabled experimental feature/g
+          ).length
+        ).toBe(1)
+        expect(
+          stripAnsi(next.cliOutput).match(
+            /Experimental features are not covered by semver/g
+          ).length
+        ).toBe(1)
+      })
+    }
+
     if (!isNextDeploy) {
       it('should not share edge workers', async () => {
         const controller1 = new AbortController()
@@ -85,7 +102,7 @@ createNextDescribe(
 
     it('should pass props from getServerSideProps in root layout', async () => {
       const $ = await next.render$('/dashboard')
-      expect($('title').text()).toBe('hello world')
+      expect($('title').first().text()).toBe('hello world')
     })
 
     it('should serve from pages', async () => {
@@ -621,6 +638,26 @@ createNextDescribe(
         } finally {
           await browser.close()
         }
+      })
+
+      it('should push to external url', async () => {
+        const browser = await next.browser('/link-external/push')
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementByCss('#external-link').click()
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
+        expect(await browser.eval('window.history.length')).toBe(3)
+      })
+
+      it('should replace to external url', async () => {
+        const browser = await next.browser('/link-external/replace')
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementByCss('#external-link').click()
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
+        expect(await browser.eval('window.history.length')).toBe(2)
       })
     })
 
@@ -2485,7 +2522,6 @@ createNextDescribe(
           )
         })
 
-        // TODO-APP: Enable in development
         it('should redirect client-side', async () => {
           const browser = await next.browser('/redirect/client-side')
           await browser
@@ -2495,6 +2531,13 @@ createNextDescribe(
           // eslint-disable-next-line jest/no-standalone-expect
           expect(await browser.elementByCss('#result-page').text()).toBe(
             'Result Page'
+          )
+        })
+
+        it('should redirect to external url', async () => {
+          const browser = await next.browser('/redirect/external')
+          expect(await browser.waitForElementByCss('h1').text()).toBe(
+            'Example Domain'
           )
         })
       })
