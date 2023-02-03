@@ -182,7 +182,10 @@ export function Errors({ issues, errors }: ErrorsProps) {
   const hasServerError = readyErrors.some((err) =>
     ["server", "edge-server"].includes(getErrorSource(err.error) || "")
   );
-  const isClosable = !isLoading && !hasIssueWithError && !hasServerError;
+
+  // TODO for now it's already closable, but in future we might want to block users from using a broken app
+  // const isClosable = !isLoading && !hasIssueWithError && !hasServerError;
+  const isClosable = true;
 
   const defaultTab =
     hasIssueWithError || !hasErrors
