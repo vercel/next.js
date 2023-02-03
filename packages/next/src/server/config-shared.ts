@@ -175,7 +175,7 @@ export interface ExperimentalConfig {
   /**
    * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/api-reference/next.config.js/resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/api-reference/next.config.js/resolve-alias)
    */
   resolveAlias?: {
     [k: string]: string | string[] | Record<string, string | string[]>
