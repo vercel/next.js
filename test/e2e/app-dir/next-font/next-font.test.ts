@@ -1,6 +1,11 @@
 import { createNextDescribe } from 'e2e-utils'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 
+const getSortedAttrs = (elems: Cheerio, prop) =>
+  Array.from(elems)
+    .map((elem) => elem.attribs)
+    .sort((a, b) => (a[prop] > b[prop] ? 1 : -1))
+
 createNextDescribe(
   'app dir next-font',
   {
@@ -220,30 +225,32 @@ createNextDescribe(
           expect($('link[rel="preconnect"]').length).toBe(0)
 
           expect($('link[as="font"]').length).toBe(3)
-          expect($('link[as="font"]').get(0).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
-          expect($('link[as="font"]').get(1).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/b61859a50be14c53-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
-          expect($('link[as="font"]').get(2).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/b2104791981359ae-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
+          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/b2104791981359ae-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/b61859a50be14c53-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+          ])
         })
 
         it('should preload correctly with client components', async () => {
@@ -254,31 +261,32 @@ createNextDescribe(
 
           expect($('link[as="font"]').length).toBe(3)
           // From root layout
-          expect($('link[as="font"]').get(2).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
-
-          expect($('link[as="font"]').get(0).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/e1053f04babc7571-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
-          expect($('link[as="font"]').get(1).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/feab2c68f2a8e9a4-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
+          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/e1053f04babc7571-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/feab2c68f2a8e9a4-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+          ])
         })
 
         it('should preload correctly with layout using fonts', async () => {
@@ -289,23 +297,24 @@ createNextDescribe(
 
           expect($('link[as="font"]').length).toBe(2)
           // From root layout
-          expect($('link[as="font"]').get(1).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
-
-          expect($('link[as="font"]').get(0).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/75c5faeeb9c86969-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
+          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/75c5faeeb9c86969-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+          ])
         })
 
         it('should preload correctly with page using fonts', async () => {
@@ -316,23 +325,24 @@ createNextDescribe(
 
           expect($('link[as="font"]').length).toBe(2)
           // From root layout
-          expect($('link[as="font"]').get(0).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
-
-          expect($('link[as="font"]').get(1).attribs).toEqual({
-            as: 'font',
-            crossorigin: '',
-            href: '/_next/static/media/568e4c6d8123c4d6-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
+          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/568e4c6d8123c4d6-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+            {
+              as: 'font',
+              crossorigin: '',
+              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+              rel: 'preload',
+              type: 'font/woff2',
+              'data-next-font': 'size-adjust',
+            },
+          ])
         })
       })
 
@@ -362,6 +372,7 @@ createNextDescribe(
           expect($('link[rel="preconnect"]').length).toBe(0)
           // Preload
           expect($('link[as="font"]').length).toBe(0)
+          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([])
         })
       })
     }
