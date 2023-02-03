@@ -1,10 +1,8 @@
 import { createNextDescribe } from 'e2e-utils'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 
-const getSortedAttrs = (elems: Cheerio, prop) =>
-  Array.from(elems)
-    .map((elem) => elem.attribs)
-    .sort((a, b) => (a[prop] > b[prop] ? 1 : -1))
+const getAttrs = (elems: Cheerio) =>
+  Array.from(elems).map((elem) => elem.attribs)
 
 createNextDescribe(
   'app dir next-font',
@@ -224,12 +222,12 @@ createNextDescribe(
           // Preconnect
           expect($('link[rel="preconnect"]').length).toBe(0)
 
-          expect($('link[as="font"]').length).toBe(3)
-          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([
+          // From root layout
+          expect(getAttrs($('link[as="font"]'))).toEqual([
             {
               as: 'font',
               crossorigin: '',
-              href: '/_next/static/media/b2104791981359ae-s.p.woff2',
+              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
               rel: 'preload',
               type: 'font/woff2',
               'data-next-font': 'size-adjust',
@@ -245,7 +243,7 @@ createNextDescribe(
             {
               as: 'font',
               crossorigin: '',
-              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+              href: '/_next/static/media/b2104791981359ae-s.p.woff2',
               rel: 'preload',
               type: 'font/woff2',
               'data-next-font': 'size-adjust',
@@ -259,9 +257,8 @@ createNextDescribe(
           // Preconnect
           expect($('link[rel="preconnect"]').length).toBe(0)
 
-          expect($('link[as="font"]').length).toBe(3)
           // From root layout
-          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([
+          expect(getAttrs($('link[as="font"]'))).toEqual([
             {
               as: 'font',
               crossorigin: '',
@@ -273,7 +270,7 @@ createNextDescribe(
             {
               as: 'font',
               crossorigin: '',
-              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+              href: '/_next/static/media/feab2c68f2a8e9a4-s.p.woff2',
               rel: 'preload',
               type: 'font/woff2',
               'data-next-font': 'size-adjust',
@@ -281,7 +278,7 @@ createNextDescribe(
             {
               as: 'font',
               crossorigin: '',
-              href: '/_next/static/media/feab2c68f2a8e9a4-s.p.woff2',
+              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
               rel: 'preload',
               type: 'font/woff2',
               'data-next-font': 'size-adjust',
@@ -295,9 +292,8 @@ createNextDescribe(
           // Preconnect
           expect($('link[rel="preconnect"]').length).toBe(0)
 
-          expect($('link[as="font"]').length).toBe(2)
           // From root layout
-          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([
+          expect(getAttrs($('link[as="font"]'))).toEqual([
             {
               as: 'font',
               crossorigin: '',
@@ -323,13 +319,12 @@ createNextDescribe(
           // Preconnect
           expect($('link[rel="preconnect"]').length).toBe(0)
 
-          expect($('link[as="font"]').length).toBe(2)
           // From root layout
-          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([
+          expect(getAttrs($('link[as="font"]'))).toEqual([
             {
               as: 'font',
               crossorigin: '',
-              href: '/_next/static/media/568e4c6d8123c4d6-s.p.woff2',
+              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
               rel: 'preload',
               type: 'font/woff2',
               'data-next-font': 'size-adjust',
@@ -337,7 +332,7 @@ createNextDescribe(
             {
               as: 'font',
               crossorigin: '',
-              href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+              href: '/_next/static/media/568e4c6d8123c4d6-s.p.woff2',
               rel: 'preload',
               type: 'font/woff2',
               'data-next-font': 'size-adjust',
@@ -371,8 +366,7 @@ createNextDescribe(
           // Preconnect
           expect($('link[rel="preconnect"]').length).toBe(0)
           // Preload
-          expect($('link[as="font"]').length).toBe(0)
-          expect(getSortedAttrs($('link[as="font"]'), 'href')).toEqual([])
+          expect(getAttrs($('link[as="font"]'))).toEqual([])
         })
       })
     }
