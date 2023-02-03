@@ -645,7 +645,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const qualityInt = getInt(quality)
 
     if (process.env.NODE_ENV !== 'production') {
-      if (config.output === 'export') {
+      if (config.output === 'export' && isDefaultLoader && !unoptimized) {
         throw new Error(
           `Image Optimization using Next.js' default loader is not compatible with \`{ output: "export" }\`.
   Possible solutions:

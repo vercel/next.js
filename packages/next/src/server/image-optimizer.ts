@@ -515,12 +515,6 @@ export async function imageOptimizer(
     newParsedUrl?: NextUrlWithParsedQuery
   ) => Promise<void>
 ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
-  if (nextConfig.output === 'export') {
-    throw new ImageError(
-      500,
-      'Image Optimization is not supported when using `next export`'
-    )
-  }
   let upstreamBuffer: Buffer
   let upstreamType: string | null
   let maxAge: number
