@@ -1,4 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'app-render-error-log',
@@ -8,6 +9,8 @@ createNextDescribe(
   ({ next }) => {
     it('should log the correct values on app-render error ', async () => {
       await next.fetch('/')
+
+      await check(() => next.cliOutput, /Error: boom/)
 
       expect(next.cliOutput).toInclude('Error: boom')
       expect(next.cliOutput).toInclude('at fn2 (./app/fn.ts:6:11)')

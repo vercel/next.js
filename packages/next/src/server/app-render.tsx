@@ -53,6 +53,7 @@ import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
+import type { LogErrorWithOriginalStack } from './dev/next-dev-server'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -196,6 +197,7 @@ export type RenderOptsPartial = {
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
   nextExport?: boolean
+  devErrorLogger?: LogErrorWithOriginalStack
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -216,39 +218,6 @@ function interopDefault(mod: any) {
   return mod.default || mod
 }
 
-/**
- * Logs error stack and digest but ignores stack frames irrelevant to the user.
- */
-function logServerError(isDev: boolean, err: any) {
-  if (
-    isDev &&
-    typeof err?.message === 'string' &&
-    typeof err?.stack === 'string'
-  ) {
-    const filteredStack = err.stack
-      .split('\n')
-      .map((line: string) =>
-        // Remove 'webpack-internal:' noise from the path
-        line.replace(/(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/, '')
-      )
-      .filter(
-        (line: string) =>
-          !/next[\\/]dist[\\/]compiled/.test(line) &&
-          !/node_modules[\\/]/.test(line) &&
-          !/node:internal[\\/]/.test(line)
-      )
-      .join('\n')
-    console.log() // new line
-    console.error(filteredStack)
-    if (err.digest) {
-      console.error(`digest: ${JSON.stringify(err.digest)}`)
-    }
-  } else {
-    console.log() // new line
-    console.error(err)
-  }
-}
-
 // tolerate dynamic server errors during prerendering so console
 // isn't spammed with unactionable errors
 /**
@@ -261,6 +230,7 @@ function createErrorHandler(
   _source: string,
   isDev: boolean,
   isNextExport: boolean,
+  errorLogger: LogErrorWithOriginalStack | undefined,
   capturedErrors: Error[],
   allCapturedErrors?: Error[]
 ) {
@@ -293,7 +263,11 @@ function createErrorHandler(
         )
       )
     ) {
-      logServerError(isDev, err)
+      if (errorLogger) {
+        errorLogger(err, 'app-dir').catch(() => {})
+      } else {
+        console.error(err)
+      }
     }
 
     capturedErrors.push(err)
@@ -963,18 +937,21 @@ export async function renderToHTMLOrFlight(
     'serverComponentsRenderer',
     !!dev,
     isNextExport,
+    renderOpts.devErrorLogger,
     capturedErrors
   )
   const flightDataRendererErrorHandler = createErrorHandler(
     'flightDataRenderer',
     !!dev,
     isNextExport,
+    renderOpts.devErrorLogger,
     capturedErrors
   )
   const htmlRendererErrorHandler = createErrorHandler(
     'htmlRenderer',
     !!dev,
     isNextExport,
+    renderOpts.devErrorLogger,
     capturedErrors,
     allCapturedErrors
   )
