@@ -194,6 +194,7 @@ function Router({
         type: ACTION_NAVIGATE,
         url,
         isExternalUrl: isExternalURL(url),
+        locationSearch: location.search,
         forceOptimisticNavigation,
         navigateType,
         cache: {
