@@ -25,8 +25,8 @@ export function refreshReducer(
   if (mutable.mpaNavigation && isForCurrentTree) {
     return {
       // Set href.
-      canonicalUrl: mutable.canonicalUrlOverride
-        ? mutable.canonicalUrlOverride
+      canonicalUrl: mutable.canonicalUrl
+        ? mutable.canonicalUrl
         : state.canonicalUrl,
       // TODO-APP: verify mpaNavigation not being set is correct here.
       pushRef: {
@@ -47,9 +47,7 @@ export function refreshReducer(
   if (mutable.patchedTree && isForCurrentTree) {
     return {
       // Set href.
-      canonicalUrl: mutable.canonicalUrlOverride
-        ? mutable.canonicalUrlOverride
-        : href,
+      canonicalUrl: mutable.canonicalUrl ? mutable.canonicalUrl : href,
       // set pendingPush (always false in this case).
       pushRef: state.pushRef,
       // Apply focus and scroll.
@@ -118,7 +116,7 @@ export function refreshReducer(
     : undefined
 
   if (canonicalUrlOverride) {
-    mutable.canonicalUrlOverride = canonicalUrlOverrideHref
+    mutable.canonicalUrl = canonicalUrlOverrideHref
   }
 
   mutable.previousTree = state.tree
