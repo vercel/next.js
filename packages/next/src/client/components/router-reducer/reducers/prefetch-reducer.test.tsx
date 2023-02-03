@@ -1,37 +1,30 @@
 import React from 'react'
-import type { fetchServerResponse } from '../fetch-server-response'
+import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render'
 jest.mock('../fetch-server-response', () => {
   const flightData: FlightData = [
     [
+      'children',
+      'linking',
+      'children',
+      'about',
       [
-        '',
+        'about',
         {
-          children: [
-            'linking',
-            {
-              children: ['', {}],
-            },
-          ],
+          children: ['', {}],
         },
-        null,
-        null,
-        true,
       ],
-      <html>
-        <head></head>
-        <body>
-          <h1>Linking Page!</h1>
-        </body>
-      </html>,
+      <h1>About Page!</h1>,
       <>
-        <title>Linking page!</title>
+        <title>About page!</title>
       </>,
     ],
   ]
   return {
-    fetchServerResponse: (url: URL): ReturnType<typeof fetchServerResponse> => {
-      if (url.pathname === '/linking') {
+    fetchServerResponse: (
+      url: URL
+    ): ReturnType<typeof fetchServerResponseType> => {
+      if (url.pathname === '/linking/about') {
         return Promise.resolve([flightData, undefined])
       }
 
@@ -45,8 +38,9 @@ import {
   CacheStates,
 } from '../../../../shared/lib/app-router-context'
 import { createInitialRouterState } from '../create-initial-router-state'
-import { RefreshAction, ACTION_REFRESH } from '../router-reducer-types'
-import { refreshReducer } from './refresh-reducer'
+import { PrefetchAction, ACTION_PREFETCH } from '../router-reducer-types'
+import { prefetchReducer } from './prefetch-reducer'
+import { fetchServerResponse } from '../fetch-server-response'
 
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
@@ -76,8 +70,8 @@ async function runPromiseThrowChain(fn: any): Promise<any> {
   }
 }
 
-describe('refreshReducer', () => {
-  it('should apply refresh', async () => {
+describe('prefetchReducer', () => {
+  it('should apply navigation', async () => {
     const initialTree = getInitialRouterStateTree()
     const initialCanonicalUrl = '/linking'
     const children = (
@@ -126,24 +120,49 @@ describe('refreshReducer', () => {
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
-    const action: RefreshAction = {
-      type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: {},
-      origin: new URL('/linking', 'https://localhost').origin,
+
+    const url = new URL('/linking/about', 'https://localhost')
+    const serverResponse = await fetchServerResponse(url, initialTree, true)
+    const action: PrefetchAction = {
+      type: ACTION_PREFETCH,
+      url,
+      tree: initialTree,
+      serverResponse,
     }
 
     const newState = await runPromiseThrowChain(() =>
-      refreshReducer(state, action)
+      prefetchReducer(state, action)
     )
 
-    const expectedState: ReturnType<typeof refreshReducer> = {
-      prefetchCache: new Map(),
+    const expectedState: ReturnType<typeof prefetchReducer> = {
+      prefetchCache: new Map([
+        [
+          '/linking/about',
+          {
+            canonicalUrlOverride: undefined,
+            flightData: serverResponse[0],
+            tree: [
+              '',
+              {
+                children: [
+                  'linking',
+                  {
+                    children: [
+                      'about',
+                      {
+                        children: ['', {}],
+                      },
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
+        ],
+      ]),
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
@@ -158,47 +177,10 @@ describe('refreshReducer', () => {
         subTreeData: (
           <html>
             <head></head>
-            <body>
-              <h1>Linking Page!</h1>
-            </body>
+            <body>Root layout</body>
           </html>
         ),
-        parallelRoutes: new Map([
-          [
-            'children',
-            new Map([
-              [
-                'linking',
-                {
-                  status: CacheStates.LAZY_INITIALIZED,
-                  parallelRoutes: new Map([
-                    [
-                      'children',
-                      new Map([
-                        [
-                          '',
-                          {
-                            status: CacheStates.LAZY_INITIALIZED,
-                            data: null,
-                            subTreeData: null,
-                            parallelRoutes: new Map(),
-                            head: (
-                              <>
-                                <title>Linking page!</title>
-                              </>
-                            ),
-                          },
-                        ],
-                      ]),
-                    ],
-                  ]),
-                  data: null,
-                  subTreeData: null,
-                },
-              ],
-            ]),
-          ],
-        ]),
+        parallelRoutes: initialParallelRoutes,
       },
       tree: [
         '',
@@ -210,8 +192,8 @@ describe('refreshReducer', () => {
             },
           ],
         },
-        null,
-        null,
+        undefined,
+        undefined,
         true,
       ],
     }
@@ -219,7 +201,7 @@ describe('refreshReducer', () => {
     expect(newState).toMatchObject(expectedState)
   })
 
-  it('should apply refresh (concurrent)', async () => {
+  it('should apply navigation (concurrent)', async () => {
     const initialTree = getInitialRouterStateTree()
     const initialCanonicalUrl = '/linking'
     const children = (
@@ -278,26 +260,50 @@ describe('refreshReducer', () => {
       location: new URL('/linking', 'https://localhost') as any,
     })
 
-    const action: RefreshAction = {
-      type: ACTION_REFRESH,
-      cache: {
-        status: CacheStates.LAZY_INITIALIZED,
-        data: null,
-        subTreeData: null,
-        parallelRoutes: new Map(),
-      },
-      mutable: {},
-      origin: new URL('/linking', 'https://localhost').origin,
+    const url = new URL('/linking/about', 'https://localhost')
+    const serverResponse = await fetchServerResponse(url, initialTree, true)
+    const action: PrefetchAction = {
+      type: ACTION_PREFETCH,
+      url,
+      tree: initialTree,
+      serverResponse,
     }
 
-    await runPromiseThrowChain(() => refreshReducer(state, action))
+    await runPromiseThrowChain(() => prefetchReducer(state, action))
 
     const newState = await runPromiseThrowChain(() =>
-      refreshReducer(state2, action)
+      prefetchReducer(state2, action)
     )
 
-    const expectedState: ReturnType<typeof refreshReducer> = {
-      prefetchCache: new Map(),
+    const expectedState: ReturnType<typeof prefetchReducer> = {
+      prefetchCache: new Map([
+        [
+          '/linking/about',
+          {
+            canonicalUrlOverride: undefined,
+            flightData: serverResponse[0],
+            tree: [
+              '',
+              {
+                children: [
+                  'linking',
+                  {
+                    children: [
+                      'about',
+                      {
+                        children: ['', {}],
+                      },
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
+        ],
+      ]),
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
@@ -312,47 +318,10 @@ describe('refreshReducer', () => {
         subTreeData: (
           <html>
             <head></head>
-            <body>
-              <h1>Linking Page!</h1>
-            </body>
+            <body>Root layout</body>
           </html>
         ),
-        parallelRoutes: new Map([
-          [
-            'children',
-            new Map([
-              [
-                'linking',
-                {
-                  status: CacheStates.LAZY_INITIALIZED,
-                  parallelRoutes: new Map([
-                    [
-                      'children',
-                      new Map([
-                        [
-                          '',
-                          {
-                            status: CacheStates.LAZY_INITIALIZED,
-                            data: null,
-                            subTreeData: null,
-                            parallelRoutes: new Map(),
-                            head: (
-                              <>
-                                <title>Linking page!</title>
-                              </>
-                            ),
-                          },
-                        ],
-                      ]),
-                    ],
-                  ]),
-                  data: null,
-                  subTreeData: null,
-                },
-              ],
-            ]),
-          ],
-        ]),
+        parallelRoutes: initialParallelRoutes,
       },
       tree: [
         '',
@@ -364,8 +333,8 @@ describe('refreshReducer', () => {
             },
           ],
         },
-        null,
-        null,
+        undefined,
+        undefined,
         true,
       ],
     }
