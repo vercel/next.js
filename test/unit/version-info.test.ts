@@ -10,7 +10,7 @@ describe('parse version info', () => {
       staleness: VersionInfo['staleness']
     ]
   >([
-    ['12.0.0', '13.0.0', '13.0.1-canary.0', 'stale-major'],
+    ['12.0.0', '13.1.1', '13.0.1-canary.0', 'stale-major'],
     ['13.0.0', '13.1.0', '13.1.1-canary.0', 'stale-minor'],
     ['13.1.1', '13.1.2', '13.1.3-canary.0', 'stale-patch'],
     ['13.0.1-canary.0', '13.0.0', '13.0.1-canary.1', 'stale-prerelease'],

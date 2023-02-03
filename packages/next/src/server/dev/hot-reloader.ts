@@ -192,7 +192,10 @@ export function parseVersionInfo(o: {
         }
       }
       return { staleness: 'stale-minor', expected: latest.raw, installed }
-    } else if (semver.gt(installedParsed, latest)) {
+    } else if (
+      semver.gt(installedParsed, latest) &&
+      installedParsed.version !== canary.version
+    ) {
       // Newer major version
       return { staleness: 'newer-than-npm', installed }
     } else {
