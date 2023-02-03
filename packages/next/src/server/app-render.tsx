@@ -1209,7 +1209,8 @@ export async function renderToHTMLOrFlight(
             />
           ))
         : null
-      const Comp = await interopDefault(await getComponent())
+
+      const Comp = interopDefault(await getComponent())
 
       return [Comp, styles]
     }
