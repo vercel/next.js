@@ -1,5 +1,5 @@
-import { VersionInfo } from '../../packages/next/src/client/components/react-dev-overlay/internal/container/Errors'
-import { parseVersionInfo } from '../../packages/next/src/server/dev/hot-reloader'
+import type { VersionInfo } from '../../packages/next/src/client/components/react-dev-overlay/internal/container/Errors'
+import { parseVersionInfo } from 'next/dist/server/dev/hot-reloader'
 
 describe('parse version info', () => {
   test.each<
