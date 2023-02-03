@@ -70,7 +70,7 @@ pub use id::{
     with_task_id_mapping, without_task_id_mapping, FunctionId, IdMapping, TaskId, TraitTypeId,
     ValueTypeId,
 };
-pub use join_iter_ext::{JoinIterExt, TryJoinIterExt};
+pub use join_iter_ext::{JoinIterExt, TryFlatMapRecursiveJoinIterExt, TryJoinIterExt};
 pub use manager::{
     dynamic_call, emit, get_invalidator, mark_stateful, run_once, spawn_blocking, spawn_thread,
     trait_call, turbo_tasks, Invalidator, StatsType, TaskIdProvider, TurboTasks, TurboTasksApi,

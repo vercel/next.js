@@ -113,7 +113,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
 
         let path = &self.path.await?;
         if let PatternMapping::Invalid = &*pm {
-            let request_string = self.request.to_string().await?.clone();
+            let request_string = self.request.to_string().await?;
             visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
                 // In Node.js, a require call that cannot be resolved will throw an error.
                 *expr = throw_module_not_found_expr(&request_string);
@@ -202,7 +202,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
 
         let path = &self.path.await?;
         if let PatternMapping::Invalid = &*pm {
-            let request_string = self.request.to_string().await?.clone();
+            let request_string = self.request.to_string().await?;
             visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
                 // In Node.js, a require.resolve call that cannot be resolved will throw an error.
                 *expr = throw_module_not_found_expr(&request_string);

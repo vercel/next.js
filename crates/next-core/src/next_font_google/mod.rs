@@ -168,7 +168,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             Ok(r) => Some(
                 update_stylesheet(r.await?.body.to_string(), options, scoped_font_family)
                     .await?
-                    .clone(),
+                    .clone_value(),
             ),
             Err(err) => {
                 // Inform the user of the failure to retreive the stylesheet, but don't

@@ -74,7 +74,7 @@ async fn hash_glob_result(result: ReadGlobResultVc) -> Result<StringVc> {
     for (name, result) in result.inner.iter() {
         let hash = hash_glob_result(*result).await?;
         if !hash.is_empty() {
-            hashes.insert(name, hash.clone());
+            hashes.insert(name, hash.clone_value());
         }
     }
     if hashes.is_empty() {

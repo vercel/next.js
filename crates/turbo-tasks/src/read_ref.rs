@@ -22,8 +22,13 @@ use crate::{
 /// Internally it stores a reference counted reference to a value on the heap.
 ///
 /// Invariant: T and U are binary identical (#[repr(transparent)])
-#[derive(Clone)]
 pub struct ReadRef<T, U = T>(Arc<T>, PhantomData<Arc<U>>);
+
+impl<T, U> Clone for ReadRef<T, U> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone(), PhantomData)
+    }
+}
 
 impl<T, U> std::ops::Deref for ReadRef<T, U> {
     type Target = U;
@@ -33,6 +38,9 @@ impl<T, U> std::ops::Deref for ReadRef<T, U> {
         unsafe { std::mem::transmute(inner) }
     }
 }
+
+unsafe impl<T, U> stable_deref_trait::StableDeref for ReadRef<T, U> {}
+unsafe impl<T, U> stable_deref_trait::CloneStableDeref for ReadRef<T, U> {}
 
 impl<T, U: Display> Display for ReadRef<T, U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
