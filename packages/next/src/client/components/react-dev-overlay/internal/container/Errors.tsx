@@ -329,17 +329,19 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
                 <span>{readyErrors.length}</span> unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              <small className="nextjs-container-build-error-version-status">
-                <span className={versionInfo!.staleness} />
-                <Staleness {...versionInfo!} />{' '}
-                <a
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href="https://nextjs.org/docs/messages/version-staleness"
-                >
-                  (learn more)
-                </a>
-              </small>
+              {versionInfo ? (
+                <small className="nextjs-container-build-error-version-status">
+                  <span className={versionInfo.staleness} />
+                  <Staleness {...versionInfo} />{' '}
+                  <a
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    href="https://nextjs.org/docs/messages/version-staleness"
+                  >
+                    (learn more)
+                  </a>
+                </small>
+              ) : null}
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
