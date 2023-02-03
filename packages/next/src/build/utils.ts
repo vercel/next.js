@@ -1463,7 +1463,10 @@ export async function isPageStatic({
       }
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
-      const config: PageConfig = componentsResult.pageConfig
+      const config: PageConfig = isClientReference(componentsResult)
+        ? componentsResult.pageConfig
+        : {}
+
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
