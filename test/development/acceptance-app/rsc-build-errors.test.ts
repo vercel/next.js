@@ -238,7 +238,7 @@ createNextDescribe(
 
         ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
 
-           ,----
+           ,-[1:1]
          1 | export default function Error() {}
            : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
            \`----
@@ -264,7 +264,7 @@ createNextDescribe(
 
         ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
 
-           ,----
+           ,-[1:1]
          1 |  
            : ^
            \`----
@@ -310,7 +310,7 @@ createNextDescribe(
 
         You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
 
-           ,-[/private/var/folders/_z/5px_j1193hgc3gczglwq7ksr0000gn/T/next-install-8d65b596ee8aa170684897f1306b9ad6b5a3530d787c454762ad47d3f295fe35/app/editor-links/component.js:1:1]
+           ,-[1:1]
          1 | import { useState } from 'react'
            :          ^^^^^^^^
          2 | export default function Component() {
