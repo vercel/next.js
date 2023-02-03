@@ -571,6 +571,14 @@
             {
               "title": "Build indicator",
               "path": "/docs/api-reference/next.config.js/build-indicator.md"
+            },
+            {
+              "title": "Turbopack Loaders",
+              "path": "/docs/api-reference/next.config.js/turbopack-loaders.md"
+            },
+            {
+              "title": "Resolve Alias",
+              "path": "/docs/api-reference/next.config.js/resolve-alias.md"
             }
           ]
         }
