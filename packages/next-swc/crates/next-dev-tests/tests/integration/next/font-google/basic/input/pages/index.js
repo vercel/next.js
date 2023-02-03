@@ -18,7 +18,7 @@ export default function Home() {
 function runTests() {
   it("returns structured data about the font styles from the font function", () => {
     expect(interNoArgs).toEqual({
-      className: "className__inter_34ab8b4d__77c0d301",
+      className: "className__inter_34ab8b4d__64ed1f97",
       style: {
         fontFamily: "'__Inter_34ab8b4d'",
         fontStyle: "normal",
@@ -35,12 +35,12 @@ function runTests() {
 
   it("supports declaring a css custom property (css variable)", async () => {
     expect(interWithVariableName).toEqual({
-      className: "className__inter_c6e282f1__d812ce46",
+      className: "className__inter_c6e282f1__a8cc5613",
       style: {
         fontFamily: "'__Inter_c6e282f1'",
         fontStyle: "normal",
       },
-      variable: "variable__inter_c6e282f1__d812ce46",
+      variable: "variable__inter_c6e282f1__a8cc5613",
     });
 
     const matchingRule = await getRuleMatchingClassName(
