@@ -1,4 +1,4 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_6545dc.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_f0bbb5.js", {
 
 "[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
@@ -29,7 +29,7 @@ console.log(StyledButton, ClassNameButton);
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/63a02_@emotion_styled_index.js") && loadedChunks.has("output/63a02_@emotion_react_index.js") && loadedChunks.has("output/63a02_@emotion_react_jsx-dev-runtime.js") && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_8c70a7.js"))) return true;
+    if(!(true && loadedChunks.has("output/63a02_@emotion_react_jsx-dev-runtime.js") && loadedChunks.has("output/63a02_@emotion_react_index.js") && loadedChunks.has("output/63a02_@emotion_styled_index.js") && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_ccc906.js"))) return true;
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js (ecmascript)");
 }]);
 (() => {
@@ -1079,4 +1079,4 @@ globalThis.TURBOPACK = {
 })();
 
 
-//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_6545dc.js.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_f0bbb5.js.map

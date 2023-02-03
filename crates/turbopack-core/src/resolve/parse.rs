@@ -314,15 +314,13 @@ impl ValueToString for Request {
             } => format!("uri \"{protocol}\" \"{remainder}\""),
             Request::Unknown { path } => format!("unknown {path}"),
             Request::Dynamic => "dynamic".to_string(),
-            Request::Alternatives { requests } => requests
-                .iter()
-                .map(|i| i.to_string())
-                .try_join()
-                .await?
-                .into_iter()
-                .map(|r| r.clone())
-                .collect::<Vec<_>>()
-                .join(" or "),
+            Request::Alternatives { requests } => {
+                let vec = requests.iter().map(|i| i.to_string()).try_join().await?;
+                vec.iter()
+                    .map(|r| r.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" or ")
+            }
         }))
     }
 }

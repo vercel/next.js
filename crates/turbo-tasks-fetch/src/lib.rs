@@ -37,11 +37,11 @@ impl HttpResponseBodyVc {
 
 #[turbo_tasks::function]
 pub async fn fetch(url: StringVc, user_agent: OptionStringVc) -> Result<FetchResultVc> {
-    let url = url.await?.clone();
+    let url = &*url.await?;
     let user_agent = &*user_agent.await?;
     let client = reqwest::Client::new();
 
-    let mut builder = client.get(&url);
+    let mut builder = client.get(url);
     if let Some(user_agent) = user_agent {
         builder = builder.header("User-Agent", user_agent);
     }
@@ -59,7 +59,7 @@ pub async fn fetch(url: StringVc, user_agent: OptionStringVc) -> Result<FetchRes
             .cell())))
         }
         Err(err) => Ok(FetchResultVc::cell(Err(FetchError::from_reqwest_error(
-            &err, &url,
+            &err, url,
         )
         .cell()))),
     }
