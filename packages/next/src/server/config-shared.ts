@@ -503,7 +503,7 @@ export interface NextConfig extends Record<string, any> {
         }
   }
 
-  output?: 'standalone'
+  output?: 'standalone' | 'export'
 
   // A list of packages that should always be transpiled and bundled in the server
   transpilePackages?: string[]
@@ -530,6 +530,7 @@ export interface NextConfig extends Record<string, any> {
 export const defaultConfig: NextConfig = {
   env: {},
   webpack: null,
+
   webpackDevMiddleware: null,
   eslint: {
     ignoreDuringBuilds: false,

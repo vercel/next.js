@@ -403,7 +403,7 @@ export async function optimizeImage({
   quality: number
   width: number
   height?: number
-  nextConfigOutput?: 'standalone'
+  nextConfigOutput?: 'standalone' | 'export'
 }): Promise<Buffer> {
   let optimizedBuffer = buffer
   if (sharp) {
@@ -448,7 +448,7 @@ export async function optimizeImage({
     optimizedBuffer = await transformer.toBuffer()
     // End sharp transformation logic
   } else {
-    if (showSharpMissingWarning && nextConfigOutput) {
+    if (showSharpMissingWarning && nextConfigOutput === 'standalone') {
       // TODO: should we ensure squoosh also works even though we don't
       // recommend it be used in production and this is a production feature
       console.error(
@@ -515,6 +515,12 @@ export async function imageOptimizer(
     newParsedUrl?: NextUrlWithParsedQuery
   ) => Promise<void>
 ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
+  if (nextConfig.output === 'export') {
+    throw new ImageError(
+      500,
+      'Image Optimization is not supported when using `next export`'
+    )
+  }
   let upstreamBuffer: Buffer
   let upstreamType: string | null
   let maxAge: number

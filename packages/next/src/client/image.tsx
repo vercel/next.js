@@ -35,7 +35,10 @@ if (typeof window === 'undefined') {
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
-type ImageConfig = ImageConfigComplete & { allSizes: number[] }
+type ImageConfig = ImageConfigComplete & {
+  allSizes: number[]
+  output?: 'standalone' | 'export'
+}
 
 export type { ImageLoaderProps }
 export type ImageLoader = (p: ImageLoaderProps) => string
@@ -642,6 +645,15 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const qualityInt = getInt(quality)
 
     if (process.env.NODE_ENV !== 'production') {
+      if (config.output === 'export') {
+        throw new Error(
+          `Image Optimization using Next.js' default loader is not compatible with \`{ output: "export" }\`.
+  Possible solutions:
+    - Configure \`{ output: "standalone" }\` or remove it to run server mode including the Image Optimization API.
+    - Configure \`{ images: { unoptimized: true } }\` in \`next.config.js\` to disable the Image Optimization API.
+  Read more: https://nextjs.org/docs/messages/export-image-api`
+        )
+      }
       if (!src) {
         // React doesn't show the stack trace and there's
         // no `src` to help identify which image, so we

@@ -664,7 +664,7 @@ const configSchema = {
     },
     output: {
       // automatic typing doesn't like enum
-      enum: ['standalone'] as any,
+      enum: ['standalone', 'export'] as any,
       type: 'string',
     },
     outputFileTracing: {
