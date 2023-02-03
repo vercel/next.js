@@ -391,7 +391,7 @@ export default class NextNodeServer extends BaseServer {
         type: 'route',
         name: '_next/image catchall',
         fn: async (req, res, _params, parsedUrl) => {
-          if (this.minimalMode) {
+          if (this.minimalMode || this.nextConfig.output === 'export') {
             res.statusCode = 400
             res.body('Bad Request').send()
             return {
