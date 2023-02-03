@@ -837,6 +837,7 @@ const Image = forwardRef<HTMLImageElement | null, ImageProps>(
                 blurWidth,
                 blurHeight,
                 blurDataURL,
+                objectFit: imgStyle.objectFit,
               }
             )}")`,
           }
