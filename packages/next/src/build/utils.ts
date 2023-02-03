@@ -53,6 +53,7 @@ import {
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
 import { AssetBinding } from './webpack/loaders/get-module-build-info'
+import { isClientReference } from './is-client-reference'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -1100,14 +1101,18 @@ export const collectGenerateParams = async (
     : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
 
+  const isClientComponent = isClientReference(mod)
+
   const result = {
     isLayout,
     segmentPath: `/${parentSegments.join('/')}${
       segment[0] && parentSegments.length > 0 ? '/' : ''
     }${segment[0]}`,
     config,
-    getStaticPaths: mod?.getStaticPaths,
-    generateStaticParams: mod?.generateStaticParams,
+    getStaticPaths: isClientComponent ? undefined : mod?.getStaticPaths,
+    generateStaticParams: isClientComponent
+      ? undefined
+      : mod?.generateStaticParams,
   }
 
   if (segment[0]) {

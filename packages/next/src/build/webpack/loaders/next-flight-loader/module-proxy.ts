@@ -7,7 +7,7 @@
 
 // Modified from https://github.com/facebook/react/blob/main/packages/react-server-dom-webpack/src/ReactFlightWebpackNodeRegister.js
 
-export const CLIENT_REFERENCE = Symbol.for('react.client.reference')
+const CLIENT_REFERENCE = Symbol.for('react.client.reference')
 const PROMISE_PROTOTYPE = Promise.prototype
 
 const deepProxyHandlers = {
