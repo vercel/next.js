@@ -177,9 +177,10 @@ export interface ExperimentalConfig {
    *
    * @see [Resolve Alias](https://nextjs.org/docs/api-reference/next.config.js/resolve-alias)
    */
-  resolveAlias?: {
-    [k: string]: string | string[] | Record<string, string | string[]>
-  }
+  resolveAlias?: Record<
+    string,
+    string | string[] | Record<string, string | string[]>
+  >
 
   /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
