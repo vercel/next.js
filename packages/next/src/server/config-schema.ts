@@ -438,6 +438,9 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        resolveAlias: {
+          type: 'object',
+        },
         turbopackLoaders: {
           type: 'object',
         },
