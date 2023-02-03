@@ -88,8 +88,6 @@ describe('fillLazyItemsTillLeafWithHead', () => {
     const flightDataPath = flightData[0]
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [treePatch, _subTreeData, head] = flightDataPath.slice(-3)
-    // const flightSegmentPath = flightDataPath.slice(0, -4)
-
     fillLazyItemsTillLeafWithHead(cache, existingCache, treePatch, head)
 
     const expectedCache: CacheNode = {

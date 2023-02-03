@@ -7,7 +7,6 @@ import type { RouterEvent } from '../../../client/router'
 import type { StyleSheetTuple } from '../../../client/page-loader'
 import type { UrlObject } from 'url'
 import type PageLoader from '../../../client/page-loader'
-import { normalizePathTrailingSlash } from '../../../client/normalize-trailing-slash'
 import { removeTrailingSlash } from './utils/remove-trailing-slash'
 import {
   getClientBuildManifest,
@@ -24,15 +23,12 @@ import {
   getLocationOrigin,
   getURL,
   loadGetInitialProps,
-  normalizeRepeatedSlashes,
   NextPageContext,
   ST,
   NEXT_DATA,
-  isAbsoluteUrl,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
-import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
@@ -48,7 +44,12 @@ import { isAPIRoute } from '../../../lib/is-api-route'
 import { getNextPathnameInfo } from './utils/get-next-pathname-info'
 import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
 import { compareRouterStates } from './utils/compare-states'
+import { isLocalURL } from './utils/is-local-url'
 import { isBot } from './utils/is-bot'
+import { omit } from './utils/omit'
+import { resolveHref } from './utils/resolve-href'
+import { interpolateAs } from './utils/interpolate-as'
+import { handleSmoothScroll } from './utils/handle-smooth-scroll'
 
 declare global {
   interface Window {
@@ -121,195 +122,6 @@ function stripOrigin(url: string) {
   const origin = getLocationOrigin()
 
   return url.startsWith(origin) ? url.substring(origin.length) : url
-}
-
-function omit<T extends { [key: string]: unknown }, K extends keyof T>(
-  object: T,
-  keys: K[]
-): Omit<T, K> {
-  const omitted: { [key: string]: unknown } = {}
-  Object.keys(object).forEach((key) => {
-    if (!keys.includes(key as K)) {
-      omitted[key] = object[key]
-    }
-  })
-  return omitted as Omit<T, K>
-}
-
-/**
- * Detects whether a given url is routable by the Next.js router (browser only).
- */
-export function isLocalURL(url: string): boolean {
-  // prevent a hydration mismatch on href for url with anchor refs
-  if (!isAbsoluteUrl(url)) return true
-  try {
-    // absolute urls can be local if they are on the same origin
-    const locationOrigin = getLocationOrigin()
-    const resolved = new URL(url, locationOrigin)
-    return resolved.origin === locationOrigin && hasBasePath(resolved.pathname)
-  } catch (_) {
-    return false
-  }
-}
-
-export function interpolateAs(
-  route: string,
-  asPathname: string,
-  query: ParsedUrlQuery
-) {
-  let interpolatedRoute = ''
-
-  const dynamicRegex = getRouteRegex(route)
-  const dynamicGroups = dynamicRegex.groups
-  const dynamicMatches =
-    // Try to match the dynamic route against the asPath
-    (asPathname !== route ? getRouteMatcher(dynamicRegex)(asPathname) : '') ||
-    // Fall back to reading the values from the href
-    // TODO: should this take priority; also need to change in the router.
-    query
-
-  interpolatedRoute = route
-  const params = Object.keys(dynamicGroups)
-
-  if (
-    !params.every((param) => {
-      let value = dynamicMatches[param] || ''
-      const { repeat, optional } = dynamicGroups[param]
-
-      // support single-level catch-all
-      // TODO: more robust handling for user-error (passing `/`)
-      let replaced = `[${repeat ? '...' : ''}${param}]`
-      if (optional) {
-        replaced = `${!value ? '/' : ''}[${replaced}]`
-      }
-      if (repeat && !Array.isArray(value)) value = [value]
-
-      return (
-        (optional || param in dynamicMatches) &&
-        // Interpolate group into data URL if present
-        (interpolatedRoute =
-          interpolatedRoute!.replace(
-            replaced,
-            repeat
-              ? (value as string[])
-                  .map(
-                    // these values should be fully encoded instead of just
-                    // path delimiter escaped since they are being inserted
-                    // into the URL and we expect URL encoded segments
-                    // when parsing dynamic route params
-                    (segment) => encodeURIComponent(segment)
-                  )
-                  .join('/')
-              : encodeURIComponent(value as string)
-          ) || '/')
-      )
-    })
-  ) {
-    interpolatedRoute = '' // did not satisfy all requirements
-
-    // n.b. We ignore this error because we handle warning for this case in
-    // development in the `<Link>` component directly.
-  }
-  return {
-    params,
-    result: interpolatedRoute,
-  }
-}
-
-/**
- * Resolves a given hyperlink with a certain router state (basePath not included).
- * Preserves absolute urls.
- */
-export function resolveHref(
-  router: NextRouter,
-  href: Url,
-  resolveAs: true
-): [string, string] | [string]
-export function resolveHref(
-  router: NextRouter,
-  href: Url,
-  resolveAs?: false
-): string
-export function resolveHref(
-  router: NextRouter,
-  href: Url,
-  resolveAs?: boolean
-): [string, string] | [string] | string {
-  // we use a dummy base url for relative urls
-  let base: URL
-  let urlAsString = typeof href === 'string' ? href : formatWithValidation(href)
-
-  // repeated slashes and backslashes in the URL are considered
-  // invalid and will never match a Next.js page/file
-  const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
-  const urlAsStringNoProto = urlProtoMatch
-    ? urlAsString.slice(urlProtoMatch[0].length)
-    : urlAsString
-
-  const urlParts = urlAsStringNoProto.split('?')
-
-  if ((urlParts[0] || '').match(/(\/\/|\\)/)) {
-    console.error(
-      `Invalid href passed to next/router: ${urlAsString}, repeated forward-slashes (//) or backslashes \\ are not valid in the href`
-    )
-    const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoProto)
-    urlAsString = (urlProtoMatch ? urlProtoMatch[0] : '') + normalizedUrl
-  }
-
-  // Return because it cannot be routed by the Next.js router
-  if (!isLocalURL(urlAsString)) {
-    return (resolveAs ? [urlAsString] : urlAsString) as string
-  }
-
-  try {
-    base = new URL(
-      urlAsString.startsWith('#') ? router.asPath : router.pathname,
-      'http://n'
-    )
-  } catch (_) {
-    // fallback to / for invalid asPath values e.g. //
-    base = new URL('/', 'http://n')
-  }
-
-  try {
-    const finalUrl = new URL(urlAsString, base)
-    finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
-    let interpolatedAs = ''
-
-    if (
-      isDynamicRoute(finalUrl.pathname) &&
-      finalUrl.searchParams &&
-      resolveAs
-    ) {
-      const query = searchParamsToUrlQuery(finalUrl.searchParams)
-
-      const { result, params } = interpolateAs(
-        finalUrl.pathname,
-        finalUrl.pathname,
-        query
-      )
-
-      if (result) {
-        interpolatedAs = formatWithValidation({
-          pathname: result,
-          hash: finalUrl.hash,
-          query: omit(query, params),
-        })
-      }
-    }
-
-    // if the origin didn't change, it means we received a relative href
-    const resolvedHref =
-      finalUrl.origin === base.origin
-        ? finalUrl.href.slice(finalUrl.origin.length)
-        : finalUrl.href
-
-    return resolveAs
-      ? [resolvedHref, interpolatedAs || resolvedHref]
-      : resolvedHref
-  } catch (_) {
-    return resolveAs ? [urlAsString] : urlAsString
-  }
 }
 
 function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
@@ -538,7 +350,7 @@ async function withMiddlewareEffects<T extends FetchDataOutput>(
   }
 }
 
-type Url = UrlObject | string
+export type Url = UrlObject | string
 
 export type BaseRouter = {
   route: string
@@ -672,27 +484,6 @@ interface FetchNextDataParams {
   unstable_skipClientCache?: boolean
 }
 
-/**
- * Run function with `scroll-behavior: auto` applied to `<html/>`.
- * This css change will be reverted after the function finishes.
- */
-export function handleSmoothScroll(
-  fn: () => void,
-  options: { dontForceLayout?: boolean } = {}
-) {
-  const htmlElement = document.documentElement
-  const existing = htmlElement.style.scrollBehavior
-  htmlElement.style.scrollBehavior = 'auto'
-  if (!options.dontForceLayout) {
-    // In Chrome-based browsers we need to force reflow before calling `scrollTo`.
-    // Otherwise it will not pickup the change in scrollBehavior
-    // More info here: https://github.com/vercel/next.js/issues/40719#issuecomment-1336248042
-    htmlElement.getClientRects()
-  }
-  fn()
-  htmlElement.style.scrollBehavior = existing
-}
-
 function tryToParseAsJSON(text: string) {
   try {
     return JSON.parse(text)
@@ -791,7 +582,14 @@ function fetchNextData({
         if (!unstable_skipClientCache) {
           delete inflightCache[cacheKey]
         }
-        if (err.message === 'Failed to fetch') {
+        if (
+          // chrome
+          err.message === 'Failed to fetch' ||
+          // firefox
+          err.message === 'NetworkError when attempting to fetch resource.' ||
+          // safari
+          err.message === 'Load failed'
+        ) {
           markAssetError(err)
         }
         throw err
