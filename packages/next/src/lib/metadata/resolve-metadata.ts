@@ -353,9 +353,11 @@ async function getDefinedMetadata(
     )
   }
 
-  return mod.generateMetadata
-    ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
-    : mod.metadata
+  return (
+    (mod.generateMetadata
+      ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
+      : mod.metadata) || null
+  )
 }
 
 async function resolveStaticMetadata(
@@ -376,7 +378,7 @@ async function resolveStaticMetadata(
   }
 }
 
-// layout.metadata -> layout.metadata -> page.metadata
+// [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
 export async function collectMetadata(
   loaderTree: LoaderTree,
   props: any,
@@ -384,8 +386,8 @@ export async function collectMetadata(
 ) {
   const mod = await getLayoutOrPageModule(loaderTree)
   const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
-
   const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
+
   array.push([metadataExport, staticFilesMetadata])
 }
 
@@ -421,6 +423,8 @@ export async function accumulateMetadata(
       })
     })
   }
+  // @ts-ignore
+  // console.log('await parentPromise', (await parentPromise).icons.icon)
   return await parentPromise
 }
 

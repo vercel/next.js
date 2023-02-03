@@ -1085,8 +1085,7 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      // const mod = await getLayoutOrPageModule(tree)
-      await collectMetadata(loaderTree, layerProps, metadataItems)
+      await collectMetadata(tree, layerProps, metadataItems)
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]

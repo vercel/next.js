@@ -46,6 +46,7 @@ async function createTreeCodeFromPath({
   resolve,
   resolveParallelSegments,
   isDev,
+  addDependency,
 }: {
   pagePath: string
   resolve: (
@@ -56,6 +57,7 @@ async function createTreeCodeFromPath({
     pathname: string
   ) => [key: string, segment: string][]
   isDev: boolean
+  addDependency: (dep: string) => any
 }) {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
@@ -75,28 +77,37 @@ async function createTreeCodeFromPath({
 
     // collect metadata if there's any from the folder of the page
     const resolvedRouteDir = await resolve(routerDirPath, true)
-    if (resolvedRouteDir) {
+    const isDirectory = resolvedRouteDir
+      ? (await fs.stat(resolvedRouteDir)).isDirectory()
+      : false
+
+    if (resolvedRouteDir && isDirectory) {
       const files = await fs.readdir(resolvedRouteDir, {
         encoding: 'utf-8',
         withFileTypes: true,
       })
 
-      files.forEach((file) => {
-        if (!file.isFile()) return
-        // Match files without case sensitivity
-        if (staticAssetIconImageRegex.test(file.name.toLowerCase())) {
-          hasStaticMetadataFiles = true
+      files
+        .filter((file) => file.isFile())
+        // sort filenames in lexical order
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((file) => {
+          // Match files without case sensitivity
+          if (staticAssetIconImageRegex.test(file.name.toLowerCase())) {
+            hasStaticMetadataFiles = true
 
-          const filepath = path.join(resolvedRouteDir, file.name)
-          metadata.icons.push(
-            `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-              `next-metadata-image-loader?${stringify({ isDev })}!` +
-                filepath +
-                '?__next_metadata'
-            )})`
-          )
-        }
-      })
+            const filepath = path.join(resolvedRouteDir, file.name)
+            addDependency(filepath)
+
+            metadata.icons.push(
+              `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+                `next-metadata-image-loader?${stringify({ isDev })}!` +
+                  filepath +
+                  '?__next_metadata'
+              )})`
+            )
+          }
+        })
     }
 
     return hasStaticMetadataFiles ? metadata : null
@@ -135,7 +146,15 @@ async function createTreeCodeFromPath({
         props[parallelKey] = `['', {}, {
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
-          )}), ${JSON.stringify(resolvedPagePath)}]}]`
+          )}), ${JSON.stringify(resolvedPagePath)}],
+          ${
+            metadata
+              ? `${METADATA_TYPE}: {
+                icons: [${metadata.icons.join(',')}]
+              }`
+              : ''
+          }
+        }]`
         continue
       }
 
@@ -171,27 +190,25 @@ async function createTreeCodeFromPath({
         )
       }
 
+      const definedFilePaths = filePaths.filter(
+        ([, filePath]) => filePath !== undefined
+      )
       props[parallelKey] = `[
         '${parallelSegment}',
         ${subtreeCode},
         {
-          ${filePaths
-            .filter(([, filePath]) => filePath !== undefined)
+          ${definedFilePaths
             .map(([file, filePath]) => {
-              if (filePath === undefined) {
-                return ''
-              }
-
               return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
                 filePath
               )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
           ${
-            metadata
-              ? `\n'${METADATA_TYPE}': {
-              icons: [${metadata.icons.join(',')}]
-            }`
+            definedFilePaths.length && metadata
+              ? `${METADATA_TYPE}: {
+                  icons: [${metadata.icons.join(',')}]
+                }`
               : ''
           }
         }
@@ -316,6 +333,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     resolve: resolver,
     resolveParallelSegments,
     isDev: !!isDev,
+    addDependency: this.addDependency.bind(this),
   })
 
   if (!rootLayout) {
