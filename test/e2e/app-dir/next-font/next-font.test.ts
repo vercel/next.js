@@ -2,7 +2,11 @@ import { createNextDescribe } from 'e2e-utils'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 
 const getAttrs = (elems: Cheerio) =>
-  Array.from(elems).map((elem) => elem.attribs)
+  Array.from(elems)
+    .map((elem) => elem.attribs)
+    // There is something weord that causes different machines to have different order of things
+    // My machine behaves differently to CI
+    .sort((a, b) => (a.href < b.href ? -1 : 1))
 
 createNextDescribe(
   'app dir next-font',
