@@ -1373,6 +1373,12 @@ export async function renderToHTMLOrFlight(
             `The default export of notFound is not a React Component in ${segment}`
           )
         }
+
+        if (layoutOrPageMod?.config?.amp) {
+          throw new Error(
+            'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
+          )
+        }
       }
 
       // Handle dynamic segment params.
@@ -1561,7 +1567,7 @@ export async function renderToHTMLOrFlight(
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
                       // @ts-ignore
-                      precedence="high"
+                      precedence="next.js"
                       key={index}
                     />
                   ))
