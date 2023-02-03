@@ -179,7 +179,7 @@ impl EcmascriptInputTransform {
                         Assumptions::default(),
                         &mut FeatureFlag::empty(),
                     ),
-                    inject_helpers()
+                    inject_helpers(unresolved_mark),
                 ));
             }
             EcmascriptInputTransform::StyledComponents => {
