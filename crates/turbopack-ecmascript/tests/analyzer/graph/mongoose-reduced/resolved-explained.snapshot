@@ -5,7 +5,7 @@ Collection = ???*0*
   ⚠️  only constant argument is supported
 - *1* require: The require method from CommonJS
 - *2* ???*3*["MONGOOSE_DRIVER_PATH"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *3* FreeVar(global)
   ⚠️  unknown global
 
@@ -16,12 +16,12 @@ Connection = ???*0*
   ⚠️  only constant argument is supported
 - *1* require: The require method from CommonJS
 - *2* ???*3*["MONGOOSE_DRIVER_PATH"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *3* FreeVar(global)
   ⚠️  unknown global
 
 driver = (???*0* | "./drivers/node-mongodb-native")
 - *0* ???*1*["MONGOOSE_DRIVER_PATH"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *1* FreeVar(global)
   ⚠️  unknown global

@@ -141,7 +141,7 @@ impl TestAppBuilder {
                     };
 
                     #[cfg(windows)]
-                    let relative_effect = relative_effect.replace("\\", "/");
+                    let relative_effect = relative_effect.replace('\\', "/");
 
                     formatdoc! {r#"
                         {SETUP_IMPORTS}

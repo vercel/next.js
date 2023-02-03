@@ -2,47 +2,56 @@
     (
         "*anonymous function 181*",
         Function(
-            9,
-            MemberCall(
-                8,
-                Variable(
-                    (
-                        Atom('crypt' type=inline),
-                        #1,
-                    ),
-                ),
-                Constant(
-                    StrWord(
-                        Atom('endian' type=inline),
-                    ),
-                ),
+            11,
+            181,
+            Alternatives(
+                10,
                 [
-                    Array(
-                        5,
+                    Constant(
+                        Undefined,
+                    ),
+                    MemberCall(
+                        8,
+                        Variable(
+                            (
+                                Atom('crypt' type=inline),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            StrWord(
+                                Atom('endian' type=inline),
+                            ),
+                        ),
                         [
-                            Variable(
-                                (
-                                    Atom('a' type=static),
-                                    #3,
-                                ),
-                            ),
-                            Variable(
-                                (
-                                    Atom('b' type=static),
-                                    #3,
-                                ),
-                            ),
-                            Variable(
-                                (
-                                    Atom('c' type=inline),
-                                    #3,
-                                ),
-                            ),
-                            Variable(
-                                (
-                                    Atom('d' type=static),
-                                    #3,
-                                ),
+                            Array(
+                                5,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('a' type=static),
+                                            #3,
+                                        ),
+                                    ),
+                                    Variable(
+                                        (
+                                            Atom('b' type=static),
+                                            #3,
+                                        ),
+                                    ),
+                                    Variable(
+                                        (
+                                            Atom('c' type=inline),
+                                            #3,
+                                        ),
+                                    ),
+                                    Variable(
+                                        (
+                                            Atom('d' type=static),
+                                            #3,
+                                        ),
+                                    ),
+                                ],
                             ),
                         ],
                     ),
@@ -53,19 +62,28 @@
     (
         "*anonymous function 5013*",
         Function(
-            4,
-            Add(
-                3,
+            6,
+            5013,
+            Alternatives(
+                5,
                 [
-                    Unknown(
-                        None,
-                        "unsupported expression",
+                    Constant(
+                        Undefined,
                     ),
-                    Variable(
-                        (
-                            Atom('b' type=static),
-                            #4,
-                        ),
+                    Add(
+                        3,
+                        [
+                            Unknown(
+                                None,
+                                "unsupported expression",
+                            ),
+                            Variable(
+                                (
+                                    Atom('b' type=static),
+                                    #4,
+                                ),
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -74,19 +92,28 @@
     (
         "*anonymous function 5163*",
         Function(
-            4,
-            Add(
-                3,
+            6,
+            5163,
+            Alternatives(
+                5,
                 [
-                    Unknown(
-                        None,
-                        "unsupported expression",
+                    Constant(
+                        Undefined,
                     ),
-                    Variable(
-                        (
-                            Atom('b' type=static),
-                            #5,
-                        ),
+                    Add(
+                        3,
+                        [
+                            Unknown(
+                                None,
+                                "unsupported expression",
+                            ),
+                            Variable(
+                                (
+                                    Atom('b' type=static),
+                                    #5,
+                                ),
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -95,19 +122,28 @@
     (
         "*anonymous function 5313*",
         Function(
-            4,
-            Add(
-                3,
+            6,
+            5313,
+            Alternatives(
+                5,
                 [
-                    Unknown(
-                        None,
-                        "unsupported expression",
+                    Constant(
+                        Undefined,
                     ),
-                    Variable(
-                        (
-                            Atom('b' type=static),
-                            #6,
-                        ),
+                    Add(
+                        3,
+                        [
+                            Unknown(
+                                None,
+                                "unsupported expression",
+                            ),
+                            Variable(
+                                (
+                                    Atom('b' type=static),
+                                    #6,
+                                ),
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -116,19 +152,28 @@
     (
         "*anonymous function 5454*",
         Function(
-            4,
-            Add(
-                3,
+            6,
+            5454,
+            Alternatives(
+                5,
                 [
-                    Unknown(
-                        None,
-                        "unsupported expression",
+                    Constant(
+                        Undefined,
                     ),
-                    Variable(
-                        (
-                            Atom('b' type=static),
-                            #7,
-                        ),
+                    Add(
+                        3,
+                        [
+                            Unknown(
+                                None,
+                                "unsupported expression",
+                            ),
+                            Variable(
+                                (
+                                    Atom('b' type=static),
+                                    #7,
+                                ),
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -137,10 +182,14 @@
     (
         "*anonymous function 5685*",
         Function(
-            11,
+            12,
+            5685,
             Alternatives(
-                10,
+                11,
                 [
+                    Constant(
+                        Undefined,
+                    ),
                     Variable(
                         (
                             Atom('digestbytes' type=dynamic),
@@ -1471,24 +1520,28 @@
     (
         "a#4",
         Argument(
+            5013,
             0,
         ),
     ),
     (
         "a#5",
         Argument(
+            5163,
             0,
         ),
     ),
     (
         "a#6",
         Argument(
+            5313,
             0,
         ),
     ),
     (
         "a#7",
         Argument(
+            5454,
             0,
         ),
     ),
@@ -2696,24 +2749,28 @@
     (
         "b#4",
         Argument(
+            5013,
             1,
         ),
     ),
     (
         "b#5",
         Argument(
+            5163,
             1,
         ),
     ),
     (
         "b#6",
         Argument(
+            5313,
             1,
         ),
     ),
     (
         "b#7",
         Argument(
+            5454,
             1,
         ),
     ),
@@ -3951,24 +4008,28 @@
     (
         "c#4",
         Argument(
+            5013,
             2,
         ),
     ),
     (
         "c#5",
         Argument(
+            5163,
             2,
         ),
     ),
     (
         "c#6",
         Argument(
+            5313,
             2,
         ),
     ),
     (
         "c#7",
         Argument(
+            5454,
             2,
         ),
     ),
@@ -5199,24 +5260,28 @@
     (
         "d#4",
         Argument(
+            5013,
             3,
         ),
     ),
     (
         "d#5",
         Argument(
+            5163,
             3,
         ),
     ),
     (
         "d#6",
         Argument(
+            5313,
             3,
         ),
     ),
     (
         "d#7",
         Argument(
+            5454,
             3,
         ),
     ),
@@ -5344,6 +5409,7 @@
             22,
             [
                 Argument(
+                    181,
                     0,
                 ),
                 MemberCall(
@@ -5455,6 +5521,7 @@
     (
         "message#8",
         Argument(
+            5685,
             0,
         ),
     ),
@@ -5573,60 +5640,70 @@
     (
         "options#3",
         Argument(
+            181,
             1,
         ),
     ),
     (
         "options#8",
         Argument(
+            5685,
             1,
         ),
     ),
     (
         "s#4",
         Argument(
+            5013,
             5,
         ),
     ),
     (
         "s#5",
         Argument(
+            5163,
             5,
         ),
     ),
     (
         "s#6",
         Argument(
+            5313,
             5,
         ),
     ),
     (
         "s#7",
         Argument(
+            5454,
             5,
         ),
     ),
     (
         "t#4",
         Argument(
+            5013,
             6,
         ),
     ),
     (
         "t#5",
         Argument(
+            5163,
             6,
         ),
     ),
     (
         "t#6",
         Argument(
+            5313,
             6,
         ),
     ),
     (
         "t#7",
         Argument(
+            5454,
             6,
         ),
     ),
@@ -5657,24 +5734,28 @@
     (
         "x#4",
         Argument(
+            5013,
             4,
         ),
     ),
     (
         "x#5",
         Argument(
+            5163,
             4,
         ),
     ),
     (
         "x#6",
         Argument(
+            5313,
             4,
         ),
     ),
     (
         "x#7",
         Argument(
+            5454,
             4,
         ),
     ),

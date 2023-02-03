@@ -1,0 +1,4759 @@
+0 -> 12 member call = ???*0*["captureStackTrace"](???*1*, (...) => undefined)
+- *0* FreeVar(Error)
+  ⚠️  unknown global
+- *1* unsupported expression
+
+0 -> 13 call = (...) => undefined((...) => undefined, ???*0*)
+- *0* FreeVar(Error)
+  ⚠️  unknown global
+
+0 -> 16 call = (...) => (
+  | undefined
+  | ...[...](..., ...)["replace"](/"/g, "\"")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
+)(???*0*)
+- *0* ???*1*["text"]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 24 call = (...) => (
+  | undefined
+  | ...[...](..., ...)["replace"](/-/g, "\-")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+)(???*0*)
+- *0* ???*1*[0]
+  ⚠️  unknown object
+- *1* ???*2*[i]
+  ⚠️  unknown object
+- *2* ???*3*["parts"]
+  ⚠️  unknown object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 28 call = (...) => (
+  | undefined
+  | ...[...](..., ...)["replace"](/-/g, "\-")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+)(???*0*)
+- *0* ???*1*[1]
+  ⚠️  unknown object
+- *1* ???*2*[i]
+  ⚠️  unknown object
+- *2* ???*3*["parts"]
+  ⚠️  unknown object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 31 call = (...) => (
+  | undefined
+  | ...[...](..., ...)["replace"](/-/g, "\-")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+)(???*0*)
+- *0* ???*1*[i]
+  ⚠️  unknown object
+- *1* ???*2*["parts"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 37 member call = ???*0*["charCodeAt"](0)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 38 member call = ???*0*["toString"](16)
+- *0* ???*1*["charCodeAt"](0)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 39 member call = ???*0*["toUpperCase"]()
+- *0* ???*1*["toString"](16)
+  ⚠️  unknown callee object
+- *1* ???*2*["charCodeAt"](0)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 48 member call = ???*0*["replace"](/\\/g, "\\")
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 49 member call = ???*0*["replace"](/"/g, "\"")
+- *0* ???*1*["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 50 member call = ???*0*["replace"](/\0/g, "\0")
+- *0* ???*1*["replace"](/"/g, "\"")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 51 member call = ???*0*["replace"](/\t/g, "\t")
+- *0* ???*1*["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/"/g, "\"")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 52 member call = ???*0*["replace"](/\n/g, "\n")
+- *0* ???*1*["replace"](/\t/g, "\t")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/"/g, "\"")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 53 member call = ???*0*["replace"](/\r/g, "\r")
+- *0* ???*1*["replace"](/\n/g, "\n")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\t/g, "\t")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/"/g, "\"")
+  ⚠️  unknown callee object
+- *4* ???["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+
+0 -> 54 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => (undefined | `\x0${hex(ch)}`))
+- *0* ???*1*["replace"](/\r/g, "\r")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\n/g, "\n")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\t/g, "\t")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+- *4* ???["replace"](/"/g, "\"")
+  ⚠️  unknown callee object
+
+54 -> 55 call = (...) => (
+  | undefined
+  | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+)(???*0*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 56 member call = ???*0*["replace"](/[\x10-\x1F\x7F-\x9F]/g, (...) => (undefined | `\x${hex(ch)}`))
+- *0* ???*1*["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\r/g, "\r")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\n/g, "\n")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/\t/g, "\t")
+  ⚠️  unknown callee object
+- *4* ???["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+
+56 -> 57 call = (...) => (
+  | undefined
+  | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+)(???*0*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 68 member call = ???*0*["replace"](/\\/g, "\\")
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 69 member call = ???*0*["replace"](/\]/g, "\]")
+- *0* ???*1*["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 70 member call = ???*0*["replace"](/\^/g, "\^")
+- *0* ???*1*["replace"](/\]/g, "\]")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 71 member call = ???*0*["replace"](/-/g, "\-")
+- *0* ???*1*["replace"](/\^/g, "\^")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\]/g, "\]")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 72 member call = ???*0*["replace"](/\0/g, "\0")
+- *0* ???*1*["replace"](/-/g, "\-")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\^/g, "\^")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\]/g, "\]")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 73 member call = ???*0*["replace"](/\t/g, "\t")
+- *0* ???*1*["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/-/g, "\-")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\^/g, "\^")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/\]/g, "\]")
+  ⚠️  unknown callee object
+- *4* ???["replace"](/\\/g, "\\")
+  ⚠️  unknown callee object
+
+0 -> 74 member call = ???*0*["replace"](/\n/g, "\n")
+- *0* ???*1*["replace"](/\t/g, "\t")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/-/g, "\-")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/\^/g, "\^")
+  ⚠️  unknown callee object
+- *4* ???["replace"](/\]/g, "\]")
+  ⚠️  unknown callee object
+
+0 -> 75 member call = ???*0*["replace"](/\r/g, "\r")
+- *0* ???*1*["replace"](/\n/g, "\n")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\t/g, "\t")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/-/g, "\-")
+  ⚠️  unknown callee object
+- *4* ???["replace"](/\^/g, "\^")
+  ⚠️  unknown callee object
+
+0 -> 76 member call = ???*0*["replace"](/[\x00-\x0F]/g, (...) => (undefined | `\x0${hex(ch)}`))
+- *0* ???*1*["replace"](/\r/g, "\r")
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\n/g, "\n")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\t/g, "\t")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+- *4* ???["replace"](/-/g, "\-")
+  ⚠️  unknown callee object
+
+76 -> 77 call = (...) => (
+  | undefined
+  | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+)(???*0*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 78 member call = ???*0*["replace"](/[\x10-\x1F\x7F-\x9F]/g, (...) => (undefined | `\x${hex(ch)}`))
+- *0* ???*1*["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)
+  ⚠️  unknown callee object
+- *1* ???*2*["replace"](/\r/g, "\r")
+  ⚠️  unknown callee object
+- *2* ???*3*["replace"](/\n/g, "\n")
+  ⚠️  unknown callee object
+- *3* ???*4*["replace"](/\t/g, "\t")
+  ⚠️  unknown callee object
+- *4* ???["replace"](/\0/g, "\0")
+  ⚠️  unknown callee object
+
+78 -> 79 call = (...) => (
+  | undefined
+  | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+)(???*0*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 82 member call = {
+    "literal": (...) => (undefined | `"${literalEscape(expectation["text"])}"`),
+    "class": (...) => (undefined | `[${("^" | "")}${escapedParts}]`),
+    "any": (...) => (undefined | "any character"),
+    "end": (...) => (undefined | "end of input"),
+    "other": (...) => (undefined | expectation["description"])
+}[???*0*](???*2*)
+- *0* ???*1*["type"]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 87 call = (...) => (
+  | undefined
+  | DESCRIBE_EXPECTATION_FNS[expectation["type"]](expectation)
+)(???*0*)
+- *0* ???*1*[i]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 89 member call = ???*0*["sort"]()
+- *0* unknown new expression
+
+0 -> 103 member call = ???*0*["slice"](0, ???*1*)
+- *0* unknown new expression
+- *1* unsupported expression
+
+0 -> 104 member call = ???*0*["join"](", ")
+- *0* ???*1*["slice"](0, ???*2*)
+  ⚠️  unknown callee object
+- *1* unknown new expression
+- *2* unsupported expression
+
+0 -> 107 call = (...) => (
+  | undefined
+  | ...[...](..., ...)["replace"](/"/g, "\"")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
+)(???*0*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 108 call = (...) => (
+  | undefined
+  | descriptions[0]
+  | `${descriptions[0]} or ${descriptions[1]}`
+  | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+)(???*2*)
+- *0* unsupported expression
+- *1* unsupported expression
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 109 call = (...) => (undefined | `"${literalEscape(found)}"` | "end of input")(???*0*)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 110 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("*", false)
+
+0 -> 111 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)(",", false)
+
+0 -> 112 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)(".", false)
+
+0 -> 113 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("(", false)
+
+0 -> 114 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)(")", false)
+
+0 -> 115 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("{", false)
+
+0 -> 116 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("}", false)
+
+0 -> 117 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("[", false)
+
+0 -> 118 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("]", false)
+
+0 -> 119 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("undefined", false)
+
+0 -> 120 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("-", false)
+
+0 -> 121 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("0x", false)
+
+0 -> 122 call = (...) => (
+  | undefined
+  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
+)([["0", "9"]], false, false)
+
+0 -> 123 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+
+0 -> 124 call = ???*0*((undefined | ???*1*), 16)
+- *0* FreeVar(parseInt)
+  ⚠️  unknown global
+- *1* ???*2*["substring"](peg$savedPos, peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 125 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+
+0 -> 126 call = ???*0*((undefined | ???*1*))
+- *0* FreeVar(parseFloat)
+  ⚠️  unknown global
+- *1* ???*2*["substring"](peg$savedPos, peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 127 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)(""", false)
+
+0 -> 129 member call = ???*0*["join"]("")
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 130 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("'", false)
+
+0 -> 131 call = (...) => (
+  | undefined
+  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
+)(
+    [
+        " ",
+        "	",
+        "
+",
+        ""
+    ],
+    false,
+    false
+)
+
+0 -> 132 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("--", false)
+
+0 -> 133 call = (...) => (
+  | undefined
+  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
+)(
+    [
+        "
+",
+        ""
+    ],
+    false,
+    false
+)
+
+0 -> 134 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("SELECT", true)
+
+0 -> 135 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("TOP", true)
+
+0 -> 136 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("FROM", true)
+
+0 -> 137 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("WHERE", true)
+
+0 -> 138 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("ORDER", true)
+
+0 -> 139 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("BY", true)
+
+0 -> 140 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("AS", true)
+
+0 -> 141 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("JOIN", true)
+
+0 -> 142 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("IN", true)
+
+0 -> 143 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("VALUE", true)
+
+0 -> 144 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("ASC", true)
+
+0 -> 145 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("DESC", true)
+
+0 -> 146 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("AND", true)
+
+0 -> 147 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("OR", true)
+
+0 -> 148 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("NOT", true)
+
+0 -> 149 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("BETWEEN", true)
+
+0 -> 150 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("EXISTS", true)
+
+0 -> 151 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("ARRAY", true)
+
+0 -> 152 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("null", false)
+
+0 -> 153 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("true", false)
+
+0 -> 154 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("false", false)
+
+0 -> 155 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("udf", false)
+
+0 -> 156 call = (...) => (
+  | undefined
+  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
+)([["a", "z"], ["A", "Z"], "_"], false, false)
+
+0 -> 157 call = (...) => (
+  | undefined
+  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
+)([["a", "z"], ["A", "Z"], ["0", "9"], "_"], false, false)
+
+0 -> 159 member call = ???*0*["join"]("")
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 160 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("@", false)
+
+0 -> 161 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+
+0 -> 162 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("+", false)
+
+0 -> 163 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("~", false)
+
+0 -> 164 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("\", false)
+
+0 -> 165 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+
+0 -> 166 call = (...) => (undefined | {"type": "any"})()
+
+0 -> 167 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("b", false)
+
+0 -> 168 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("f", false)
+
+0 -> 169 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("n", false)
+
+0 -> 170 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("r", false)
+
+0 -> 171 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("t", false)
+
+0 -> 172 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+
+0 -> 173 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("u", false)
+
+0 -> 175 call = ???*0*(???*1*, 16)
+- *0* FreeVar(parseInt)
+  ⚠️  unknown global
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 176 member call = ???*0*["fromCharCode"](???*1*)
+- *0* FreeVar(String)
+  ⚠️  unknown global
+- *1* ???*2*(digits, 16)
+  ⚠️  unknown callee
+- *2* FreeVar(parseInt)
+  ⚠️  unknown global
+
+0 -> 177 call = (...) => (
+  | undefined
+  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
+)([["0", "9"], ["a", "f"]], false, true)
+
+0 -> 179 member call = ???*0*["reduce"](
+    (...) => {"type": "scalar_member_expression", "object": object, "property": property, "computed": computed},
+    ???*1*
+)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 180 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("?", false)
+
+0 -> 181 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)(":", false)
+
+0 -> 182 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("??", false)
+
+0 -> 183 call = (...) => (undefined | tail["reduce"](*arrow function 169161*, head))(???*0*, ???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 184 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("=", false)
+
+0 -> 185 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("!=", false)
+
+0 -> 186 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("<>", false)
+
+0 -> 187 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("<=", false)
+
+0 -> 188 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)(">=", false)
+
+0 -> 189 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("<", false)
+
+0 -> 190 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)(">", false)
+
+0 -> 191 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("|", false)
+
+0 -> 192 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("^", false)
+
+0 -> 193 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("&", false)
+
+0 -> 194 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("<<", false)
+
+0 -> 195 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)(">>>", false)
+
+0 -> 196 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)(">>", false)
+
+0 -> 197 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("||", false)
+
+0 -> 198 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("/", false)
+
+0 -> 199 call = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)("%", false)
+
+0 -> 201 member call = ???*0*["reduce"](
+    (...) => {
+        "type": "collection_member_expression",
+        "object": object,
+        "property": property,
+        "computed": computed
+    },
+    ???*1*
+)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 202 call = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))()
+
+0 -> 203 call = ???*0*((undefined | ???*1*))
+- *0* FreeVar(Number)
+  ⚠️  unknown global
+- *1* ???*2*["substring"](peg$savedPos, peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 205 conditional = !(???*0*)
+- *0* unsupported expression
+
+0 -> 210 member call = ???*0*["substring"](???*1*, ???*2*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+
+0 -> 211 call = (...) => (
+  | undefined
+  | {
+        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+    }
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 212 call = (...) => (
+  | undefined
+  | {
+        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+    }
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 213 call = (...) => (undefined | {"type": "other", "description": description})(???*0*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 215 member call = ???*0*["substring"](???*1*, ???*2*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+
+0 -> 216 call = (...) => (undefined | ???*0*)(
+    [
+        (undefined | {"type": "other", "description": ???*1*})
+    ],
+    ???*2*,
+    ???*4*
+)
+- *0* unknown new expression
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["substring"](peg$savedPos, peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *4* max number of linking steps reached
+
+0 -> 217 call = (...) => (
+  | undefined
+  | {
+        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+    }
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 218 call = (...) => (undefined | ???*0*)(???*1*, ???*2*)
+- *0* unknown new expression
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* max number of linking steps reached
+
+0 -> 220 conditional = ({"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
+- *0* [][???*1*]
+  ⚠️  unknown array prototype methods or values
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["line"]
+  ⚠️  unknown object
+- *3* details
+  ⚠️  circular variable reference
+- *4* ???*5*["column"]
+  ⚠️  unknown object
+- *5* details
+  ⚠️  circular variable reference
+
+220 -> 226 member call = ???*0*["charCodeAt"]((???*1* | ???*2*))
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* p
+  ⚠️  pattern without value
+- *2* unsupported expression
+
+0 -> 231 call = (...) => (undefined | details)(???*0*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 232 call = (...) => (undefined | details)(???*0*)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 238 member call = []["push"](???*0*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 240 member call = (...) => undefined["buildMessage"](???*0*, ???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 241 call = (...) => (undefined | s0)()
+
+0 -> 242 call = (...) => (undefined | s0)()
+
+0 -> 243 call = (...) => (undefined | s0)()
+
+0 -> 244 call = (...) => (undefined | {"type": "sql", "body": body})(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 245 call = (...) => (undefined | s0)()
+
+0 -> 246 call = (...) => (undefined | s0)()
+
+0 -> 247 call = (...) => (undefined | s0)()
+
+0 -> 248 call = (...) => (undefined | s0)()
+
+0 -> 249 call = (...) => (undefined | s0)()
+
+0 -> 250 call = (...) => (undefined | v)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 251 call = (...) => (undefined | s0)()
+
+0 -> 252 call = (...) => (undefined | s0)()
+
+0 -> 253 call = (...) => (undefined | s0)()
+
+0 -> 254 call = (...) => (undefined | s0)()
+
+0 -> 255 call = (...) => (undefined | s0)()
+
+0 -> 256 call = (...) => (undefined | s0)()
+
+0 -> 257 call = (...) => (undefined | v)(???*0*, ???*1*, ???*2*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+
+0 -> 258 call = (...) => (undefined | s0)()
+
+0 -> 259 call = (...) => (undefined | s0)()
+
+0 -> 260 call = (...) => (undefined | s0)()
+
+0 -> 261 call = (...) => (undefined | s0)()
+
+0 -> 262 call = (...) => (undefined | v)(???*0*, ???*1*, ???*2*, ???*3*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+
+0 -> 263 call = (...) => (undefined | s0)()
+
+0 -> 264 call = (...) => (undefined | s0)()
+
+0 -> 265 call = (...) => (undefined | s0)()
+
+0 -> 266 call = (...) => (undefined | s0)()
+
+0 -> 267 call = (...) => (undefined | s0)()
+
+0 -> 268 call = (...) => (undefined | s0)()
+
+0 -> 269 call = (...) => (undefined | v)(???*0*, ???*1*, ???*2*, ???*3*, ???*4*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+
+0 -> 270 call = (...) => (
+  | undefined
+  | {
+        "type": "select_query",
+        "top": top,
+        "select": select,
+        "from": from,
+        "where": where,
+        "orderBy": orderBy
+    }
+)(???*0*, ???*1*, ???*2*, ???*3*, ???*4*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+
+0 -> 272 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 273 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "*", "ignoreCase": false}
+    )
+)
+
+0 -> 274 call = (...) => (undefined | {"type": "select_specification", "*": true})()
+
+0 -> 275 call = (...) => (undefined | s0)()
+
+0 -> 276 call = (...) => (
+  | undefined
+  | {"type": "select_specification", "properties": properties}
+)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 277 call = (...) => (undefined | s0)()
+
+0 -> 278 call = (...) => (undefined | s0)()
+
+0 -> 279 call = (...) => (undefined | s0)()
+
+0 -> 280 call = (...) => (undefined | {"type": "select_specification", "value": value})(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 281 call = (...) => (undefined | s0)()
+
+0 -> 282 call = (...) => (undefined | s0)()
+
+0 -> 284 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 285 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 286 call = (...) => (undefined | s0)()
+
+0 -> 287 call = (...) => (undefined | s0)()
+
+0 -> 288 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 290 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 291 call = (...) => (undefined | s0)()
+
+0 -> 293 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 294 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 295 call = (...) => (undefined | s0)()
+
+0 -> 296 call = (...) => (undefined | s0)()
+
+0 -> 297 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 298 call = (...) => (
+  | undefined
+  | {"type": "object_property_list", "properties": ???*0*}
+)(???*1*, (???*2* | []))
+- *0* spread is not supported
+- *1* max number of linking steps reached
+- *2* s2
+  ⚠️  pattern without value
+
+0 -> 299 call = (...) => (undefined | s0)()
+
+0 -> 300 call = (...) => (undefined | s0)()
+
+0 -> 301 call = (...) => (undefined | s0)()
+
+0 -> 302 call = (...) => (undefined | s0)()
+
+0 -> 303 call = (...) => (undefined | s0)()
+
+0 -> 304 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 306 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 307 call = (...) => (undefined | s0)()
+
+0 -> 308 call = (...) => (undefined | s0)()
+
+0 -> 309 call = (...) => (undefined | s0)()
+
+0 -> 310 call = (...) => (undefined | s0)()
+
+0 -> 311 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 312 call = (...) => (
+  | undefined
+  | {"type": "from_specification", "source": source, "joins": joins}
+)(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 313 call = (...) => (undefined | s0)()
+
+0 -> 314 call = (...) => (undefined | s0)()
+
+0 -> 315 call = (...) => (undefined | s0)()
+
+0 -> 316 call = (...) => (undefined | s0)()
+
+0 -> 317 call = (...) => (undefined | s0)()
+
+0 -> 318 call = (...) => (
+  | undefined
+  | {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 319 call = (...) => (undefined | s0)()
+
+0 -> 320 call = (...) => (undefined | s0)()
+
+0 -> 321 call = (...) => (undefined | s0)()
+
+0 -> 322 call = (...) => (undefined | s0)()
+
+0 -> 323 call = (...) => (undefined | s0)()
+
+0 -> 324 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 325 call = (...) => (
+  | undefined
+  | {"type": "from_source", "expression": expression, "alias": alias}
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 326 call = (...) => (undefined | s0)()
+
+0 -> 327 call = (...) => (undefined | s0)()
+
+0 -> 328 call = (...) => (undefined | s0)()
+
+0 -> 329 call = (...) => (undefined | s0)()
+
+0 -> 330 call = (...) => (
+  | undefined
+  | {"type": "filter_condition", "condition": condition}
+)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 331 call = (...) => (undefined | s0)()
+
+0 -> 332 call = (...) => (undefined | s0)()
+
+0 -> 334 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 335 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 336 call = (...) => (undefined | s0)()
+
+0 -> 337 call = (...) => (undefined | s0)()
+
+0 -> 338 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 340 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 341 call = (...) => (undefined | s0)()
+
+0 -> 343 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 344 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 345 call = (...) => (undefined | s0)()
+
+0 -> 346 call = (...) => (undefined | s0)()
+
+0 -> 347 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 348 call = (...) => (
+  | undefined
+  | {"type": "sort_specification", "expressions": ???*0*}
+)(???*1*, (???*2* | []))
+- *0* spread is not supported
+- *1* max number of linking steps reached
+- *2* s2
+  ⚠️  pattern without value
+
+0 -> 349 call = (...) => (undefined | s0)()
+
+0 -> 350 call = (...) => (undefined | s0)()
+
+0 -> 351 call = (...) => (undefined | s0)()
+
+0 -> 352 call = (...) => (undefined | s0)()
+
+0 -> 353 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 354 call = (...) => (
+  | undefined
+  | {"type": "sort_expression", "expression": expression, "order": order}
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 355 call = (...) => (undefined | s0)()
+
+0 -> 356 call = (...) => (undefined | s0)()
+
+0 -> 358 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 359 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ".", "ignoreCase": false}
+    )
+)
+
+0 -> 360 call = (...) => (undefined | s0)()
+
+0 -> 361 call = (...) => (undefined | s0)()
+
+0 -> 362 call = (...) => (undefined | s0)()
+
+0 -> 364 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 365 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "(", "ignoreCase": false}
+    )
+)
+
+0 -> 366 call = (...) => (undefined | s0)()
+
+0 -> 367 call = (...) => (undefined | s0)()
+
+0 -> 368 call = (...) => (undefined | s0)()
+
+0 -> 370 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 371 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ")", "ignoreCase": false}
+    )
+)
+
+0 -> 372 call = (...) => (
+  | undefined
+  | {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 373 call = (...) => (undefined | s0)()
+
+0 -> 374 call = (...) => (undefined | s0)()
+
+0 -> 376 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 377 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "(", "ignoreCase": false}
+    )
+)
+
+0 -> 378 call = (...) => (undefined | s0)()
+
+0 -> 379 call = (...) => (undefined | s0)()
+
+0 -> 380 call = (...) => (undefined | s0)()
+
+0 -> 382 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 383 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ")", "ignoreCase": false}
+    )
+)
+
+0 -> 384 call = (...) => (
+  | undefined
+  | {"type": "scalar_function_expression", "name": name, "arguments": args}
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 386 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 387 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "{", "ignoreCase": false}
+    )
+)
+
+0 -> 388 call = (...) => (undefined | s0)()
+
+0 -> 389 call = (...) => (undefined | s0)()
+
+0 -> 390 call = (...) => (undefined | s0)()
+
+0 -> 392 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 393 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 394 call = (...) => (undefined | s0)()
+
+0 -> 395 call = (...) => (undefined | s0)()
+
+0 -> 396 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 398 member call = (???*0* | [])["push"](???*1*)
+- *0* s4
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 399 call = (...) => (undefined | s0)()
+
+0 -> 401 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 402 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 403 call = (...) => (undefined | s0)()
+
+0 -> 404 call = (...) => (undefined | s0)()
+
+0 -> 405 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 406 call = (...) => (undefined | s0)()
+
+0 -> 408 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 409 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "}", "ignoreCase": false}
+    )
+)
+
+0 -> 410 call = (...) => (
+  | undefined
+  | {"type": "scalar_object_expression", "properties": (???*0* | [])}
+)(???*1*, (???*2* | []))
+- *0* spread is not supported
+- *1* max number of linking steps reached
+- *2* s4
+  ⚠️  pattern without value
+
+0 -> 412 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 413 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "[", "ignoreCase": false}
+    )
+)
+
+0 -> 414 call = (...) => (undefined | s0)()
+
+0 -> 415 call = (...) => (undefined | s0)()
+
+0 -> 416 call = (...) => (undefined | s0)()
+
+0 -> 418 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 419 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "]", "ignoreCase": false}
+    )
+)
+
+0 -> 420 call = (...) => (
+  | undefined
+  | {"type": "scalar_array_expression", "elements": elements}
+)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 421 call = (...) => (undefined | s0)()
+
+0 -> 422 call = (...) => (undefined | s0)()
+
+0 -> 423 call = (...) => (undefined | s0)()
+
+0 -> 424 call = (...) => (undefined | s0)()
+
+0 -> 425 call = (...) => (undefined | s0)()
+
+0 -> 426 call = (...) => (undefined | s0)()
+
+0 -> 427 call = (...) => (undefined | s0)()
+
+0 -> 429 member call = ???*0*["substr"](???*1*, 9)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 430 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "undefined", "ignoreCase": false}
+    )
+)
+
+0 -> 431 call = (...) => (undefined | {"type": "undefined_constant"})()
+
+0 -> 432 call = (...) => (undefined | s0)()
+
+0 -> 433 call = (...) => (undefined | {"type": "null_constant"})()
+
+0 -> 434 call = (...) => (undefined | s0)()
+
+0 -> 435 call = (...) => (undefined | {"type": "boolean_constant", "value": false})()
+
+0 -> 436 call = (...) => (undefined | s0)()
+
+0 -> 437 call = (...) => (undefined | {"type": "boolean_constant", "value": true})()
+
+0 -> 439 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 440 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "-", "ignoreCase": false}
+    )
+)
+
+0 -> 442 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 443 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "0x", "ignoreCase": false}
+    )
+)
+
+0 -> 446 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 447 member call = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 448 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[0-9]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+448 -> 450 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+448 -> 451 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+    )
+)
+
+0 -> 453 member call = (???*0* | [] | {})["push"](???*1*)
+- *0* s3
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 456 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 457 member call = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 458 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[0-9]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+458 -> 460 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+458 -> 461 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+    )
+)
+
+0 -> 463 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 464 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ".", "ignoreCase": false}
+    )
+)
+
+0 -> 467 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 468 member call = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 469 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[0-9]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+469 -> 471 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+469 -> 472 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+    )
+)
+
+0 -> 474 member call = (???*0* | [] | {})["push"]((???*1* | ???*2* | {}))
+- *0* s6
+  ⚠️  pattern without value
+- *1* s7
+  ⚠️  pattern without value
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 477 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 478 member call = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 479 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[0-9]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+479 -> 481 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+479 -> 482 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+    )
+)
+
+0 -> 483 call = (...) => (
+  | undefined
+  | {
+        "type": "number_constant",
+        "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
+    }
+)((???*0* | "0x" | {} | null))
+- *0* s2
+  ⚠️  pattern without value
+
+0 -> 485 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 486 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": """, "ignoreCase": false}
+    )
+)
+
+0 -> 487 call = (...) => (undefined | s0)()
+
+0 -> 489 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 490 call = (...) => (undefined | s0)()
+
+0 -> 492 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 493 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": """, "ignoreCase": false}
+    )
+)
+
+0 -> 494 call = (...) => (
+  | undefined
+  | {"type": "string_constant", "value": chars["join"]("")}
+)((???*0* | []))
+- *0* s2
+  ⚠️  pattern without value
+
+0 -> 496 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 497 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "'", "ignoreCase": false}
+    )
+)
+
+0 -> 498 call = (...) => (undefined | s0)()
+
+0 -> 500 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 501 call = (...) => (undefined | s0)()
+
+0 -> 503 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 504 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "'", "ignoreCase": false}
+    )
+)
+
+0 -> 505 call = (...) => (
+  | undefined
+  | {"type": "string_constant", "value": chars["join"]("")}
+)((???*0* | []))
+- *0* s2
+  ⚠️  pattern without value
+
+0 -> 507 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 508 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "[", "ignoreCase": false}
+    )
+)
+
+0 -> 509 call = (...) => (undefined | s0)()
+
+0 -> 510 call = (...) => (undefined | s0)()
+
+0 -> 511 call = (...) => (undefined | s0)()
+
+0 -> 513 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 514 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 515 call = (...) => (undefined | s0)()
+
+0 -> 516 call = (...) => (undefined | s0)()
+
+0 -> 517 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 519 member call = (???*0* | [])["push"](???*1*)
+- *0* s4
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 520 call = (...) => (undefined | s0)()
+
+0 -> 522 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 523 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 524 call = (...) => (undefined | s0)()
+
+0 -> 525 call = (...) => (undefined | s0)()
+
+0 -> 526 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 527 call = (...) => (undefined | s0)()
+
+0 -> 529 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 530 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "]", "ignoreCase": false}
+    )
+)
+
+0 -> 531 call = (...) => (undefined | {"type": "array_constant", "elements": ???*0*})(???*1*, (???*2* | []))
+- *0* spread is not supported
+- *1* max number of linking steps reached
+- *2* s4
+  ⚠️  pattern without value
+
+0 -> 533 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 534 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "{", "ignoreCase": false}
+    )
+)
+
+0 -> 535 call = (...) => (undefined | s0)()
+
+0 -> 536 call = (...) => (undefined | s0)()
+
+0 -> 537 call = (...) => (undefined | s0)()
+
+0 -> 539 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 540 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 541 call = (...) => (undefined | s0)()
+
+0 -> 542 call = (...) => (undefined | s0)()
+
+0 -> 543 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 545 member call = (???*0* | [])["push"](???*1*)
+- *0* s4
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 546 call = (...) => (undefined | s0)()
+
+0 -> 548 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 549 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 550 call = (...) => (undefined | s0)()
+
+0 -> 551 call = (...) => (undefined | s0)()
+
+0 -> 552 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 553 call = (...) => (undefined | s0)()
+
+0 -> 555 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 556 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "}", "ignoreCase": false}
+    )
+)
+
+0 -> 557 call = (...) => (undefined | {"type": "object_constant", "properties": ???*0*})(???*1*, (???*2* | []))
+- *0* spread is not supported
+- *1* max number of linking steps reached
+- *2* s4
+  ⚠️  pattern without value
+
+0 -> 558 call = (...) => (undefined | s0)()
+
+0 -> 559 call = (...) => (undefined | s0)()
+
+0 -> 561 member call = (???*0* | [])["push"](???*1*)
+- *0* s0
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 562 call = (...) => (undefined | s0)()
+
+0 -> 563 call = (...) => (undefined | s0)()
+
+0 -> 566 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 567 member call = /^[ \t\n\r]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 568 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[ \t\n\r]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+568 -> 570 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+568 -> 571 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {
+            "type": "class",
+            "parts": [
+                " ",
+                "	",
+                "
+",
+                ""
+            ],
+            "inverted": false,
+            "ignoreCase": false
+        }
+    )
+)
+
+0 -> 573 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 574 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "--", "ignoreCase": false}
+    )
+)
+
+0 -> 577 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 578 member call = /^[\n\r]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 579 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[\n\r]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+579 -> 581 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+579 -> 582 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {
+            "type": "class",
+            "parts": [
+                "
+",
+                ""
+            ],
+            "inverted": false,
+            "ignoreCase": false
+        }
+    )
+)
+
+0 -> 583 call = (...) => (undefined | s0)()
+
+0 -> 585 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 588 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 589 member call = /^[\n\r]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 590 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[\n\r]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+590 -> 592 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+590 -> 593 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {
+            "type": "class",
+            "parts": [
+                "
+",
+                ""
+            ],
+            "inverted": false,
+            "ignoreCase": false
+        }
+    )
+)
+
+0 -> 594 call = (...) => (undefined | s0)()
+
+0 -> 597 member call = ???*0*["substr"](???*1*, 6)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 598 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 6)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 600 member call = ???*0*["substr"](???*1*, 6)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 601 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "SELECT", "ignoreCase": true}
+    )
+)
+
+0 -> 602 call = (...) => (undefined | s0)()
+
+0 -> 605 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 606 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 608 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 609 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "TOP", "ignoreCase": true}
+    )
+)
+
+0 -> 610 call = (...) => (undefined | s0)()
+
+0 -> 613 member call = ???*0*["substr"](???*1*, 4)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 614 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 4)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 616 member call = ???*0*["substr"](???*1*, 4)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 617 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "FROM", "ignoreCase": true}
+    )
+)
+
+0 -> 618 call = (...) => (undefined | s0)()
+
+0 -> 621 member call = ???*0*["substr"](???*1*, 5)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 622 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 5)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 624 member call = ???*0*["substr"](???*1*, 5)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 625 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "WHERE", "ignoreCase": true}
+    )
+)
+
+0 -> 626 call = (...) => (undefined | s0)()
+
+0 -> 629 member call = ???*0*["substr"](???*1*, 5)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 630 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 5)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 632 member call = ???*0*["substr"](???*1*, 5)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 633 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "ORDER", "ignoreCase": true}
+    )
+)
+
+0 -> 634 call = (...) => (undefined | s0)()
+
+0 -> 637 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 638 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 2)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 640 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 641 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "BY", "ignoreCase": true}
+    )
+)
+
+0 -> 642 call = (...) => (undefined | s0)()
+
+0 -> 645 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 646 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 2)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 648 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 649 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "AS", "ignoreCase": true}
+    )
+)
+
+0 -> 650 call = (...) => (undefined | s0)()
+
+0 -> 653 member call = ???*0*["substr"](???*1*, 4)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 654 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 4)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 656 member call = ???*0*["substr"](???*1*, 4)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 657 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "JOIN", "ignoreCase": true}
+    )
+)
+
+0 -> 658 call = (...) => (undefined | s0)()
+
+0 -> 661 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 662 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 2)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 664 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 665 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "IN", "ignoreCase": true}
+    )
+)
+
+0 -> 666 call = (...) => (undefined | s0)()
+
+0 -> 669 member call = ???*0*["substr"](???*1*, 5)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 670 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 5)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 672 member call = ???*0*["substr"](???*1*, 5)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 673 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "VALUE", "ignoreCase": true}
+    )
+)
+
+0 -> 674 call = (...) => (undefined | s0)()
+
+0 -> 677 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 678 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 680 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 681 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "ASC", "ignoreCase": true}
+    )
+)
+
+0 -> 682 call = (...) => (undefined | s0)()
+
+0 -> 683 call = (...) => (undefined | "ASC")()
+
+0 -> 686 member call = ???*0*["substr"](???*1*, 4)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 687 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 4)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 689 member call = ???*0*["substr"](???*1*, 4)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 690 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "DESC", "ignoreCase": true}
+    )
+)
+
+0 -> 691 call = (...) => (undefined | s0)()
+
+0 -> 692 call = (...) => (undefined | "DESC")()
+
+0 -> 695 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 696 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 698 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 699 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "AND", "ignoreCase": true}
+    )
+)
+
+0 -> 700 call = (...) => (undefined | s0)()
+
+0 -> 701 call = (...) => (undefined | "AND")()
+
+0 -> 704 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 705 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 2)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 707 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 708 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "OR", "ignoreCase": true}
+    )
+)
+
+0 -> 709 call = (...) => (undefined | s0)()
+
+0 -> 710 call = (...) => (undefined | "OR")()
+
+0 -> 713 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 714 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 716 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 717 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "NOT", "ignoreCase": true}
+    )
+)
+
+0 -> 718 call = (...) => (undefined | s0)()
+
+0 -> 719 call = (...) => (undefined | "NOT")()
+
+0 -> 722 member call = ???*0*["substr"](???*1*, 7)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 723 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 7)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 725 member call = ???*0*["substr"](???*1*, 7)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 726 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "BETWEEN", "ignoreCase": true}
+    )
+)
+
+0 -> 727 call = (...) => (undefined | s0)()
+
+0 -> 730 member call = ???*0*["substr"](???*1*, 6)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 731 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 6)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 733 member call = ???*0*["substr"](???*1*, 6)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 734 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "EXISTS", "ignoreCase": true}
+    )
+)
+
+0 -> 735 call = (...) => (undefined | s0)()
+
+0 -> 738 member call = ???*0*["substr"](???*1*, 5)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 739 member call = ???*0*["toLowerCase"]()
+- *0* ???*1*["substr"](peg$currPos, 5)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 741 member call = ???*0*["substr"](???*1*, 5)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 742 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "ARRAY", "ignoreCase": true}
+    )
+)
+
+0 -> 743 call = (...) => (undefined | s0)()
+
+0 -> 745 member call = ???*0*["substr"](???*1*, 4)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 746 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "null", "ignoreCase": false}
+    )
+)
+
+0 -> 747 call = (...) => (undefined | s0)()
+
+0 -> 749 member call = ???*0*["substr"](???*1*, 4)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 750 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "true", "ignoreCase": false}
+    )
+)
+
+0 -> 751 call = (...) => (undefined | s0)()
+
+0 -> 753 member call = ???*0*["substr"](???*1*, 5)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 754 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "false", "ignoreCase": false}
+    )
+)
+
+0 -> 755 call = (...) => (undefined | s0)()
+
+0 -> 757 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 758 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "udf", "ignoreCase": false}
+    )
+)
+
+0 -> 759 call = (...) => (undefined | s0)()
+
+0 -> 760 call = (...) => (undefined | s0)()
+
+0 -> 761 call = (...) => (undefined | s0)()
+
+0 -> 762 call = (...) => (undefined | s0)()
+
+0 -> 763 call = (...) => (undefined | s0)()
+
+0 -> 764 call = (...) => (undefined | s0)()
+
+0 -> 765 call = (...) => (undefined | s0)()
+
+0 -> 766 call = (...) => (undefined | s0)()
+
+0 -> 767 call = (...) => (undefined | s0)()
+
+0 -> 768 call = (...) => (undefined | s0)()
+
+0 -> 769 call = (...) => (undefined | s0)()
+
+0 -> 770 call = (...) => (undefined | s0)()
+
+0 -> 771 call = (...) => (undefined | s0)()
+
+0 -> 772 call = (...) => (undefined | s0)()
+
+0 -> 773 call = (...) => (undefined | s0)()
+
+0 -> 774 call = (...) => (undefined | s0)()
+
+0 -> 775 call = (...) => (undefined | s0)()
+
+0 -> 776 call = (...) => (undefined | s0)()
+
+0 -> 777 call = (...) => (undefined | s0)()
+
+0 -> 778 call = (...) => (undefined | s0)()
+
+0 -> 779 call = (...) => (undefined | s0)()
+
+0 -> 780 call = (...) => (undefined | s0)()
+
+0 -> 781 call = (...) => (undefined | s0)()
+
+0 -> 782 call = (...) => (undefined | s0)()
+
+0 -> 783 call = (...) => (undefined | s0)()
+
+0 -> 784 call = (...) => (undefined | {"type": "identifier", "name": name})(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 787 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 788 member call = /^[a-zA-Z_]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 789 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[a-zA-Z_]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+789 -> 791 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+789 -> 792 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "class", "parts": [["a", "z"], ["A", "Z"], "_"], "inverted": false, "ignoreCase": false}
+    )
+)
+
+0 -> 793 call = (...) => (undefined | s0)()
+
+0 -> 796 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 797 member call = /^[a-zA-Z0-9_]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 798 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[a-zA-Z0-9_]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+798 -> 800 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+798 -> 801 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {
+            "type": "class",
+            "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
+            "inverted": false,
+            "ignoreCase": false
+        }
+    )
+)
+
+0 -> 803 member call = (???*0* | [])["push"]((???*1* | ???*2* | {}))
+- *0* s2
+  ⚠️  pattern without value
+- *1* s3
+  ⚠️  pattern without value
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 806 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 807 member call = /^[a-zA-Z0-9_]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 808 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[a-zA-Z0-9_]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+808 -> 810 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+808 -> 811 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {
+            "type": "class",
+            "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
+            "inverted": false,
+            "ignoreCase": false
+        }
+    )
+)
+
+0 -> 812 call = (...) => (undefined | (head + tail["join"]("")))(
+    (???*0* | undefined | ???*1* | {} | (???*3* + (???*4* | ???*6*))),
+    (???*8* | [])
+)
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* s1
+  ⚠️  circular variable reference
+- *4* ???*5*["join"]("")
+  ⚠️  unknown callee object
+- *5* s2
+  ⚠️  pattern without value
+- *6* ???*7*("")
+  ⚠️  unknown callee
+- *7* []["join"]
+  ⚠️  non-num constant property on array
+- *8* s2
+  ⚠️  pattern without value
+
+0 -> 814 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 815 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "@", "ignoreCase": false}
+    )
+)
+
+0 -> 816 call = (...) => (undefined | s0)()
+
+0 -> 817 call = (...) => (undefined | {"type": "parameter_name", "name": text()})()
+
+0 -> 819 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 820 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "+", "ignoreCase": false}
+    )
+)
+
+0 -> 822 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 823 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "-", "ignoreCase": false}
+    )
+)
+
+0 -> 825 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 826 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "~", "ignoreCase": false}
+    )
+)
+
+0 -> 827 call = (...) => (undefined | s0)()
+
+0 -> 829 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 830 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": """, "ignoreCase": false}
+    )
+)
+
+0 -> 832 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 833 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "\", "ignoreCase": false}
+    )
+)
+
+0 -> 834 call = (...) => (undefined | s0)()
+
+0 -> 835 call = (...) => (undefined | text())()
+
+0 -> 837 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 838 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "\", "ignoreCase": false}
+    )
+)
+
+0 -> 839 call = (...) => (undefined | s0)()
+
+0 -> 840 call = (...) => (undefined | seq)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 842 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 843 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "'", "ignoreCase": false}
+    )
+)
+
+0 -> 845 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 846 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "\", "ignoreCase": false}
+    )
+)
+
+0 -> 847 call = (...) => (undefined | s0)()
+
+0 -> 848 call = (...) => (undefined | text())()
+
+0 -> 850 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 851 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "\", "ignoreCase": false}
+    )
+)
+
+0 -> 852 call = (...) => (undefined | s0)()
+
+0 -> 853 call = (...) => (undefined | seq)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 856 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 857 call = (...) => (undefined | FreeVar(undefined))((undefined | {"type": "any"}))
+
+0 -> 858 call = (...) => (undefined | s0)()
+
+0 -> 859 call = (...) => (undefined | s0)()
+
+0 -> 860 call = (...) => (undefined | s0)()
+
+0 -> 861 call = (...) => (undefined | s0)()
+
+0 -> 863 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 864 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "'", "ignoreCase": false}
+    )
+)
+
+0 -> 866 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 867 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": """, "ignoreCase": false}
+    )
+)
+
+0 -> 869 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 870 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "\", "ignoreCase": false}
+    )
+)
+
+0 -> 872 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 873 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "b", "ignoreCase": false}
+    )
+)
+
+0 -> 874 call = (...) => (undefined | "")()
+
+0 -> 876 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 877 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "f", "ignoreCase": false}
+    )
+)
+
+0 -> 878 call = (...) => (undefined | "")()
+
+0 -> 880 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 881 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "n", "ignoreCase": false}
+    )
+)
+
+0 -> 882 call = (...) => (
+  | undefined
+  | "
+"
+)()
+
+0 -> 884 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 885 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "r", "ignoreCase": false}
+    )
+)
+
+0 -> 886 call = (...) => (undefined | "")()
+
+0 -> 888 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 889 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "t", "ignoreCase": false}
+    )
+)
+
+0 -> 890 call = (...) => (undefined | "	")()
+
+0 -> 891 call = (...) => (undefined | s0)()
+
+0 -> 892 call = (...) => (undefined | s0)()
+
+0 -> 893 call = (...) => (undefined | text())()
+
+0 -> 894 call = (...) => (undefined | s0)()
+
+0 -> 896 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 897 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "u", "ignoreCase": false}
+    )
+)
+
+0 -> 899 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 900 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "u", "ignoreCase": false}
+    )
+)
+
+0 -> 901 call = (...) => (undefined | s0)()
+
+0 -> 902 call = (...) => (undefined | s0)()
+
+0 -> 903 call = (...) => (undefined | s0)()
+
+0 -> 904 call = (...) => (undefined | s0)()
+
+0 -> 906 member call = ???*0*["substring"](???*1*, ???*2*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+
+0 -> 907 call = (...) => (
+  | undefined
+  | FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))
+)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 910 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 911 member call = /^[0-9a-f]/i["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 912 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[0-9a-f]/i["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+912 -> 914 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+912 -> 915 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "class", "parts": [["0", "9"], ["a", "f"]], "inverted": false, "ignoreCase": true}
+    )
+)
+
+0 -> 916 call = (...) => (undefined | s0)()
+
+0 -> 917 call = (...) => (undefined | s0)()
+
+0 -> 918 call = (...) => (undefined | s0)()
+
+0 -> 919 call = (...) => (undefined | s0)()
+
+0 -> 920 call = (...) => (undefined | s0)()
+
+0 -> 921 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 922 call = (...) => (undefined | {"property": property, "alias": alias})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 923 call = (...) => (undefined | s0)()
+
+0 -> 924 call = (...) => (undefined | s0)()
+
+0 -> 925 call = (...) => (undefined | s0)()
+
+0 -> 926 call = (...) => (undefined | s0)()
+
+0 -> 927 call = (...) => (undefined | s0)()
+
+0 -> 928 call = (...) => (undefined | s0)()
+
+0 -> 930 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 931 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "(", "ignoreCase": false}
+    )
+)
+
+0 -> 932 call = (...) => (undefined | s0)()
+
+0 -> 933 call = (...) => (undefined | s0)()
+
+0 -> 934 call = (...) => (undefined | s0)()
+
+0 -> 936 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 937 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ")", "ignoreCase": false}
+    )
+)
+
+0 -> 938 call = (...) => (undefined | expression)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 939 call = (...) => (undefined | s0)()
+
+0 -> 940 call = (...) => (undefined | s0)()
+
+0 -> 941 call = (...) => (undefined | s0)()
+
+0 -> 942 call = (...) => (undefined | s0)()
+
+0 -> 943 call = (...) => (undefined | s0)()
+
+0 -> 944 call = (...) => (undefined | s0)()
+
+0 -> 945 call = (...) => (
+  | undefined
+  | {"type": "array_subquery_expression", "expression": expression}
+)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 946 call = (...) => (undefined | s0)()
+
+0 -> 947 call = (...) => (undefined | s0)()
+
+0 -> 948 call = (...) => (undefined | s0)()
+
+0 -> 949 call = (...) => (
+  | undefined
+  | {"type": "exists_subquery_expression", "expression": expression}
+)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 950 call = (...) => (undefined | s0)()
+
+0 -> 951 call = (...) => (
+  | undefined
+  | {"type": "scalar_subquery_expression", "expression": expression}
+)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 952 call = (...) => (undefined | s0)()
+
+0 -> 953 call = (...) => (undefined | s0)()
+
+0 -> 955 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 956 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ".", "ignoreCase": false}
+    )
+)
+
+0 -> 957 call = (...) => (undefined | s0)()
+
+0 -> 958 call = (...) => (undefined | s0)()
+
+0 -> 959 call = (...) => (undefined | s0)()
+
+0 -> 960 call = (...) => (undefined | {"property": property, "computed": false})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 961 call = (...) => (undefined | s0)()
+
+0 -> 963 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 964 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "[", "ignoreCase": false}
+    )
+)
+
+0 -> 965 call = (...) => (undefined | s0)()
+
+0 -> 966 call = (...) => (undefined | s0)()
+
+0 -> 967 call = (...) => (undefined | s0)()
+
+0 -> 968 call = (...) => (undefined | s0)()
+
+0 -> 969 call = (...) => (undefined | s0)()
+
+0 -> 971 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 972 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "]", "ignoreCase": false}
+    )
+)
+
+0 -> 973 call = (...) => (undefined | {"property": property, "computed": true})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 975 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 976 call = (...) => (undefined | s0)()
+
+0 -> 978 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 979 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ".", "ignoreCase": false}
+    )
+)
+
+0 -> 980 call = (...) => (undefined | s0)()
+
+0 -> 981 call = (...) => (undefined | s0)()
+
+0 -> 982 call = (...) => (undefined | s0)()
+
+0 -> 983 call = (...) => (undefined | {"property": property, "computed": false})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 984 call = (...) => (undefined | s0)()
+
+0 -> 986 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 987 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "[", "ignoreCase": false}
+    )
+)
+
+0 -> 988 call = (...) => (undefined | s0)()
+
+0 -> 989 call = (...) => (undefined | s0)()
+
+0 -> 990 call = (...) => (undefined | s0)()
+
+0 -> 991 call = (...) => (undefined | s0)()
+
+0 -> 992 call = (...) => (undefined | s0)()
+
+0 -> 994 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 995 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "]", "ignoreCase": false}
+    )
+)
+
+0 -> 996 call = (...) => (undefined | {"property": property, "computed": true})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 997 call = (...) => (undefined | tail["reduce"](*arrow function 13694*, head))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 998 call = (...) => (undefined | s0)()
+
+0 -> 999 call = (...) => (undefined | s0)()
+
+0 -> 1000 call = (...) => (undefined | s0)()
+
+0 -> 1001 call = (...) => (undefined | s0)()
+
+0 -> 1002 call = (...) => (undefined | s0)()
+
+0 -> 1003 call = (...) => (
+  | undefined
+  | {"type": "scalar_unary_expression", "operator": operator, "argument": argument}
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1004 call = (...) => (undefined | s0)()
+
+0 -> 1005 call = (...) => (undefined | s0)()
+
+0 -> 1007 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1008 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "?", "ignoreCase": false}
+    )
+)
+
+0 -> 1009 call = (...) => (undefined | s0)()
+
+0 -> 1010 call = (...) => (undefined | s0)()
+
+0 -> 1011 call = (...) => (undefined | s0)()
+
+0 -> 1013 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1014 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ":", "ignoreCase": false}
+    )
+)
+
+0 -> 1015 call = (...) => (undefined | s0)()
+
+0 -> 1016 call = (...) => (undefined | s0)()
+
+0 -> 1017 call = (...) => (
+  | undefined
+  | {
+        "type": "scalar_conditional_expression",
+        "test": test,
+        "consequent": consequent,
+        "alternate": alternate
+    }
+)(???*0*, ???*1*, ???*2*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+
+0 -> 1018 call = (...) => (undefined | s0)()
+
+0 -> 1019 call = (...) => (undefined | s0)()
+
+0 -> 1020 call = (...) => (undefined | s0)()
+
+0 -> 1021 call = (...) => (undefined | s0)()
+
+0 -> 1023 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1024 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "??", "ignoreCase": false}
+    )
+)
+
+0 -> 1025 call = (...) => (undefined | s0)()
+
+0 -> 1026 call = (...) => (undefined | s0)()
+
+0 -> 1028 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1029 call = (...) => (undefined | s0)()
+
+0 -> 1030 call = (...) => (undefined | s0)()
+
+0 -> 1032 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1033 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "??", "ignoreCase": false}
+    )
+)
+
+0 -> 1034 call = (...) => (undefined | s0)()
+
+0 -> 1035 call = (...) => (undefined | s0)()
+
+0 -> 1036 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1037 call = (...) => (undefined | s0)()
+
+0 -> 1038 call = (...) => (undefined | s0)()
+
+0 -> 1039 call = (...) => (undefined | s0)()
+
+0 -> 1040 call = (...) => (undefined | s0)()
+
+0 -> 1041 call = (...) => (undefined | s0)()
+
+0 -> 1043 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1044 call = (...) => (undefined | s0)()
+
+0 -> 1045 call = (...) => (undefined | s0)()
+
+0 -> 1046 call = (...) => (undefined | s0)()
+
+0 -> 1047 call = (...) => (undefined | s0)()
+
+0 -> 1048 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1049 call = (...) => (undefined | s0)()
+
+0 -> 1050 call = (...) => (undefined | s0)()
+
+0 -> 1052 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1053 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "=", "ignoreCase": false}
+    )
+)
+
+0 -> 1055 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1056 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "!=", "ignoreCase": false}
+    )
+)
+
+0 -> 1058 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1059 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "<>", "ignoreCase": false}
+    )
+)
+
+0 -> 1060 call = (...) => (undefined | s0)()
+
+0 -> 1061 call = (...) => (undefined | s0)()
+
+0 -> 1063 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1064 call = (...) => (undefined | s0)()
+
+0 -> 1066 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1067 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "=", "ignoreCase": false}
+    )
+)
+
+0 -> 1069 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1070 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "!=", "ignoreCase": false}
+    )
+)
+
+0 -> 1072 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1073 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "<>", "ignoreCase": false}
+    )
+)
+
+0 -> 1074 call = (...) => (undefined | s0)()
+
+0 -> 1075 call = (...) => (undefined | s0)()
+
+0 -> 1076 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1077 call = (...) => (undefined | s0)()
+
+0 -> 1078 call = (...) => (undefined | s0)()
+
+0 -> 1080 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1081 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "<=", "ignoreCase": false}
+    )
+)
+
+0 -> 1083 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1084 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ">=", "ignoreCase": false}
+    )
+)
+
+0 -> 1086 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1087 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "<", "ignoreCase": false}
+    )
+)
+
+0 -> 1089 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1090 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ">", "ignoreCase": false}
+    )
+)
+
+0 -> 1091 call = (...) => (undefined | s0)()
+
+0 -> 1092 call = (...) => (undefined | s0)()
+
+0 -> 1094 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1095 call = (...) => (undefined | s0)()
+
+0 -> 1097 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1098 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "<=", "ignoreCase": false}
+    )
+)
+
+0 -> 1100 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1101 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ">=", "ignoreCase": false}
+    )
+)
+
+0 -> 1103 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1104 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "<", "ignoreCase": false}
+    )
+)
+
+0 -> 1106 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1107 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ">", "ignoreCase": false}
+    )
+)
+
+0 -> 1108 call = (...) => (undefined | s0)()
+
+0 -> 1109 call = (...) => (undefined | s0)()
+
+0 -> 1110 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1111 call = (...) => (undefined | s0)()
+
+0 -> 1112 call = (...) => (undefined | s0)()
+
+0 -> 1113 call = (...) => (undefined | s0)()
+
+0 -> 1114 call = (...) => (undefined | s0)()
+
+0 -> 1116 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1117 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "(", "ignoreCase": false}
+    )
+)
+
+0 -> 1118 call = (...) => (undefined | s0)()
+
+0 -> 1119 call = (...) => (undefined | s0)()
+
+0 -> 1120 call = (...) => (undefined | s0)()
+
+0 -> 1122 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1123 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ")", "ignoreCase": false}
+    )
+)
+
+0 -> 1124 call = (...) => (
+  | undefined
+  | {"type": "scalar_in_expression", "value": value, "list": list}
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1125 call = (...) => (undefined | s0)()
+
+0 -> 1126 call = (...) => (undefined | s0)()
+
+0 -> 1127 call = (...) => (undefined | s0)()
+
+0 -> 1128 call = (...) => (undefined | s0)()
+
+0 -> 1129 call = (...) => (undefined | s0)()
+
+0 -> 1130 call = (...) => (undefined | s0)()
+
+0 -> 1131 call = (...) => (undefined | s0)()
+
+0 -> 1132 call = (...) => (undefined | s0)()
+
+0 -> 1133 call = (...) => (undefined | s0)()
+
+0 -> 1134 call = (...) => (undefined | s0)()
+
+0 -> 1135 call = (...) => (
+  | undefined
+  | {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}
+)(???*0*, ???*1*, ???*2*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+
+0 -> 1136 call = (...) => (undefined | s0)()
+
+0 -> 1137 call = (...) => (undefined | s0)()
+
+0 -> 1138 call = (...) => (undefined | s0)()
+
+0 -> 1140 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1141 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "|", "ignoreCase": false}
+    )
+)
+
+0 -> 1142 call = (...) => (undefined | s0)()
+
+0 -> 1143 call = (...) => (undefined | s0)()
+
+0 -> 1145 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1146 call = (...) => (undefined | s0)()
+
+0 -> 1148 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1149 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "|", "ignoreCase": false}
+    )
+)
+
+0 -> 1150 call = (...) => (undefined | s0)()
+
+0 -> 1151 call = (...) => (undefined | s0)()
+
+0 -> 1152 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1153 call = (...) => (undefined | s0)()
+
+0 -> 1154 call = (...) => (undefined | s0)()
+
+0 -> 1156 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1157 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "^", "ignoreCase": false}
+    )
+)
+
+0 -> 1158 call = (...) => (undefined | s0)()
+
+0 -> 1159 call = (...) => (undefined | s0)()
+
+0 -> 1161 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1162 call = (...) => (undefined | s0)()
+
+0 -> 1164 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1165 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "^", "ignoreCase": false}
+    )
+)
+
+0 -> 1166 call = (...) => (undefined | s0)()
+
+0 -> 1167 call = (...) => (undefined | s0)()
+
+0 -> 1168 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1169 call = (...) => (undefined | s0)()
+
+0 -> 1170 call = (...) => (undefined | s0)()
+
+0 -> 1172 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1173 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "&", "ignoreCase": false}
+    )
+)
+
+0 -> 1174 call = (...) => (undefined | s0)()
+
+0 -> 1175 call = (...) => (undefined | s0)()
+
+0 -> 1177 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1178 call = (...) => (undefined | s0)()
+
+0 -> 1180 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1181 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "&", "ignoreCase": false}
+    )
+)
+
+0 -> 1182 call = (...) => (undefined | s0)()
+
+0 -> 1183 call = (...) => (undefined | s0)()
+
+0 -> 1184 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1185 call = (...) => (undefined | s0)()
+
+0 -> 1186 call = (...) => (undefined | s0)()
+
+0 -> 1188 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1189 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "<<", "ignoreCase": false}
+    )
+)
+
+0 -> 1191 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1192 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ">>>", "ignoreCase": false}
+    )
+)
+
+0 -> 1194 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1195 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ">>", "ignoreCase": false}
+    )
+)
+
+0 -> 1196 call = (...) => (undefined | s0)()
+
+0 -> 1197 call = (...) => (undefined | s0)()
+
+0 -> 1199 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1200 call = (...) => (undefined | s0)()
+
+0 -> 1202 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1203 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "<<", "ignoreCase": false}
+    )
+)
+
+0 -> 1205 member call = ???*0*["substr"](???*1*, 3)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1206 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ">>>", "ignoreCase": false}
+    )
+)
+
+0 -> 1208 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1209 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ">>", "ignoreCase": false}
+    )
+)
+
+0 -> 1210 call = (...) => (undefined | s0)()
+
+0 -> 1211 call = (...) => (undefined | s0)()
+
+0 -> 1212 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1213 call = (...) => (undefined | s0)()
+
+0 -> 1214 call = (...) => (undefined | s0)()
+
+0 -> 1216 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1217 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "+", "ignoreCase": false}
+    )
+)
+
+0 -> 1219 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1220 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "-", "ignoreCase": false}
+    )
+)
+
+0 -> 1222 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1223 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "||", "ignoreCase": false}
+    )
+)
+
+0 -> 1224 call = (...) => (undefined | s0)()
+
+0 -> 1225 call = (...) => (undefined | s0)()
+
+0 -> 1227 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1228 call = (...) => (undefined | s0)()
+
+0 -> 1230 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1231 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "+", "ignoreCase": false}
+    )
+)
+
+0 -> 1233 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1234 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "-", "ignoreCase": false}
+    )
+)
+
+0 -> 1236 member call = ???*0*["substr"](???*1*, 2)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1237 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "||", "ignoreCase": false}
+    )
+)
+
+0 -> 1238 call = (...) => (undefined | s0)()
+
+0 -> 1239 call = (...) => (undefined | s0)()
+
+0 -> 1240 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1241 call = (...) => (undefined | s0)()
+
+0 -> 1242 call = (...) => (undefined | s0)()
+
+0 -> 1244 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1245 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "*", "ignoreCase": false}
+    )
+)
+
+0 -> 1247 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1248 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "/", "ignoreCase": false}
+    )
+)
+
+0 -> 1250 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1251 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "%", "ignoreCase": false}
+    )
+)
+
+0 -> 1252 call = (...) => (undefined | s0)()
+
+0 -> 1253 call = (...) => (undefined | s0)()
+
+0 -> 1255 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1256 call = (...) => (undefined | s0)()
+
+0 -> 1258 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1259 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "*", "ignoreCase": false}
+    )
+)
+
+0 -> 1261 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1262 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "/", "ignoreCase": false}
+    )
+)
+
+0 -> 1264 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1265 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "%", "ignoreCase": false}
+    )
+)
+
+0 -> 1266 call = (...) => (undefined | s0)()
+
+0 -> 1267 call = (...) => (undefined | s0)()
+
+0 -> 1268 call = (...) => (undefined | buildBinaryExpression(head, tail))(???*0*, (???*1* | []))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1269 call = (...) => (undefined | s0)()
+
+0 -> 1270 call = (...) => (undefined | s0)()
+
+0 -> 1271 call = (...) => (undefined | s0)()
+
+0 -> 1273 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1274 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ":", "ignoreCase": false}
+    )
+)
+
+0 -> 1275 call = (...) => (undefined | s0)()
+
+0 -> 1276 call = (...) => (undefined | s0)()
+
+0 -> 1277 call = (...) => (undefined | {"key": key, "value": value})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1278 call = (...) => (undefined | s0)()
+
+0 -> 1279 call = (...) => (undefined | s0)()
+
+0 -> 1280 call = (...) => (undefined | s0)()
+
+0 -> 1282 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1283 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ":", "ignoreCase": false}
+    )
+)
+
+0 -> 1284 call = (...) => (undefined | s0)()
+
+0 -> 1285 call = (...) => (undefined | s0)()
+
+0 -> 1286 call = (...) => (undefined | {"key": key, "value": value})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1287 call = (...) => (undefined | s0)()
+
+0 -> 1288 call = (...) => (
+  | undefined
+  | {"type": "collection_expression", "expression": expression}
+)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 1289 call = (...) => (undefined | s0)()
+
+0 -> 1290 call = (...) => (undefined | s0)()
+
+0 -> 1292 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1293 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ".", "ignoreCase": false}
+    )
+)
+
+0 -> 1294 call = (...) => (undefined | s0)()
+
+0 -> 1295 call = (...) => (undefined | s0)()
+
+0 -> 1296 call = (...) => (undefined | s0)()
+
+0 -> 1297 call = (...) => (undefined | {"property": property, "computed": false})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1298 call = (...) => (undefined | s0)()
+
+0 -> 1300 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1301 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "[", "ignoreCase": false}
+    )
+)
+
+0 -> 1302 call = (...) => (undefined | s0)()
+
+0 -> 1303 call = (...) => (undefined | s0)()
+
+0 -> 1304 call = (...) => (undefined | s0)()
+
+0 -> 1305 call = (...) => (undefined | s0)()
+
+0 -> 1306 call = (...) => (undefined | s0)()
+
+0 -> 1308 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1309 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "]", "ignoreCase": false}
+    )
+)
+
+0 -> 1310 call = (...) => (undefined | {"property": property, "computed": true})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1312 member call = (???*0* | [] | {})["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1313 call = (...) => (undefined | s0)()
+
+0 -> 1315 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1316 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ".", "ignoreCase": false}
+    )
+)
+
+0 -> 1317 call = (...) => (undefined | s0)()
+
+0 -> 1318 call = (...) => (undefined | s0)()
+
+0 -> 1319 call = (...) => (undefined | s0)()
+
+0 -> 1320 call = (...) => (undefined | {"property": property, "computed": false})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1321 call = (...) => (undefined | s0)()
+
+0 -> 1323 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1324 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "[", "ignoreCase": false}
+    )
+)
+
+0 -> 1325 call = (...) => (undefined | s0)()
+
+0 -> 1326 call = (...) => (undefined | s0)()
+
+0 -> 1327 call = (...) => (undefined | s0)()
+
+0 -> 1328 call = (...) => (undefined | s0)()
+
+0 -> 1329 call = (...) => (undefined | s0)()
+
+0 -> 1331 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1332 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "]", "ignoreCase": false}
+    )
+)
+
+0 -> 1333 call = (...) => (undefined | {"property": property, "computed": true})(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1334 call = (...) => (undefined | tail["reduce"](*arrow function 16259*, head))(???*0*, (???*1* | [] | {}))
+- *0* max number of linking steps reached
+- *1* s2
+  ⚠️  pattern without value
+
+0 -> 1335 call = (...) => (undefined | s0)()
+
+0 -> 1336 call = (...) => (
+  | undefined
+  | {"type": "collection_subquery_expression", "expression": expression}
+)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 1337 call = (...) => (undefined | s0)()
+
+0 -> 1338 call = (...) => (undefined | s0)()
+
+0 -> 1339 call = (...) => (undefined | {"type": "top_specification", "value": value})(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 1342 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1343 member call = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 1344 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[0-9]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+1344 -> 1346 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+1344 -> 1347 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+    )
+)
+
+0 -> 1349 member call = (???*0* | [] | {} | undefined | {"type": "number_constant", "value": ???*1*})["push"]((???*3* | ???*4* | {}))
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*(text())
+  ⚠️  unknown callee
+- *2* FreeVar(Number)
+  ⚠️  unknown global
+- *3* s2
+  ⚠️  pattern without value
+- *4* ???*5*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *5* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 1352 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1353 member call = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 1354 conditional = ???*0*
+- *0* ???*1*(???*2*)
+  ⚠️  unknown callee
+- *1* /^[0-9]/["test"]
+  ⚠️  nested operation
+- *2* ???*3*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+1354 -> 1356 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+1354 -> 1357 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+    )
+)
+
+0 -> 1358 call = (...) => (
+  | undefined
+  | {"type": "number_constant", "value": FreeVar(Number)(text())}
+)()
+
+0 -> 1359 call = (...) => (undefined | s0)()
+
+0 -> 1360 call = (...) => (undefined | s0)()
+
+0 -> 1362 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1363 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 1364 call = (...) => (undefined | s0)()
+
+0 -> 1365 call = (...) => (undefined | s0)()
+
+0 -> 1366 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1368 member call = (???*0* | [])["push"](???*1*)
+- *0* s2
+  ⚠️  pattern without value
+- *1* max number of linking steps reached
+
+0 -> 1369 call = (...) => (undefined | s0)()
+
+0 -> 1371 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1372 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ",", "ignoreCase": false}
+    )
+)
+
+0 -> 1373 call = (...) => (undefined | s0)()
+
+0 -> 1374 call = (...) => (undefined | s0)()
+
+0 -> 1375 call = (...) => (undefined | v)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+0 -> 1376 call = (...) => (undefined | ???*0* | [])(???*1*, (???*2* | []))
+- *0* spread is not supported
+- *1* max number of linking steps reached
+- *2* s2
+  ⚠️  pattern without value
+
+0 -> 1378 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1379 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": "(", "ignoreCase": false}
+    )
+)
+
+0 -> 1380 call = (...) => (undefined | s0)()
+
+0 -> 1381 call = (...) => (undefined | s0)()
+
+0 -> 1382 call = (...) => (undefined | s0)()
+
+0 -> 1384 member call = ???*0*["charCodeAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+0 -> 1385 call = (...) => (undefined | FreeVar(undefined))(
+    (
+      | undefined
+      | {"type": "literal", "text": ")", "ignoreCase": false}
+    )
+)
+
+0 -> 1386 call = (...) => (undefined | subquery)(???*0*)
+- *0* max number of linking steps reached
+
+0 -> 1388 member call = ???*0*["reduce"](
+    (...) => {"type": "scalar_binary_expression", "left": left, "operator": operator, "right": right},
+    ???*1*
+)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 1389 call = ((...) => (undefined | s0) | ???*0*)()
+- *0* {}[???*1*]
+  ⚠️  unknown object prototype methods or values
+- *1* ???*2*["startRule"]
+  ⚠️  unknown object
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 1391 conditional = ???*0*
+- *0* unsupported expression
+
+1391 -> 1393 conditional = ???*0*
+- *0* unsupported expression
+
+1393 -> 1394 call = (...) => (undefined | {"type": "end"})()
+
+1393 -> 1395 call = (...) => (undefined | FreeVar(undefined))((undefined | {"type": "end"}))
+
+1391 -> 1398 member call = ???*0*["charAt"](???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* max number of linking steps reached
+
+1391 -> 1400 call = (...) => (
+  | undefined
+  | {
+        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+    }
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+1391 -> 1401 call = (...) => (
+  | undefined
+  | {
+        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+    }
+)(???*0*, ???*1*)
+- *0* max number of linking steps reached
+- *1* max number of linking steps reached
+
+1391 -> 1402 call = (...) => (undefined | ???*0*)([], (???*1* | null), ???*3*)
+- *0* unknown new expression
+- *1* ???*2*["charAt"](peg$maxFailPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* max number of linking steps reached

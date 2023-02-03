@@ -1,76 +1,60 @@
 a#2 = ???*0*
 - *0* max number of linking steps reached
 
-a#3 = arguments[1]
+a#3 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-a#5 = arguments[0]
+a#5 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 b#2 = ???*0*
 - *0* max number of linking steps reached
 
-b#3 = arguments[2]
+b#3 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-b#5 = arguments[1]
+b#5 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 c#2 = ???*0*
 - *0* max number of linking steps reached
 
-c#5 = arguments[2]
+c#5 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 d#2 = ???*0*
 - *0* max number of linking steps reached
 
-d#5 = arguments[3]
+d#5 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
 i = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-len = arguments[1]
+len = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-md5cmn = (...) => ???*0*
-- *0* ???*1*(???*2*, arguments[2])
-  ⚠️  call of unknown function
-- *1* FreeVar(safeAdd)
-  ⚠️  unknown global
-- *2* ???*3*(???*4*, arguments[4])
-  ⚠️  call of unknown function
-- *3* FreeVar(bitRotateLeft)
-  ⚠️  unknown global
-- *4* ???*5*(???*6*, ???*8*)
-  ⚠️  call of unknown function
-- *5* FreeVar(safeAdd)
-  ⚠️  unknown global
-- *6* ???*7*(arguments[1], arguments[0])
-  ⚠️  call of unknown function
-- *7* FreeVar(safeAdd)
-  ⚠️  unknown global
-- *8* ???*9*(arguments[3], arguments[5])
-  ⚠️  call of unknown function
-- *9* FreeVar(safeAdd)
-  ⚠️  unknown global
+md5cmn = (...) => (
+  | undefined
+  | FreeVar(safeAdd)(
+        FreeVar(bitRotateLeft)(
+            FreeVar(safeAdd)(FreeVar(safeAdd)(a, q), FreeVar(safeAdd)(x, t)),
+            s
+        ),
+        b
+    )
+)
 
-md5ff = (...) => ???*0*
-- *0* ???*1*(???*2*, arguments[2])
-  ⚠️  call of unknown function
-- *1* FreeVar(safeAdd)
-  ⚠️  unknown global
-- *2* ???*3*(???*4*, arguments[4])
-  ⚠️  call of unknown function
-- *3* FreeVar(bitRotateLeft)
-  ⚠️  unknown global
-- *4* ???*5*(???*6*, ???*8*)
-  ⚠️  call of unknown function
-- *5* FreeVar(safeAdd)
-  ⚠️  unknown global
-- *6* ???*7*(arguments[1], arguments[0])
-  ⚠️  call of unknown function
-- *7* FreeVar(safeAdd)
-  ⚠️  unknown global
-- *8* ???*9*(arguments[3], arguments[5])
-  ⚠️  call of unknown function
-- *9* FreeVar(safeAdd)
-  ⚠️  unknown global
+md5ff = (...) => (undefined | md5cmn(???*0*, a, b, x, s, t))
+- *0* unsupported expression
 
 olda = ???*0*
 - *0* max number of linking steps reached
@@ -84,21 +68,36 @@ oldc = ???*0*
 oldd = ???*0*
 - *0* max number of linking steps reached
 
-q = arguments[0]
+q = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s#3 = arguments[4]
+s#3 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
 
-s#5 = arguments[5]
+s#5 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
 
-t#3 = arguments[5]
+t#3 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
 
-t#5 = arguments[6]
+t#5 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
 
-wordsToMd5 = ???*0*
-- *0* max number of linking steps reached
+wordsToMd5 = (...) => (undefined | [a, b, c, d])
 
-x#2 = arguments[0]
+x#2 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-x#3 = arguments[3]
+x#3 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
-x#5 = arguments[4]
+x#5 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet

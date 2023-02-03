@@ -2,7 +2,7 @@ a = arguments[0]
 
 b = arguments[1]
 
-c = (...) => [`${a}${b}`, a]
+c = (...) => (undefined | [`${a}${b}`, a])
 
 d = c("1", "2")
 

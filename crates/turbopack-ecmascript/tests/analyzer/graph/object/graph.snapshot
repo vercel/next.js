@@ -102,6 +102,23 @@
         ),
     ),
     (
+        "a6",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object2' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('a' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
         "b",
         Member(
             3,
@@ -193,6 +210,23 @@
             Variable(
                 (
                     Atom('unknown_spread' type=dynamic),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('b' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "b6",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object2' type=inline),
                     #1,
                 ),
             ),
@@ -306,6 +340,23 @@
         ),
     ),
     (
+        "c6",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object2' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('c' type=inline),
+                ),
+            ),
+        ),
+    ),
+    (
         "d",
         Member(
             3,
@@ -391,6 +442,40 @@
         ),
     ),
     (
+        "d6",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object2' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('d' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
+        "e6",
+        Member(
+            3,
+            Variable(
+                (
+                    Atom('object2' type=inline),
+                    #1,
+                ),
+            ),
+            Constant(
+                StrWord(
+                    Atom('e' type=static),
+                ),
+            ),
+        ),
+    ),
+    (
         "object",
         Object(
             7,
@@ -433,6 +518,84 @@
                         Num(
                             ConstantNumber(
                                 3.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "object2",
+        Object(
+            11,
+            [
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('a' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    FreeVar(
+                        Other(
+                            Atom('global' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('c' type=inline),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                3.0,
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    FreeVar(
+                        Other(
+                            Atom('global' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                4.0,
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        StrWord(
+                            Atom('e' type=static),
+                        ),
+                    ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                5.0,
                             ),
                         ),
                     ),

@@ -3,10 +3,9 @@
         "*anonymous function 66*",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            66,
+            Constant(
+                Undefined,
             ),
         ),
     ),
@@ -14,10 +13,9 @@
         "*arrow function 118*",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            118,
+            Constant(
+                Undefined,
             ),
         ),
     ),
@@ -25,10 +23,9 @@
         "*arrow function 229*",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            229,
+            Constant(
+                Undefined,
             ),
         ),
     ),
@@ -36,10 +33,9 @@
         "a",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            1,
+            Constant(
+                Undefined,
             ),
         ),
     ),
@@ -72,10 +68,9 @@
         "e",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            298,
+            Constant(
+                Undefined,
             ),
         ),
     ),

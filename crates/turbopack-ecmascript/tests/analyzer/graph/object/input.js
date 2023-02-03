@@ -26,3 +26,10 @@ const unknown_spread = { a: 1, ...global, b: 2 };
 const a5 = unknown_spread.a;
 const b5 = unknown_spread.b;
 const c5 = unknown_spread.c;
+
+const object2 = { a: 1, [global]: 2, c: 3, [global]: 4, e: 5 };
+const a6 = object2.a;
+const b6 = object2.b;
+const c6 = object2.c;
+const d6 = object2.d;
+const e6 = object2.e;

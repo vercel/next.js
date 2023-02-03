@@ -1,0 +1,23 @@
+*anonymous function 170* = (...) => (undefined | [file])
+
+*anonymous function 254* = (...) => (undefined | FreeVar(Require)["resolve"](file))
+
+*anonymous function 88* = (...) => (undefined | file)
+
+a = ["../lib/a.js", "../lib/b.js"]
+
+b = ["../lib/a.js", "../lib/b.js"]["map"](*anonymous function 88*)
+
+c = ["../lib/a.js", "../lib/b.js"]["map"](*anonymous function 170*)
+
+d = ["../lib/a.js", "../lib/b.js"]["map"](*anonymous function 254*)
+
+file#2 = arguments[0]
+
+file#3 = arguments[0]
+
+file#4 = arguments[0]
+
+file#6 = arguments[0]
+
+func = (...) => (undefined | FreeVar(Require)["resolve"](file))

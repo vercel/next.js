@@ -20,7 +20,10 @@ lazy_static = "1.4.0"
 next-font = { path = "../next-font" }
 next-transform-dynamic = { path = "../next-transform-dynamic" }
 next-transform-strip-page-exports = { path = "../next-transform-strip-page-exports" }
+num-bigint = "0.4"
+num-traits = "0.2.15"
 once_cell = "1.13.0"
+parking_lot = "0.12.1"
 pin-project-lite = "0.2.9"
 regex = "1.5.4"
 serde = "1.0.136"
@@ -57,9 +60,6 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-
-  [dependencies.num-bigint]
-  version = "0.4"
 
 [dev-dependencies]
 criterion = { version = "0.3.5", features = ["async_tokio"] }

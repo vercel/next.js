@@ -1,18 +1,18 @@
-*anonymous function 181* = (...) => crypt["endian"]([a, b, c, d])
+*anonymous function 181* = (...) => (undefined | crypt["endian"]([a, b, c, d]))
 
-*anonymous function 5013* = (...) => (???*0* + b)
+*anonymous function 5013* = (...) => (undefined | (???*0* + b))
 - *0* unsupported expression
 
-*anonymous function 5163* = (...) => (???*0* + b)
+*anonymous function 5163* = (...) => (undefined | (???*0* + b))
 - *0* unsupported expression
 
-*anonymous function 5313* = (...) => (???*0* + b)
+*anonymous function 5313* = (...) => (undefined | (???*0* + b))
 - *0* unsupported expression
 
-*anonymous function 5454* = (...) => (???*0* + b)
+*anonymous function 5454* = (...) => (undefined | (???*0* + b))
 - *0* unsupported expression
 
-*anonymous function 5685* = (...) => (digestbytes | bin["bytesToString"](digestbytes) | crypt["bytesToHex"](digestbytes))
+*anonymous function 5685* = (...) => (undefined | digestbytes | bin["bytesToString"](digestbytes) | crypt["bytesToHex"](digestbytes))
 
 FF = md5["_ff"]
 

@@ -50,120 +50,6 @@
             ctxt: #0,
         },
     },
-    MemberCall {
-        obj: Variable(
-            (
-                Atom('array' type=inline),
-                #1,
-            ),
-        ),
-        prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
-            ),
-        ),
-        args: [
-            Constant(
-                Num(
-                    ConstantNumber(
-                        4.0,
-                    ),
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        5.0,
-                    ),
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        6.0,
-                    ),
-                ),
-            ),
-            Array(
-                4,
-                [
-                    Constant(
-                        Num(
-                            ConstantNumber(
-                                7.0,
-                            ),
-                        ),
-                    ),
-                    Constant(
-                        Num(
-                            ConstantNumber(
-                                8.0,
-                            ),
-                        ),
-                    ),
-                    Constant(
-                        Num(
-                            ConstantNumber(
-                                9.0,
-                            ),
-                        ),
-                    ),
-                ],
-            ),
-            Concat(
-                3,
-                [
-                    Constant(
-                        StrAtom(
-                            "hello ",
-                        ),
-                    ),
-                    Variable(
-                        (
-                            Atom('item' type=inline),
-                            #1,
-                        ),
-                    ),
-                ],
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    2,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                70,
-            ),
-            hi: BytePos(
-                119,
-            ),
-            ctxt: #0,
-        },
-    },
     Member {
         obj: Variable(
             (
@@ -223,45 +109,10 @@
         },
     },
     MemberCall {
-        obj: Member(
-            7,
-            Array(
-                5,
-                [
-                    Array(
-                        4,
-                        [
-                            Constant(
-                                Num(
-                                    ConstantNumber(
-                                        1.0,
-                                    ),
-                                ),
-                            ),
-                            Constant(
-                                Num(
-                                    ConstantNumber(
-                                        2.0,
-                                    ),
-                                ),
-                            ),
-                            Constant(
-                                Num(
-                                    ConstantNumber(
-                                        3.0,
-                                    ),
-                                ),
-                            ),
-                        ],
-                    ),
-                ],
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        0.0,
-                    ),
-                ),
+        obj: Variable(
+            (
+                Atom('array' type=inline),
+                #1,
             ),
         ),
         prop: Constant(
@@ -270,36 +121,78 @@
             ),
         ),
         args: [
-            Array(
-                5,
-                [
-                    Constant(
-                        Num(
-                            ConstantNumber(
-                                4.0,
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            4.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            6.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Array(
+                    4,
+                    [
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
                             ),
                         ),
-                    ),
-                    Constant(
-                        Num(
-                            ConstantNumber(
-                                5.0,
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    8.0,
+                                ),
                             ),
                         ),
-                    ),
-                    Constant(
-                        Num(
-                            ConstantNumber(
-                                6.0,
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    9.0,
+                                ),
                             ),
                         ),
-                    ),
-                    FreeVar(
-                        Other(
-                            Atom('unknown' type=static),
+                    ],
+                ),
+            ),
+            Value(
+                Concat(
+                    3,
+                    [
+                        Constant(
+                            StrAtom(
+                                "hello ",
+                            ),
                         ),
-                    ),
-                ],
+                        Variable(
+                            (
+                                Atom('item' type=inline),
+                                #1,
+                            ),
+                        ),
+                    ],
+                ),
             ),
         ],
         ast_path: [
@@ -308,7 +201,7 @@
             ),
             Script(
                 Body(
-                    3,
+                    2,
                 ),
             ),
             Stmt(
@@ -331,10 +224,10 @@
         ],
         span: Span {
             lo: BytePos(
-                139,
+                70,
             ),
             hi: BytePos(
-                180,
+                119,
             ),
             ctxt: #0,
         },
@@ -571,30 +464,37 @@
             ),
         ),
         args: [
-            Constant(
-                Num(
-                    ConstantNumber(
-                        4.0,
-                    ),
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        5.0,
-                    ),
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        6.0,
-                    ),
-                ),
-            ),
-            FreeVar(
-                Other(
-                    Atom('unknown' type=static),
+            Value(
+                Array(
+                    5,
+                    [
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    4.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    5.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    6.0,
+                                ),
+                            ),
+                        ),
+                        FreeVar(
+                            Other(
+                                Atom('unknown' type=static),
+                            ),
+                        ),
+                    ],
                 ),
             ),
         ],
@@ -604,7 +504,7 @@
             ),
             Script(
                 Body(
-                    4,
+                    3,
                 ),
             ),
             Stmt(
@@ -627,10 +527,10 @@
         ],
         span: Span {
             lo: BytePos(
-                200,
+                139,
             ),
             hi: BytePos(
-                239,
+                180,
             ),
             ctxt: #0,
         },
@@ -819,6 +719,126 @@
             ctxt: #0,
         },
     },
+    MemberCall {
+        obj: Member(
+            7,
+            Array(
+                5,
+                [
+                    Array(
+                        4,
+                        [
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        1.0,
+                                    ),
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        2.0,
+                                    ),
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        3.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        0.0,
+                    ),
+                ),
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('concat' type=static),
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            4.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            6.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                FreeVar(
+                    Other(
+                        Atom('unknown' type=static),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                200,
+            ),
+            hi: BytePos(
+                239,
+            ),
+            ctxt: #0,
+        },
+    },
     Member {
         obj: Variable(
             (
@@ -866,83 +886,6 @@
             ),
             hi: BytePos(
                 313,
-            ),
-            ctxt: #0,
-        },
-    },
-    MemberCall {
-        obj: Variable(
-            (
-                Atom('array' type=inline),
-                #1,
-            ),
-        ),
-        prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
-            ),
-        ),
-        args: [
-            Array(
-                4,
-                [
-                    Constant(
-                        Num(
-                            ConstantNumber(
-                                7.0,
-                            ),
-                        ),
-                    ),
-                    Constant(
-                        Num(
-                            ConstantNumber(
-                                8.0,
-                            ),
-                        ),
-                    ),
-                    Constant(
-                        Num(
-                            ConstantNumber(
-                                9.0,
-                            ),
-                        ),
-                    ),
-                ],
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    8,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                348,
-            ),
-            hi: BytePos(
-                371,
             ),
             ctxt: #0,
         },
@@ -1001,6 +944,85 @@
             ),
             hi: BytePos(
                 360,
+            ),
+            ctxt: #0,
+        },
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                Atom('array' type=inline),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('concat' type=static),
+            ),
+        ),
+        args: [
+            Value(
+                Array(
+                    4,
+                    [
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    8.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    9.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    8,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                348,
+            ),
+            hi: BytePos(
+                371,
             ),
             ctxt: #0,
         },

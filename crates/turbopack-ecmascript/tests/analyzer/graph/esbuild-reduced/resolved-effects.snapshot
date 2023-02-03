@@ -1,0 +1,26 @@
+0 -> 1 call = require*0*("path")
+- *0* require: The require method from CommonJS
+
+0 -> 2 call = require*0*("path")
+- *0* require: The require method from CommonJS
+
+0 -> 4 call = (...) => (undefined | {"pkg": pkg, "subpath": subpath})()
+
+0 -> 6 member call = require*0*["resolve"](
+    `${(???*1* | ???*2* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*3*)}/${(???*5* | ???*6* | "esbuild.exe")}`
+)
+- *0* require: The require method from CommonJS
+- *1* undefined["pkg"]
+  ⚠️  nested operation
+- *2* pkg
+  ⚠️  pattern without value
+- *3* {}[???*4*]
+  ⚠️  unknown object prototype methods or values
+- *4* FreeVar(platformKey)
+  ⚠️  unknown global
+- *5* undefined["subpath"]
+  ⚠️  nested operation
+- *6* subpath
+  ⚠️  pattern without value
+
+0 -> 7 call = (...) => (undefined | binPath)()

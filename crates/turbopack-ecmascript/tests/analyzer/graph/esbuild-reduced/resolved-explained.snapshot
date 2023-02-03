@@ -2,39 +2,28 @@ binPath = (???*0* | ???*1*)
 - *0* binPath
   ⚠️  pattern without value
 - *1* require.resolve*2*(
-        `${(???*3* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*4*)}/${(???*6* | "esbuild.exe")}`
+        `${(???*3* | ???*4* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*5*)}/${(???*7* | ???*8* | "esbuild.exe")}`
     )
   ⚠️  resolve.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
-- *3* pkg
+- *3* undefined["pkg"]
+  ⚠️  nested operation
+- *4* pkg
   ⚠️  pattern without value
-- *4* {}[???*5*]
+- *5* {}[???*6*]
   ⚠️  unknown object prototype methods or values
-- *5* FreeVar(platformKey)
+- *6* FreeVar(platformKey)
   ⚠️  unknown global
-- *6* subpath
+- *7* undefined["subpath"]
+  ⚠️  nested operation
+- *8* subpath
   ⚠️  pattern without value
 
 e = ???*0*
 - *0* e
   ⚠️  pattern without value
 
-generateBinPath = (...) => (???*0* | ???*1*)
-- *0* binPath
-  ⚠️  pattern without value
-- *1* require.resolve*2*(
-        `${(???*3* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*4*)}/${(???*6* | "esbuild.exe")}`
-    )
-  ⚠️  resolve.resolve non constant
-- *2* require.resolve: The require.resolve method from CommonJS
-- *3* pkg
-  ⚠️  pattern without value
-- *4* {}[???*5*]
-  ⚠️  unknown object prototype methods or values
-- *5* FreeVar(platformKey)
-  ⚠️  unknown global
-- *6* subpath
-  ⚠️  pattern without value
+generateBinPath = (...) => (undefined | binPath)
 
 knownWindowsPackages = {
     "win32 arm64 LE": "esbuild-windows-arm64",
@@ -56,7 +45,14 @@ pkg#3 = (???*0* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-wind
 - *2* FreeVar(platformKey)
   ⚠️  unknown global
 
-pkg#4 = (???*0* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*1*)
+pkg#4 = (
+  | undefined["pkg"]
+  | ???*0*
+  | "esbuild-windows-arm64"
+  | "esbuild-windows-32"
+  | "esbuild-windows-64"
+  | ???*1*
+)
 - *0* pkg
   ⚠️  pattern without value
 - *1* {}[???*2*]
@@ -64,40 +60,33 @@ pkg#4 = (???*0* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-wind
 - *2* FreeVar(platformKey)
   ⚠️  unknown global
 
-pkgAndSubpathForCurrentPlatform = (...) => {
-    "pkg": (???*0* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*1*),
-    "subpath": (???*3* | "esbuild.exe")
-}
-- *0* pkg
-  ⚠️  pattern without value
-- *1* {}[???*2*]
-  ⚠️  unknown object prototype methods or values
-- *2* FreeVar(platformKey)
-  ⚠️  unknown global
-- *3* subpath
-  ⚠️  pattern without value
+pkgAndSubpathForCurrentPlatform = (...) => (undefined | {"pkg": pkg, "subpath": subpath})
 
 subpath#3 = (???*0* | "esbuild.exe")
 - *0* subpath
   ⚠️  pattern without value
 
-subpath#4 = (???*0* | "esbuild.exe")
+subpath#4 = (undefined["subpath"] | ???*0* | "esbuild.exe")
 - *0* subpath
   ⚠️  pattern without value
 
-x = (???*0* | ???*1*)
+x = (undefined | ???*0* | ???*1*)
 - *0* binPath
   ⚠️  pattern without value
 - *1* require.resolve*2*(
-        `${(???*3* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*4*)}/${(???*6* | "esbuild.exe")}`
+        `${(???*3* | ???*4* | "esbuild-windows-arm64" | "esbuild-windows-32" | "esbuild-windows-64" | ???*5*)}/${(???*7* | ???*8* | "esbuild.exe")}`
     )
   ⚠️  resolve.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
-- *3* pkg
+- *3* undefined["pkg"]
+  ⚠️  nested operation
+- *4* pkg
   ⚠️  pattern without value
-- *4* {}[???*5*]
+- *5* {}[???*6*]
   ⚠️  unknown object prototype methods or values
-- *5* FreeVar(platformKey)
+- *6* FreeVar(platformKey)
   ⚠️  unknown global
-- *6* subpath
+- *7* undefined["subpath"]
+  ⚠️  nested operation
+- *8* subpath
   ⚠️  pattern without value

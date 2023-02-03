@@ -10,6 +10,7 @@ use std::{
 
 use indexmap::IndexSet;
 use num_bigint::BigInt;
+use num_traits::identities::Zero;
 use swc_core::{
     common::Mark,
     ecma::{
@@ -62,6 +63,13 @@ fn integer_decode(val: f64) -> (u64, i16, i8) {
     (mantissa, exponent, sign)
 }
 
+impl ConstantNumber {
+    pub fn as_u32_index(&self) -> Option<usize> {
+        let index: u32 = self.0 as u32;
+        (index as f64 == self.0).then_some(index as usize)
+    }
+}
+
 impl Hash for ConstantNumber {
     fn hash<H: Hasher>(&self, state: &mut H) {
         integer_decode(self.0).hash(state);
@@ -95,6 +103,38 @@ impl ConstantValue {
             Self::StrWord(s) => Some(s),
             Self::StrAtom(s) => Some(s),
             _ => None,
+        }
+    }
+
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Self::Undefined | Self::False | Self::Null => false,
+            Self::True | Self::Regex(..) => true,
+            Self::StrWord(s) => !s.is_empty(),
+            Self::StrAtom(s) => !s.is_empty(),
+            Self::Num(ConstantNumber(n)) => *n != 0.0,
+            Self::BigInt(n) => !n.is_zero(),
+        }
+    }
+
+    pub fn is_nullish(&self) -> bool {
+        match self {
+            Self::Undefined | Self::Null => true,
+            Self::StrWord(..)
+            | Self::StrAtom(..)
+            | Self::Num(..)
+            | Self::True
+            | Self::False
+            | Self::BigInt(..)
+            | Self::Regex(..) => false,
+        }
+    }
+
+    pub fn is_empty_string(&self) -> bool {
+        match self {
+            Self::StrWord(s) => s.is_empty(),
+            Self::StrAtom(s) => s.is_empty(),
+            _ => false,
         }
     }
 }
@@ -147,60 +187,130 @@ pub struct ModuleValue {
     pub annotations: ImportAnnotations,
 }
 
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum LogicalOperator {
+    And,
+    Or,
+    NullishCoalescing,
+}
+
+impl LogicalOperator {
+    fn joiner(&self) -> &'static str {
+        match self {
+            LogicalOperator::And => " && ",
+            LogicalOperator::Or => " || ",
+            LogicalOperator::NullishCoalescing => " ?? ",
+        }
+    }
+    fn multi_line_joiner(&self) -> &'static str {
+        match self {
+            LogicalOperator::And => "&& ",
+            LogicalOperator::Or => "|| ",
+            LogicalOperator::NullishCoalescing => "?? ",
+        }
+    }
+}
+
+/// The four categories of [JsValue]s.
+enum JsValueMetaKind {
+    /// Doesn't contain nested values.
+    Leaf,
+    /// Contains nested values. Nested values represent some structure and can't
+    /// be replaced during linking. They might contain placeholders.
+    Nested,
+    /// Contains nested values. Operations are replaced during linking. They
+    /// might contain placeholders.
+    Operation,
+    /// These values are replaced during linking.
+    Placeholder,
+}
+
 /// TODO: Use `Arc`
+/// There are 4 kinds of values: Leaves, Nested, Operations, and Placeholders
+/// (see [JsValueMetaKind] for details). Values are processed in two phases:
+/// - Analyze phase: We convert AST into [JsValue]s. We don't have contextual
+///   information so we need to insert placeholders to represent that.
+/// - Link phase: We try to reduce a value to a constant value. The link phase
+///   has 5 substeps that are executed on each node in the graph depth-first.
+///   When a value is modified, we need to visit the new children again.
+/// - Replace variables with their values. This replaces [JsValue::Variable]. No
+///   variable should be remaining after that.
+/// - Replace placeholders with contextual information. This usually replaces
+///   [JsValue::FreeVar] and [JsValue::Module]. Some [JsValue::Call] on well-
+///   known functions might also be replaced. No free vars or modules should be
+///   remaining after that.
+/// - Replace operations on well-known objects and functions. This handles
+///   [JsValue::Call] and [JsValue::Member] on well-known objects and functions.
+/// - Replace all built-in functions with their values when they are
+///   compile-time constant.
+/// - For optimization, any nested operations are replaced with
+///   [JsValue::Unknown]. So only one layer of operation remains.
+/// Any remaining operation or placeholder can be treated as unknown.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum JsValue {
-    /// Denotes a single string literal, which does not have any unknown value.
-    ///
-    /// TODO: Use a type without span
+    // LEAF VALUES
+    // ----------------------------
+    /// A constant primitive value.
     Constant(ConstantValue),
-
-    Array(usize, Vec<JsValue>),
-
-    Object(usize, Vec<ObjectPart>),
-
+    /// An constant URL object.
     Url(Url),
+    /// Some kind of well-known object
+    /// (must not be an array, otherwise Array.concat needs to be changed)
+    WellKnownObject(WellKnownObjectKind),
+    /// Some kind of well-known function
+    WellKnownFunction(WellKnownFunctionKind),
+    /// Not-analyzable value. Might contain the original value for additional
+    /// info. Has a reason string for explanation.
+    Unknown(Option<Arc<JsValue>>, &'static str),
 
+    // NESTED VALUES
+    // ----------------------------
+    /// An array of nested values
+    Array(usize, Vec<JsValue>),
+    /// An object of nested values
+    Object(usize, Vec<ObjectPart>),
+    /// A list of alternative values
     Alternatives(usize, Vec<JsValue>),
+    /// A function reference. The return value might contain [JsValue::Argument]
+    /// placeholders that need to be replaced when calling this function.
+    /// `(total_node_count, func_ident, return_value)`
+    Function(usize, u32, Box<JsValue>),
 
-    // TODO no predefined kinds, only JsWord
-    FreeVar(FreeVarKind),
-
-    Variable(Id),
-
+    // OPERATIONS
+    // ----------------------------
+    /// A string concatenation of values.
     /// `foo.${unknownVar}.js` => 'foo' + Unknown + '.js'
     Concat(usize, Vec<JsValue>),
-
+    /// An addition of values.
     /// This can be converted to [JsValue::Concat] if the type of the variable
     /// is string.
     Add(usize, Vec<JsValue>),
-
-    /// `(callee, args)`
+    /// Logical negation `!expr`
+    Not(usize, Box<JsValue>),
+    /// Logical operator chain e. g. `expr && expr`
+    Logical(usize, LogicalOperator, Vec<JsValue>),
+    /// A function call without a this context.
+    /// `(total_node_count, callee, args)`
     Call(usize, Box<JsValue>, Vec<JsValue>),
-
-    /// `(obj, prop, args)`
+    /// A function call with a this context.
+    /// `(total_node_count, obj, prop, args)`
     MemberCall(usize, Box<JsValue>, Box<JsValue>, Vec<JsValue>),
-
-    /// `obj[prop]`
+    /// A member access `obj[prop]`
+    /// `(total_node_count, obj, prop)`
     Member(usize, Box<JsValue>, Box<JsValue>),
 
-    /// This is a reference to a imported module
+    // PLACEHOLDERS
+    // ----------------------------
+    /// A reference to a variable.
+    Variable(Id),
+    /// A reference to an function argument.
+    /// (func_ident, arg_index)
+    Argument(u32, usize),
+    // TODO no predefined kinds, only JsWord
+    /// A reference to a free variable.
+    FreeVar(FreeVarKind),
+    /// This is a reference to a imported module.
     Module(ModuleValue),
-
-    /// Some kind of well known object
-    /// (must not be an array, otherwise Array.concat need to be changed)
-    WellKnownObject(WellKnownObjectKind),
-
-    /// Some kind of well known function
-    WellKnownFunction(WellKnownFunctionKind),
-
-    /// Not analyzable.
-    Unknown(Option<Arc<JsValue>>, &'static str),
-
-    /// `(return_value)`
-    Function(usize, Box<JsValue>),
-
-    Argument(usize),
 }
 
 impl From<&'_ str> for JsValue {
@@ -317,6 +427,15 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(" + ")
             ),
+            JsValue::Not(_, value) => write!(f, "!({})", value),
+            JsValue::Logical(_, op, list) => write!(
+                f,
+                "({})",
+                list.iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(op.joiner())
+            ),
             JsValue::Call(_, callee, list) => write!(
                 f,
                 "{}({})",
@@ -346,10 +465,12 @@ impl Display for JsValue {
             JsValue::Unknown(..) => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({:?})", obj),
             JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({:?})", func),
-            JsValue::Function(_, return_value) => {
-                write!(f, "Function(return = {:?})", return_value)
+            JsValue::Function(_, func_ident, return_value) => {
+                write!(f, "Function#{}(return = {:?})", func_ident, return_value)
             }
-            JsValue::Argument(index) => write!(f, "arguments[{}]", index),
+            JsValue::Argument(func_ident, index) => {
+                write!(f, "arguments[{}#{}]", index, func_ident)
+            }
         }
     }
 }
@@ -398,14 +519,36 @@ fn total_nodes(vec: &[JsValue]) -> usize {
     vec.iter().map(|v| v.total_nodes()).sum::<usize>()
 }
 
+// Private meta methods
 impl JsValue {
-    pub fn as_str(&self) -> Option<&str> {
+    fn meta_type(&self) -> JsValueMetaKind {
         match self {
-            JsValue::Constant(c) => c.as_str(),
-            _ => None,
+            JsValue::Constant(..)
+            | JsValue::Url(..)
+            | JsValue::WellKnownObject(..)
+            | JsValue::WellKnownFunction(..)
+            | JsValue::Unknown(..) => JsValueMetaKind::Leaf,
+            JsValue::Array(..)
+            | JsValue::Object(..)
+            | JsValue::Alternatives(..)
+            | JsValue::Function(..) => JsValueMetaKind::Nested,
+            JsValue::Concat(..)
+            | JsValue::Add(..)
+            | JsValue::Not(..)
+            | JsValue::Logical(..)
+            | JsValue::Call(..)
+            | JsValue::MemberCall(..)
+            | JsValue::Member(..) => JsValueMetaKind::Operation,
+            JsValue::Variable(..)
+            | JsValue::Argument(..)
+            | JsValue::FreeVar(..)
+            | JsValue::Module(..) => JsValueMetaKind::Placeholder,
         }
     }
+}
 
+// Constructors
+impl JsValue {
     pub fn alternatives(list: Vec<JsValue>) -> Self {
         Self::Alternatives(1 + total_nodes(&list), list)
     }
@@ -418,12 +561,32 @@ impl JsValue {
         Self::Add(1 + total_nodes(&list), list)
     }
 
+    pub fn logical_and(list: Vec<JsValue>) -> Self {
+        Self::Logical(1 + total_nodes(&list), LogicalOperator::And, list)
+    }
+
+    pub fn logical_or(list: Vec<JsValue>) -> Self {
+        Self::Logical(1 + total_nodes(&list), LogicalOperator::Or, list)
+    }
+
+    pub fn nullish_coalescing(list: Vec<JsValue>) -> Self {
+        Self::Logical(
+            1 + total_nodes(&list),
+            LogicalOperator::NullishCoalescing,
+            list,
+        )
+    }
+
+    pub fn logical_not(inner: Box<JsValue>) -> Self {
+        Self::Not(1 + inner.total_nodes(), inner)
+    }
+
     pub fn array(list: Vec<JsValue>) -> Self {
         Self::Array(1 + total_nodes(&list), list)
     }
 
-    pub fn function(return_value: Box<JsValue>) -> Self {
-        Self::Function(1 + return_value.total_nodes(), return_value)
+    pub fn function(func_ident: u32, return_value: Box<JsValue>) -> Self {
+        Self::Function(1 + return_value.total_nodes(), func_ident, return_value)
     }
 
     pub fn object(list: Vec<ObjectPart>) -> Self {
@@ -454,7 +617,10 @@ impl JsValue {
     pub fn member(o: Box<JsValue>, p: Box<JsValue>) -> Self {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
     }
+}
 
+// Methods regarding node count
+impl JsValue {
     pub fn total_nodes(&self) -> usize {
         match self {
             JsValue::Constant(_)
@@ -465,17 +631,19 @@ impl JsValue {
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown(_, _)
-            | JsValue::Argument(_) => 1,
+            | JsValue::Argument(..) => 1,
 
             JsValue::Array(c, _)
             | JsValue::Object(c, _)
             | JsValue::Alternatives(c, _)
             | JsValue::Concat(c, _)
             | JsValue::Add(c, _)
+            | JsValue::Not(c, _)
+            | JsValue::Logical(c, _, _)
             | JsValue::Call(c, _, _)
             | JsValue::MemberCall(c, _, _, _)
             | JsValue::Member(c, _, _)
-            | JsValue::Function(c, _) => *c,
+            | JsValue::Function(c, _, _) => *c,
         }
     }
 
@@ -489,13 +657,18 @@ impl JsValue {
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Unknown(_, _)
-            | JsValue::Argument(_) => {}
+            | JsValue::Argument(..) => {}
 
             JsValue::Array(c, list)
             | JsValue::Alternatives(c, list)
             | JsValue::Concat(c, list)
-            | JsValue::Add(c, list) => {
+            | JsValue::Add(c, list)
+            | JsValue::Logical(c, _, list) => {
                 *c = 1 + total_nodes(list);
+            }
+
+            JsValue::Not(c, r) => {
+                *c = 1 + r.total_nodes();
             }
 
             JsValue::Object(c, props) => {
@@ -516,11 +689,26 @@ impl JsValue {
             JsValue::Member(c, o, p) => {
                 *c = 1 + o.total_nodes() + p.total_nodes();
             }
-            JsValue::Function(c, r) => {
+            JsValue::Function(c, _, r) => {
                 *c = 1 + r.total_nodes();
             }
         }
     }
+
+    #[cfg(debug_assertions)]
+    pub fn debug_assert_total_nodes_up_to_date(&mut self) {
+        let old = self.total_nodes();
+        self.update_total_nodes();
+        assert_eq!(
+            old,
+            self.total_nodes(),
+            "total nodes not up to date {:?}",
+            self
+        );
+    }
+
+    #[cfg(not(debug_assertions))]
+    pub fn debug_assert_total_nodes_up_to_date(&mut self) {}
 
     pub fn ensure_node_limit(&mut self, limit: usize) {
         fn cmp_nodes(a: &JsValue, b: &JsValue) -> Ordering {
@@ -541,14 +729,18 @@ impl JsValue {
                 | JsValue::WellKnownObject(_)
                 | JsValue::WellKnownFunction(_)
                 | JsValue::Unknown(_, _)
-                | JsValue::Argument(_) => self.make_unknown_without_content("node limit reached"),
+                | JsValue::Argument(..) => self.make_unknown_without_content("node limit reached"),
 
                 JsValue::Array(_, list)
                 | JsValue::Alternatives(_, list)
                 | JsValue::Concat(_, list)
+                | JsValue::Logical(_, _, list)
                 | JsValue::Add(_, list) => {
                     make_max_unknown(list.iter_mut());
                     self.update_total_nodes();
+                }
+                JsValue::Not(_, r) => {
+                    r.make_unknown_without_content("node limit reached");
                 }
                 JsValue::Object(_, list) => {
                     make_max_unknown(list.iter_mut().flat_map(|v| match v {
@@ -570,13 +762,16 @@ impl JsValue {
                     make_max_unknown([&mut **o, &mut **p].into_iter());
                     self.update_total_nodes();
                 }
-                JsValue::Function(_, r) => {
+                JsValue::Function(_, _, r) => {
                     r.make_unknown_without_content("node limit reached");
                 }
             }
         }
     }
+}
 
+// Methods for explaining a value
+impl JsValue {
     pub fn explain_args(args: &[JsValue], depth: usize, unknown_depth: usize) -> (String, String) {
         let mut hints = Vec::new();
         let args = args
@@ -719,7 +914,7 @@ impl JsValue {
             JsValue::Variable(name) => {
                 format!("{}", name.0)
             }
-            JsValue::Argument(index) => {
+            JsValue::Argument(_, index) => {
                 format!("arguments[{}]", index)
             }
             JsValue::Concat(_, list) => format!(
@@ -752,6 +947,28 @@ impl JsValue {
                     "",
                     "+ "
                 )
+            ),
+            JsValue::Logical(_, op, list) => format!(
+                "({})",
+                pretty_join(
+                    &list
+                        .iter()
+                        .map(|v| v.explain_internal_inner(
+                            hints,
+                            indent_depth + 1,
+                            depth,
+                            unknown_depth
+                        ))
+                        .collect::<Vec<_>>(),
+                    indent_depth,
+                    op.joiner(),
+                    "",
+                    op.multi_line_joiner()
+                )
+            ),
+            JsValue::Not(_, value) => format!(
+                "!({})",
+                value.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
             ),
             JsValue::Call(_, callee, list) => {
                 format!(
@@ -990,7 +1207,7 @@ impl JsValue {
                     name
                 }
             }
-            JsValue::Function(_, return_value) => {
+            JsValue::Function(_, _, return_value) => {
                 if depth > 0 {
                     format!(
                         "(...) => {}",
@@ -1007,58 +1224,357 @@ impl JsValue {
             }
         }
     }
+}
 
+// Unknown management
+impl JsValue {
+    /// Convert the value into unknown with a specific reason.
     pub fn make_unknown(&mut self, reason: &'static str) {
         *self = JsValue::Unknown(Some(Arc::new(take(self))), reason);
     }
 
+    /// Convert the value into unknown with a specific reason, but don't retain
+    /// the original value.
     pub fn make_unknown_without_content(&mut self, reason: &'static str) {
         *self = JsValue::Unknown(None, reason);
     }
 
-    pub fn has_placeholder(&self) -> bool {
-        match self {
-            // These are leafs and not placeholders
-            JsValue::Constant(_)
-            | JsValue::Url(_)
-            | JsValue::WellKnownObject(_)
-            | JsValue::WellKnownFunction(_)
-            | JsValue::Unknown(_, _)
-            | JsValue::Function(..) => false,
-
-            // These must be optimized reduced if they don't contain placeholders
-            // So when we see them, they contain placeholders
-            JsValue::Call(..) | JsValue::MemberCall(..) | JsValue::Member(..) => true,
-
-            // These are nested structures, where we look into children
-            // to see placeholders
-            JsValue::Array(..)
-            | JsValue::Object(..)
-            | JsValue::Alternatives(..)
-            | JsValue::Concat(..)
-            | JsValue::Add(..) => {
-                let mut result = false;
-                self.for_each_children(&mut |child| {
-                    result = result || child.has_placeholder();
-                });
-                result
+    /// Make all nested operations unknown when the value is an operation.
+    pub fn make_nested_operations_unknown(&mut self) -> bool {
+        fn inner(this: &mut JsValue) -> bool {
+            if matches!(this.meta_type(), JsValueMetaKind::Operation) {
+                this.make_unknown("nested operation");
+                true
+            } else {
+                this.for_each_children_mut(&mut inner)
             }
-
-            // These are placeholders
-            JsValue::Argument(_)
-            | JsValue::Variable(_)
-            | JsValue::Module(..)
-            | JsValue::FreeVar(_) => true,
+        }
+        if matches!(self.meta_type(), JsValueMetaKind::Operation) {
+            self.for_each_children_mut(&mut inner)
+        } else {
+            false
         }
     }
 }
 
+// Compile-time information gathering
+impl JsValue {
+    /// Returns the constant string if the value represents a constant string.
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            JsValue::Constant(c) => c.as_str(),
+            _ => None,
+        }
+    }
+
+    /// Checks if the value is truthy. Returns None if we don't know. Returns
+    /// Some if we know if or if not the value is truthy.
+    pub fn is_truthy(&self) -> Option<bool> {
+        match self {
+            JsValue::Constant(c) => Some(c.is_truthy()),
+            JsValue::Concat(..) => self.is_empty_string().map(|x| !x),
+            JsValue::Url(..)
+            | JsValue::Array(..)
+            | JsValue::Object(..)
+            | JsValue::WellKnownObject(..)
+            | JsValue::WellKnownFunction(..)
+            | JsValue::Function(..) => Some(true),
+            JsValue::Alternatives(_, list) => merge_if_known(list, JsValue::is_truthy),
+            JsValue::Not(_, value) => value.is_truthy().map(|x| !x),
+            JsValue::Logical(_, op, list) => match op {
+                LogicalOperator::And => all_if_known(list, JsValue::is_truthy),
+                LogicalOperator::Or => any_if_known(list, JsValue::is_truthy),
+                LogicalOperator::NullishCoalescing => {
+                    shortcircut_if_known(list, JsValue::is_not_nullish, JsValue::is_truthy)
+                }
+            },
+            _ => None,
+        }
+    }
+
+    /// Checks if the value is falsy. Returns None if we don't know. Returns
+    /// Some if we know if or if not the value is falsy.
+    pub fn is_falsy(&self) -> Option<bool> {
+        self.is_truthy().map(|x| !x)
+    }
+
+    /// Checks if the value is nullish (null or undefined). Returns None if we
+    /// don't know. Returns Some if we know if or if not the value is nullish.
+    pub fn is_nullish(&self) -> Option<bool> {
+        match self {
+            JsValue::Constant(c) => Some(c.is_nullish()),
+            JsValue::Concat(..)
+            | JsValue::Url(..)
+            | JsValue::Array(..)
+            | JsValue::Object(..)
+            | JsValue::WellKnownObject(..)
+            | JsValue::WellKnownFunction(..)
+            | JsValue::Not(..)
+            | JsValue::Function(..) => Some(false),
+            JsValue::Alternatives(_, list) => merge_if_known(list, JsValue::is_nullish),
+            JsValue::Logical(_, op, list) => match op {
+                LogicalOperator::And => {
+                    shortcircut_if_known(list, JsValue::is_truthy, JsValue::is_nullish)
+                }
+                LogicalOperator::Or => {
+                    shortcircut_if_known(list, JsValue::is_falsy, JsValue::is_nullish)
+                }
+                LogicalOperator::NullishCoalescing => all_if_known(list, JsValue::is_nullish),
+            },
+            _ => None,
+        }
+    }
+
+    /// Checks if we know that the value is not nullish. Returns None if we
+    /// don't know. Returns Some if we know if or if not the value is not
+    /// nullish.
+    pub fn is_not_nullish(&self) -> Option<bool> {
+        self.is_nullish().map(|x| !x)
+    }
+
+    /// Checks if we know that the value is an empty string. Returns None if we
+    /// don't know. Returns Some if we know if or if not the value is an empty
+    /// string.
+    pub fn is_empty_string(&self) -> Option<bool> {
+        match self {
+            JsValue::Constant(c) => Some(c.is_empty_string()),
+            JsValue::Concat(_, list) => all_if_known(list, JsValue::is_empty_string),
+            JsValue::Alternatives(_, list) => merge_if_known(list, JsValue::is_empty_string),
+            JsValue::Logical(_, op, list) => match op {
+                LogicalOperator::And => {
+                    shortcircut_if_known(list, JsValue::is_truthy, JsValue::is_empty_string)
+                }
+                LogicalOperator::Or => {
+                    shortcircut_if_known(list, JsValue::is_falsy, JsValue::is_empty_string)
+                }
+                LogicalOperator::NullishCoalescing => {
+                    shortcircut_if_known(list, JsValue::is_not_nullish, JsValue::is_empty_string)
+                }
+            },
+            JsValue::Url(..)
+            | JsValue::Array(..)
+            | JsValue::Object(..)
+            | JsValue::WellKnownObject(..)
+            | JsValue::WellKnownFunction(..)
+            | JsValue::Function(..) => Some(false),
+            _ => None,
+        }
+    }
+
+    /// Returns true, if the value is unknown and storing it as condition
+    /// doesn't make sense. This is for optimization purposes.
+    pub fn is_unknown(&self) -> bool {
+        match self {
+            JsValue::Unknown(..) => true,
+            JsValue::Alternatives(_, list) => list.iter().any(|x| x.is_unknown()),
+            _ => false,
+        }
+    }
+
+    /// Checks if we know that the value is a string. Returns None if we
+    /// don't know. Returns Some if we know if or if not the value is a string.
+    pub fn is_string(&self) -> Option<bool> {
+        match self {
+            JsValue::Constant(ConstantValue::StrWord(..))
+            | JsValue::Constant(ConstantValue::StrAtom(..))
+            | JsValue::Concat(..) => Some(true),
+
+            JsValue::Constant(..)
+            | JsValue::Array(..)
+            | JsValue::Object(..)
+            | JsValue::Url(..)
+            | JsValue::Module(..)
+            | JsValue::Function(..)
+            | JsValue::WellKnownObject(_)
+            | JsValue::WellKnownFunction(_) => Some(false),
+
+            JsValue::Not(..) => Some(false),
+            JsValue::Add(_, list) => any_if_known(list, JsValue::is_string),
+            JsValue::Logical(_, op, list) => match op {
+                LogicalOperator::And => {
+                    shortcircut_if_known(list, JsValue::is_truthy, JsValue::is_string)
+                }
+                LogicalOperator::Or => {
+                    shortcircut_if_known(list, JsValue::is_falsy, JsValue::is_string)
+                }
+                LogicalOperator::NullishCoalescing => {
+                    shortcircut_if_known(list, JsValue::is_not_nullish, JsValue::is_string)
+                }
+            },
+
+            JsValue::Alternatives(_, v) => merge_if_known(v, JsValue::is_string),
+
+            JsValue::Call(
+                _,
+                box JsValue::WellKnownFunction(
+                    WellKnownFunctionKind::RequireResolve
+                    | WellKnownFunctionKind::PathJoin
+                    | WellKnownFunctionKind::PathResolve(..)
+                    | WellKnownFunctionKind::OsArch
+                    | WellKnownFunctionKind::OsPlatform
+                    | WellKnownFunctionKind::PathDirname
+                    | WellKnownFunctionKind::PathToFileUrl
+                    | WellKnownFunctionKind::ProcessCwd,
+                ),
+                _,
+            ) => Some(true),
+
+            JsValue::FreeVar(..)
+            | JsValue::Variable(_)
+            | JsValue::Unknown(..)
+            | JsValue::Argument(..)
+            | JsValue::Call(..)
+            | JsValue::MemberCall(..)
+            | JsValue::Member(..) => None,
+        }
+    }
+
+    /// Checks if we know that the value starts with a given string. Returns
+    /// None if we don't know. Returns Some if we know if or if not the
+    /// value starts with the given string.
+    pub fn starts_with(&self, str: &str) -> Option<bool> {
+        if let Some(s) = self.as_str() {
+            return Some(s.starts_with(str));
+        }
+        match self {
+            JsValue::Alternatives(_, alts) => merge_if_known(alts, |a| a.starts_with(str)),
+            JsValue::Concat(_, list) => {
+                if let Some(item) = list.iter().next() {
+                    if item.starts_with(str) == Some(true) {
+                        Some(true)
+                    } else if let Some(s) = item.as_str() {
+                        if str.starts_with(s) {
+                            None
+                        } else {
+                            Some(false)
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+
+            _ => None,
+        }
+    }
+
+    /// Checks if we know that the value ends with a given string. Returns
+    /// None if we don't know. Returns Some if we know if or if not the
+    /// value ends with the given string.
+    pub fn ends_with(&self, str: &str) -> Option<bool> {
+        if let Some(s) = self.as_str() {
+            return Some(s.ends_with(str));
+        }
+        match self {
+            JsValue::Alternatives(_, alts) => merge_if_known(alts, |alt| alt.ends_with(str)),
+            JsValue::Concat(_, list) => {
+                if let Some(item) = list.last() {
+                    if item.ends_with(str) == Some(true) {
+                        Some(true)
+                    } else if let Some(s) = item.as_str() {
+                        if str.ends_with(s) {
+                            None
+                        } else {
+                            Some(false)
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(false)
+                }
+            }
+
+            _ => None,
+        }
+    }
+}
+
+/// Compute the compile-time value of all elements of the list. If all evaluate
+/// to the same value return that. Otherwise return None.
+fn merge_if_known<T: Copy>(
+    list: impl IntoIterator<Item = T>,
+    func: impl Fn(T) -> Option<bool>,
+) -> Option<bool> {
+    let mut current = None;
+    for item in list.into_iter().map(func) {
+        if item.is_some() {
+            if current.is_none() {
+                current = item;
+            } else if current != item {
+                return None;
+            }
+        } else {
+            return None;
+        }
+    }
+    current
+}
+
+/// Evaluates all elements of the list and returns Some(true) if all elements
+/// are compile-time true. If any element is compile-time false, return
+/// Some(false). Otherwise return None.
+fn all_if_known<T: Copy>(
+    list: impl IntoIterator<Item = T>,
+    func: impl Fn(T) -> Option<bool>,
+) -> Option<bool> {
+    let mut unknown = false;
+    for item in list.into_iter().map(func) {
+        match item {
+            Some(false) => return Some(false),
+            None => unknown = true,
+            _ => {}
+        }
+    }
+    if unknown {
+        None
+    } else {
+        Some(true)
+    }
+}
+
+/// Evaluates all elements of the list and returns Some(true) if any element is
+/// compile-time true. If all elements are compile-time false, return
+/// Some(false). Otherwise return None.
+fn any_if_known<T: Copy>(
+    list: impl IntoIterator<Item = T>,
+    func: impl Fn(T) -> Option<bool>,
+) -> Option<bool> {
+    all_if_known(list, |x| func(x).map(|x| !x)).map(|x| !x)
+}
+
+/// Selects the first element of the list where `use_item` is compile-time true.
+/// For this element returns the result of `item_value`. Otherwise returns None.
+fn shortcircut_if_known<T: Copy>(
+    list: impl IntoIterator<Item = T>,
+    use_item: impl Fn(T) -> Option<bool>,
+    item_value: impl FnOnce(T) -> Option<bool>,
+) -> Option<bool> {
+    let mut it = list.into_iter().peekable();
+    while let Some(item) = it.next() {
+        if it.peek().is_none() {
+            return item_value(item);
+        } else {
+            match use_item(item) {
+                Some(true) => return item_value(item),
+                None => return None,
+                _ => {}
+            }
+        }
+    }
+    None
+}
+
+/// Macro to visit all children of a node with an async function
 macro_rules! for_each_children_async {
     ($value:expr, $visit_fn:expr, $($args:expr),+) => {
         Ok(match &mut $value {
             JsValue::Alternatives(_, list)
             | JsValue::Concat(_, list)
             | JsValue::Add(_, list)
+            | JsValue::Logical(_, _, list)
             | JsValue::Array(_, list) => {
                 let mut modified = false;
                 for item in list.iter_mut() {
@@ -1130,9 +1646,16 @@ macro_rules! for_each_children_async {
                 ($value, modified)
             }
 
-            JsValue::Function(_, box return_value) => {
+            JsValue::Function(_, _, box return_value) => {
                 let (new_return_value, modified) = $visit_fn(take(return_value), $($args),+).await?;
                 *return_value = new_return_value;
+
+                $value.update_total_nodes();
+                ($value, modified)
+            }
+            JsValue::Not(_, box value) => {
+                let (new_value, modified) = $visit_fn(take(value), $($args),+).await?;
+                *value = new_value;
 
                 $value.update_total_nodes();
                 ($value, modified)
@@ -1158,7 +1681,10 @@ macro_rules! for_each_children_async {
     }
 }
 
+// Visiting
 impl JsValue {
+    /// Visit the node and all its children with a function in a loop until the
+    /// visitor returns false for the node and all children
     pub async fn visit_async_until_settled<'a, F, R, E>(
         self,
         visitor: &mut F,
@@ -1183,6 +1709,8 @@ impl JsValue {
         Ok((v, modified))
     }
 
+    /// Visit all children of the node with an async function in a loop until
+    /// the visitor returns false
     pub async fn visit_each_children_async_until_settled<'a, F, R, E>(
         mut self,
         visitor: &mut F,
@@ -1206,6 +1734,7 @@ impl JsValue {
         Ok(v)
     }
 
+    /// Visit the node and all its children with an async function.
     pub async fn visit_async<'a, F, R, E>(self, visitor: &mut F) -> Result<(Self, bool), E>
     where
         R: 'a + Future<Output = Result<(Self, bool), E>>,
@@ -1220,6 +1749,7 @@ impl JsValue {
         }
     }
 
+    /// Visit all children of the node with an async function.
     pub async fn visit_each_children_async<'a, F, R, E>(
         mut self,
         visitor: &mut F,
@@ -1239,6 +1769,7 @@ impl JsValue {
         for_each_children_async!(self, visit_async_box, visitor)
     }
 
+    /// Call an async function for each child of the node.
     pub async fn for_each_children_async<'a, F, R, E>(
         mut self,
         visitor: &mut F,
@@ -1250,6 +1781,8 @@ impl JsValue {
         for_each_children_async!(self, |v, ()| visitor(v), ())
     }
 
+    /// Visit the node and all its children with a function in a loop until the
+    /// visitor returns false
     pub fn visit_mut_until_settled(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) {
         while visitor(self) {
             self.for_each_children_mut(&mut |value| {
@@ -1259,6 +1792,7 @@ impl JsValue {
         }
     }
 
+    /// Visit the node and all its children with a function.
     pub fn visit_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
         let modified = self.for_each_children_mut(&mut |value| value.visit_mut(visitor));
         if visitor(self) {
@@ -1268,6 +1802,8 @@ impl JsValue {
         }
     }
 
+    /// Visit all children of the node with a function. Only visits nodes where
+    /// the condition is true.
     pub fn visit_mut_conditional(
         &mut self,
         condition: impl Fn(&JsValue) -> bool,
@@ -1285,6 +1821,8 @@ impl JsValue {
         }
     }
 
+    /// Calls a function for each child of the node. Allows mutating the node.
+    /// Updates the total nodes count after mutation.
     pub fn for_each_children_mut(
         &mut self,
         visitor: &mut impl FnMut(&mut JsValue) -> bool,
@@ -1293,6 +1831,7 @@ impl JsValue {
             JsValue::Alternatives(_, list)
             | JsValue::Concat(_, list)
             | JsValue::Add(_, list)
+            | JsValue::Logical(_, _, list)
             | JsValue::Array(_, list) => {
                 let mut modified = false;
                 for item in list.iter_mut() {
@@ -1300,7 +1839,16 @@ impl JsValue {
                         modified = true
                     }
                 }
-                self.update_total_nodes();
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
+            }
+            JsValue::Not(_, value) => {
+                let modified = visitor(value);
+                if modified {
+                    self.update_total_nodes();
+                }
                 modified
             }
             JsValue::Object(_, list) => {
@@ -1322,7 +1870,9 @@ impl JsValue {
                         }
                     }
                 }
-                self.update_total_nodes();
+                if modified {
+                    self.update_total_nodes();
+                }
                 modified
             }
             JsValue::Call(_, callee, list) => {
@@ -1332,7 +1882,9 @@ impl JsValue {
                         modified = true
                     }
                 }
-                self.update_total_nodes();
+                if modified {
+                    self.update_total_nodes();
+                }
                 modified
             }
             JsValue::MemberCall(_, obj, prop, list) => {
@@ -1344,20 +1896,27 @@ impl JsValue {
                         modified = true
                     }
                 }
-                self.update_total_nodes();
+                if modified {
+                    self.update_total_nodes();
+                }
                 modified
             }
-            JsValue::Function(_, return_value) => {
+            JsValue::Function(_, _, return_value) => {
                 let modified = visitor(return_value);
 
-                self.update_total_nodes();
+                if modified {
+                    self.update_total_nodes();
+                }
                 modified
             }
             JsValue::Member(_, obj, prop) => {
                 let m1 = visitor(obj);
                 let m2 = visitor(prop);
-                self.update_total_nodes();
-                m1 || m2
+                let modified = m1 || m2;
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
             }
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
@@ -1371,20 +1930,102 @@ impl JsValue {
         }
     }
 
+    /// Calls a function for only early children. Allows mutating the
+    /// node. Updates the total nodes count after mutation.
+    pub fn for_each_early_children_mut(
+        &mut self,
+        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+    ) -> bool {
+        match self {
+            JsValue::Call(_, callee, list) if !list.is_empty() => {
+                let m = visitor(callee);
+                if m {
+                    self.update_total_nodes();
+                }
+                m
+            }
+            JsValue::MemberCall(_, obj, prop, list) if !list.is_empty() => {
+                let m1 = visitor(obj);
+                let m2 = visitor(prop);
+                let modified = m1 || m2;
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
+            }
+            JsValue::Member(_, obj, _) => {
+                let m = visitor(obj);
+                if m {
+                    self.update_total_nodes();
+                }
+                m
+            }
+            _ => false,
+        }
+    }
+
+    /// Calls a function for only late children. Allows mutating the
+    /// node. Updates the total nodes count after mutation.
+    pub fn for_each_late_children_mut(
+        &mut self,
+        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+    ) -> bool {
+        match self {
+            JsValue::Call(_, _, list) if !list.is_empty() => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    if visitor(item) {
+                        modified = true
+                    }
+                }
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
+            }
+            JsValue::MemberCall(_, _, _, list) if !list.is_empty() => {
+                let mut modified = false;
+                for item in list.iter_mut() {
+                    if visitor(item) {
+                        modified = true
+                    }
+                }
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
+            }
+            JsValue::Member(_, _, prop) => {
+                let m = visitor(prop);
+                if m {
+                    self.update_total_nodes();
+                }
+                m
+            }
+            _ => self.for_each_children_mut(visitor),
+        }
+    }
+
+    /// Visit the node and all its children with a function.
     pub fn visit(&self, visitor: &mut impl FnMut(&JsValue)) {
         self.for_each_children(&mut |value| value.visit(visitor));
         visitor(self);
     }
 
+    /// Calls a function for all children of the node.
     pub fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
         match self {
             JsValue::Alternatives(_, list)
             | JsValue::Concat(_, list)
             | JsValue::Add(_, list)
+            | JsValue::Logical(_, _, list)
             | JsValue::Array(_, list) => {
                 for item in list.iter() {
                     visitor(item);
                 }
+            }
+            JsValue::Not(_, value) => {
+                visitor(value);
             }
             JsValue::Object(_, list) => {
                 for item in list.iter() {
@@ -1412,7 +2053,7 @@ impl JsValue {
                     visitor(item);
                 }
             }
-            JsValue::Function(_, return_value) => {
+            JsValue::Function(_, _, return_value) => {
                 visitor(return_value);
             }
             JsValue::Member(_, obj, prop) => {
@@ -1430,138 +2071,13 @@ impl JsValue {
             | JsValue::Argument(..) => {}
         }
     }
+}
 
-    pub fn is_string(&self) -> bool {
-        match self {
-            JsValue::Constant(ConstantValue::StrWord(..))
-            | JsValue::Constant(ConstantValue::StrAtom(..))
-            | JsValue::Concat(..) => true,
-
-            JsValue::Constant(..)
-            | JsValue::Array(..)
-            | JsValue::Object(..)
-            | JsValue::Url(..)
-            | JsValue::Module(..)
-            | JsValue::Function(..) => false,
-
-            JsValue::FreeVar(FreeVarKind::Dirname | FreeVarKind::Filename) => true,
-            JsValue::FreeVar(
-                FreeVarKind::Object
-                | FreeVarKind::Require
-                | FreeVarKind::Define
-                | FreeVarKind::Import
-                | FreeVarKind::NodeProcess,
-            ) => false,
-            JsValue::FreeVar(FreeVarKind::Other(_)) => false,
-
-            JsValue::Add(_, v) => v.iter().any(|v| v.is_string()),
-
-            JsValue::Alternatives(_, v) => v.iter().all(|v| v.is_string()),
-
-            JsValue::Variable(_) | JsValue::Unknown(..) | JsValue::Argument(..) => false,
-
-            JsValue::Call(
-                _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
-                _,
-            ) => true,
-            JsValue::Call(..) | JsValue::MemberCall(..) | JsValue::Member(..) => false,
-            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) => false,
-        }
-    }
-
-    pub fn starts_with(&self, str: &str) -> bool {
-        if let Some(s) = self.as_str() {
-            return s.starts_with(str);
-        }
-        match self {
-            JsValue::Alternatives(_, alts) => alts.iter().all(|alt| alt.starts_with(str)),
-            JsValue::Concat(_, list) => {
-                if let Some(item) = list.iter().next() {
-                    item.starts_with(str)
-                } else {
-                    false
-                }
-            }
-
-            // TODO: JsValue::Url(_) => todo!(),
-            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) | JsValue::Function(..) => {
-                false
-            }
-
-            _ => false,
-        }
-    }
-
-    pub fn starts_not_with(&self, str: &str) -> bool {
-        if let Some(s) = self.as_str() {
-            return !s.starts_with(str);
-        }
-        match self {
-            JsValue::Alternatives(_, alts) => alts.iter().all(|alt| alt.starts_not_with(str)),
-            JsValue::Concat(_, list) => {
-                if let Some(item) = list.iter().next() {
-                    item.starts_not_with(str)
-                } else {
-                    false
-                }
-            }
-
-            // TODO: JsValue::Url(_) => todo!(),
-            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) | JsValue::Function(..) => {
-                false
-            }
-
-            _ => false,
-        }
-    }
-
-    pub fn ends_with(&self, str: &str) -> bool {
-        if let Some(s) = self.as_str() {
-            return s.ends_with(str);
-        }
-        match self {
-            JsValue::Alternatives(_, alts) => alts.iter().all(|alt| alt.ends_with(str)),
-            JsValue::Concat(_, list) => {
-                if let Some(item) = list.last() {
-                    item.ends_with(str)
-                } else {
-                    false
-                }
-            }
-
-            // TODO: JsValue::Url(_) => todo!(),
-            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) | JsValue::Function(..) => {
-                false
-            }
-
-            _ => false,
-        }
-    }
-
-    pub fn ends_not_with(&self, str: &str) -> bool {
-        if let Some(s) = self.as_str() {
-            return !s.ends_with(str);
-        }
-        match self {
-            JsValue::Alternatives(_, alts) => alts.iter().all(|alt| alt.ends_not_with(str)),
-            JsValue::Concat(_, list) => {
-                if let Some(item) = list.last() {
-                    item.ends_not_with(str)
-                } else {
-                    false
-                }
-            }
-
-            // TODO: JsValue::Url(_) => todo!(),
-            JsValue::WellKnownObject(_) | JsValue::WellKnownFunction(_) | JsValue::Function(..) => {
-                false
-            }
-
-            _ => false,
-        }
-    }
-
+// Alternatives management
+impl JsValue {
+    /// Add an alternative to the current value. Might be a no-op if the value
+    /// already contains this alternative. Potentially expensive operation
+    /// as it has to compare the value with all existing alternatives.
     fn add_alt(&mut self, v: Self) {
         if self == &v {
             return;
@@ -1577,28 +2093,37 @@ impl JsValue {
             *self = JsValue::Alternatives(1 + l.total_nodes() + v.total_nodes(), vec![l, v]);
         }
     }
+}
 
+// Normalization
+impl JsValue {
+    /// Normalizes only the current node. Nested alternatives, concatenations,
+    /// or operations are collapsed.
     pub fn normalize_shallow(&mut self) {
         match self {
             JsValue::Alternatives(_, v) => {
-                let mut set = IndexSet::new();
-                for v in take(v) {
-                    match v {
-                        JsValue::Alternatives(_, v) => {
-                            for v in v {
+                if v.len() == 1 {
+                    *self = take(&mut v[0]);
+                } else {
+                    let mut set = IndexSet::with_capacity(v.len());
+                    for v in take(v) {
+                        match v {
+                            JsValue::Alternatives(_, v) => {
+                                for v in v {
+                                    set.insert(SimilarJsValue(v));
+                                }
+                            }
+                            v => {
                                 set.insert(SimilarJsValue(v));
                             }
                         }
-                        v => {
-                            set.insert(SimilarJsValue(v));
-                        }
                     }
-                }
-                if set.len() == 1 {
-                    *self = set.into_iter().next().unwrap().0;
-                } else {
-                    *v = set.into_iter().map(|v| v.0).collect();
-                    self.update_total_nodes();
+                    if set.len() == 1 {
+                        *self = set.into_iter().next().unwrap().0;
+                    } else {
+                        *v = set.into_iter().map(|v| v.0).collect();
+                        self.update_total_nodes();
+                    }
                 }
             }
             JsValue::Concat(_, v) => {
@@ -1635,7 +2160,7 @@ impl JsValue {
                 let mut added: Vec<JsValue> = Vec::new();
                 let mut iter = take(v).into_iter();
                 while let Some(item) = iter.next() {
-                    if item.is_string() {
+                    if item.is_string() == Some(true) {
                         let mut concat = match added.len() {
                             0 => Vec::new(),
                             1 => vec![added.into_iter().next().unwrap()],
@@ -1664,10 +2189,36 @@ impl JsValue {
                     self.update_total_nodes();
                 }
             }
+            JsValue::Logical(_, op, list) => {
+                // Nested logical expressions can be normalized: e. g. `a && (b && c)` => `a &&
+                // b && c`
+                if list.iter().any(|v| {
+                    if let JsValue::Logical(_, inner_op, _) = v {
+                        inner_op == op
+                    } else {
+                        false
+                    }
+                }) {
+                    // Taking the old list and constructing a new merged list
+                    for mut v in take(list).into_iter() {
+                        if let JsValue::Logical(_, inner_op, inner_list) = &mut v {
+                            if inner_op == op {
+                                list.append(inner_list);
+                            } else {
+                                list.push(v);
+                            }
+                        } else {
+                            list.push(v);
+                        }
+                    }
+                    self.update_total_nodes();
+                }
+            }
             _ => {}
         }
     }
 
+    /// Normalizes the current node and all nested nodes.
     pub fn normalize(&mut self) {
         self.for_each_children_mut(&mut |child| {
             child.normalize();
@@ -1675,7 +2226,13 @@ impl JsValue {
         });
         self.normalize_shallow();
     }
+}
 
+// Similarity
+// Like equality, but with depth limit
+impl JsValue {
+    /// Check if the values are equal up to the given depth. Might return false
+    /// even if the values are equal when hitting the depth limit.
     fn similar(&self, other: &JsValue, depth: usize) -> bool {
         if depth == 0 {
             return false;
@@ -1716,6 +2273,10 @@ impl JsValue {
                 lc == rc && all_similar(l, r, depth - 1)
             }
             (JsValue::Add(lc, l), JsValue::Add(rc, r)) => lc == rc && all_similar(l, r, depth - 1),
+            (JsValue::Logical(lc, lo, l), JsValue::Logical(rc, ro, r)) => {
+                lc == rc && lo == ro && all_similar(l, r, depth - 1)
+            }
+            (JsValue::Not(lc, l), JsValue::Not(rc, r)) => lc == rc && l.similar(r, depth - 1),
             (JsValue::Call(lc, lf, la), JsValue::Call(rc, rf, ra)) => {
                 lc == rc && lf.similar(rf, depth - 1) && all_similar(la, ra, depth - 1)
             }
@@ -1741,14 +2302,15 @@ impl JsValue {
             (JsValue::WellKnownObject(l), JsValue::WellKnownObject(r)) => l == r,
             (JsValue::WellKnownFunction(l), JsValue::WellKnownFunction(r)) => l == r,
             (JsValue::Unknown(_, l), JsValue::Unknown(_, r)) => l == r,
-            (JsValue::Function(lc, l), JsValue::Function(rc, r)) => {
+            (JsValue::Function(lc, _, l), JsValue::Function(rc, _, r)) => {
                 lc == rc && l.similar(r, depth - 1)
             }
-            (JsValue::Argument(l), JsValue::Argument(r)) => l == r,
+            (JsValue::Argument(li, l), JsValue::Argument(ri, r)) => li == ri && l == r,
             _ => false,
         }
     }
 
+    /// Hashes the value up to the given depth.
     fn similar_hash<H: std::hash::Hasher>(&self, state: &mut H, depth: usize) {
         if depth == 0 {
             return;
@@ -1780,14 +2342,16 @@ impl JsValue {
 
         match self {
             JsValue::Constant(v) => Hash::hash(v, state),
-            JsValue::Array(_, v) => all_similar_hash(v, state, depth - 1),
             JsValue::Object(_, v) => all_parts_similar_hash(v, state, depth - 1),
             JsValue::Url(v) => Hash::hash(v, state),
-            JsValue::Alternatives(_, v) => all_similar_hash(v, state, depth - 1),
             JsValue::FreeVar(v) => Hash::hash(v, state),
             JsValue::Variable(v) => Hash::hash(v, state),
-            JsValue::Concat(_, v) => all_similar_hash(v, state, depth - 1),
-            JsValue::Add(_, v) => all_similar_hash(v, state, depth - 1),
+            JsValue::Array(_, v)
+            | JsValue::Alternatives(_, v)
+            | JsValue::Concat(_, v)
+            | JsValue::Add(_, v)
+            | JsValue::Logical(_, _, v) => all_similar_hash(v, state, depth - 1),
+            JsValue::Not(_, v) => v.similar_hash(state, depth - 1),
             JsValue::Call(_, a, b) => {
                 a.similar_hash(state, depth - 1);
                 all_similar_hash(b, state, depth - 1);
@@ -1811,17 +2375,28 @@ impl JsValue {
             JsValue::WellKnownObject(v) => Hash::hash(v, state),
             JsValue::WellKnownFunction(v) => Hash::hash(v, state),
             JsValue::Unknown(_, v) => Hash::hash(v, state),
-            JsValue::Function(_, v) => v.similar_hash(state, depth - 1),
-            JsValue::Argument(v) => Hash::hash(v, state),
+            JsValue::Function(_, _, v) => v.similar_hash(state, depth - 1),
+            JsValue::Argument(i, v) => {
+                Hash::hash(i, state);
+                Hash::hash(v, state);
+            }
         }
     }
 }
 
+/// The depth to use when comparing values for similarity.
+const SIMILAR_EQ_DEPTH: usize = 3;
+/// The depth to use when hashing values for similarity.
+const SIMILAR_HASH_DEPTH: usize = 2;
+
+/// A wrapper around `JsValue` that implements `PartialEq` and `Hash` by
+/// comparing the values with a depth of [SIMILAR_EQ_DEPTH] and hashing values
+/// with a depth of [SIMILAR_HASH_DEPTH].
 struct SimilarJsValue(JsValue);
 
 impl PartialEq for SimilarJsValue {
     fn eq(&self, other: &Self) -> bool {
-        self.0.similar(&other.0, 3)
+        self.0.similar(&other.0, SIMILAR_EQ_DEPTH)
     }
 }
 
@@ -1829,7 +2404,7 @@ impl Eq for SimilarJsValue {}
 
 impl Hash for SimilarJsValue {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.similar_hash(state, 3)
+        self.0.similar_hash(state, SIMILAR_HASH_DEPTH)
     }
 }
 
@@ -1860,6 +2435,7 @@ pub enum FreeVarKind {
     Other(JsWord),
 }
 
+/// A list of well-known objects that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownObjectKind {
     GlobalObject,
@@ -1881,6 +2457,7 @@ pub enum WellKnownObjectKind {
     RequireCache,
 }
 
+/// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
     ObjectAssign,
@@ -1923,10 +2500,15 @@ pub mod test_utils {
     use turbopack_core::environment::EnvironmentVc;
 
     use super::{
-        well_known::replace_well_known, FreeVarKind, JsValue, ModuleValue, WellKnownFunctionKind,
-        WellKnownObjectKind,
+        builtin::early_replace_builtin, well_known::replace_well_known, FreeVarKind, JsValue,
+        ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
     };
     use crate::analyzer::builtin::replace_builtin;
+
+    pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
+        let m = early_replace_builtin(&mut v);
+        Ok((v, m))
+    }
 
     pub async fn visitor(v: JsValue, environment: EnvironmentVc) -> Result<(JsValue, bool)> {
         let mut new_value = match v {
@@ -1965,7 +2547,8 @@ pub mod test_utils {
             _ => {
                 let (mut v, m1) = replace_well_known(v, environment).await?;
                 let m2 = replace_builtin(&mut v);
-                return Ok((v, m1 || m2));
+                let m = m1 || m2 || v.make_nested_operations_unknown();
+                return Ok((v, m));
             }
         };
         new_value.normalize_shallow();
@@ -1975,7 +2558,7 @@ pub mod test_utils {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, sync::Mutex, time::Instant};
+    use std::{mem::take, path::PathBuf, time::Instant};
 
     use swc_core::{
         common::Mark,
@@ -1994,8 +2577,8 @@ mod tests {
     };
 
     use super::{
-        graph::{create_graph, EvalContext},
-        linker::{link, LinkCache},
+        graph::{create_graph, ConditionalKind, Effect, EffectArg, EvalContext, VarGraph},
+        linker::link,
         JsValue,
     };
 
@@ -2006,6 +2589,8 @@ mod tests {
         let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
         let graph_effects_snapshot_path = input.with_file_name("graph-effects.snapshot");
         let resolved_explained_snapshot_path = input.with_file_name("resolved-explained.snapshot");
+        let resolved_effects_snapshot_path = input.with_file_name("resolved-effects.snapshot");
+        let large_marker = input.with_file_name("large");
 
         run_test(false, |cm, handler| {
             let r = tokio::runtime::Builder::new_current_thread()
@@ -2029,7 +2614,7 @@ mod tests {
 
                 let eval_context = EvalContext::new(&m, unresolved_mark);
 
-                let var_graph = create_graph(&m, &eval_context);
+                let mut var_graph = create_graph(&m, &eval_context);
 
                 let mut named_values = var_graph
                     .values
@@ -2060,55 +2645,32 @@ mod tests {
                 {
                     // Dump snapshot of graph
 
-                    NormalizedOutput::from(format!("{:#?}", named_values))
-                        .compare_to_file(&graph_snapshot_path)
-                        .unwrap();
+                    let large = large_marker.exists();
+
+                    if !large {
+                        NormalizedOutput::from(format!("{:#?}", named_values))
+                            .compare_to_file(&graph_snapshot_path)
+                            .unwrap();
+                    }
                     NormalizedOutput::from(explain_all(&named_values))
                         .compare_to_file(&graph_explained_snapshot_path)
                         .unwrap();
-                    NormalizedOutput::from(format!("{:#?}", var_graph.effects))
-                        .compare_to_file(&graph_effects_snapshot_path)
-                        .unwrap();
+                    if !large {
+                        NormalizedOutput::from(format!("{:#?}", var_graph.effects))
+                            .compare_to_file(&graph_effects_snapshot_path)
+                            .unwrap();
+                    }
                 }
 
                 {
                     // Dump snapshot of resolved
 
                     let start = Instant::now();
-                    let cache = Mutex::new(LinkCache::new());
                     let mut resolved = Vec::new();
                     for (id, val) in named_values.iter() {
                         let val = val.clone();
-                        println!("linking {} {id}", input.display());
                         let start = Instant::now();
-                        let mut res = turbo_tasks_testing::VcStorage::with(link(
-                            &var_graph,
-                            val,
-                            &(|val| {
-                                Box::pin(super::test_utils::visitor(
-                                    val,
-                                    EnvironmentVc::new(
-                                        Value::new(ExecutionEnvironment::NodeJsLambda(
-                                            NodeJsEnvironment {
-                                                compile_target: CompileTarget {
-                                                    arch: Arch::X64,
-                                                    platform: Platform::Linux,
-                                                    endianness: Endianness::Little,
-                                                    libc: Libc::Glibc,
-                                                }
-                                                .into(),
-                                                ..Default::default()
-                                            }
-                                            .into(),
-                                        )),
-                                        Value::new(EnvironmentIntention::ServerRendering),
-                                    ),
-                                ))
-                            }),
-                            &cache,
-                        ))
-                        .await
-                        .unwrap();
+                        let res = resolve(&var_graph, val).await;
                         let time = start.elapsed();
                         if time.as_millis() > 1 {
                             println!(
@@ -2117,7 +2679,6 @@ mod tests {
                                 FormatDuration(time)
                             );
                         }
-                        res.normalize();
 
                         resolved.push((id.clone(), res));
                     }
@@ -2127,8 +2688,8 @@ mod tests {
                     }
 
                     let start = Instant::now();
-                    let time = start.elapsed();
                     let explainer = explain_all(&resolved);
+                    let time = start.elapsed();
                     if time.as_millis() > 1 {
                         println!(
                             "explaining {} took {}",
@@ -2142,9 +2703,162 @@ mod tests {
                         .unwrap();
                 }
 
+                {
+                    // Dump snapshot of resolved effects
+
+                    let start = Instant::now();
+                    let mut resolved = Vec::new();
+                    let mut queue = take(&mut var_graph.effects)
+                        .into_iter()
+                        .map(|effect| (0, effect))
+                        .rev()
+                        .collect::<Vec<_>>();
+                    let mut i = 0;
+                    while let Some((parent, effect)) = queue.pop() {
+                        i += 1;
+                        let start = Instant::now();
+                        async fn handle_args(
+                            args: Vec<EffectArg>,
+                            queue: &mut Vec<(usize, Effect)>,
+                            var_graph: &VarGraph,
+                            i: usize,
+                        ) -> Vec<JsValue> {
+                            let mut new_args = Vec::new();
+                            for arg in args {
+                                match arg {
+                                    EffectArg::Value(v) => {
+                                        new_args.push(resolve(var_graph, v).await);
+                                    }
+                                    EffectArg::Closure(v, effects) => {
+                                        new_args.push(resolve(var_graph, v).await);
+                                        queue.extend(
+                                            effects.effects.into_iter().rev().map(|e| (i, e)),
+                                        );
+                                    }
+                                    EffectArg::Spread => {
+                                        new_args.push(JsValue::Unknown(None, "spread"));
+                                    }
+                                }
+                            }
+                            new_args
+                        }
+                        match effect {
+                            Effect::Conditional {
+                                condition, kind, ..
+                            } => {
+                                let condition = resolve(&var_graph, condition).await;
+                                resolved.push((format!("{parent} -> {i} conditional"), condition));
+                                match *kind {
+                                    ConditionalKind::If { then } => {
+                                        queue
+                                            .extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                    }
+                                    ConditionalKind::IfElse { then, r#else }
+                                    | ConditionalKind::Ternary { then, r#else } => {
+                                        queue.extend(
+                                            r#else.effects.into_iter().rev().map(|e| (i, e)),
+                                        );
+                                        queue
+                                            .extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                    }
+                                    ConditionalKind::And { expr }
+                                    | ConditionalKind::Or { expr }
+                                    | ConditionalKind::NullishCoalescing { expr } => {
+                                        queue
+                                            .extend(expr.effects.into_iter().rev().map(|e| (i, e)));
+                                    }
+                                };
+                            }
+                            Effect::Call { func, args, .. } => {
+                                let func = resolve(&var_graph, func).await;
+                                let new_args = handle_args(args, &mut queue, &var_graph, i).await;
+                                resolved.push((
+                                    format!("{parent} -> {i} call"),
+                                    JsValue::call(box func, new_args),
+                                ));
+                            }
+                            Effect::MemberCall {
+                                obj, prop, args, ..
+                            } => {
+                                let obj = resolve(&var_graph, obj).await;
+                                let prop = resolve(&var_graph, prop).await;
+                                let new_args = handle_args(args, &mut queue, &var_graph, i).await;
+                                resolved.push((
+                                    format!("{parent} -> {i} member call"),
+                                    JsValue::member_call(box obj, box prop, new_args),
+                                ));
+                            }
+                            _ => {}
+                        }
+                        let time = start.elapsed();
+                        if time.as_millis() > 1 {
+                            println!(
+                                "linking effect {} took {}",
+                                input.display(),
+                                FormatDuration(time)
+                            );
+                        }
+                    }
+                    let time = start.elapsed();
+                    if time.as_millis() > 1 {
+                        println!(
+                            "linking effects {} took {}",
+                            input.display(),
+                            FormatDuration(time)
+                        );
+                    }
+
+                    let start = Instant::now();
+                    let explainer = explain_all(&resolved);
+                    let time = start.elapsed();
+                    if time.as_millis() > 1 {
+                        println!(
+                            "explaining effects {} took {}",
+                            input.display(),
+                            FormatDuration(time)
+                        );
+                    }
+
+                    NormalizedOutput::from(explainer)
+                        .compare_to_file(&resolved_effects_snapshot_path)
+                        .unwrap();
+                }
+
                 Ok(())
             })
         })
         .unwrap();
+    }
+
+    async fn resolve(var_graph: &VarGraph, val: JsValue) -> JsValue {
+        turbo_tasks_testing::VcStorage::with(link(
+            var_graph,
+            val,
+            &super::test_utils::early_visitor,
+            &(|val| {
+                Box::pin(super::test_utils::visitor(
+                    val,
+                    EnvironmentVc::new(
+                        Value::new(ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment {
+                                compile_target: CompileTarget {
+                                    arch: Arch::X64,
+                                    platform: Platform::Linux,
+                                    endianness: Endianness::Little,
+                                    libc: Libc::Glibc,
+                                }
+                                .into(),
+                                ..Default::default()
+                            }
+                            .into(),
+                        )),
+                        Value::new(EnvironmentIntention::ServerRendering),
+                    ),
+                ))
+            }),
+            Default::default(),
+        ))
+        .await
+        .unwrap()
     }
 }

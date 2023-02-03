@@ -1,11 +1,15 @@
-a = arguments[0]
+a = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-b = arguments[1]
+b = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-c = (...) => [`${arguments[0]}${arguments[1]}`, arguments[0]]
+c = (...) => (undefined | [`${a}${b}`, a])
 
-d = ["12", "1"]
+d = (undefined | ["12", "1"])
 
-e = "12"
+e = (undefined[0] | "12")
 
-f = "1"
+f = (undefined[1] | "1")

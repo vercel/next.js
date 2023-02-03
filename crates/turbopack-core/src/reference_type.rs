@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-// These enums list well known types, which we use internally. Plugins might add
+// These enums list well-known types, which we use internally. Plugins might add
 // custom types too.
 
 // TODO when plugins are supported, replace u8 with a trait that defines the

@@ -4,10 +4,12 @@
             Require,
         ),
         args: [
-            Variable(
-                (
-                    Atom('x' type=static),
-                    #1,
+            Value(
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #1,
+                    ),
                 ),
             ),
         ],

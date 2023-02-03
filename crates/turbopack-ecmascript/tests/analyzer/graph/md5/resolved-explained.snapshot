@@ -1,57 +1,97 @@
-a#10 = arguments[0]
+a#10 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-a#11 = arguments[0]
+a#11 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-a#12 = arguments[0]
+a#12 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-a#13 = arguments[0]
+a#13 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 a#5 = ???*0*
 - *0* max number of linking steps reached
 
-a#9 = arguments[1]
+a#9 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-b#10 = arguments[1]
+b#10 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-b#11 = arguments[1]
+b#11 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-b#12 = arguments[1]
+b#12 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-b#13 = arguments[1]
+b#13 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 b#5 = ???*0*
 - *0* max number of linking steps reached
 
-b#9 = arguments[2]
+b#9 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-bitRotateLeft = (...) => ???*0*
+bitRotateLeft = (...) => (undefined | ???*0*)
 - *0* unsupported expression
 
-bytes = (arguments[0] | ???*0*)
-- *0* unknown new expression
+bytes = (???*0* | ???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* unknown new expression
 
-bytesToWords = (...) => []
+bytesToWords = (...) => (undefined | output)
 
-c#10 = arguments[2]
+c#10 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-c#11 = arguments[2]
+c#11 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-c#12 = arguments[2]
+c#12 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-c#13 = arguments[2]
+c#13 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
 c#5 = ???*0*
 - *0* max number of linking steps reached
 
-cnt = arguments[1]
+cnt = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-d#10 = arguments[3]
+d#10 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
-d#11 = arguments[3]
+d#11 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
-d#12 = arguments[3]
+d#12 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
-d#13 = arguments[3]
+d#13 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
 d#5 = ???*0*
 - *0* max number of linking steps reached
@@ -59,20 +99,15 @@ d#5 = ???*0*
 hex = (???*0* | ???*1*)
 - *0* hex
   ⚠️  pattern without value
-- *1* ???*2*((???*3* + ???*6*), 16)
-  ⚠️  call of unknown function
+- *1* ???*2*(
+        (hexTab["charAt"](???*3*) + hexTab["charAt"](???*4*)),
+        16
+    )
+  ⚠️  unknown callee
 - *2* FreeVar(parseInt)
   ⚠️  unknown global
-- *3* ???*4*(???*5*)
-  ⚠️  call of unknown function
-- *4* "0123456789abcdef"["charAt"]
-  ⚠️  property on constant
-- *5* unsupported expression
-- *6* ???*7*(???*8*)
-  ⚠️  call of unknown function
-- *7* "0123456789abcdef"["charAt"]
-  ⚠️  property on constant
-- *8* unsupported expression
+- *3* unsupported expression
+- *4* unsupported expression
 
 hexTab = "0123456789abcdef"
 
@@ -90,11 +125,17 @@ i#6 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-input#4 = arguments[0]
+input#4 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-input#6 = arguments[0]
+input#6 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-len = arguments[1]
+len = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 length32 = ???*0*
 - *0* unsupported expression
@@ -106,43 +147,48 @@ lsw = (???*0* + ???*1*)
 - *0* unsupported expression
 - *1* unsupported expression
 
-md5 = ???*0*
-- *0* max number of linking steps reached
-
-md5ToHexEncodedArray = (...) => []
-
-md5cmn = (...) => ???*0*
+md5 = (...) => (
+  | undefined
+  | md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
+)
 - *0* unsupported expression
 
-md5ff = (...) => ???*0*
+md5ToHexEncodedArray = (...) => (undefined | output)
+
+md5cmn = (...) => (
+  | undefined
+  | safeAdd(
+        bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
+        b
+    )
+)
+
+md5ff = (...) => (undefined | md5cmn(???*0*, a, b, x, s, t))
 - *0* unsupported expression
 
-md5gg = (...) => ???*0*
+md5gg = (...) => (undefined | md5cmn(???*0*, a, b, x, s, t))
 - *0* unsupported expression
 
-md5hh = (...) => ???*0*
+md5hh = (...) => (undefined | md5cmn(???*0*, a, b, x, s, t))
 - *0* unsupported expression
 
-md5ii = (...) => ???*0*
+md5ii = (...) => (undefined | md5cmn(???*0*, a, b, x, s, t))
 - *0* unsupported expression
 
 msg = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  call of unknown function
+- *0* ???*1*(FreeVar(encodeURIComponent)(bytes))
+  ⚠️  unknown callee
 - *1* FreeVar(unescape)
   ⚠️  unknown global
-- *2* ???*3*((arguments[0] | ???*4*))
-  ⚠️  call of unknown function
-- *3* FreeVar(encodeURIComponent)
-  ⚠️  unknown global
-- *4* unknown new expression
 
 msw = (???*0* + ???*1* + ???*2*)
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
 
-num = arguments[0]
+num = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 olda = ???*0*
 - *0* max number of linking steps reached
@@ -160,51 +206,88 @@ output#4 = []
 
 output#6 = []
 
-q = arguments[0]
+q = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s#10 = arguments[5]
+s#10 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
 
-s#11 = arguments[5]
+s#11 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
 
-s#12 = arguments[5]
+s#12 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
 
-s#13 = arguments[5]
+s#13 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
 
-s#9 = arguments[4]
+s#9 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
 
-safeAdd = (...) => ???*0*
+safeAdd = (...) => (undefined | ???*0*)
 - *0* unsupported expression
 
-t#10 = arguments[6]
+t#10 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
 
-t#11 = arguments[6]
+t#11 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
 
-t#12 = arguments[6]
+t#12 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
 
-t#13 = arguments[6]
+t#13 = ???*0*
+- *0* arguments[6]
+  ⚠️  function calls are not analysed yet
 
-t#9 = arguments[5]
+t#9 = ???*0*
+- *0* arguments[5]
+  ⚠️  function calls are not analysed yet
 
-wordsToMd5 = ???*0*
-- *0* max number of linking steps reached
+wordsToMd5 = (...) => (undefined | [a, b, c, d])
 
-x#10 = arguments[4]
+x#10 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
 
-x#11 = arguments[4]
+x#11 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
 
-x#12 = arguments[4]
+x#12 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
 
-x#13 = arguments[4]
+x#13 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
 
 x#4 = (???*0* | ???*1*)
 - *0* x
   ⚠️  pattern without value
 - *1* unsupported expression
 
-x#5 = arguments[0]
+x#5 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-x#7 = arguments[0]
+x#7 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-x#9 = arguments[3]
+x#9 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
-y = arguments[1]
+y = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet

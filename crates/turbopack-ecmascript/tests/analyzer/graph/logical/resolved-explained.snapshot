@@ -1,0 +1,33 @@
+a = false
+
+b = true
+
+c = true
+
+chain1 = ???*0*
+- *0* FreeVar(global)
+  ⚠️  unknown global
+
+chain2 = (???*0* | 3)
+- *0* FreeVar(global)
+  ⚠️  unknown global
+
+d = false
+
+e = true
+
+resolve1 = (???*0* | 4)
+- *0* FreeVar(global)
+  ⚠️  unknown global
+
+resolve2 = 0
+
+resolve3 = (???*0* | true)
+- *0* FreeVar(global)
+  ⚠️  unknown global
+
+resolve4 = true
+
+x = true
+
+y = false

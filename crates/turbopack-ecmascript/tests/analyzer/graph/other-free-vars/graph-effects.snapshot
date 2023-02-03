@@ -1,58 +1,4 @@
 [
-    MemberCall {
-        obj: FreeVar(
-            Object,
-        ),
-        prop: Constant(
-            StrWord(
-                Atom('keys' type=inline),
-            ),
-        ),
-        args: [
-            Variable(
-                (
-                    Atom('O' type=inline),
-                    #1,
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                30,
-            ),
-            hi: BytePos(
-                44,
-            ),
-            ctxt: #0,
-        },
-    },
     Member {
         obj: FreeVar(
             Object,
@@ -109,11 +55,8 @@
         },
     },
     MemberCall {
-        obj: Variable(
-            (
-                Atom('O' type=inline),
-                #1,
-            ),
+        obj: FreeVar(
+            Object,
         ),
         prop: Constant(
             StrWord(
@@ -121,8 +64,13 @@
             ),
         ),
         args: [
-            FreeVar(
-                Object,
+            Value(
+                Variable(
+                    (
+                        Atom('O' type=inline),
+                        #1,
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -131,7 +79,7 @@
             ),
             Script(
                 Body(
-                    2,
+                    1,
                 ),
             ),
             Stmt(
@@ -154,10 +102,10 @@
         ],
         span: Span {
             lo: BytePos(
-                56,
+                30,
             ),
             hi: BytePos(
-                70,
+                44,
             ),
             ctxt: #0,
         },
@@ -216,6 +164,62 @@
             ),
             hi: BytePos(
                 62,
+            ),
+            ctxt: #0,
+        },
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                Atom('O' type=inline),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('keys' type=inline),
+            ),
+        ),
+        args: [
+            Value(
+                FreeVar(
+                    Object,
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                56,
+            ),
+            hi: BytePos(
+                70,
             ),
             ctxt: #0,
         },

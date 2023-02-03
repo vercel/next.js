@@ -1,468 +1,626 @@
-*anonymous function 10064* = (...) => "OR"
+*anonymous function 10064* = (...) => (undefined | "OR")
 
-*anonymous function 10192* = (...) => "NOT"
+*anonymous function 10192* = (...) => (undefined | "NOT")
 
-*anonymous function 10796* = (...) => {"type": "identifier", "name": arguments[0]}
+*anonymous function 10796* = (...) => (undefined | {"type": "identifier", "name": name})
 
-*anonymous function 11187* = (...) => (arguments[0] + arguments[1]["join"](""))
+*anonymous function 11187* = (...) => (undefined | (head + tail["join"]("")))
 
-*anonymous function 11339* = ???*0*
-- *0* in progress nodes limit reached
+*anonymous function 11339* = (...) => (undefined | {"type": "parameter_name", "name": text()})
 
-*anonymous function 11668* = ???*0*
-- *0* in progress nodes limit reached
+*anonymous function 11668* = (...) => (undefined | text())
 
-*anonymous function 11725* = (...) => arguments[0]
+*anonymous function 11725* = (...) => (undefined | seq)
 
-*anonymous function 11890* = (...) => ""
+*anonymous function 11890* = (...) => (undefined | "")
 
-*anonymous function 12016* = (...) => ""
+*anonymous function 12016* = (...) => (undefined | "")
 
-*anonymous function 12142* = (...) => "
+*anonymous function 12142* = (...) => (
+  | undefined
+  | "
 "
+)
 
-*anonymous function 12268* = (...) => ""
+*anonymous function 12268* = (...) => (undefined | "")
 
-*anonymous function 12394* = (...) => "	"
+*anonymous function 12394* = (...) => (undefined | "	")
 
-*anonymous function 12449* = ???*0*
-- *0* in progress nodes limit reached
+*anonymous function 12449* = (...) => (undefined | text())
 
-*anonymous function 12577* = (...) => ???*0*
-- *0* ???*1*(???*3*)
-  ⚠️  call of unknown function
-- *1* ???*2*["fromCharCode"]
-  ⚠️  property on unknown
-- *2* FreeVar(String)
-  ⚠️  unknown global
-- *3* ???*4*(arguments[0], 16)
-  ⚠️  call of unknown function
-- *4* FreeVar(parseInt)
-  ⚠️  unknown global
+*anonymous function 12577* = (...) => (
+  | undefined
+  | FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))
+)
 
-*anonymous function 1271* = (...) => "any character"
+*anonymous function 1271* = (...) => (undefined | "any character")
 
-*anonymous function 12829* = (...) => arguments[1]
+*anonymous function 12829* = (...) => (undefined | v)
 
-*anonymous function 12892* = (...) => {"property": arguments[0], "alias": arguments[1]}
+*anonymous function 12892* = (...) => (undefined | {"property": property, "alias": alias})
 
-*anonymous function 12977* = (...) => arguments[0]
+*anonymous function 12977* = (...) => (undefined | expression)
 
-*anonymous function 13048* = (...) => {"type": "array_subquery_expression", "expression": arguments[0]}
+*anonymous function 13048* = (...) => (
+  | undefined
+  | {"type": "array_subquery_expression", "expression": expression}
+)
 
-*anonymous function 13181* = (...) => {"type": "exists_subquery_expression", "expression": arguments[0]}
+*anonymous function 13181* = (...) => (
+  | undefined
+  | {"type": "exists_subquery_expression", "expression": expression}
+)
 
-*anonymous function 13315* = (...) => {"type": "scalar_subquery_expression", "expression": arguments[0]}
+*anonymous function 13315* = (...) => (
+  | undefined
+  | {"type": "scalar_subquery_expression", "expression": expression}
+)
 
-*anonymous function 1343* = (...) => "end of input"
+*anonymous function 1343* = (...) => (undefined | "end of input")
 
-*anonymous function 13449* = (...) => {"property": arguments[1], "computed": false}
+*anonymous function 13449* = (...) => (undefined | {"property": property, "computed": false})
 
-*anonymous function 13543* = (...) => {"property": arguments[1], "computed": true}
+*anonymous function 13543* = (...) => (undefined | {"property": property, "computed": true})
 
-*anonymous function 13636* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
-- *0* unsupported expression
+*anonymous function 13636* = (...) => (undefined | tail["reduce"](*arrow function 13694*, head))
 
-*anonymous function 13891* = (...) => {"type": "scalar_unary_expression", "operator": arguments[0], "argument": arguments[1]}
+*anonymous function 13891* = (...) => (
+  | undefined
+  | {"type": "scalar_unary_expression", "operator": operator, "argument": argument}
+)
 
-*anonymous function 1416* = (...) => arguments[0]["description"]
+*anonymous function 1416* = (...) => (undefined | expectation["description"])
 
-*anonymous function 14188* = (...) => {
-    "type": "scalar_conditional_expression",
-    "test": arguments[0],
-    "consequent": arguments[1],
-    "alternate": arguments[2]
+*anonymous function 14188* = (...) => (
+  | undefined
+  | {
+        "type": "scalar_conditional_expression",
+        "test": test,
+        "consequent": consequent,
+        "alternate": alternate
+    }
+)
+
+*anonymous function 14448* = (...) => (undefined | buildBinaryExpression(head, tail))
+
+*anonymous function 15047* = (...) => (
+  | undefined
+  | {"type": "scalar_in_expression", "value": value, "list": list}
+)
+
+*anonymous function 15185* = (...) => (
+  | undefined
+  | {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}
+)
+
+*anonymous function 15997* = (...) => (undefined | {"key": key, "value": value})
+
+*anonymous function 16072* = (...) => (
+  | undefined
+  | {"type": "collection_expression", "expression": expression}
+)
+
+*anonymous function 16201* = (...) => (undefined | tail["reduce"](*arrow function 16259*, head))
+
+*anonymous function 16460* = (...) => (
+  | undefined
+  | {"type": "collection_subquery_expression", "expression": expression}
+)
+
+*anonymous function 16598* = (...) => (undefined | {"type": "top_specification", "value": value})
+
+*anonymous function 16713* = (...) => (
+  | undefined
+  | {"type": "number_constant", "value": FreeVar(Number)(text())}
+)
+
+*anonymous function 16837* = (...) => (undefined | ???*0* | [])
+- *0* spread is not supported
+
+*anonymous function 16925* = (...) => (undefined | subquery)
+
+*anonymous function 1822* = (...) => (undefined | `\x0${hex(ch)}`)
+
+*anonymous function 1920* = (...) => (undefined | `\x${hex(ch)}`)
+
+*anonymous function 2287* = (...) => (undefined | `\x0${hex(ch)}`)
+
+*anonymous function 2385* = (...) => (undefined | `\x${hex(ch)}`)
+
+*anonymous function 3852* = (...) => (undefined | {"type": "sql", "body": body})
+
+*anonymous function 3949* = (...) => (undefined | v)
+
+*anonymous function 4000* = (...) => (undefined | v)
+
+*anonymous function 4064* = (...) => (undefined | v)
+
+*anonymous function 4134* = (...) => (undefined | v)
+
+*anonymous function 4211* = (...) => (
+  | undefined
+  | {
+        "type": "select_query",
+        "top": top,
+        "select": select,
+        "from": from,
+        "where": where,
+        "orderBy": orderBy
+    }
+)
+
+*anonymous function 4474* = (...) => (undefined | {"type": "select_specification", "*": true})
+
+*anonymous function 4589* = (...) => (
+  | undefined
+  | {"type": "select_specification", "properties": properties}
+)
+
+*anonymous function 4716* = (...) => (undefined | {"type": "select_specification", "value": value})
+
+*anonymous function 4902* = (...) => (undefined | v)
+
+*anonymous function 4960* = (...) => (
+  | undefined
+  | {"type": "object_property_list", "properties": ???*0*}
+)
+- *0* spread is not supported
+
+*anonymous function 5104* = (...) => (undefined | v)
+
+*anonymous function 5164* = (...) => (
+  | undefined
+  | {"type": "from_specification", "source": source, "joins": joins}
+)
+
+*anonymous function 5303* = (...) => (
+  | undefined
+  | {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}
+)
+
+*anonymous function 5468* = (...) => (undefined | v)
+
+*anonymous function 5532* = (...) => (
+  | undefined
+  | {"type": "from_source", "expression": expression, "alias": alias}
+)
+
+*anonymous function 5672* = (...) => (
+  | undefined
+  | {"type": "filter_condition", "condition": condition}
+)
+
+*anonymous function 5793* = (...) => (
+  | undefined
+  | {"type": "sort_specification", "expressions": ???*0*}
+)
+- *0* spread is not supported
+
+*anonymous function 5936* = (...) => (
+  | undefined
+  | {"type": "sort_expression", "expression": expression, "order": order}
+)
+
+*anonymous function 625* = (...) => (
+  | undefined
+  | `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
+)
+
+*anonymous function 6287* = (...) => (
+  | undefined
+  | {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
+)
+
+*anonymous function 6458* = (...) => (
+  | undefined
+  | {"type": "scalar_function_expression", "name": name, "arguments": args}
+)
+
+*anonymous function 6748* = (...) => (
+  | undefined
+  | {"type": "scalar_object_expression", "properties": (???*0* | [])}
+)
+- *0* spread is not supported
+
+*anonymous function 702* = (...) => (undefined | `"${literalEscape(expectation["text"])}"`)
+
+*anonymous function 7046* = (...) => (
+  | undefined
+  | {"type": "scalar_array_expression", "elements": elements}
+)
+
+*anonymous function 7257* = (...) => (undefined | {"type": "undefined_constant"})
+
+*anonymous function 7337* = (...) => (undefined | {"type": "null_constant"})
+
+*anonymous function 7412* = (...) => (undefined | {"type": "boolean_constant", "value": false})
+
+*anonymous function 7527* = (...) => (undefined | {"type": "boolean_constant", "value": true})
+
+*anonymous function 7869* = (...) => (
+  | undefined
+  | {
+        "type": "number_constant",
+        "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
+    }
+)
+
+*anonymous function 804* = (...) => (undefined | `[${("^" | "")}${escapedParts}]`)
+
+*anonymous function 8139* = (...) => (
+  | undefined
+  | {"type": "string_constant", "value": chars["join"]("")}
+)
+
+*anonymous function 8336* = (...) => (undefined | {"type": "array_constant", "elements": ???*0*})
+- *0* spread is not supported
+
+*anonymous function 8472* = (...) => (undefined | {"type": "object_constant", "properties": ???*0*})
+- *0* spread is not supported
+
+*anonymous function 9682* = (...) => (undefined | "ASC")
+
+*anonymous function 9811* = (...) => (undefined | "DESC")
+
+*anonymous function 9939* = (...) => (undefined | "AND")
+
+*arrow function 13694* = (...) => {"type": "scalar_member_expression", "object": object, "property": property, "computed": computed}
+
+*arrow function 16259* = (...) => {
+    "type": "collection_member_expression",
+    "object": object,
+    "property": property,
+    "computed": computed
 }
 
-*anonymous function 14448* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
-- *0* unsupported expression
-
-*anonymous function 15047* = (...) => {"type": "scalar_in_expression", "value": arguments[0], "list": arguments[1]}
-
-*anonymous function 15185* = (...) => {
-    "type": "scalar_between_expression",
-    "value": arguments[0],
-    "begin": arguments[1],
-    "end": arguments[2]
-}
-
-*anonymous function 15997* = (...) => {"key": arguments[0], "value": arguments[1]}
-
-*anonymous function 16072* = (...) => {"type": "collection_expression", "expression": arguments[0]}
-
-*anonymous function 16201* = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
-- *0* unsupported expression
-
-*anonymous function 16460* = (...) => {"type": "collection_subquery_expression", "expression": arguments[0]}
-
-*anonymous function 16598* = (...) => {"type": "top_specification", "value": arguments[0]}
-
-*anonymous function 16713* = ???*0*
-- *0* in progress nodes limit reached
-
-*anonymous function 16837* = (...) => (???*0* | [])
-- *0* spread is not supported
-
-*anonymous function 16925* = (...) => arguments[0]
-
-*anonymous function 1822* = (...) => `\x0${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
-
-*anonymous function 1920* = (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
-
-*anonymous function 2287* = (...) => `\x0${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
-
-*anonymous function 2385* = (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
-
-*anonymous function 3852* = (...) => {"type": "sql", "body": arguments[0]}
-
-*anonymous function 3949* = (...) => arguments[0]
-
-*anonymous function 4000* = (...) => arguments[2]
-
-*anonymous function 4064* = (...) => arguments[3]
-
-*anonymous function 4134* = (...) => arguments[4]
-
-*anonymous function 4211* = (...) => {
-    "type": "select_query",
-    "top": arguments[0],
-    "select": arguments[1],
-    "from": arguments[2],
-    "where": arguments[3],
-    "orderBy": arguments[4]
-}
-
-*anonymous function 4474* = (...) => {"type": "select_specification", "*": true}
-
-*anonymous function 4589* = (...) => {"type": "select_specification", "properties": arguments[0]}
-
-*anonymous function 4716* = (...) => {"type": "select_specification", "value": arguments[0]}
-
-*anonymous function 4902* = (...) => arguments[1]
-
-*anonymous function 4960* = (...) => {"type": "object_property_list", "properties": ???*0*}
-- *0* spread is not supported
-
-*anonymous function 5104* = (...) => arguments[1]
-
-*anonymous function 5164* = (...) => {"type": "from_specification", "source": arguments[0], "joins": arguments[1]}
-
-*anonymous function 5303* = (...) => {"type": "from_source", "expression": arguments[1], "alias": arguments[0], "iteration": true}
-
-*anonymous function 5468* = (...) => arguments[1]
-
-*anonymous function 5532* = (...) => {"type": "from_source", "expression": arguments[0], "alias": arguments[1]}
-
-*anonymous function 5672* = (...) => {"type": "filter_condition", "condition": arguments[0]}
-
-*anonymous function 5793* = (...) => {"type": "sort_specification", "expressions": ???*0*}
-- *0* spread is not supported
-
-*anonymous function 5936* = (...) => {"type": "sort_expression", "expression": arguments[0], "order": arguments[1]}
-
-*anonymous function 625* = (...) => ???*0*
-- *0* unsupported expression
-
-*anonymous function 6287* = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1], "udf": true}
-
-*anonymous function 6458* = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1]}
-
-*anonymous function 6748* = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
-- *0* spread is not supported
-
-*anonymous function 702* = (...) => `"${...(..., ...)["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...[...](16)["toUpperCase"]()}`)["replace"](
-        /[\x10-\x1F\x7F-\x9F]/g,
-        (...) => `\x${...[...](0)["toString"](16)["toUpperCase"]()}`
-    )}"`
-
-*anonymous function 7046* = (...) => {"type": "scalar_array_expression", "elements": arguments[0]}
-
-*anonymous function 7257* = (...) => {"type": "undefined_constant"}
-
-*anonymous function 7337* = (...) => {"type": "null_constant"}
-
-*anonymous function 7412* = (...) => {"type": "boolean_constant", "value": false}
-
-*anonymous function 7527* = (...) => {"type": "boolean_constant", "value": true}
-
-*anonymous function 7869* = ???*0*
-- *0* in progress nodes limit reached
-
-*anonymous function 804* = (...) => `[${???*0*}]`
-- *0* unsupported expression
-
-*anonymous function 8139* = (...) => {"type": "string_constant", "value": arguments[0]["join"]("")}
-
-*anonymous function 8336* = (...) => {"type": "array_constant", "elements": ???*0*}
-- *0* spread is not supported
-
-*anonymous function 8472* = (...) => {"type": "object_constant", "properties": ???*0*}
-- *0* spread is not supported
-
-*anonymous function 9682* = (...) => "ASC"
-
-*anonymous function 9811* = (...) => "DESC"
-
-*anonymous function 9939* = (...) => "AND"
-
-*arrow function 13694* = (...) => ???*0*
-- *0* unsupported expression
-
-*arrow function 16259* = (...) => ???*0*
-- *0* unsupported expression
-
-*arrow function 169161* = (...) => ???*0*
-- *0* unsupported expression
+*arrow function 169161* = (...) => {"type": "scalar_binary_expression", "left": left, "operator": operator, "right": right}
 
 DESCRIBE_EXPECTATION_FNS = {
-    "literal": (...) => `"${...[...](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...(...)["toUpperCase"]()}`)["replace"](
-            /[\x10-\x1F\x7F-\x9F]/g,
-            (...) => `\x${...(...)["toString"](16)["toUpperCase"]()}`
-        )}"`,
-    "class": (...) => `[${???*0*}]`,
-    "any": (...) => "any character",
-    "end": (...) => "end of input",
-    "other": (...) => arguments[0]["description"]
+    "literal": (...) => (undefined | `"${literalEscape(expectation["text"])}"`),
+    "class": (...) => (undefined | `[${("^" | "")}${escapedParts}]`),
+    "any": (...) => (undefined | "any character"),
+    "end": (...) => (undefined | "end of input"),
+    "other": (...) => (undefined | expectation["description"])
 }
-- *0* unsupported expression
 
-alias#34 = arguments[0]
+alias#34 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-alias#36 = arguments[1]
+alias#36 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-alias#53 = arguments[1]
+alias#53 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-alternate = arguments[2]
+alternate = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-args#40 = arguments[1]
+args#40 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-args#41 = arguments[1]
+args#41 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-argument = arguments[1]
+argument = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-begin = arguments[1]
+begin = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-body = arguments[0]
+body = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-buildBinaryExpression = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
-- *0* unsupported expression
+buildBinaryExpression = (...) => (undefined | tail["reduce"](*arrow function 169161*, head))
 
-ch#11 = arguments[0]
+ch#11 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-ch#13 = arguments[0]
+ch#13 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-ch#14 = arguments[0]
+ch#14 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-ch#16 = arguments[0]
+ch#16 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-ch#17 = arguments[0]
+ch#17 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-chars = arguments[0]
+chars = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-child = arguments[0]
+child = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-classEscape = (...) => ...[...](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](
-    /[\x00-\x0F]/g,
-    (...) => `\x0${...(...)["toString"](16)["toUpperCase"]()}`
-)["replace"](
-    /[\x10-\x1F\x7F-\x9F]/g,
-    (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+classEscape = (...) => (
+  | undefined
+  | ...[...](..., ...)["replace"](/\^/g, "\^")["replace"](/-/g, "\-")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
 )
 
-condition = arguments[0]
+condition = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-consequent = arguments[1]
+consequent = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-ctor = (...) => ???*0*
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
+ctor = (...) => undefined
 
-describeExpectation = (...) => {
-    "literal": (...) => `"${...(..., ...)["replace"](/[\x00-\x0F]/g, (...) => `\x0${...}`)["replace"](/[\x10-\x1F\x7F-\x9F]/g, (...) => `\x${...[...]()}`)}"`,
-    "class": (...) => `[${???*0*}]`,
-    "any": (...) => "any character",
-    "end": (...) => "end of input",
-    "other": (...) => arguments[0]["description"]
-}[arguments[0]["type"]](arguments[0])
-- *0* unsupported expression
-
-describeExpected = (...) => (???*0* | `${???*2*} or ${???*4*}` | ???*6*)
-- *0* ???*1*[0]
-  ⚠️  property on unknown
-- *1* unknown new expression
-- *2* ???*3*[0]
-  ⚠️  property on unknown
-- *3* unknown new expression
-- *4* ???*5*[1]
-  ⚠️  property on unknown
-- *5* unknown new expression
-- *6* unsupported expression
-
-describeFound = (...) => (
-  | `"${...[...](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, (...) => `\x0${...(...)["toUpperCase"]()}`)["replace"](
-            /[\x10-\x1F\x7F-\x9F]/g,
-            (...) => `\x${...(...)["toString"](16)["toUpperCase"]()}`
-        )}"`
-  | "end of input"
+describeExpectation = (...) => (
+  | undefined
+  | DESCRIBE_EXPECTATION_FNS[expectation["type"]](expectation)
 )
 
-description#75 = arguments[0]
+describeExpected = (...) => (
+  | undefined
+  | descriptions[0]
+  | `${descriptions[0]} or ${descriptions[1]}`
+  | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+)
+- *0* unsupported expression
+- *1* unsupported expression
 
-description#79 = arguments[0]
+describeFound = (...) => (undefined | `"${literalEscape(found)}"` | "end of input")
+
+description#75 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+description#79 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 descriptions = ???*0*
 - *0* unknown new expression
 
-details = (
-  | [{"line": 1, "column": 1}][arguments[0]]
-  | {"line": 1, "column": 1}
-  | ???*0*
-  | {
-        "line": ([{"line": 1, "column": 1}][arguments[0]]["line"] | 1 | ???*2*),
-        "column": ([{"line": 1, "column": 1}][arguments[0]]["column"] | 1 | ???*5*)
-    }
-)
+details = ({"line": 1, "column": 1} | ???*0* | {"line": (1 | ???*2*), "column": (1 | ???*5*)})
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
-- *1* p
-  ⚠️  pattern without value
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
 - *2* ???*3*["line"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *3* [][???*4*]
   ⚠️  unknown array prototype methods or values
-- *4* p
-  ⚠️  pattern without value
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
 - *5* ???*6*["column"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *6* [][???*7*]
   ⚠️  unknown array prototype methods or values
-- *7* p
-  ⚠️  pattern without value
+- *7* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-digits = arguments[0]
+digits = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-elements = arguments[0]
+elements = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-end = arguments[2]
+end = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-endPos = arguments[1]
+endPos = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-endPosDetails = (
-  | [{"line": 1, "column": 1}][arguments[1]]
-  | {"line": 1, "column": 1}
-  | ???*0*
-  | {"line": ???*2*, "column": ???*4*}
-)
+endPosDetails = (undefined | {"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
-- *1* p
-  ⚠️  pattern without value
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
 - *2* ???*3*["line"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *3* details
   ⚠️  circular variable reference
 - *4* ???*5*["column"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *5* details
   ⚠️  circular variable reference
 
-error = (...) => ???*0*
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
+error = (...) => undefined
 
 escapedParts = ""
 
-expectation#10 = arguments[0]
+expectation#10 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expectation#18 = arguments[0]
+expectation#18 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expectation#6 = arguments[0]
+expectation#6 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expectation#7 = arguments[0]
+expectation#7 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expectation#8 = arguments[0]
+expectation#8 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expectation#9 = arguments[0]
+expectation#9 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expected#19 = arguments[0]
+expected#19 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expected#21 = (...) => ???*0*
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
+expected#21 = (...) => undefined
 
-expected#3 = arguments[1]
+expected#3 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-expected#5 = arguments[0]
+expected#5 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expected#82 = arguments[0]
+expected#82 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expected#84 = arguments[0]
+expected#84 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expression#34 = arguments[1]
+expression#34 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-expression#35 = arguments[0]
+expression#35 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expression#36 = arguments[0]
+expression#36 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expression#39 = arguments[0]
+expression#39 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expression#54 = arguments[0]
+expression#54 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expression#55 = arguments[0]
+expression#55 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expression#56 = arguments[0]
+expression#56 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expression#57 = arguments[0]
+expression#57 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expression#68 = arguments[0]
+expression#68 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-expression#71 = arguments[0]
+expression#71 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-found#20 = arguments[0]
+found#20 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-found#3 = arguments[2]
+found#3 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-found#5 = arguments[1]
+found#5 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-found#84 = arguments[1]
+found#84 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-from#25 = arguments[2]
+from#25 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-from#26 = arguments[2]
+from#26 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-from#27 = arguments[2]
+from#27 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-head#177 = arguments[0]
+head#177 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#30 = arguments[0]
+head#30 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#31 = arguments[0]
+head#31 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#38 = arguments[0]
+head#38 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#42 = arguments[0]
+head#42 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#46 = arguments[0]
+head#46 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#47 = arguments[0]
+head#47 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#49 = arguments[0]
+head#49 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#58 = arguments[0]
+head#58 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#59 = arguments[0]
+head#59 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#60 = arguments[0]
+head#60 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#64 = arguments[0]
+head#64 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#69 = arguments[0]
+head#69 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-head#73 = arguments[0]
+head#73 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-hex#44 = arguments[0]
+hex#44 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-hex#5 = (...) => arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+hex#5 = (...) => (
+  | undefined
+  | ch["charCodeAt"](0)["toString"](16)["toUpperCase"]()
+)
 
 i#19 = (???*0* | 0 | 1)
 - *0* i
@@ -472,62 +630,90 @@ i#7 = (???*0* | 0)
 - *0* i
   ⚠️  pattern without value
 
-ignoreCase#77 = arguments[1]
+ignoreCase#77 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-ignoreCase#78 = arguments[2]
+ignoreCase#78 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-input = arguments[0]
+input = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-inverted = arguments[1]
+inverted = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 j = (???*0* | 1)
 - *0* j
   ⚠️  pattern without value
 
-joins = arguments[1]
+joins = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-key = arguments[0]
+key = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 left = ???*0*
 - *0* left
   ⚠️  pattern without value
 
-list = arguments[1]
+list = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-literalEscape = (...) => ...[...](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](
-    /[\x00-\x0F]/g,
-    (...) => `\x0${...(...)["toString"](16)["toUpperCase"]()}`
-)["replace"](
-    /[\x10-\x1F\x7F-\x9F]/g,
-    (...) => `\x${arguments[0]["charCodeAt"](0)["toString"](16)["toUpperCase"]()}`
+literalEscape = (...) => (
+  | undefined
+  | s["replace"](/\\/g, "\\")["replace"](/"/g, "\"")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
 )
 
-location#21 = ???*0*
-- *0* in progress nodes limit reached
+location#21 = (...) => (undefined | peg$computeLocation(peg$savedPos, peg$currPos))
 
-location#3 = arguments[3]
+location#3 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
 location#75 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 location#76 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-location#83 = arguments[1]
+location#83 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-location#84 = arguments[2]
+location#84 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-message#3 = arguments[0]
+message#3 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-message#76 = arguments[0]
+message#76 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-message#83 = arguments[0]
+message#83 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-name#40 = arguments[0]
+name#40 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-name#41 = arguments[0]
+name#41 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-name#48 = arguments[0]
+name#48 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 object#61 = ???*0*
 - *0* object
@@ -541,1238 +727,1439 @@ operator#178 = ???*0*
 - *0* operator
   ⚠️  pattern without value
 
-operator#62 = arguments[0]
+operator#62 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-options = (arguments[1] | ???*0* | {})
-- *0* options
+options = (???*0* | ???*1* | {})
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* options
   ⚠️  circular variable reference
 
-order = arguments[1]
+order = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-orderBy = arguments[4]
+orderBy = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
 
 p = (???*0* | ???*1*)
 - *0* p
   ⚠️  pattern without value
 - *1* unsupported expression
 
-parent = arguments[1]
+parent = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-parts = arguments[0]
+parts = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 peg$FAILED = {}
 
-peg$SyntaxError = (...) => ???*0*
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
+peg$SyntaxError = (...) => undefined
 
-peg$anyExpectation = (...) => {"type": "any"}
+peg$anyExpectation = (...) => (undefined | {"type": "any"})
 
-peg$buildSimpleError = (...) => ???*0*
+peg$buildSimpleError = (...) => (undefined | ???*0*)
 - *0* unknown new expression
 
-peg$buildStructuredError = (...) => ???*0*
+peg$buildStructuredError = (...) => (undefined | ???*0*)
 - *0* unknown new expression
 
-peg$c0 = (...) => {"type": "sql", "body": arguments[0]}
+peg$c0 = (...) => (undefined | {"type": "sql", "body": body})
 
-peg$c1 = (...) => arguments[0]
+peg$c1 = (...) => (undefined | v)
 
-peg$c10 = (...) => {"type": "select_specification", "value": arguments[0]}
+peg$c10 = (...) => (undefined | {"type": "select_specification", "value": value})
 
-peg$c100 = {"type": "literal", "text": "NOT", "ignoreCase": true}
+peg$c100 = (
+  | undefined
+  | {"type": "literal", "text": "NOT", "ignoreCase": true}
+)
 
-peg$c101 = (...) => "NOT"
+peg$c101 = (...) => (undefined | "NOT")
 
 peg$c102 = "between"
 
-peg$c103 = {"type": "literal", "text": "BETWEEN", "ignoreCase": true}
+peg$c103 = (
+  | undefined
+  | {"type": "literal", "text": "BETWEEN", "ignoreCase": true}
+)
 
 peg$c104 = "exists"
 
-peg$c105 = {"type": "literal", "text": "EXISTS", "ignoreCase": true}
+peg$c105 = (
+  | undefined
+  | {"type": "literal", "text": "EXISTS", "ignoreCase": true}
+)
 
 peg$c106 = "array"
 
-peg$c107 = {"type": "literal", "text": "ARRAY", "ignoreCase": true}
+peg$c107 = (
+  | undefined
+  | {"type": "literal", "text": "ARRAY", "ignoreCase": true}
+)
 
 peg$c108 = "null"
 
-peg$c109 = {"type": "literal", "text": "null", "ignoreCase": false}
+peg$c109 = (
+  | undefined
+  | {"type": "literal", "text": "null", "ignoreCase": false}
+)
 
 peg$c11 = ","
 
 peg$c110 = "true"
 
-peg$c111 = {"type": "literal", "text": "true", "ignoreCase": false}
+peg$c111 = (
+  | undefined
+  | {"type": "literal", "text": "true", "ignoreCase": false}
+)
 
 peg$c112 = "false"
 
-peg$c113 = {"type": "literal", "text": "false", "ignoreCase": false}
+peg$c113 = (
+  | undefined
+  | {"type": "literal", "text": "false", "ignoreCase": false}
+)
 
 peg$c114 = "udf"
 
-peg$c115 = {"type": "literal", "text": "udf", "ignoreCase": false}
+peg$c115 = (
+  | undefined
+  | {"type": "literal", "text": "udf", "ignoreCase": false}
+)
 
-peg$c116 = (...) => {"type": "identifier", "name": arguments[0]}
+peg$c116 = (...) => (undefined | {"type": "identifier", "name": name})
 
 peg$c117 = /^[a-zA-Z_]/
 
-peg$c118 = {"type": "class", "parts": [["a", "z"], ["A", "Z"], "_"], "inverted": false, "ignoreCase": false}
+peg$c118 = (
+  | undefined
+  | {"type": "class", "parts": [["a", "z"], ["A", "Z"], "_"], "inverted": false, "ignoreCase": false}
+)
 
 peg$c119 = /^[a-zA-Z0-9_]/
 
-peg$c12 = {"type": "literal", "text": ",", "ignoreCase": false}
+peg$c12 = (
+  | undefined
+  | {"type": "literal", "text": ",", "ignoreCase": false}
+)
 
-peg$c120 = {
-    "type": "class",
-    "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
-    "inverted": false,
-    "ignoreCase": false
-}
+peg$c120 = (
+  | undefined
+  | {
+        "type": "class",
+        "parts": [["a", "z"], ["A", "Z"], ["0", "9"], "_"],
+        "inverted": false,
+        "ignoreCase": false
+    }
+)
 
-peg$c121 = (...) => (arguments[0] + arguments[1]["join"](""))
+peg$c121 = (...) => (undefined | (head + tail["join"]("")))
 
 peg$c122 = "@"
 
-peg$c123 = {"type": "literal", "text": "@", "ignoreCase": false}
+peg$c123 = (
+  | undefined
+  | {"type": "literal", "text": "@", "ignoreCase": false}
+)
 
-peg$c124 = ???*0*
-- *0* in progress nodes limit reached
+peg$c124 = (...) => (undefined | {"type": "parameter_name", "name": text()})
 
 peg$c125 = "+"
 
-peg$c126 = {"type": "literal", "text": "+", "ignoreCase": false}
+peg$c126 = (
+  | undefined
+  | {"type": "literal", "text": "+", "ignoreCase": false}
+)
 
 peg$c127 = "~"
 
-peg$c128 = {"type": "literal", "text": "~", "ignoreCase": false}
+peg$c128 = (
+  | undefined
+  | {"type": "literal", "text": "~", "ignoreCase": false}
+)
 
 peg$c129 = "\"
 
-peg$c13 = (...) => arguments[1]
+peg$c13 = (...) => (undefined | v)
 
-peg$c130 = {"type": "literal", "text": "\", "ignoreCase": false}
+peg$c130 = (
+  | undefined
+  | {"type": "literal", "text": "\", "ignoreCase": false}
+)
 
-peg$c131 = ???*0*
-- *0* in progress nodes limit reached
+peg$c131 = (...) => (undefined | text())
 
-peg$c132 = (...) => arguments[0]
+peg$c132 = (...) => (undefined | seq)
 
-peg$c133 = {"type": "any"}
+peg$c133 = (undefined | {"type": "any"})
 
 peg$c134 = "b"
 
-peg$c135 = {"type": "literal", "text": "b", "ignoreCase": false}
+peg$c135 = (
+  | undefined
+  | {"type": "literal", "text": "b", "ignoreCase": false}
+)
 
-peg$c136 = (...) => ""
+peg$c136 = (...) => (undefined | "")
 
 peg$c137 = "f"
 
-peg$c138 = {"type": "literal", "text": "f", "ignoreCase": false}
+peg$c138 = (
+  | undefined
+  | {"type": "literal", "text": "f", "ignoreCase": false}
+)
 
-peg$c139 = (...) => ""
+peg$c139 = (...) => (undefined | "")
 
-peg$c14 = (...) => {"type": "object_property_list", "properties": ???*0*}
+peg$c14 = (...) => (
+  | undefined
+  | {"type": "object_property_list", "properties": ???*0*}
+)
 - *0* spread is not supported
 
 peg$c140 = "n"
 
-peg$c141 = {"type": "literal", "text": "n", "ignoreCase": false}
+peg$c141 = (
+  | undefined
+  | {"type": "literal", "text": "n", "ignoreCase": false}
+)
 
-peg$c142 = (...) => "
+peg$c142 = (...) => (
+  | undefined
+  | "
 "
+)
 
 peg$c143 = "r"
 
-peg$c144 = {"type": "literal", "text": "r", "ignoreCase": false}
+peg$c144 = (
+  | undefined
+  | {"type": "literal", "text": "r", "ignoreCase": false}
+)
 
-peg$c145 = (...) => ""
+peg$c145 = (...) => (undefined | "")
 
 peg$c146 = "t"
 
-peg$c147 = {"type": "literal", "text": "t", "ignoreCase": false}
+peg$c147 = (
+  | undefined
+  | {"type": "literal", "text": "t", "ignoreCase": false}
+)
 
-peg$c148 = (...) => "	"
+peg$c148 = (...) => (undefined | "	")
 
-peg$c149 = ???*0*
-- *0* in progress nodes limit reached
+peg$c149 = (...) => (undefined | text())
 
-peg$c15 = (...) => arguments[1]
+peg$c15 = (...) => (undefined | v)
 
 peg$c150 = "u"
 
-peg$c151 = {"type": "literal", "text": "u", "ignoreCase": false}
+peg$c151 = (
+  | undefined
+  | {"type": "literal", "text": "u", "ignoreCase": false}
+)
 
-peg$c152 = (...) => ???*0*
-- *0* ???*1*(???*3*)
-  ⚠️  call of unknown function
-- *1* ???*2*["fromCharCode"]
-  ⚠️  property on unknown
-- *2* FreeVar(String)
-  ⚠️  unknown global
-- *3* ???*4*(arguments[0], 16)
-  ⚠️  call of unknown function
-- *4* FreeVar(parseInt)
-  ⚠️  unknown global
+peg$c152 = (...) => (
+  | undefined
+  | FreeVar(String)["fromCharCode"](FreeVar(parseInt)(digits, 16))
+)
 
 peg$c153 = /^[0-9a-f]/i
 
-peg$c154 = {"type": "class", "parts": [["0", "9"], ["a", "f"]], "inverted": false, "ignoreCase": true}
+peg$c154 = (
+  | undefined
+  | {"type": "class", "parts": [["0", "9"], ["a", "f"]], "inverted": false, "ignoreCase": true}
+)
 
-peg$c155 = (...) => arguments[1]
+peg$c155 = (...) => (undefined | v)
 
-peg$c156 = (...) => {"property": arguments[0], "alias": arguments[1]}
+peg$c156 = (...) => (undefined | {"property": property, "alias": alias})
 
-peg$c157 = (...) => arguments[0]
+peg$c157 = (...) => (undefined | expression)
 
-peg$c158 = (...) => {"type": "array_subquery_expression", "expression": arguments[0]}
+peg$c158 = (...) => (
+  | undefined
+  | {"type": "array_subquery_expression", "expression": expression}
+)
 
-peg$c159 = (...) => {"type": "exists_subquery_expression", "expression": arguments[0]}
+peg$c159 = (...) => (
+  | undefined
+  | {"type": "exists_subquery_expression", "expression": expression}
+)
 
-peg$c16 = (...) => {"type": "from_specification", "source": arguments[0], "joins": arguments[1]}
+peg$c16 = (...) => (
+  | undefined
+  | {"type": "from_specification", "source": source, "joins": joins}
+)
 
-peg$c160 = (...) => {"type": "scalar_subquery_expression", "expression": arguments[0]}
+peg$c160 = (...) => (
+  | undefined
+  | {"type": "scalar_subquery_expression", "expression": expression}
+)
 
-peg$c161 = (...) => {"property": arguments[1], "computed": false}
+peg$c161 = (...) => (undefined | {"property": property, "computed": false})
 
-peg$c162 = (...) => {"property": arguments[1], "computed": true}
+peg$c162 = (...) => (undefined | {"property": property, "computed": true})
 
-peg$c163 = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
-- *0* unsupported expression
+peg$c163 = (...) => (undefined | tail["reduce"](*arrow function 13694*, head))
 
-peg$c164 = (...) => {"type": "scalar_unary_expression", "operator": arguments[0], "argument": arguments[1]}
+peg$c164 = (...) => (
+  | undefined
+  | {"type": "scalar_unary_expression", "operator": operator, "argument": argument}
+)
 
 peg$c165 = "?"
 
-peg$c166 = {"type": "literal", "text": "?", "ignoreCase": false}
+peg$c166 = (
+  | undefined
+  | {"type": "literal", "text": "?", "ignoreCase": false}
+)
 
 peg$c167 = ":"
 
-peg$c168 = {"type": "literal", "text": ":", "ignoreCase": false}
+peg$c168 = (
+  | undefined
+  | {"type": "literal", "text": ":", "ignoreCase": false}
+)
 
-peg$c169 = (...) => {
-    "type": "scalar_conditional_expression",
-    "test": arguments[0],
-    "consequent": arguments[1],
-    "alternate": arguments[2]
-}
+peg$c169 = (...) => (
+  | undefined
+  | {
+        "type": "scalar_conditional_expression",
+        "test": test,
+        "consequent": consequent,
+        "alternate": alternate
+    }
+)
 
-peg$c17 = (...) => {"type": "from_source", "expression": arguments[1], "alias": arguments[0], "iteration": true}
+peg$c17 = (...) => (
+  | undefined
+  | {"type": "from_source", "expression": expression, "alias": alias, "iteration": true}
+)
 
 peg$c170 = "??"
 
-peg$c171 = {"type": "literal", "text": "??", "ignoreCase": false}
+peg$c171 = (
+  | undefined
+  | {"type": "literal", "text": "??", "ignoreCase": false}
+)
 
-peg$c172 = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
-- *0* unsupported expression
+peg$c172 = (...) => (undefined | buildBinaryExpression(head, tail))
 
 peg$c173 = "="
 
-peg$c174 = {"type": "literal", "text": "=", "ignoreCase": false}
+peg$c174 = (
+  | undefined
+  | {"type": "literal", "text": "=", "ignoreCase": false}
+)
 
 peg$c175 = "!="
 
-peg$c176 = {"type": "literal", "text": "!=", "ignoreCase": false}
+peg$c176 = (
+  | undefined
+  | {"type": "literal", "text": "!=", "ignoreCase": false}
+)
 
 peg$c177 = "<>"
 
-peg$c178 = {"type": "literal", "text": "<>", "ignoreCase": false}
+peg$c178 = (
+  | undefined
+  | {"type": "literal", "text": "<>", "ignoreCase": false}
+)
 
 peg$c179 = "<="
 
-peg$c18 = (...) => arguments[1]
+peg$c18 = (...) => (undefined | v)
 
-peg$c180 = {"type": "literal", "text": "<=", "ignoreCase": false}
+peg$c180 = (
+  | undefined
+  | {"type": "literal", "text": "<=", "ignoreCase": false}
+)
 
 peg$c181 = ">="
 
-peg$c182 = {"type": "literal", "text": ">=", "ignoreCase": false}
+peg$c182 = (
+  | undefined
+  | {"type": "literal", "text": ">=", "ignoreCase": false}
+)
 
 peg$c183 = "<"
 
-peg$c184 = {"type": "literal", "text": "<", "ignoreCase": false}
+peg$c184 = (
+  | undefined
+  | {"type": "literal", "text": "<", "ignoreCase": false}
+)
 
 peg$c185 = ">"
 
-peg$c186 = {"type": "literal", "text": ">", "ignoreCase": false}
+peg$c186 = (
+  | undefined
+  | {"type": "literal", "text": ">", "ignoreCase": false}
+)
 
-peg$c187 = (...) => {"type": "scalar_in_expression", "value": arguments[0], "list": arguments[1]}
+peg$c187 = (...) => (
+  | undefined
+  | {"type": "scalar_in_expression", "value": value, "list": list}
+)
 
-peg$c188 = (...) => {
-    "type": "scalar_between_expression",
-    "value": arguments[0],
-    "begin": arguments[1],
-    "end": arguments[2]
-}
+peg$c188 = (...) => (
+  | undefined
+  | {"type": "scalar_between_expression", "value": value, "begin": begin, "end": end}
+)
 
 peg$c189 = "|"
 
-peg$c19 = (...) => {"type": "from_source", "expression": arguments[0], "alias": arguments[1]}
+peg$c19 = (...) => (
+  | undefined
+  | {"type": "from_source", "expression": expression, "alias": alias}
+)
 
-peg$c190 = {"type": "literal", "text": "|", "ignoreCase": false}
+peg$c190 = (
+  | undefined
+  | {"type": "literal", "text": "|", "ignoreCase": false}
+)
 
 peg$c191 = "^"
 
-peg$c192 = {"type": "literal", "text": "^", "ignoreCase": false}
+peg$c192 = (
+  | undefined
+  | {"type": "literal", "text": "^", "ignoreCase": false}
+)
 
 peg$c193 = "&"
 
-peg$c194 = {"type": "literal", "text": "&", "ignoreCase": false}
+peg$c194 = (
+  | undefined
+  | {"type": "literal", "text": "&", "ignoreCase": false}
+)
 
 peg$c195 = "<<"
 
-peg$c196 = {"type": "literal", "text": "<<", "ignoreCase": false}
+peg$c196 = (
+  | undefined
+  | {"type": "literal", "text": "<<", "ignoreCase": false}
+)
 
 peg$c197 = ">>>"
 
-peg$c198 = {"type": "literal", "text": ">>>", "ignoreCase": false}
+peg$c198 = (
+  | undefined
+  | {"type": "literal", "text": ">>>", "ignoreCase": false}
+)
 
 peg$c199 = ">>"
 
-peg$c2 = (...) => arguments[2]
+peg$c2 = (...) => (undefined | v)
 
-peg$c20 = (...) => {"type": "filter_condition", "condition": arguments[0]}
+peg$c20 = (...) => (
+  | undefined
+  | {"type": "filter_condition", "condition": condition}
+)
 
-peg$c200 = {"type": "literal", "text": ">>", "ignoreCase": false}
+peg$c200 = (
+  | undefined
+  | {"type": "literal", "text": ">>", "ignoreCase": false}
+)
 
 peg$c201 = "||"
 
-peg$c202 = {"type": "literal", "text": "||", "ignoreCase": false}
+peg$c202 = (
+  | undefined
+  | {"type": "literal", "text": "||", "ignoreCase": false}
+)
 
 peg$c203 = "/"
 
-peg$c204 = {"type": "literal", "text": "/", "ignoreCase": false}
+peg$c204 = (
+  | undefined
+  | {"type": "literal", "text": "/", "ignoreCase": false}
+)
 
 peg$c205 = "%"
 
-peg$c206 = {"type": "literal", "text": "%", "ignoreCase": false}
+peg$c206 = (
+  | undefined
+  | {"type": "literal", "text": "%", "ignoreCase": false}
+)
 
-peg$c207 = (...) => {"key": arguments[0], "value": arguments[1]}
+peg$c207 = (...) => (undefined | {"key": key, "value": value})
 
-peg$c208 = (...) => {"type": "collection_expression", "expression": arguments[0]}
+peg$c208 = (...) => (
+  | undefined
+  | {"type": "collection_expression", "expression": expression}
+)
 
-peg$c209 = (...) => arguments[1]["reduce"]((...) => ???*0*, arguments[0])
-- *0* unsupported expression
+peg$c209 = (...) => (undefined | tail["reduce"](*arrow function 16259*, head))
 
-peg$c21 = (...) => {"type": "sort_specification", "expressions": ???*0*}
+peg$c21 = (...) => (
+  | undefined
+  | {"type": "sort_specification", "expressions": ???*0*}
+)
 - *0* spread is not supported
 
-peg$c210 = (...) => {"type": "collection_subquery_expression", "expression": arguments[0]}
+peg$c210 = (...) => (
+  | undefined
+  | {"type": "collection_subquery_expression", "expression": expression}
+)
 
-peg$c211 = (...) => {"type": "top_specification", "value": arguments[0]}
+peg$c211 = (...) => (undefined | {"type": "top_specification", "value": value})
 
-peg$c212 = ???*0*
-- *0* in progress nodes limit reached
+peg$c212 = (...) => (
+  | undefined
+  | {"type": "number_constant", "value": FreeVar(Number)(text())}
+)
 
-peg$c213 = (...) => (???*0* | [])
+peg$c213 = (...) => (undefined | ???*0* | [])
 - *0* spread is not supported
 
-peg$c214 = (...) => arguments[0]
+peg$c214 = (...) => (undefined | subquery)
 
-peg$c22 = (...) => {"type": "sort_expression", "expression": arguments[0], "order": arguments[1]}
+peg$c22 = (...) => (
+  | undefined
+  | {"type": "sort_expression", "expression": expression, "order": order}
+)
 
 peg$c23 = "."
 
-peg$c24 = {"type": "literal", "text": ".", "ignoreCase": false}
+peg$c24 = (
+  | undefined
+  | {"type": "literal", "text": ".", "ignoreCase": false}
+)
 
 peg$c25 = "("
 
-peg$c26 = {"type": "literal", "text": "(", "ignoreCase": false}
+peg$c26 = (
+  | undefined
+  | {"type": "literal", "text": "(", "ignoreCase": false}
+)
 
 peg$c27 = ")"
 
-peg$c28 = {"type": "literal", "text": ")", "ignoreCase": false}
+peg$c28 = (
+  | undefined
+  | {"type": "literal", "text": ")", "ignoreCase": false}
+)
 
-peg$c29 = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1], "udf": true}
+peg$c29 = (...) => (
+  | undefined
+  | {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
+)
 
-peg$c3 = (...) => arguments[3]
+peg$c3 = (...) => (undefined | v)
 
-peg$c30 = (...) => {"type": "scalar_function_expression", "name": arguments[0], "arguments": arguments[1]}
+peg$c30 = (...) => (
+  | undefined
+  | {"type": "scalar_function_expression", "name": name, "arguments": args}
+)
 
 peg$c31 = "{"
 
-peg$c32 = {"type": "literal", "text": "{", "ignoreCase": false}
+peg$c32 = (
+  | undefined
+  | {"type": "literal", "text": "{", "ignoreCase": false}
+)
 
 peg$c33 = "}"
 
-peg$c34 = {"type": "literal", "text": "}", "ignoreCase": false}
+peg$c34 = (
+  | undefined
+  | {"type": "literal", "text": "}", "ignoreCase": false}
+)
 
-peg$c35 = (...) => {"type": "scalar_object_expression", "properties": (???*0* | [])}
+peg$c35 = (...) => (
+  | undefined
+  | {"type": "scalar_object_expression", "properties": (???*0* | [])}
+)
 - *0* spread is not supported
 
 peg$c36 = "["
 
-peg$c37 = {"type": "literal", "text": "[", "ignoreCase": false}
+peg$c37 = (
+  | undefined
+  | {"type": "literal", "text": "[", "ignoreCase": false}
+)
 
 peg$c38 = "]"
 
-peg$c39 = {"type": "literal", "text": "]", "ignoreCase": false}
+peg$c39 = (
+  | undefined
+  | {"type": "literal", "text": "]", "ignoreCase": false}
+)
 
-peg$c4 = (...) => arguments[4]
+peg$c4 = (...) => (undefined | v)
 
-peg$c40 = (...) => {"type": "scalar_array_expression", "elements": arguments[0]}
+peg$c40 = (...) => (
+  | undefined
+  | {"type": "scalar_array_expression", "elements": elements}
+)
 
 peg$c41 = "undefined"
 
-peg$c42 = {"type": "literal", "text": "undefined", "ignoreCase": false}
+peg$c42 = (
+  | undefined
+  | {"type": "literal", "text": "undefined", "ignoreCase": false}
+)
 
-peg$c43 = (...) => {"type": "undefined_constant"}
+peg$c43 = (...) => (undefined | {"type": "undefined_constant"})
 
-peg$c44 = (...) => {"type": "null_constant"}
+peg$c44 = (...) => (undefined | {"type": "null_constant"})
 
-peg$c45 = (...) => {"type": "boolean_constant", "value": false}
+peg$c45 = (...) => (undefined | {"type": "boolean_constant", "value": false})
 
-peg$c46 = (...) => {"type": "boolean_constant", "value": true}
+peg$c46 = (...) => (undefined | {"type": "boolean_constant", "value": true})
 
 peg$c47 = "-"
 
-peg$c48 = {"type": "literal", "text": "-", "ignoreCase": false}
+peg$c48 = (
+  | undefined
+  | {"type": "literal", "text": "-", "ignoreCase": false}
+)
 
 peg$c49 = "0x"
 
-peg$c5 = (...) => {
-    "type": "select_query",
-    "top": arguments[0],
-    "select": arguments[1],
-    "from": arguments[2],
-    "where": arguments[3],
-    "orderBy": arguments[4]
-}
+peg$c5 = (...) => (
+  | undefined
+  | {
+        "type": "select_query",
+        "top": top,
+        "select": select,
+        "from": from,
+        "where": where,
+        "orderBy": orderBy
+    }
+)
 
-peg$c50 = {"type": "literal", "text": "0x", "ignoreCase": false}
+peg$c50 = (
+  | undefined
+  | {"type": "literal", "text": "0x", "ignoreCase": false}
+)
 
 peg$c51 = /^[0-9]/
 
-peg$c52 = {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+peg$c52 = (
+  | undefined
+  | {"type": "class", "parts": [["0", "9"]], "inverted": false, "ignoreCase": false}
+)
 
-peg$c53 = ???*0*
-- *0* in progress nodes limit reached
+peg$c53 = (...) => (
+  | undefined
+  | {
+        "type": "number_constant",
+        "value": (FreeVar(parseInt)(text(), 16) | FreeVar(parseFloat)(text()))
+    }
+)
 
 peg$c54 = """
 
-peg$c55 = {"type": "literal", "text": """, "ignoreCase": false}
+peg$c55 = (
+  | undefined
+  | {"type": "literal", "text": """, "ignoreCase": false}
+)
 
-peg$c56 = (...) => {"type": "string_constant", "value": arguments[0]["join"]("")}
+peg$c56 = (...) => (
+  | undefined
+  | {"type": "string_constant", "value": chars["join"]("")}
+)
 
 peg$c57 = "'"
 
-peg$c58 = {"type": "literal", "text": "'", "ignoreCase": false}
+peg$c58 = (
+  | undefined
+  | {"type": "literal", "text": "'", "ignoreCase": false}
+)
 
-peg$c59 = (...) => {"type": "array_constant", "elements": ???*0*}
+peg$c59 = (...) => (undefined | {"type": "array_constant", "elements": ???*0*})
 - *0* spread is not supported
 
 peg$c6 = "*"
 
-peg$c60 = (...) => {"type": "object_constant", "properties": ???*0*}
+peg$c60 = (...) => (undefined | {"type": "object_constant", "properties": ???*0*})
 - *0* spread is not supported
 
 peg$c61 = /^[ \t\n\r]/
 
-peg$c62 = {
-    "type": "class",
-    "parts": [
-        " ",
-        "	",
-        "
+peg$c62 = (
+  | undefined
+  | {
+        "type": "class",
+        "parts": [
+            " ",
+            "	",
+            "
 ",
-        ""
-    ],
-    "inverted": false,
-    "ignoreCase": false
-}
+            ""
+        ],
+        "inverted": false,
+        "ignoreCase": false
+    }
+)
 
 peg$c63 = "--"
 
-peg$c64 = {"type": "literal", "text": "--", "ignoreCase": false}
+peg$c64 = (
+  | undefined
+  | {"type": "literal", "text": "--", "ignoreCase": false}
+)
 
 peg$c65 = /^[\n\r]/
 
-peg$c66 = {
-    "type": "class",
-    "parts": [
-        "
+peg$c66 = (
+  | undefined
+  | {
+        "type": "class",
+        "parts": [
+            "
 ",
-        ""
-    ],
-    "inverted": false,
-    "ignoreCase": false
-}
+            ""
+        ],
+        "inverted": false,
+        "ignoreCase": false
+    }
+)
 
 peg$c67 = "select"
 
-peg$c68 = {"type": "literal", "text": "SELECT", "ignoreCase": true}
+peg$c68 = (
+  | undefined
+  | {"type": "literal", "text": "SELECT", "ignoreCase": true}
+)
 
 peg$c69 = "top"
 
-peg$c7 = {"type": "literal", "text": "*", "ignoreCase": false}
+peg$c7 = (
+  | undefined
+  | {"type": "literal", "text": "*", "ignoreCase": false}
+)
 
-peg$c70 = {"type": "literal", "text": "TOP", "ignoreCase": true}
+peg$c70 = (
+  | undefined
+  | {"type": "literal", "text": "TOP", "ignoreCase": true}
+)
 
 peg$c71 = "from"
 
-peg$c72 = {"type": "literal", "text": "FROM", "ignoreCase": true}
+peg$c72 = (
+  | undefined
+  | {"type": "literal", "text": "FROM", "ignoreCase": true}
+)
 
 peg$c73 = "where"
 
-peg$c74 = {"type": "literal", "text": "WHERE", "ignoreCase": true}
+peg$c74 = (
+  | undefined
+  | {"type": "literal", "text": "WHERE", "ignoreCase": true}
+)
 
 peg$c75 = "order"
 
-peg$c76 = {"type": "literal", "text": "ORDER", "ignoreCase": true}
+peg$c76 = (
+  | undefined
+  | {"type": "literal", "text": "ORDER", "ignoreCase": true}
+)
 
 peg$c77 = "by"
 
-peg$c78 = {"type": "literal", "text": "BY", "ignoreCase": true}
+peg$c78 = (
+  | undefined
+  | {"type": "literal", "text": "BY", "ignoreCase": true}
+)
 
 peg$c79 = "as"
 
-peg$c8 = (...) => {"type": "select_specification", "*": true}
+peg$c8 = (...) => (undefined | {"type": "select_specification", "*": true})
 
-peg$c80 = {"type": "literal", "text": "AS", "ignoreCase": true}
+peg$c80 = (
+  | undefined
+  | {"type": "literal", "text": "AS", "ignoreCase": true}
+)
 
 peg$c81 = "join"
 
-peg$c82 = {"type": "literal", "text": "JOIN", "ignoreCase": true}
+peg$c82 = (
+  | undefined
+  | {"type": "literal", "text": "JOIN", "ignoreCase": true}
+)
 
 peg$c83 = "in"
 
-peg$c84 = {"type": "literal", "text": "IN", "ignoreCase": true}
+peg$c84 = (
+  | undefined
+  | {"type": "literal", "text": "IN", "ignoreCase": true}
+)
 
 peg$c85 = "value"
 
-peg$c86 = {"type": "literal", "text": "VALUE", "ignoreCase": true}
+peg$c86 = (
+  | undefined
+  | {"type": "literal", "text": "VALUE", "ignoreCase": true}
+)
 
 peg$c87 = "asc"
 
-peg$c88 = {"type": "literal", "text": "ASC", "ignoreCase": true}
+peg$c88 = (
+  | undefined
+  | {"type": "literal", "text": "ASC", "ignoreCase": true}
+)
 
-peg$c89 = (...) => "ASC"
+peg$c89 = (...) => (undefined | "ASC")
 
-peg$c9 = (...) => {"type": "select_specification", "properties": arguments[0]}
+peg$c9 = (...) => (
+  | undefined
+  | {"type": "select_specification", "properties": properties}
+)
 
 peg$c90 = "desc"
 
-peg$c91 = {"type": "literal", "text": "DESC", "ignoreCase": true}
+peg$c91 = (
+  | undefined
+  | {"type": "literal", "text": "DESC", "ignoreCase": true}
+)
 
-peg$c92 = (...) => "DESC"
+peg$c92 = (...) => (undefined | "DESC")
 
 peg$c93 = "and"
 
-peg$c94 = {"type": "literal", "text": "AND", "ignoreCase": true}
+peg$c94 = (
+  | undefined
+  | {"type": "literal", "text": "AND", "ignoreCase": true}
+)
 
-peg$c95 = (...) => "AND"
+peg$c95 = (...) => (undefined | "AND")
 
 peg$c96 = "or"
 
-peg$c97 = {"type": "literal", "text": "OR", "ignoreCase": true}
+peg$c97 = (
+  | undefined
+  | {"type": "literal", "text": "OR", "ignoreCase": true}
+)
 
-peg$c98 = (...) => "OR"
+peg$c98 = (...) => (undefined | "OR")
 
 peg$c99 = "not"
 
-peg$classExpectation = (...) => {"type": "class", "parts": arguments[0], "inverted": arguments[1], "ignoreCase": arguments[2]}
-
-peg$computeLocation = (...) => {
-    "start": {
-        "offset": arguments[0],
-        "line": ([{"line": 1, "column": 1}][arguments[0]]["line"] | 1 | ???*0*),
-        "column": ([{"line": 1, "column": 1}][arguments[0]]["column"] | 1 | ???*3*)
-    },
-    "end": {
-        "offset": arguments[1],
-        "line": ([{"line": 1, "column": 1}][arguments[1]]["line"] | 1 | ???*6*),
-        "column": ([{"line": 1, "column": 1}][arguments[1]]["column"] | 1 | ???*9*)
-    }
-}
-- *0* ???*1*["line"]
-  ⚠️  property on unknown
-- *1* [][???*2*]
-  ⚠️  unknown array prototype methods or values
-- *2* p
-  ⚠️  pattern without value
-- *3* ???*4*["column"]
-  ⚠️  property on unknown
-- *4* [][???*5*]
-  ⚠️  unknown array prototype methods or values
-- *5* p
-  ⚠️  pattern without value
-- *6* ???*7*["line"]
-  ⚠️  property on unknown
-- *7* [][???*8*]
-  ⚠️  unknown array prototype methods or values
-- *8* p
-  ⚠️  pattern without value
-- *9* ???*10*["column"]
-  ⚠️  property on unknown
-- *10* [][???*11*]
-  ⚠️  unknown array prototype methods or values
-- *11* p
-  ⚠️  pattern without value
-
-peg$computePosDetails = (...) => (
-  | [{"line": 1, "column": 1}][arguments[0]]
-  | {"line": 1, "column": 1}
-  | ???*0*
-  | {"line": ???*2*, "column": ???*4*}
+peg$classExpectation = (...) => (
+  | undefined
+  | {"type": "class", "parts": parts, "inverted": inverted, "ignoreCase": ignoreCase}
 )
-- *0* [][???*1*]
-  ⚠️  unknown array prototype methods or values
-- *1* p
-  ⚠️  pattern without value
-- *2* ???*3*["line"]
-  ⚠️  property on unknown
-- *3* details
-  ⚠️  circular variable reference
-- *4* ???*5*["column"]
-  ⚠️  property on unknown
-- *5* details
-  ⚠️  circular variable reference
+
+peg$computeLocation = (...) => (
+  | undefined
+  | {
+        "start": {"offset": startPos, "line": startPosDetails["line"], "column": startPosDetails["column"]},
+        "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
+    }
+)
+
+peg$computePosDetails = (...) => (undefined | details)
 
 peg$currPos = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-peg$endExpectation = (...) => {"type": "end"}
+peg$endExpectation = (...) => (undefined | {"type": "end"})
 
-peg$fail = (...) => ???*0*
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
+peg$fail = (...) => (undefined | FreeVar(undefined))
 
-peg$literalExpectation = (...) => {"type": "literal", "text": arguments[0], "ignoreCase": arguments[1]}
+peg$literalExpectation = (...) => (
+  | undefined
+  | {"type": "literal", "text": text, "ignoreCase": ignoreCase}
+)
 
 peg$maxFailExpected = []
 
 peg$maxFailPos = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-peg$otherExpectation = (...) => {"type": "other", "description": arguments[0]}
+peg$otherExpectation = (...) => (undefined | {"type": "other", "description": description})
 
-peg$parse = ???*0*
-- *0* in progress nodes limit reached
+peg$parse = (...) => (undefined | peg$result)
 
-peg$parse_ = (...) => (???*0* | [])
-- *0* s0
-  ⚠️  pattern without value
+peg$parse_ = (...) => (undefined | s0)
 
-peg$parseand = ???*0*
-- *0* in progress nodes limit reached
+peg$parseand = (...) => (undefined | s0)
 
-peg$parsearray = ???*0*
-- *0* in progress nodes limit reached
+peg$parsearray = (...) => (undefined | s0)
 
-peg$parsearray_constant = ???*0*
-- *0* in progress nodes limit reached
+peg$parsearray_constant = (...) => (undefined | s0)
 
-peg$parsearray_subquery_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsearray_subquery_expression = (...) => (undefined | s0)
 
-peg$parseas = ???*0*
-- *0* in progress nodes limit reached
+peg$parseas = (...) => (undefined | s0)
 
-peg$parseasc = ???*0*
-- *0* in progress nodes limit reached
+peg$parseasc = (...) => (undefined | s0)
 
-peg$parsebetween = ???*0*
-- *0* in progress nodes limit reached
+peg$parsebetween = (...) => (undefined | s0)
 
-peg$parseboolean_constant = ???*0*
-- *0* in progress nodes limit reached
+peg$parseboolean_constant = (...) => (undefined | s0)
 
-peg$parseby = ???*0*
-- *0* in progress nodes limit reached
+peg$parseby = (...) => (undefined | s0)
 
-peg$parsecharactor_escape_sequence = ???*0*
-- *0* in progress nodes limit reached
+peg$parsecharactor_escape_sequence = (...) => (undefined | s0)
 
-peg$parsecollection_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsecollection_expression = (...) => (undefined | s0)
 
-peg$parsecollection_member_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsecollection_member_expression = (...) => (undefined | s0)
 
-peg$parsecollection_primary_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsecollection_primary_expression = (...) => (undefined | s0)
 
-peg$parsecollection_subquery_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsecollection_subquery_expression = (...) => (undefined | s0)
 
-peg$parsecomment = ???*0*
-- *0* in progress nodes limit reached
+peg$parsecomment = (...) => (undefined | s0)
 
-peg$parseconstant = ???*0*
-- *0* in progress nodes limit reached
+peg$parseconstant = (...) => (undefined | s0)
 
-peg$parsedesc = ???*0*
-- *0* in progress nodes limit reached
+peg$parsedesc = (...) => (undefined | s0)
 
-peg$parsedouble_string_character = ???*0*
-- *0* in progress nodes limit reached
+peg$parsedouble_string_character = (...) => (undefined | s0)
 
-peg$parseescape_character = ???*0*
-- *0* in progress nodes limit reached
+peg$parseescape_character = (...) => (undefined | s0)
 
-peg$parseescape_sequence = ???*0*
-- *0* in progress nodes limit reached
+peg$parseescape_sequence = (...) => (undefined | s0)
 
-peg$parseexists = ???*0*
-- *0* in progress nodes limit reached
+peg$parseexists = (...) => (undefined | s0)
 
-peg$parseexists_subquery_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parseexists_subquery_expression = (...) => (undefined | s0)
 
-peg$parsefalse = ???*0*
-- *0* in progress nodes limit reached
+peg$parsefalse = (...) => (undefined | s0)
 
-peg$parsefilter_condition = ???*0*
-- *0* in progress nodes limit reached
+peg$parsefilter_condition = (...) => (undefined | s0)
 
-peg$parsefrom = ???*0*
-- *0* in progress nodes limit reached
+peg$parsefrom = (...) => (undefined | s0)
 
-peg$parsefrom_source = ???*0*
-- *0* in progress nodes limit reached
+peg$parsefrom_source = (...) => (undefined | s0)
 
-peg$parsefrom_specification = ???*0*
-- *0* in progress nodes limit reached
+peg$parsefrom_specification = (...) => (undefined | s0)
 
-peg$parsehex_digit = ???*0*
-- *0* in progress nodes limit reached
+peg$parsehex_digit = (...) => (undefined | s0)
 
-peg$parseidentifier = ???*0*
-- *0* in progress nodes limit reached
+peg$parseidentifier = (...) => (undefined | s0)
 
-peg$parseidentifier_name = ???*0*
-- *0* in progress nodes limit reached
+peg$parseidentifier_name = (...) => (undefined | s0)
 
-peg$parseidentifier_start = ???*0*
-- *0* in progress nodes limit reached
+peg$parseidentifier_start = (...) => (undefined | s0)
 
-peg$parsein = ???*0*
-- *0* in progress nodes limit reached
+peg$parsein = (...) => (undefined | s0)
 
-peg$parsejoin = ???*0*
-- *0* in progress nodes limit reached
+peg$parsejoin = (...) => (undefined | s0)
 
-peg$parsenon_escape_character = ???*0*
-- *0* in progress nodes limit reached
+peg$parsenon_escape_character = (...) => (undefined | s0)
 
-peg$parsenot = ???*0*
-- *0* in progress nodes limit reached
+peg$parsenot = (...) => (undefined | s0)
 
-peg$parsenull = ???*0*
-- *0* in progress nodes limit reached
+peg$parsenull = (...) => (undefined | s0)
 
-peg$parsenull_constant = ???*0*
-- *0* in progress nodes limit reached
+peg$parsenull_constant = (...) => (undefined | s0)
 
-peg$parsenumber_constant = ???*0*
-- *0* in progress nodes limit reached
+peg$parsenumber_constant = (...) => (undefined | s0)
 
-peg$parseobject_constant = ???*0*
-- *0* in progress nodes limit reached
+peg$parseobject_constant = (...) => (undefined | s0)
 
-peg$parseobject_constant_property = ???*0*
-- *0* in progress nodes limit reached
+peg$parseobject_constant_property = (...) => (undefined | s0)
 
-peg$parseobject_property = ???*0*
-- *0* in progress nodes limit reached
+peg$parseobject_property = (...) => (undefined | s0)
 
-peg$parseobject_property_list = ???*0*
-- *0* in progress nodes limit reached
+peg$parseobject_property_list = (...) => (undefined | s0)
 
-peg$parseor = ???*0*
-- *0* in progress nodes limit reached
+peg$parseor = (...) => (undefined | s0)
 
-peg$parseorder = ???*0*
-- *0* in progress nodes limit reached
+peg$parseorder = (...) => (undefined | s0)
 
-peg$parseparameter_name = ???*0*
-- *0* in progress nodes limit reached
+peg$parseparameter_name = (...) => (undefined | s0)
 
-peg$parsereserved = ???*0*
-- *0* in progress nodes limit reached
+peg$parsereserved = (...) => (undefined | s0)
 
-peg$parsescalar_array_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_array_expression = (...) => (undefined | s0)
 
-peg$parsescalar_between_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_between_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_additive_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_additive_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_and_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_and_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_bitwise_and_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_bitwise_and_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_bitwise_or_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_bitwise_or_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_bitwise_xor_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_bitwise_xor_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_equality_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_equality_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_multiplicative_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_multiplicative_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_or_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_or_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_relational_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_relational_expression = (...) => (undefined | s0)
 
-peg$parsescalar_binary_shift_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_binary_shift_expression = (...) => (undefined | s0)
 
-peg$parsescalar_conditional_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_conditional_expression = (...) => (undefined | s0)
 
-peg$parsescalar_expression_list = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_expression_list = (...) => (undefined | s0)
 
-peg$parsescalar_function_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_function_expression = (...) => (undefined | s0)
 
-peg$parsescalar_in_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_in_expression = (...) => (undefined | s0)
 
-peg$parsescalar_member_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_member_expression = (...) => (undefined | s0)
 
-peg$parsescalar_object_element_property = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_object_element_property = (...) => (undefined | s0)
 
-peg$parsescalar_object_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_object_expression = (...) => (undefined | s0)
 
-peg$parsescalar_primary_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_primary_expression = (...) => (undefined | s0)
 
-peg$parsescalar_subquery_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_subquery_expression = (...) => (undefined | s0)
 
-peg$parsescalar_unary_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsescalar_unary_expression = (...) => (undefined | s0)
 
-peg$parseselect = ???*0*
-- *0* in progress nodes limit reached
+peg$parseselect = (...) => (undefined | s0)
 
-peg$parseselect_query = ???*0*
-- *0* in progress nodes limit reached
+peg$parseselect_query = (...) => (undefined | s0)
 
-peg$parseselect_specification = ???*0*
-- *0* in progress nodes limit reached
+peg$parseselect_specification = (...) => (undefined | s0)
 
-peg$parsesingle_escape_character = ???*0*
-- *0* in progress nodes limit reached
+peg$parsesingle_escape_character = (...) => (undefined | s0)
 
-peg$parsesingle_string_character = ???*0*
-- *0* in progress nodes limit reached
+peg$parsesingle_string_character = (...) => (undefined | s0)
 
-peg$parsesort_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsesort_expression = (...) => (undefined | s0)
 
-peg$parsesort_specification = ???*0*
-- *0* in progress nodes limit reached
+peg$parsesort_specification = (...) => (undefined | s0)
 
-peg$parsesource_character = ???*0*
-- *0* in progress nodes limit reached
+peg$parsesource_character = (...) => (undefined | s0)
 
-peg$parsesql = ???*0*
-- *0* in progress nodes limit reached
+peg$parsesql = (...) => (undefined | s0)
 
-peg$parsestring_constant = ???*0*
-- *0* in progress nodes limit reached
+peg$parsestring_constant = (...) => (undefined | s0)
 
-peg$parsesubquery = ???*0*
-- *0* in progress nodes limit reached
+peg$parsesubquery = (...) => (undefined | s0)
 
-peg$parsesubquery_expression = ???*0*
-- *0* in progress nodes limit reached
+peg$parsesubquery_expression = (...) => (undefined | s0)
 
-peg$parsetop = ???*0*
-- *0* in progress nodes limit reached
+peg$parsetop = (...) => (undefined | s0)
 
-peg$parsetop_specification = ???*0*
-- *0* in progress nodes limit reached
+peg$parsetop_specification = (...) => (undefined | s0)
 
-peg$parsetrue = ???*0*
-- *0* in progress nodes limit reached
+peg$parsetrue = (...) => (undefined | s0)
 
-peg$parseudf = ???*0*
-- *0* in progress nodes limit reached
+peg$parseudf = (...) => (undefined | s0)
 
-peg$parseunary_operator = ???*0*
-- *0* in progress nodes limit reached
+peg$parseunary_operator = (...) => (undefined | s0)
 
-peg$parseundefined_constant = ???*0*
-- *0* in progress nodes limit reached
+peg$parseundefined_constant = (...) => (undefined | s0)
 
-peg$parseunicode_escape_sequence = ???*0*
-- *0* in progress nodes limit reached
+peg$parseunicode_escape_sequence = (...) => (undefined | s0)
 
-peg$parseunsigned_integer = ???*0*
-- *0* in progress nodes limit reached
+peg$parseunsigned_integer = (...) => (undefined | s0)
 
-peg$parsevalue = ???*0*
-- *0* in progress nodes limit reached
+peg$parsevalue = (...) => (undefined | s0)
 
-peg$parsewhere = ???*0*
-- *0* in progress nodes limit reached
+peg$parsewhere = (...) => (undefined | s0)
 
-peg$parsewhitespace = ???*0*
-- *0* in progress nodes limit reached
+peg$parsewhitespace = (...) => (undefined | s0)
 
 peg$posDetailsCache = [{"line": 1, "column": 1}]
 
 peg$result = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 peg$savedPos = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 peg$silentFails = 0
 
-peg$startRuleFunction = ???*0*
-- *0* in progress nodes limit reached
+peg$startRuleFunction = ((...) => (undefined | s0) | ???*0*)
+- *0* {}[???*1*]
+  ⚠️  unknown object prototype methods or values
+- *1* ???*2*["startRule"]
+  ⚠️  unknown object
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-peg$startRuleFunctions = ???*0*
-- *0* in progress nodes limit reached
+peg$startRuleFunctions = {"sql": (...) => (undefined | s0)}
 
-peg$subclass = (...) => ???*0*
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
+peg$subclass = (...) => undefined
 
-pos = arguments[0]
+pos = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-properties = arguments[0]
+properties = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-property#52 = arguments[0]
+property#52 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-property#53 = arguments[0]
+property#53 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-property#58 = arguments[1]
+property#58 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-property#59 = arguments[1]
+property#59 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
 right = ???*0*
 - *0* right
   ⚠️  pattern without value
 
-s#12 = arguments[0]
+s#12 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s#15 = arguments[0]
+s#15 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s0#100 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#101 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#102 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#103 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#104 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#105 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#106 = (???*0* | [])
 - *0* s0
   ⚠️  pattern without value
 
-s0#107 = ???*0*
-- *0* in progress nodes limit reached
+s0#107 = (???*0* | ???*1* | {})
+- *0* s0
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s0#108 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#109 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#110 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#111 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#112 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#113 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#114 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#115 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#116 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#117 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#118 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#119 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#120 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#121 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#122 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#123 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#124 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#125 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#126 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#127 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#128 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#129 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#130 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#131 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#132 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s0#133 = ???*0*
-- *0* in progress nodes limit reached
+s0#133 = (???*0* | ???*1* | {})
+- *0* s0
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s0#134 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#135 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#136 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#137 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#138 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s0#139 = ???*0*
-- *0* in progress nodes limit reached
+s0#139 = (???*0* | ???*1* | {})
+- *0* s0
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s0#140 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#141 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#142 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#143 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#144 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#145 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s0#146 = ???*0*
-- *0* in progress nodes limit reached
+s0#146 = (???*0* | ???*1* | {})
+- *0* s0
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s0#147 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#148 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#149 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#150 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#151 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#152 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#153 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#154 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#155 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#156 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#157 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#158 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#159 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#160 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#161 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#162 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#163 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#164 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#165 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#166 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#167 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#168 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#169 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#170 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#171 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#172 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#173 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#174 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#175 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#176 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#85 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#87 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#88 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#89 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#90 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#91 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#92 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#93 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#94 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#95 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#96 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#97 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#98 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s0#99 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#100 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#101 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s1#102 = ???*0*
-- *0* in progress nodes limit reached
+s1#102 = (???*0* | "-" | {} | null | undefined | {"type": "number_constant", "value": ???*1*})
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*(text(), 16)
+  ⚠️  unknown callee
+- *2* FreeVar(parseInt)
+  ⚠️  unknown global
 
 s1#103 = (
   | ???*0*
   | """
   | {}
-  | {"type": "string_constant", "value": (???*1* | [])["join"]("")}
+  | undefined
+  | {"type": "string_constant", "value": (???*1* | ???*3*)}
   | "'"
 )
 - *0* s1
   ⚠️  pattern without value
-- *1* s2
+- *1* ???*2*["join"]("")
+  ⚠️  unknown callee object
+- *2* s2
   ⚠️  pattern without value
+- *3* ???*4*("")
+  ⚠️  unknown callee
+- *4* []["join"]
+  ⚠️  non-num constant property on array
 
 s1#104 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#105 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#106 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#108 = (
   | ???*0*
@@ -1792,90 +2179,164 @@ s1#108 = (
   ⚠️  pattern without value
 
 s1#109 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#110 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#111 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#112 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#113 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#114 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#115 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#116 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#117 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#118 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s1#119 = ???*0*
-- *0* in progress nodes limit reached
+s1#119 = (???*0* | ???*1* | {} | undefined | "ASC")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s1#120 = ???*0*
-- *0* in progress nodes limit reached
+s1#120 = (???*0* | ???*1* | {} | undefined | "DESC")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 4)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s1#121 = ???*0*
-- *0* in progress nodes limit reached
+s1#121 = (???*0* | ???*1* | {} | undefined | "AND")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s1#122 = ???*0*
-- *0* in progress nodes limit reached
+s1#122 = (???*0* | ???*1* | {} | undefined | "OR")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 2)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s1#123 = ???*0*
-- *0* in progress nodes limit reached
+s1#123 = (???*0* | ???*1* | {} | undefined | "NOT")
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substr"](peg$currPos, 3)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s1#124 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#125 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#126 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#127 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#128 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#129 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#130 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#132 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s1#134 = ???*0*
-- *0* in progress nodes limit reached
+s1#134 = (
+  | ???*0*
+  | undefined
+  | ???*1*
+  | {}
+  | ((???*3* | undefined | ???*4* | {} | ???*6*) + (???*12* | ???*14*))
+)
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* s1
+  ⚠️  pattern without value
+- *4* ???*5*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *5* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *6* (???*7* + (???*8* | ???*10*))
+  ⚠️  nested operation
+- *7* s1
+  ⚠️  circular variable reference
+- *8* ???*9*["join"]("")
+  ⚠️  unknown callee object
+- *9* s2
+  ⚠️  pattern without value
+- *10* ???*11*("")
+  ⚠️  unknown callee
+- *11* []["join"]
+  ⚠️  non-num constant property on array
+- *12* ???*13*["join"]("")
+  ⚠️  unknown callee object
+- *13* s2
+  ⚠️  pattern without value
+- *14* ???*15*("")
+  ⚠️  unknown callee
+- *15* []["join"]
+  ⚠️  non-num constant property on array
 
-s1#135 = ???*0*
-- *0* in progress nodes limit reached
+s1#135 = (
+  | ???*0*
+  | "@"
+  | {}
+  | undefined
+  | {"type": "parameter_name", "name": (undefined | ???*1*)}
+)
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*["substring"](peg$savedPos, peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s1#137 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#138 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#142 = (
   | ???*0*
   | "b"
   | {}
+  | undefined
   | ""
   | "f"
   | ""
@@ -1891,168 +2352,173 @@ s1#142 = (
   ⚠️  pattern without value
 
 s1#143 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#145 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#147 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#148 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#150 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#151 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#152 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#153 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#154 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#155 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#156 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#157 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#158 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#159 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#160 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#161 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#162 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#163 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#164 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#165 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#166 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#167 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#168 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#169 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#170 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#171 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#172 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#173 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s1#174 = ???*0*
-- *0* in progress nodes limit reached
+s1#174 = (???*0* | [] | {} | undefined | {"type": "number_constant", "value": ???*1*})
+- *0* s1
+  ⚠️  pattern without value
+- *1* ???*2*(text())
+  ⚠️  unknown callee
+- *2* FreeVar(Number)
+  ⚠️  unknown global
 
 s1#175 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#176 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#85 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#87 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#88 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#89 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#90 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#92 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#93 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#94 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#95 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#96 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s1#97 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s1#99 = (???*0* | "undefined" | {} | {"type": "undefined_constant"})
+s1#99 = (???*0* | "undefined" | {} | undefined | {"type": "undefined_constant"})
 - *0* s1
   ⚠️  pattern without value
 
 s10#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s10#95 = (???*0* | [])
+s10#95 = (???*0* | undefined | [])
 - *0* s10
   ⚠️  pattern without value
 
 s11#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s11#95 = (???*0* | ")" | {})
 - *0* s11
   ⚠️  pattern without value
 
 s12 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s13 = (???*0* | [])
+s13 = (???*0* | undefined | [])
 - *0* s13
   ⚠️  pattern without value
 
 s14 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s15 = (???*0* | [])
+s15 = (???*0* | undefined | [])
 - *0* s15
   ⚠️  pattern without value
 
 s16 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#102 = (???*0* | "0x" | {} | null)
 - *0* s2
@@ -2062,11 +2528,11 @@ s2#103 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#104 = (???*0* | [])
+s2#104 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#105 = (???*0* | [])
+s2#105 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2075,105 +2541,105 @@ s2#108 = (???*0* | [])
   ⚠️  pattern without value
 
 s2#109 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#110 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#111 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#112 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#113 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#114 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#115 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#116 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#117 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#118 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#119 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#120 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#121 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#122 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#123 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#124 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#125 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#126 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#127 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#128 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#129 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#130 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#132 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#134 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
 s2#135 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#137 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#138 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#143 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#145 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#147 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s2#148 = (???*0* | [])
+s2#148 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#150 = (???*0* | [])
+s2#150 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#151 = (???*0* | [])
+s2#151 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2181,11 +2647,11 @@ s2#153 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#154 = (???*0* | [])
+s2#154 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#155 = (???*0* | [])
+s2#155 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2205,11 +2671,11 @@ s2#159 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#160 = (???*0* | [])
+s2#160 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#161 = (???*0* | [])
+s2#161 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2237,11 +2703,11 @@ s2#167 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#168 = (???*0* | [])
+s2#168 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#169 = (???*0* | [])
+s2#169 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2249,25 +2715,30 @@ s2#171 = (???*0* | [] | {})
 - *0* s2
   ⚠️  pattern without value
 
-s2#174 = ???*0*
-- *0* in progress nodes limit reached
+s2#174 = (???*0* | ???*1* | {})
+- *0* s2
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s2#175 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#176 = (???*0* | [])
+s2#176 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
 s2#85 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s2#86 = (???*0* | [])
+s2#86 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#87 = (???*0* | [])
+s2#87 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2280,24 +2751,24 @@ s2#89 = (???*0* | [])
   ⚠️  pattern without value
 
 s2#90 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s2#93 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
 s2#94 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s2#95 = (???*0* | [])
+s2#95 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#96 = (???*0* | [])
+s2#96 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#97 = (???*0* | [])
+s2#97 = (???*0* | undefined | [])
 - *0* s2
   ⚠️  pattern without value
 
@@ -2306,146 +2777,261 @@ s3#102 = (???*0* | [] | {})
   ⚠️  pattern without value
 
 s3#103 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#104 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#105 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#108 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s3#109 = ???*0*
-- *0* in progress nodes limit reached
+s3#109 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#110 = ???*0*
-- *0* in progress nodes limit reached
+s3#110 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#111 = ???*0*
-- *0* in progress nodes limit reached
+s3#111 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#112 = ???*0*
-- *0* in progress nodes limit reached
+s3#112 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#113 = ???*0*
-- *0* in progress nodes limit reached
+s3#113 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#114 = ???*0*
-- *0* in progress nodes limit reached
+s3#114 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#115 = ???*0*
-- *0* in progress nodes limit reached
+s3#115 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#116 = ???*0*
-- *0* in progress nodes limit reached
+s3#116 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#117 = ???*0*
-- *0* in progress nodes limit reached
+s3#117 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#118 = ???*0*
-- *0* in progress nodes limit reached
+s3#118 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#119 = ???*0*
-- *0* in progress nodes limit reached
+s3#119 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#120 = ???*0*
-- *0* in progress nodes limit reached
+s3#120 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#121 = ???*0*
-- *0* in progress nodes limit reached
+s3#121 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#122 = ???*0*
-- *0* in progress nodes limit reached
+s3#122 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#123 = ???*0*
-- *0* in progress nodes limit reached
+s3#123 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#124 = ???*0*
-- *0* in progress nodes limit reached
+s3#124 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#125 = ???*0*
-- *0* in progress nodes limit reached
+s3#125 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#126 = ???*0*
-- *0* in progress nodes limit reached
+s3#126 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#127 = ???*0*
-- *0* in progress nodes limit reached
+s3#127 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#128 = ???*0*
-- *0* in progress nodes limit reached
+s3#128 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#129 = ???*0*
-- *0* in progress nodes limit reached
+s3#129 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#130 = ???*0*
-- *0* in progress nodes limit reached
+s3#130 = (???*0* | undefined | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s3#134 = ???*0*
-- *0* in progress nodes limit reached
+s3#134 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s3#145 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#147 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#148 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#150 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#151 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#153 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#154 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#155 = (???*0* | "?" | {})
 - *0* s3
   ⚠️  pattern without value
 
 s3#156 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#157 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#158 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#159 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#160 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#161 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#162 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#163 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#164 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#165 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#166 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#167 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#168 = (???*0* | ":" | {})
 - *0* s3
@@ -2456,51 +3042,51 @@ s3#169 = (???*0* | ":" | {})
   ⚠️  pattern without value
 
 s3#171 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#175 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#176 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s3#85 = (???*0* | [])
+s3#85 = (???*0* | undefined | [])
 - *0* s3
   ⚠️  pattern without value
 
 s3#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#87 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#88 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#89 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#90 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#93 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#94 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#95 = (???*0* | "." | {} | "(")
 - *0* s3
   ⚠️  pattern without value
 
 s3#96 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s3#97 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#102 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#104 = (???*0* | [])
 - *0* s4
@@ -2511,100 +3097,171 @@ s4#105 = (???*0* | [])
   ⚠️  pattern without value
 
 s4#108 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s4#145 = ???*0*
-- *0* in progress nodes limit reached
+s4#145 = (
+  | ???*0*
+  | undefined
+  | ???*1*
+  | {}
+  | [
+        (
+          | ???*3*
+          | undefined
+          | ???*4*
+          | {}
+          | [
+                ???*6*,
+                (???*7* | undefined | ???*8* | {}),
+                (???*10* | undefined | ???*11* | {}),
+                (???*13* | undefined | ???*14* | {})
+            ]
+        ),
+        (???*16* | undefined | ???*17* | {}),
+        (???*19* | undefined | ???*20* | {}),
+        (???*22* | undefined | ???*23* | {})
+    ]
+)
+- *0* s4
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* s4
+  ⚠️  pattern without value
+- *4* ???*5*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *5* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *6* s4
+  ⚠️  circular variable reference
+- *7* s5
+  ⚠️  pattern without value
+- *8* ???*9*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *9* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *10* s6
+  ⚠️  pattern without value
+- *11* ???*12*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *12* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *13* s7
+  ⚠️  pattern without value
+- *14* ???*15*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *15* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *16* s5
+  ⚠️  pattern without value
+- *17* ???*18*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *18* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *19* s6
+  ⚠️  pattern without value
+- *20* ???*21*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *21* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *22* s7
+  ⚠️  pattern without value
+- *23* ???*24*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *24* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s4#147 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s4#148 = (???*0* | [])
+s4#148 = (???*0* | undefined | [])
 - *0* s4
   ⚠️  pattern without value
 
 s4#153 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s4#155 = (???*0* | [])
+s4#155 = (???*0* | undefined | [])
 - *0* s4
   ⚠️  pattern without value
 
 s4#156 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#157 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#158 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#159 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s4#160 = (???*0* | [])
+s4#160 = (???*0* | undefined | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#161 = (???*0* | [])
+s4#161 = (???*0* | undefined | [])
 - *0* s4
   ⚠️  pattern without value
 
 s4#162 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#163 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#164 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#165 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#166 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#167 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s4#168 = (???*0* | [])
+s4#168 = (???*0* | undefined | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#169 = (???*0* | [])
+s4#169 = (???*0* | undefined | [])
 - *0* s4
   ⚠️  pattern without value
 
 s4#171 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#175 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s4#176 = (???*0* | [])
+s4#176 = (???*0* | undefined | [])
 - *0* s4
   ⚠️  pattern without value
 
 s4#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#88 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#89 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#90 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#93 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s4#94 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s4#95 = (???*0* | [])
+s4#95 = (???*0* | undefined | [])
 - *0* s4
   ⚠️  pattern without value
 
@@ -2612,7 +3269,7 @@ s4#96 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#97 = (???*0* | [])
+s4#97 = (???*0* | undefined | [])
 - *0* s4
   ⚠️  pattern without value
 
@@ -2634,19 +3291,29 @@ s5#102 = (
   ⚠️  pattern without value
 
 s5#104 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#105 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s5#108 = ???*0*
-- *0* in progress nodes limit reached
+s5#108 = (???*0* | ???*1* | {} | undefined)
+- *0* s5
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s5#145 = ???*0*
-- *0* in progress nodes limit reached
+s5#145 = (???*0* | undefined | ???*1* | {})
+- *0* s5
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s5#147 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#148 = (???*0* | ")" | {})
 - *0* s5
@@ -2657,13 +3324,13 @@ s5#153 = (???*0* | "." | {} | "[")
   ⚠️  pattern without value
 
 s5#155 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#156 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#157 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#158 = (???*0* | "=" | {} | "!=" | "<>")
 - *0* s5
@@ -2678,7 +3345,7 @@ s5#160 = (???*0* | "(" | {})
   ⚠️  pattern without value
 
 s5#161 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#162 = (???*0* | "|" | {})
 - *0* s5
@@ -2705,10 +3372,10 @@ s5#167 = (???*0* | "*" | {} | "/" | "%")
   ⚠️  pattern without value
 
 s5#168 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#169 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#171 = (???*0* | "." | {} | "[")
 - *0* s5
@@ -2723,27 +3390,27 @@ s5#176 = (???*0* | ")" | {})
   ⚠️  pattern without value
 
 s5#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#88 = (???*0* | "," | {})
 - *0* s5
   ⚠️  pattern without value
 
 s5#89 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#90 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#93 = (???*0* | "," | {})
 - *0* s5
   ⚠️  pattern without value
 
 s5#95 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#96 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s5#97 = (???*0* | "]" | {})
 - *0* s5
@@ -2754,102 +3421,112 @@ s6#102 = (???*0* | [] | {})
   ⚠️  pattern without value
 
 s6#104 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s6#105 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s6#145 = ???*0*
-- *0* in progress nodes limit reached
+s6#145 = (???*0* | undefined | ???*1* | {})
+- *0* s6
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-s6#153 = (???*0* | [])
+s6#153 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#155 = (???*0* | [])
+s6#155 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#156 = (???*0* | [])
+s6#156 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#157 = (???*0* | [])
+s6#157 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#158 = (???*0* | [])
+s6#158 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#159 = (???*0* | [])
+s6#159 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#160 = (???*0* | [])
+s6#160 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#161 = (???*0* | [])
+s6#161 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#162 = (???*0* | [])
+s6#162 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#163 = (???*0* | [])
+s6#163 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#164 = (???*0* | [])
+s6#164 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#165 = (???*0* | [])
+s6#165 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#166 = (???*0* | [])
+s6#166 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#167 = (???*0* | [])
+s6#167 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#171 = (???*0* | [])
+s6#171 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#175 = (???*0* | [])
+s6#175 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
 s6#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s6#88 = (???*0* | [])
+s6#88 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#89 = (???*0* | [])
+s6#89 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#93 = (???*0* | [])
+s6#93 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#95 = (???*0* | [])
+s6#95 = (???*0* | undefined | [])
 - *0* s6
   ⚠️  pattern without value
 
 s6#96 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s7#102 = ???*0*
-- *0* in progress nodes limit reached
+s7#102 = (???*0* | ???*1* | {})
+- *0* s7
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s7#104 = (???*0* | "," | {})
 - *0* s7
@@ -2859,69 +3536,74 @@ s7#105 = (???*0* | "," | {})
 - *0* s7
   ⚠️  pattern without value
 
-s7#145 = ???*0*
-- *0* in progress nodes limit reached
+s7#145 = (???*0* | undefined | ???*1* | {})
+- *0* s7
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 s7#153 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#155 = (???*0* | ":" | {})
 - *0* s7
   ⚠️  pattern without value
 
 s7#156 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#157 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#158 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#159 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#160 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#161 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#162 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#163 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#164 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#165 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#166 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#167 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#171 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#175 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#88 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#89 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#93 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s7#95 = (???*0* | "(" | {} | ")")
 - *0* s7
@@ -2931,178 +3613,254 @@ s7#96 = (???*0* | "," | {})
 - *0* s7
   ⚠️  pattern without value
 
-s8#104 = (???*0* | [])
+s8#104 = (???*0* | undefined | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#105 = (???*0* | [])
+s8#105 = (???*0* | undefined | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#153 = (???*0* | [])
+s8#153 = (???*0* | undefined | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#155 = (???*0* | [])
+s8#155 = (???*0* | undefined | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#160 = (???*0* | [])
+s8#160 = (???*0* | undefined | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#161 = (???*0* | [])
+s8#161 = (???*0* | undefined | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#171 = (???*0* | [])
+s8#171 = (???*0* | undefined | [])
 - *0* s8
   ⚠️  pattern without value
 
 s8#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-s8#95 = (???*0* | [])
+s8#95 = (???*0* | undefined | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#96 = (???*0* | [])
+s8#96 = (???*0* | undefined | [])
 - *0* s8
   ⚠️  pattern without value
 
 s9#104 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s9#105 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s9#153 = (???*0* | "]" | {})
 - *0* s9
   ⚠️  pattern without value
 
 s9#155 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s9#160 = (???*0* | ")" | {})
 - *0* s9
   ⚠️  pattern without value
 
 s9#161 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s9#171 = (???*0* | "]" | {})
 - *0* s9
   ⚠️  pattern without value
 
 s9#86 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s9#95 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
 s9#96 = ???*0*
-- *0* in progress nodes limit reached
+- *0* max number of linking steps reached
 
-select#24 = arguments[1]
+select#24 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-select#25 = arguments[1]
+select#25 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-select#26 = arguments[1]
+select#26 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-select#27 = arguments[1]
+select#27 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-seq = arguments[0]
+seq = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-source#32 = arguments[0]
+source#32 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-source#33 = arguments[0]
+source#33 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-startPos = arguments[0]
+startPos = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-startPosDetails = (
-  | [{"line": 1, "column": 1}][arguments[0]]
-  | {"line": 1, "column": 1}
-  | ???*0*
-  | {"line": ???*2*, "column": ???*4*}
-)
+startPosDetails = (undefined | {"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
-- *1* p
-  ⚠️  pattern without value
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
 - *2* ???*3*["line"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *3* details
   ⚠️  circular variable reference
 - *4* ???*5*["column"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *5* details
   ⚠️  circular variable reference
 
-subquery = arguments[0]
+subquery = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-tail#177 = arguments[1]
+tail#177 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#31 = arguments[1]
+tail#31 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#38 = arguments[1]
+tail#38 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#42 = arguments[1]
+tail#42 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#46 = arguments[1]
+tail#46 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#47 = arguments[1]
+tail#47 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#49 = arguments[1]
+tail#49 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#60 = arguments[1]
+tail#60 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#64 = arguments[1]
+tail#64 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#69 = arguments[1]
+tail#69 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-tail#73 = arguments[1]
+tail#73 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-test = arguments[0]
+test = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-text#21 = ???*0*
-- *0* in progress nodes limit reached
+text#21 = (...) => (undefined | input["substring"](peg$savedPos, peg$currPos))
 
-text#77 = arguments[0]
+text#77 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-top#24 = arguments[0]
+top#24 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-top#25 = arguments[0]
+top#25 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-top#26 = arguments[0]
+top#26 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-top#27 = arguments[0]
+top#27 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-v#23 = arguments[0]
+v#23 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-v#24 = arguments[2]
+v#24 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
 
-v#25 = arguments[3]
+v#25 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
-v#26 = arguments[4]
+v#26 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analysed yet
 
-v#30 = arguments[1]
+v#30 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-v#32 = arguments[1]
+v#32 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-v#35 = arguments[1]
+v#35 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-v#52 = arguments[1]
+v#52 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-value#29 = arguments[0]
+value#29 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-value#65 = arguments[0]
+value#65 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-value#66 = arguments[0]
+value#66 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-value#67 = arguments[1]
+value#67 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-value#72 = arguments[0]
+value#72 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-where#26 = arguments[3]
+where#26 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet
 
-where#27 = arguments[3]
+where#27 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analysed yet

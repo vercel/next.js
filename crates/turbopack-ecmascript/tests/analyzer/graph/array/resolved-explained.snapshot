@@ -6,7 +6,7 @@ c = (1 | "foo" | ???*0*)
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
 - *1* ???*2*["index"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *2* FreeVar(global)
   ⚠️  unknown global
 
@@ -16,7 +16,7 @@ d2 = (1 | "foo" | ???*0*)
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
 - *1* ???*2*["index"]
-  ⚠️  property on unknown
+  ⚠️  unknown object
 - *2* FreeVar(global)
   ⚠️  unknown global
 
