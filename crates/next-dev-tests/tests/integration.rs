@@ -132,11 +132,9 @@ async fn run_test(resource: &str) -> JestRunResult {
         path.to_str().unwrap()
     );
 
-    // Count the number of dirs _under_ crates/next-dev/tests
-    let test_entry = Path::new(resource).join("index.js");
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root = package_root.parent().unwrap().parent().unwrap();
-    let project_dir = workspace_root.join(resource);
+    let project_dir = workspace_root.join(resource).join("input");
     let requested_addr = get_free_local_addr().unwrap();
 
     let mock_dir = path.join("__httpmock__");
@@ -151,9 +149,7 @@ async fn run_test(resource: &str) -> JestRunResult {
         "@turbo/pack-test-harness".to_string(),
         "".to_string(),
     ))
-    .entry_request(EntryRequest::Relative(
-        sys_to_unix(test_entry.strip_prefix(resource).unwrap().to_str().unwrap()).to_string(),
-    ))
+    .entry_request(EntryRequest::Relative("index.js".to_owned()))
     .eager_compile(false)
     .hostname(requested_addr.ip())
     .port(requested_addr.port())
