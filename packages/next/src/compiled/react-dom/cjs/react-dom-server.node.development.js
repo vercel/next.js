@@ -19,7 +19,7 @@ var util = require('util');
 var async_hooks = require('async_hooks');
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-next-b0671f9ea-20230130';
+var ReactVersion = '18.3.0-next-2ef24145e-20230202';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -130,9 +130,9 @@ function writeStringChunk(destination, stringChunk) {
 
   if (read < stringChunk.length) {
     writeToDestination(destination, currentView);
-    currentView = new Uint8Array(VIEW_SIZE); // $FlowFixMe[incompatible-call] found when upgrading Flow
-
-    writtenBytes = textEncoder.encodeInto(stringChunk.slice(read), currentView).written;
+    currentView = new Uint8Array(VIEW_SIZE);
+    writtenBytes = textEncoder.encodeInto(stringChunk.slice(read), // $FlowFixMe[incompatible-call] found when upgrading Flow
+    currentView).written;
   }
 
   if (writtenBytes === VIEW_SIZE) {

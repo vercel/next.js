@@ -572,7 +572,9 @@ function createServerComponentRenderer(
     if (!RSCStream) {
       RSCStream = ComponentMod.renderToReadableStream(
         <ComponentToRender />,
-        serverComponentManifest,
+        {
+          clientManifest: serverComponentManifest,
+        },
         {
           context: serverContexts,
           onError: serverComponentsErrorHandler,
@@ -1783,7 +1785,9 @@ export async function renderToHTMLOrFlight(
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
-        serverComponentManifest,
+        {
+          clientManifest: serverComponentManifest,
+        },
         {
           context: serverContexts,
           onError: flightDataRendererErrorHandler,

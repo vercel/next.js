@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-next-b0671f9ea-20230130';
+          var ReactVersion = '18.3.0-next-2ef24145e-20230202';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1105,9 +1105,9 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
         mappedChild = cloneAndReplaceKey(mappedChild, // Keep both the (mapped) and old keys if they differ, just as
         // traverseAllChildren used to do for objects as children
         escapedPrefix + ( // $FlowFixMe Flow incorrectly thinks React.Portal doesn't have a key
-        mappedChild.key && (!_child || _child.key !== mappedChild.key) ? escapeUserProvidedKey( // eslint-disable-next-line react-internal/safe-string-coercion
-        '' + // $FlowFixMe Flow incorrectly thinks existing element's key can be a number
-        mappedChild.key) + '/' : '') + childKey);
+        mappedChild.key && (!_child || _child.key !== mappedChild.key) ? escapeUserProvidedKey( // $FlowFixMe[unsafe-addition]
+        '' + mappedChild.key // eslint-disable-line react-internal/safe-string-coercion
+        ) + '/' : '') + childKey);
       }
 
       array.push(mappedChild);
@@ -2229,6 +2229,8 @@ function checkPropTypes(typeSpecs, values, location, componentName, element) {
   }
 }
 
+var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference');
+
 function setCurrentlyValidatingElement$1(element) {
   {
     if (element) {
@@ -2354,11 +2356,11 @@ function validateExplicitKey(element, parentType) {
 
 
 function validateChildKeys(node, parentType) {
-  if (typeof node !== 'object') {
+  if (typeof node !== 'object' || !node) {
     return;
   }
 
-  if (isArray(node)) {
+  if (node.$$typeof === REACT_CLIENT_REFERENCE$1) ; else if (isArray(node)) {
     for (var i = 0; i < node.length; i++) {
       var child = node[i];
 
@@ -2371,7 +2373,7 @@ function validateChildKeys(node, parentType) {
     if (node._store) {
       node._store.validated = true;
     }
-  } else if (node) {
+  } else {
     var iteratorFn = getIteratorFn(node);
 
     if (typeof iteratorFn === 'function') {
@@ -2403,6 +2405,10 @@ function validatePropTypes(element) {
     var type = element.type;
 
     if (type === null || type === undefined || typeof type === 'string') {
+      return;
+    }
+
+    if (type.$$typeof === REACT_CLIENT_REFERENCE$1) {
       return;
     }
 
