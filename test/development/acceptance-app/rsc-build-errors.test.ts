@@ -238,7 +238,7 @@ createNextDescribe(
 
         ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
 
-           ,-[1:1]
+           ,----
          1 | export default function Error() {}
            : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
            \`----
@@ -264,7 +264,7 @@ createNextDescribe(
 
         ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
 
-           ,-[1:1]
+           ,----
          1 |  
            : ^
            \`----
