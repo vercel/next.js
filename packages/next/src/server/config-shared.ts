@@ -203,8 +203,14 @@ export interface ExperimentalConfig {
     contextDirectory?: string
     processCwd?: string
     maxFiles?: number
+    memoryLimit?: number
+    skipEntries?: boolean
   }
   mdxRs?: boolean
+  /**
+   * This option is to enable running the Webpack build in a worker thread.
+   */
+  webpackBuildWorker?: boolean
 }
 
 export type ExportPathMap = {

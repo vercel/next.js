@@ -58,7 +58,7 @@ const HotReloader:
 const prefetched = new Set<string>()
 
 type AppRouterProps = Omit<
-  InitialRouterStateParameters,
+  Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
   initialHead: ReactNode
@@ -97,8 +97,10 @@ function findHeadInCache(
 }
 
 function isExternalURL(url: URL) {
-  return url.origin !== location.origin
+  return url.origin !== window.location.origin
 }
+
+const isServer = typeof window === 'undefined'
 
 /**
  * The global router that wraps the application components.
@@ -117,6 +119,8 @@ function Router({
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
+        isServer,
+        location: !isServer ? window.location : null,
       }),
     [children, initialCanonicalUrl, initialTree]
   )
@@ -261,6 +265,7 @@ function Router({
               parallelRoutes: new Map(),
             },
             mutable: {},
+            origin: window.location.origin,
           })
         })
       },
