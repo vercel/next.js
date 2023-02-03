@@ -1,0 +1,17 @@
+0 -> 2 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => (undefined | file))
+
+0 -> 4 member call = ["../lib/a.js", "../lib/b.js"]["map"]((...) => (undefined | [file]))
+
+0 -> 6 member call = ["../lib/a.js", "../lib/b.js"]["map"](
+    (...) => (undefined | FreeVar(Require)["resolve"](file))
+)
+
+6 -> 8 member call = require*0*["resolve"](???*1*)
+- *0* require: The require method from CommonJS
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 10 member call = require*0*["resolve"](???*1*)
+- *0* require: The require method from CommonJS
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet

@@ -3,10 +3,9 @@
         "a",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            37,
+            Constant(
+                Undefined,
             ),
         ),
     ),
@@ -14,10 +13,9 @@
         "b",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            76,
+            Constant(
+                Undefined,
             ),
         ),
     ),
@@ -25,10 +23,9 @@
         "c",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            116,
+            Constant(
+                Undefined,
             ),
         ),
     ),

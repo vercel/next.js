@@ -1,0 +1,13 @@
+0 -> 1 call = (...) => (undefined | y)(1)
+
+0 -> 2 call = (undefined | (...) => (undefined | (a + b)))(2)
+
+0 -> 3 call = (...) => (undefined | a | (r((a + 1)) + 1))((???*0* + 1))
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 4 call = (...) => (undefined | a | (r((a + 1)) + 1))(2)
+
+0 -> 5 call = (...) => (undefined | (a + b))("b")
+
+0 -> 6 call = (...) => (undefined | inner("b"))("a")

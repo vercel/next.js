@@ -1,0 +1,2 @@
+0 -> 1 call = require*0*((1 | `${("hello" | "world")}.js`))
+- *0* require: The require method from CommonJS

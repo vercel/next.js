@@ -210,131 +210,6 @@
             ctxt: #0,
         },
     },
-    Call {
-        func: Variable(
-            (
-                Atom('md5ff' type=inline),
-                #1,
-            ),
-        ),
-        args: [
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                3,
-                Variable(
-                    (
-                        Atom('x' type=static),
-                        #2,
-                    ),
-                ),
-                Variable(
-                    (
-                        Atom('i' type=static),
-                        #2,
-                    ),
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        7.0,
-                    ),
-                ),
-            ),
-            Unknown(
-                None,
-                "unsupported expression",
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    4,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                466,
-            ),
-            hi: BytePos(
-                504,
-            ),
-            ctxt: #0,
-        },
-    },
     Member {
         obj: Variable(
             (
@@ -433,67 +308,69 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('a' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    1.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        12.0,
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    3,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            Atom('i' type=static),
+                            #2,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            7.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
+                ),
             ),
         ],
         ast_path: [
@@ -533,7 +410,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    5,
+                    4,
                 ),
             ),
             Stmt(
@@ -554,10 +431,10 @@
         ],
         span: Span {
             lo: BytePos(
-                514,
+                466,
             ),
             hi: BytePos(
-                557,
+                504,
             ),
             ctxt: #0,
         },
@@ -672,69 +549,80 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('d' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
                         ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    2.0,
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
                                 ),
                             ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        1.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            12.0,
                         ),
-                    ],
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        17.0,
                     ),
                 ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        606105819.0,
-                    ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
                 ),
             ),
         ],
@@ -775,7 +663,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    6,
+                    5,
                 ),
             ),
             Stmt(
@@ -796,10 +684,10 @@
         ],
         span: Span {
             lo: BytePos(
-                567,
+                514,
             ),
             hi: BytePos(
-                609,
+                557,
             ),
             ctxt: #0,
         },
@@ -914,67 +802,84 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('c' type=inline),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    3.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        22.0,
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        2.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            17.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            606105819.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -1014,7 +919,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    7,
+                    6,
                 ),
             ),
             Stmt(
@@ -1035,10 +940,10 @@
         ],
         span: Span {
             lo: BytePos(
-                619,
+                567,
             ),
             hi: BytePos(
-                663,
+                609,
             ),
             ctxt: #0,
         },
@@ -1153,67 +1058,81 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('b' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    4.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        7.0,
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        3.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            22.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
+                ),
             ),
         ],
         ast_path: [
@@ -1253,7 +1172,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    8,
+                    7,
                 ),
             ),
             Stmt(
@@ -1274,10 +1193,10 @@
         ],
         span: Span {
             lo: BytePos(
-                673,
+                619,
             ),
             hi: BytePos(
-                715,
+                663,
             ),
             ctxt: #0,
         },
@@ -1392,69 +1311,80 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('a' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
                         ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    5.0,
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
                                 ),
                             ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        4.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            7.0,
                         ),
-                    ],
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        12.0,
                     ),
                 ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        1200080426.0,
-                    ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
                 ),
             ),
         ],
@@ -1495,7 +1425,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    9,
+                    8,
                 ),
             ),
             Stmt(
@@ -1516,10 +1446,10 @@
         ],
         span: Span {
             lo: BytePos(
-                725,
+                673,
             ),
             hi: BytePos(
-                768,
+                715,
             ),
             ctxt: #0,
         },
@@ -1634,67 +1564,84 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('d' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    6.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        17.0,
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        5.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            12.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1200080426.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -1734,7 +1681,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    10,
+                    9,
                 ),
             ),
             Stmt(
@@ -1755,10 +1702,10 @@
         ],
         span: Span {
             lo: BytePos(
-                778,
+                725,
             ),
             hi: BytePos(
-                822,
+                768,
             ),
             ctxt: #0,
         },
@@ -1873,67 +1820,81 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('c' type=inline),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    7.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        22.0,
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        6.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            17.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
+                ),
             ),
         ],
         ast_path: [
@@ -1973,7 +1934,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    11,
+                    10,
                 ),
             ),
             Stmt(
@@ -1994,10 +1955,10 @@
         ],
         span: Span {
             lo: BytePos(
-                832,
+                778,
             ),
             hi: BytePos(
-                874,
+                822,
             ),
             ctxt: #0,
         },
@@ -2112,69 +2073,80 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('b' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
                         ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    8.0,
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
                                 ),
                             ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        7.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            22.0,
                         ),
-                    ],
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        7.0,
                     ),
                 ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        1770035416.0,
-                    ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
                 ),
             ),
         ],
@@ -2215,7 +2187,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    12,
+                    11,
                 ),
             ),
             Stmt(
@@ -2236,10 +2208,10 @@
         ],
         span: Span {
             lo: BytePos(
-                884,
+                832,
             ),
             hi: BytePos(
-                926,
+                874,
             ),
             ctxt: #0,
         },
@@ -2354,67 +2326,84 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('a' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    9.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        12.0,
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        8.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            7.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1770035416.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -2454,7 +2443,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    13,
+                    12,
                 ),
             ),
             Stmt(
@@ -2475,10 +2464,10 @@
         ],
         span: Span {
             lo: BytePos(
-                936,
+                884,
             ),
             hi: BytePos(
-                980,
+                926,
             ),
             ctxt: #0,
         },
@@ -2593,67 +2582,81 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('d' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    10.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        17.0,
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        9.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            12.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
+                ),
             ),
         ],
         ast_path: [
@@ -2693,7 +2696,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    14,
+                    13,
                 ),
             ),
             Stmt(
@@ -2714,10 +2717,10 @@
         ],
         span: Span {
             lo: BytePos(
-                990,
+                936,
             ),
             hi: BytePos(
-                1030,
+                980,
             ),
             ctxt: #0,
         },
@@ -2832,67 +2835,81 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('c' type=inline),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    11.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        22.0,
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        10.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            17.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
+                ),
             ),
         ],
         ast_path: [
@@ -2932,7 +2949,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    15,
+                    14,
                 ),
             ),
             Stmt(
@@ -2953,10 +2970,10 @@
         ],
         span: Span {
             lo: BytePos(
-                1040,
+                990,
             ),
             hi: BytePos(
-                1085,
+                1030,
             ),
             ctxt: #0,
         },
@@ -3071,69 +3088,80 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('b' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
                         ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    12.0,
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
                                 ),
                             ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        11.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            22.0,
                         ),
-                    ],
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        7.0,
                     ),
                 ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        1804603682.0,
-                    ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
                 ),
             ),
         ],
@@ -3174,7 +3202,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    16,
+                    15,
                 ),
             ),
             Stmt(
@@ -3195,10 +3223,10 @@
         ],
         span: Span {
             lo: BytePos(
-                1095,
+                1040,
             ),
             hi: BytePos(
-                1138,
+                1085,
             ),
             ctxt: #0,
         },
@@ -3313,67 +3341,84 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('a' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    13.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        12.0,
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        12.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            7.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1804603682.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -3413,7 +3458,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    17,
+                    16,
                 ),
             ),
             Stmt(
@@ -3434,10 +3479,10 @@
         ],
         span: Span {
             lo: BytePos(
-                1148,
+                1095,
             ),
             hi: BytePos(
-                1191,
+                1138,
             ),
             ctxt: #0,
         },
@@ -3552,67 +3597,81 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('d' type=static),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    14.0,
-                                ),
-                            ),
-                        ),
-                    ],
-                ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        17.0,
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
                     ),
                 ),
             ),
-            Unknown(
-                None,
-                "unsupported expression",
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
+                        ),
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        13.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            12.0,
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
+                ),
             ),
         ],
         ast_path: [
@@ -3652,7 +3711,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    18,
+                    17,
                 ),
             ),
             Stmt(
@@ -3673,10 +3732,10 @@
         ],
         span: Span {
             lo: BytePos(
-                1201,
+                1148,
             ),
             hi: BytePos(
-                1246,
+                1191,
             ),
             ctxt: #0,
         },
@@ -3791,69 +3850,80 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('c' type=inline),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('d' type=static),
-                    #2,
-                ),
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #2,
-                ),
-            ),
-            Member(
-                5,
+            Value(
                 Variable(
                     (
-                        Atom('x' type=static),
+                        Atom('c' type=inline),
                         #2,
                     ),
                 ),
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('i' type=static),
-                                #2,
-                            ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    5,
+                    Variable(
+                        (
+                            Atom('x' type=static),
+                            #2,
                         ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    15.0,
+                    ),
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
                                 ),
                             ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        14.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            17.0,
                         ),
-                    ],
-                ),
-            ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        22.0,
                     ),
                 ),
             ),
-            Constant(
-                Num(
-                    ConstantNumber(
-                        1236535329.0,
-                    ),
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
                 ),
             ),
         ],
@@ -3894,7 +3964,7 @@
             ),
             BlockStmt(
                 Stmts(
-                    19,
+                    18,
                 ),
             ),
             Stmt(
@@ -3915,10 +3985,10 @@
         ],
         span: Span {
             lo: BytePos(
-                1256,
+                1201,
             ),
             hi: BytePos(
-                1300,
+                1246,
             ),
             ctxt: #0,
         },
@@ -4026,310 +4096,91 @@
         },
     },
     Call {
-        func: FreeVar(
-            Other(
-                Atom('safeAdd' type=inline),
+        func: Variable(
+            (
+                Atom('md5ff' type=inline),
+                #1,
             ),
         ),
         args: [
-            Call(
-                13,
-                FreeVar(
-                    Other(
-                        Atom('bitRotateLeft' type=dynamic),
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #2,
                     ),
                 ),
-                [
-                    Call(
-                        10,
-                        FreeVar(
-                            Other(
-                                Atom('safeAdd' type=inline),
-                            ),
-                        ),
-                        [
-                            Call(
-                                4,
-                                FreeVar(
-                                    Other(
-                                        Atom('safeAdd' type=inline),
-                                    ),
-                                ),
-                                [
-                                    Variable(
-                                        (
-                                            Atom('a' type=static),
-                                            #3,
-                                        ),
-                                    ),
-                                    Variable(
-                                        (
-                                            Atom('q' type=static),
-                                            #3,
-                                        ),
-                                    ),
-                                ],
-                            ),
-                            Call(
-                                4,
-                                FreeVar(
-                                    Other(
-                                        Atom('safeAdd' type=inline),
-                                    ),
-                                ),
-                                [
-                                    Variable(
-                                        (
-                                            Atom('x' type=static),
-                                            #3,
-                                        ),
-                                    ),
-                                    Variable(
-                                        (
-                                            Atom('t' type=inline),
-                                            #3,
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ],
-                    ),
-                    Variable(
-                        (
-                            Atom('s' type=static),
-                            #3,
-                        ),
-                    ),
-                ],
             ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #3,
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                1459,
-            ),
-            hi: BytePos(
-                1526,
-            ),
-            ctxt: #0,
-        },
-    },
-    Call {
-        func: FreeVar(
-            Other(
-                Atom('bitRotateLeft' type=dynamic),
-            ),
-        ),
-        args: [
-            Call(
-                10,
-                FreeVar(
-                    Other(
-                        Atom('safeAdd' type=inline),
+            Value(
+                Variable(
+                    (
+                        Atom('c' type=inline),
+                        #2,
                     ),
                 ),
-                [
-                    Call(
-                        4,
-                        FreeVar(
-                            Other(
-                                Atom('safeAdd' type=inline),
-                            ),
-                        ),
-                        [
-                            Variable(
-                                (
-                                    Atom('a' type=static),
-                                    #3,
-                                ),
-                            ),
-                            Variable(
-                                (
-                                    Atom('q' type=static),
-                                    #3,
-                                ),
-                            ),
-                        ],
-                    ),
-                    Call(
-                        4,
-                        FreeVar(
-                            Other(
-                                Atom('safeAdd' type=inline),
-                            ),
-                        ),
-                        [
-                            Variable(
-                                (
-                                    Atom('x' type=static),
-                                    #3,
-                                ),
-                            ),
-                            Variable(
-                                (
-                                    Atom('t' type=inline),
-                                    #3,
-                                ),
-                            ),
-                        ],
-                    ),
-                ],
             ),
-            Variable(
-                (
-                    Atom('s' type=static),
-                    #3,
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                1467,
-            ),
-            hi: BytePos(
-                1522,
-            ),
-            ctxt: #0,
-        },
-    },
-    Call {
-        func: FreeVar(
-            Other(
-                Atom('safeAdd' type=inline),
-            ),
-        ),
-        args: [
-            Call(
-                4,
-                FreeVar(
-                    Other(
-                        Atom('safeAdd' type=inline),
+            Value(
+                Variable(
+                    (
+                        Atom('d' type=static),
+                        #2,
                     ),
                 ),
-                [
-                    Variable(
-                        (
-                            Atom('a' type=static),
-                            #3,
-                        ),
-                    ),
-                    Variable(
-                        (
-                            Atom('q' type=static),
-                            #3,
-                        ),
-                    ),
-                ],
             ),
-            Call(
-                4,
-                FreeVar(
-                    Other(
-                        Atom('safeAdd' type=inline),
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #2,
                     ),
                 ),
-                [
+            ),
+            Value(
+                Member(
+                    5,
                     Variable(
                         (
                             Atom('x' type=static),
-                            #3,
+                            #2,
                         ),
                     ),
-                    Variable(
-                        (
-                            Atom('t' type=inline),
-                            #3,
+                    Add(
+                        3,
+                        [
+                            Variable(
+                                (
+                                    Atom('i' type=static),
+                                    #2,
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        15.0,
+                                    ),
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            22.0,
                         ),
                     ),
-                ],
+                ),
+            ),
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1236535329.0,
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -4338,7 +4189,7 @@
             ),
             Script(
                 Body(
-                    1,
+                    0,
                 ),
             ),
             Stmt(
@@ -4355,36 +4206,34 @@
             ),
             BlockStmt(
                 Stmts(
-                    0,
+                    11,
                 ),
             ),
             Stmt(
-                Return,
+                For,
             ),
-            ReturnStmt(
-                Arg,
+            ForStmt(
+                Body,
             ),
-            Expr(
-                Call,
+            Stmt(
+                Block,
             ),
-            CallExpr(
-                Args(
-                    0,
+            BlockStmt(
+                Stmts(
+                    19,
                 ),
             ),
-            ExprOrSpread(
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
                 Expr,
             ),
             Expr(
-                Call,
+                Assign,
             ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
+            AssignExpr(
+                Right,
             ),
             Expr(
                 Call,
@@ -4392,10 +4241,10 @@
         ],
         span: Span {
             lo: BytePos(
-                1481,
+                1256,
             ),
             hi: BytePos(
-                1518,
+                1300,
             ),
             ctxt: #0,
         },
@@ -4407,16 +4256,20 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #3,
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #3,
+                    ),
                 ),
             ),
-            Variable(
-                (
-                    Atom('q' type=static),
-                    #3,
+            Value(
+                Variable(
+                    (
+                        Atom('q' type=static),
+                        #3,
+                    ),
                 ),
             ),
         ],
@@ -4506,16 +4359,20 @@
             ),
         ),
         args: [
-            Variable(
-                (
-                    Atom('x' type=static),
-                    #3,
+            Value(
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #3,
+                    ),
                 ),
             ),
-            Variable(
-                (
-                    Atom('t' type=inline),
-                    #3,
+            Value(
+                Variable(
+                    (
+                        Atom('t' type=inline),
+                        #3,
+                    ),
                 ),
             ),
         ],
@@ -4599,6 +4456,393 @@
         },
     },
     Call {
+        func: FreeVar(
+            Other(
+                Atom('safeAdd' type=inline),
+            ),
+        ),
+        args: [
+            Value(
+                Call(
+                    4,
+                    FreeVar(
+                        Other(
+                            Atom('safeAdd' type=inline),
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('q' type=static),
+                                #3,
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Value(
+                Call(
+                    4,
+                    FreeVar(
+                        Other(
+                            Atom('safeAdd' type=inline),
+                        ),
+                    ),
+                    [
+                        Variable(
+                            (
+                                Atom('x' type=static),
+                                #3,
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('t' type=inline),
+                                #3,
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1481,
+            ),
+            hi: BytePos(
+                1518,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Other(
+                Atom('bitRotateLeft' type=dynamic),
+            ),
+        ),
+        args: [
+            Value(
+                Call(
+                    10,
+                    FreeVar(
+                        Other(
+                            Atom('safeAdd' type=inline),
+                        ),
+                    ),
+                    [
+                        Call(
+                            4,
+                            FreeVar(
+                                Other(
+                                    Atom('safeAdd' type=inline),
+                                ),
+                            ),
+                            [
+                                Variable(
+                                    (
+                                        Atom('a' type=static),
+                                        #3,
+                                    ),
+                                ),
+                                Variable(
+                                    (
+                                        Atom('q' type=static),
+                                        #3,
+                                    ),
+                                ),
+                            ],
+                        ),
+                        Call(
+                            4,
+                            FreeVar(
+                                Other(
+                                    Atom('safeAdd' type=inline),
+                                ),
+                            ),
+                            [
+                                Variable(
+                                    (
+                                        Atom('x' type=static),
+                                        #3,
+                                    ),
+                                ),
+                                Variable(
+                                    (
+                                        Atom('t' type=inline),
+                                        #3,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('s' type=static),
+                        #3,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    0,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1467,
+            ),
+            hi: BytePos(
+                1522,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Other(
+                Atom('safeAdd' type=inline),
+            ),
+        ),
+        args: [
+            Value(
+                Call(
+                    13,
+                    FreeVar(
+                        Other(
+                            Atom('bitRotateLeft' type=dynamic),
+                        ),
+                    ),
+                    [
+                        Call(
+                            10,
+                            FreeVar(
+                                Other(
+                                    Atom('safeAdd' type=inline),
+                                ),
+                            ),
+                            [
+                                Call(
+                                    4,
+                                    FreeVar(
+                                        Other(
+                                            Atom('safeAdd' type=inline),
+                                        ),
+                                    ),
+                                    [
+                                        Variable(
+                                            (
+                                                Atom('a' type=static),
+                                                #3,
+                                            ),
+                                        ),
+                                        Variable(
+                                            (
+                                                Atom('q' type=static),
+                                                #3,
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                                Call(
+                                    4,
+                                    FreeVar(
+                                        Other(
+                                            Atom('safeAdd' type=inline),
+                                        ),
+                                    ),
+                                    [
+                                        Variable(
+                                            (
+                                                Atom('x' type=static),
+                                                #3,
+                                            ),
+                                        ),
+                                        Variable(
+                                            (
+                                                Atom('t' type=inline),
+                                                #3,
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        Variable(
+                            (
+                                Atom('s' type=static),
+                                #3,
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #3,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                1459,
+            ),
+            hi: BytePos(
+                1526,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
         func: Variable(
             (
                 Atom('md5cmn' type=inline),
@@ -4606,38 +4850,50 @@
             ),
         ),
         args: [
-            Unknown(
-                None,
-                "unsupported expression",
-            ),
-            Variable(
-                (
-                    Atom('a' type=static),
-                    #5,
+            Value(
+                Unknown(
+                    None,
+                    "unsupported expression",
                 ),
             ),
-            Variable(
-                (
-                    Atom('b' type=static),
-                    #5,
+            Value(
+                Variable(
+                    (
+                        Atom('a' type=static),
+                        #5,
+                    ),
                 ),
             ),
-            Variable(
-                (
-                    Atom('x' type=static),
-                    #5,
+            Value(
+                Variable(
+                    (
+                        Atom('b' type=static),
+                        #5,
+                    ),
                 ),
             ),
-            Variable(
-                (
-                    Atom('s' type=static),
-                    #5,
+            Value(
+                Variable(
+                    (
+                        Atom('x' type=static),
+                        #5,
+                    ),
                 ),
             ),
-            Variable(
-                (
-                    Atom('t' type=inline),
-                    #5,
+            Value(
+                Variable(
+                    (
+                        Atom('s' type=static),
+                        #5,
+                    ),
+                ),
+            ),
+            Value(
+                Variable(
+                    (
+                        Atom('t' type=inline),
+                        #5,
+                    ),
                 ),
             ),
         ],

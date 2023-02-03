@@ -1,0 +1,11 @@
+0 -> 3 member call = [1, 2, 3]["concat"](4, 5, 6, [7, 8, 9], `hello ${2}`)
+
+0 -> 6 member call = [1, 2, 3]["concat"]([4, 5, 6, ???*0*])
+- *0* FreeVar(unknown)
+  ⚠️  unknown global
+
+0 -> 9 member call = [1, 2, 3]["concat"](4, 5, 6, ???*0*)
+- *0* FreeVar(unknown)
+  ⚠️  unknown global
+
+0 -> 12 member call = [1, 2, 3]["concat"]([7, 8, 9])

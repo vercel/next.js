@@ -1,11 +1,11 @@
-*arrow function 105* = (...) => ???*0*
-- *0* value
-  ⚠️  no value of this variable analysed
+*arrow function 105* = (...) => (undefined | value2)
 
-Fun = (...) => (arguments[0]["value"] | module<./module.js, {}>["named"])
+Fun = (...) => (undefined | value)
 
-Fun2 = (...) => ???*0*
-- *0* value
-  ⚠️  no value of this variable analysed
+Fun2 = (...) => (undefined | value2)
 
-value = (arguments[0]["value"] | module<./module.js, {}>["named"])
+value = (???*0* | module<./module.js, {}>["named"])
+- *0* ???*1*["value"]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet

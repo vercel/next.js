@@ -1,0 +1,53 @@
+0 -> 1 call = require*0*("os")
+- *0* require: The require method from CommonJS
+
+0 -> 2 call = require*0*("process")
+- *0* require: The require method from CommonJS
+
+0 -> 4 call = os.process*0*()
+- *0* os.process: The Node.js os.process method: https://nodejs.org/api/os.html#os_os_process
+
+0 -> 5 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 6 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 7 call = os.arch*0*()
+- *0* os.arch: The Node.js os.arch method: https://nodejs.org/api/os.html#os_os_arch
+
+0 -> 8 call = os.process*0*()
+- *0* os.process: The Node.js os.process method: https://nodejs.org/api/os.html#os_os_process
+
+0 -> 9 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 10 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 11 call = os.arch*0*()
+- *0* os.arch: The Node.js os.arch method: https://nodejs.org/api/os.html#os_os_arch
+
+0 -> 13 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 14 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 17 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 18 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 21 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 22 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 24 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 25 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS

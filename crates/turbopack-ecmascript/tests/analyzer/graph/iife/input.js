@@ -11,4 +11,8 @@ let a = require;
 
 ((f) => {
   let g = f;
+
+  if (true) {
+    f("test");
+  }
 })(a);

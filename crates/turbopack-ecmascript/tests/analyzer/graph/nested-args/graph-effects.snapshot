@@ -1,0 +1,398 @@
+[
+    Call {
+        func: Variable(
+            (
+                Atom('x' type=static),
+                #1,
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                77,
+            ),
+            hi: BytePos(
+                81,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Call(
+            3,
+            Variable(
+                (
+                    Atom('x' type=static),
+                    #1,
+                ),
+            ),
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        args: [
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                77,
+            ),
+            hi: BytePos(
+                84,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('r' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Value(
+                Add(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('a' type=static),
+                                #5,
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                If,
+            ),
+            IfStmt(
+                Alt,
+            ),
+            Stmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                159,
+            ),
+            hi: BytePos(
+                167,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('r' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                190,
+            ),
+            hi: BytePos(
+                194,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('inner' type=inline),
+                #6,
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('b' type=static),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    1,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                271,
+            ),
+            hi: BytePos(
+                281,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: Variable(
+            (
+                Atom('outer' type=inline),
+                #1,
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('a' type=static),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                295,
+            ),
+            hi: BytePos(
+                305,
+            ),
+            ctxt: #0,
+        },
+    },
+]

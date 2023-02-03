@@ -76,7 +76,7 @@ pub async fn process_request_with_content_source(
 
                 let header_map = response.headers_mut().expect("headers must be defined");
 
-                for (header_name, header_value) in &*headers {
+                for (header_name, header_value) in headers {
                     header_map.append(
                         HeaderName::try_from(header_name.clone())?,
                         hyper::header::HeaderValue::try_from(header_value.as_str())?,

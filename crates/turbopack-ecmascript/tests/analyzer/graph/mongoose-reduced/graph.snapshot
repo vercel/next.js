@@ -55,8 +55,9 @@
     ),
     (
         "driver",
-        Alternatives(
+        Logical(
             5,
+            Or,
             [
                 Member(
                     3,

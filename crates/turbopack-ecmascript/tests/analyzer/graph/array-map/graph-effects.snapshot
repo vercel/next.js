@@ -1,0 +1,851 @@
+[
+    Member {
+        obj: Array(
+            3,
+            [
+                Constant(
+                    StrWord(
+                        Atom('../lib/a.js' type=dynamic),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('../lib/b.js' type=dynamic),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('map' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                53,
+            ),
+            hi: BytePos(
+                87,
+            ),
+            ctxt: #0,
+        },
+    },
+    MemberCall {
+        obj: Array(
+            3,
+            [
+                Constant(
+                    StrWord(
+                        Atom('../lib/a.js' type=dynamic),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('../lib/b.js' type=dynamic),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('map' type=static),
+            ),
+        ),
+        args: [
+            Closure(
+                Variable(
+                    (
+                        Atom('*anonymous function 88*' type=dynamic),
+                        #0,
+                    ),
+                ),
+                EffectsBlock {
+                    effects: [],
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                1,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Call,
+                        ),
+                        CallExpr(
+                            Args(
+                                0,
+                            ),
+                        ),
+                        ExprOrSpread(
+                            Expr,
+                        ),
+                        Expr(
+                            Fn,
+                        ),
+                        FnExpr(
+                            Function,
+                        ),
+                        Function(
+                            Body,
+                        ),
+                    ],
+                },
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                53,
+            ),
+            hi: BytePos(
+                123,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Array(
+            3,
+            [
+                Constant(
+                    StrWord(
+                        Atom('../lib/a.js' type=dynamic),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('../lib/b.js' type=dynamic),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('map' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                135,
+            ),
+            hi: BytePos(
+                169,
+            ),
+            ctxt: #0,
+        },
+    },
+    MemberCall {
+        obj: Array(
+            3,
+            [
+                Constant(
+                    StrWord(
+                        Atom('../lib/a.js' type=dynamic),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('../lib/b.js' type=dynamic),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('map' type=static),
+            ),
+        ),
+        args: [
+            Closure(
+                Variable(
+                    (
+                        Atom('*anonymous function 170*' type=dynamic),
+                        #0,
+                    ),
+                ),
+                EffectsBlock {
+                    effects: [],
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                2,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Call,
+                        ),
+                        CallExpr(
+                            Args(
+                                0,
+                            ),
+                        ),
+                        ExprOrSpread(
+                            Expr,
+                        ),
+                        Expr(
+                            Fn,
+                        ),
+                        FnExpr(
+                            Function,
+                        ),
+                        Function(
+                            Body,
+                        ),
+                    ],
+                },
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                135,
+            ),
+            hi: BytePos(
+                207,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: Array(
+            3,
+            [
+                Constant(
+                    StrWord(
+                        Atom('../lib/a.js' type=dynamic),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('../lib/b.js' type=dynamic),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('map' type=static),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                219,
+            ),
+            hi: BytePos(
+                253,
+            ),
+            ctxt: #0,
+        },
+    },
+    MemberCall {
+        obj: Array(
+            3,
+            [
+                Constant(
+                    StrWord(
+                        Atom('../lib/a.js' type=dynamic),
+                    ),
+                ),
+                Constant(
+                    StrWord(
+                        Atom('../lib/b.js' type=dynamic),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('map' type=static),
+            ),
+        ),
+        args: [
+            Closure(
+                Variable(
+                    (
+                        Atom('*anonymous function 254*' type=dynamic),
+                        #0,
+                    ),
+                ),
+                EffectsBlock {
+                    effects: [
+                        Member {
+                            obj: FreeVar(
+                                Require,
+                            ),
+                            prop: Constant(
+                                StrWord(
+                                    Atom('resolve' type=inline),
+                                ),
+                            ),
+                            ast_path: [
+                                Program(
+                                    Script,
+                                ),
+                                Script(
+                                    Body(
+                                        3,
+                                    ),
+                                ),
+                                Stmt(
+                                    Decl,
+                                ),
+                                Decl(
+                                    Var,
+                                ),
+                                VarDecl(
+                                    Decls(
+                                        0,
+                                    ),
+                                ),
+                                VarDeclarator(
+                                    Init,
+                                ),
+                                Expr(
+                                    Call,
+                                ),
+                                CallExpr(
+                                    Args(
+                                        0,
+                                    ),
+                                ),
+                                ExprOrSpread(
+                                    Expr,
+                                ),
+                                Expr(
+                                    Fn,
+                                ),
+                                FnExpr(
+                                    Function,
+                                ),
+                                Function(
+                                    Body,
+                                ),
+                                BlockStmt(
+                                    Stmts(
+                                        0,
+                                    ),
+                                ),
+                                Stmt(
+                                    Return,
+                                ),
+                                ReturnStmt(
+                                    Arg,
+                                ),
+                                Expr(
+                                    Call,
+                                ),
+                                CallExpr(
+                                    Callee,
+                                ),
+                                Callee(
+                                    Expr,
+                                ),
+                                Expr(
+                                    Member,
+                                ),
+                            ],
+                            span: Span {
+                                lo: BytePos(
+                                    281,
+                                ),
+                                hi: BytePos(
+                                    296,
+                                ),
+                                ctxt: #0,
+                            },
+                        },
+                        MemberCall {
+                            obj: FreeVar(
+                                Require,
+                            ),
+                            prop: Constant(
+                                StrWord(
+                                    Atom('resolve' type=inline),
+                                ),
+                            ),
+                            args: [
+                                Value(
+                                    Variable(
+                                        (
+                                            Atom('file' type=static),
+                                            #4,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                            ast_path: [
+                                Program(
+                                    Script,
+                                ),
+                                Script(
+                                    Body(
+                                        3,
+                                    ),
+                                ),
+                                Stmt(
+                                    Decl,
+                                ),
+                                Decl(
+                                    Var,
+                                ),
+                                VarDecl(
+                                    Decls(
+                                        0,
+                                    ),
+                                ),
+                                VarDeclarator(
+                                    Init,
+                                ),
+                                Expr(
+                                    Call,
+                                ),
+                                CallExpr(
+                                    Args(
+                                        0,
+                                    ),
+                                ),
+                                ExprOrSpread(
+                                    Expr,
+                                ),
+                                Expr(
+                                    Fn,
+                                ),
+                                FnExpr(
+                                    Function,
+                                ),
+                                Function(
+                                    Body,
+                                ),
+                                BlockStmt(
+                                    Stmts(
+                                        0,
+                                    ),
+                                ),
+                                Stmt(
+                                    Return,
+                                ),
+                                ReturnStmt(
+                                    Arg,
+                                ),
+                                Expr(
+                                    Call,
+                                ),
+                            ],
+                            span: Span {
+                                lo: BytePos(
+                                    281,
+                                ),
+                                hi: BytePos(
+                                    302,
+                                ),
+                                ctxt: #0,
+                            },
+                        },
+                    ],
+                    ast_path: [
+                        Program(
+                            Script,
+                        ),
+                        Script(
+                            Body(
+                                3,
+                            ),
+                        ),
+                        Stmt(
+                            Decl,
+                        ),
+                        Decl(
+                            Var,
+                        ),
+                        VarDecl(
+                            Decls(
+                                0,
+                            ),
+                        ),
+                        VarDeclarator(
+                            Init,
+                        ),
+                        Expr(
+                            Call,
+                        ),
+                        CallExpr(
+                            Args(
+                                0,
+                            ),
+                        ),
+                        ExprOrSpread(
+                            Expr,
+                        ),
+                        Expr(
+                            Fn,
+                        ),
+                        FnExpr(
+                            Function,
+                        ),
+                        Function(
+                            Body,
+                        ),
+                    ],
+                },
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                219,
+            ),
+            hi: BytePos(
+                306,
+            ),
+            ctxt: #0,
+        },
+    },
+    Member {
+        obj: FreeVar(
+            Require,
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('resolve' type=inline),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                339,
+            ),
+            hi: BytePos(
+                354,
+            ),
+            ctxt: #0,
+        },
+    },
+    MemberCall {
+        obj: FreeVar(
+            Require,
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('resolve' type=inline),
+            ),
+        ),
+        args: [
+            Value(
+                Variable(
+                    (
+                        Atom('file' type=static),
+                        #6,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Return,
+            ),
+            ReturnStmt(
+                Arg,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                339,
+            ),
+            hi: BytePos(
+                360,
+            ),
+            ctxt: #0,
+        },
+    },
+]

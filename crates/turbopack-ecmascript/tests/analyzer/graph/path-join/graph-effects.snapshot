@@ -4,9 +4,11 @@
             Require,
         ),
         args: [
-            Constant(
-                StrWord(
-                    Atom('foo' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
                 ),
             ),
         ],
@@ -52,9 +54,11 @@
             Require,
         ),
         args: [
-            Constant(
-                StrWord(
-                    Atom('path' type=static),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('path' type=static),
+                    ),
                 ),
             ),
         ],
@@ -91,67 +95,6 @@
             ),
             hi: BytePos(
                 94,
-            ),
-            ctxt: #0,
-        },
-    },
-    MemberCall {
-        obj: Variable(
-            (
-                Atom('path' type=static),
-                #1,
-            ),
-        ),
-        prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
-            ),
-        ),
-        args: [
-            Constant(
-                StrWord(
-                    Atom('foo' type=inline),
-                ),
-            ),
-            Constant(
-                StrWord(
-                    Atom('bar' type=inline),
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    2,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                115,
-            ),
-            hi: BytePos(
-                138,
             ),
             ctxt: #0,
         },
@@ -227,14 +170,18 @@
             ),
         ),
         args: [
-            Constant(
-                StrWord(
-                    Atom('foo/' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
                 ),
             ),
-            Constant(
-                StrWord(
-                    Atom('bar' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('bar' type=inline),
+                    ),
                 ),
             ),
         ],
@@ -244,7 +191,7 @@
             ),
             Script(
                 Body(
-                    3,
+                    2,
                 ),
             ),
             Stmt(
@@ -267,10 +214,10 @@
         ],
         span: Span {
             lo: BytePos(
-                158,
+                115,
             ),
             hi: BytePos(
-                182,
+                138,
             ),
             ctxt: #0,
         },
@@ -346,14 +293,18 @@
             ),
         ),
         args: [
-            Constant(
-                StrWord(
-                    Atom('foo' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('foo/' type=inline),
+                    ),
                 ),
             ),
-            Constant(
-                StrWord(
-                    Atom('/bar' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('bar' type=inline),
+                    ),
                 ),
             ),
         ],
@@ -363,7 +314,7 @@
             ),
             Script(
                 Body(
-                    4,
+                    3,
                 ),
             ),
             Stmt(
@@ -386,10 +337,10 @@
         ],
         span: Span {
             lo: BytePos(
-                202,
+                158,
             ),
             hi: BytePos(
-                226,
+                182,
             ),
             ctxt: #0,
         },
@@ -465,14 +416,18 @@
             ),
         ),
         args: [
-            Constant(
-                StrWord(
-                    Atom('foo/' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
                 ),
             ),
-            Constant(
-                StrWord(
-                    Atom('/bar' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('/bar' type=inline),
+                    ),
                 ),
             ),
         ],
@@ -482,7 +437,7 @@
             ),
             Script(
                 Body(
-                    5,
+                    4,
                 ),
             ),
             Stmt(
@@ -505,10 +460,10 @@
         ],
         span: Span {
             lo: BytePos(
-                246,
+                202,
             ),
             hi: BytePos(
-                271,
+                226,
             ),
             ctxt: #0,
         },
@@ -584,39 +539,18 @@
             ),
         ),
         args: [
-            Constant(
-                StrWord(
-                    Atom('foo' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('foo/' type=inline),
+                    ),
                 ),
             ),
-            Constant(
-                StrWord(
-                    Atom('bar' type=inline),
-                ),
-            ),
-            Constant(
-                StrWord(
-                    Atom('..' type=inline),
-                ),
-            ),
-            Constant(
-                StrWord(
-                    Atom('baz' type=inline),
-                ),
-            ),
-            FreeVar(
-                Other(
-                    Atom('global' type=static),
-                ),
-            ),
-            Constant(
-                StrWord(
-                    Atom('..' type=inline),
-                ),
-            ),
-            Constant(
-                StrWord(
-                    Atom('foo' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('/bar' type=inline),
+                    ),
                 ),
             ),
         ],
@@ -626,7 +560,7 @@
             ),
             Script(
                 Body(
-                    6,
+                    5,
                 ),
             ),
             Stmt(
@@ -649,10 +583,10 @@
         ],
         span: Span {
             lo: BytePos(
-                291,
+                246,
             ),
             hi: BytePos(
-                348,
+                271,
             ),
             ctxt: #0,
         },
@@ -711,6 +645,106 @@
             ),
             hi: BytePos(
                 300,
+            ),
+            ctxt: #0,
+        },
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                Atom('path' type=static),
+                #1,
+            ),
+        ),
+        prop: Constant(
+            StrWord(
+                Atom('join' type=inline),
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('bar' type=inline),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('..' type=inline),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('baz' type=inline),
+                    ),
+                ),
+            ),
+            Value(
+                FreeVar(
+                    Other(
+                        Atom('global' type=static),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('..' type=inline),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('foo' type=inline),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                291,
+            ),
+            hi: BytePos(
+                348,
             ),
             ctxt: #0,
         },

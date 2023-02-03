@@ -26,6 +26,7 @@ pub async fn replace_well_known(
         ),
         JsValue::Call(usize, callee, args) => {
             // var fs = require('fs'), fs = __importStar(fs);
+            // TODO(WEB-552) this is not correct and has many false positives!
             if args.len() == 1 {
                 if let JsValue::WellKnownObject(_) = &args[0] {
                     return Ok((args[0].clone(), true));
@@ -107,7 +108,7 @@ pub async fn well_known_function_call(
 
 pub fn object_assign(args: Vec<JsValue>) -> JsValue {
     if args.iter().all(|arg| matches!(arg, JsValue::Object(..))) {
-        if let Some(merged_object) = args.into_iter().reduce(|mut acc, cur| {
+        if let Some(mut merged_object) = args.into_iter().reduce(|mut acc, cur| {
             if let JsValue::Object(_, parts) = &mut acc {
                 if let JsValue::Object(_, next_parts) = &cur {
                     parts.extend_from_slice(next_parts);
@@ -115,6 +116,7 @@ pub fn object_assign(args: Vec<JsValue>) -> JsValue {
             }
             acc
         }) {
+            merged_object.update_total_nodes();
             merged_object
         } else {
             JsValue::Unknown(
@@ -241,7 +243,7 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
     let first = iter.next().unwrap();
 
     let is_already_absolute =
-        first.as_str().map_or(false, |s| s.is_empty()) || first.starts_with("/");
+        first.is_empty_string() == Some(true) || first.starts_with("/") == Some(true);
 
     let mut last_was_str = first.as_str().is_some();
 

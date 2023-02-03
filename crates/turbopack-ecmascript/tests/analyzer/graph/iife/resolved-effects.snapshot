@@ -1,0 +1,4 @@
+0 -> 1 conditional = true
+
+1 -> 2 call = require*0*("test")
+- *0* require: The require method from CommonJS

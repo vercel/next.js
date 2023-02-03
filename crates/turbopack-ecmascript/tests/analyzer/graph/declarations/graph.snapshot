@@ -3,10 +3,9 @@
         "*anonymous function 25*",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            25,
+            Constant(
+                Undefined,
             ),
         ),
     ),
@@ -14,10 +13,9 @@
         "a",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            1,
+            Constant(
+                Undefined,
             ),
         ),
     ),

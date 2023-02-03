@@ -1,0 +1,2590 @@
+0 -> 1 call = require*0*("crypt")
+- *0* require: The require method from CommonJS
+
+0 -> 3 call = require*0*("charenc")
+- *0* require: The require method from CommonJS
+
+0 -> 4 call = require*0*("is-buffer")
+- *0* require: The require method from CommonJS
+
+0 -> 6 call = require*0*("charenc")
+- *0* require: The require method from CommonJS
+
+0 -> 9 conditional = (???*0* | ???*1*)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* unsupported expression
+
+9 -> 11 member call = module<charenc, {}>["bin"]["stringToBytes"]((???*0* | ???*1* | ???*5* | ???*9*()))
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
+- *2* ???*3*["stringToBytes"]
+  ⚠️  unknown object
+- *3* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *4* message
+  ⚠️  circular variable reference
+- *5* ???*6*["call"](message, 0)
+  ⚠️  unknown callee object
+- *6* ???*7*["slice"]
+  ⚠️  unknown object
+- *7* ???*8*["prototype"]
+  ⚠️  unknown object
+- *8* FreeVar(Array)
+  ⚠️  unknown global
+- *9* ???*10*["toString"]
+  ⚠️  unknown object
+- *10* message
+  ⚠️  circular variable reference
+
+9 -> 13 member call = module<charenc, {}>["utf8"]["stringToBytes"]((???*0* | ???*1* | ???*5* | ???*9*()))
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
+- *2* ???*3*["stringToBytes"]
+  ⚠️  unknown object
+- *3* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *4* message
+  ⚠️  circular variable reference
+- *5* ???*6*["call"](message, 0)
+  ⚠️  unknown callee object
+- *6* ???*7*["slice"]
+  ⚠️  unknown object
+- *7* ???*8*["prototype"]
+  ⚠️  unknown object
+- *8* FreeVar(Array)
+  ⚠️  unknown global
+- *9* ???*10*["toString"]
+  ⚠️  unknown object
+- *10* message
+  ⚠️  circular variable reference
+
+0 -> 14 call = module<is-buffer, {}>((???*0* | ???*1* | ???*5* | ???*9*()))
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
+- *2* ???*3*["stringToBytes"]
+  ⚠️  unknown object
+- *3* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *4* message
+  ⚠️  circular variable reference
+- *5* ???*6*["call"](message, 0)
+  ⚠️  unknown callee object
+- *6* ???*7*["slice"]
+  ⚠️  unknown object
+- *7* ???*8*["prototype"]
+  ⚠️  unknown object
+- *8* FreeVar(Array)
+  ⚠️  unknown global
+- *9* ???*10*["toString"]
+  ⚠️  unknown object
+- *10* message
+  ⚠️  circular variable reference
+
+0 -> 15 conditional = module<is-buffer, {}>((???*0* | ???*1* | ???*5* | ???*9*))
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
+- *2* ???*3*["stringToBytes"]
+  ⚠️  unknown object
+- *3* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *4* message
+  ⚠️  circular variable reference
+- *5* ???*6*["call"](message, 0)
+  ⚠️  unknown callee object
+- *6* ???*7*["slice"]
+  ⚠️  unknown object
+- *7* ???*8*["prototype"]
+  ⚠️  unknown object
+- *8* FreeVar(Array)
+  ⚠️  unknown global
+- *9* ???*10*()
+  ⚠️  nested operation
+- *10* ???*11*["toString"]
+  ⚠️  unknown object
+- *11* message
+  ⚠️  circular variable reference
+
+15 -> 19 member call = ???*0*["call"]((???*3* | ???*4* | ???*8* | ???*12*()), 0)
+- *0* ???*1*["slice"]
+  ⚠️  unknown object
+- *1* ???*2*["prototype"]
+  ⚠️  unknown object
+- *2* FreeVar(Array)
+  ⚠️  unknown global
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *4* ???*5*(???*7*)
+  ⚠️  unknown callee
+- *5* ???*6*["stringToBytes"]
+  ⚠️  unknown object
+- *6* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *7* message
+  ⚠️  circular variable reference
+- *8* ???*9*["call"](message, 0)
+  ⚠️  unknown callee object
+- *9* ???*10*["slice"]
+  ⚠️  unknown object
+- *10* ???*11*["prototype"]
+  ⚠️  unknown object
+- *11* FreeVar(Array)
+  ⚠️  unknown global
+- *12* ???*13*["toString"]
+  ⚠️  unknown object
+- *13* message
+  ⚠️  circular variable reference
+
+15 -> 21 member call = ???*0*["isArray"]((???*1* | ???*2* | ???*6* | ???*10*()))
+- *0* FreeVar(Array)
+  ⚠️  unknown global
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*(???*5*)
+  ⚠️  unknown callee
+- *3* ???*4*["stringToBytes"]
+  ⚠️  unknown object
+- *4* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *5* message
+  ⚠️  circular variable reference
+- *6* ???*7*["call"](message, 0)
+  ⚠️  unknown callee object
+- *7* ???*8*["slice"]
+  ⚠️  unknown object
+- *8* ???*9*["prototype"]
+  ⚠️  unknown object
+- *9* FreeVar(Array)
+  ⚠️  unknown global
+- *10* ???*11*["toString"]
+  ⚠️  unknown object
+- *11* message
+  ⚠️  circular variable reference
+
+15 -> 22 conditional = !(???*0*)
+- *0* ???*1*["isArray"](message)
+  ⚠️  unknown callee object
+- *1* FreeVar(Array)
+  ⚠️  unknown global
+
+22 -> 24 member call = (???*0* | ???*1* | ???*5* | ???*9*())["toString"]()
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
+- *2* ???*3*["stringToBytes"]
+  ⚠️  unknown object
+- *3* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *4* message
+  ⚠️  circular variable reference
+- *5* ???*6*["call"](message, 0)
+  ⚠️  unknown callee object
+- *6* ???*7*["slice"]
+  ⚠️  unknown object
+- *7* ???*8*["prototype"]
+  ⚠️  unknown object
+- *8* FreeVar(Array)
+  ⚠️  unknown global
+- *9* ???*10*["toString"]
+  ⚠️  unknown object
+- *10* message
+  ⚠️  circular variable reference
+
+0 -> 26 member call = module<crypt, {}>["bytesToWords"]((???*0* | ???*1* | ???*5* | ???*9*()))
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
+- *2* ???*3*["stringToBytes"]
+  ⚠️  unknown object
+- *3* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *4* message
+  ⚠️  circular variable reference
+- *5* ???*6*["call"](message, 0)
+  ⚠️  unknown callee object
+- *6* ???*7*["slice"]
+  ⚠️  unknown object
+- *7* ???*8*["prototype"]
+  ⚠️  unknown object
+- *8* FreeVar(Array)
+  ⚠️  unknown global
+- *9* ???*10*["toString"]
+  ⚠️  unknown object
+- *10* message
+  ⚠️  circular variable reference
+
+0 -> 42 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 0)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 44 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 1)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 46 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, 606105819)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 2)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 48 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 3)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 50 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 4)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 52 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, 1200080426)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 5)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 54 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 6)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 56 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 7)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 58 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, 1770035416)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 8)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 60 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 9)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 62 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 10)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 64 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 11)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 66 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, 1804603682)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 12)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 68 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 13)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 70 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 14)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 72 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, 1236535329)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 15)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 74 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 1)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 76 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 6)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 78 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, 643717713)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 11)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 80 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 0)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 82 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 5)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 84 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, 38016083)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 10)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 86 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 15)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 88 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 4)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 90 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, 568446438)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 9)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 92 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 14)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 94 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 3)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 96 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, 1163531501)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 8)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 98 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 13)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 100 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 2)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 102 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, 1735328473)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 7)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 104 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 12)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 106 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 5)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 108 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 8)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 110 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, 1839030562)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 11)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 112 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 14)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 114 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 1)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 116 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, 1272893353)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 4)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 118 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 7)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 120 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 10)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 122 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, 681279174)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 13)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 124 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 0)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 126 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 3)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 128 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, 76029189)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 6)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 130 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 9)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 132 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 12)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 134 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, 530742520)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 15)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 136 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 2)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 138 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 0)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 140 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, 1126891415)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 7)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 142 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 14)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 144 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 5)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 146 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, 1700485571)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 12)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 148 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 3)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 150 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 10)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 152 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 1)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 154 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, 1873313359)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 8)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 156 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 15)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 158 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 6)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 160 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, 1309151649)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 13)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 162 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 4)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 164 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 11)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 166 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, 718787259)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 2)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+
+0 -> 168 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*19*)
+- *0* crypt["endian"]([a, b, c, d])
+  ⚠️  nested operation
+- *1* max number of linking steps reached
+- *2* max number of linking steps reached
+- *3* max number of linking steps reached
+- *4* max number of linking steps reached
+- *5* ???*6*[(i + 9)]
+  ⚠️  unknown object
+- *6* ???*7*((???*8* | ???*9* | ???*13* | ???*16*))
+  ⚠️  unknown callee
+- *7* module<crypt, {}>["bytesToWords"]
+  ⚠️  nested operation
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*(???*12*)
+  ⚠️  unknown callee
+- *10* ???*11*["stringToBytes"]
+  ⚠️  unknown object
+- *11* module<charenc, {}>["bin"]
+  ⚠️  nested operation
+- *12* message
+  ⚠️  circular variable reference
+- *13* ???*14*["call"](message, 0)
+  ⚠️  unknown callee object
+- *14* ???*15*["slice"]
+  ⚠️  unknown object
+- *15* ???["prototype"]
+  ⚠️  unknown object
+- *16* ???*17*()
+  ⚠️  nested operation
+- *17* ???*18*["toString"]
+  ⚠️  unknown object
+- *18* message
+  ⚠️  circular variable reference
+- *19* unsupported expression
+
+0 -> 170 member call = module<crypt, {}>["endian"](???*0*)
+- *0* max number of linking steps reached
+
+0 -> 179 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))(???*0*, ???*1*)
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 180 member call = module<crypt, {}>["wordsToBytes"](???*0*)
+- *0* max number of linking steps reached
+
+0 -> 184 member call = module<charenc, {}>["bin"]["bytesToString"](???*0*)
+- *0* max number of linking steps reached
+
+0 -> 186 member call = module<crypt, {}>["bytesToHex"](???*0*)
+- *0* max number of linking steps reached

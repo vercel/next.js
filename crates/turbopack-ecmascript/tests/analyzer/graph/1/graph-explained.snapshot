@@ -1,8 +1,8 @@
-a = (...) => FreeVar(undefined)
+a = (...) => undefined
 
-b = (...) => FreeVar(undefined)
+b = (...) => undefined
 
-c = (...) => FreeVar(undefined)
+c = (...) => undefined
 
 x = (1 | `${y}.js`)
 

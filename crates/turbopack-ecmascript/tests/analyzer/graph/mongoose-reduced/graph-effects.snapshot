@@ -58,21 +58,23 @@
             Require,
         ),
         args: [
-            Concat(
-                3,
-                [
-                    Variable(
-                        (
-                            Atom('driver' type=inline),
-                            #1,
+            Value(
+                Concat(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('driver' type=inline),
+                                #1,
+                            ),
                         ),
-                    ),
-                    Constant(
-                        StrWord(
-                            Atom('/connection' type=dynamic),
+                        Constant(
+                            StrWord(
+                                Atom('/connection' type=dynamic),
+                            ),
                         ),
-                    ),
-                ],
+                    ],
+                ),
             ),
         ],
         ast_path: [
@@ -117,21 +119,23 @@
             Require,
         ),
         args: [
-            Concat(
-                3,
-                [
-                    Variable(
-                        (
-                            Atom('driver' type=inline),
-                            #1,
+            Value(
+                Concat(
+                    3,
+                    [
+                        Variable(
+                            (
+                                Atom('driver' type=inline),
+                                #1,
+                            ),
                         ),
-                    ),
-                    Constant(
-                        StrWord(
-                            Atom('/collection' type=dynamic),
+                        Constant(
+                            StrWord(
+                                Atom('/collection' type=dynamic),
+                            ),
                         ),
-                    ),
-                ],
+                    ],
+                ),
             ),
         ],
         ast_path: [

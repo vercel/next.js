@@ -1,0 +1,22 @@
+0 -> 1 call = require*0*("foo")
+- *0* require: The require method from CommonJS
+
+0 -> 2 call = require*0*("path")
+- *0* require: The require method from CommonJS
+
+0 -> 4 member call = path*0*["join"]("foo", "bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 6 member call = path*0*["join"]("foo/", "bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 8 member call = path*0*["join"]("foo", "/bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 10 member call = path*0*["join"]("foo/", "/bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 12 member call = path*0*["join"]("foo", "bar", "..", "baz", ???*1*, "..", "foo")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+- *1* FreeVar(global)
+  ⚠️  unknown global

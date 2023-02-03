@@ -2,24 +2,42 @@
     (
         "*arrow function 105*",
         Function(
-            2,
-            Variable(
-                (
-                    Atom('value' type=inline),
-                    #3,
-                ),
+            4,
+            105,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
+                    ),
+                    Variable(
+                        (
+                            Atom('value2' type=inline),
+                            #3,
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
     (
         "Fun",
         Function(
-            2,
-            Variable(
-                (
-                    Atom('value' type=inline),
-                    #2,
-                ),
+            4,
+            39,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
+                    ),
+                    Variable(
+                        (
+                            Atom('value' type=inline),
+                            #2,
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
@@ -40,6 +58,7 @@
                 Member(
                     3,
                     Argument(
+                        39,
                         0,
                     ),
                     Constant(

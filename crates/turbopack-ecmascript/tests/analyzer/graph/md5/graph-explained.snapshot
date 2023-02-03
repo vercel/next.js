@@ -83,13 +83,13 @@ b#5 = (
 
 b#9 = arguments[2]
 
-bitRotateLeft = (...) => ???*0*
+bitRotateLeft = (...) => (undefined | ???*0*)
 - *0* unsupported expression
 
 bytes = (arguments[0] | ???*0*)
 - *0* unknown new expression
 
-bytesToWords = (...) => output
+bytesToWords = (...) => (undefined | output)
 
 c#10 = arguments[2]
 
@@ -218,26 +218,32 @@ lsw = (???*0* + ???*1*)
 - *0* unsupported expression
 - *1* unsupported expression
 
-md5 = (...) => md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
+md5 = (...) => (
+  | undefined
+  | md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
+)
 - *0* unsupported expression
 
-md5ToHexEncodedArray = (...) => output
+md5ToHexEncodedArray = (...) => (undefined | output)
 
-md5cmn = (...) => safeAdd(
-    bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
-    b
+md5cmn = (...) => (
+  | undefined
+  | safeAdd(
+        bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
+        b
+    )
 )
 
-md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
+md5ff = (...) => (undefined | md5cmn(???*0*, a, b, x, s, t))
 - *0* unsupported expression
 
-md5gg = (...) => md5cmn(???*0*, a, b, x, s, t)
+md5gg = (...) => (undefined | md5cmn(???*0*, a, b, x, s, t))
 - *0* unsupported expression
 
-md5hh = (...) => md5cmn(???*0*, a, b, x, s, t)
+md5hh = (...) => (undefined | md5cmn(???*0*, a, b, x, s, t))
 - *0* unsupported expression
 
-md5ii = (...) => md5cmn(???*0*, a, b, x, s, t)
+md5ii = (...) => (undefined | md5cmn(???*0*, a, b, x, s, t))
 - *0* unsupported expression
 
 msg = FreeVar(unescape)(FreeVar(encodeURIComponent)(bytes))
@@ -281,7 +287,7 @@ s#13 = arguments[5]
 
 s#9 = arguments[4]
 
-safeAdd = (...) => ???*0*
+safeAdd = (...) => (undefined | ???*0*)
 - *0* unsupported expression
 
 t#10 = arguments[6]
@@ -294,7 +300,7 @@ t#13 = arguments[6]
 
 t#9 = arguments[5]
 
-wordsToMd5 = (...) => [a, b, c, d]
+wordsToMd5 = (...) => (undefined | [a, b, c, d])
 
 x#10 = arguments[4]
 

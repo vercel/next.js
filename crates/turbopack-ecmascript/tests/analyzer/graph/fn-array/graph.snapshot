@@ -2,6 +2,7 @@
     (
         "a",
         Argument(
+            1,
             0,
         ),
     ),
@@ -9,37 +10,47 @@
         "b",
         Argument(
             1,
+            1,
         ),
     ),
     (
         "c",
         Function(
-            6,
-            Array(
-                5,
+            8,
+            1,
+            Alternatives(
+                7,
                 [
-                    Concat(
-                        3,
+                    Constant(
+                        Undefined,
+                    ),
+                    Array(
+                        5,
                         [
+                            Concat(
+                                3,
+                                [
+                                    Variable(
+                                        (
+                                            Atom('a' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                    Variable(
+                                        (
+                                            Atom('b' type=static),
+                                            #2,
+                                        ),
+                                    ),
+                                ],
+                            ),
                             Variable(
                                 (
                                     Atom('a' type=static),
                                     #2,
                                 ),
                             ),
-                            Variable(
-                                (
-                                    Atom('b' type=static),
-                                    #2,
-                                ),
-                            ),
                         ],
-                    ),
-                    Variable(
-                        (
-                            Atom('a' type=static),
-                            #2,
-                        ),
                     ),
                 ],
             ),

@@ -1,9 +1,8 @@
 use std::{
-    cmp::min,
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
     future::Future,
-    mem::{swap, take},
-    sync::{Arc, Mutex},
+    mem::take,
+    sync::Arc,
 };
 
 use anyhow::Result;
@@ -11,302 +10,328 @@ use swc_core::ecma::ast::Id;
 
 use super::{graph::VarGraph, JsValue};
 
-type LinkCacheValue = (
-    Option<JsValue>,
-    Vec<Vec<(HashSet<Id>, Vec<(HashSet<Id>, JsValue)>)>>,
-);
-
-struct LinkCacheItem(bool, JsValue, (HashSet<Id>, HashSet<Id>));
-
-#[derive(Default)]
-pub struct LinkCache {
-    data: HashMap<Id, LinkCacheValue>,
-}
-
-const LIMIT_CACHE_COMBINATIONS: usize = 100;
-
-impl LinkCache {
-    pub fn new() -> Self {
-        Self {
-            data: HashMap::new(),
-        }
-    }
-
-    fn store(
-        &mut self,
-        id: Id,
-        bailing: bool,
-        value: &JsValue,
-        replaced_references: &(HashSet<Id>, HashSet<Id>),
-    ) {
-        let (replaced_circular, replaced_non_circular) = replaced_references;
-        let i = replaced_circular.len();
-        let (bailed_value, data) = self.data.entry(id).or_default();
-        if bailing {
-            *bailed_value = Some(value.clone());
-        } else {
-            if data.len() <= i {
-                data.resize(i + 1, Vec::new());
-            }
-            let list = &mut data[i];
-            if let Some((_, list)) = list.iter_mut().find(|(key, _)| key == replaced_circular) {
-                if list.len() > LIMIT_CACHE_COMBINATIONS {
-                    return;
-                }
-                list.push((replaced_non_circular.clone(), value.clone()));
-            } else {
-                if list.len() > LIMIT_CACHE_COMBINATIONS {
-                    return;
-                }
-                list.push((
-                    replaced_circular.clone(),
-                    vec![(replaced_non_circular.clone(), value.clone())],
-                ));
-            }
-        }
-    }
-
-    fn get(&self, id: &Id, cycle_stack: &HashSet<Id>) -> Option<LinkCacheItem> {
-        if let Some((bailing, data)) = self.data.get(id) {
-            if let Some(bailing) = bailing {
-                return Some(LinkCacheItem(
-                    true,
-                    bailing.clone(),
-                    (HashSet::new(), HashSet::new()),
-                ));
-            }
-            for list in data[0..min(cycle_stack.len() + 1, data.len())].iter() {
-                for (key, list) in list.iter() {
-                    if key.iter().all(|id| cycle_stack.contains(id)) {
-                        for (non_circular, value) in list.iter() {
-                            if non_circular.iter().all(|id| !cycle_stack.contains(id)) {
-                                return Some(LinkCacheItem(
-                                    false,
-                                    value.clone(),
-                                    (key.clone(), non_circular.clone()),
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        None
-    }
-}
-
-// pub async fn link<'a, F, R>(
-//     graph: &VarGraph,
-//     mut val: JsValue,
-//     visitor: &F,
-//     cache: &Mutex<LinkCache>,
-// ) -> Result<JsValue>
-// where
-//     R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-//     F: 'a + Fn(JsValue) -> R + Sync,
-// {
-//     val.normalize();
-//     let (val, _) = link_internal(graph, val, visitor, cache, &mut
-// HashSet::new()).await?;     Ok(val)
-// }
-
-pub async fn link<'a, F, R>(
+pub async fn link<'a, B, RB, F, RF>(
     graph: &VarGraph,
     mut val: JsValue,
+    early_visitor: &B,
     visitor: &F,
-    cache: &Mutex<LinkCache>,
+    fun_args_values: HashMap<u32, Vec<JsValue>>,
 ) -> Result<JsValue>
 where
-    R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-    F: 'a + Fn(JsValue) -> R + Sync,
+    RB: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
+    B: 'a + Fn(JsValue) -> RB + Sync,
+    RF: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
+    F: 'a + Fn(JsValue) -> RF + Sync,
 {
     val.normalize();
-    let mut c = take(&mut *cache.lock().unwrap());
-    let val = link_internal_iterative(graph, val, visitor, &mut c).await?;
-    *cache.lock().unwrap() = c;
+    let val = link_internal_iterative(graph, val, early_visitor, visitor, fun_args_values).await?;
     Ok(val)
 }
 
-const LIMIT_NODE_SIZE: usize = 1000;
-const LIMIT_IN_PROGRESS_NODES: usize = 2000;
-const LIMIT_LINK_STEPS: usize = 10000;
+const LIMIT_NODE_SIZE: usize = 300;
+const LIMIT_IN_PROGRESS_NODES: usize = 1000;
+const LIMIT_LINK_STEPS: usize = 1500;
 
-pub(crate) async fn link_internal_iterative<'a, F, R>(
+pub(crate) async fn link_internal_iterative<'a, B, RB, F, RF>(
     graph: &'a VarGraph,
     val: JsValue,
-    mut visitor: &'a F,
-    cache: &mut LinkCache,
+    early_visitor: &'a B,
+    visitor: &'a F,
+    mut fun_args_values: HashMap<u32, Vec<JsValue>>,
 ) -> Result<JsValue>
 where
-    R: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-    F: 'a + Fn(JsValue) -> R + Sync,
+    RB: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
+    B: 'a + Fn(JsValue) -> RB + Sync,
+    RF: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
+    F: 'a + Fn(JsValue) -> RF + Sync,
 {
-    fn swap_extend(
-        replaced_references: &mut (HashSet<Id>, HashSet<Id>),
-        mut prev_replaced_references: (HashSet<Id>, HashSet<Id>),
-    ) {
-        if replaced_references.0.len() < prev_replaced_references.0.len() {
-            swap(&mut replaced_references.0, &mut prev_replaced_references.0);
-        }
-        if replaced_references.1.len() < prev_replaced_references.1.len() {
-            swap(&mut replaced_references.1, &mut prev_replaced_references.1);
-        }
-        replaced_references.0.extend(prev_replaced_references.0);
-        replaced_references.1.extend(prev_replaced_references.1);
+    #[derive(Debug)]
+    enum Step {
+        Enter(JsValue),
+        EarlyVisit(JsValue),
+        Leave(JsValue),
+        LeaveVar(Id),
+        LeaveLate(JsValue),
+        Visit(JsValue),
+        LeaveCall(u32),
     }
 
-    let mut queue: Vec<(bool, JsValue)> = Vec::new();
-    let mut done: Vec<(JsValue, bool)> = Vec::new();
+    let mut work_queue_stack: Vec<Step> = Vec::new();
+    let mut done: Vec<JsValue> = Vec::new();
+    // Tracks the number of nodes in the queue and done combined
     let mut total_nodes = 0;
     let mut cycle_stack: HashSet<Id> = HashSet::new();
-    let mut replaced_references: (HashSet<Id>, HashSet<Id>) = (HashSet::new(), HashSet::new());
-    let mut replaced_references_stack: Vec<(HashSet<Id>, HashSet<Id>)> = Vec::new();
+    // Tracks the number linking steps so far
     let mut steps = 0;
 
     total_nodes += val.total_nodes();
-    queue.push((true, val));
+    work_queue_stack.push(Step::Enter(val));
 
-    while let Some((enter, val)) = queue.pop() {
+    while let Some(step) = work_queue_stack.pop() {
         steps += 1;
-        match (enter, val) {
+
+        match step {
             // Enter a variable
             // - replace it with value from graph
             // - process value
             // - on leave: cache value
-            (true, JsValue::Variable(var)) => {
+            Step::Enter(JsValue::Variable(var)) => {
                 // Replace with unknown for now
                 if cycle_stack.contains(&var) {
-                    replaced_references.0.insert(var.clone());
-                    done.push((
-                        JsValue::Unknown(
-                            Some(Arc::new(JsValue::Variable(var.clone()))),
-                            "circular variable reference",
-                        ),
-                        true,
+                    done.push(JsValue::Unknown(
+                        Some(Arc::new(JsValue::Variable(var.clone()))),
+                        "circular variable reference",
                     ));
                 } else {
                     total_nodes -= 1;
-                    {
-                        if let Some(LinkCacheItem(bailing, value, refs)) =
-                            cache.get(&var, &cycle_stack)
-                        {
-                            replaced_references.0.extend(refs.0);
-                            replaced_references.1.extend(refs.1);
-                            total_nodes += value.total_nodes();
-                            done.push((value, true));
-                            if bailing {
-                                break;
-                            } else {
-                                continue;
-                            }
-                        }
-                    }
                     if let Some(val) = graph.values.get(&var) {
                         cycle_stack.insert(var.clone());
-                        replaced_references_stack.push(take(&mut replaced_references));
-                        queue.push((false, JsValue::Variable(var)));
+                        work_queue_stack.push(Step::LeaveVar(var));
                         total_nodes += val.total_nodes();
-                        queue.push((true, val.clone()));
+                        work_queue_stack.push(Step::Enter(val.clone()));
                     } else {
-                        replaced_references.1.insert(var.clone());
                         total_nodes += 1;
-                        done.push((
-                            JsValue::Unknown(
-                                Some(Arc::new(JsValue::Variable(var.clone()))),
-                                "no value of this variable analysed",
-                            ),
-                            true,
+                        done.push(JsValue::Unknown(
+                            Some(Arc::new(JsValue::Variable(var.clone()))),
+                            "no value of this variable analysed",
                         ));
                     };
                 }
             }
             // Leave a variable
-            (false, JsValue::Variable(var)) => {
-                let (val, _) = done.pop().unwrap();
-                cache.store(var.clone(), false, &val, &replaced_references);
-                swap_extend(
-                    &mut replaced_references,
-                    replaced_references_stack.pop().unwrap(),
-                );
-                replaced_references.0.remove(&var);
-                replaced_references.1.insert(var.clone());
+            Step::LeaveVar(var) => {
                 cycle_stack.remove(&var);
-                done.push((val, true));
+            }
+            // Enter a function argument
+            // We want to replace the argument with the value from the function call
+            Step::Enter(JsValue::Argument(func_ident, index)) => {
+                total_nodes -= 1;
+                if let Some(args) = fun_args_values.get(&func_ident) {
+                    if let Some(val) = args.get(index) {
+                        total_nodes += val.total_nodes();
+                        done.push(val.clone());
+                    } else {
+                        total_nodes += 1;
+                        done.push(JsValue::Unknown(
+                            None,
+                            "unknown function argument (out of bounds)",
+                        ));
+                    }
+                } else {
+                    total_nodes += 1;
+                    done.push(JsValue::Unknown(
+                        Some(Arc::new(JsValue::Argument(func_ident, index))),
+                        "function calls are not analysed yet",
+                    ));
+                }
+            }
+            // Visit a function call
+            // This need special handling, since we want to replace the function call and process
+            // the function return value after that.
+            Step::Visit(JsValue::Call(
+                _,
+                box JsValue::Function(_, func_ident, return_value),
+                args,
+            )) => {
+                total_nodes -= 2; // Call + Function
+                if let Entry::Vacant(entry) = fun_args_values.entry(func_ident) {
+                    // Return value will stay in total_nodes
+                    for arg in args.iter() {
+                        total_nodes -= arg.total_nodes();
+                    }
+                    entry.insert(args);
+                    work_queue_stack.push(Step::LeaveCall(func_ident));
+                    work_queue_stack.push(Step::Enter(*return_value));
+                } else {
+                    total_nodes -= return_value.total_nodes();
+                    for arg in args.iter() {
+                        total_nodes -= arg.total_nodes();
+                    }
+                    total_nodes += 1;
+                    done.push(JsValue::Unknown(
+                        Some(Arc::new(JsValue::call(
+                            box JsValue::function(func_ident, return_value),
+                            args,
+                        ))),
+                        "recursive function call",
+                    ));
+                }
+            }
+            // Leaving a function call evaluation
+            // - remove function arguments from the map
+            Step::LeaveCall(func_ident) => {
+                fun_args_values.remove(&func_ident);
+            }
+            // Enter a function
+            // We don't want to process the function return value yet, this will happen after
+            // function calls
+            // - just put it into done
+            Step::Enter(func @ JsValue::Function(..)) => {
+                done.push(func);
             }
             // Enter a value
             // - take and queue children for processing
             // - on leave: insert children again and optimize
-            (true, mut val) => {
-                let i = queue.len();
-                queue.push((false, JsValue::default()));
-                val.for_each_children_mut(&mut |child| {
-                    queue.push((true, take(child)));
+            Step::Enter(mut val) => {
+                let i = work_queue_stack.len();
+                work_queue_stack.push(Step::Leave(JsValue::default()));
+                let mut has_early_children = false;
+                val.for_each_early_children_mut(&mut |child| {
+                    has_early_children = true;
+                    work_queue_stack.push(Step::Enter(take(child)));
                     false
                 });
-                queue[i].1 = val;
+                if has_early_children {
+                    work_queue_stack[i] = Step::EarlyVisit(val);
+                } else {
+                    val.for_each_children_mut(&mut |child| {
+                        work_queue_stack.push(Step::Enter(take(child)));
+                        false
+                    });
+                    work_queue_stack[i] = Step::Leave(val);
+                }
+            }
+            // Early visit a value
+            // - reconstruct the value from early children
+            // - visit the value
+            // - insert late children and process for Leave
+            Step::EarlyVisit(mut val) => {
+                val.for_each_early_children_mut(&mut |child| {
+                    let val = done.pop().unwrap();
+                    *child = val;
+                    true
+                });
+                val.debug_assert_total_nodes_up_to_date();
+                total_nodes -= val.total_nodes();
+                if val.total_nodes() > LIMIT_NODE_SIZE {
+                    total_nodes += 1;
+                    done.push(JsValue::Unknown(None, "node limit reached"));
+                    continue;
+                }
+
+                let (mut val, visit_modified) = early_visitor(val).await?;
+                val.debug_assert_total_nodes_up_to_date();
+                if visit_modified && val.total_nodes() > LIMIT_NODE_SIZE {
+                    total_nodes += 1;
+                    done.push(JsValue::Unknown(None, "node limit reached"));
+                    continue;
+                }
+
+                let count = val.total_nodes();
+                if total_nodes + count > LIMIT_IN_PROGRESS_NODES {
+                    // There is always space for one more node since we just popped at least one
+                    // count
+                    total_nodes += 1;
+                    done.push(JsValue::Unknown(None, "in progress nodes limit reached"));
+                    continue;
+                }
+                total_nodes += count;
+
+                if visit_modified {
+                    // When the early visitor has changed the value, we need to enter it again
+                    work_queue_stack.push(Step::Enter(val));
+                } else {
+                    // Otherwise we can just process the late children
+                    let i = work_queue_stack.len();
+                    work_queue_stack.push(Step::LeaveLate(JsValue::default()));
+                    val.for_each_late_children_mut(&mut |child| {
+                        work_queue_stack.push(Step::Enter(take(child)));
+                        false
+                    });
+                    work_queue_stack[i] = Step::LeaveLate(val);
+                }
             }
             // Leave a value
-            (false, mut val) => {
-                let mut modified = val.for_each_children_mut(&mut |child| {
-                    let (val, modified) = done.pop().unwrap();
+            Step::Leave(mut val) => {
+                val.for_each_children_mut(&mut |child| {
+                    let val = done.pop().unwrap();
                     *child = val;
-                    modified
+                    true
                 });
+                val.debug_assert_total_nodes_up_to_date();
+
                 total_nodes -= val.total_nodes();
 
-                if modified {
-                    if val.total_nodes() > LIMIT_NODE_SIZE {
-                        done.push((JsValue::Unknown(None, "node limit reached"), true));
-                        break;
-                    }
-                    val.normalize_shallow();
+                if val.total_nodes() > LIMIT_NODE_SIZE {
+                    total_nodes += 1;
+                    done.push(JsValue::Unknown(None, "node limit reached"));
+                    continue;
                 }
+                val.normalize_shallow();
 
-                let (val, visit_modified) = val.visit_async_until_settled(&mut visitor).await?;
-                if visit_modified {
-                    if val.total_nodes() > LIMIT_NODE_SIZE {
-                        done.push((JsValue::Unknown(None, "node limit reached"), true));
-                        break;
-                    }
-                    modified = true;
-                }
+                val.debug_assert_total_nodes_up_to_date();
 
                 total_nodes += val.total_nodes();
-                done.push((val, modified));
-                if total_nodes > LIMIT_IN_PROGRESS_NODES {
-                    done.push((
-                        JsValue::Unknown(None, "in progress nodes limit reached"),
-                        true,
-                    ));
-                    break;
+                work_queue_stack.push(Step::Visit(val));
+            }
+            // Leave a value from EarlyVisit
+            Step::LeaveLate(mut val) => {
+                val.for_each_late_children_mut(&mut |child| {
+                    let val = done.pop().unwrap();
+                    *child = val;
+                    true
+                });
+                val.debug_assert_total_nodes_up_to_date();
+
+                total_nodes -= val.total_nodes();
+
+                if val.total_nodes() > LIMIT_NODE_SIZE {
+                    total_nodes += 1;
+                    done.push(JsValue::Unknown(None, "node limit reached"));
+                    continue;
+                }
+                val.normalize_shallow();
+
+                val.debug_assert_total_nodes_up_to_date();
+
+                total_nodes += val.total_nodes();
+                work_queue_stack.push(Step::Visit(val));
+            }
+            // Visit a value with the visitor
+            // - visited value is put into done
+            Step::Visit(val) => {
+                total_nodes -= val.total_nodes();
+
+                let (mut val, visit_modified) = visitor(val).await?;
+                if visit_modified {
+                    val.normalize_shallow();
+                    #[cfg(debug_assertions)]
+                    val.debug_assert_total_nodes_up_to_date();
+                    if val.total_nodes() > LIMIT_NODE_SIZE {
+                        total_nodes += 1;
+                        done.push(JsValue::Unknown(None, "node limit reached"));
+                        continue;
+                    }
+                }
+
+                let count = val.total_nodes();
+                if total_nodes + count > LIMIT_IN_PROGRESS_NODES {
+                    // There is always space for one more node since we just popped at least one
+                    // count
+                    total_nodes += 1;
+                    done.push(JsValue::Unknown(None, "in progress nodes limit reached"));
+                    continue;
+                }
+                total_nodes += count;
+                if visit_modified {
+                    work_queue_stack.push(Step::Enter(val));
+                } else {
+                    done.push(val);
                 }
             }
         }
         if steps > LIMIT_LINK_STEPS {
-            done.push((
-                JsValue::Unknown(None, "max number of linking steps reached"),
-                true,
+            return Ok(JsValue::Unknown(
+                None,
+                "max number of linking steps reached",
             ));
-            break;
         }
     }
 
-    let final_value = done.pop().unwrap().0;
+    let final_value = done.pop().unwrap();
 
-    // When there is still something on the queue
-    // we reached the node limit and want to store
-    // each open variable as "reached node limit"
-    while let Some((enter, val)) = queue.pop() {
-        if let (false, JsValue::Variable(var)) = (enter, val) {
-            cache.store(var.clone(), true, &final_value, &replaced_references);
-            swap_extend(
-                &mut replaced_references,
-                replaced_references_stack.pop().unwrap(),
-            );
-            replaced_references.0.remove(&var);
-            replaced_references.1.insert(var.clone());
-        }
-    }
+    debug_assert!(work_queue_stack.is_empty());
+    debug_assert_eq!(total_nodes, final_value.total_nodes());
 
     Ok(final_value)
 }

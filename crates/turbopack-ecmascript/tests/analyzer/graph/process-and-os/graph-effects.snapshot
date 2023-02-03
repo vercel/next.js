@@ -4,9 +4,11 @@
             Require,
         ),
         args: [
-            Constant(
-                StrWord(
-                    Atom('os' type=inline),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('os' type=inline),
+                    ),
                 ),
             ),
         ],
@@ -52,9 +54,11 @@
             Require,
         ),
         args: [
-            Constant(
-                StrWord(
-                    Atom('process' type=static),
+            Value(
+                Constant(
+                    StrWord(
+                        Atom('process' type=static),
+                    ),
                 ),
             ),
         ],
@@ -91,100 +95,6 @@
             ),
             hi: BytePos(
                 111,
-            ),
-            ctxt: #0,
-        },
-    },
-    Call {
-        func: FreeVar(
-            Require,
-        ),
-        args: [
-            Concat(
-                11,
-                [
-                    Constant(
-                        StrAtom(
-                            "esbuild-",
-                        ),
-                    ),
-                    Member(
-                        3,
-                        FreeVar(
-                            NodeProcess,
-                        ),
-                        Constant(
-                            StrWord(
-                                Atom('arch' type=inline),
-                            ),
-                        ),
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('platform' type=dynamic),
-                                #1,
-                            ),
-                        ),
-                        [],
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('endianness' type=dynamic),
-                                #1,
-                            ),
-                        ),
-                        [],
-                    ),
-                ],
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: Span {
-            lo: BytePos(
-                149,
-            ),
-            hi: BytePos(
-                217,
             ),
             ctxt: #0,
         },
@@ -387,55 +297,58 @@
             Require,
         ),
         args: [
-            Concat(
-                10,
-                [
-                    Constant(
-                        StrAtom(
-                            "esbuild-",
-                        ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('arch' type=inline),
-                                #1,
+            Value(
+                Concat(
+                    11,
+                    [
+                        Constant(
+                            StrAtom(
+                                "esbuild-",
                             ),
                         ),
-                        [],
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('platform' type=dynamic),
-                                #1,
+                        Member(
+                            3,
+                            FreeVar(
+                                NodeProcess,
+                            ),
+                            Constant(
+                                StrWord(
+                                    Atom('arch' type=inline),
+                                ),
                             ),
                         ),
-                        [],
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('endianness' type=dynamic),
-                                #1,
+                        Constant(
+                            StrAtom(
+                                "-",
                             ),
                         ),
-                        [],
-                    ),
-                ],
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('platform' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                        Constant(
+                            StrAtom(
+                                "-",
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
             ),
         ],
         ast_path: [
@@ -444,7 +357,7 @@
             ),
             Script(
                 Body(
-                    4,
+                    3,
                 ),
             ),
             Stmt(
@@ -467,10 +380,10 @@
         ],
         span: Span {
             lo: BytePos(
-                236,
+                149,
             ),
             hi: BytePos(
-                294,
+                217,
             ),
             ctxt: #0,
         },
@@ -672,56 +585,57 @@
             Require,
         ),
         args: [
-            Concat(
-                11,
-                [
-                    Constant(
-                        StrAtom(
-                            "esbuild-",
-                        ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('arch' type=inline),
-                                #1,
+            Value(
+                Concat(
+                    10,
+                    [
+                        Constant(
+                            StrAtom(
+                                "esbuild-",
                             ),
                         ),
-                        [],
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Member(
-                        3,
-                        FreeVar(
-                            NodeProcess,
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('arch' type=inline),
+                                    #1,
+                                ),
+                            ),
+                            [],
                         ),
                         Constant(
-                            StrWord(
-                                Atom('platform' type=dynamic),
+                            StrAtom(
+                                "-",
                             ),
                         ),
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('platform' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
                         ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('endianness' type=dynamic),
-                                #1,
+                        Constant(
+                            StrAtom(
+                                "-",
                             ),
                         ),
-                        [],
-                    ),
-                ],
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
             ),
         ],
         ast_path: [
@@ -730,7 +644,7 @@
             ),
             Script(
                 Body(
-                    5,
+                    4,
                 ),
             ),
             Stmt(
@@ -753,10 +667,10 @@
         ],
         span: Span {
             lo: BytePos(
-                313,
+                236,
             ),
             hi: BytePos(
-                381,
+                294,
             ),
             ctxt: #0,
         },
@@ -959,57 +873,58 @@
             Require,
         ),
         args: [
-            Concat(
-                12,
-                [
-                    Constant(
-                        StrAtom(
-                            "esbuild-",
+            Value(
+                Concat(
+                    11,
+                    [
+                        Constant(
+                            StrAtom(
+                                "esbuild-",
+                            ),
                         ),
-                    ),
-                    Member(
-                        3,
-                        FreeVar(
-                            NodeProcess,
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('arch' type=inline),
+                                    #1,
+                                ),
+                            ),
+                            [],
                         ),
                         Constant(
-                            StrWord(
-                                Atom('arch' type=inline),
+                            StrAtom(
+                                "-",
                             ),
                         ),
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Member(
-                        3,
-                        FreeVar(
-                            NodeProcess,
+                        Member(
+                            3,
+                            FreeVar(
+                                NodeProcess,
+                            ),
+                            Constant(
+                                StrWord(
+                                    Atom('platform' type=dynamic),
+                                ),
+                            ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('platform' type=dynamic),
+                            StrAtom(
+                                "-",
                             ),
                         ),
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('endianness' type=dynamic),
-                                #1,
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
                             ),
+                            [],
                         ),
-                        [],
-                    ),
-                ],
+                    ],
+                ),
             ),
         ],
         ast_path: [
@@ -1018,7 +933,7 @@
             ),
             Script(
                 Body(
-                    6,
+                    5,
                 ),
             ),
             Stmt(
@@ -1041,10 +956,10 @@
         ],
         span: Span {
             lo: BytePos(
-                400,
+                313,
             ),
             hi: BytePos(
-                474,
+                381,
             ),
             ctxt: #0,
         },
@@ -1248,63 +1163,59 @@
             Require,
         ),
         args: [
-            Concat(
-                12,
-                [
-                    Constant(
-                        StrAtom(
-                            "esbuild-",
+            Value(
+                Concat(
+                    12,
+                    [
+                        Constant(
+                            StrAtom(
+                                "esbuild-",
+                            ),
                         ),
-                    ),
-                    Member(
-                        3,
-                        Variable(
-                            (
-                                Atom('p' type=static),
-                                #1,
+                        Member(
+                            3,
+                            FreeVar(
+                                NodeProcess,
+                            ),
+                            Constant(
+                                StrWord(
+                                    Atom('arch' type=inline),
+                                ),
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('arch' type=inline),
+                            StrAtom(
+                                "-",
                             ),
                         ),
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Member(
-                        3,
-                        Variable(
-                            (
-                                Atom('p' type=static),
-                                #1,
+                        Member(
+                            3,
+                            FreeVar(
+                                NodeProcess,
+                            ),
+                            Constant(
+                                StrWord(
+                                    Atom('platform' type=dynamic),
+                                ),
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('platform' type=dynamic),
+                            StrAtom(
+                                "-",
                             ),
                         ),
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('endianness' type=dynamic),
-                                #1,
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
                             ),
+                            [],
                         ),
-                        [],
-                    ),
-                ],
+                    ],
+                ),
             ),
         ],
         ast_path: [
@@ -1313,7 +1224,7 @@
             ),
             Script(
                 Body(
-                    7,
+                    6,
                 ),
             ),
             Stmt(
@@ -1336,10 +1247,10 @@
         ],
         span: Span {
             lo: BytePos(
-                493,
+                400,
             ),
             hi: BytePos(
-                551,
+                474,
             ),
             ctxt: #0,
         },
@@ -1549,55 +1460,65 @@
             Require,
         ),
         args: [
-            Concat(
-                10,
-                [
-                    Constant(
-                        StrAtom(
-                            "esbuild-",
+            Value(
+                Concat(
+                    12,
+                    [
+                        Constant(
+                            StrAtom(
+                                "esbuild-",
+                            ),
                         ),
-                    ),
-                    Member(
-                        3,
-                        Variable(
-                            (
-                                Atom('p' type=static),
-                                #1,
+                        Member(
+                            3,
+                            Variable(
+                                (
+                                    Atom('p' type=static),
+                                    #1,
+                                ),
+                            ),
+                            Constant(
+                                StrWord(
+                                    Atom('arch' type=inline),
+                                ),
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('arch' type=inline),
+                            StrAtom(
+                                "-",
                             ),
                         ),
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Variable(
-                        (
-                            Atom('processPlatform' type=dynamic),
-                            #1,
-                        ),
-                    ),
-                    Constant(
-                        StrAtom(
-                            "-",
-                        ),
-                    ),
-                    Call(
-                        2,
-                        Variable(
-                            (
-                                Atom('endianness' type=dynamic),
-                                #1,
+                        Member(
+                            3,
+                            Variable(
+                                (
+                                    Atom('p' type=static),
+                                    #1,
+                                ),
+                            ),
+                            Constant(
+                                StrWord(
+                                    Atom('platform' type=dynamic),
+                                ),
                             ),
                         ),
-                        [],
-                    ),
-                ],
+                        Constant(
+                            StrAtom(
+                                "-",
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
             ),
         ],
         ast_path: [
@@ -1606,7 +1527,7 @@
             ),
             Script(
                 Body(
-                    8,
+                    7,
                 ),
             ),
             Stmt(
@@ -1629,10 +1550,10 @@
         ],
         span: Span {
             lo: BytePos(
-                570,
+                493,
             ),
             hi: BytePos(
-                637,
+                551,
             ),
             ctxt: #0,
         },
@@ -1765,6 +1686,101 @@
             ),
             hi: BytePos(
                 634,
+            ),
+            ctxt: #0,
+        },
+    },
+    Call {
+        func: FreeVar(
+            Require,
+        ),
+        args: [
+            Value(
+                Concat(
+                    10,
+                    [
+                        Constant(
+                            StrAtom(
+                                "esbuild-",
+                            ),
+                        ),
+                        Member(
+                            3,
+                            Variable(
+                                (
+                                    Atom('p' type=static),
+                                    #1,
+                                ),
+                            ),
+                            Constant(
+                                StrWord(
+                                    Atom('arch' type=inline),
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            StrAtom(
+                                "-",
+                            ),
+                        ),
+                        Variable(
+                            (
+                                Atom('processPlatform' type=dynamic),
+                                #1,
+                            ),
+                        ),
+                        Constant(
+                            StrAtom(
+                                "-",
+                            ),
+                        ),
+                        Call(
+                            2,
+                            Variable(
+                                (
+                                    Atom('endianness' type=dynamic),
+                                    #1,
+                                ),
+                            ),
+                            [],
+                        ),
+                    ],
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    8,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: Span {
+            lo: BytePos(
+                570,
+            ),
+            hi: BytePos(
+                637,
             ),
             ctxt: #0,
         },

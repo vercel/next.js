@@ -56,11 +56,11 @@ pub async fn resolve_source_request(
             ContentSourceResult::NeedData(needed) => {
                 current_source = needed.source.resolve().await?;
                 current_asset_path = needed.path.clone();
-                data = request_to_data(&mut request_overwrites, &needed.vary).await?;
+                data = request_to_data(&request_overwrites, &needed.vary).await?;
             }
             ContentSourceResult::Result { get_content, .. } => {
                 let content_vary = get_content.vary().await?;
-                let content_data = request_to_data(&mut request_overwrites, &content_vary).await?;
+                let content_data = request_to_data(&request_overwrites, &content_vary).await?;
                 let content = get_content.get(Value::new(content_data));
                 match &*content.await? {
                     ContentSourceContent::Rewrite(rewrite) => {

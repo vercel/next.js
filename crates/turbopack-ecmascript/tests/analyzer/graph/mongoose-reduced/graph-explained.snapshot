@@ -2,4 +2,4 @@ Collection = FreeVar(Require)(`${driver}/collection`)
 
 Connection = FreeVar(Require)(`${driver}/connection`)
 
-driver = (FreeVar(global)["MONGOOSE_DRIVER_PATH"] | "./drivers/node-mongodb-native")
+driver = (FreeVar(global)["MONGOOSE_DRIVER_PATH"] || "./drivers/node-mongodb-native")

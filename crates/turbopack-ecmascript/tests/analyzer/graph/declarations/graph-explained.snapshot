@@ -1,6 +1,6 @@
-*anonymous function 25* = (...) => FreeVar(undefined)
+*anonymous function 25* = (...) => undefined
 
-a = (...) => FreeVar(undefined)
+a = (...) => undefined
 
 aa = a
 

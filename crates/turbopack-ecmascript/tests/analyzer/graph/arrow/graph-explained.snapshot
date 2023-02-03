@@ -1,6 +1,6 @@
-*anonymous function 116* = (...) => 3
+*anonymous function 116* = (...) => (undefined | 3)
 
-*anonymous function 339* = (...) => 3
+*anonymous function 339* = (...) => (undefined | 3)
 
 *arrow function 11* = (...) => 1
 
@@ -8,15 +8,15 @@
 
 *arrow function 236* = (...) => 2
 
-*arrow function 259* = (...) => 1
+*arrow function 259* = (...) => (undefined | 1)
 
-*arrow function 299* = (...) => 2
+*arrow function 299* = (...) => (undefined | 2)
 
 *arrow function 30* = (...) => 2
 
-*arrow function 50* = (...) => 1
+*arrow function 50* = (...) => (undefined | 1)
 
-*arrow function 83* = (...) => 2
+*arrow function 83* = (...) => (undefined | 2)
 
 a = *arrow function 11*
 
@@ -28,11 +28,11 @@ d = *arrow function 83*
 
 e#1 = *anonymous function 116*
 
-e#2 = (...) => 4
+e#2 = (...) => (undefined | 4)
 
 f = e
 
-x = (...) => FreeVar(undefined)
+x = (...) => undefined
 
 xa = *arrow function 214*
 
@@ -44,6 +44,6 @@ xd = *arrow function 299*
 
 xe#3 = *anonymous function 339*
 
-xe#4 = (...) => 4
+xe#4 = (...) => (undefined | 4)
 
 xf = xe

@@ -2,26 +2,44 @@
     (
         "*anonymous function 116*",
         Function(
-            2,
-            Constant(
-                Num(
-                    ConstantNumber(
-                        3.0,
+            4,
+            116,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
                     ),
-                ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                3.0,
+                            ),
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
     (
         "*anonymous function 339*",
         Function(
-            2,
-            Constant(
-                Num(
-                    ConstantNumber(
-                        3.0,
+            4,
+            339,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
                     ),
-                ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                3.0,
+                            ),
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
@@ -29,6 +47,7 @@
         "*arrow function 11*",
         Function(
             2,
+            11,
             Constant(
                 Num(
                     ConstantNumber(
@@ -42,6 +61,7 @@
         "*arrow function 214*",
         Function(
             2,
+            214,
             Constant(
                 Num(
                     ConstantNumber(
@@ -55,6 +75,7 @@
         "*arrow function 236*",
         Function(
             2,
+            236,
             Constant(
                 Num(
                     ConstantNumber(
@@ -67,26 +88,44 @@
     (
         "*arrow function 259*",
         Function(
-            2,
-            Constant(
-                Num(
-                    ConstantNumber(
-                        1.0,
+            4,
+            259,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
                     ),
-                ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
     (
         "*arrow function 299*",
         Function(
-            2,
-            Constant(
-                Num(
-                    ConstantNumber(
-                        2.0,
+            4,
+            299,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
                     ),
-                ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
@@ -94,6 +133,7 @@
         "*arrow function 30*",
         Function(
             2,
+            30,
             Constant(
                 Num(
                     ConstantNumber(
@@ -106,26 +146,44 @@
     (
         "*arrow function 50*",
         Function(
-            2,
-            Constant(
-                Num(
-                    ConstantNumber(
-                        1.0,
+            4,
+            50,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
                     ),
-                ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
     (
         "*arrow function 83*",
         Function(
-            2,
-            Constant(
-                Num(
-                    ConstantNumber(
-                        2.0,
+            4,
+            83,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
                     ),
-                ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
@@ -177,13 +235,22 @@
     (
         "e#2",
         Function(
-            2,
-            Constant(
-                Num(
-                    ConstantNumber(
-                        4.0,
+            4,
+            155,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
                     ),
-                ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                4.0,
+                            ),
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
@@ -200,10 +267,9 @@
         "x",
         Function(
             2,
-            FreeVar(
-                Other(
-                    Atom('undefined' type=static),
-                ),
+            186,
+            Constant(
+                Undefined,
             ),
         ),
     ),
@@ -255,13 +321,22 @@
     (
         "xe#4",
         Function(
-            2,
-            Constant(
-                Num(
-                    ConstantNumber(
-                        4.0,
+            4,
+            385,
+            Alternatives(
+                3,
+                [
+                    Constant(
+                        Undefined,
                     ),
-                ),
+                    Constant(
+                        Num(
+                            ConstantNumber(
+                                4.0,
+                            ),
+                        ),
+                    ),
+                ],
             ),
         ),
     ),
