@@ -28,8 +28,6 @@ const deepProxyHandlers = {
       // reference.
       case 'defaultProps':
         return undefined
-      case 'getDefaultProps':
-        return undefined
       // Avoid this attempting to be serialized.
       case 'toJSON':
         return undefined
@@ -85,8 +83,6 @@ const proxyHandlers = {
       // reference.
       case 'defaultProps':
         return undefined
-      case 'getDefaultProps':
-        return undefined
       // Avoid this attempting to be serialized.
       case 'toJSON':
         return undefined
@@ -126,18 +122,10 @@ const proxyHandlers = {
           // we should resolve that with a client reference that unwraps the Promise on
           // the client.
 
-          const innerModuleId = target.filepath
-          const clientReference: Function = Object.defineProperties(
-            function () {
-              throw new Error(
-                `Attempted to call the module exports of ${innerModuleId} from the server` +
-                  `but it's on the client. It's not possible to invoke a client function from ` +
-                  `the server, it can only be rendered as a Component or passed to props of a` +
-                  `Client Component.`
-              )
-            },
+          const clientReference = Object.defineProperties(
+            {},
             {
-              // Represents the whole object instead of a particular import.
+              // Represents the whole Module object instead of a particular import.
               name: { value: '*' },
               $$typeof: { value: CLIENT_REFERENCE },
               filepath: { value: target.filepath },
@@ -150,7 +138,6 @@ const proxyHandlers = {
           target.status = 'fulfilled'
           target.value = proxy
 
-          // $FlowFixMe[missing-local-annot]
           const then = (target.then = Object.defineProperties(
             function then(resolve: any, _reject: any) {
               // Expose to React.
@@ -212,14 +199,7 @@ const proxyHandlers = {
 
 export function createProxy(moduleId: string) {
   const clientReference = Object.defineProperties(
-    function () {
-      throw new Error(
-        `Attempted to call the module exports of ${moduleId} from the server` +
-          `but it's on the client. It's not possible to invoke a client function from ` +
-          `the server, it can only be rendered as a Component or passed to props of a` +
-          `Client Component.`
-      )
-    },
+    {},
     {
       // Represents the whole object instead of a particular import.
       name: { value: '*' },
