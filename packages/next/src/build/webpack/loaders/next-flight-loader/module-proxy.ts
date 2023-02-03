@@ -66,7 +66,7 @@ const deepProxyHandlers = {
 }
 
 const proxyHandlers = {
-  get: function (target: any, name: string, receiver: ProxyHandler<any>) {
+  get: function (target: any, name: string, _receiver: ProxyHandler<any>) {
     switch (name) {
       // These names are read by the Flight runtime if you end up using the exports object.
       case '$$typeof':
