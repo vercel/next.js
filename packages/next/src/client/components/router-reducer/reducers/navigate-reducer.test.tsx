@@ -131,6 +131,7 @@ describe('navigateReducer', () => {
       type: ACTION_NAVIGATE,
       url: new URL('/linking/about', 'https://localhost'),
       isExternalUrl: false,
+      locationSearch: '',
       navigateType: 'push',
       forceOptimisticNavigation: false,
       cache: {
@@ -308,6 +309,7 @@ describe('navigateReducer', () => {
       type: ACTION_NAVIGATE,
       url: new URL('/linking/about', 'https://localhost'),
       isExternalUrl: false,
+      locationSearch: '',
       navigateType: 'push',
       forceOptimisticNavigation: false,
       cache: {
@@ -490,6 +492,7 @@ describe('navigateReducer', () => {
       type: ACTION_NAVIGATE,
       url,
       isExternalUrl,
+      locationSearch: '',
       navigateType: 'push',
       forceOptimisticNavigation: false,
       cache: {
@@ -643,6 +646,7 @@ describe('navigateReducer', () => {
       type: ACTION_NAVIGATE,
       url,
       isExternalUrl,
+      locationSearch: '',
       navigateType: 'replace',
       forceOptimisticNavigation: false,
       cache: {
@@ -793,6 +797,7 @@ describe('navigateReducer', () => {
       type: ACTION_NAVIGATE,
       url: new URL('/linking/about', 'https://localhost'),
       isExternalUrl: false,
+      locationSearch: '',
       navigateType: 'push',
       forceOptimisticNavigation: true,
       cache: {
