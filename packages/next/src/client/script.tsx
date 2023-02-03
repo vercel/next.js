@@ -57,7 +57,9 @@ const loadScript = (props: ScriptProps): void => {
     LoadCache.add(cacheKey)
     // It is possible that multiple `next/script` components all have same "src", but has different "onLoad"
     // This is to make sure the same remote script will only load once, but "onLoad" are executed in order
-    ScriptCache.get(src).then(onLoad, onError)
+    ScriptCache.get(src).then((result: unknown) => {
+      return result instanceof Event ? onError?.(result) : onLoad?.(result)
+    })
     return
   }
 
@@ -73,7 +75,7 @@ const loadScript = (props: ScriptProps): void => {
 
   const el = document.createElement('script')
 
-  const loadPromise = new Promise<void>((resolve, reject) => {
+  const loadPromise = new Promise<void | Event>((resolve, reject) => {
     el.addEventListener('load', function (e) {
       resolve()
       if (onLoad) {
@@ -88,6 +90,8 @@ const loadScript = (props: ScriptProps): void => {
     if (onError) {
       onError(e)
     }
+
+    return e
   })
 
   if (dangerouslySetInnerHTML) {
@@ -214,10 +218,16 @@ function Script(props: ScriptProps): JSX.Element | null {
     if (!hasOnReadyEffectCalled.current) {
       // Run onReady if script has loaded before but component is re-mounted
       if (onReady && cacheKey && LoadCache.has(cacheKey)) {
-        onReady()
-      }
+        ScriptCache.get(cacheKey).then((result: unknown) => {
+          if (result instanceof Event) {
+            return
+          }
 
-      hasOnReadyEffectCalled.current = true
+          return onReady()
+        })
+
+        hasOnReadyEffectCalled.current = true
+      }
     }
   }, [onReady, id, src])
 
