@@ -512,11 +512,7 @@ impl EcmascriptChunkContentEntryVc {
                 issue.as_issue().emit();
                 let mut code = CodeBuilder::default();
                 code += "(() => {{\n\n";
-                write!(
-                    code,
-                    "throw new Error({error});\n",
-                    error = &js_error_message
-                )?;
+                writeln!(code, "throw new Error({error});", error = &js_error_message)?;
                 code += "\n}})";
                 code.build().cell()
             }
