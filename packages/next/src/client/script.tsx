@@ -8,7 +8,6 @@ import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
-const ErrorCache = new Map()
 const LoadCache = new Set()
 
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
@@ -90,7 +89,7 @@ const loadScript = (props: ScriptProps): void => {
       onError(e)
     }
 
-    ScriptCache.delete(cacheKey)
+    ScriptCache.delete(src)
   })
 
   if (dangerouslySetInnerHTML) {
