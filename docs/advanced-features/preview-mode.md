@@ -213,7 +213,7 @@ If a path was specified in the `setPreviewData` call, you must pass the same pat
 
 export default function handler(req, res) {
   const { path } = req.query
-  
+
   res.clearPreviewData({ path })
 }
 ```
