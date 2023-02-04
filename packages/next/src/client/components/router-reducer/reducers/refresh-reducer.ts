@@ -16,7 +16,7 @@ export function refreshReducer(
   state: ReadonlyReducerState,
   action: RefreshAction
 ): ReducerState {
-  const { cache, mutable } = action
+  const { cache, mutable, origin } = action
   const href = state.canonicalUrl
 
   const isForCurrentTree =
@@ -25,8 +25,8 @@ export function refreshReducer(
   if (mutable.mpaNavigation && isForCurrentTree) {
     return {
       // Set href.
-      canonicalUrl: mutable.canonicalUrlOverride
-        ? mutable.canonicalUrlOverride
+      canonicalUrl: mutable.canonicalUrl
+        ? mutable.canonicalUrl
         : state.canonicalUrl,
       // TODO-APP: verify mpaNavigation not being set is correct here.
       pushRef: {
@@ -47,9 +47,7 @@ export function refreshReducer(
   if (mutable.patchedTree && isForCurrentTree) {
     return {
       // Set href.
-      canonicalUrl: mutable.canonicalUrlOverride
-        ? mutable.canonicalUrlOverride
-        : href,
+      canonicalUrl: mutable.canonicalUrl ? mutable.canonicalUrl : href,
       // set pendingPush (always false in this case).
       pushRef: state.pushRef,
       // Apply focus and scroll.
@@ -62,9 +60,10 @@ export function refreshReducer(
   }
 
   if (!cache.data) {
+    // TODO-APP: verify that `href` is not an external url.
     // Fetch data from the root of the tree.
     cache.data = createRecordFromThenable(
-      fetchServerResponse(new URL(href, location.origin), [
+      fetchServerResponse(new URL(href, origin), [
         state.tree[0],
         state.tree[1],
         state.tree[2],
@@ -117,7 +116,7 @@ export function refreshReducer(
     : undefined
 
   if (canonicalUrlOverride) {
-    mutable.canonicalUrlOverride = canonicalUrlOverrideHref
+    mutable.canonicalUrl = canonicalUrlOverrideHref
   }
 
   mutable.previousTree = state.tree

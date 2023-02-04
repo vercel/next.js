@@ -438,6 +438,9 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        webpackBuildWorker: {
+          type: 'boolean',
+        },
         turbopackLoaders: {
           type: 'object',
         },
@@ -471,6 +474,12 @@ const configSchema = {
             },
             maxFiles: {
               type: 'integer',
+            },
+            memoryLimit: {
+              type: 'integer',
+            },
+            skipEntries: {
+              type: 'boolean',
             },
           },
         },
