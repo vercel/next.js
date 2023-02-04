@@ -127,7 +127,7 @@ pub struct CommonArgs {
     exact: bool,
 
     /// Whether to enable mdx parsing while tracing dependencies
-    #[cfg_attr(feature = "cli", clap(short, long))]
+    #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "node-api", serde(default))]
     enable_mdx: bool,
 
