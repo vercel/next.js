@@ -1383,7 +1383,10 @@ export async function renderToHTMLOrFlight(
           )
         }
 
-        if (layoutOrPageMod?.config?.amp) {
+        if (
+          !isClientReference(layoutOrPageMod) &&
+          layoutOrPageMod?.config?.amp
+        ) {
           throw new Error(
             'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
           )
