@@ -8,6 +8,7 @@ import { DOMAttributeNames } from './head-manager'
 import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
+const ErrorCache = new Map()
 const LoadCache = new Set()
 
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
@@ -57,7 +58,7 @@ const loadScript = (props: ScriptProps): void => {
     LoadCache.add(cacheKey)
     // It is possible that multiple `next/script` components all have same "src", but has different "onLoad"
     // This is to make sure the same remote script will only load once, but "onLoad" are executed in order
-    ScriptCache.get(src).then(onLoad, onError)
+    ScriptCache.get(src).then(onLoad)
     return
   }
 
@@ -89,7 +90,7 @@ const loadScript = (props: ScriptProps): void => {
       onError(e)
     }
 
-    throw e
+    ScriptCache.delete(cacheKey)
   })
 
   if (dangerouslySetInnerHTML) {
