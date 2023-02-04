@@ -66,7 +66,6 @@ function createLoadableComponent(loadFn: any, options: any) {
       timeout: null,
       webpack: null,
       modules: null,
-      ssr: true,
     },
     options
   )
@@ -86,19 +85,6 @@ function createLoadableComponent(loadFn: any, options: any) {
     }
     return subscription.promise()
   }
-
-  opts.lazy = React.lazy(opts.loader)
-  // opts.lazy = React.lazy(async () => {
-  //   // If dynamic options.ssr == true during SSR,
-  //   // passing the preloaded promise of component to `React.lazy`.
-  //   // This guarantees the loader is always resolved after preloading.
-  //   if (opts.ssr && subscription) {
-  //     const value = subscription.getCurrentValue()
-  //     const resolved = await value.loaded
-  //     if (resolved) return resolved
-  //   }
-  //   return await opts.loader()
-  // })
 
   // Server only
   if (typeof window === 'undefined') {
@@ -136,8 +122,6 @@ function createLoadableComponent(loadFn: any, options: any) {
 
   function LoadableComponent(props: any, ref: any) {
     useLoadableModule()
-
-    if (!opts.ssr && typeof window === 'undefined') return null
 
     const state = (React as any).useSyncExternalStore(
       subscription.subscribe,
