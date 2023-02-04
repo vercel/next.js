@@ -4,13 +4,13 @@ var f4;
 let f5;
 const [f6, [f7, ...f8], { f9  }, { f10 , f11: [f12] , f13: f14 , f15: { f16  } , ...f17 }, ...f18] = [];
 if (true) {
-    const g19 = 1;
+    const g191 = 1;
 }
 function x() {
     const f2 = 1;
-    const g20 = 1;
+    const g201 = 1;
 }
-export function y(p) {
+export function y(p, [p1, { p2  }], ...p3) {
     const f2 = 1;
     const f11 = 1;
     const f19 = 1;
@@ -25,10 +25,12 @@ export function y(p) {
     action.$$name = "$ACTION_action";
     action.$$closure = [
         f2,
+        f2,
         f11,
-        p.a,
-        p['b'],
-        p[1],
+        p,
+        p1,
+        p2,
+        p3
     ];
     return <Button action={action}>Delete</Button>;
 }
@@ -38,5 +40,5 @@ export async function $ACTION_action(closure) {
         const f18 = 1;
         const f19 = 1;
     }
-    console.log(f, f1, closure[0], f3, f4, f5, f6, f7, f8, closure[0](f9), f12, closure[1], f16.x, f17, f18, closure[2], closure[3], closure[4], g19, g20, globalThis);
+    console.log(f, f1, closure[0], f3, f4, f5, f6, f7, f8, closure[0](f9), f12, closure[2], f16.x, f17, f18, closure[3], closure[4], closure[5], closure[6], g19, g20, globalThis);
 }

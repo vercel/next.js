@@ -2,6 +2,7 @@ use next_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark},
         ecma::parser::{EsConfig, Syntax},
+        ecma::transforms::base::resolver,
         ecma::transforms::react::jsx,
         ecma::transforms::testing::{test, test_fixture},
     },
@@ -299,16 +300,19 @@ fn next_font_loaders_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/server-actions/6/input.js")]
+#[fixture("tests/fixture/server-actions/**/input.js")]
 fn server_actions_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|_tr| {
-            server_actions(
-                &FileName::Real("/app/item.js".into()),
-                server_actions::Config { is_server: true },
-                _tr.comments.as_ref().clone(),
+            chain!(
+                resolver(Mark::new(), Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config { is_server: true },
+                    _tr.comments.as_ref().clone(),
+                )
             )
         },
         &input,

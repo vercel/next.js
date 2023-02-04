@@ -9,16 +9,13 @@ use next_binding::swc::core::{
         ast::{
             op, ArrayLit, AssignExpr, AssignPatProp, BlockStmt, CallExpr, ComputedPropName, Decl,
             ExportDecl, Expr, ExprStmt, FnDecl, Function, Id, Ident, KeyValuePatProp, KeyValueProp,
-            Lit, MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, ObjectPatProp, Pat,
+            Lit, MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, ObjectPatProp, Param, Pat,
             PatOrExpr, Prop, PropName, RestPat, ReturnStmt, Stmt, Str, VarDecl, VarDeclKind,
             VarDeclarator,
         },
         atoms::JsWord,
         utils::{private_ident, quote_ident, ExprFactory},
-        visit::{
-            as_folder, noop_visit_mut_type, noop_visit_type, visit_obj_and_computed, Fold, Visit,
-            VisitMut, VisitMutWith, VisitWith,
-        },
+        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
 use serde::Deserialize;
@@ -187,21 +184,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         } else {
             // Hoist the function to the top level.
 
-            let used_ids = idents_used_by(&f.function.body);
-
-            println!("f ident: {:?}", f.ident);
-            println!("used_ids: {:?}", used_ids);
-            println!("closure_idents: {:?}", self.closure_idents);
-            println!("action_idents: {:?}", self.action_idents);
-            // println!("module_idents: {:?}", self.module_idents);
-
-            // used_ids.retain(|id| !self.module_idents.contains(id));
+            let mut ids_from_closure = self.action_idents.clone();
+            ids_from_closure.retain(|id| self.closure_idents.contains(id));
 
             let closure_arg = private_ident!("closure");
 
             f.function.body.visit_mut_with(&mut ClosureReplacer {
                 closure_arg: &closure_arg,
-                used_ids: &used_ids,
+                used_ids: &ids_from_closure,
             });
 
             // myAction.$$closure = [id1, id2]
@@ -210,7 +200,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 "$$closure",
                 ArrayLit {
                     span: DUMMY_SP,
-                    elems: used_ids
+                    elems: ids_from_closure
                         .iter()
                         .cloned()
                         .map(|id| Some(id.as_arg()))
@@ -280,6 +270,32 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let ids = collect_idents_in_stmt(n);
         if !self.in_action_fn && !self.in_action_file {
             self.closure_idents.extend(ids);
+        }
+    }
+
+    fn visit_mut_param(&mut self, n: &mut Param) {
+        n.visit_mut_children_with(self);
+
+        if !self.in_action_fn && !self.in_action_file {
+            match &n.pat {
+                Pat::Ident(ident) => {
+                    self.closure_idents.push(ident.id.to_id());
+                }
+                Pat::Array(array) => {
+                    self.closure_idents
+                        .extend(collect_idents_in_array_pat(&array.elems));
+                }
+                Pat::Object(object) => {
+                    self.closure_idents
+                        .extend(collect_idents_in_object_pat(&object.props));
+                }
+                Pat::Rest(rest) => {
+                    if let Pat::Ident(ident) = &*rest.arg {
+                        self.closure_idents.push(ident.id.to_id());
+                    }
+                }
+                _ => {}
+            }
         }
     }
 
@@ -378,26 +394,23 @@ fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> Stmt {
 fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<Id> {
     let mut ids = Vec::new();
 
-    for elem in elems {
-        if let Some(elem) = elem {
-            match elem {
-                Pat::Ident(ident) => {
+    for elem in elems.iter().flatten() {
+        match elem {
+            Pat::Ident(ident) => {
+                ids.push(ident.id.to_id());
+            }
+            Pat::Array(array) => {
+                ids.extend(collect_idents_in_array_pat(&array.elems));
+            }
+            Pat::Object(object) => {
+                ids.extend(collect_idents_in_object_pat(&object.props));
+            }
+            Pat::Rest(rest) => {
+                if let Pat::Ident(ident) = &*rest.arg {
                     ids.push(ident.id.to_id());
                 }
-                Pat::Array(array) => {
-                    ids.extend(collect_idents_in_array_pat(&array.elems));
-                }
-                Pat::Object(object) => {
-                    ids.extend(collect_idents_in_object_pat(&object.props));
-                }
-                Pat::Rest(rest) => match &*rest.arg {
-                    Pat::Ident(ident) => {
-                        ids.push(ident.id.to_id());
-                    }
-                    _ => {}
-                },
-                _ => {}
             }
+            _ => {}
         }
     }
 
@@ -410,11 +423,8 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<Id> {
     for prop in props {
         match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
-                match key {
-                    PropName::Ident(ident) => {
-                        ids.push(ident.to_id());
-                    }
-                    _ => {}
+                if let PropName::Ident(ident) = key {
+                    ids.push(ident.to_id());
                 }
 
                 match &**value {
@@ -433,12 +443,11 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<Id> {
             ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
                 ids.push(key.to_id());
             }
-            ObjectPatProp::Rest(RestPat { arg, .. }) => match &**arg {
-                Pat::Ident(ident) => {
+            ObjectPatProp::Rest(RestPat { arg, .. }) => {
+                if let Pat::Ident(ident) = &**arg {
                     ids.push(ident.id.to_id());
                 }
-                _ => {}
-            },
+            }
         }
     }
 
@@ -452,7 +461,6 @@ fn collect_idents_in_var_decls(decls: &[VarDeclarator]) -> Vec<Id> {
         match &decl.name {
             Pat::Ident(ident) => {
                 ids.push(ident.id.to_id());
-                println!("id {:?} | {:?}", ident.id, ident.id.span.ctxt);
             }
             Pat::Array(array) => {
                 ids.extend(collect_idents_in_array_pat(&array.elems));
@@ -470,55 +478,11 @@ fn collect_idents_in_var_decls(decls: &[VarDeclarator]) -> Vec<Id> {
 fn collect_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
     let mut ids = Vec::new();
 
-    match &stmt {
-        Stmt::Decl(Decl::Var(var)) => {
-            ids.extend(collect_idents_in_var_decls(&var.decls));
-        }
-        _ => {}
+    if let Stmt::Decl(Decl::Var(var)) = &stmt {
+        ids.extend(collect_idents_in_var_decls(&var.decls));
     }
 
     ids
-}
-
-fn idents_used_by<N>(n: &N) -> Vec<Id>
-where
-    N: VisitWith<IdentUsageCollector>,
-{
-    let mut v = IdentUsageCollector {
-        ..Default::default()
-    };
-    n.visit_with(&mut v);
-    v.ids
-}
-
-#[derive(Default)]
-pub(crate) struct IdentUsageCollector {
-    ids: Vec<Id>,
-}
-
-impl Visit for IdentUsageCollector {
-    noop_visit_type!();
-
-    visit_obj_and_computed!();
-
-    fn visit_ident(&mut self, n: &Ident) {
-        if self.ids.contains(&n.to_id()) {
-            return;
-        }
-        self.ids.push(n.to_id());
-    }
-
-    fn visit_member_prop(&mut self, n: &MemberProp) {
-        if let MemberProp::Computed(..) = n {
-            n.visit_children_with(self);
-        }
-    }
-
-    fn visit_prop_name(&mut self, n: &PropName) {
-        if let PropName::Computed(..) = n {
-            n.visit_children_with(self);
-        }
-    }
 }
 
 pub(crate) struct ClosureReplacer<'a> {

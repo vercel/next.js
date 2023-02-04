@@ -15,7 +15,7 @@ function x() {
     const g20 = 1;
 }
 
-export function y(p) {
+export function y(p, [p1, { p2 }], ...p3) {
     const f2 = 1
     const f11 = 1
     const f19 = 1
@@ -50,9 +50,10 @@ export function y(p) {
             f16.x,
             f17,
             f18,
-            p.a,
-            p['b'],
-            p[1],
+            p,
+            p1,
+            p2,
+            p3,
             g19,
             g20,
             globalThis
