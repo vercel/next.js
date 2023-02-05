@@ -306,12 +306,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
     }
 
-    fn visit_mut_ident(&mut self, n: &mut Ident) {
-        n.visit_mut_children_with(self);
-
-        if self.in_action_fn {
-            self.action_idents.push(n.to_id())
+    fn visit_mut_expr(&mut self, n: &mut Expr) {
+        if self.in_action_fn && self.should_add_name {
+            match Name::try_from(&*n) {
+                Ok(name) => {
+                    self.should_add_name = false;
+                    self.action_idents.push(name);
+                    n.visit_mut_children_with(self);
+                    self.should_add_name = true;
+                    return;
+                }
+                Err(()) => {}
+            }
         }
+
+        n.visit_mut_children_with(self);
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
