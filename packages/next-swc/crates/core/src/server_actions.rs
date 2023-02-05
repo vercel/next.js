@@ -308,15 +308,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_expr(&mut self, n: &mut Expr) {
         if self.in_action_fn && self.should_add_name {
-            match Name::try_from(&*n) {
-                Ok(name) => {
-                    self.should_add_name = false;
-                    self.action_idents.push(name);
-                    n.visit_mut_children_with(self);
-                    self.should_add_name = true;
-                    return;
-                }
-                Err(()) => {}
+            if let Ok(name) = Name::try_from(&*n) {
+                self.should_add_name = false;
+                self.action_idents.push(name);
+                n.visit_mut_children_with(self);
+                self.should_add_name = true;
+                return;
             }
         }
 
@@ -503,14 +500,18 @@ fn collect_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
 
 pub(crate) struct ClosureReplacer<'a> {
     closure_arg: &'a Ident,
-    used_ids: &'a [Id],
+    used_ids: &'a [Name],
 }
 
 impl ClosureReplacer<'_> {
-    fn index(&self, i: &Ident) -> Option<usize> {
-        self.used_ids
-            .iter()
-            .position(|used_id| i.sym == used_id.0 && i.span.ctxt == used_id.1)
+    fn index_of_id(&self, i: &Ident) -> Option<usize> {
+        let name = Name(i.to_id(), vec![]);
+        self.used_ids.iter().position(|used_id| *used_id == name)
+    }
+
+    fn index(&self, e: &Expr) -> Option<usize> {
+        let name = Name::try_from(e).ok()?;
+        self.used_ids.iter().position(|used_id| *used_id == name)
     }
 }
 
@@ -518,17 +519,15 @@ impl VisitMut for ClosureReplacer<'_> {
     fn visit_mut_expr(&mut self, e: &mut Expr) {
         e.visit_mut_children_with(self);
 
-        if let Expr::Ident(i) = e {
-            if let Some(index) = self.index(i) {
-                *e = Expr::Member(MemberExpr {
+        if let Some(index) = self.index(e) {
+            *e = Expr::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: self.closure_arg.clone().into(),
+                prop: MemberProp::Computed(ComputedPropName {
                     span: DUMMY_SP,
-                    obj: self.closure_arg.clone().into(),
-                    prop: MemberProp::Computed(ComputedPropName {
-                        span: DUMMY_SP,
-                        expr: index.into(),
-                    }),
-                });
-            }
+                    expr: index.into(),
+                }),
+            });
         }
     }
 
@@ -536,7 +535,7 @@ impl VisitMut for ClosureReplacer<'_> {
         p.visit_mut_children_with(self);
 
         if let Prop::Shorthand(i) = p {
-            if let Some(index) = self.index(i) {
+            if let Some(index) = self.index_of_id(i) {
                 *p = Prop::KeyValue(KeyValueProp {
                     key: PropName::Ident(i.clone()),
                     value: MemberExpr {
@@ -556,7 +555,7 @@ impl VisitMut for ClosureReplacer<'_> {
     noop_visit_mut_type!();
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Name(Id, Vec<JsWord>);
 
 impl TryFrom<&'_ Expr> for Name {
@@ -595,5 +594,21 @@ impl TryFrom<&'_ OptChainExpr> for Name {
             OptChainBase::Member(e) => e.try_into(),
             OptChainBase::Call(_) => Err(()),
         }
+    }
+}
+
+impl From<Name> for Expr {
+    fn from(value: Name) -> Self {
+        let mut expr = Expr::Ident(value.0.into());
+
+        for prop in value.1.into_iter() {
+            expr = Expr::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: expr.into(),
+                prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
+            });
+        }
+
+        expr
     }
 }
