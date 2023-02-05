@@ -1,3 +1,5 @@
+use std::convert::{TryFrom, TryInto};
+
 use next_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -9,9 +11,9 @@ use next_binding::swc::core::{
         ast::{
             op, ArrayLit, AssignExpr, AssignPatProp, BlockStmt, CallExpr, ComputedPropName, Decl,
             ExportDecl, Expr, ExprStmt, FnDecl, Function, Id, Ident, KeyValuePatProp, KeyValueProp,
-            Lit, MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, ObjectPatProp, Param, Pat,
-            PatOrExpr, Prop, PropName, RestPat, ReturnStmt, Stmt, Str, VarDecl, VarDeclKind,
-            VarDeclarator,
+            Lit, MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, ObjectPatProp,
+            OptChainBase, OptChainExpr, Param, Pat, PatOrExpr, Prop, PropName, RestPat, ReturnStmt,
+            Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{private_ident, quote_ident, ExprFactory},
@@ -43,6 +45,7 @@ pub fn server_actions<C: Comments>(
 
         in_module: true,
         in_action_fn: false,
+        should_add_name: false,
         closure_idents: Default::default(),
         action_idents: Default::default(),
 
@@ -66,8 +69,9 @@ struct ServerActions<C: Comments> {
 
     in_module: bool,
     in_action_fn: bool,
+    should_add_name: bool,
     closure_idents: Vec<Id>,
-    action_idents: Vec<Id>,
+    action_idents: Vec<Name>,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -107,11 +111,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Visit children
             let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module;
+            let old_should_add_name = self.should_add_name;
             self.in_action_fn = in_action_fn;
             self.in_module = false;
+            self.should_add_name = true;
             f.visit_mut_children_with(self);
             self.in_action_fn = old_in_action_fn;
             self.in_module = old_in_module;
+            self.should_add_name = old_should_add_name;
         }
 
         if !in_action_fn {
@@ -185,7 +192,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Hoist the function to the top level.
 
             let mut ids_from_closure = self.action_idents.clone();
-            ids_from_closure.retain(|id| self.closure_idents.contains(id));
+            ids_from_closure.retain(|id| self.closure_idents.contains(&id.0));
 
             let closure_arg = private_ident!("closure");
 
@@ -299,12 +306,18 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
     }
 
-    fn visit_mut_ident(&mut self, n: &mut Ident) {
-        n.visit_mut_children_with(self);
-
-        if self.in_action_fn {
-            self.action_idents.push(n.to_id())
+    fn visit_mut_expr(&mut self, n: &mut Expr) {
+        if self.in_action_fn && self.should_add_name {
+            if let Ok(name) = Name::try_from(&*n) {
+                self.should_add_name = false;
+                self.action_idents.push(name);
+                n.visit_mut_children_with(self);
+                self.should_add_name = true;
+                return;
+            }
         }
+
+        n.visit_mut_children_with(self);
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
@@ -487,14 +500,18 @@ fn collect_idents_in_stmt(stmt: &Stmt) -> Vec<Id> {
 
 pub(crate) struct ClosureReplacer<'a> {
     closure_arg: &'a Ident,
-    used_ids: &'a [Id],
+    used_ids: &'a [Name],
 }
 
 impl ClosureReplacer<'_> {
-    fn index(&self, i: &Ident) -> Option<usize> {
-        self.used_ids
-            .iter()
-            .position(|used_id| i.sym == used_id.0 && i.span.ctxt == used_id.1)
+    fn index_of_id(&self, i: &Ident) -> Option<usize> {
+        let name = Name(i.to_id(), vec![]);
+        self.used_ids.iter().position(|used_id| *used_id == name)
+    }
+
+    fn index(&self, e: &Expr) -> Option<usize> {
+        let name = Name::try_from(e).ok()?;
+        self.used_ids.iter().position(|used_id| *used_id == name)
     }
 }
 
@@ -502,17 +519,15 @@ impl VisitMut for ClosureReplacer<'_> {
     fn visit_mut_expr(&mut self, e: &mut Expr) {
         e.visit_mut_children_with(self);
 
-        if let Expr::Ident(i) = e {
-            if let Some(index) = self.index(i) {
-                *e = Expr::Member(MemberExpr {
+        if let Some(index) = self.index(e) {
+            *e = Expr::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: self.closure_arg.clone().into(),
+                prop: MemberProp::Computed(ComputedPropName {
                     span: DUMMY_SP,
-                    obj: self.closure_arg.clone().into(),
-                    prop: MemberProp::Computed(ComputedPropName {
-                        span: DUMMY_SP,
-                        expr: index.into(),
-                    }),
-                });
-            }
+                    expr: index.into(),
+                }),
+            });
         }
     }
 
@@ -520,7 +535,7 @@ impl VisitMut for ClosureReplacer<'_> {
         p.visit_mut_children_with(self);
 
         if let Prop::Shorthand(i) = p {
-            if let Some(index) = self.index(i) {
+            if let Some(index) = self.index_of_id(i) {
                 *p = Prop::KeyValue(KeyValueProp {
                     key: PropName::Ident(i.clone()),
                     value: MemberExpr {
@@ -538,4 +553,81 @@ impl VisitMut for ClosureReplacer<'_> {
     }
 
     noop_visit_mut_type!();
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Name(Id, Vec<(JsWord, bool)>);
+
+impl TryFrom<&'_ Expr> for Name {
+    type Error = ();
+
+    fn try_from(value: &Expr) -> Result<Self, Self::Error> {
+        match value {
+            Expr::Ident(i) => Ok(Name(i.to_id(), vec![])),
+            Expr::Member(e) => e.try_into(),
+            Expr::OptChain(e) => e.try_into(),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<&'_ MemberExpr> for Name {
+    type Error = ();
+
+    fn try_from(value: &MemberExpr) -> Result<Self, Self::Error> {
+        match &value.prop {
+            MemberProp::Ident(prop) => {
+                let mut obj: Name = value.obj.as_ref().try_into()?;
+                obj.1.push((prop.sym.clone(), true));
+                Ok(obj)
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<&'_ OptChainExpr> for Name {
+    type Error = ();
+
+    fn try_from(value: &OptChainExpr) -> Result<Self, Self::Error> {
+        match &value.base {
+            OptChainBase::Member(value) => match &value.prop {
+                MemberProp::Ident(prop) => {
+                    let mut obj: Name = value.obj.as_ref().try_into()?;
+                    obj.1.push((prop.sym.clone(), false));
+                    Ok(obj)
+                }
+                _ => Err(()),
+            },
+            OptChainBase::Call(_) => Err(()),
+        }
+    }
+}
+
+impl From<Name> for Expr {
+    fn from(value: Name) -> Self {
+        let mut expr = Expr::Ident(value.0.into());
+
+        for (prop, is_member) in value.1.into_iter() {
+            if is_member {
+                expr = Expr::Member(MemberExpr {
+                    span: DUMMY_SP,
+                    obj: expr.into(),
+                    prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
+                });
+            } else {
+                expr = Expr::OptChain(OptChainExpr {
+                    span: DUMMY_SP,
+                    question_dot_token: DUMMY_SP,
+                    base: OptChainBase::Member(MemberExpr {
+                        span: DUMMY_SP,
+                        obj: expr.into(),
+                        prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
+                    }),
+                });
+            }
+        }
+
+        expr
+    }
 }
