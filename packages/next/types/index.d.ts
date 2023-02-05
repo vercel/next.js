@@ -189,9 +189,21 @@ export type GetServerSidePropsContext<
 }
 
 export type GetServerSidePropsResult<P> =
-  | { props: P | Promise<P> }
-  | { redirect: Redirect }
-  | { notFound: true }
+  | {
+      props: P | Promise<P>
+      redirect: never
+      notFound: never
+    }
+  | {
+      props: never
+      redirect: Redirect
+      notFound: never
+    }
+  | {
+      props: never
+      redirect: never
+      notFound: true
+    }
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
