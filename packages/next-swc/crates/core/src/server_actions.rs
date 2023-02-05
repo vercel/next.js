@@ -83,10 +83,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        let mut in_action_fn = self.in_action_file;
+        let mut in_action_fn = false;
 
-        if !(self.in_action_file && self.in_export_decl) {
-            // Check if the first item is `"use server"`;
+        if self.in_action_file && self.in_export_decl {
+            // All export functions in a server file are actions
+            in_action_fn = true;
+        } else {
+            // Check if the first item is `"use server"`
             if let Some(body) = &mut f.function.body {
                 if let Some(Stmt::Expr(first)) = body.stmts.first() {
                     match &*first.expr {
