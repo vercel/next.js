@@ -12,7 +12,7 @@
   },
   "peerDependencies": {
     "@mdx-js/loader": ">=0.15.0",
-    "@mdx-js/react": "*"
+    "@mdx-js/react": ">=0.15.0"
   },
   "dependencies": {
     "source-map": "^0.7.0"
