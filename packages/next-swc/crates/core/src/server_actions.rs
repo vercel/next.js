@@ -539,3 +539,5 @@ impl VisitMut for ClosureReplacer<'_> {
 
     noop_visit_mut_type!();
 }
+
+struct Name(Id, Vec<JsWord>);
