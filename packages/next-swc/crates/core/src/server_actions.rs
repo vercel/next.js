@@ -92,13 +92,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     match &*first.expr {
                         Expr::Lit(Lit::Str(Str { value, .. })) if value == "use server" => {
                             in_action_fn = true;
+                            body.stmts.remove(0);
                         }
                         _ => {}
                     }
-                }
-
-                if in_action_fn {
-                    body.stmts.remove(0);
                 }
             }
         }
