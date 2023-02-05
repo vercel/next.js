@@ -1,3 +1,5 @@
+use std::convert::{TryFrom, TryInto};
+
 use next_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -9,9 +11,9 @@ use next_binding::swc::core::{
         ast::{
             op, ArrayLit, AssignExpr, AssignPatProp, BlockStmt, CallExpr, ComputedPropName, Decl,
             ExportDecl, Expr, ExprStmt, FnDecl, Function, Id, Ident, KeyValuePatProp, KeyValueProp,
-            Lit, MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, ObjectPatProp, Param, Pat,
-            PatOrExpr, Prop, PropName, RestPat, ReturnStmt, Stmt, Str, VarDecl, VarDeclKind,
-            VarDeclarator,
+            Lit, MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, ObjectPatProp,
+            OptChainBase, OptChainExpr, Param, Pat, PatOrExpr, Prop, PropName, RestPat, ReturnStmt,
+            Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{private_ident, quote_ident, ExprFactory},
@@ -67,7 +69,7 @@ struct ServerActions<C: Comments> {
     in_module: bool,
     in_action_fn: bool,
     closure_idents: Vec<Id>,
-    action_idents: Vec<Id>,
+    action_idents: Vec<Name>,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -185,7 +187,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Hoist the function to the top level.
 
             let mut ids_from_closure = self.action_idents.clone();
-            ids_from_closure.retain(|id| self.closure_idents.contains(id));
+            ids_from_closure.retain(|id| self.closure_idents.contains(&id.0));
 
             let closure_arg = private_ident!("closure");
 
@@ -540,4 +542,44 @@ impl VisitMut for ClosureReplacer<'_> {
     noop_visit_mut_type!();
 }
 
+#[derive(Debug, Clone)]
 struct Name(Id, Vec<JsWord>);
+
+impl TryFrom<&'_ Expr> for Name {
+    type Error = ();
+
+    fn try_from(value: &Expr) -> Result<Self, Self::Error> {
+        match value {
+            Expr::Ident(i) => Ok(Name(i.to_id(), vec![])),
+            Expr::Member(e) => e.try_into(),
+            Expr::OptChain(e) => e.try_into(),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<&'_ MemberExpr> for Name {
+    type Error = ();
+
+    fn try_from(value: &MemberExpr) -> Result<Self, Self::Error> {
+        match &value.prop {
+            MemberProp::Ident(prop) => {
+                let mut obj: Name = value.obj.as_ref().try_into()?;
+                obj.1.push(prop.sym.clone());
+                Ok(obj)
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<&'_ OptChainExpr> for Name {
+    type Error = ();
+
+    fn try_from(value: &OptChainExpr) -> Result<Self, Self::Error> {
+        match &value.base {
+            OptChainBase::Member(e) => e.try_into(),
+            OptChainBase::Call(_) => Err(()),
+        }
+    }
+}
