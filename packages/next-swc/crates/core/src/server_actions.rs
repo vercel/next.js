@@ -11,9 +11,9 @@ use next_binding::swc::core::{
         ast::{
             op, ArrayLit, AssignExpr, AssignPatProp, BlockStmt, CallExpr, ComputedPropName, Decl,
             ExportDecl, Expr, ExprStmt, FnDecl, Function, Id, Ident, KeyValuePatProp, KeyValueProp,
-            Lit, MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, ObjectPatProp,
-            OptChainBase, OptChainExpr, Param, Pat, PatOrExpr, Prop, PropName, RestPat, ReturnStmt,
-            Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
+            Lit, MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, ObjectPatProp, Param, Pat,
+            PatOrExpr, Prop, PropName, RestPat, ReturnStmt, Stmt, Str, VarDecl, VarDeclKind,
+            VarDeclarator,
         },
         atoms::JsWord,
         utils::{private_ident, quote_ident, ExprFactory},
@@ -45,7 +45,6 @@ pub fn server_actions<C: Comments>(
 
         in_module: true,
         in_action_fn: false,
-        should_add_name: false,
         closure_idents: Default::default(),
         action_idents: Default::default(),
 
@@ -69,9 +68,8 @@ struct ServerActions<C: Comments> {
 
     in_module: bool,
     in_action_fn: bool,
-    should_add_name: bool,
     closure_idents: Vec<Id>,
-    action_idents: Vec<Name>,
+    action_idents: Vec<Id>,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -111,14 +109,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Visit children
             let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module;
-            let old_should_add_name = self.should_add_name;
             self.in_action_fn = in_action_fn;
             self.in_module = false;
-            self.should_add_name = true;
             f.visit_mut_children_with(self);
             self.in_action_fn = old_in_action_fn;
             self.in_module = old_in_module;
-            self.should_add_name = old_should_add_name;
         }
 
         if !in_action_fn {
@@ -192,7 +187,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Hoist the function to the top level.
 
             let mut ids_from_closure = self.action_idents.clone();
-            ids_from_closure.retain(|id| self.closure_idents.contains(&id.0));
+            ids_from_closure.retain(|id| self.closure_idents.contains(id));
 
             let closure_arg = private_ident!("closure");
 
@@ -306,18 +301,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
     }
 
-    fn visit_mut_expr(&mut self, n: &mut Expr) {
-        if self.in_action_fn && self.should_add_name {
-            if let Ok(name) = Name::try_from(&*n) {
-                self.should_add_name = false;
-                self.action_idents.push(name);
-                n.visit_mut_children_with(self);
-                self.should_add_name = true;
-                return;
-            }
-        }
-
+    fn visit_mut_ident(&mut self, n: &mut Ident) {
         n.visit_mut_children_with(self);
+
+        if self.in_action_fn {
+            self.action_idents.push(n.to_id())
+        }
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
