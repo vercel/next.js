@@ -139,9 +139,14 @@ export type GetStaticPropsContext<
 }
 
 export type GetStaticPropsResult<P> =
-  | { props: P; revalidate?: number | boolean }
-  | { redirect: Redirect; revalidate?: number | boolean }
-  | { notFound: true; revalidate?: number | boolean }
+  | { redirect: never; props: P; revalidate?: number | boolean }
+  | { redirect: Redirect; props: never; revalidate?: number | boolean }
+  | {
+      redirect: never
+      props: never
+      notFound: true
+      revalidate?: number | boolean
+    }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
@@ -189,21 +194,9 @@ export type GetServerSidePropsContext<
 }
 
 export type GetServerSidePropsResult<P> =
-  | {
-      props: P | Promise<P>
-      redirect: never
-      notFound: never
-    }
-  | {
-      props: never
-      redirect: Redirect
-      notFound: never
-    }
-  | {
-      props: never
-      redirect: never
-      notFound: true
-    }
+  | { props: P | Promise<P>; redirect: never; notFound: never }
+  | { props: never; redirect: Redirect; notFound: never }
+  | { props: never; redirect: never; notFound: true }
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
