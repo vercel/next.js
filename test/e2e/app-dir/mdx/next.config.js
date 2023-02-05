@@ -2,7 +2,6 @@ const withMDX = require('@next/mdx')({
   extension: /\.mdx?$/,
 })
 
-console.log({ test: process.env.WITH_MDX_RS === 'true' })
 /**
  * @type {import('next').NextConfig}
  */
