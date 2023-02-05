@@ -45,6 +45,7 @@ pub fn server_actions<C: Comments>(
 
         in_module: true,
         in_action_fn: false,
+        should_add_name: false,
         closure_idents: Default::default(),
         action_idents: Default::default(),
 
@@ -68,6 +69,7 @@ struct ServerActions<C: Comments> {
 
     in_module: bool,
     in_action_fn: bool,
+    should_add_name: bool,
     closure_idents: Vec<Id>,
     action_idents: Vec<Name>,
 
@@ -109,11 +111,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Visit children
             let old_in_action_fn = self.in_action_fn;
             let old_in_module = self.in_module;
+            let old_should_add_name = self.should_add_name;
             self.in_action_fn = in_action_fn;
             self.in_module = false;
+            self.should_add_name = true;
             f.visit_mut_children_with(self);
             self.in_action_fn = old_in_action_fn;
             self.in_module = old_in_module;
+            self.should_add_name = old_should_add_name;
         }
 
         if !in_action_fn {
