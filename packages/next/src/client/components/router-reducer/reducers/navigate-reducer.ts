@@ -145,6 +145,10 @@ export function navigateReducer(
     }
 
     if (newTree !== null) {
+      if (isNavigatingToNewRootLayout(state.tree, newTree)) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
+      }
+
       // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
       const flightDataPath = flightData[0]
       const flightSegmentPath = flightDataPath.slice(
@@ -182,7 +186,6 @@ export function navigateReducer(
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
       mutable.applyFocusAndScroll = true
-      mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
       mutable.canonicalUrl = canonicalUrlOverride
         ? createHrefFromUrl(canonicalUrlOverride)
         : href
@@ -272,6 +275,10 @@ export function navigateReducer(
     throw new Error('SEGMENT MISMATCH')
   }
 
+  if (isNavigatingToNewRootLayout(state.tree, newTree)) {
+    return handleExternalUrl(state, mutable, href, pendingPush)
+  }
+
   mutable.canonicalUrl = canonicalUrlOverride
     ? createHrefFromUrl(canonicalUrlOverride)
     : href
@@ -279,7 +286,6 @@ export function navigateReducer(
   mutable.previousTree = state.tree
   mutable.patchedTree = newTree
   mutable.applyFocusAndScroll = true
-  mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
   mutable.pendingPush = pendingPush
 
   const applied = applyFlightData(state, cache, flightDataPath)

@@ -58,6 +58,10 @@ export function serverPatchReducer(
     throw new Error('SEGMENT MISMATCH')
   }
 
+  if (isNavigatingToNewRootLayout(state.tree, newTree)) {
+    return handleExternalUrl(state, mutable, state.canonicalUrl, false)
+  }
+
   const canonicalUrlOverrideHref = overrideCanonicalUrl
     ? createHrefFromUrl(overrideCanonicalUrl)
     : undefined
@@ -70,7 +74,6 @@ export function serverPatchReducer(
 
   mutable.previousTree = state.tree
   mutable.patchedTree = newTree
-  mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
   mutable.cache = cache
   mutable.applyFocusAndScroll = false
 
