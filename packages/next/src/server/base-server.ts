@@ -1954,7 +1954,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               <script>
                 async function check() {
                   const res = await fetch(location.href).catch(() => ({}))
-                  
+
                   if (res.status === 200) {
                     location.reload()
                   } else {

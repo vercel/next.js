@@ -1,5 +1,11 @@
-import { CacheStates } from '../../../../shared/lib/app-router-context'
-import type { FlightSegmentPath } from '../../../../server/app-render'
+import {
+  CacheNode,
+  CacheStates,
+} from '../../../../shared/lib/app-router-context'
+import type {
+  FlightDataPath,
+  FlightSegmentPath,
+} from '../../../../server/app-render'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createRecordFromThenable } from '../create-record-from-thenable'
 import { readRecordValue } from '../read-record-value'
@@ -13,10 +19,90 @@ import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree
 import { shouldHardNavigate } from '../should-hard-navigate'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import {
+  Mutable,
   NavigateAction,
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
+
+function handleMutable(
+  state: ReadonlyReducerState,
+  mutable: Mutable
+): ReducerState {
+  return {
+    // Set href.
+    canonicalUrl:
+      typeof mutable.canonicalUrl !== 'undefined' ? mutable.canonicalUrl : '',
+    pushRef: {
+      pendingPush:
+        typeof mutable.pendingPush !== 'undefined'
+          ? mutable.pendingPush
+          : false,
+      mpaNavigation:
+        typeof mutable.mpaNavigation !== 'undefined'
+          ? mutable.mpaNavigation
+          : false,
+    },
+    // All navigation requires scroll and focus management to trigger.
+    focusAndScrollRef: {
+      apply:
+        typeof mutable.applyFocusAndScroll !== 'undefined'
+          ? mutable.applyFocusAndScroll
+          : true,
+    },
+    // Apply cache.
+    cache: mutable.cache ? mutable.cache : state.cache,
+    prefetchCache: state.prefetchCache,
+    // Apply patched router state.
+    tree:
+      typeof mutable.patchedTree !== 'undefined'
+        ? mutable.patchedTree
+        : state.tree,
+  }
+}
+
+function applyFlightData(
+  state: ReadonlyReducerState,
+  cache: CacheNode,
+  flightDataPath: FlightDataPath
+) {
+  // The one before last item is the router state tree patch
+  const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
+
+  // Handles case where prefetch only returns the router tree patch without rendered components.
+  if (subTreeData === null) {
+    return false
+  }
+
+  if (flightDataPath.length === 3) {
+    cache.status = CacheStates.READY
+    cache.subTreeData = subTreeData
+    fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
+  } else {
+    // Copy subTreeData for the root node of the cache.
+    cache.status = CacheStates.READY
+    cache.subTreeData = state.cache.subTreeData
+    // Create a copy of the existing cache with the subTreeData applied.
+    fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+  }
+
+  return true
+}
+
+function handleExternalUrl(
+  state: ReadonlyReducerState,
+  mutable: Mutable,
+  url: string,
+  pendingPush: boolean
+) {
+  mutable.previousTree = state.tree
+  mutable.mpaNavigation = true
+  mutable.canonicalUrl = url
+  mutable.pendingPush = pendingPush
+  mutable.applyFocusAndScroll = false
+
+  return handleMutable(state, mutable)
+}
 
 export function navigateReducer(
   state: ReadonlyReducerState,
@@ -25,76 +111,28 @@ export function navigateReducer(
   const {
     url,
     isExternalUrl,
+    locationSearch,
     navigateType,
     cache,
     mutable,
     forceOptimisticNavigation,
   } = action
-  const pendingPush = navigateType === 'push'
-
-  if (isExternalUrl) {
-    return {
-      // Set href.
-      canonicalUrl: url.toString(),
-      pushRef: {
-        pendingPush,
-        mpaNavigation: true,
-      },
-      // All navigation requires scroll and focus management to trigger.
-      focusAndScrollRef: { apply: false },
-      // Apply cache.
-      cache: state.cache,
-      prefetchCache: state.prefetchCache,
-      // Apply patched router state.
-      tree: state.tree,
-    }
-  }
-
   const { pathname, search } = url
   const href = createHrefFromUrl(url)
+  const pendingPush = navigateType === 'push'
 
   const isForCurrentTree =
     JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
 
-  if (mutable.mpaNavigation && isForCurrentTree) {
-    return {
-      // Set href.
-      canonicalUrl: mutable.canonicalUrlOverride
-        ? mutable.canonicalUrlOverride
-        : href,
-      pushRef: {
-        pendingPush,
-        mpaNavigation: mutable.mpaNavigation,
-      },
-      // All navigation requires scroll and focus management to trigger.
-      focusAndScrollRef: { apply: false },
-      // Apply cache.
-      cache: state.cache,
-      prefetchCache: state.prefetchCache,
-      // Apply patched router state.
-      tree: state.tree,
+  if (isForCurrentTree) {
+    const result = handleMutable(state, mutable)
+    if (result) {
+      return result
     }
   }
 
-  // Handle concurrent rendering / strict mode case where the cache and tree were already populated.
-  if (mutable.patchedTree && isForCurrentTree) {
-    return {
-      // Set href.
-      canonicalUrl: mutable.canonicalUrlOverride
-        ? mutable.canonicalUrlOverride
-        : href,
-      pushRef: {
-        pendingPush,
-        mpaNavigation: false,
-      },
-      // All navigation requires scroll and focus management to trigger.
-      focusAndScrollRef: { apply: true },
-      // Apply cache.
-      cache: mutable.useExistingCache ? state.cache : cache,
-      prefetchCache: state.prefetchCache,
-      // Apply patched router state.
-      tree: mutable.patchedTree,
-    }
+  if (isExternalUrl) {
+    return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
   const prefetchValues = state.prefetchCache.get(href)
@@ -104,63 +142,22 @@ export function navigateReducer(
 
     // Handle case when navigating to page in `pages` from `app`
     if (typeof flightData === 'string') {
-      return {
-        canonicalUrl: flightData,
-        // Enable mpaNavigation
-        pushRef: { pendingPush: true, mpaNavigation: true },
-        // Don't apply scroll and focus management.
-        focusAndScrollRef: { apply: false },
-        cache: state.cache,
-        prefetchCache: state.prefetchCache,
-        tree: state.tree,
-      }
+      return handleExternalUrl(state, mutable, flightData, pendingPush)
     }
 
     if (newTree !== null) {
-      mutable.previousTree = state.tree
-      mutable.patchedTree = newTree
-      mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
-
-      if (newTree === null) {
-        throw new Error('SEGMENT MISMATCH')
-      }
-
-      const canonicalUrlOverrideHrefVal = canonicalUrlOverride
-        ? createHrefFromUrl(canonicalUrlOverride)
-        : undefined
-      if (canonicalUrlOverrideHrefVal) {
-        mutable.canonicalUrlOverride = canonicalUrlOverrideHrefVal
-      }
-      mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
-
       // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
       const flightDataPath = flightData[0]
       const flightSegmentPath = flightDataPath.slice(
         0,
         -3
       ) as unknown as FlightSegmentPath
-      // The one before last item is the router state tree patch
-      const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
-      // Handles case where prefetch only returns the router tree patch without rendered components.
-      if (subTreeData !== null) {
-        if (flightDataPath.length === 3) {
-          cache.status = CacheStates.READY
-          cache.subTreeData = subTreeData
-          cache.parallelRoutes = new Map()
-          fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
-        } else {
-          cache.status = CacheStates.READY
-          // Copy subTreeData for the root node of the cache.
-          cache.subTreeData = state.cache.subTreeData
-          // Create a copy of the existing cache with the subTreeData applied.
-          fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
-        }
-      }
+      const applied = applyFlightData(state, cache, flightDataPath)
 
       const hardNavigate =
-        // TODO-APP: Revisit if this is correct.
-        search !== location.search ||
+        // TODO-APP: Revisit searchParams support
+        search !== locationSearch ||
         shouldHardNavigate(
           // TODO-APP: remove ''
           ['', ...flightSegmentPath],
@@ -178,33 +175,21 @@ export function navigateReducer(
           flightSegmentPath
         )
         // Ensure the existing cache value is used when the cache was not invalidated.
-      } else if (subTreeData === null) {
-        mutable.useExistingCache = true
+        mutable.cache = cache
+      } else if (applied) {
+        mutable.cache = cache
       }
 
-      const canonicalUrlOverrideHref = canonicalUrlOverride
+      mutable.previousTree = state.tree
+      mutable.patchedTree = newTree
+      mutable.applyFocusAndScroll = true
+      mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
+      mutable.canonicalUrl = canonicalUrlOverride
         ? createHrefFromUrl(canonicalUrlOverride)
-        : undefined
+        : href
+      mutable.pendingPush = pendingPush
 
-      if (canonicalUrlOverrideHref) {
-        mutable.canonicalUrlOverride = canonicalUrlOverrideHref
-      }
-
-      return {
-        // Set href.
-        canonicalUrl: canonicalUrlOverrideHref
-          ? canonicalUrlOverrideHref
-          : href,
-        // Set pendingPush.
-        pushRef: { pendingPush, mpaNavigation: false },
-        // All navigation requires scroll and focus management to trigger.
-        focusAndScrollRef: { apply: true },
-        // Apply patched cache.
-        cache: mutable.useExistingCache ? state.cache : cache,
-        prefetchCache: state.prefetchCache,
-        // Apply patched tree.
-        tree: newTree,
-      }
+      return handleMutable(state, mutable)
     }
   }
 
@@ -240,23 +225,12 @@ export function navigateReducer(
     if (!res?.bailOptimistic) {
       mutable.previousTree = state.tree
       mutable.patchedTree = optimisticTree
-      mutable.mpaNavigation = isNavigatingToNewRootLayout(
-        state.tree,
-        optimisticTree
-      )
-      return {
-        // Set href.
-        canonicalUrl: href,
-        // Set pendingPush.
-        pushRef: { pendingPush, mpaNavigation: false },
-        // All navigation requires scroll and focus management to trigger.
-        focusAndScrollRef: { apply: true },
-        // Apply patched cache.
-        cache: cache,
-        prefetchCache: state.prefetchCache,
-        // Apply optimistic tree.
-        tree: optimisticTree,
-      }
+      mutable.pendingPush = pendingPush
+      mutable.applyFocusAndScroll = true
+      mutable.cache = cache
+      mutable.canonicalUrl = href
+
+      return handleMutable(state, mutable)
     }
   }
 
@@ -272,16 +246,7 @@ export function navigateReducer(
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
-    return {
-      canonicalUrl: flightData,
-      // Enable mpaNavigation
-      pushRef: { pendingPush: true, mpaNavigation: true },
-      // Don't apply scroll and focus management.
-      focusAndScrollRef: { apply: false },
-      cache: state.cache,
-      prefetchCache: state.prefetchCache,
-      tree: state.tree,
-    }
+    return handleExternalUrl(state, mutable, flightData, pendingPush)
   }
 
   // Remove cache.data as it has been resolved at this point.
@@ -291,7 +256,7 @@ export function navigateReducer(
   const flightDataPath = flightData[0]
 
   // The one before last item is the router state tree patch
-  const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
+  const [treePatch] = flightDataPath.slice(-3, -2)
 
   // Path without the last segment, router state, and the subTreeData
   const flightSegmentPath = flightDataPath.slice(0, -4)
@@ -308,39 +273,20 @@ export function navigateReducer(
     throw new Error('SEGMENT MISMATCH')
   }
 
-  const canonicalUrlOverrideHref = canonicalUrlOverride
+  mutable.canonicalUrl = canonicalUrlOverride
     ? createHrefFromUrl(canonicalUrlOverride)
-    : undefined
-  if (canonicalUrlOverrideHref) {
-    mutable.canonicalUrlOverride = canonicalUrlOverrideHref
-  }
+    : href
+
   mutable.previousTree = state.tree
   mutable.patchedTree = newTree
+  mutable.applyFocusAndScroll = true
   mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
+  mutable.pendingPush = pendingPush
 
-  if (flightDataPath.length === 3) {
-    cache.status = CacheStates.READY
-    cache.subTreeData = subTreeData
-    fillLazyItemsTillLeafWithHead(cache, state.cache, treePatch, head)
-  } else {
-    // Copy subTreeData for the root node of the cache.
-    cache.status = CacheStates.READY
-    cache.subTreeData = state.cache.subTreeData
-    // Create a copy of the existing cache with the subTreeData applied.
-    fillCacheWithNewSubTreeData(cache, state.cache, flightDataPath)
+  const applied = applyFlightData(state, cache, flightDataPath)
+  if (applied) {
+    mutable.cache = cache
   }
 
-  return {
-    // Set href.
-    canonicalUrl: canonicalUrlOverrideHref ? canonicalUrlOverrideHref : href,
-    // Set pendingPush.
-    pushRef: { pendingPush, mpaNavigation: false },
-    // All navigation requires scroll and focus management to trigger.
-    focusAndScrollRef: { apply: true },
-    // Apply patched cache.
-    cache: cache,
-    prefetchCache: state.prefetchCache,
-    // Apply patched tree.
-    tree: newTree,
-  }
+  return handleMutable(state, mutable)
 }
