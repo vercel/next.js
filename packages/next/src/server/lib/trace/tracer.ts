@@ -5,12 +5,8 @@ import { TraceConfig } from './trace-config'
 import type { BasicTracerProvider } from '@opentelemetry/sdk-trace-base'
 import type { SpanNames } from './constants'
 
-const {
-  SpanStatusCode,
-}: typeof import('@opentelemetry/api') = require('next/dist/compiled/@opentelemetry/api')
-const {
-  SemanticAttributes,
-}: typeof import('@opentelemetry/semantic-conventions') = require('next/dist/compiled/@opentelemetry/semantic-conventions')
+import { SpanStatusCode } from 'next/dist/compiled/@opentelemetry/api'
+import { SemanticAttributes } from 'next/dist/compiled/@opentelemetry/semantic-conventions'
 
 const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'

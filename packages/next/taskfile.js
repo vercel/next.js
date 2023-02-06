@@ -1964,7 +1964,7 @@ export async function ncc_opentelemetry_api(task, opts) {
       opts.src || relative(__dirname, require.resolve('@opentelemetry/api'))
     )
     .ncc({ packageName: '@opentelemetry/api', externals })
-    .target('compiled/@opentelemetry/api')
+    .target('src/compiled/@opentelemetry/api')
 }
 
 // eslint-disable-next-line camelcase
@@ -1977,7 +1977,7 @@ export async function ncc_opentelemetry_instrumentation(task, opts) {
         relative(__dirname, require.resolve('@opentelemetry/instrumentation'))
     )
     .ncc({ packageName: '@opentelemetry/instrumentation', externals })
-    .target('compiled/@opentelemetry/instrumentation')
+    .target('src/compiled/@opentelemetry/instrumentation')
 }
 
 // eslint-disable-next-line camelcase
@@ -1990,7 +1990,7 @@ export async function ncc_opentelemetry_resources(task, opts) {
         relative(__dirname, require.resolve('@opentelemetry/resources'))
     )
     .ncc({ packageName: '@opentelemetry/resources', externals })
-    .target('compiled/@opentelemetry/resources')
+    .target('src/compiled/@opentelemetry/resources')
 }
 
 // eslint-disable-next-line camelcase
@@ -2006,7 +2006,7 @@ export async function ncc_opentelemetry_semantic_conventions(task, opts) {
         )
     )
     .ncc({ packageName: '@opentelemetry/semantic-conventions', externals })
-    .target('compiled/@opentelemetry/semantic-conventions')
+    .target('src/compiled/@opentelemetry/semantic-conventions')
 }
 
 // eslint-disable-next-line camelcase
@@ -2019,7 +2019,7 @@ export async function ncc_opentelemetry_sdk_trace_base(task, opts) {
         relative(__dirname, require.resolve('@opentelemetry/sdk-trace-base'))
     )
     .ncc({ packageName: '@opentelemetry/sdk-trace-base', externals })
-    .target('compiled/@opentelemetry/sdk-trace-base')
+    .target('src/compiled/@opentelemetry/sdk-trace-base')
 }
 
 // eslint-disable-next-line camelcase
@@ -2032,7 +2032,7 @@ export async function ncc_opentelemetry_sdk_trace_node(task, opts) {
         relative(__dirname, require.resolve('@opentelemetry/sdk-trace-node'))
     )
     .ncc({ packageName: '@opentelemetry/sdk-trace-node', externals })
-    .target('compiled/@opentelemetry/sdk-trace-node')
+    .target('src/compiled/@opentelemetry/sdk-trace-node')
 }
 
 // eslint-disable-next-line camelcase
@@ -2048,7 +2048,7 @@ export async function ncc_opentelemetry_exporter_trace_otlp_http(task, opts) {
         )
     )
     .ncc({ packageName: '@opentelemetry/exporter-trace-otlp-http', externals })
-    .target('compiled/@opentelemetry/exporter-trace-otlp-http')
+    .target('src/compiled/@opentelemetry/exporter-trace-otlp-http')
 }
 
 export async function precompile(task, opts) {

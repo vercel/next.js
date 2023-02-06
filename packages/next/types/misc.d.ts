@@ -423,3 +423,11 @@ declare module 'next/dist/compiled/watchpack' {
 declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
 }
+
+declare module 'next/dist/compiled/@opentelemetry/api' {
+  export * from '@opentelemetry/api'
+}
+
+declare module 'next/dist/compiled/@opentelemetry/semantic-conventions' {
+  export * from '@opentelemetry/semantic-conventions'
+}
