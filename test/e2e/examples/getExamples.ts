@@ -1,7 +1,3 @@
-import { createNextDescribe } from 'e2e-utils'
-import path from 'path'
-import fs from 'fs-extra'
-
 const testedExamples = [
   // Internal features
   'active-class-name',
@@ -72,43 +68,10 @@ const testedExamples = [
   'with-vercel-fetch',
 ]
 
-testedExamples.forEach((example) => {
-  const exampleFiles = path.join(
-    __dirname,
-    '..',
-    '..',
-    '..',
-    'examples',
-    example
+const batches = 5
+const batchSize = Math.floor((testedExamples.length + batches - 1) / batches)
+export const getExamplesBatch = (n: number) =>
+  testedExamples.slice(
+    n * batchSize,
+    Math.min(testedExamples.length, (n + 1) * batchSize)
   )
-
-  const packageJson = fs.readJsonSync(path.join(exampleFiles, 'package.json'))
-  describe(`example '${example}'`, () => {
-    // If there is an issue during a build, jest won't tell us which example caused it
-    // we need to log it ourselfs
-    beforeAll(() => {
-      require('console').log(`Running example '${example}'`)
-    })
-    createNextDescribe(
-      `example '${example}'`,
-      {
-        files: exampleFiles,
-        dependencies: {
-          // We need to make sure that these default dependencies are not installed by default
-          // for our examples to ensure that they have all their dependencies in package.json
-          '@types/node': undefined,
-          '@types/react': undefined,
-          next: undefined,
-          react: undefined,
-          'react-dom': undefined,
-          typescript: undefined,
-          ...packageJson.dependencies,
-          ...packageJson.devDependencies,
-        },
-      },
-      () => {
-        it('builds', () => {})
-      }
-    )
-  })
-})
