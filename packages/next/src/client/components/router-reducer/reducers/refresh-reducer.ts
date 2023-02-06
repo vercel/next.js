@@ -45,7 +45,12 @@ export function refreshReducer(
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
-    return handleExternalUrl(state, mutable, flightData, true)
+    return handleExternalUrl(
+      state,
+      mutable,
+      flightData,
+      state.pushRef.pendingPush
+    )
   }
 
   // Remove cache.data as it has been resolved at this point.
@@ -75,7 +80,7 @@ export function refreshReducer(
   }
 
   if (isNavigatingToNewRootLayout(state.tree, newTree)) {
-    return handleExternalUrl(state, mutable, href, false)
+    return handleExternalUrl(state, mutable, href, state.pushRef.pendingPush)
   }
 
   const canonicalUrlOverrideHref = canonicalUrlOverride
@@ -95,8 +100,6 @@ export function refreshReducer(
   mutable.previousTree = state.tree
   mutable.patchedTree = newTree
   mutable.canonicalUrl = href
-  mutable.applyFocusAndScroll = false
-  mutable.pendingPush = false
 
   return handleMutable(state, mutable)
 }

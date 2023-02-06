@@ -37,7 +37,12 @@ export function serverPatchReducer(
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
-    return handleExternalUrl(state, mutable, flightData, false)
+    return handleExternalUrl(
+      state,
+      mutable,
+      flightData,
+      state.pushRef.pendingPush
+    )
   }
 
   // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
@@ -59,7 +64,12 @@ export function serverPatchReducer(
   }
 
   if (isNavigatingToNewRootLayout(state.tree, newTree)) {
-    return handleExternalUrl(state, mutable, state.canonicalUrl, false)
+    return handleExternalUrl(
+      state,
+      mutable,
+      state.canonicalUrl,
+      state.pushRef.pendingPush
+    )
   }
 
   const canonicalUrlOverrideHref = overrideCanonicalUrl
