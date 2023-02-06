@@ -47,7 +47,7 @@ function nextImageLoader(this: any, content: Buffer) {
       basePath,
       outputPath,
       isDev,
-      tracing: imageLoaderSpan.traceChild,
+      tracing: imageLoaderSpan.traceChild.bind(imageLoaderSpan),
     })
 
     const stringifiedData = imageLoaderSpan
