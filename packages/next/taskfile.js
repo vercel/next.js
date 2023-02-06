@@ -1080,7 +1080,7 @@ export async function ncc_babel_bundle(task, opts) {
     delete bundleExternals[pkg]
   }
   await task
-    .source('bundles/babel/bundle.js')
+    .source('src/bundles/babel/bundle.js')
     .ncc({
       packageName: '@babel/core',
       bundleName: 'babel',
@@ -1106,7 +1106,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
   await fs.writeFile(eslintParseFile, replacedContent)
 
   await task
-    .source('bundles/babel/packages-bundle.js')
+    .source('src/bundles/babel/packages-bundle.js')
     .ncc({
       externals: externals,
     })
@@ -1117,7 +1117,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
     JSON.stringify({ name: 'babel-packages', main: './packages-bundle.js' })
   )
 
-  await task.source('bundles/babel/packages/*').target('src/compiled/babel')
+  await task.source('src/bundles/babel/packages/*').target('src/compiled/babel')
 }
 
 // eslint-disable-next-line camelcase
@@ -1919,7 +1919,7 @@ export async function ncc_webpack_bundle5(task, opts) {
     delete bundleExternals[pkg]
   }
   await task
-    .source('bundles/webpack/bundle5.js')
+    .source('src/bundles/webpack/bundle5.js')
     .ncc({
       packageName: 'webpack',
       bundleName: 'webpack',
@@ -1943,7 +1943,7 @@ Object.assign(externals, webpackBundlePackages)
 
 export async function ncc_webpack_bundle_packages(task, opts) {
   await task
-    .source('bundles/webpack/packages/*')
+    .source('src/bundles/webpack/packages/*')
     .target('src/compiled/webpack/')
 }
 
