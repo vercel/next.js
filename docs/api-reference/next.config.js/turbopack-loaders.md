@@ -2,7 +2,7 @@
 description: Configure Next.js with Turbopack to load webpack loaders
 ---
 
-# Turbopack Loaders (`next --turbo` only)
+# Turbopack Loaders
 
 Currently, Turbopack supports a subset of webpack's loader API, allowing you to use some webpack loaders to transform code in Turbopack.
 

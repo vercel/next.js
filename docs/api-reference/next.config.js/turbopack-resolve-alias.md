@@ -2,7 +2,7 @@
 description: Configure Next.js with Turbopack to alias module resolution
 ---
 
-# Resolve Alias (`next --turbo` only)
+# Turbopack Resolve Alias
 
 Through `next.config.js`, Turbopack can be configured to modify module resolution through aliases, similar to webpack's [`resolve.alias`](https://webpack.js.org/configuration/resolve/#resolvealias) configuration.
 
