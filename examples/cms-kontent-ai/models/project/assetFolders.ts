@@ -25,4 +25,4 @@ export const assetFolders = {
     externalId: '499af581-d817-49cc-a548-5b34ba7b2fc6',
     folders: {},
   },
-} as const;
+} as const

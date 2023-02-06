@@ -18,8 +18,8 @@ import { CMS_NAME } from '../../lib/constants'
 import { Post as PostModel } from '@/viewmodels/post'
 
 type PostProps = {
-  post: PostModel,
-  morePosts: Array<PostModel>,
+  post: PostModel
+  morePosts: Array<PostModel>
   preview: boolean
 }
 
@@ -63,7 +63,7 @@ export default function Post({ post, morePosts = [], preview }: PostProps) {
 type StaticProps = {
   params: {
     slug: string
-  },
+  }
   preview: boolean | null
 }
 

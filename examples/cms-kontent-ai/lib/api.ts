@@ -7,7 +7,7 @@ import pkg from '../package.json'
 const sourceTrackingHeaderName = 'X-KC-SOURCE'
 
 const client = new DeliveryClient({
-  projectId: process.env.KONTENT_PROJECT_ID ?? "",
+  projectId: process.env.KONTENT_PROJECT_ID ?? '',
   previewApiKey: process.env.KONTENT_PREVIEW_API_KEY,
   globalHeaders: (_queryConfig) => [
     {
@@ -17,7 +17,7 @@ const client = new DeliveryClient({
   ],
 })
 
-function parseAuthor(author:Author): ViewModelAuthor {
+function parseAuthor(author: Author): ViewModelAuthor {
   return {
     name: author.elements.name.value,
     picture: author.elements.picture.value[0].url,

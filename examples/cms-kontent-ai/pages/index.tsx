@@ -9,7 +9,7 @@ import { CMS_NAME } from '../lib/constants'
 import { Post } from '@/viewmodels/post'
 
 type IndexProps = {
-  allPosts: Array<Post>,
+  allPosts: Array<Post>
   preview: boolean
 }
 
@@ -34,9 +34,7 @@ export default function Index({ allPosts, preview }: IndexProps) {
               excerpt={heroPost.excerpt}
             />
           )}
-          <>
-          {morePosts.length > 0 && <MoreStories posts={morePosts} />}
-          </>
+          <>{morePosts.length > 0 && <MoreStories posts={morePosts} />}</>
         </Container>
       </Layout>
     </>

@@ -144,4 +144,4 @@ export const contentTypes = {
       },
     },
   },
-} as const;
+} as const

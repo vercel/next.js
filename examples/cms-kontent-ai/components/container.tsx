@@ -1,5 +1,3 @@
-import { ReactElement } from 'react'
-
 type ContainerProps = {
   children: JSX.Element[] | JSX.Element
 }

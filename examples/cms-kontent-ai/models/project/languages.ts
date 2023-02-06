@@ -18,4 +18,4 @@ export const languages = {
     externalId: undefined,
     name: 'Default project language',
   },
-} as const;
+} as const

@@ -10,7 +10,11 @@ const srcIsKontentAsset = (src: string) => {
   }
 }
 
-const kontentImageLoader = ({ src, width, quality = 75 }: ImageLoaderProps): string => {
+const kontentImageLoader = ({
+  src,
+  width,
+  quality = 75,
+}: ImageLoaderProps): string => {
   return transformImageUrl(src)
     .withWidth(width)
     .withQuality(quality)
@@ -24,16 +28,16 @@ const getLoader = (src: string) => {
 }
 
 type ImageType = {
-  width?: number,
-  height?: number,
-  src: string,
-  layout?: string,
-  className: string,
+  width?: number
+  height?: number
+  src: string
+  layout?: string
+  className: string
   alt: string
 }
 
 export default function Image(props: ImageType) {
-  const loader = getLoader(props.src) 
-  
+  const loader = getLoader(props.src)
+
   return <NextImage {...props} loader={loader} />
 }
