@@ -25,30 +25,34 @@ import {
   ReducerState,
 } from '../router-reducer-types'
 
-function handleMutable(
+export function handleMutable(
   state: ReadonlyReducerState,
   mutable: Mutable
 ): ReducerState {
   return {
     // Set href.
     canonicalUrl:
-      typeof mutable.canonicalUrl !== 'undefined' ? mutable.canonicalUrl : '',
+      typeof mutable.canonicalUrl !== 'undefined'
+        ? mutable.canonicalUrl === state.canonicalUrl
+          ? state.canonicalUrl
+          : mutable.canonicalUrl
+        : state.canonicalUrl,
     pushRef: {
       pendingPush:
         typeof mutable.pendingPush !== 'undefined'
           ? mutable.pendingPush
-          : false,
+          : state.pushRef.pendingPush,
       mpaNavigation:
         typeof mutable.mpaNavigation !== 'undefined'
           ? mutable.mpaNavigation
-          : false,
+          : state.pushRef.mpaNavigation,
     },
     // All navigation requires scroll and focus management to trigger.
     focusAndScrollRef: {
       apply:
         typeof mutable.applyFocusAndScroll !== 'undefined'
           ? mutable.applyFocusAndScroll
-          : true,
+          : state.focusAndScrollRef.apply,
     },
     // Apply cache.
     cache: mutable.cache ? mutable.cache : state.cache,
@@ -61,11 +65,11 @@ function handleMutable(
   }
 }
 
-function applyFlightData(
+export function applyFlightData(
   state: ReadonlyReducerState,
   cache: CacheNode,
   flightDataPath: FlightDataPath
-) {
+): boolean {
   // The one before last item is the router state tree patch
   const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
@@ -89,7 +93,7 @@ function applyFlightData(
   return true
 }
 
-function handleExternalUrl(
+export function handleExternalUrl(
   state: ReadonlyReducerState,
   mutable: Mutable,
   url: string,
@@ -125,10 +129,7 @@ export function navigateReducer(
     JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
 
   if (isForCurrentTree) {
-    const result = handleMutable(state, mutable)
-    if (result) {
-      return result
-    }
+    return handleMutable(state, mutable)
   }
 
   if (isExternalUrl) {
@@ -146,6 +147,10 @@ export function navigateReducer(
     }
 
     if (newTree !== null) {
+      if (isNavigatingToNewRootLayout(state.tree, newTree)) {
+        return handleExternalUrl(state, mutable, href, pendingPush)
+      }
+
       // TODO-APP: Currently the Flight data can only have one item but in the future it can have multiple paths.
       const flightDataPath = flightData[0]
       const flightSegmentPath = flightDataPath.slice(
@@ -183,7 +188,6 @@ export function navigateReducer(
       mutable.previousTree = state.tree
       mutable.patchedTree = newTree
       mutable.applyFocusAndScroll = true
-      mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
       mutable.canonicalUrl = canonicalUrlOverride
         ? createHrefFromUrl(canonicalUrlOverride)
         : href
@@ -273,6 +277,10 @@ export function navigateReducer(
     throw new Error('SEGMENT MISMATCH')
   }
 
+  if (isNavigatingToNewRootLayout(state.tree, newTree)) {
+    return handleExternalUrl(state, mutable, href, pendingPush)
+  }
+
   mutable.canonicalUrl = canonicalUrlOverride
     ? createHrefFromUrl(canonicalUrlOverride)
     : href
@@ -280,7 +288,6 @@ export function navigateReducer(
   mutable.previousTree = state.tree
   mutable.patchedTree = newTree
   mutable.applyFocusAndScroll = true
-  mutable.mpaNavigation = isNavigatingToNewRootLayout(state.tree, newTree)
   mutable.pendingPush = pendingPush
 
   const applied = applyFlightData(state, cache, flightDataPath)

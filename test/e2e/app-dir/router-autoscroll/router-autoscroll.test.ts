@@ -120,8 +120,7 @@ createNextDescribe(
         await waitForScrollToComplete(browser, { x: 0, y: 12000 })
       })
 
-      // TODO fix next js to pass this
-      it.skip('should not stop router.push() from scrolling', async () => {
+      it('should not stop router.push() from scrolling', async () => {
         const browser = await webdriver(next.url, '/10/10000/100/1000/page1')
 
         await scrollTo(browser, { x: 0, y: 12000 })
