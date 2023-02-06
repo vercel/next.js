@@ -8,6 +8,9 @@ MDX is a superset of markdown that lets you write JSX directly in your markdown 
 
 Next.js supports MDX through a number of different means, this page will outline some of the ways you can begin integrating MDX into your Next.js project.
 
+> **Note**:  This feature uses extension of Webpack 5. If you use Webpack 4, you can not use @next/mdx.
+>
+
 ## Why use MDX?
 
 Authoring in markdown is an intuitive way to write content, its terse syntax, once adopted, can enable you to write content that is both readable and maintainable. Because you can use `HTML` elements in your markdown, you can also get creative when styling your markdown pages.
