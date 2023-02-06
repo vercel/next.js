@@ -391,9 +391,9 @@ pub async fn well_known_object_member(
         WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => {
             path_module_member(kind, prop)
         }
-        WellKnownObjectKind::FsModule | WellKnownObjectKind::FsModuleDefault => {
-            fs_module_member(kind, prop)
-        }
+        WellKnownObjectKind::FsModule
+        | WellKnownObjectKind::FsModuleDefault
+        | WellKnownObjectKind::FsModulePromises => fs_module_member(kind, prop),
         WellKnownObjectKind::UrlModule | WellKnownObjectKind::UrlModuleDefault => {
             url_module_member(kind, prop)
         }
