@@ -5,9 +5,39 @@ import { createNext, FileRef } from 'e2e-utils'
 import { renderViaHTTP, check, hasRedbox } from 'next-test-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 
-describe.each([[''], ['/docs']])(
-  'basic next/dynamic usage, basePath: %p',
-  (basePath: string) => {
+const customDocumentGipFiles = {
+  'pages/_document.js': `
+  import { Html, Main, NextScript, Head } from 'next/document'
+
+  export default function Document() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+
+  Document.getInitialProps = (ctx) => {
+    return ctx.defaultGetInitialProps(ctx)
+  }
+  `,
+}
+
+describe.each([
+  ['', 'swc'],
+  ['/docs', 'swc'],
+  ['', 'document.getInitialProps'],
+  ['', 'babel'],
+])(
+  'basic next/dynamic usage, basePath: %p with %p compiler',
+  (
+    basePath: string,
+    testCase: 'swc' | 'babel' | 'document.getInitialProps'
+  ) => {
     let next: NextInstance
 
     beforeAll(async () => {
@@ -15,6 +45,11 @@ describe.each([[''], ['/docs']])(
         files: {
           components: new FileRef(join(__dirname, 'next-dynamic/components')),
           pages: new FileRef(join(__dirname, 'next-dynamic/pages')),
+          ...(testCase === 'document.getInitialProps' &&
+            customDocumentGipFiles),
+          ...(testCase === 'babel' && {
+            '.babelrc': `{ "presets": ["next/babel"] }`,
+          }),
         },
         nextConfig: {
           basePath,
@@ -65,6 +100,14 @@ describe.each([[''], ['/docs']])(
               await browser.close()
             }
           }
+        })
+
+        it('should SSR nested dynamic components and skip nonSSR ones', async () => {
+          const $ = await get$(basePath + '/dynamic/nested')
+          const text = $('#__next').text()
+          expect(text).toContain('Nested 1')
+          expect(text).toContain('Nested 2')
+          expect(text).not.toContain('Browser hydrated')
         })
 
         it('should hydrate nested chunks', async () => {
@@ -125,10 +168,7 @@ describe.each([[''], ['/docs']])(
           let browser
           try {
             browser = await webdriver(next.url, basePath + '/dynamic/no-ssr')
-            await check(
-              () => browser.elementByCss('body').text(),
-              /Hello World 1/
-            )
+            await check(() => browser.elementByCss('body').text(), /navigator/)
             expect(await hasRedbox(browser, false)).toBe(false)
           } finally {
             if (browser) {
@@ -167,7 +207,7 @@ describe.each([[''], ['/docs']])(
                 '.next/server/pages/dynamic/no-ssr.js.nft.json'
               )
             ) as { files: string[] }
-            expect(trace).not.toContain('hello1')
+            expect(trace).not.toContain('navigator')
           })
         }
       })

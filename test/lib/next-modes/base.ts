@@ -65,6 +65,19 @@ export class NextInstance {
 
   constructor(opts: NextInstanceOpts) {
     Object.assign(this, opts)
+
+    if (!(global as any).isNextDeploy) {
+      this.env = {
+        ...this.env,
+        // remove node_modules/.bin repo path from env
+        // to match CI $PATH value and isolate further
+        PATH: process.env.PATH.split(path.delimiter)
+          .filter((part) => {
+            return !part.includes(path.join('node_modules', '.bin'))
+          })
+          .join(path.delimiter),
+      }
+    }
   }
 
   protected async writeInitialFiles() {
@@ -280,8 +293,13 @@ export class NextInstance {
     await this.writeInitialFiles()
   }
 
-  public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
-    return {}
+  public async build(): Promise<{ exitCode?: number; cliOutput?: string }> {
+    throw new Error('Not implemented')
+  }
+  public async export(args?: {
+    outdir?: string
+  }): Promise<{ exitCode?: number; cliOutput?: string }> {
+    throw new Error('Not implemented')
   }
   public async setup(parentSpan: Span): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}

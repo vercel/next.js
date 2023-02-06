@@ -1,17 +1,20 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
+
 import type Router from '../shared/lib/router/router'
+import type {
+  AppComponent,
+  AppProps,
+  PrivateRouteInfo,
+} from '../shared/lib/router/router'
+
 import React from 'react'
 // @ts-expect-error upgrade react types to react 18
 import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import mitt, { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context'
-import {
-  AppComponent,
-  AppProps,
-  PrivateRouteInfo,
-} from '../shared/lib/router/router'
+import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
@@ -691,15 +694,10 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     }
 
     if (input.scroll) {
-      const htmlElement = document.documentElement
-      const existing = htmlElement.style.scrollBehavior
-      htmlElement.style.scrollBehavior = 'auto'
-      // In Chrome-based browsers we need to force reflow before calling `scrollTo`.
-      // Otherwise it will not pickup the change in scrollBehavior
-      // More info here: https://github.com/vercel/next.js/issues/40719#issuecomment-1336248042
-      htmlElement.getClientRects()
-      window.scrollTo(input.scroll.x, input.scroll.y)
-      htmlElement.style.scrollBehavior = existing
+      const { x, y } = input.scroll
+      handleSmoothScroll(() => {
+        window.scrollTo(x, y)
+      })
     }
   }
 

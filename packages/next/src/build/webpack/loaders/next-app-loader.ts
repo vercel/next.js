@@ -3,7 +3,7 @@ import chalk from 'next/dist/compiled/chalk'
 import type { ValueOf } from '../../../shared/lib/constants'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { sep } from 'path'
+import { relative, sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
@@ -36,7 +36,10 @@ async function createTreeCodeFromPath({
   resolveParallelSegments,
 }: {
   pagePath: string
-  resolve: (pathname: string) => Promise<string | undefined>
+  resolve: (
+    pathname: string,
+    resolveDir?: boolean
+  ) => Promise<string | undefined>
   resolveParallelSegments: (
     pathname: string
   ) => [key: string, segment: string][]
@@ -44,6 +47,7 @@ async function createTreeCodeFromPath({
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
+
   let rootLayout: string | undefined
   let globalError: string | undefined
 
@@ -101,6 +105,10 @@ async function createTreeCodeFromPath({
         rootLayout = layoutPath
       }
 
+      if (!rootLayout) {
+        rootLayout = layoutPath
+      }
+
       if (!globalError) {
         globalError = await resolve(
           `${appDirPrefix}${parallelSegmentPath}/${GLOBAL_ERROR_FILE_TYPE}`
@@ -137,9 +145,10 @@ async function createTreeCodeFromPath({
   }
 
   const { treeCode } = await createSubtreePropsFromSegmentPath([])
+
   return {
     treeCode: `const tree = ${treeCode}.children;`,
-    pages,
+    pages: `const pages = ${JSON.stringify(pages)};`,
     rootLayout,
     globalError,
   }
@@ -197,7 +206,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         const rest = path.slice(pathname.length + 1).split('/')
 
         let matchedSegment = rest[0]
-        // It is the actual page, mark it sepcially.
+        // It is the actual page, mark it specially.
         if (rest.length === 1 && matchedSegment === 'page') {
           matchedSegment = PAGE_SEGMENT
         }
@@ -212,7 +221,11 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     return Object.entries(matched)
   }
 
-  const resolver = async (pathname: string) => {
+  const resolver = async (pathname: string, resolveDir?: boolean) => {
+    if (resolveDir) {
+      return createAbsolutePath(appDir, pathname)
+    }
+
     try {
       const resolved = await resolve(this.rootContext, pathname)
       this.addDependency(resolved)
@@ -230,25 +243,29 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     }
   }
 
-  const { treeCode, pages, rootLayout, globalError } =
-    await createTreeCodeFromPath({
-      pagePath,
-      resolve: resolver,
-      resolveParallelSegments,
-    })
+  const {
+    treeCode,
+    pages: pageListCode,
+    rootLayout,
+    globalError,
+  } = await createTreeCodeFromPath({
+    pagePath,
+    resolve: resolver,
+    resolveParallelSegments,
+  })
 
   if (!rootLayout) {
-    const errorMessage = `${chalk.bold(
-      pagePath.replace(`${APP_DIR_ALIAS}/`, '')
-    )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
-
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
-      Log.error(errorMessage)
+      Log.error(
+        `${chalk.bold(
+          pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+        )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
+      )
       process.exit(1)
     } else {
       // In dev we'll try to create a root layout
-      const createdRootLayout = await verifyRootLayout({
+      const [createdRootLayout, rootLayoutPath] = await verifyRootLayout({
         appDir: appDir,
         dir: rootDir!,
         tsconfigPath: tsconfigPath!,
@@ -256,14 +273,27 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         pageExtensions,
       })
       if (!createdRootLayout) {
-        throw new Error(errorMessage)
+        let message = `${chalk.bold(
+          pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+        )} doesn't have a root layout. `
+
+        if (rootLayoutPath) {
+          message += `We tried to create ${chalk.bold(
+            relative(this._compiler?.context ?? '', rootLayoutPath)
+          )} for you but something went wrong.`
+        } else {
+          message +=
+            'To fix this error, make sure every page has a root layout.'
+        }
+
+        throw new Error(message)
       }
     }
   }
 
   const result = `
     export ${treeCode}
-    export const pages = ${JSON.stringify(pages)}
+    export ${pageListCode}
 
     export { default as AppRouter } from 'next/dist/client/components/app-router'
     export { default as LayoutRouter } from 'next/dist/client/components/layout-router'

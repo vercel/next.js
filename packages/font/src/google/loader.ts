@@ -155,7 +155,8 @@ const downloadGoogleFonts: FontLoader = async ({
         const selfHostedFileUrl = emitFontFile(
           fontFileBuffer,
           ext,
-          preloadFontFile
+          preloadFontFile,
+          !!adjustFontFallbackMetrics
         )
 
         return {

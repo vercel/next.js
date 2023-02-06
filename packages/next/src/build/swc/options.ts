@@ -127,6 +127,9 @@ function getBaseSWCOptions({
       styledComponents: getStyledComponentsOptions(nextConfig, development),
     }),
     serverComponents: hasServerComponents
+      ? { isServer: !!isServerLayer }
+      : undefined,
+    serverActions: hasServerComponents
       ? {
           isServer: !!isServerLayer,
         }
@@ -220,8 +223,8 @@ export function getLoaderSWCOptions({
   filename,
   development,
   isServer,
-  isServerLayer,
   pagesDir,
+  appDir,
   isPageFile,
   hasReactRefresh,
   nextConfig,
@@ -230,6 +233,7 @@ export function getLoaderSWCOptions({
   swcCacheDir,
   relativeFilePathFromRoot,
   hasServerComponents,
+  isServerLayer,
 }: // This is not passed yet as "paths" resolving is handled by webpack currently.
 // resolvedBaseUrl,
 any) {
@@ -242,9 +246,9 @@ any) {
     jsConfig,
     // resolvedBaseUrl,
     swcCacheDir,
-    isServerLayer,
     relativeFilePathFromRoot,
     hasServerComponents,
+    isServerLayer,
   })
 
   if (nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot) {
@@ -267,6 +271,7 @@ any) {
       isDevelopment: development,
       isServer,
       pagesDir,
+      appDir,
       isPageFile,
       env: {
         targets: {
@@ -292,6 +297,7 @@ any) {
       isDevelopment: development,
       isServer,
       pagesDir,
+      appDir,
       isPageFile,
       ...(supportedBrowsers && supportedBrowsers.length > 0
         ? {

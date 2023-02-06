@@ -1,7 +1,6 @@
 import path from 'path'
 import { promises as fs } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
-import * as Log from '../build/output/log'
 import { APP_DIR_ALIAS } from './constants'
 
 const globOrig =
@@ -70,7 +69,8 @@ export async function verifyRootLayout({
   tsconfigPath: string
   pagePath: string
   pageExtensions: string[]
-}) {
+}): Promise<[boolean, string | undefined]> {
+  let rootLayoutPath: string | undefined
   try {
     const layoutFiles = await glob(
       appDir,
@@ -114,7 +114,7 @@ export async function verifyRootLayout({
         () => false
       )
 
-      const rootLayoutPath = path.join(
+      rootLayoutPath = path.join(
         appDir,
         availableDir,
         `layout.${hasTsConfig ? 'tsx' : 'js'}`
@@ -149,12 +149,12 @@ export async function verifyRootLayout({
       )
 
       // Created root layout
-      return true
+      return [true, rootLayoutPath]
     }
-  } catch (error) {
-    Log.error('Failed to create root layout', error)
+  } catch (e) {
+    console.error(e)
   }
 
   // Didn't create root layout
-  return false
+  return [false, rootLayoutPath]
 }

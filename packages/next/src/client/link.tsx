@@ -1,13 +1,14 @@
 'use client'
 
-import React from 'react'
-import { UrlObject } from 'url'
-import {
-  isLocalURL,
+import type {
   NextRouter,
   PrefetchOptions as RouterPrefetchOptions,
-  resolveHref,
 } from '../shared/lib/router/router'
+
+import React from 'react'
+import { UrlObject } from 'url'
+import { resolveHref } from '../shared/lib/router/utils/resolve-href'
+import { isLocalURL } from '../shared/lib/router/utils/is-local-url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import { addLocale } from './add-locale'
 import { RouterContext } from '../shared/lib/router-context'
@@ -117,13 +118,15 @@ function prefetch(
   router: NextRouter | AppRouterInstance,
   href: string,
   as: string,
-  options: PrefetchOptions
+  options: PrefetchOptions,
+  isAppRouter: boolean
 ): void {
   if (typeof window === 'undefined') {
     return
   }
 
-  if (!isLocalURL(href)) {
+  // app-router supports external urls out of the box so it shouldn't short-circuit here as support for e.g. `replace` is added in the app-router.
+  if (!isAppRouter && !isLocalURL(href)) {
     return
   }
 
@@ -191,7 +194,12 @@ function linkClicked(
   // anchors inside an svg have a lowercase nodeName
   const isAnchorNodeName = nodeName.toUpperCase() === 'A'
 
-  if (isAnchorNodeName && (isModifiedEvent(e) || !isLocalURL(href))) {
+  if (
+    isAnchorNodeName &&
+    (isModifiedEvent(e) ||
+      // app-router supports external urls out of the box so it shouldn't short-circuit here as support for e.g. `replace` is added in the app-router.
+      (!isAppRouter && !isLocalURL(href)))
+  ) {
     // ignore click for browser’s default behavior
     return
   }
@@ -537,7 +545,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
 
       // Prefetch the URL.
-      prefetch(router, href, as, { locale })
+      prefetch(router, href, as, { locale }, isAppRouter)
     }, [
       as,
       href,
@@ -546,6 +554,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       prefetchEnabled,
       pagesRouter?.locale,
       router,
+      isAppRouter,
     ])
 
     const childProps: {
@@ -619,12 +628,18 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        prefetch(router, href, as, {
-          locale,
-          priority: true,
-          // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
-          bypassPrefetchedCheck: true,
-        })
+        prefetch(
+          router,
+          href,
+          as,
+          {
+            locale,
+            priority: true,
+            // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
+            bypassPrefetchedCheck: true,
+          },
+          isAppRouter
+        )
       },
       onTouchStart(e) {
         if (!legacyBehavior && typeof onTouchStartProp === 'function') {
@@ -647,12 +662,18 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        prefetch(router, href, as, {
-          locale,
-          priority: true,
-          // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
-          bypassPrefetchedCheck: true,
-        })
+        prefetch(
+          router,
+          href,
+          as,
+          {
+            locale,
+            priority: true,
+            // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
+            bypassPrefetchedCheck: true,
+          },
+          isAppRouter
+        )
       },
     }
 

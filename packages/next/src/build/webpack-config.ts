@@ -713,6 +713,7 @@ export default async function getBaseWebpackConfig(
         isServer: isNodeServer || isEdgeServer,
         rootDir: dir,
         pagesDir,
+        appDir,
         hasServerComponents,
         hasReactRefresh: dev && isClient,
         fileReading: config.experimental.swcFileReading,
@@ -881,6 +882,7 @@ export default async function getBaseWebpackConfig(
     extensions: isNodeServer
       ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
       : ['.mjs', '.js', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
+    extensionAlias: config.experimental.extensionAlias,
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
@@ -1164,7 +1166,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) return
 
       const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|head[^-]))/.test(
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|head[^-]))/.test(
           localRes
         )
 
@@ -1349,6 +1351,7 @@ export default async function getBaseWebpackConfig(
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
       isClient || isEdgeServer
@@ -1616,6 +1619,7 @@ export default async function getBaseWebpackConfig(
         'next-style-loader',
         'next-flight-loader',
         'next-flight-client-entry-loader',
+        'next-flight-action-entry-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1715,15 +1719,18 @@ export default async function getBaseWebpackConfig(
           : []),
         ...(hasServerComponents
           ? [
-              // Alias next/head component to noop for RSC
               {
                 test: codeCondition.test,
                 issuerLayer: appDirIssuerLayer,
                 resolve: {
                   alias: {
-                    // Alias `next/dynamic` to React.lazy implementation for RSC
+                    // Alias next/head component to noop for RSC
                     [require.resolve('next/head')]: require.resolve(
                       'next/dist/client/components/noop-head'
+                    ),
+                    // Alias next/dynamic
+                    [require.resolve('next/dynamic')]: require.resolve(
+                      'next/dist/shared/lib/app-dynamic'
                     ),
                   },
                 },

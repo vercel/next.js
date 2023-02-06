@@ -19,6 +19,11 @@ async function createNextInstall({
     .traceAsyncFn(async (rootSpan) => {
       const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
       const origRepoDir = path.join(__dirname, '../../')
+      const tmpRepoDir = path.join(
+        tmpDir,
+        `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
+      )
+
       const installDir = path.join(
         tmpDir,
         `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
@@ -27,7 +32,7 @@ async function createNextInstall({
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
-      await rootSpan.traceChild(' enruse swc binary').traceAsyncFn(async () => {
+      await rootSpan.traceChild('ensure swc binary').traceAsyncFn(async () => {
         // ensure swc binary is present in the native folder if
         // not already built
         for (const folder of await fs.readdir(
@@ -58,6 +63,28 @@ async function createNextInstall({
         }
       })
 
+      for (const item of ['package.json', 'packages']) {
+        await rootSpan
+          .traceChild(`copy ${item} to temp dir`)
+          .traceAsyncFn(async () => {
+            await fs.copy(
+              path.join(origRepoDir, item),
+              path.join(tmpRepoDir, item),
+              {
+                filter: (item) => {
+                  return (
+                    !item.includes('node_modules') &&
+                    !item.includes('.DS_Store') &&
+                    // Exclude Rust compilation files
+                    !/next[\\/]build[\\/]swc[\\/]target/.test(item) &&
+                    !/next-swc[\\/]target/.test(item)
+                  )
+                },
+              }
+            )
+          })
+      }
+
       let combinedDependencies = dependencies
 
       if (!(packageJson && packageJson.nextPrivateSkipLocalDeps)) {
@@ -65,7 +92,7 @@ async function createNextInstall({
           .traceChild('linkPackages')
           .traceAsyncFn(() =>
             linkPackages({
-              repoDir: origRepoDir,
+              repoDir: tmpRepoDir,
             })
           )
         combinedDependencies = {
@@ -109,7 +136,11 @@ async function createNextInstall({
         await rootSpan
           .traceChild('run generic install command')
           .traceAsyncFn(async () => {
-            const args = ['install', '--strict-peer-dependencies=false']
+            const args = [
+              'install',
+              '--strict-peer-dependencies=false',
+              '--no-frozen-lockfile',
+            ]
 
             if (process.env.NEXT_TEST_PREFER_OFFLINE === '1') {
               args.push('--prefer-offline')
@@ -123,10 +154,12 @@ async function createNextInstall({
           })
       }
 
+      await fs.remove(tmpRepoDir)
       return installDir
     })
 }
 
 module.exports = {
   createNextInstall,
+  getPkgPaths: linkPackages,
 }

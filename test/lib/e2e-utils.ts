@@ -8,6 +8,8 @@ import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
 import { shouldRunTurboDevTest } from './next-test-utils'
 
+export type { NextInstance }
+
 // increase timeout to account for yarn install time
 jest.setTimeout(240 * 1000)
 

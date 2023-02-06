@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react'
 import React, { useEffect, useMemo, useCallback } from 'react'
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -15,15 +14,15 @@ import type {
 } from '../../shared/lib/app-router-context'
 import type { FlightRouterState, FlightData } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
+import { reducer } from './router-reducer/router-reducer'
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   ACTION_REFRESH,
   ACTION_RESTORE,
   ACTION_SERVER_PATCH,
-  createHrefFromUrl,
-  reducer,
-} from './reducer'
+} from './router-reducer/router-reducer-types'
+import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
   // ParamsContext,
@@ -33,12 +32,16 @@ import {
 import { useReducerWithReduxDevtools } from './use-reducer-with-devtools'
 import { ErrorBoundary } from './error-boundary'
 import {
-  NEXT_ROUTER_PREFETCH,
-  NEXT_ROUTER_STATE_TREE,
-  RSC,
-} from './app-router-headers'
+  createInitialRouterState,
+  InitialRouterStateParameters,
+} from './router-reducer/create-initial-router-state'
+import { fetchServerResponse } from './router-reducer/fetch-server-response'
 
-function urlToUrlWithoutFlightMarker(url: string): URL {
+// Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
+let initialParallelRoutes: CacheNode['parallelRoutes'] =
+  typeof window === 'undefined' ? null! : new Map()
+
+export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
   // TODO-APP: handle .rsc for static export case
   return urlWithoutFlightParameters
@@ -52,60 +55,13 @@ const HotReloader:
     : (require('./react-dev-overlay/hot-reloader-client')
         .default as typeof import('./react-dev-overlay/hot-reloader-client').default)
 
-/**
- * Fetch the flight data for the provided url. Takes in the current router state to decide what to render server-side.
- */
-export async function fetchServerResponse(
-  url: URL,
-  flightRouterState: FlightRouterState,
-  prefetch?: true
-): Promise<[FlightData: FlightData, canonicalUrlOverride: URL | undefined]> {
-  const headers: {
-    [RSC]: '1'
-    [NEXT_ROUTER_STATE_TREE]: string
-    [NEXT_ROUTER_PREFETCH]?: '1'
-  } = {
-    // Enable flight response
-    [RSC]: '1',
-    // Provide the current router state
-    [NEXT_ROUTER_STATE_TREE]: JSON.stringify(flightRouterState),
-  }
-  if (prefetch) {
-    // Enable prefetch response
-    headers[NEXT_ROUTER_PREFETCH] = '1'
-  }
-
-  const res = await fetch(url.toString(), {
-    headers,
-  })
-  const canonicalUrl = res.redirected
-    ? urlToUrlWithoutFlightMarker(res.url)
-    : undefined
-
-  const isFlightResponse =
-    res.headers.get('content-type') === 'application/octet-stream'
-
-  // If fetch returns something different than flight response handle it like a mpa navigation
-  if (!isFlightResponse) {
-    return [res.url, undefined]
-  }
-
-  // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-  const flightData: FlightData = await createFromFetch(Promise.resolve(res))
-  return [flightData, canonicalUrl]
-}
-
-// Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
-let initialParallelRoutes: CacheNode['parallelRoutes'] =
-  typeof window === 'undefined' ? null! : new Map()
-
 const prefetched = new Set<string>()
 
-type AppRouterProps = {
+type AppRouterProps = Omit<
+  Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
+  'initialParallelRoutes'
+> & {
   initialHead: ReactNode
-  initialTree: FlightRouterState
-  initialCanonicalUrl: string
-  children: ReactNode
   assetPrefix: string
 }
 
@@ -140,6 +96,12 @@ function findHeadInCache(
   return undefined
 }
 
+function isExternalURL(url: URL) {
+  return url.origin !== window.location.origin
+}
+
+const isServer = typeof window === 'undefined'
+
 /**
  * The global router that wraps the application components.
  */
@@ -150,28 +112,18 @@ function Router({
   children,
   assetPrefix,
 }: AppRouterProps) {
-  const initialState = useMemo(() => {
-    return {
-      tree: initialTree,
-      cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: children,
-        parallelRoutes:
-          typeof window === 'undefined' ? new Map() : initialParallelRoutes,
-      } as CacheNode,
-      prefetchCache: new Map(),
-      pushRef: { pendingPush: false, mpaNavigation: false },
-      focusAndScrollRef: { apply: false },
-      canonicalUrl:
-        // location.href is read as the initial value for canonicalUrl in the browser
-        // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
-        typeof window !== 'undefined'
-          ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
-            createHrefFromUrl(window.location)
-          : initialCanonicalUrl,
-    }
-  }, [children, initialCanonicalUrl, initialTree])
+  const initialState = useMemo(
+    () =>
+      createInitialRouterState({
+        children,
+        initialCanonicalUrl,
+        initialTree,
+        initialParallelRoutes,
+        isServer,
+        location: !isServer ? window.location : null,
+      }),
+    [children, initialCanonicalUrl, initialTree]
+  )
   const [
     { tree, cache, prefetchCache, pushRef, focusAndScrollRef, canonicalUrl },
     dispatch,
@@ -236,9 +188,13 @@ function Router({
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
+      const url = new URL(href, location.origin)
+
       return dispatch({
         type: ACTION_NAVIGATE,
-        url: new URL(href, location.origin),
+        url,
+        isExternalUrl: isExternalURL(url),
+        locationSearch: location.search,
         forceOptimisticNavigation,
         navigateType,
         cache: {
@@ -261,6 +217,10 @@ function Router({
         }
         prefetched.add(href)
         const url = new URL(href, location.origin)
+        // External urls can't be prefetched in the same way.
+        if (isExternalURL(url)) {
+          return
+        }
         try {
           const routerTree = window.history.state?.tree || initialTree
           const serverResponse = await fetchServerResponse(
@@ -306,6 +266,7 @@ function Router({
               parallelRoutes: new Map(),
             },
             mutable: {},
+            origin: window.location.origin,
           })
         })
       },
@@ -317,7 +278,12 @@ function Router({
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
     if (pushRef.mpaNavigation) {
-      window.location.href = canonicalUrl
+      const location = window.location
+      if (pushRef.pendingPush) {
+        location.assign(canonicalUrl)
+      } else {
+        location.replace(canonicalUrl)
+      }
       return
     }
 

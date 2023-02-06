@@ -1,4 +1,4 @@
-import type { reducer } from './reducer'
+import type { reducer } from './router-reducer/router-reducer'
 import type {
   ReducerState,
   ReducerAction,

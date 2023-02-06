@@ -1,4 +1,8 @@
 import { useEffect } from 'react'
+import {
+  hydrationErrorWarning,
+  hydrationErrorComponentStack,
+} from './hydration-error-info'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -60,7 +64,15 @@ if (typeof window !== 'undefined') {
         'https://nextjs.org/docs/messages/react-hydration-error'
       )
     ) {
-      error.message += `\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
+      if (hydrationErrorWarning) {
+        error.message += '\n\n' + hydrationErrorWarning
+      }
+      if (hydrationErrorComponentStack) {
+        // Component stack added to the error, picked up by the hot-reloader-client
+        ;(error as any)._componentStack = hydrationErrorComponentStack
+      }
+      error.message +=
+        '\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
     }
 
     const e = error

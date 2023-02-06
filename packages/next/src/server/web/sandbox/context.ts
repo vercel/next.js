@@ -15,6 +15,7 @@ import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import { UnwrapPromise } from '../../../lib/coalesced-function'
+import { runInContext } from 'vm'
 
 const WEBPACK_HASH_REGEX =
   /__webpack_require__\.h = function\(\) \{ return "[0-9a-f]+"; \}/g
@@ -218,6 +219,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       const __fetch = context.fetch
       context.fetch = async (input, init = {}) => {
+        const callingError = new Error('[internal]')
         const assetResponse = await fetchInlineAsset({
           input,
           assets: options.edgeFunctionEntry.assets,
@@ -238,30 +240,35 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
           init.headers.set(`user-agent`, `Next.js Middleware`)
         }
 
-        if (typeof input === 'object' && 'url' in input) {
-          return __fetch(input.url, {
-            ...pick(input, [
-              'method',
-              'body',
-              'cache',
-              'credentials',
-              'integrity',
-              'keepalive',
-              'mode',
-              'redirect',
-              'referrer',
-              'referrerPolicy',
-              'signal',
-            ]),
-            ...init,
-            headers: {
-              ...Object.fromEntries(input.headers),
-              ...Object.fromEntries(init.headers),
-            },
-          })
-        }
+        const response =
+          typeof input === 'object' && 'url' in input
+            ? __fetch(input.url, {
+                ...pick(input, [
+                  'method',
+                  'body',
+                  'cache',
+                  'credentials',
+                  'integrity',
+                  'keepalive',
+                  'mode',
+                  'redirect',
+                  'referrer',
+                  'referrerPolicy',
+                  'signal',
+                ]),
+                ...init,
+                headers: {
+                  ...Object.fromEntries(input.headers),
+                  ...Object.fromEntries(init.headers),
+                },
+              })
+            : __fetch(String(input), init)
 
-        return __fetch(String(input), init)
+        return await response.catch((err) => {
+          callingError.message = err.message
+          err.stack = callingError.stack
+          throw err
+        })
       }
 
       const __Request = context.Request
@@ -343,27 +350,31 @@ export async function getModuleContext(options: ModuleContextOptions): Promise<{
   paths: Map<string, string>
   warnedEvals: Set<string>
 }> {
-  let moduleContext:
+  let lazyModuleContext:
     | UnwrapPromise<ReturnType<typeof getModuleContextShared>>
     | undefined
 
   if (options.useCache) {
-    moduleContext =
+    lazyModuleContext =
       moduleContexts.get(options.moduleName) ||
       (await getModuleContextShared(options))
   }
 
-  if (!moduleContext) {
-    moduleContext = await createModuleContext(options)
-    moduleContexts.set(options.moduleName, moduleContext)
+  if (!lazyModuleContext) {
+    lazyModuleContext = await createModuleContext(options)
+    moduleContexts.set(options.moduleName, lazyModuleContext)
   }
 
+  const moduleContext = lazyModuleContext
+
   const evaluateInContext = (filepath: string) => {
-    if (!moduleContext!.paths.has(filepath)) {
+    if (!moduleContext.paths.has(filepath)) {
       const content = readFileSync(filepath, 'utf-8')
       try {
-        moduleContext?.runtime.evaluate(content)
-        moduleContext!.paths.set(filepath, content)
+        runInContext(content, moduleContext.runtime.context, {
+          filename: filepath,
+        })
+        moduleContext.paths.set(filepath, content)
       } catch (error) {
         if (options.useCache) {
           moduleContext?.paths.delete(options.moduleName)

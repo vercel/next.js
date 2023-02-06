@@ -126,7 +126,9 @@ export default class DevServer extends Server {
       require.resolve('./static-paths-worker'),
       {
         maxRetries: 1,
-        numWorkers: this.nextConfig.experimental.cpus,
+        // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
+        // This helps reusing the memory a lot.
+        numWorkers: Math.min(this.nextConfig.experimental.cpus || 2, 2),
         enableWorkerThreads: this.nextConfig.experimental.workerThreads,
         forkOptions: {
           env: {
@@ -1443,7 +1445,12 @@ export default class DevServer extends Server {
       // patched global in memory, creating a memory leak.
       this.restorePatchedGlobals()
 
-      return super.findPageComponents({ pathname, query, params, isAppPath })
+      return await super.findPageComponents({
+        pathname,
+        query,
+        params,
+        isAppPath,
+      })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
         throw err
