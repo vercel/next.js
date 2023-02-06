@@ -183,6 +183,10 @@ export interface ExperimentalConfig {
    * This option is to enable running the Webpack build in a worker thread.
    */
   webpackBuildWorker?: boolean
+
+  trace?: {
+    serviceName: string
+  }
 }
 
 export type ExportPathMap = {

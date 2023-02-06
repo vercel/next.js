@@ -5,6 +5,8 @@ import next from '../next'
 import { isIPv6 } from 'net'
 import cluster from 'cluster'
 import v8 from 'v8'
+import { getTracer } from './trace/tracer'
+import { StartServerSpan } from './trace/constants'
 
 interface StartServerOptions extends NextServerOptions {
   allowRetry?: boolean
@@ -14,7 +16,7 @@ interface StartServerOptions extends NextServerOptions {
 const MAXIMUM_HEAP_SIZE_ALLOWED =
   (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
 
-export function startServer(opts: StartServerOptions) {
+function startServerImpl(opts: StartServerOptions) {
   let requestHandler: RequestHandler
 
   const server = http.createServer((req, res) => {
@@ -86,3 +88,8 @@ export function startServer(opts: StartServerOptions) {
     server.listen(port, opts.hostname)
   })
 }
+
+export const startServer = getTracer().wrap(
+  StartServerSpan.startServer,
+  startServerImpl
+)

@@ -97,6 +97,9 @@ import { checkIsManualRevalidate } from './api-utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { getTracer } from './lib/trace/tracer'
+import { NextNodeServerSpan } from './lib/trace/constants'
+import { initializeTraceOnce } from './lib/trace/initialize-trace-once'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
@@ -211,6 +214,14 @@ export default class NextNodeServer extends BaseServer {
     // Initialize super class
     super(options)
 
+    // Initialize trace with next.js configuration. Deployed codes does not uses `next.ts/NextServer`
+    // instead directly import this module to construct server, so this'll be the
+    // entrypoint to the trace collection, any attempt to write trace
+    // prior to this will be silently ignored.
+    // next/server still will try to init trace with same config. Any attempt to init trace
+    // arrives first, will activate traces.
+    initializeTraceOnce(options.conf?.experimental?.trace)
+
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting both serverless and SSR by calling
@@ -229,7 +240,10 @@ export default class NextNodeServer extends BaseServer {
     }
 
     if (this.nextConfig.compress) {
-      this.compression = require('next/dist/compiled/compression')()
+      this.compression = getTracer().wrap(
+        NextNodeServerSpan.compression,
+        require('next/dist/compiled/compression')()
+      ) as ExpressMiddleware
     }
 
     if (!this.minimalMode) {
@@ -342,18 +356,20 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getBuildId(): string {
-    const buildIdFile = join(this.distDir, BUILD_ID_FILE)
-    try {
-      return fs.readFileSync(buildIdFile, 'utf8').trim()
-    } catch (err) {
-      if (!fs.existsSync(buildIdFile)) {
-        throw new Error(
-          `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
-        )
-      }
+    return getTracer().trace(NextNodeServerSpan.getBuildId, () => {
+      const buildIdFile = join(this.distDir, BUILD_ID_FILE)
+      try {
+        return fs.readFileSync(buildIdFile, 'utf8').trim()
+      } catch (err) {
+        if (!fs.existsSync(buildIdFile)) {
+          throw new Error(
+            `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
+          )
+        }
 
-      throw err
-    }
+        throw err
+      }
+    })
   }
 
   protected getCustomRoutes(): CustomRoutes {
@@ -381,107 +397,122 @@ export default class NextNodeServer extends BaseServer {
         match: getPathMatch('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
-        fn: async (req, res, _params, parsedUrl) => {
-          if (this.minimalMode) {
-            res.statusCode = 400
-            res.body('Bad Request').send()
-            return {
-              finished: true,
-            }
-          }
-          const { ImageOptimizerCache } =
-            require('./image-optimizer') as typeof import('./image-optimizer')
-
-          const imageOptimizerCache = new ImageOptimizerCache({
-            distDir: this.distDir,
-            nextConfig: this.nextConfig,
-          })
-
-          const { getHash, sendResponse, ImageError } =
-            require('./image-optimizer') as typeof import('./image-optimizer')
-
-          if (!this.imageResponseCache) {
-            throw new Error(
-              'invariant image optimizer cache was not initialized'
-            )
-          }
-          const imagesConfig = this.nextConfig.images
-
-          if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
-            await this.render404(req, res)
-            return { finished: true }
-          }
-          const paramsResult = ImageOptimizerCache.validateParams(
-            (req as NodeNextRequest).originalRequest,
-            parsedUrl.query,
-            this.nextConfig,
-            !!this.renderOpts.dev
-          )
-
-          if ('errorMessage' in paramsResult) {
-            res.statusCode = 400
-            res.body(paramsResult.errorMessage).send()
-            return { finished: true }
-          }
-          const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
-
-          try {
-            const cacheEntry = await this.imageResponseCache.get(
-              cacheKey,
-              async () => {
-                const { buffer, contentType, maxAge } =
-                  await this.imageOptimizer(
-                    req as NodeNextRequest,
-                    res as NodeNextResponse,
-                    paramsResult
-                  )
-                const etag = getHash([buffer])
-
+        fn: async (
+          req: BaseNextRequest,
+          res: BaseNextResponse,
+          _params: Params,
+          parsedUrl: NextUrlWithParsedQuery
+        ) =>
+          getTracer().trace(
+            NextNodeServerSpan.generateImageRoutes,
+            { attributes: { routeName: '_next/imageCatchall', type: 'route' } },
+            async () => {
+              if (this.minimalMode) {
+                res.statusCode = 400
+                res.body('Bad Request').send()
                 return {
-                  value: {
-                    kind: 'IMAGE',
-                    buffer,
-                    etag,
-                    extension: getExtension(contentType) as string,
-                  },
-                  revalidate: maxAge,
+                  finished: true,
                 }
-              },
-              {
-                incrementalCache: imageOptimizerCache,
               }
-            )
+              const { ImageOptimizerCache } =
+                require('./image-optimizer') as typeof import('./image-optimizer')
 
-            if (cacheEntry?.value?.kind !== 'IMAGE') {
-              throw new Error(
-                'invariant did not get entry from image response cache'
+              const imageOptimizerCache = new ImageOptimizerCache({
+                distDir: this.distDir,
+                nextConfig: this.nextConfig,
+              })
+
+              const { getHash, sendResponse, ImageError } =
+                require('./image-optimizer') as typeof import('./image-optimizer')
+
+              if (!this.imageResponseCache) {
+                throw new Error(
+                  'invariant image optimizer cache was not initialized'
+                )
+              }
+              const imagesConfig = this.nextConfig.images
+
+              if (
+                imagesConfig.loader !== 'default' ||
+                imagesConfig.unoptimized
+              ) {
+                await this.render404(req, res)
+                return { finished: true }
+              }
+              const paramsResult = ImageOptimizerCache.validateParams(
+                (req as NodeNextRequest).originalRequest,
+                parsedUrl.query,
+                this.nextConfig,
+                !!this.renderOpts.dev
               )
-            }
 
-            sendResponse(
-              (req as NodeNextRequest).originalRequest,
-              (res as NodeNextResponse).originalResponse,
-              paramsResult.href,
-              cacheEntry.value.extension,
-              cacheEntry.value.buffer,
-              paramsResult.isStatic,
-              cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
-              imagesConfig.contentSecurityPolicy,
-              cacheEntry.revalidate || 0,
-              Boolean(this.renderOpts.dev)
-            )
-          } catch (err) {
-            if (err instanceof ImageError) {
-              res.statusCode = err.statusCode
-              res.body(err.message).send()
+              if ('errorMessage' in paramsResult) {
+                res.statusCode = 400
+                res.body(paramsResult.errorMessage).send()
+                return { finished: true }
+              }
+              const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
+
+              try {
+                const cacheEntry = await this.imageResponseCache.get(
+                  cacheKey,
+                  async () => {
+                    const { buffer, contentType, maxAge } =
+                      await this.imageOptimizer(
+                        req as NodeNextRequest,
+                        res as NodeNextResponse,
+                        paramsResult
+                      )
+                    const etag = getHash([buffer])
+
+                    return {
+                      value: {
+                        kind: 'IMAGE',
+                        buffer,
+                        etag,
+                        extension: getExtension(contentType) as string,
+                      },
+                      revalidate: maxAge,
+                    }
+                  },
+                  {
+                    incrementalCache: imageOptimizerCache,
+                  }
+                )
+
+                if (cacheEntry?.value?.kind !== 'IMAGE') {
+                  throw new Error(
+                    'invariant did not get entry from image response cache'
+                  )
+                }
+
+                sendResponse(
+                  (req as NodeNextRequest).originalRequest,
+                  (res as NodeNextResponse).originalResponse,
+                  paramsResult.href,
+                  cacheEntry.value.extension,
+                  cacheEntry.value.buffer,
+                  paramsResult.isStatic,
+                  cacheEntry.isMiss
+                    ? 'MISS'
+                    : cacheEntry.isStale
+                    ? 'STALE'
+                    : 'HIT',
+                  imagesConfig.contentSecurityPolicy,
+                  cacheEntry.revalidate || 0,
+                  Boolean(this.renderOpts.dev)
+                )
+              } catch (err) {
+                if (err instanceof ImageError) {
+                  res.statusCode = err.statusCode
+                  res.body(err.message).send()
+                }
+              }
               return {
                 finished: true,
               }
             }
-            throw err
-          }
-          return { finished: true }
-        },
+          ),
       },
     ]
   }
@@ -500,13 +531,23 @@ export default class NextNodeServer extends BaseServer {
             // See more: https://github.com/vercel/next.js/issues/2617
             match: getPathMatch('/static/:path*'),
             name: 'static catchall',
-            fn: async (req, res, params, parsedUrl) => {
-              const p = join(this.dir, 'static', ...params.path)
-              await this.serveStatic(req, res, p, parsedUrl)
-              return {
-                finished: true,
-              }
-            },
+            fn: getTracer().trace(
+              NextNodeServerSpan.generateStaticRoutes,
+              { attributes: { routeName: 'staticCatchall' } },
+              () =>
+                async (
+                  req: BaseNextRequest,
+                  res: BaseNextResponse,
+                  params: Params,
+                  parsedUrl: NextUrlWithParsedQuery
+                ) => {
+                  const p = join(this.dir, 'static', ...params.path)
+                  await this.serveStatic(req, res, p, parsedUrl)
+                  return {
+                    finished: true,
+                  }
+                }
+            ),
           } as Route,
         ]
       : []
@@ -522,102 +563,126 @@ export default class NextNodeServer extends BaseServer {
         match: getPathMatch('/_next/static/:path*'),
         type: 'route',
         name: '_next/static catchall',
-        fn: async (req, res, params, parsedUrl) => {
-          // make sure to 404 for /_next/static itself
-          if (!params.path) {
-            await this.render404(req, res, parsedUrl)
-            return {
-              finished: true,
-            }
-          }
+        fn: getTracer().trace(
+          NextNodeServerSpan.generateFsStaticRoutes,
+          { attributes: { routeName: '_next_staticCatchall', type: 'route' } },
+          () =>
+            async (
+              req: BaseNextRequest,
+              res: BaseNextResponse,
+              params: Params,
+              parsedUrl: NextUrlWithParsedQuery
+            ) => {
+              // make sure to 404 for /_next/static itself
+              if (!params.path) {
+                await this.render404(req, res, parsedUrl)
+                return {
+                  finished: true,
+                }
+              }
 
-          if (
-            params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
-            params.path[0] === 'chunks' ||
-            params.path[0] === 'css' ||
-            params.path[0] === 'image' ||
-            params.path[0] === 'media' ||
-            params.path[0] === this.buildId ||
-            params.path[0] === 'pages' ||
-            params.path[1] === 'pages'
-          ) {
-            this.setImmutableAssetCacheControl(res)
-          }
-          const p = join(
-            this.distDir,
-            CLIENT_STATIC_FILES_PATH,
-            ...(params.path || [])
-          )
-          await this.serveStatic(req, res, p, parsedUrl)
-          return {
-            finished: true,
-          }
-        },
+              if (
+                params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
+                params.path[0] === 'chunks' ||
+                params.path[0] === 'css' ||
+                params.path[0] === 'image' ||
+                params.path[0] === 'media' ||
+                params.path[0] === this.buildId ||
+                params.path[0] === 'pages' ||
+                params.path[1] === 'pages'
+              ) {
+                this.setImmutableAssetCacheControl(res)
+              }
+              const p = join(
+                this.distDir,
+                CLIENT_STATIC_FILES_PATH,
+                ...(params.path || [])
+              )
+              await this.serveStatic(req, res, p, parsedUrl)
+              return {
+                finished: true,
+              }
+            }
+        ),
       },
     ]
   }
 
   protected generatePublicRoutes(): Route[] {
-    if (!fs.existsSync(this.publicDir)) return []
+    return getTracer().trace(NextNodeServerSpan.generatePublicRoutes, () => {
+      if (!fs.existsSync(this.publicDir)) return []
 
-    const publicFiles = new Set(
-      recursiveReadDirSync(this.publicDir).map((p) =>
-        encodeURI(p.replace(/\\/g, '/'))
+      const publicFiles = new Set(
+        recursiveReadDirSync(this.publicDir).map((p) =>
+          encodeURI(p.replace(/\\/g, '/'))
+        )
       )
-    )
 
-    return [
-      {
-        match: getPathMatch('/:path*'),
-        matchesBasePath: true,
-        name: 'public folder catchall',
-        fn: async (req, res, params, parsedUrl) => {
-          const pathParts: string[] = params.path || []
-          const { basePath } = this.nextConfig
+      return [
+        {
+          match: getPathMatch('/:path*'),
+          matchesBasePath: true,
+          name: 'public folder catchall',
+          fn: getTracer().trace(
+            NextNodeServerSpan.route,
+            {
+              attributes: { routeName: 'publicFolderCatchall' },
+            },
+            () =>
+              async (
+                req: BaseNextRequest,
+                res: BaseNextResponse,
+                params: Params,
+                parsedUrl: NextUrlWithParsedQuery
+              ) => {
+                const pathParts: string[] = params.path || []
+                const { basePath } = this.nextConfig
 
-          // if basePath is defined require it be present
-          if (basePath) {
-            const basePathParts = basePath.split('/')
-            // remove first empty value
-            basePathParts.shift()
+                // if basePath is defined require it be present
+                if (basePath) {
+                  const basePathParts = basePath.split('/')
+                  // remove first empty value
+                  basePathParts.shift()
 
-            if (
-              !basePathParts.every((part: string, idx: number) => {
-                return part === pathParts[idx]
-              })
-            ) {
-              return { finished: false }
-            }
+                  if (
+                    !basePathParts.every((part: string, idx: number) => {
+                      return part === pathParts[idx]
+                    })
+                  ) {
+                    return { finished: false }
+                  }
 
-            pathParts.splice(0, basePathParts.length)
-          }
+                  pathParts.splice(0, basePathParts.length)
+                }
 
-          let path = `/${pathParts.join('/')}`
+                let path = `/${pathParts.join('/')}`
 
-          if (!publicFiles.has(path)) {
-            // In `next-dev-server.ts`, we ensure encoded paths match
-            // decoded paths on the filesystem. So we need do the
-            // opposite here: make sure decoded paths match encoded.
-            path = encodeURI(path)
-          }
+                if (!publicFiles.has(path)) {
+                  // In `next-dev-server.ts`, we ensure encoded paths match
+                  // decoded paths on the filesystem. So we need do the
+                  // opposite here: make sure decoded paths match encoded.
+                  path = encodeURI(path)
+                }
 
-          if (publicFiles.has(path)) {
-            await this.serveStatic(
-              req,
-              res,
-              join(this.publicDir, ...pathParts),
-              parsedUrl
-            )
-            return {
-              finished: true,
-            }
-          }
-          return {
-            finished: false,
-          }
-        },
-      } as Route,
-    ]
+                if (publicFiles.has(path)) {
+                  await this.serveStatic(
+                    req,
+                    res,
+                    join(this.publicDir, ...pathParts),
+                    parsedUrl
+                  )
+                  return {
+                    finished: true,
+                  }
+                }
+                return {
+                  finished: false,
+                }
+              }
+          ),
+        } as Route,
+      ]
+    })
   }
 
   private _validFilesystemPathSet: Set<string> | null = null
@@ -668,11 +733,13 @@ export default class NextNodeServer extends BaseServer {
       options?: PayloadOptions | undefined
     }
   ): Promise<void> {
-    return sendRenderResult({
-      req: req.originalRequest,
-      res: res.originalResponse,
-      ...options,
-    })
+    return getTracer().trace(NextNodeServerSpan.sendRenderResult, () =>
+      sendRenderResult({
+        req: req.originalRequest,
+        res: res.originalResponse,
+        ...options,
+      })
+    )
   }
 
   protected sendStatic(
@@ -680,7 +747,9 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     path: string
   ): Promise<void> {
-    return serveStatic(req.originalRequest, res.originalResponse, path)
+    return getTracer().trace(NextNodeServerSpan.sendStatic, () =>
+      serveStatic(req.originalRequest, res.originalResponse, path)
+    )
   }
 
   protected handleCompression(
@@ -702,66 +771,72 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl: ParsedUrl,
     upgradeHead?: any
   ) {
-    const { query } = parsedUrl
-    delete (parsedUrl as any).query
-    parsedUrl.search = stringifyQuery(req, query)
+    return getTracer().trace(NextNodeServerSpan.proxyRequest, async () => {
+      const { query } = parsedUrl
+      delete (parsedUrl as any).query
+      parsedUrl.search = stringifyQuery(req, query)
 
-    const target = formatUrl(parsedUrl)
-    const HttpProxy =
-      require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
-    const proxy = new HttpProxy({
-      target,
-      changeOrigin: true,
-      ignorePath: true,
-      xfwd: true,
-      ws: true,
-      // we limit proxy requests to 30s by default, in development
-      // we don't time out WebSocket requests to allow proxying
-      proxyTimeout:
-        upgradeHead && this.renderOpts.dev
-          ? undefined
-          : this.nextConfig.experimental.proxyTimeout || 30_000,
-    })
-
-    await new Promise((proxyResolve, proxyReject) => {
-      let finished = false
-
-      proxy.on('error', (err) => {
-        console.error(`Failed to proxy ${target}`, err)
-        if (!finished) {
-          finished = true
-          proxyReject(err)
-        }
+      const target = formatUrl(parsedUrl)
+      const HttpProxy =
+        require('next/dist/compiled/http-proxy') as typeof import('next/dist/compiled/http-proxy')
+      const proxy = new HttpProxy({
+        target,
+        changeOrigin: true,
+        ignorePath: true,
+        xfwd: true,
+        ws: true,
+        // we limit proxy requests to 30s by default, in development
+        // we don't time out WebSocket requests to allow proxying
+        proxyTimeout:
+          upgradeHead && this.renderOpts.dev
+            ? undefined
+            : this.nextConfig.experimental.proxyTimeout || 30_000,
       })
 
-      // if upgrade head is present treat as WebSocket request
-      if (upgradeHead) {
-        proxy.on('proxyReqWs', (proxyReq) => {
-          proxyReq.on('close', () => {
-            if (!finished) {
-              finished = true
+      await getTracer().trace(
+        NextNodeServerSpan.onProxyReq,
+        async () =>
+          await new Promise((proxyResolve, proxyReject) => {
+            let finished = false
+
+            proxy.on('error', (err) => {
+              console.error(`Failed to proxy ${target}`, err)
+              if (!finished) {
+                finished = true
+                proxyReject(err)
+              }
+            })
+
+            // if upgrade head is present treat as WebSocket request
+            if (upgradeHead) {
+              proxy.on('proxyReqWs', (proxyReq) => {
+                proxyReq.on('close', () => {
+                  if (!finished) {
+                    finished = true
+                    proxyResolve(true)
+                  }
+                })
+              })
+              proxy.ws(req as any as IncomingMessage, res, upgradeHead)
               proxyResolve(true)
+            } else {
+              proxy.on('proxyReq', (proxyReq) => {
+                proxyReq.on('close', () => {
+                  if (!finished) {
+                    finished = true
+                    proxyResolve(true)
+                  }
+                })
+              })
+              proxy.web(req.originalRequest, res.originalResponse)
             }
           })
-        })
-        proxy.ws(req as any as IncomingMessage, res, upgradeHead)
-        proxyResolve(true)
-      } else {
-        proxy.on('proxyReq', (proxyReq) => {
-          proxyReq.on('close', () => {
-            if (!finished) {
-              finished = true
-              proxyResolve(true)
-            }
-          })
-        })
-        proxy.web(req.originalRequest, res.originalResponse)
+      )
+
+      return {
+        finished: true,
       }
     })
-
-    return {
-      finished: true,
-    }
   }
 
   protected async runApi(
@@ -772,54 +847,61 @@ export default class NextNodeServer extends BaseServer {
     page: string,
     builtPagePath: string
   ): Promise<boolean> {
-    const edgeFunctions = this.getEdgeFunctions()
+    return getTracer().trace(NextNodeServerSpan.runApi, async () => {
+      const edgeFunctions = this.getEdgeFunctions()
 
-    for (const item of edgeFunctions) {
-      if (item.page === page) {
-        const handledAsEdgeFunction = await this.runEdgeFunction({
-          req,
-          res,
-          query,
-          params,
-          page,
-          appPaths: null,
-        })
+      for (const item of edgeFunctions) {
+        if (item.page === page) {
+          const handledAsEdgeFunction = await this.runEdgeFunction({
+            req,
+            res,
+            query,
+            params,
+            page,
+            appPaths: null,
+          })
 
-        if (handledAsEdgeFunction) {
-          return true
+          if (handledAsEdgeFunction) {
+            return true
+          }
         }
       }
-    }
 
-    const pageModule = await require(builtPagePath)
-    query = { ...query, ...params }
+      const pageModule = await require(builtPagePath)
+      query = { ...query, ...params }
 
-    delete query.__nextLocale
-    delete query.__nextDefaultLocale
+      delete query.__nextLocale
+      delete query.__nextDefaultLocale
 
-    await apiResolver(
-      (req as NodeNextRequest).originalRequest,
-      (res as NodeNextResponse).originalResponse,
-      query,
-      pageModule,
-      {
-        ...this.renderOpts.previewProps,
-        revalidate: (newReq: IncomingMessage, newRes: ServerResponse) =>
-          this.getRequestHandler()(
-            new NodeNextRequest(newReq),
-            new NodeNextResponse(newRes)
-          ),
-        // internal config so is not typed
-        trustHostHeader: (this.nextConfig.experimental as Record<string, any>)
-          .trustHostHeader,
-        allowedRevalidateHeaderKeys:
-          this.nextConfig.experimental.allowedRevalidateHeaderKeys,
-      },
-      this.minimalMode,
-      this.renderOpts.dev,
-      page
-    )
-    return true
+      await getTracer().trace(
+        NextNodeServerSpan.apiResolver,
+        async () =>
+          await apiResolver(
+            (req as NodeNextRequest).originalRequest,
+            (res as NodeNextResponse).originalResponse,
+            query,
+            pageModule,
+            {
+              ...this.renderOpts.previewProps,
+              revalidate: (newReq: IncomingMessage, newRes: ServerResponse) =>
+                this.getRequestHandler()(
+                  new NodeNextRequest(newReq),
+                  new NodeNextResponse(newRes)
+                ),
+              // internal config so is not typed
+              trustHostHeader: (
+                this.nextConfig.experimental as Record<string, any>
+              ).trustHostHeader,
+              allowedRevalidateHeaderKeys:
+                this.nextConfig.experimental.allowedRevalidateHeaderKeys,
+            },
+            this.minimalMode,
+            this.renderOpts.dev,
+            page
+          )
+      )
+      return true
+    })
   }
 
   protected async renderHTML(
@@ -829,30 +911,32 @@ export default class NextNodeServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
-    // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-    // object here but only updating its `serverComponentManifest` field.
-    // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-    renderOpts.serverComponentManifest = this.serverComponentManifest
-    renderOpts.serverCSSManifest = this.serverCSSManifest
-    renderOpts.fontLoaderManifest = this.fontLoaderManifest
+    return getTracer().trace(NextNodeServerSpan.renderHTML, () => {
+      // Due to the way we pass data by mutating `renderOpts`, we can't extend the
+      // object here but only updating its `serverComponentManifest` field.
+      // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
+      renderOpts.serverComponentManifest = this.serverComponentManifest
+      renderOpts.serverCSSManifest = this.serverCSSManifest
+      renderOpts.fontLoaderManifest = this.fontLoaderManifest
 
-    if (this.hasAppDir && renderOpts.isAppPath) {
-      return appRenderToHTMLOrFlight(
+      if (this.hasAppDir && renderOpts.isAppPath) {
+        return appRenderToHTMLOrFlight(
+          req.originalRequest,
+          res.originalResponse,
+          pathname,
+          query,
+          renderOpts
+        )
+      }
+
+      return renderToHTML(
         req.originalRequest,
         res.originalResponse,
         pathname,
         query,
         renderOpts
       )
-    }
-
-    return renderToHTML(
-      req.originalRequest,
-      res.originalResponse,
-      pathname,
-      query,
-      renderOpts
-    )
+    })
   }
 
   protected streamResponseChunk(res: NodeNextResponse, chunk: any) {
@@ -870,26 +954,30 @@ export default class NextNodeServer extends BaseServer {
     res: NodeNextResponse,
     paramsResult: import('./image-optimizer').ImageParamsResult
   ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
-    const { imageOptimizer } =
-      require('./image-optimizer') as typeof import('./image-optimizer')
+    return getTracer().trace(NextNodeServerSpan.imageOptimizer, () => {
+      const { imageOptimizer } =
+        require('./image-optimizer') as typeof import('./image-optimizer')
 
-    return imageOptimizer(
-      req.originalRequest,
-      res.originalResponse,
-      paramsResult,
-      this.nextConfig,
-      this.renderOpts.dev,
-      (newReq, newRes, newParsedUrl) =>
-        this.getRequestHandler()(
-          new NodeNextRequest(newReq),
-          new NodeNextResponse(newRes),
-          newParsedUrl
-        )
-    )
+      return imageOptimizer(
+        req.originalRequest,
+        res.originalResponse,
+        paramsResult,
+        this.nextConfig,
+        this.renderOpts.dev,
+        (newReq, newRes, newParsedUrl) =>
+          this.getRequestHandler()(
+            new NodeNextRequest(newReq),
+            new NodeNextResponse(newRes),
+            newParsedUrl
+          )
+      )
+    })
   }
 
   protected getPagePath(pathname: string, locales?: string[]): string {
-    return getPagePath(pathname, this.distDir, locales, this.hasAppDir)
+    return getTracer().trace(NextNodeServerSpan.getPagePath, () =>
+      getPagePath(pathname, this.distDir, locales, this.hasAppDir)
+    )
   }
 
   protected async renderPageComponent(
@@ -936,75 +1024,83 @@ export default class NextNodeServer extends BaseServer {
     params: Params | null
     isAppPath: boolean
   }): Promise<FindComponentsResult | null> {
-    const paths: string[] = [pathname]
-    if (query.amp) {
-      // try serving a static AMP version first
-      paths.unshift(
-        (isAppPath ? normalizeAppPath(pathname) : normalizePagePath(pathname)) +
-          '.amp'
-      )
-    }
-
-    if (query.__nextLocale) {
-      paths.unshift(
-        ...paths.map(
-          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
+    return getTracer().trace('NextNodeServer.findPageComponents', async () => {
+      const paths: string[] = [pathname]
+      if (query.amp) {
+        // try serving a static AMP version first
+        paths.unshift(
+          (isAppPath
+            ? normalizeAppPath(pathname)
+            : normalizePagePath(pathname)) + '.amp'
         )
-      )
-    }
+      }
 
-    for (const pagePath of paths) {
-      try {
-        const components = await loadComponents({
-          distDir: this.distDir,
-          pathname: pagePath,
-          hasServerComponents: !!this.renderOpts.serverComponents,
-          isAppPath,
-        })
+      if (query.__nextLocale) {
+        paths.unshift(
+          ...paths.map(
+            (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
+          )
+        )
+      }
 
-        if (
-          query.__nextLocale &&
-          typeof components.Component === 'string' &&
-          !pagePath.startsWith(`/${query.__nextLocale}`)
-        ) {
-          // if loading an static HTML file the locale is required
-          // to be present since all HTML files are output under their locale
-          continue
-        }
+      for (const pagePath of paths) {
+        try {
+          const components = await loadComponents({
+            distDir: this.distDir,
+            pathname: pagePath,
+            hasServerComponents: !!this.renderOpts.serverComponents,
+            isAppPath,
+          })
 
-        return {
-          components,
-          query: {
-            ...(components.getStaticProps
-              ? ({
-                  amp: query.amp,
-                  __nextDataReq: query.__nextDataReq,
-                  __nextLocale: query.__nextLocale,
-                  __nextDefaultLocale: query.__nextDefaultLocale,
-                } as NextParsedUrlQuery)
-              : query),
-            // For appDir params is excluded.
-            ...((isAppPath ? {} : params) || {}),
-          },
-        }
-      } catch (err) {
-        // we should only not throw if we failed to find the page
-        // in the pages-manifest
-        if (!(err instanceof PageNotFoundError)) {
-          throw err
+          if (
+            query.__nextLocale &&
+            typeof components.Component === 'string' &&
+            !pagePath.startsWith(`/${query.__nextLocale}`)
+          ) {
+            // if loading an static HTML file the locale is required
+            // to be present since all HTML files are output under their locale
+            continue
+          }
+
+          return {
+            components,
+            query: {
+              ...(components.getStaticProps
+                ? ({
+                    amp: query.amp,
+                    __nextDataReq: query.__nextDataReq,
+                    __nextLocale: query.__nextLocale,
+                    __nextDefaultLocale: query.__nextDefaultLocale,
+                  } as NextParsedUrlQuery)
+                : query),
+              // For appDir params is excluded.
+              ...((isAppPath ? {} : params) || {}),
+            },
+          }
+        } catch (err) {
+          // we should only not throw if we failed to find the page
+          // in the pages-manifest
+          if (!(err instanceof PageNotFoundError)) {
+            throw err
+          }
         }
       }
-    }
-    return null
+      return null
+    })
   }
 
   protected getFontManifest(): FontManifest {
-    return requireFontManifest(this.distDir)
+    return getTracer().trace(NextNodeServerSpan.getFontManifest, () =>
+      requireFontManifest(this.distDir)
+    )
   }
 
   protected getServerComponentManifest() {
-    if (!this.hasAppDir) return undefined
-    return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
+    if (!this.nextConfig.experimental.appDir) return undefined
+    return getTracer().trace(
+      NextNodeServerSpan.getServerComponentManifest,
+      () => require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
+    )
   }
 
   protected getServerCSSManifest() {
@@ -1323,10 +1419,16 @@ export default class NextNodeServer extends BaseServer {
   }
 
   public getRequestHandler(): NodeRequestHandler {
-    const handler = super.getRequestHandler()
-    return async (req, res, parsedUrl) => {
-      return handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
-    }
+    return getTracer().trace(NextNodeServerSpan.getRequestHandler, () => {
+      const handler = super.getRequestHandler()
+      return (async (req, res, parsedUrl) => {
+        return handler(
+          this.normalizeReq(req),
+          this.normalizeRes(res),
+          parsedUrl
+        )
+      }) as NodeRequestHandler
+    })
   }
 
   public async render(
@@ -1337,13 +1439,15 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl?: NextUrlWithParsedQuery,
     internal = false
   ): Promise<void> {
-    return super.render(
-      this.normalizeReq(req),
-      this.normalizeRes(res),
-      pathname,
-      query,
-      parsedUrl,
-      internal
+    return getTracer().trace(NextNodeServerSpan.render, () =>
+      super.render(
+        this.normalizeReq(req),
+        this.normalizeRes(res),
+        pathname,
+        query,
+        parsedUrl,
+        internal
+      )
     )
   }
 
@@ -1353,11 +1457,13 @@ export default class NextNodeServer extends BaseServer {
     pathname: string,
     query?: ParsedUrlQuery
   ): Promise<string | null> {
-    return super.renderToHTML(
-      this.normalizeReq(req),
-      this.normalizeRes(res),
-      pathname,
-      query
+    return getTracer().trace(NextNodeServerSpan.renderToHTML, () =>
+      super.renderToHTML(
+        this.normalizeReq(req),
+        this.normalizeRes(res),
+        pathname,
+        query
+      )
     )
   }
 
@@ -1369,13 +1475,15 @@ export default class NextNodeServer extends BaseServer {
     query?: NextParsedUrlQuery,
     setHeaders?: boolean
   ): Promise<void> {
-    return super.renderError(
-      err,
-      this.normalizeReq(req),
-      this.normalizeRes(res),
-      pathname,
-      query,
-      setHeaders
+    return getTracer().trace(NextNodeServerSpan.renderError, () =>
+      super.renderError(
+        err,
+        this.normalizeReq(req),
+        this.normalizeRes(res),
+        pathname,
+        query,
+        setHeaders
+      )
     )
   }
 
@@ -1386,12 +1494,14 @@ export default class NextNodeServer extends BaseServer {
     pathname: string,
     query?: ParsedUrlQuery
   ): Promise<string | null> {
-    return super.renderErrorToHTML(
-      err,
-      this.normalizeReq(req),
-      this.normalizeRes(res),
-      pathname,
-      query
+    return getTracer().trace(NextNodeServerSpan.renderErrorToHTML, () =>
+      super.renderErrorToHTML(
+        err,
+        this.normalizeReq(req),
+        this.normalizeRes(res),
+        pathname,
+        query
+      )
     )
   }
 
@@ -1401,11 +1511,13 @@ export default class NextNodeServer extends BaseServer {
     parsedUrl?: NextUrlWithParsedQuery,
     setHeaders?: boolean
   ): Promise<void> {
-    return super.render404(
-      this.normalizeReq(req),
-      this.normalizeRes(res),
-      parsedUrl,
-      setHeaders
+    return getTracer().trace(NextNodeServerSpan.render404, () =>
+      super.render404(
+        this.normalizeReq(req),
+        this.normalizeRes(res),
+        parsedUrl,
+        setHeaders
+      )
     )
   }
 
@@ -2063,7 +2175,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getRoutesManifest() {
-    return require(join(this.distDir, ROUTES_MANIFEST))
+    return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () =>
+      require(join(this.distDir, ROUTES_MANIFEST))
+    )
   }
 
   protected attachRequestMeta(

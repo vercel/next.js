@@ -1956,6 +1956,101 @@ export async function path_to_regexp(task, opts) {
     .target('dist/compiled/path-to-regexp')
 }
 
+// eslint-disable-next-line camelcase
+externals['@opentelemetry/api'] = 'next/dist/compiled/@opentelemetry/api'
+export async function ncc_opentelemetry_api(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@opentelemetry/api'))
+    )
+    .ncc({ packageName: '@opentelemetry/api', externals })
+    .target('compiled/@opentelemetry/api')
+}
+
+// eslint-disable-next-line camelcase
+externals['@opentelemetry/instrumentation'] =
+  'next/dist/compiled/@opentelemetry/instrumentation'
+export async function ncc_opentelemetry_instrumentation(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@opentelemetry/instrumentation'))
+    )
+    .ncc({ packageName: '@opentelemetry/instrumentation', externals })
+    .target('compiled/@opentelemetry/instrumentation')
+}
+
+// eslint-disable-next-line camelcase
+externals['@opentelemetry/resources'] =
+  'next/dist/compiled/@opentelemetry/resources'
+export async function ncc_opentelemetry_resources(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@opentelemetry/resources'))
+    )
+    .ncc({ packageName: '@opentelemetry/resources', externals })
+    .target('compiled/@opentelemetry/resources')
+}
+
+// eslint-disable-next-line camelcase
+externals['@opentelemetry/semantic-conventions'] =
+  'next/dist/compiled/@opentelemetry/semantic-conventions'
+export async function ncc_opentelemetry_semantic_conventions(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          require.resolve('@opentelemetry/semantic-conventions')
+        )
+    )
+    .ncc({ packageName: '@opentelemetry/semantic-conventions', externals })
+    .target('compiled/@opentelemetry/semantic-conventions')
+}
+
+// eslint-disable-next-line camelcase
+externals['@opentelemetry/sdk-trace-base'] =
+  'next/dist/compiled/@opentelemetry/sdk-trace-base'
+export async function ncc_opentelemetry_sdk_trace_base(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@opentelemetry/sdk-trace-base'))
+    )
+    .ncc({ packageName: '@opentelemetry/sdk-trace-base', externals })
+    .target('compiled/@opentelemetry/sdk-trace-base')
+}
+
+// eslint-disable-next-line camelcase
+externals['@opentelemetry/sdk-trace-node'] =
+  'next/dist/compiled/@opentelemetry/sdk-trace-node'
+export async function ncc_opentelemetry_sdk_trace_node(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@opentelemetry/sdk-trace-node'))
+    )
+    .ncc({ packageName: '@opentelemetry/sdk-trace-node', externals })
+    .target('compiled/@opentelemetry/sdk-trace-node')
+}
+
+// eslint-disable-next-line camelcase
+externals['@opentelemetry/exporter-trace-otlp-http'] =
+  'next/dist/compiled/@opentelemetry/exporter-trace-otlp-http'
+export async function ncc_opentelemetry_exporter_trace_otlp_http(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(
+          __dirname,
+          require.resolve('@opentelemetry/exporter-trace-otlp-http')
+        )
+    )
+    .ncc({ packageName: '@opentelemetry/exporter-trace-otlp-http', externals })
+    .target('compiled/@opentelemetry/exporter-trace-otlp-http')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     [
@@ -2087,6 +2182,13 @@ export async function ncc(task, opts) {
         'ncc_ws',
         'ncc_ua_parser_js',
         'ncc_minimatch',
+        'ncc_opentelemetry_api',
+        'ncc_opentelemetry_instrumentation',
+        'ncc_opentelemetry_resources',
+        'ncc_opentelemetry_semantic_conventions',
+        'ncc_opentelemetry_sdk_trace_base',
+        'ncc_opentelemetry_sdk_trace_node',
+        'ncc_opentelemetry_exporter_trace_otlp_http',
         'ncc_mini_css_extract_plugin',
       ],
       opts
