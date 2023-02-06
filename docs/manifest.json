@@ -578,7 +578,7 @@
             },
             {
               "title": "Resolve Alias",
-              "path": "/docs/api-reference/next.config.js/resolve-alias.md"
+              "path": "/docs/api-reference/next.config.js/turbopack-resolve-alias.md"
             }
           ]
         }

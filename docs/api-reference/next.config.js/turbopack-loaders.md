@@ -1,28 +1,28 @@
 ---
-description: Configure Next.js with Turbopack to load Webpack loaders
+description: Configure Next.js with Turbopack to load webpack loaders
 ---
 
 # Turbopack Loaders (`next --turbo` only)
 
-Currently, Turbopack supports a subset of Webpack's loader API, allowing you to use some Webpack loaders to transform code in Turbopack.
+Currently, Turbopack supports a subset of webpack's loader API, allowing you to use some webpack loaders to transform code in Turbopack.
 
-> **Warning**: This feature is experimental and will only work with `next --turbo`
+> **Warning**: This feature is experimental and will only work with `next --turbo`.
 
-To configure loaders, add the names of the loaders you've installed and any options in `next.config.js`:
+To configure loaders, add the names of the loaders you've installed and any options in `next.config.js`, mapping file extensions to a list of loaders:
 
 ```js
 module.exports = {
   experimental: {
     turbopackLoaders: {
-      '.mdx': [
+      '.md': [
         {
           loader: '@mdx-js/loader',
           options: {
-            format: 'mdx',
+            format: 'md',
           },
         },
       ],
-      '.foo': 'my-foo-loader',
+      '.mdx': '@mdx-js/loader',
     },
   },
 }
@@ -38,4 +38,4 @@ export default function Home() {
 }
 ```
 
-For more information and guidance for how to migrate your app to Turbopack from Webpack, see [Turbopack's documentation on Webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
+For more information and guidance for how to migrate your app to Turbopack from webpack, see [Turbopack's documentation on webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
