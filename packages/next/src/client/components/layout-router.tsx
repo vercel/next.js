@@ -24,7 +24,7 @@ import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { useRouter } from './navigation'
-import { handleSmoothScroll } from '../../shared/lib/router/router'
+import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
