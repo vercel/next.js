@@ -1210,7 +1210,7 @@ export async function renderToHTMLOrFlight(
           ))
         : null
 
-      const Comp = interopDefault(await getComponent())
+      const Comp = await interopDefault(await getComponent())
 
       return [Comp, styles]
     }
@@ -1529,11 +1529,11 @@ export async function renderToHTMLOrFlight(
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
-      if (!isClientReference(layoutOrPageMod)) {
-        Component = await Promise.resolve().then(() => {
-          return preloadComponent(Component, props)
-        })
-      }
+      Component = await Promise.resolve().then(() => {
+        return isClientReference(layoutOrPageMod)
+          ? Component
+          : preloadComponent(Component, props)
+      })
 
       return {
         Component: () => {
