@@ -1,3 +1,4 @@
+import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
@@ -433,6 +434,58 @@ createNextDescribe(
           ])
         ).toEqual({ sizes: '180x180', type: 'image/png' })
       })
+    })
+
+    describe('file based icons', () => {
+      it('should render icon and apple touch icon meta if their images are specified', async () => {
+        const $ = await next.render$('/icons/static/nested')
+
+        const $icon = $('head > link[rel="icon"]')
+        const $appleIcon = $('head > link[rel="apple-touch-icon"]')
+
+        expect($icon.attr('href')).toMatch(
+          /\/_next\/static\/media\/metadata\/icon1\.\w+\.png/
+        )
+        expect($icon.attr('sizes')).toBe('32x32')
+        expect($appleIcon.attr('href')).toMatch(
+          /\/_next\/static\/media\/metadata\/apple-touch-icon\.\w+\.png/
+        )
+        expect($appleIcon.attr('sizes')).toMatch('114x114')
+      })
+
+      it('should not render if image file is not specified', async () => {
+        const $ = await next.render$('/icons/static')
+
+        const $icon = $('head > link[rel="icon"]')
+        const $appleIcon = $('head > link[rel="apple-touch-icon"]')
+
+        expect($icon.attr('href')).toMatch(
+          /\/_next\/static\/media\/metadata\/icon\.\w+\.png/
+        )
+        expect($icon.attr('sizes')).toBe('114x114')
+
+        expect($appleIcon.length).toBe(0)
+      })
+
+      if (isNextDev) {
+        it('should handle hmr updates to the file icon', async () => {
+          await next.renameFile(
+            'app/icons/static/icon.png',
+            'app/icons/static/icon100.png'
+          )
+
+          await check(async () => {
+            const $ = await next.render$('/icons/static')
+            const $icon = $('head > link[rel="icon"]')
+            return $icon.attr('href')
+          }, /\/_next\/static\/media\/metadata\/icon100\.\w+\.png/)
+
+          await next.renameFile(
+            'app/icons/static/icon100.png',
+            'app/icons/static/icon.png'
+          )
+        })
+      }
     })
 
     describe('twitter', () => {
