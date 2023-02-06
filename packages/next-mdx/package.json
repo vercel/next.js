@@ -14,6 +14,14 @@
     "@mdx-js/loader": ">=0.15.0",
     "@mdx-js/react": ">=0.15.0"
   },
+  "peerDependenciesMeta": {
+    "@mdx-js/loader": {
+      "optional": true
+    },
+    "@mdx-js/react": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "source-map": "^0.7.0"
   }
