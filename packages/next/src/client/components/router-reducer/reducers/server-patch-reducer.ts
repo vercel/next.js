@@ -29,8 +29,8 @@ export function serverPatchReducer(
   if (mutable.mpaNavigation) {
     return {
       // Set href.
-      canonicalUrl: mutable.canonicalUrlOverride
-        ? mutable.canonicalUrlOverride
+      canonicalUrl: mutable.canonicalUrl
+        ? mutable.canonicalUrl
         : state.canonicalUrl,
       // TODO-APP: verify mpaNavigation not being set is correct here.
       pushRef: {
@@ -51,8 +51,8 @@ export function serverPatchReducer(
   if (mutable.patchedTree) {
     return {
       // Keep href as it was set during navigate / restore
-      canonicalUrl: mutable.canonicalUrlOverride
-        ? mutable.canonicalUrlOverride
+      canonicalUrl: mutable.canonicalUrl
+        ? mutable.canonicalUrl
         : state.canonicalUrl,
       // Keep pushRef as server-patch only causes cache/tree update.
       pushRef: state.pushRef,
@@ -105,7 +105,7 @@ export function serverPatchReducer(
     : undefined
 
   if (canonicalUrlOverrideHref) {
-    mutable.canonicalUrlOverride = canonicalUrlOverrideHref
+    mutable.canonicalUrl = canonicalUrlOverrideHref
   }
 
   mutable.patchedTree = newTree

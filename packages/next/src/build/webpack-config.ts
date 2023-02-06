@@ -1166,7 +1166,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) return
 
       const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|head[^-]))/.test(
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|head[^-]))/.test(
           localRes
         )
 
@@ -1719,15 +1719,18 @@ export default async function getBaseWebpackConfig(
           : []),
         ...(hasServerComponents
           ? [
-              // Alias next/head component to noop for RSC
               {
                 test: codeCondition.test,
                 issuerLayer: appDirIssuerLayer,
                 resolve: {
                   alias: {
-                    // Alias `next/dynamic` to React.lazy implementation for RSC
+                    // Alias next/head component to noop for RSC
                     [require.resolve('next/head')]: require.resolve(
                       'next/dist/client/components/noop-head'
+                    ),
+                    // Alias next/dynamic
+                    [require.resolve('next/dynamic')]: require.resolve(
+                      'next/dist/shared/lib/app-dynamic'
                     ),
                   },
                 },

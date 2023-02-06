@@ -218,4 +218,158 @@ describe('refreshReducer', () => {
 
     expect(newState).toMatchObject(expectedState)
   })
+
+  it('should apply refresh (concurrent)', async () => {
+    const initialTree = getInitialRouterStateTree()
+    const initialCanonicalUrl = '/linking'
+    const children = (
+      <html>
+        <head></head>
+        <body>Root layout</body>
+      </html>
+    )
+    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+      [
+        'children',
+        new Map([
+          [
+            'linking',
+            {
+              status: CacheStates.READY,
+              parallelRoutes: new Map([
+                [
+                  'children',
+                  new Map([
+                    [
+                      '',
+                      {
+                        status: CacheStates.READY,
+                        data: null,
+                        subTreeData: <>Linking page</>,
+                        parallelRoutes: new Map(),
+                      },
+                    ],
+                  ]),
+                ],
+              ]),
+              data: null,
+              subTreeData: <>Linking layout level</>,
+            },
+          ],
+        ]),
+      ],
+    ])
+
+    const state = createInitialRouterState({
+      initialTree,
+      initialCanonicalUrl,
+      children,
+      initialParallelRoutes,
+      isServer: false,
+      location: new URL('/linking', 'https://localhost') as any,
+    })
+
+    const state2 = createInitialRouterState({
+      initialTree,
+      initialCanonicalUrl,
+      children,
+      initialParallelRoutes,
+      isServer: false,
+      location: new URL('/linking', 'https://localhost') as any,
+    })
+
+    const action: RefreshAction = {
+      type: ACTION_REFRESH,
+      cache: {
+        status: CacheStates.LAZY_INITIALIZED,
+        data: null,
+        subTreeData: null,
+        parallelRoutes: new Map(),
+      },
+      mutable: {},
+      origin: new URL('/linking', 'https://localhost').origin,
+    }
+
+    await runPromiseThrowChain(() => refreshReducer(state, action))
+
+    const newState = await runPromiseThrowChain(() =>
+      refreshReducer(state2, action)
+    )
+
+    const expectedState: ReturnType<typeof refreshReducer> = {
+      prefetchCache: new Map(),
+      pushRef: {
+        mpaNavigation: false,
+        pendingPush: false,
+      },
+      focusAndScrollRef: {
+        apply: false,
+      },
+      canonicalUrl: '/linking',
+      cache: {
+        status: CacheStates.READY,
+        data: null,
+        subTreeData: (
+          <html>
+            <head></head>
+            <body>
+              <h1>Linking Page!</h1>
+            </body>
+          </html>
+        ),
+        parallelRoutes: new Map([
+          [
+            'children',
+            new Map([
+              [
+                'linking',
+                {
+                  status: CacheStates.LAZY_INITIALIZED,
+                  parallelRoutes: new Map([
+                    [
+                      'children',
+                      new Map([
+                        [
+                          '',
+                          {
+                            status: CacheStates.LAZY_INITIALIZED,
+                            data: null,
+                            subTreeData: null,
+                            parallelRoutes: new Map(),
+                            head: (
+                              <>
+                                <title>Linking page!</title>
+                              </>
+                            ),
+                          },
+                        ],
+                      ]),
+                    ],
+                  ]),
+                  data: null,
+                  subTreeData: null,
+                },
+              ],
+            ]),
+          ],
+        ]),
+      },
+      tree: [
+        '',
+        {
+          children: [
+            'linking',
+            {
+              children: ['', {}],
+            },
+          ],
+        },
+        null,
+        null,
+        true,
+      ],
+    }
+
+    expect(newState).toMatchObject(expectedState)
+  })
 })

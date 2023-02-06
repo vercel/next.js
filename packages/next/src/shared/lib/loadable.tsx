@@ -23,8 +23,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
-import { NoSSR } from './dynamic-no-ssr'
 import { LoadableContext } from './loadable-context'
+
+function resolve(obj: any) {
+  return obj && obj.default ? obj.default : obj
+}
 
 const ALL_INITIALIZERS: any[] = []
 const READY_INITIALIZERS: any[] = []
@@ -63,7 +66,6 @@ function createLoadableComponent(loadFn: any, options: any) {
       timeout: null,
       webpack: null,
       modules: null,
-      ssr: true,
     },
     options
   )
@@ -83,18 +85,6 @@ function createLoadableComponent(loadFn: any, options: any) {
     }
     return subscription.promise()
   }
-
-  opts.lazy = React.lazy(async () => {
-    // If dynamic options.ssr == true during SSR,
-    // passing the preloaded promise of component to `React.lazy`.
-    // This guarantees the loader is always resolved after preloading.
-    if (opts.ssr && subscription) {
-      const value = subscription.getCurrentValue()
-      const resolved = await value.loaded
-      if (resolved) return resolved
-    }
-    return await opts.loader()
-  })
 
   // Server only
   if (typeof window === 'undefined') {
@@ -130,30 +120,44 @@ function createLoadableComponent(loadFn: any, options: any) {
     }
   }
 
-  function LoadableComponent(props: any) {
+  function LoadableComponent(props: any, ref: any) {
     useLoadableModule()
 
-    const Loading = opts.loading
-    const fallbackElement = (
-      <Loading isLoading={true} pastDelay={true} error={null} />
+    const state = (React as any).useSyncExternalStore(
+      subscription.subscribe,
+      subscription.getCurrentValue,
+      subscription.getCurrentValue
     )
 
-    const Wrap = opts.ssr ? React.Fragment : NoSSR
-    const Lazy = opts.lazy
-
-    return (
-      <React.Suspense fallback={fallbackElement}>
-        <Wrap>
-          <Lazy {...props} />
-        </Wrap>
-      </React.Suspense>
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        retry: subscription.retry,
+      }),
+      []
     )
+
+    return React.useMemo(() => {
+      if (state.loading || state.error) {
+        return React.createElement(opts.loading, {
+          isLoading: state.loading,
+          pastDelay: state.pastDelay,
+          timedOut: state.timedOut,
+          error: state.error,
+          retry: subscription.retry,
+        })
+      } else if (state.loaded) {
+        return React.createElement(resolve(state.loaded), props)
+      } else {
+        return null
+      }
+    }, [props, state])
   }
 
   LoadableComponent.preload = () => init()
   LoadableComponent.displayName = 'LoadableComponent'
 
-  return LoadableComponent
+  return React.forwardRef(LoadableComponent)
 }
 
 class LoadableSubscription {

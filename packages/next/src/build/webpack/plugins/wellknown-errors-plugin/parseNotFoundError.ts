@@ -116,9 +116,7 @@ export async function getNotFoundError(
         )
       if (moduleTrace.length === 0) return ''
 
-      return `\nImport trace for requested module:\n${moduleTrace.join(
-        '\n'
-      )}\n\n`
+      return `\nImport trace for requested module:\n${moduleTrace.join('\n')}`
     }
 
     let message =
@@ -127,8 +125,8 @@ export async function getNotFoundError(
       '\n' +
       frame +
       (frame !== '' ? '\n' : '') +
-      importTrace() +
-      '\nhttps://nextjs.org/docs/messages/module-not-found'
+      '\nhttps://nextjs.org/docs/messages/module-not-found\n' +
+      importTrace()
 
     let formattedFileName: string = chalk.cyan(fileName)
     if (lineNumber && column) {
