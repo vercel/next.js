@@ -10,9 +10,9 @@ import type {
 } from '../../../../../types'
 import type { BaseNextRequest } from '../../../../server/base-http'
 import type { __ApiPreviewProps } from '../../../../server/api-utils'
+import type { ParsedUrlQuery } from 'querystring'
 
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
-import { ParsedUrlQuery } from 'querystring'
 import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../../../../shared/lib/router/utils/path-match'
 import { getNamedRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
