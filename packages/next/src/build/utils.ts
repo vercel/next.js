@@ -1274,6 +1274,7 @@ export async function isPageStatic({
       let encodedPrerenderRoutes: Array<string> | undefined
       let prerenderFallback: boolean | 'blocking' | undefined
       let appConfig: AppConfig = {}
+      let isClientComponent: boolean = false
 
       if (isEdgeRuntime(pageRuntime)) {
         const runtime = await getRuntimeContext({
@@ -1293,6 +1294,7 @@ export async function isPageStatic({
         const mod =
           runtime.context._ENTRIES[`middleware_${edgeInfo.name}`].ComponentMod
 
+        isClientComponent = isClientReference(mod)
         componentsResult = {
           Component: mod.default,
           ComponentMod: mod,
@@ -1318,6 +1320,7 @@ export async function isPageStatic({
         | undefined
 
       if (pageType === 'app') {
+        isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
         const generateParams = await collectGenerateParams(tree)
 
@@ -1463,9 +1466,9 @@ export async function isPageStatic({
       }
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
-      const config: PageConfig = isClientReference(componentsResult)
-        ? componentsResult.pageConfig
-        : {}
+      const config: PageConfig = isClientComponent
+        ? {}
+        : componentsResult.pageConfig
 
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
