@@ -15974,6 +15974,7 @@
   },
   "Sofia Sans": {
     "weights": [
+      "1",
       "100",
       "200",
       "300",
@@ -15983,6 +15984,7 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "styles": [
@@ -15992,14 +15994,15 @@
     "axes": [
       {
         "tag": "wght",
-        "min": 100,
-        "max": 900,
+        "min": 1,
+        "max": 1000,
         "defaultValue": 400
       }
     ]
   },
   "Sofia Sans Condensed": {
     "weights": [
+      "1",
       "100",
       "200",
       "300",
@@ -16009,6 +16012,7 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "styles": [
@@ -16018,14 +16022,15 @@
     "axes": [
       {
         "tag": "wght",
-        "min": 100,
-        "max": 900,
+        "min": 1,
+        "max": 1000,
         "defaultValue": 400
       }
     ]
   },
   "Sofia Sans Extra Condensed": {
     "weights": [
+      "1",
       "100",
       "200",
       "300",
@@ -16035,6 +16040,7 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "styles": [
@@ -16044,14 +16050,15 @@
     "axes": [
       {
         "tag": "wght",
-        "min": 100,
-        "max": 900,
+        "min": 1,
+        "max": 1000,
         "defaultValue": 400
       }
     ]
   },
   "Sofia Sans Semi Condensed": {
     "weights": [
+      "1",
       "100",
       "200",
       "300",
@@ -16061,6 +16068,7 @@
       "700",
       "800",
       "900",
+      "1000",
       "variable"
     ],
     "styles": [
@@ -16070,8 +16078,8 @@
     "axes": [
       {
         "tag": "wght",
-        "min": 100,
-        "max": 900,
+        "min": 1,
+        "max": 1000,
         "defaultValue": 400
       }
     ]
