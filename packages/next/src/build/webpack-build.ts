@@ -19,6 +19,7 @@ import { isMainThread, parentPort, Worker, workerData } from 'worker_threads'
 import { createEntrypoints } from './entries'
 import loadConfig from '../server/config'
 import { trace } from '../trace'
+import { WEBPACK_LAYERS } from '../lib/constants'
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -154,6 +155,7 @@ async function webpackBuildImpl(): Promise<number> {
           clientEntry[key] = {
             dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
             import: value,
+            layer: WEBPACK_LAYERS.appClient,
           }
         }
       })

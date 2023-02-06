@@ -247,14 +247,9 @@ export const css = curry(async function css(
               test: regexCssModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
-                // For development, add the extra loader for HMR handling.
-                ctx.isProduction
-                  ? null
-                  : require.resolve(
-                      '../../../loaders/next-flight-css-dev-loader'
-                    ),
+                require.resolve('../../../loaders/next-flight-css-loader'),
                 ...getCssModuleLoader(ctx, true, lazyPostCSSInitializer),
-              ].filter(nonNullable),
+              ],
             })
           : null,
         markRemovable({
@@ -279,18 +274,14 @@ export const css = curry(async function css(
               test: regexSassModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
-                ctx.isProduction
-                  ? null
-                  : require.resolve(
-                      '../../../loaders/next-flight-css-dev-loader'
-                    ),
+                require.resolve('../../../loaders/next-flight-css-loader'),
                 ...getCssModuleLoader(
                   ctx,
                   true,
                   lazyPostCSSInitializer,
                   sassPreprocessors
                 ),
-              ].filter(nonNullable),
+              ],
             })
           : null,
         markRemovable({
@@ -331,12 +322,8 @@ export const css = curry(async function css(
             ? markRemovable({
                 sideEffects: true,
                 test: [regexCssGlobal, regexSassGlobal],
-                issuerLayer: {
-                  or: [WEBPACK_LAYERS.server, WEBPACK_LAYERS.client],
-                },
-                use: require.resolve(
-                  '../../../loaders/next-flight-css-dev-loader'
-                ),
+                issuerLayer: APP_LAYER_RULE,
+                use: require.resolve('../../../loaders/next-flight-css-loader'),
               })
             : null,
           markRemovable({
@@ -377,9 +364,7 @@ export const css = curry(async function css(
                   test: regexCssGlobal,
                   issuerLayer: APP_LAYER_RULE,
                   use: [
-                    require.resolve(
-                      '../../../loaders/next-flight-css-dev-loader'
-                    ),
+                    require.resolve('../../../loaders/next-flight-css-loader'),
                     ...getGlobalCssLoader(ctx, true, lazyPostCSSInitializer),
                   ],
                 }),
@@ -388,9 +373,7 @@ export const css = curry(async function css(
                   test: regexSassGlobal,
                   issuerLayer: APP_LAYER_RULE,
                   use: [
-                    require.resolve(
-                      '../../../loaders/next-flight-css-dev-loader'
-                    ),
+                    require.resolve('../../../loaders/next-flight-css-loader'),
                     ...getGlobalCssLoader(
                       ctx,
                       true,
