@@ -1,5 +1,5 @@
-/* __next_internal_action_entry_do_not_use__ $ACTION_deleteItem */ import deleteFromDb from 'db'
-export function Item({ id1 , id2  }) {
+/* __next_internal_action_entry_do_not_use__ $ACTION_deleteItem */ import deleteFromDb from 'db';
+export function Item(product, foo, bar) {
     async function deleteItem() {
         return $ACTION_deleteItem(deleteItem.$$closure);
     }
@@ -7,12 +7,15 @@ export function Item({ id1 , id2  }) {
     deleteItem.$$filepath = "/app/item.js";
     deleteItem.$$name = "$ACTION_deleteItem";
     deleteItem.$$closure = [
-        id1,
-        id2
+        product.id,
+        product?.foo,
+        product.bar.baz,
+        product,
+        foo,
+        bar
     ];
     return <Button action={deleteItem}>Delete</Button>;
 }
 export async function $ACTION_deleteItem(closure) {
-    await deleteFromDb(closure[0]);
-    await deleteFromDb(closure[1]);
+    await deleteFromDb(closure[3].id, closure[3]?.foo, closure[3].bar.baz, closure[3][closure[4], closure[5]]);
 }

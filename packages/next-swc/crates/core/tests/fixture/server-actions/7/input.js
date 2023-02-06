@@ -1,10 +1,9 @@
 import deleteFromDb from 'db'
 
-export function Item({ id1, id2 }) {
+export function Item(product,foo ,bar) {
     async function deleteItem() {
         "use server";
-        await deleteFromDb(id1);
-        await deleteFromDb(id2);
+        await deleteFromDb(product.id,product?.foo,product.bar.baz,product[foo, bar]);
     }
     return <Button action={deleteItem}>Delete</Button>;
 }
