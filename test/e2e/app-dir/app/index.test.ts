@@ -1473,6 +1473,7 @@ createNextDescribe(
         it('should include css modules after page transition', async () => {
           const browser = await next.browser('/css-modules/page1')
           await browser.elementByCss('a').click()
+          await browser.waitForElementByCss('#page2')
           expect(
             await browser.eval(
               `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
