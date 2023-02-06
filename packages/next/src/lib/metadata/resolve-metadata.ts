@@ -379,8 +379,10 @@ async function resolveStaticMetadata(
   const { metadata } = components
   if (!metadata) return null
 
-  const icon = await collectStaticFsBasedIcons(metadata, 'icon')
-  const apple = await collectStaticFsBasedIcons(metadata, 'apple')
+  const [icon, apple] = await Promise.all([
+    collectStaticFsBasedIcons(metadata, 'icon'),
+    collectStaticFsBasedIcons(metadata, 'apple'),
+  ])
 
   const icons: Metadata['icons'] = {}
   if (icon) icons.icon = icon
