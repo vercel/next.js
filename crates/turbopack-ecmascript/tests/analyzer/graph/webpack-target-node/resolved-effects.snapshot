@@ -1,0 +1,43 @@
+0 -> 5 member call = ???*0*["r"](???*1*)
+- *0* __webpack_require__
+  ⚠️  pattern without value
+- *1* __webpack_exports__
+  ⚠️  pattern without value
+
+0 -> 7 member call = ???*0*["d"](???*1*, {"default": (...) => handler})
+- *0* __webpack_require__
+  ⚠️  pattern without value
+- *1* __webpack_exports__
+  ⚠️  pattern without value
+
+0 -> 8 call = require*0*("fs/promises")
+- *0* require: The require method from CommonJS
+
+0 -> 10 member call = module<fs/promises, {}>["readFile"]("./hello.txt", "utf-8")
+
+0 -> 13 member call = ???*0*["status"](200)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+0 -> 14 member call = ???*0*["json"](
+    {"users": [{"id": 1}, {"id": 2}, {"id": 3}], "hello": ???*2*}
+)
+- *0* ???*1*["status"](200)
+  ⚠️  unknown callee object
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*("./hello.txt", "utf-8")
+  ⚠️  unknown callee
+- *3* module<fs/promises, {}>["readFile"]
+  ⚠️  nested operation
+
+0 -> 15 call = require*0*("../../webpack-api-runtime.js")
+- *0* require: The require method from CommonJS
+
+0 -> 17 member call = module<../../webpack-api-runtime.js, {}>["C"]({})
+
+0 -> 19 call = module<../../webpack-api-runtime.js, {}>(???*0*)
+- *0* unsupported expression
+
+0 -> 20 call = (...) => __webpack_require__(???*0*)(5166)
+- *0* unsupported expression

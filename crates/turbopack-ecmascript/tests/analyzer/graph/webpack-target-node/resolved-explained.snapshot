@@ -1,0 +1,52 @@
+*arrow function 1213* = (...) => __webpack_require__(???*0*)
+- *0* unsupported expression
+
+*arrow function 131* = (...) => undefined
+
+*arrow function 389* = (...) => handler
+
+__unused_webpack_module = ???*0*
+- *0* __unused_webpack_module
+  ⚠️  pattern without value
+
+__webpack_exec__ = (...) => __webpack_require__(???*0*)
+- *0* unsupported expression
+
+__webpack_exports__#1 = module<../../webpack-api-runtime.js, {}>(???*0*)
+- *0* unsupported expression
+
+__webpack_exports__#2 = ???*0*
+- *0* __webpack_exports__
+  ⚠️  pattern without value
+
+__webpack_require__#1 = module<../../webpack-api-runtime.js, {}>
+
+__webpack_require__#2 = ???*0*
+- *0* __webpack_require__
+  ⚠️  pattern without value
+
+_req = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+exports = {}
+
+handler = (...) => undefined
+
+hello = ???*0*
+- *0* ???*1*("./hello.txt", "utf-8")
+  ⚠️  unknown callee
+- *1* module<fs/promises, {}>["readFile"]
+  ⚠️  nested operation
+
+moduleId = ???*0*
+- *0* moduleId
+  ⚠️  pattern without value
+
+promises_namespaceObject = module<fs/promises, {}>
+
+res = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+users = [{"id": 1}, {"id": 2}, {"id": 3}]

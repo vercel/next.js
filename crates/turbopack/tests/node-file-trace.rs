@@ -166,6 +166,7 @@ static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
 #[case::underscore("integration/underscore.js")]
 #[case::vm2("integration/vm2.js")]
 #[case::vue("integration/vue.js")]
+#[case::webpack_target_node("integration/webpack-target-node/index.js")]
 #[case::whatwg_url("integration/whatwg-url.js")]
 #[case::when("integration/when.js")]
 // These two tests print a deprecation warning about using folders in exports field to stderr.
