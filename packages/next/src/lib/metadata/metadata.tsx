@@ -1,5 +1,3 @@
-import type { Metadata } from './types/metadata-interface'
-
 import React from 'react'
 import {
   AppleWebAppMeta,

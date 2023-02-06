@@ -27,7 +27,7 @@ const METADATA_TYPE = 'metadata'
 
 const staticAssetIconsImageRegex = {
   icon: /^icon\d*\.(ico|jpg|png|svg)$/,
-  apple: /^apple-touch-icon\d*\.(ico|jpg|png|svg)$/,
+  apple: /^apple-touch-icon\d*\.(jpg|png|svg)$/,
 }
 
 // TODO-APP: check if this can be narrowed.
@@ -70,10 +70,7 @@ async function createTreeCodeFromPath({
   let rootLayout: string | undefined
   let globalError: string | undefined
 
-  async function discoverStaticMetadataFiles(
-    routerDirPath: string,
-    isDev: boolean
-  ) {
+  async function discoverStaticMetadataFiles(routerDirPath: string) {
     let hasStaticMetadataFiles = false
     const iconsMetadata: {
       icon: string[]
@@ -99,7 +96,7 @@ async function createTreeCodeFromPath({
         .filter((file) => file.isFile())
         // sort filenames in lexical order
         .sort((a, b) => a.name.localeCompare(b.name))
-        .map((file) => {
+        .forEach((file) => {
           const nonCaseSensitiveFilename = file.name.toLowerCase()
           const filepath = path.join(resolvedRouteDir, file.name)
           const iconModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
@@ -145,8 +142,7 @@ async function createTreeCodeFromPath({
     }
 
     const metadata = await discoverStaticMetadataFiles(
-      `${appDirPrefix}${segmentPath}`,
-      isDev
+      `${appDirPrefix}${segmentPath}`
     )
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
@@ -188,7 +184,7 @@ async function createTreeCodeFromPath({
       )
 
       const layoutPath = filePaths.find(
-        ([type, path]) => type === 'layout' && !!path
+        ([type, filePath]) => type === 'layout' && !!filePath
       )?.[1]
       if (!rootLayout) {
         rootLayout = layoutPath
@@ -296,9 +292,9 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
   const resolveParallelSegments = (pathname: string) => {
     const matched: Record<string, string> = {}
-    for (const path of normalizedAppPaths) {
-      if (path.startsWith(pathname + '/')) {
-        const rest = path.slice(pathname.length + 1).split('/')
+    for (const appPath of normalizedAppPaths) {
+      if (appPath.startsWith(pathname + '/')) {
+        const rest = appPath.slice(pathname.length + 1).split('/')
 
         let matchedSegment = rest[0]
         // It is the actual page, mark it specially.
