@@ -25,14 +25,16 @@ import {
   ReducerState,
 } from '../router-reducer-types'
 
-function handleMutable(
+export function handleMutable(
   state: ReadonlyReducerState,
   mutable: Mutable
 ): ReducerState {
   return {
     // Set href.
     canonicalUrl:
-      typeof mutable.canonicalUrl !== 'undefined' ? mutable.canonicalUrl : '',
+      typeof mutable.canonicalUrl !== 'undefined'
+        ? mutable.canonicalUrl
+        : state.canonicalUrl,
     pushRef: {
       pendingPush:
         typeof mutable.pendingPush !== 'undefined'
@@ -61,11 +63,11 @@ function handleMutable(
   }
 }
 
-function applyFlightData(
+export function applyFlightData(
   state: ReadonlyReducerState,
   cache: CacheNode,
   flightDataPath: FlightDataPath
-) {
+): boolean {
   // The one before last item is the router state tree patch
   const [treePatch, subTreeData, head] = flightDataPath.slice(-3)
 
@@ -89,7 +91,7 @@ function applyFlightData(
   return true
 }
 
-function handleExternalUrl(
+export function handleExternalUrl(
   state: ReadonlyReducerState,
   mutable: Mutable,
   url: string,
@@ -125,10 +127,7 @@ export function navigateReducer(
     JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
 
   if (isForCurrentTree) {
-    const result = handleMutable(state, mutable)
-    if (result) {
-      return result
-    }
+    return handleMutable(state, mutable)
   }
 
   if (isExternalUrl) {
