@@ -13983,7 +13983,7 @@ export declare function Noto_Sans_Myanmar<
   adjustFontFallback?: boolean
   subsets?: Array<'myanmar'>
 }): T extends undefined ? NextFont : NextFontWithVariable
-export declare function Noto_Sans_N_Ko<
+export declare function Noto_Sans_NKo<
   T extends CssVariable | undefined = undefined
 >(options: {
   weight: '400' | Array<'400'>
@@ -13993,7 +13993,7 @@ export declare function Noto_Sans_N_Ko<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'nko'>
+  subsets?: Array<'latin' | 'latin-ext' | 'nko'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Sans_Nabataean<
   T extends CssVariable | undefined = undefined
@@ -15440,24 +15440,6 @@ export declare function Noto_Serif_NP_Hmong<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'nyiakeng-puachue-hmong'>
-}): T extends undefined ? NextFont : NextFontWithVariable
-export declare function Noto_Serif_Nyiakeng_Puachue_Hmong<
-  T extends CssVariable | undefined = undefined
->(options?: {
-  weight?:
-    | '400'
-    | '500'
-    | '600'
-    | '700'
-    | 'variable'
-    | Array<'400' | '500' | '600' | '700'>
-  style?: 'normal' | Array<'normal'>
-  display?: Display
-  variable?: T
-  preload?: boolean
-  fallback?: string[]
-  adjustFontFallback?: boolean
-  subsets?: Array<'nyiakeng-puachue-hmong'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Oriya<
   T extends CssVariable | undefined = undefined
@@ -19635,6 +19617,7 @@ export declare function Sofia_Sans<
   T extends CssVariable | undefined = undefined
 >(options?: {
   weight?:
+    | '1'
     | '100'
     | '200'
     | '300'
@@ -19644,9 +19627,20 @@ export declare function Sofia_Sans<
     | '700'
     | '800'
     | '900'
+    | '1000'
     | 'variable'
     | Array<
-        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+        | '1'
+        | '100'
+        | '200'
+        | '300'
+        | '400'
+        | '500'
+        | '600'
+        | '700'
+        | '800'
+        | '900'
+        | '1000'
       >
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
@@ -19654,12 +19648,13 @@ export declare function Sofia_Sans<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sofia_Sans_Condensed<
   T extends CssVariable | undefined = undefined
 >(options?: {
   weight?:
+    | '1'
     | '100'
     | '200'
     | '300'
@@ -19669,9 +19664,20 @@ export declare function Sofia_Sans_Condensed<
     | '700'
     | '800'
     | '900'
+    | '1000'
     | 'variable'
     | Array<
-        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+        | '1'
+        | '100'
+        | '200'
+        | '300'
+        | '400'
+        | '500'
+        | '600'
+        | '700'
+        | '800'
+        | '900'
+        | '1000'
       >
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
@@ -19679,12 +19685,13 @@ export declare function Sofia_Sans_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sofia_Sans_Extra_Condensed<
   T extends CssVariable | undefined = undefined
 >(options?: {
   weight?:
+    | '1'
     | '100'
     | '200'
     | '300'
@@ -19694,9 +19701,20 @@ export declare function Sofia_Sans_Extra_Condensed<
     | '700'
     | '800'
     | '900'
+    | '1000'
     | 'variable'
     | Array<
-        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+        | '1'
+        | '100'
+        | '200'
+        | '300'
+        | '400'
+        | '500'
+        | '600'
+        | '700'
+        | '800'
+        | '900'
+        | '1000'
       >
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
@@ -19704,12 +19722,13 @@ export declare function Sofia_Sans_Extra_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Sofia_Sans_Semi_Condensed<
   T extends CssVariable | undefined = undefined
 >(options?: {
   weight?:
+    | '1'
     | '100'
     | '200'
     | '300'
@@ -19719,9 +19738,20 @@ export declare function Sofia_Sans_Semi_Condensed<
     | '700'
     | '800'
     | '900'
+    | '1000'
     | 'variable'
     | Array<
-        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+        | '1'
+        | '100'
+        | '200'
+        | '300'
+        | '400'
+        | '500'
+        | '600'
+        | '700'
+        | '800'
+        | '900'
+        | '1000'
       >
   style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
   display?: Display
@@ -19729,7 +19759,7 @@ export declare function Sofia_Sans_Semi_Condensed<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext'>
+  subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Solitreo<
   T extends CssVariable | undefined = undefined
