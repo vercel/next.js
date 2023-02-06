@@ -1,6 +1,6 @@
 use std::mem::take;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::trace::TraceRawVcs;
 
@@ -75,7 +75,8 @@ impl Glob {
         let mut expression = Vec::new();
 
         while !current.is_empty() {
-            let (part, remainder) = GlobPart::parse(current, false)?;
+            let (part, remainder) = GlobPart::parse(current, false)
+                .with_context(|| anyhow!("Failed to parse glob {input}"))?;
             expression.push(part);
             current = remainder;
         }
@@ -198,7 +199,10 @@ impl GlobPart {
                             current = &current[1..];
                             break;
                         }
-                        _ => bail!("Unterminated glob braces"),
+                        None => bail!("Unterminated glob braces"),
+                        _ => {
+                            // next part of the glob
+                        }
                     }
                 }
 
@@ -391,6 +395,20 @@ mod tests {
         "**/*/next/dist/server/next.js",
         "node_modules/next/dist/server/next.js"
     )]
+    #[case::node_modules_root("**/node_modules/**", "node_modules/next/dist/server/next.js")]
+    #[case::node_modules_nested(
+        "**/node_modules/**",
+        "apps/some-app/node_modules/regenerate-unicode-properties/Script_Extensions/Osage.js"
+    )]
+    #[case::node_modules_pnpm(
+        "**/node_modules/**",
+        "node_modules/.pnpm/regenerate-unicode-properties@9.0.0/node_modules/\
+         regenerate-unicode-properties/Script_Extensions/Osage.js"
+    )]
+    #[case::alternatives_nested1("{a,b/c,d/e/{f,g/h}}", "a")]
+    #[case::alternatives_nested2("{a,b/c,d/e/{f,g/h}}", "b/c")]
+    #[case::alternatives_nested3("{a,b/c,d/e/{f,g/h}}", "d/e/f")]
+    #[case::alternatives_nested4("{a,b/c,d/e/{f,g/h}}", "d/e/g/h")]
     fn glob_match(#[case] glob: &str, #[case] path: &str) {
         let glob = Glob::parse(glob).unwrap();
 
