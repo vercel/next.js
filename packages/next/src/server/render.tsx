@@ -89,7 +89,6 @@ import {
 } from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -1245,13 +1244,6 @@ export async function renderToHTML(
       return await renderToInitialStream({
         ReactDOMServer,
         element: content,
-        streamOptions: {
-          onError(streamingErr: any) {
-            if (streamingErr?.digest === NEXT_DYNAMIC_NO_SSR_CODE) {
-              return streamingErr.digest
-            }
-          },
-        },
       })
     }
 
