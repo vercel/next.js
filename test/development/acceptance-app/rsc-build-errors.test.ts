@@ -1,5 +1,5 @@
-import { check } from 'next-test-utils'
 import { createNextDescribe, FileRef } from 'e2e-utils'
+import { check } from 'next-test-utils'
 import path from 'path'
 import { sandbox } from './helpers'
 
