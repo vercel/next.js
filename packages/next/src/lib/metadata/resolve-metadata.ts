@@ -360,22 +360,33 @@ async function getDefinedMetadata(
   )
 }
 
+async function collectStaticFsBasedIcons(
+  metadata: ComponentsType['metadata'],
+  type: 'icon' | 'apple'
+) {
+  if (!metadata?.[type]) return undefined
+  const iconPromises = metadata[type].map(
+    // TODO-APP: share the typing between next-metadata-image-loader and here
+    async (iconResolver) =>
+      interopDefault(await iconResolver()) as { url: string; sizes: string }
+  )
+  return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
+}
+
 async function resolveStaticMetadata(
   components: ComponentsType
 ): Promise<Metadata | null> {
   const { metadata } = components
   if (!metadata) return null
 
-  const iconPromises = metadata?.icons.map(
-    // TODO-APP: share the typing between next-metadata-image-loader and here
-    async (iconResolver) =>
-      interopDefault(await iconResolver()) as { url: string; sizes: string }
-  )
-  const staticIcons = iconPromises ? await Promise.all(iconPromises) : null
+  const icon = await collectStaticFsBasedIcons(metadata, 'icon')
+  const apple = await collectStaticFsBasedIcons(metadata, 'apple')
 
-  return {
-    icons: staticIcons,
-  }
+  const icons: Metadata['icons'] = {}
+  if (icon) icons.icon = icon
+  if (apple) icons.apple = apple
+
+  return { icons }
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
@@ -423,8 +434,7 @@ export async function accumulateMetadata(
       })
     })
   }
-  // @ts-ignore
-  // console.log('await parentPromise', (await parentPromise).icons.icon)
+
   return await parentPromise
 }
 

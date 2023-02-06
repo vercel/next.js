@@ -25,13 +25,17 @@ const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const METADATA_TYPE = 'metadata'
 
-const staticAssetIconImageRegex = /^icon\d*\.(ico|jpg|png|svg)$/
+const staticAssetIconsImageRegex = {
+  icon: /^icon\d*\.(ico|jpg|png|svg)$/,
+  apple: /^apple-touch-icon\d*\.(ico|jpg|png|svg)$/,
+}
 
 // TODO-APP: check if this can be narrowed.
 type ComponentModule = () => any
 type ModuleReference = [componentModule: ComponentModule, filePath: string]
 type CollectedMetadata = {
-  icons: ComponentModule[]
+  icon: ComponentModule[]
+  apple: ComponentModule[]
 }
 export type ComponentsType = {
   readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
@@ -71,8 +75,12 @@ async function createTreeCodeFromPath({
     isDev: boolean
   ) {
     let hasStaticMetadataFiles = false
-    const metadata: { icons: string[] } = {
-      icons: [],
+    const iconsMetadata: {
+      icon: string[]
+      apple: string[]
+    } = {
+      icon: [],
+      apple: [],
     }
 
     // collect metadata if there's any from the folder of the page
@@ -92,25 +100,30 @@ async function createTreeCodeFromPath({
         // sort filenames in lexical order
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((file) => {
-          // Match files without case sensitivity
-          if (staticAssetIconImageRegex.test(file.name.toLowerCase())) {
-            hasStaticMetadataFiles = true
+          const nonCaseSensitiveFilename = file.name.toLowerCase()
+          const filepath = path.join(resolvedRouteDir, file.name)
+          const iconModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+            `next-metadata-image-loader?${stringify({ isDev })}!` +
+              filepath +
+              '?__next_metadata'
+          )})`
 
-            const filepath = path.join(resolvedRouteDir, file.name)
-            addDependency(filepath)
-
-            metadata.icons.push(
-              `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-                `next-metadata-image-loader?${stringify({ isDev })}!` +
-                  filepath +
-                  '?__next_metadata'
-              )})`
-            )
+          function collectIconModuleIfExists(type: 'icon' | 'apple') {
+            if (
+              staticAssetIconsImageRegex[type].test(nonCaseSensitiveFilename)
+            ) {
+              hasStaticMetadataFiles = true
+              addDependency(filepath)
+              iconsMetadata[type].push(iconModule)
+            }
           }
+
+          collectIconModuleIfExists('icon')
+          collectIconModuleIfExists('apple')
         })
     }
 
-    return hasStaticMetadataFiles ? metadata : null
+    return hasStaticMetadataFiles ? iconsMetadata : null
   }
 
   async function createSubtreePropsFromSegmentPath(
@@ -150,7 +163,8 @@ async function createTreeCodeFromPath({
           ${
             metadata
               ? `${METADATA_TYPE}: {
-                icons: [${metadata.icons.join(',')}]
+                icon: [${metadata.icon.join(',')}],
+                apple: [${metadata.apple.join(',')}]
               }`
               : ''
           }
@@ -207,7 +221,8 @@ async function createTreeCodeFromPath({
           ${
             definedFilePaths.length && metadata
               ? `${METADATA_TYPE}: {
-                  icons: [${metadata.icons.join(',')}]
+                  icon: [${metadata.icon.join(',')}]
+                  apple: [${metadata.apple.join(',')}]
                 }`
               : ''
           }
