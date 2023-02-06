@@ -40,7 +40,11 @@ function defaultLoader({
         )
       }
 
-      if (process.env.NODE_ENV !== 'test') {
+      if (
+        process.env.NODE_ENV !== 'test' &&
+        // micromatch isn't compatible with edge runtime
+        process.env.NEXT_RUNTIME !== 'edge'
+      ) {
         // We use dynamic require because this should only error in development
         const { hasMatch } = require('./match-remote-pattern')
         if (!hasMatch(config.domains, config.remotePatterns, parsedSrc)) {
