@@ -1584,17 +1584,17 @@ export async function renderToHTMLOrFlight(
     const streamToBufferedResult = async (
       renderResult: RenderResult
     ): Promise<string> => {
-      const renderChunks: Buffer[] = []
+      const renderChunks: string[] = []
 
       const writable = {
         write(chunk: any) {
-          renderChunks.push(chunk)
+          renderChunks.push(decodeText(chunk))
         },
         end() {},
         destroy() {},
       }
       await renderResult.pipe(writable as any)
-      return renderChunks.map((chunk) => chunk.toString()).join('')
+      return renderChunks.join('')
     }
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
     const generateFlight = async (): Promise<RenderResult> => {
