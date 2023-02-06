@@ -12,7 +12,7 @@ import type { BaseNextRequest } from '../../../../server/base-http'
 import type { __ApiPreviewProps } from '../../../../server/api-utils'
 
 import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
-import { parse as parseQs, ParsedUrlQuery } from 'querystring'
+import { ParsedUrlQuery } from 'querystring'
 import { normalizeLocalePath } from '../../../../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../../../../shared/lib/router/utils/path-match'
 import { getNamedRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
@@ -292,7 +292,7 @@ export function getUtils({
           re: {
             // Simulate a RegExp match from the \`req.url\` input
             exec: (str: string) => {
-              const obj = parseQs(str)
+              const obj = Object.fromEntries(new URLSearchParams(str))
               const matchesHasLocale =
                 i18n && detectedLocale && obj['1'] === detectedLocale
 
