@@ -1,6 +1,6 @@
 declare const PAGE: string;
 
-import { adapter, enhanceGlobals } from "next/dist/esm/server/web/adapter";
+import { adapter, enhanceGlobals } from "next/dist/server/web/adapter";
 
 enhanceGlobals();
 

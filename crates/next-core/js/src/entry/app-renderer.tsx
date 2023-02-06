@@ -238,7 +238,9 @@ async function runOperation(renderData: RenderData) {
     body = result.toUnchunkedString();
   }
   return {
-    headers: [["Content-Type", result.contentType() ?? MIME_TEXT_HTML_UTF8]],
+    headers: [
+      ["Content-Type", result.contentType() ?? MIME_TEXT_HTML_UTF8],
+    ] as [string, string][],
     body,
   };
 }
