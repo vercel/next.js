@@ -66,10 +66,15 @@ const testedExamples = [
   'with-tailwindcss',
   'with-turbopack',
   'with-vercel-fetch',
-]
+  // TODO: remove slice()
+  // We can't add all of them at once because the CI will timeout (because it will add all examples into one action)
+].slice(0, 20)
 
 const batches = 5
 const batchSize = Math.floor((testedExamples.length + batches - 1) / batches)
+/**
+ * We need to split examples into multiple files because otherwise our --timings magic won't be able to splid our tests into mulpitle actions
+ */
 export const getExamplesBatch = (n: number) =>
   testedExamples.slice(
     n * batchSize,
