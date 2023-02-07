@@ -159,6 +159,13 @@ module.exports = (actionInfo) => {
             }
           }
 
+          if (pkgData?.scripts?.prepublishOnly) {
+            // There's a bug in `pnpm pack` where it will run
+            // the prepublishOnly script and that will fail.
+            // See https://github.com/pnpm/pnpm/issues/2941
+            delete pkgData.scripts.prepublishOnly
+          }
+
           await fs.writeFile(
             pkgDataPath,
             JSON.stringify(pkgData, null, 2),
