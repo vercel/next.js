@@ -29,7 +29,7 @@ use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
     RawVc, StatsType, TransientInstance, TransientValue, TurboTasks, TurboTasksBackendApi, Value,
 };
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemVc};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc, LogOptions};
 use turbopack_core::{

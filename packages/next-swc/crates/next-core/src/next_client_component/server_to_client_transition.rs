@@ -1,5 +1,8 @@
 use turbopack::transition::{Transition, TransitionVc};
-use turbopack_core::{asset::AssetVc, virtual_asset::VirtualAssetVc};
+use turbopack_core::{
+    asset::{Asset, AssetVc},
+    virtual_asset::VirtualAssetVc,
+};
 
 use crate::embed_js::next_js_file;
 

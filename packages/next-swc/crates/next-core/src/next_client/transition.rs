@@ -9,7 +9,7 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{Asset, AssetVc},
     chunk::{ChunkableAssetVc, ChunkingContextVc},
     environment::EnvironmentVc,
     virtual_asset::VirtualAssetVc,

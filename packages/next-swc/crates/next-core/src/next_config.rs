@@ -14,6 +14,7 @@ use turbopack::{
 };
 use turbopack_core::{
     asset::Asset,
+    context::AssetContext,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         find_context_file,

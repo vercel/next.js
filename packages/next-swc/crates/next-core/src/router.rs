@@ -8,7 +8,7 @@ use turbo_tasks_fs::{to_sys_path, FileSystemPathVc};
 use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::AssetVc,
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     resolve::{find_context_file, FindContextFileResult},
     source_asset::SourceAssetVc,
 };

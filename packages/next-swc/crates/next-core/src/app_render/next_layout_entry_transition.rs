@@ -7,7 +7,11 @@ use turbopack::{
     transition::{Transition, TransitionVc},
     ModuleAssetContextVc,
 };
-use turbopack_core::{asset::AssetVc, environment::EnvironmentVc, virtual_asset::VirtualAssetVc};
+use turbopack_core::{
+    asset::{Asset, AssetVc},
+    environment::EnvironmentVc,
+    virtual_asset::VirtualAssetVc,
+};
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceableVc;
 
 use crate::{

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use turbo_tasks_fs::{
-    attach::AttachedFileSystemVc, embed_directory, FileContentVc, FileSystemPathVc, FileSystemVc,
+    attach::AttachedFileSystemVc, embed_directory, FileContentVc, FileSystem, FileSystemPathVc,
+    FileSystemVc,
 };
 use turbopack_core::{asset::AssetVc, virtual_asset::VirtualAssetVc};
 
