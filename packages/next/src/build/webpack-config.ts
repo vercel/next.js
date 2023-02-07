@@ -575,6 +575,24 @@ export async function resolveExternal(
   return { res, isEsm }
 }
 
+export async function loadProjectInfo({
+  dir,
+  config,
+  dev,
+}: {
+  dir: string
+  config: NextConfigComplete
+  dev: boolean
+}) {
+  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
+  return {
+    jsConfig,
+    resolvedBaseUrl,
+    supportedBrowsers,
+  }
+}
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -592,6 +610,9 @@ export default async function getBaseWebpackConfig(
     appDir,
     middlewareMatchers,
     noMangling = false,
+    jsConfig,
+    resolvedBaseUrl,
+    supportedBrowsers,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -607,14 +628,14 @@ export default async function getBaseWebpackConfig(
     appDir?: string
     middlewareMatchers?: MiddlewareMatcher[]
     noMangling?: boolean
+    jsConfig: any
+    resolvedBaseUrl: string | undefined
+    supportedBrowsers: string[] | undefined
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
-
-  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
 
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
