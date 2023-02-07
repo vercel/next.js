@@ -82,7 +82,7 @@ Common causes with css-in-js libraries:
 - When using other css-in-js libraries
   - Similar to Styled Components / Emotion css-in-js libraries generally need configuration specified in their examples in the [examples directory](https://github.com/vercel/next.js/tree/canary/examples)
 
-#### Local Overrides
+Local Overrides
 
 It's possible you may have [Local Overrides enabled in Chrome devtools](https://developer.chrome.com/blog/new-in-devtools-65/#overrides). With this enabled, the HTML served will be different from what the SSR emitted. It also won't show up in view-source, so you may be left wondering what is going on.
 
