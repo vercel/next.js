@@ -506,7 +506,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/cookies': 3.0.3
+      '@edge-runtime/cookies': 3.0.4
       '@edge-runtime/primitives': 2.0.0
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.13.3
@@ -717,7 +717,7 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/cookies': 3.0.3
+      '@edge-runtime/cookies': 3.0.4
       '@edge-runtime/primitives': 2.0.0
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.13.3
@@ -4373,8 +4373,8 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
-  /@edge-runtime/cookies/3.0.3:
-    resolution: {integrity: sha512-eS0tiTPzpgbt0nROtytn8opPNXZkGOMqUu84wAJeVYoAOB9GSojCmirU4qH+3IMqhvrbpTL3Ep4+0jMxx+3A5w==}
+  /@edge-runtime/cookies/3.0.4:
+    resolution: {integrity: sha512-q+Hm3Ekj7n/B/BRYSCGWkKspSuxlDIEeht6MI5SbYr0Xus1Zy20ZpazmcaKQYEqEdGdazEEV2zRgqRQ6NIjZWg==}
     engines: {node: '>=14'}
     dev: true
 

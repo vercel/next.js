@@ -340,8 +340,8 @@ declare module 'next/dist/compiled/edge-runtime' {
   export = m
 }
 
-declare module 'next/dist/compiled/@edge-runtime/cookies' {
-  export * from '@edge-runtime/cookies'
+declare module 'next/font' {
+  export * from '@next/font'
 }
 
 declare module 'next/dist/compiled/@edge-runtime/primitives' {

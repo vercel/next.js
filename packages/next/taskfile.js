@@ -348,7 +348,7 @@ externals['@edge-runtime/cookies'] = 'next/dist/compiled/@edge-runtime/cookies'
 export async function ncc_edge_runtime_cookies() {
   // `@edge-runtime/cookies` is precompiled and pre-bundled
   // so we vendor the package as it is.
-  const dest = 'compiled/@edge-runtime/cookies'
+  const dest = 'src/compiled/@edge-runtime/cookies'
   const pkg = await fs.readJson(
     require.resolve('@edge-runtime/cookies/package.json')
   )

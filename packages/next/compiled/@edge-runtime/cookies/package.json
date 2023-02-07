@@ -1,7 +1,0 @@
-{
-  "name": "@edge-runtime/cookies",
-  "version": "3.0.3",
-  "main": "./index.js",
-  "type": "module",
-  "license": "MPLv2"
-}
