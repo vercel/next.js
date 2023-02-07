@@ -11,7 +11,7 @@ To update to Next.js version 13, run the following command using your preferred 
 ```bash
 npm i next@latest react@latest react-dom@latest eslint-config-next@latest
 # or
-yarn upgrade next react react-dom eslint-config-next --latest
+yarn add next@latest react@latest react-dom@latest eslint-config-next@latest
 # or
 pnpm up next react react-dom eslint-config-next --latest
 ```
@@ -19,7 +19,7 @@ pnpm up next react react-dom eslint-config-next --latest
 ### v13 Summary
 
 - The [Supported Browsers](/docs/basic-features/supported-browsers-features.md) have been changed to drop Internet Explorer and target modern browsers.
-- The minimum Node.js version has been bumped from 12.22.0 to 14.0.0, since 12.x has reached end-of-life.
+- The minimum Node.js version has been bumped from 12.22.0 to 14.6.0, since 12.x has reached end-of-life.
 - The minimum React version has been bumped from 17.0.2 to 18.2.0.
 - The `swcMinify` configuration property was changed from `false` to `true`. See [Next.js Compiler](/docs/advanced-features/compiler.md) for more info.
 - The `next/image` import was renamed to `next/legacy/image`. The `next/future/image` import was renamed to `next/image`. A [codemod is available](/docs/advanced-features/codemods.md#next-image-to-legacy-image) to safely and automatically rename your imports.
@@ -40,7 +40,7 @@ Starting in Next.js 13, this new behavior is now the default for `next/image`.
 
 There are two codemods to help you migrate to the new Image Component:
 
-- [next-image-to-legacy-image](/docs/advanced-features/codemods.md#rename-instances-of-nextimage): This codemod will safely and automatically rename `next/image` imports to `next/legacy/image` to maintain the same behavior as Next.js 12. We recommend running this codemod to quickly update to Next.js 13 automatically.
+- [next-image-to-legacy-image](/docs/advanced-features/codemods.md#next-image-to-legacy-image): This codemod will safely and automatically rename `next/image` imports to `next/legacy/image` to maintain the same behavior as Next.js 12. We recommend running this codemod to quickly update to Next.js 13 automatically.
 - [next-image-experimental](/docs/advanced-features/codemods.md#next-image-experimental-experimental): After running the previous codemod, you can optionally run this experimental codemod to upgrade `next/legacy/image` to the new `next/image`, which will remove unused props and add inline styles. Please note this codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
 
 Alternatively, you can manually update by following the [migration guide](/docs/advanced-features/codemods.md#next-image-experimental-experimental) and also see the [legacy comparison](/docs/api-reference/next/legacy/image.md#comparison).
@@ -73,9 +73,9 @@ The behavior of [`next/script`](/docs/api-reference/next/script.md) has been upd
 
 ### Font Optimization
 
-Previously, Next.js helped you optimize fonts by inlining font CSS. Version 13 introduces the new [`next/font`](/docs/basic-features/font-optimization.md) module which gives you the ability to customize your font loading experience while still ensuring great performance and privacy.
+Previously, Next.js helped you optimize fonts by inlining font CSS. Version 13 introduces the new [`@next/font`](/docs/basic-features/font-optimization.md) module which gives you the ability to customize your font loading experience while still ensuring great performance and privacy.
 
-See [Optimizing Fonts](/docs/basic-features/font-optimization.md) to learn how to use `next/font`.
+See [Optimizing Fonts](/docs/basic-features/font-optimization.md) to learn how to use `@next/font`.
 
 ## Upgrading to 12.2
 

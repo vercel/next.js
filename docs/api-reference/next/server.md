@@ -56,7 +56,7 @@ The `waitUntil()` method can be used to prolong the execution of the function if
 import { NextResponse } from 'next/server'
 import type { NextFetchEvent, NextRequest } from 'next/server'
 
-export async function middleware(req: NextRequest, event: NextFetchEvent) {
+export function middleware(req: NextRequest, event: NextFetchEvent) {
   event.waitUntil(
     fetch('https://my-analytics-platform.com', {
       method: 'POST',

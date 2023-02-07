@@ -58,9 +58,9 @@ import Layout from '../components/layout'
 import NestedLayout from '../components/nested-layout'
 
 export default function Page() {
-  return {
+  return (
     /** Your content */
-  }
+  )
 }
 
 Page.getLayout = function getLayout(page) {
@@ -178,6 +178,6 @@ For more information on what to do next, we recommend the following sections:
 <div class="card">
   <a href="/docs/advanced-features/custom-app.md">
     <b>Custom App:</b>
-    <small>Learn more about how Next.js initialize pages.</small>
+    <small>Learn more about how Next.js initializes pages.</small>
   </a>
 </div>

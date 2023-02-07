@@ -174,6 +174,54 @@ describe('skip-trailing-slash-redirect', () => {
     expect(await res.text()).toContain('another page')
   })
 
+  it('should not apply trailing slash to links on client', async () => {
+    const browser = await webdriver(next.url, '/')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(
+      new URL(
+        await browser.elementByCss('#to-another').getAttribute('href'),
+        'http://n'
+      ).pathname
+    ).toBe('/another')
+
+    await browser.elementByCss('#to-another').click()
+    await browser.waitForElementByCss('#another')
+
+    expect(await browser.eval('window.location.pathname')).toBe('/another')
+
+    await browser.back().waitForElementByCss('#to-another')
+
+    expect(
+      new URL(
+        await browser
+          .elementByCss('#to-another-with-slash')
+          .getAttribute('href'),
+        'http://n'
+      ).pathname
+    ).toBe('/another/')
+
+    await browser.elementByCss('#to-another-with-slash').click()
+    await browser.waitForElementByCss('#another')
+
+    expect(await browser.eval('window.location.pathname')).toBe('/another/')
+
+    await browser.back().waitForElementByCss('#to-another')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should not apply trailing slash on load on client', async () => {
+    let browser = await webdriver(next.url, '/another')
+    await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
+
+    expect(await browser.eval('location.pathname')).toBe('/another')
+
+    browser = await webdriver(next.url, '/another/')
+    await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
+
+    expect(await browser.eval('location.pathname')).toBe('/another/')
+  })
+
   it('should respond to index correctly', async () => {
     const res = await fetchViaHTTP(next.url, '/', undefined, {
       redirect: 'manual',

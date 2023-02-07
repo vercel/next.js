@@ -37,7 +37,7 @@ Here's a summary of the props available for the Script Component:
 | Prop                    | Example                           | Values   | Required                              |
 | ----------------------- | --------------------------------- | -------- | ------------------------------------- |
 | [`src`](#src)           | `src="http://example.com/script"` | String   | Required unless inline script is used |
-| [`strategy`](#strategy) | `strategy="lazyOnload`            | String   | Optional                              |
+| [`strategy`](#strategy) | `strategy="lazyOnload"`           | String   | Optional                              |
 | [`onLoad`](#onload)     | `onLoad={onLoadFunc}`             | Function | Optional                              |
 | [`onReady`](#onReady)   | `onReady={onReadyFunc}`           | Function | Optional                              |
 | [`onError`](#onerror)   | `onError={onErrorFunc}`           | Function | Optional                              |
@@ -71,22 +71,27 @@ Scripts that load with the `beforeInteractive` strategy are injected into the in
 
 Scripts denoted with this strategy are preloaded and fetched before any first-party code, but their execution does not block page hydration from occuring.
 
-`beforeInteractive` scripts must be placed inside `pages/_app.js` and are designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
+`beforeInteractive` scripts must be placed inside `pages/_document.js` and are designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
 
 **This strategy should only be used for critical scripts that need to be fetched before any part of the page becomes interactive.**
 
 ```jsx
+import { Html, Head, Main, NextScript } from 'next/document'
 import Script from 'next/script'
 
-export default function MyApp({ Component, pageProps }) {
+export default function Document() {
   return (
-    <>
-      <Script
-        src="https://example.com/script.js"
-        strategy="beforeInteractive"
-      />
-      <Component {...pageProps} />
-    </>
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+        <Script
+          src="https://example.com/script.js"
+          strategy="beforeInteractive"
+        />
+      </body>
+    </Html>
   )
 }
 ```

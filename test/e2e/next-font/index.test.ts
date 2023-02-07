@@ -108,7 +108,7 @@ describe('@next/font/google', () => {
         className: expect.stringMatching(/__className_.{6}/),
         style: {
           fontFamily: expect.stringMatching(
-            /^'__myFont1_.{6}', system-ui, '__myFont1_Fallback_.{6}'$/
+            /^'__myFont1_.{6}', '__myFont1_Fallback_.{6}', system-ui$/
           ),
           fontStyle: 'italic',
           fontWeight: 100,
@@ -121,6 +121,22 @@ describe('@next/font/google', () => {
           fontFamily: expect.stringMatching(
             /^'__myFont2_.{6}', '__myFont2_Fallback_.{6}'$/
           ),
+        },
+      })
+    })
+
+    test('Variable font without weight range', async () => {
+      const html = await renderViaHTTP(
+        next.url,
+        '/variable-font-without-weight-range'
+      )
+      const $ = cheerio.load(html)
+
+      expect(JSON.parse($('#nabla').text())).toEqual({
+        className: expect.stringMatching(/__className_.{6}/),
+        style: {
+          fontFamily: expect.stringMatching(/^'__Nabla_.{6}'$/),
+          fontStyle: 'normal',
         },
       })
     })
@@ -259,27 +275,21 @@ describe('@next/font/google', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-classname")).fontFamily'
         )
-      ).toMatch(
-        /^__Open_Sans_.{6}, system-ui, Arial, __Open_Sans_Fallback_.{6}$/
-      )
+      ).toMatch(/^__Open_Sans_.{6}, system-ui, Arial$/)
 
       // .style
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-style")).fontFamily'
         )
-      ).toMatch(
-        /^__Open_Sans_.{6}, system-ui, Arial, __Open_Sans_Fallback_.{6}$/
-      )
+      ).toMatch(/^__Open_Sans_.{6}, system-ui, Arial$/)
 
       // .variable
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-variable")).fontFamily'
         )
-      ).toMatch(
-        /^__Open_Sans_.{6}, system-ui, Arial, __Open_Sans_Fallback_.{6}$/
-      )
+      ).toMatch(/^__Open_Sans_.{6}, system-ui, Arial$/)
     })
   })
 
@@ -296,16 +306,18 @@ describe('@next/font/google', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
+        href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
+        'data-next-font': 'size-adjust',
       })
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/675c25f648fd6a30.p.woff2',
+        href: '/_next/static/media/675c25f648fd6a30-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
+        'data-next-font': 'size-adjust',
       })
     })
 
@@ -321,9 +333,10 @@ describe('@next/font/google', () => {
       expect($('link[as="font"]').get(0).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
+        href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
+        'data-next-font': 'size-adjust',
       })
     })
 
@@ -341,11 +354,11 @@ describe('@next/font/google', () => {
           .map((el) => el.attribs.href)
           .sort()
       ).toEqual([
-        '/_next/static/media/02205c9944024f15.p.woff2',
-        '/_next/static/media/0812efcfaefec5ea.p.woff2',
-        '/_next/static/media/1deec1af325840fd.p.woff2',
-        '/_next/static/media/ab6fdae82d1a8d92.p.woff2',
-        '/_next/static/media/d55edb6f37902ebf.p.woff2',
+        '/_next/static/media/02205c9944024f15-s.p.woff2',
+        '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
+        '/_next/static/media/1deec1af325840fd-s.p.woff2',
+        '/_next/static/media/ab6fdae82d1a8d92-s.p.woff2',
+        '/_next/static/media/d55edb6f37902ebf-s.p.woff2',
       ])
     })
 
@@ -364,15 +377,60 @@ describe('@next/font/google', () => {
           .map((el) => el.attribs.href)
           .sort()
       ).toEqual([
-        '/_next/static/media/0812efcfaefec5ea.p.woff2',
-        '/_next/static/media/4f3dcdf40b3ca86d.p.woff2',
-        '/_next/static/media/560a6db6ac485cb1.p.woff2',
-        '/_next/static/media/686d1702f12625fe.p.woff2',
-        '/_next/static/media/86d92167ff02c708.p.woff2',
-        '/_next/static/media/9ac01b894b856187.p.woff2',
-        '/_next/static/media/c9baea324111137d.p.woff2',
-        '/_next/static/media/fb68b4558e2a718e.p.woff2',
+        '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
+        '/_next/static/media/4f3dcdf40b3ca86d-s.p.woff2',
+        '/_next/static/media/560a6db6ac485cb1-s.p.woff2',
+        '/_next/static/media/686d1702f12625fe-s.p.woff2',
+        '/_next/static/media/86d92167ff02c708-s.p.woff2',
+        '/_next/static/media/9ac01b894b856187-s.p.woff2',
+        '/_next/static/media/c9baea324111137d-s.p.woff2',
+        '/_next/static/media/fb68b4558e2a718e-s.p.woff2',
       ])
+    })
+
+    test('font without preloadable subsets', async () => {
+      const html = await renderViaHTTP(
+        next.url,
+        '/font-without-preloadable-subsets'
+      )
+      const $ = cheerio.load(html)
+
+      // Preconnect
+      expect($('link[rel="preconnect"]').length).toBe(0)
+
+      // From _app
+      expect($('link[as="font"]').length).toBe(1)
+      expect($('link[as="font"]').get(0).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+        'data-next-font': 'size-adjust',
+      })
+    })
+
+    test('font without size adjust', async () => {
+      const html = await renderViaHTTP(next.url, '/with-fallback')
+      const $ = cheerio.load(html)
+
+      expect($('link[as="font"]').get(1).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+        'data-next-font': '',
+      })
+
+      expect($('link[as="font"]').get(2).attribs).toEqual({
+        as: 'font',
+        crossorigin: 'anonymous',
+        href: '/_next/static/media/ab6fdae82d1a8d92.p.woff2',
+        rel: 'preload',
+        type: 'font/woff2',
+        'data-next-font': '',
+      })
     })
   })
 

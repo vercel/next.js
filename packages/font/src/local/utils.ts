@@ -1,3 +1,5 @@
+import { nextFontError } from '../utils'
+
 const allowedDisplayValues = ['auto', 'block', 'swap', 'fallback', 'optional']
 
 const formatValues = (values: string[]) =>
@@ -30,11 +32,11 @@ type FontOptions = {
 }
 export function validateData(functionName: string, fontData: any): FontOptions {
   if (functionName) {
-    throw new Error(`@next/font/local has no named exports`)
+    nextFontError(`@next/font/local has no named exports`)
   }
   let {
     src,
-    display = 'optional',
+    display = 'swap',
     weight,
     style,
     fallback,
@@ -45,7 +47,7 @@ export function validateData(functionName: string, fontData: any): FontOptions {
   } = fontData || ({} as any)
 
   if (!allowedDisplayValues.includes(display)) {
-    throw new Error(
+    nextFontError(
       `Invalid display value \`${display}\`.\nAvailable display values: ${formatValues(
         allowedDisplayValues
       )}`
@@ -53,21 +55,21 @@ export function validateData(functionName: string, fontData: any): FontOptions {
   }
 
   if (!src) {
-    throw new Error('Missing required `src` property')
+    nextFontError('Missing required `src` property')
   }
 
   if (!Array.isArray(src)) {
     src = [{ path: src, weight, style }]
   } else {
     if (src.length === 0) {
-      throw new Error('Unexpected empty `src` array.')
+      nextFontError('Unexpected empty `src` array.')
     }
   }
 
   src = src.map((fontFile: any) => {
     const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile.path)?.[1]
     if (!ext) {
-      throw new Error(`Unexpected file \`${fontFile.path}\``)
+      nextFontError(`Unexpected file \`${fontFile.path}\``)
     }
 
     return {
@@ -88,7 +90,7 @@ export function validateData(functionName: string, fontData: any): FontOptions {
           'font-style',
         ].includes(declaration?.prop)
       ) {
-        throw new Error(`Invalid declaration prop: \`${declaration.prop}\``)
+        nextFontError(`Invalid declaration prop: \`${declaration.prop}\``)
       }
     })
   }

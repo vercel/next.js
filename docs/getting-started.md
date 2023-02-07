@@ -19,7 +19,7 @@ If you have questions about anything related to Next.js, you're always welcome t
 
 ## Automatic Setup
 
-We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. To create a project, run:
+We recommend creating a new Next.js app using `create-next-app`, which sets up everything automatically for you. (You don't need to create an empty directory. `create-next-app` will make one for you.) To create a project, run:
 
 ```bash
 npx create-next-app@latest
@@ -79,12 +79,12 @@ These scripts refer to the different stages of developing an application:
 
 Create two directories `pages` and `public` at the root of your application:
 
-- `pages` - Associated with a route based on their file name. For example `pages/about.js` is mapped to `/about`
+- `pages` - Associated with a route based on their file name. For example, `pages/about.js` is mapped to `/about`
 - `public` - Stores static assets such as images, fonts, etc. Files inside `public` directory can then be referenced by your code starting from the base URL (`/`).
 
 Next.js is built around the concept of [pages](/docs/basic-features/pages.md). A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory. You can even add [dynamic route](/docs/routing/dynamic-routes) parameters with the filename.
 
-Inside the `pages` directory add the `index.js` file to get started. This is the page that is rendered when the user visits the root of your application.
+Inside the `pages` directory, add the `index.js` file to get started. This is the page that is rendered when the user visits the root of your application.
 
 Populate `pages/index.js` with the following contents:
 

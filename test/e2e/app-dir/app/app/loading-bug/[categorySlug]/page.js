@@ -1,4 +1,3 @@
-// @ts-ignore
 import { use } from 'react'
 
 const fetchCategory = async (categorySlug) => {

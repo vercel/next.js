@@ -58,6 +58,8 @@ export default Home
 - [`shallow`](/docs/routing/shallow-routing.md) - Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md), [`getServerSideProps`](/docs/basic-features/data-fetching/get-server-side-props.md) or [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md). Defaults to `false`
 - `locale` - The active locale is automatically prepended. `locale` allows for providing a different locale. When `false` `href` has to include the locale as the default behavior is disabled.
 
+Note, when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
+
 ## If the route has dynamic segments
 
 There is nothing to do when linking to a [dynamic route](/docs/routing/dynamic-routes.md), including [catch all routes](/docs/routing/dynamic-routes.md#catch-all-routes), since Next.js 9.5.3 (for older versions check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes)). However, it can become quite common and handy to use [interpolation](/docs/routing/introduction.md#linking-to-dynamic-paths) or an [URL Object](#with-url-object) to generate the link.
@@ -231,9 +233,9 @@ export function middleware(req) {
   const nextUrl = req.nextUrl
   if (nextUrl.pathname === '/dashboard') {
     if (req.cookies.authToken) {
-      return NextResponse.rewrite('/auth/dashboard')
+      return NextResponse.rewrite(new URL('/auth/dashboard', req.url))
     } else {
-      return NextResponse.rewrite('/public/dashboard')
+      return NextResponse.rewrite(new URL('/public/dashboard', req.url))
     }
   }
 }

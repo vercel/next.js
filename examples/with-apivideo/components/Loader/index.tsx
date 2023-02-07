@@ -7,7 +7,7 @@ interface ILoaderProps {
 }
 const Loader: React.FC<ILoaderProps> = ({ done }): JSX.Element =>
   done ? (
-    <Image src="/check.png" width={30} height={30} />
+    <Image src="/check.png" alt="Loader" width={30} height={30} />
   ) : (
     <div className={styles.spinner} />
   )
