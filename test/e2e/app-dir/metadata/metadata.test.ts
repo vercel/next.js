@@ -447,7 +447,7 @@ createNextDescribe(
         )
         expect($icon.attr('sizes')).toBe('32x32')
         expect($appleIcon.attr('href')).toMatch(
-          /\/_next\/static\/media\/metadata\/apple-touch-icon\.\w+\.png/
+          /\/_next\/static\/media\/metadata\/apple-icon\.\w+\.png/
         )
         expect($appleIcon.attr('sizes')).toMatch('114x114')
       })
