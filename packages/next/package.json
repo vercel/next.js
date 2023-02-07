@@ -123,7 +123,7 @@
     "@babel/runtime": "7.15.4",
     "@babel/traverse": "7.18.0",
     "@babel/types": "7.18.0",
-    "@edge-runtime/cookies": "3.0.1",
+    "@edge-runtime/cookies": "3.0.3",
     "@edge-runtime/primitives": "2.0.0",
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "2.13.3",

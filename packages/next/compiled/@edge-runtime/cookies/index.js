@@ -1,189 +1,265 @@
 // src/serialize.ts
 function serialize(c) {
   const attrs = [
-    "path" in c && c.path && `Path=${c.path}`,
-    "expires" in c && c.expires && `Expires=${c.expires.toUTCString()}`,
-    "maxAge" in c && c.maxAge && `Max-Age=${c.maxAge}`,
-    "domain" in c && c.domain && `Domain=${c.domain}`,
-    "secure" in c && c.secure && "Secure",
-    "httpOnly" in c && c.httpOnly && "HttpOnly",
-    "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`
-  ].filter(Boolean);
-  return `${c.name}=${encodeURIComponent(c.value ?? "")}; ${attrs.join("; ")}`;
+    'path' in c && c.path && `Path=${c.path}`,
+    'expires' in c && c.expires && `Expires=${c.expires.toUTCString()}`,
+    'maxAge' in c && c.maxAge && `Max-Age=${c.maxAge}`,
+    'domain' in c && c.domain && `Domain=${c.domain}`,
+    'secure' in c && c.secure && 'Secure',
+    'httpOnly' in c && c.httpOnly && 'HttpOnly',
+    'sameSite' in c && c.sameSite && `SameSite=${c.sameSite}`,
+  ].filter(Boolean)
+  return `${c.name}=${encodeURIComponent(c.value ?? '')}; ${attrs.join('; ')}`
 }
 function parseCookieString(cookie) {
-  const map = /* @__PURE__ */ new Map();
+  const map = /* @__PURE__ */ new Map()
   for (const pair of cookie.split(/; */)) {
-    if (!pair)
-      continue;
-    const [key, value] = pair.split("=", 2);
-    map.set(key, decodeURIComponent(value ?? "true"));
+    if (!pair) continue
+    const [key, value] = pair.split('=', 2)
+    try {
+      map.set(key, decodeURIComponent(value ?? 'true'))
+    } catch (err) {}
   }
-  return map;
+  return map
 }
 function parseSetCookieString(setCookie) {
   if (!setCookie) {
-    return void 0;
+    return void 0
   }
-  const [[name, value], ...attributes] = parseCookieString(setCookie);
-  const { domain, expires, httponly, maxage, path, samesite, secure } = Object.fromEntries(
-    attributes.map(([key, value2]) => [key.toLowerCase(), value2])
-  );
+  const [[name, value], ...attributes] = parseCookieString(setCookie)
+  const { domain, expires, httponly, maxage, path, samesite, secure } =
+    Object.fromEntries(
+      attributes.map(([key, value2]) => [key.toLowerCase(), value2])
+    )
   const cookie = {
     name,
     value: decodeURIComponent(value),
     domain,
-    ...expires && { expires: new Date(expires) },
-    ...httponly && { httpOnly: true },
-    ...typeof maxage === "string" && { maxAge: Number(maxage) },
+    ...(expires && { expires: new Date(expires) }),
+    ...(httponly && { httpOnly: true }),
+    ...(typeof maxage === 'string' && { maxAge: Number(maxage) }),
     path,
-    ...samesite && { sameSite: parseSameSite(samesite) },
-    ...secure && { secure: true }
-  };
-  return compact(cookie);
+    ...(samesite && { sameSite: parseSameSite(samesite) }),
+    ...(secure && { secure: true }),
+  }
+  return compact(cookie)
 }
 function compact(t) {
-  const newT = {};
+  const newT = {}
   for (const key in t) {
     if (t[key]) {
-      newT[key] = t[key];
+      newT[key] = t[key]
     }
   }
-  return newT;
+  return newT
 }
-var SAME_SITE = ["strict", "lax", "none"];
+var SAME_SITE = ['strict', 'lax', 'none']
 function parseSameSite(string) {
-  string = string.toLowerCase();
-  return SAME_SITE.includes(string) ? string : void 0;
+  string = string.toLowerCase()
+  return SAME_SITE.includes(string) ? string : void 0
 }
 
 // src/request-cookies.ts
 var RequestCookies = class {
   constructor(requestHeaders) {
-    this._parsed = /* @__PURE__ */ new Map();
-    this._headers = requestHeaders;
-    const header = requestHeaders.get("cookie");
+    this._parsed = /* @__PURE__ */ new Map()
+    this._headers = requestHeaders
+    const header = requestHeaders.get('cookie')
     if (header) {
-      const parsed = parseCookieString(header);
+      const parsed = parseCookieString(header)
       for (const [name, value] of parsed) {
-        this._parsed.set(name, { name, value });
+        this._parsed.set(name, { name, value })
       }
     }
   }
   [Symbol.iterator]() {
-    return this._parsed[Symbol.iterator]();
+    return this._parsed[Symbol.iterator]()
   }
   get size() {
-    return this._parsed.size;
+    return this._parsed.size
   }
   get(...args) {
-    const name = typeof args[0] === "string" ? args[0] : args[0].name;
-    return this._parsed.get(name);
+    const name = typeof args[0] === 'string' ? args[0] : args[0].name
+    return this._parsed.get(name)
   }
   getAll(...args) {
-    var _a;
-    const all = Array.from(this._parsed);
+    var _a
+    const all = Array.from(this._parsed)
     if (!args.length) {
-      return all.map(([_, value]) => value);
+      return all.map(([_, value]) => value)
     }
-    const name = typeof args[0] === "string" ? args[0] : (_a = args[0]) == null ? void 0 : _a.name;
-    return all.filter(([n]) => n === name).map(([_, value]) => value);
+    const name =
+      typeof args[0] === 'string'
+        ? args[0]
+        : (_a = args[0]) == null
+        ? void 0
+        : _a.name
+    return all.filter(([n]) => n === name).map(([_, value]) => value)
   }
   has(name) {
-    return this._parsed.has(name);
+    return this._parsed.has(name)
   }
   set(...args) {
-    const [name, value] = args.length === 1 ? [args[0].name, args[0].value] : args;
-    const map = this._parsed;
-    map.set(name, { name, value });
+    const [name, value] =
+      args.length === 1 ? [args[0].name, args[0].value] : args
+    const map = this._parsed
+    map.set(name, { name, value })
     this._headers.set(
-      "cookie",
-      Array.from(map).map(([_, value2]) => serialize(value2)).join("; ")
-    );
-    return this;
+      'cookie',
+      Array.from(map)
+        .map(([_, value2]) => serialize(value2))
+        .join('; ')
+    )
+    return this
   }
   delete(names) {
-    const map = this._parsed;
-    const result = !Array.isArray(names) ? map.delete(names) : names.map((name) => map.delete(name));
+    const map = this._parsed
+    const result = !Array.isArray(names)
+      ? map.delete(names)
+      : names.map((name) => map.delete(name))
     this._headers.set(
-      "cookie",
-      Array.from(map).map(([_, value]) => serialize(value)).join("; ")
-    );
-    return result;
+      'cookie',
+      Array.from(map)
+        .map(([_, value]) => serialize(value))
+        .join('; ')
+    )
+    return result
   }
   clear() {
-    this.delete(Array.from(this._parsed.keys()));
-    return this;
+    this.delete(Array.from(this._parsed.keys()))
+    return this
   }
-  [Symbol.for("edge-runtime.inspect.custom")]() {
-    return `RequestCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`;
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return `RequestCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`
   }
   toString() {
-    return [...this._parsed.values()].map((v) => `${v.name}=${encodeURIComponent(v.value)}`).join("; ");
+    return [...this._parsed.values()]
+      .map((v) => `${v.name}=${encodeURIComponent(v.value)}`)
+      .join('; ')
   }
-};
+}
 
 // src/response-cookies.ts
 var ResponseCookies = class {
   constructor(responseHeaders) {
-    this._parsed = /* @__PURE__ */ new Map();
-    this._headers = responseHeaders;
-    const headers = this._headers.getAll("set-cookie");
-    for (const header of headers) {
-      const parsed = parseSetCookieString(header);
-      if (parsed) {
-        this._parsed.set(parsed.name, parsed);
-      }
+    this._parsed = /* @__PURE__ */ new Map()
+    var _a
+    this._headers = responseHeaders
+    const setCookie =
+      ((_a = responseHeaders.getAll) == null
+        ? void 0
+        : _a.call(responseHeaders, 'set-cookie')) ??
+      responseHeaders.get('set-cookie') ??
+      []
+    const cookieStrings = Array.isArray(setCookie)
+      ? setCookie
+      : splitCookiesString(setCookie)
+    for (const cookieString of cookieStrings) {
+      const parsed = parseSetCookieString(cookieString)
+      if (parsed) this._parsed.set(parsed.name, parsed)
     }
   }
   get(...args) {
-    const key = typeof args[0] === "string" ? args[0] : args[0].name;
-    return this._parsed.get(key);
+    const key = typeof args[0] === 'string' ? args[0] : args[0].name
+    return this._parsed.get(key)
   }
   getAll(...args) {
-    var _a;
-    const all = Array.from(this._parsed.values());
+    var _a
+    const all = Array.from(this._parsed.values())
     if (!args.length) {
-      return all;
+      return all
     }
-    const key = typeof args[0] === "string" ? args[0] : (_a = args[0]) == null ? void 0 : _a.name;
-    return all.filter((c) => c.name === key);
+    const key =
+      typeof args[0] === 'string'
+        ? args[0]
+        : (_a = args[0]) == null
+        ? void 0
+        : _a.name
+    return all.filter((c) => c.name === key)
   }
   set(...args) {
-    const [name, value, cookie] = args.length === 1 ? [args[0].name, args[0].value, args[0]] : args;
-    const map = this._parsed;
-    map.set(name, normalizeCookie({ name, value, ...cookie }));
-    replace(map, this._headers);
-    return this;
+    const [name, value, cookie] =
+      args.length === 1 ? [args[0].name, args[0].value, args[0]] : args
+    const map = this._parsed
+    map.set(name, normalizeCookie({ name, value, ...cookie }))
+    replace(map, this._headers)
+    return this
   }
   delete(...args) {
-    const name = typeof args[0] === "string" ? args[0] : args[0].name;
-    return this.set({ name, value: "", expires: new Date(0) });
+    const name = typeof args[0] === 'string' ? args[0] : args[0].name
+    return this.set({ name, value: '', expires: new Date(0) })
   }
-  [Symbol.for("edge-runtime.inspect.custom")]() {
-    return `ResponseCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`;
+  [Symbol.for('edge-runtime.inspect.custom')]() {
+    return `ResponseCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`
   }
   toString() {
-    return [...this._parsed.values()].map(serialize).join("; ");
-  }
-};
-function replace(bag, headers) {
-  headers.delete("set-cookie");
-  for (const [, value] of bag) {
-    const serialized = serialize(value);
-    headers.append("set-cookie", serialized);
+    return [...this._parsed.values()].map(serialize).join('; ')
   }
 }
-function normalizeCookie(cookie = { name: "", value: "" }) {
+function replace(bag, headers) {
+  headers.delete('set-cookie')
+  for (const [, value] of bag) {
+    const serialized = serialize(value)
+    headers.append('set-cookie', serialized)
+  }
+}
+function normalizeCookie(cookie = { name: '', value: '' }) {
   if (cookie.maxAge) {
-    cookie.expires = new Date(Date.now() + cookie.maxAge * 1e3);
+    cookie.expires = new Date(Date.now() + cookie.maxAge * 1e3)
   }
   if (cookie.path === null || cookie.path === void 0) {
-    cookie.path = "/";
+    cookie.path = '/'
   }
-  return cookie;
+  return cookie
 }
-export {
-  RequestCookies,
-  ResponseCookies
-};
+function splitCookiesString(cookiesString) {
+  if (!cookiesString) return []
+  var cookiesStrings = []
+  var pos = 0
+  var start
+  var ch
+  var lastComma
+  var nextStart
+  var cookiesSeparatorFound
+  function skipWhitespace() {
+    while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
+      pos += 1
+    }
+    return pos < cookiesString.length
+  }
+  function notSpecialChar() {
+    ch = cookiesString.charAt(pos)
+    return ch !== '=' && ch !== ';' && ch !== ','
+  }
+  while (pos < cookiesString.length) {
+    start = pos
+    cookiesSeparatorFound = false
+    while (skipWhitespace()) {
+      ch = cookiesString.charAt(pos)
+      if (ch === ',') {
+        lastComma = pos
+        pos += 1
+        skipWhitespace()
+        nextStart = pos
+        while (pos < cookiesString.length && notSpecialChar()) {
+          pos += 1
+        }
+        if (pos < cookiesString.length && cookiesString.charAt(pos) === '=') {
+          cookiesSeparatorFound = true
+          pos = nextStart
+          cookiesStrings.push(cookiesString.substring(start, lastComma))
+          start = pos
+        } else {
+          pos = lastComma + 1
+        }
+      } else {
+        pos += 1
+      }
+    }
+    if (!cookiesSeparatorFound || pos >= cookiesString.length) {
+      cookiesStrings.push(cookiesString.substring(start, cookiesString.length))
+    }
+  }
+  return cookiesStrings
+}
+export { RequestCookies, ResponseCookies }
