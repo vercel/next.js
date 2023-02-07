@@ -244,9 +244,9 @@ pub enum RemotePatternProtocal {
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
     pub app_dir: Option<bool>,
-    pub resolve_alias: Option<IndexMap<String, JsonValue>>,
     pub server_components_external_packages: Option<Vec<String>>,
     pub turbopack_loaders: Option<IndexMap<String, WebpackLoaderConfigs>>,
+    pub turbopack_resolve_alias: Option<IndexMap<String, JsonValue>>,
 
     // unsupported
     adjust_font_fallbacks: Option<bool>,
@@ -414,7 +414,7 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn resolve_alias_options(self) -> Result<ResolveAliasMapVc> {
         let this = self.await?;
-        let Some(resolve_alias) = this.experimental.resolve_alias.as_ref() else {
+        let Some(resolve_alias) = this.experimental.turbopack_resolve_alias.as_ref() else {
             return Ok(ResolveAliasMapVc::cell(ResolveAliasMap::default()));
         };
         let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
