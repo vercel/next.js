@@ -470,17 +470,17 @@ createNextDescribe(
         it('should handle hmr updates to the file icon', async () => {
           await next.renameFile(
             'app/icons/static/icon.png',
-            'app/icons/static/icon100.png'
+            'app/icons/static/icon2.png'
           )
 
           await check(async () => {
             const $ = await next.render$('/icons/static')
             const $icon = $('head > link[rel="icon"]')
             return $icon.attr('href')
-          }, /\/_next\/static\/media\/metadata\/icon100\.\w+\.png/)
+          }, /\/_next\/static\/media\/metadata\/icon2\.\w+\.png/)
 
           await next.renameFile(
-            'app/icons/static/icon100.png',
+            'app/icons/static/icon2.png',
             'app/icons/static/icon.png'
           )
         })

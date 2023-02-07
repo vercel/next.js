@@ -1854,9 +1854,8 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
-                resourceQuery(queryString: string) {
-                  return queryString !== '?__next_metadata'
-                },
+                resourceQuery: (queryString: string) =>
+                  queryString !== '?__next_metadata',
                 options: {
                   isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
@@ -2505,6 +2504,8 @@ export default async function getBaseWebpackConfig(
       // webpack config such as `@svgr/webpack` plugin or
       // the `babel-plugin-inline-react-svg` plugin.
       nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$/i
+      nextImageRule.resourceQuery = (queryString: string) =>
+        queryString !== '?__next_metadata'
     }
   }
 

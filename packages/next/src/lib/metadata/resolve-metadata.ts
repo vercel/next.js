@@ -439,34 +439,3 @@ export async function accumulateMetadata(
 
   return await parentPromise
 }
-
-// TODO: Implement this function.
-export async function resolveFileBasedMetadataForLoader(
-  _layer: number,
-  _dir: string
-) {
-  let metadataCode = ''
-
-  // const files = await fs.readdir(path.normalize(dir))
-  // for (const file of files) {
-  //   // TODO: Get a full list and filter out directories.
-  //   if (file === 'icon.svg') {
-  //     metadataCode += `{
-  //       type: 'icon',
-  //       layer: ${layer},
-  //       path: ${JSON.stringify(path.join(dir, file))},
-  //     },`
-  //   } else if (file === 'icon.jsx') {
-  //     metadataCode += `{
-  //       type: 'icon',
-  //       layer: ${layer},
-  //       mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-  //         path.join(dir, file)
-  //       )}),
-  //       path: ${JSON.stringify(path.join(dir, file))},
-  //     },`
-  //   }
-  // }
-
-  return metadataCode
-}

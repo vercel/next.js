@@ -1,15 +1,17 @@
 import type webpack from 'webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
+import type { ModuleReference, CollectedMetadata } from './app-dir/types'
 
 import path from 'path'
-import fs from 'fs/promises'
-import { stringify } from 'querystring'
 import chalk from 'next/dist/compiled/chalk'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
+import { buildMetadata, discoverStaticMetadataFiles } from './app-dir/metadata'
+
+const isNotResolvedError = (err: any) => err.message.includes("Can't resolve")
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -21,22 +23,8 @@ const FILE_TYPES = {
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
-
 const PAGE_SEGMENT = 'page$'
-const METADATA_TYPE = 'metadata'
 
-const staticAssetIconsImageRegex = {
-  icon: /^icon\d*\.(ico|jpg|png|svg)$/,
-  apple: /^apple-touch-icon\d*\.(jpg|png|svg)$/,
-}
-
-// TODO-APP: check if this can be narrowed.
-type ComponentModule = () => any
-type ModuleReference = [componentModule: ComponentModule, filePath: string]
-type CollectedMetadata = {
-  icon: ComponentModule[]
-  apple: ComponentModule[]
-}
 export type ComponentsType = {
   readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
@@ -45,83 +33,35 @@ export type ComponentsType = {
   readonly metadata?: CollectedMetadata
 }
 
-async function createTreeCodeFromPath({
-  pagePath,
-  resolve,
-  resolveParallelSegments,
-  isDev,
-  addDependency,
-}: {
-  pagePath: string
-  resolve: (
-    pathname: string,
-    resolveDir?: boolean
-  ) => Promise<string | undefined>
-  resolveParallelSegments: (
-    pathname: string
-  ) => [key: string, segment: string][]
-  isDev: boolean
-  addDependency: (dep: string) => any
-}) {
+async function createTreeCodeFromPath(
+  pagePath: string,
+  {
+    resolver,
+    resolvePath,
+    resolveParallelSegments,
+    isDev,
+    addDependency,
+    addMissingDependency,
+  }: {
+    resolver: (
+      pathname: string,
+      resolveDir?: boolean
+    ) => Promise<string | undefined>
+    resolvePath: (pathname: string) => Promise<string>
+    resolveParallelSegments: (
+      pathname: string
+    ) => [key: string, segment: string][]
+    isDev: boolean
+    addDependency: (dep: string) => any
+    addMissingDependency: (dep: string) => any
+  }
+) {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
 
   let rootLayout: string | undefined
   let globalError: string | undefined
-
-  async function discoverStaticMetadataFiles(routerDirPath: string) {
-    let hasStaticMetadataFiles = false
-    const iconsMetadata: {
-      icon: string[]
-      apple: string[]
-    } = {
-      icon: [],
-      apple: [],
-    }
-
-    // collect metadata if there's any from the folder of the page
-    const resolvedRouteDir = await resolve(routerDirPath, true)
-    const isDirectory = resolvedRouteDir
-      ? (await fs.stat(resolvedRouteDir)).isDirectory()
-      : false
-
-    if (resolvedRouteDir && isDirectory) {
-      const files = await fs.readdir(resolvedRouteDir, {
-        encoding: 'utf-8',
-        withFileTypes: true,
-      })
-
-      files
-        .filter((file) => file.isFile())
-        // sort filenames in lexical order
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach((file) => {
-          const nonCaseSensitiveFilename = file.name.toLowerCase()
-          const filepath = path.join(resolvedRouteDir, file.name)
-          const iconModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-            `next-metadata-image-loader?${stringify({ isDev })}!` +
-              filepath +
-              '?__next_metadata'
-          )})`
-
-          function collectIconModuleIfExists(type: 'icon' | 'apple') {
-            if (
-              staticAssetIconsImageRegex[type].test(nonCaseSensitiveFilename)
-            ) {
-              hasStaticMetadataFiles = true
-              addDependency(filepath)
-              iconsMetadata[type].push(iconModule)
-            }
-          }
-
-          collectIconModuleIfExists('icon')
-          collectIconModuleIfExists('apple')
-        })
-    }
-
-    return hasStaticMetadataFiles ? iconsMetadata : null
-  }
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[]
@@ -141,14 +81,29 @@ async function createTreeCodeFromPath({
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
 
-    const metadata = await discoverStaticMetadataFiles(
-      `${appDirPrefix}${segmentPath}`
-    )
+    let metadata: Awaited<ReturnType<typeof discoverStaticMetadataFiles>> = null
+    try {
+      const routerDirPath = `${appDirPrefix}${segmentPath}`
+      const resolvedRouteDir = await resolver(routerDirPath, true)
+
+      if (resolvedRouteDir) {
+        metadata = await discoverStaticMetadataFiles(resolvedRouteDir, {
+          isDev,
+          resolvePath,
+          addDependency,
+          addMissingDependency,
+        })
+      }
+    } catch (err: any) {
+      if (isNotResolvedError(err)) {
+        throw err
+      }
+    }
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
-        const resolvedPagePath = await resolve(matchedPagePath)
+        const resolvedPagePath = await resolver(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
@@ -156,14 +111,7 @@ async function createTreeCodeFromPath({
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}), ${JSON.stringify(resolvedPagePath)}],
-          ${
-            metadata
-              ? `${METADATA_TYPE}: {
-                icon: [${metadata.icon.join(',')}],
-                apple: [${metadata.apple.join(',')}]
-              }`
-              : ''
-          }
+          ${buildMetadata(metadata)}
         }]`
         continue
       }
@@ -178,7 +126,7 @@ async function createTreeCodeFromPath({
         Object.values(FILE_TYPES).map(async (file) => {
           return [
             file,
-            await resolve(`${appDirPrefix}${parallelSegmentPath}/${file}`),
+            await resolver(`${appDirPrefix}${parallelSegmentPath}/${file}`),
           ] as const
         })
       )
@@ -195,7 +143,7 @@ async function createTreeCodeFromPath({
       }
 
       if (!globalError) {
-        globalError = await resolve(
+        globalError = await resolver(
           `${appDirPrefix}${parallelSegmentPath}/${GLOBAL_ERROR_FILE_TYPE}`
         )
       }
@@ -214,14 +162,7 @@ async function createTreeCodeFromPath({
               )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
-          ${
-            definedFilePaths.length && metadata
-              ? `${METADATA_TYPE}: {
-                  icon: [${metadata.icon.join(',')}]
-                  apple: [${metadata.apple.join(',')}]
-                }`
-              : ''
-          }
+          ${definedFilePaths.length ? buildMetadata(metadata) : ''}
         }
       ]`
     }
@@ -327,7 +268,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         const absolutePathWithExtension = `${absolutePath}${ext}`
         this.addMissingDependency(absolutePathWithExtension)
       }
-      if (err.message.includes("Can't resolve")) {
+      if (isNotResolvedError(err)) {
         return undefined
       }
       throw err
@@ -339,12 +280,13 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     pages: pageListCode,
     rootLayout,
     globalError,
-  } = await createTreeCodeFromPath({
-    pagePath,
-    resolve: resolver,
+  } = await createTreeCodeFromPath(pagePath, {
+    resolver,
+    resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
     isDev: !!isDev,
     addDependency: this.addDependency.bind(this),
+    addMissingDependency: this.addMissingDependency.bind(this),
   })
 
   if (!rootLayout) {
