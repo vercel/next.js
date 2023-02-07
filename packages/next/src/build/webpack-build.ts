@@ -145,12 +145,15 @@ async function webpackBuildImpl(): Promise<number> {
       injectedClientEntries.forEach((value, key) => {
         const clientEntry = clientConfig.entry as webpack.EntryObject
         if (key === APP_CLIENT_INTERNALS) {
-          clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = [
-            // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
-            // @ts-expect-error clientEntry['main-app'] is type EntryDescription { import: ... }
-            ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
-            value,
-          ]
+          clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = {
+            import: [
+              // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
+              // @ts-expect-error clientEntry['main-app'] is type EntryDescription { import: ... }
+              ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
+              value,
+            ],
+            layer: WEBPACK_LAYERS.appClient,
+          }
         } else {
           clientEntry[key] = {
             dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
