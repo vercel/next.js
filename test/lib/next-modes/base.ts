@@ -2,11 +2,14 @@ import os from 'os'
 import path from 'path'
 import fs from 'fs-extra'
 import treeKill from 'tree-kill'
-import { NextConfig } from 'next'
+import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
-import { Span } from 'next/trace'
+import { Span } from 'next/src/trace'
+import webdriver from 'next-webdriver'
+import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
+import cheerio from 'cheerio'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -18,10 +21,9 @@ export type PackageJson = {
   [key: string]: unknown
 }
 export interface NextInstanceOpts {
-  files: FileRef | { [filename: string]: string | FileRef }
+  files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
   packageJson?: PackageJson
-  packageLockPath?: string
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
@@ -30,6 +32,16 @@ export interface NextInstanceOpts {
   dirSuffix?: string
   turbo?: boolean
 }
+
+/**
+ * Omit the first argument of a function
+ */
+type OmitFirstArgument<F> = F extends (
+  firstArgument: any,
+  ...args: infer P
+) => infer R
+  ? (...args: P) => R
+  : never
 
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
@@ -46,7 +58,6 @@ export class NextInstance {
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
-  protected packageLockPath?: string
   protected basePath?: string
   protected env?: Record<string, string>
   public forcedPort?: string
@@ -54,23 +65,39 @@ export class NextInstance {
 
   constructor(opts: NextInstanceOpts) {
     Object.assign(this, opts)
+
+    if (!(global as any).isNextDeploy) {
+      this.env = {
+        ...this.env,
+        // remove node_modules/.bin repo path from env
+        // to match CI $PATH value and isolate further
+        PATH: process.env.PATH.split(path.delimiter)
+          .filter((part) => {
+            return !part.includes(path.join('node_modules', '.bin'))
+          })
+          .join(path.delimiter),
+      }
+    }
   }
 
   protected async writeInitialFiles() {
-    if (this.files instanceof FileRef) {
+    // Handle case where files is a directory string
+    const files =
+      typeof this.files === 'string' ? new FileRef(this.files) : this.files
+    if (files instanceof FileRef) {
       // if a FileRef is passed directly to `files` we copy the
       // entire folder to the test directory
-      const stats = await fs.stat(this.files.fsPath)
+      const stats = await fs.stat(files.fsPath)
 
       if (!stats.isDirectory()) {
         throw new Error(
-          `FileRef passed to "files" in "createNext" is not a directory ${this.files.fsPath}`
+          `FileRef passed to "files" in "createNext" is not a directory ${files.fsPath}`
         )
       }
-      await fs.copy(this.files.fsPath, this.testDir)
+      await fs.copy(files.fsPath, this.testDir)
     } else {
-      for (const filename of Object.keys(this.files)) {
-        const item = this.files[filename]
+      for (const filename of Object.keys(files)) {
+        const item = files[filename]
         const outputFilename = path.join(this.testDir, filename)
 
         if (typeof item === 'string') {
@@ -113,6 +140,9 @@ export class NextInstance {
         const finalDependencies = {
           react: reactVersion,
           'react-dom': reactVersion,
+          '@types/react': reactVersion,
+          typescript: 'latest',
+          '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }
@@ -160,7 +190,6 @@ export class NextInstance {
               dependencies: finalDependencies,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
-              packageLockPath: this.packageLockPath,
               dirSuffix: this.dirSuffix,
             })
           }
@@ -247,7 +276,6 @@ export class NextInstance {
         `
           )
         }
-        require('console').log(`Test directory created at ${this.testDir}`)
       })
   }
 
@@ -265,8 +293,13 @@ export class NextInstance {
     await this.writeInitialFiles()
   }
 
-  public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
-    return {}
+  public async build(): Promise<{ exitCode?: number; cliOutput?: string }> {
+    throw new Error('Not implemented')
+  }
+  public async export(args?: {
+    outdir?: string
+  }): Promise<{ exitCode?: number; cliOutput?: string }> {
+    throw new Error('Not implemented')
   }
   public async setup(parentSpan: Span): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}
@@ -348,6 +381,9 @@ export class NextInstance {
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
+  public async readJSON(filename: string) {
+    return fs.readJSON(path.join(this.testDir, filename))
+  }
   public async patchFile(filename: string, content: string) {
     const outputPath = path.join(this.testDir, filename)
     await fs.ensureDir(path.dirname(outputPath))
@@ -361,6 +397,48 @@ export class NextInstance {
   }
   public async deleteFile(filename: string) {
     return fs.remove(path.join(this.testDir, filename))
+  }
+
+  /**
+   * Create new browser window for the Next.js app.
+   */
+  public async browser(
+    ...args: Parameters<OmitFirstArgument<typeof webdriver>>
+  ) {
+    return webdriver(this.url, ...args)
+  }
+
+  /**
+   * Fetch the HTML for the provided page. This is a shortcut for `renderViaHTTP().then(html => cheerio.load(html))`.
+   */
+  public async render$(
+    ...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>
+  ): Promise<ReturnType<typeof cheerio.load>> {
+    const html = await renderViaHTTP(this.url, ...args)
+    return cheerio.load(html)
+  }
+
+  /**
+   * Fetch the HTML for the provided page. This is a shortcut for `fetchViaHTTP().then(res => res.text())`.
+   */
+  public async render(
+    ...args: Parameters<OmitFirstArgument<typeof renderViaHTTP>>
+  ) {
+    return renderViaHTTP(this.url, ...args)
+  }
+
+  /**
+   * Performs a fetch request to the NextInstance with the options provided.
+   *
+   * @param pathname the pathname on the NextInstance to fetch
+   * @param opts the optional options to pass to the underlying fetch
+   * @returns the fetch response
+   */
+  public async fetch(
+    pathname: string,
+    opts?: import('node-fetch').RequestInit
+  ) {
+    return fetchViaHTTP(this.url, pathname, null, opts)
   }
 
   public on(event: Event, cb: (...args: any[]) => any) {

@@ -12,7 +12,6 @@ async function createNextInstall({
   dependencies,
   installCommand,
   packageJson = {},
-  packageLockPath = '',
   dirSuffix = '',
 }) {
   return await parentSpan
@@ -20,16 +19,20 @@ async function createNextInstall({
     .traceAsyncFn(async (rootSpan) => {
       const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
       const origRepoDir = path.join(__dirname, '../../')
-      const installDir = path.join(
-        tmpDir,
-        `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
-      )
       const tmpRepoDir = path.join(
         tmpDir,
         `next-repo-${randomBytes(32).toString('hex')}${dirSuffix}`
       )
 
-      await rootSpan.traceChild(' enruse swc binary').traceAsyncFn(async () => {
+      const installDir = path.join(
+        tmpDir,
+        `next-install-${randomBytes(32).toString('hex')}${dirSuffix}`
+      )
+
+      require('console').log('Creating next instance in:')
+      require('console').log(installDir)
+
+      await rootSpan.traceChild('ensure swc binary').traceAsyncFn(async () => {
         // ensure swc binary is present in the native folder if
         // not already built
         for (const folder of await fs.readdir(
@@ -85,10 +88,13 @@ async function createNextInstall({
       let combinedDependencies = dependencies
 
       if (!(packageJson && packageJson.nextPrivateSkipLocalDeps)) {
-        const pkgPaths = await linkPackages({
-          repoDir: tmpRepoDir,
-          parentSpan: rootSpan,
-        })
+        const pkgPaths = await rootSpan
+          .traceChild('linkPackages')
+          .traceAsyncFn(() =>
+            linkPackages({
+              repoDir: tmpRepoDir,
+            })
+          )
         combinedDependencies = {
           next: pkgPaths.get('next'),
           ...Object.keys(dependencies).reduce((prev, pkg) => {
@@ -113,13 +119,6 @@ async function createNextInstall({
         )
       )
 
-      if (packageLockPath) {
-        await fs.copy(
-          packageLockPath,
-          path.join(installDir, path.basename(packageLockPath))
-        )
-      }
-
       if (installCommand) {
         const installString =
           typeof installCommand === 'function'
@@ -137,15 +136,21 @@ async function createNextInstall({
         await rootSpan
           .traceChild('run generic install command')
           .traceAsyncFn(async () => {
-            await execa(
-              'pnpm',
-              ['install', '--strict-peer-dependencies=false'],
-              {
-                cwd: installDir,
-                stdio: ['ignore', 'inherit', 'inherit'],
-                env: process.env,
-              }
-            )
+            const args = [
+              'install',
+              '--strict-peer-dependencies=false',
+              '--no-frozen-lockfile',
+            ]
+
+            if (process.env.NEXT_TEST_PREFER_OFFLINE === '1') {
+              args.push('--prefer-offline')
+            }
+
+            await execa('pnpm', args, {
+              cwd: installDir,
+              stdio: ['ignore', 'inherit', 'inherit'],
+              env: process.env,
+            })
           })
       }
 
@@ -156,4 +161,5 @@ async function createNextInstall({
 
 module.exports = {
   createNextInstall,
+  getPkgPaths: linkPackages,
 }

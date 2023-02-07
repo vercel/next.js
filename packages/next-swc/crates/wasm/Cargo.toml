@@ -13,7 +13,7 @@ swc_v1  = []
 
 plugin = [
   "getrandom/js",
-  "swc_core/plugin_transform_host_js"
+  "next-binding/__swc_core_binding_wasm_plugin"
 ]
 
 [dependencies]
@@ -31,22 +31,10 @@ wasm-bindgen-futures = "0.4.8"
 getrandom = { version = "0.2.5", optional = true, default-features = false }
 js-sys = "0.3.59"
 serde-wasm-bindgen = "0.4.3"
-mdxjs = { version = "0.1.3", features = ["serializable"] }
-
-swc_core = { features = [
-  "common_concurrent",
-  "binding_macro_wasm",
-  "ecma_codegen",
-  "ecma_minifier",
-  "ecma_transforms",
-  "ecma_transforms_typescript",
-  "ecma_transforms_optimization",
-  "ecma_transforms_react",
-  "ecma_parser",
-  "ecma_parser_typescript",
-  "ecma_utils",
-  "ecma_visit"
-], version = "0.45.4" }
+next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230201.1", features = [
+  "__swc_core_binding_wasm",
+  "__feature_mdx_rs",
+] }
 
 
 # Workaround a bug

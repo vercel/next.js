@@ -29,7 +29,7 @@ function Home() {
 export default Home
 ```
 
-If you would like to use `next/image` featrues such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized).
+If you would like to use `next/image` features such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized).
 
 <br />
 

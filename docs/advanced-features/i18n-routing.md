@@ -13,7 +13,7 @@ description: Next.js has built-in support for internationalized routing and lang
 
 Next.js has built-in support for internationalized ([i18n](https://en.wikipedia.org/wiki/Internationalization_and_localization#Naming)) routing since `v10.0.0`. You can provide a list of locales, the default locale, and domain-specific locales and Next.js will automatically handle the routing.
 
-The i18n routing support is currently meant to complement existing i18n library solutions like [`react-intl`](https://formatjs.io/docs/getting-started/installation), [`react-i18next`](https://react.i18next.com/), [`lingui`](https://lingui.js.org/), [`rosetta`](https://github.com/lukeed/rosetta), [`next-intl`](https://github.com/amannn/next-intl) and others by streamlining the routes and locale parsing.
+The i18n routing support is currently meant to complement existing i18n library solutions like [`react-intl`](https://formatjs.io/docs/getting-started/installation), [`react-i18next`](https://react.i18next.com/), [`lingui`](https://lingui.js.org/), [`rosetta`](https://github.com/lukeed/rosetta), [`next-intl`](https://github.com/amannn/next-intl), [`next-translate`](https://github.com/aralroca/next-translate) and others by streamlining the routes and locale parsing.
 
 ## Getting started
 
@@ -183,7 +183,7 @@ export async function middleware(req: NextRequest) {
   }
 
   if (req.nextUrl.locale === 'default') {
-    const locale = req.cookies.get('NEXT_LOCALE') || 'en'
+    const locale = req.cookies.get('NEXT_LOCALE')?.value || 'en'
 
     return NextResponse.redirect(
       new URL(`/${locale}${req.nextUrl.pathname}${req.nextUrl.search}`, req.url)

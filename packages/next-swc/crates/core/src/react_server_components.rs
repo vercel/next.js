@@ -1,11 +1,13 @@
+use std::path::PathBuf;
+
 use regex::Regex;
 use serde::Deserialize;
 
-use swc_core::{
+use next_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
-        FileName, Span, DUMMY_SP,
+        FileName, Span, Spanned, DUMMY_SP,
     },
     ecma::ast::*,
     ecma::atoms::{js_word, JsWord},
@@ -38,6 +40,7 @@ pub struct Options {
 struct ReactServerComponents<C: Comments> {
     is_server: bool,
     filepath: String,
+    app_dir: Option<PathBuf>,
     comments: C,
     invalid_server_imports: Vec<JsWord>,
     invalid_client_imports: Vec<JsWord>,
@@ -290,6 +293,32 @@ impl<C: Comments> ReactServerComponents<C> {
         }
 
         self.assert_invalid_api(module);
+        self.assert_server_filename(module);
+    }
+
+    fn assert_server_filename(&self, module: &Module) {
+        let is_error_file = Regex::new(r"/error\.(ts|js)x?$")
+            .unwrap()
+            .is_match(&self.filepath);
+        if is_error_file {
+            if let Some(app_dir) = &self.app_dir {
+                if let Some(app_dir) = app_dir.to_str() {
+                    if self.filepath.starts_with(app_dir) {
+                        HANDLER.with(|handler| {
+                            let span = if let Some(first_item) = module.body.first() {
+                                first_item.span()
+                            } else {
+                                module.span
+                            };
+
+                            handler
+                                .struct_span_err(span, "NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT")
+                                .emit()
+                        })
+                    }
+                }
+            }
+        }
     }
 
     fn assert_client_graph(&self, imports: &Vec<ModuleImports>, module: &Module) {
@@ -416,6 +445,7 @@ pub fn server_components<C: Comments>(
     filename: FileName,
     config: Config,
     comments: C,
+    app_dir: Option<PathBuf>,
 ) -> impl Fold + VisitMut {
     let is_server: bool = match config {
         Config::WithOptions(x) => x.is_server,
@@ -425,6 +455,7 @@ pub fn server_components<C: Comments>(
         is_server,
         comments,
         filepath: filename.to_string(),
+        app_dir,
         invalid_server_imports: vec![
             JsWord::from("client-only"),
             JsWord::from("react-dom/client"),

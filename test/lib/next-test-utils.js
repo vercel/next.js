@@ -111,8 +111,30 @@ export function getFullUrl(appPortOrUrl, url, hostname) {
   return fullUrl
 }
 
+/**
+ * Appends the querystring to the url
+ *
+ * @param {string} pathname the pathname
+ * @param {Record<string,any> | string} query the query object to add to the pathname
+ * @returns the pathname with the query
+ */
+export function withQuery(pathname, query) {
+  const querystring = typeof query === 'string' ? query : qs.stringify(query)
+  if (querystring.length === 0) {
+    return pathname
+  }
+
+  // If there's a `?` between the pathname and the querystring already, then
+  // don't add another one.
+  if (querystring.startsWith('?') || pathname.endsWith('?')) {
+    return `${pathname}${querystring}`
+  }
+
+  return `${pathname}?${querystring}`
+}
+
 export function renderViaAPI(app, pathname, query) {
-  const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
+  const url = query ? withQuery(pathname, query) : pathname
   return app.renderToHTML({ url }, {}, pathname, query)
 }
 
@@ -130,14 +152,12 @@ export function renderViaHTTP(appPort, pathname, query, opts) {
 /**
  * @param {string | number} appPort
  * @param {string} pathname
- * @param {Record<string, any> | string | undefined} [query]
+ * @param {Record<string, any> | string | null | undefined} [query]
  * @param {import('node-fetch').RequestInit} [opts]
  * @returns {Promise<Response & {buffer: any} & {headers: any}>}
  */
 export function fetchViaHTTP(appPort, pathname, query, opts) {
-  const url = `${pathname}${
-    typeof query === 'string' ? query : query ? `?${qs.stringify(query)}` : ''
-  }`
+  const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), {
     // in node.js v17 fetch favors IPv6 but Next.js is
     // listening on IPv4 by default so force IPv4 DNS resolving
@@ -263,7 +283,7 @@ export function runNextCommand(argv, options = {}) {
 
 export function runNextCommandDev(argv, stdOut, opts = {}) {
   const nextDir = path.dirname(require.resolve('next/package'))
-  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const nextBin = opts.nextBin || path.join(nextDir, 'dist/bin/next')
   const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
@@ -749,22 +769,13 @@ export function readNextBuildClientPageFile(appDir, page) {
 export function getPagesManifest(dir) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return readJson(serverFile)
-  }
-  return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+  return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir, content) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return writeFile(serverFile, content)
-  }
-  return writeFile(
-    path.join(dir, '.next/serverless/pages-manifest.json'),
-    content
-  )
+  return writeFile(serverFile, content)
 }
 
 export function getPageFileFromPagesManifest(dir, page) {
@@ -919,4 +930,21 @@ export function shouldRunTurboDevTest() {
 
   // If the test path matches the glob pattern, add additional case to run the test with `--turbo` flag.
   return isMatch
+}
+
+// WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
+// test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
+// to avoid force-snapshot update per each runs until turbopack update includes all the changes.
+export function getSnapshotTestDescribe(variant) {
+  const runningEnv = variant ?? 'default'
+  if (runningEnv !== 'default' && runningEnv !== 'turbo') {
+    throw new Error(`Check if test env passed correctly ${variant}`)
+  }
+
+  const shouldRunTurboDev = shouldRunTurboDevTest()
+  const shouldSkip =
+    (runningEnv === 'turbo' && !shouldRunTurboDev) ||
+    (runningEnv === 'default' && shouldRunTurboDev)
+
+  return shouldSkip ? describe.skip : describe
 }

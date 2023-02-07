@@ -9,6 +9,7 @@ description: Learn how to use Middleware to run code before a request is complet
 
 | Version   | Changes                                                                                    |
 | --------- | ------------------------------------------------------------------------------------------ |
+| `v13.1.0` | Advanced Middleware flags added                                                            |
 | `v13.0.0` | Middleware can modify request headers, response headers, and send responses                |
 | `v12.2.0` | Middleware is stable                                                                       |
 | `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410)) |
@@ -32,7 +33,7 @@ To begin using Middleware, follow the steps below:
 npm install next@latest
 ```
 
-2. Create a `middleware.ts` (or `.js`) file at the root or in the `src` directory (same level as your `pages`)
+2. Create a `middleware.ts` (or `.js`) file at the same level as your `pages` (in the root or `src` directory)
 3. Export a middleware function from the `middleware.ts` file:
 
 ```typescript
@@ -96,9 +97,10 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - api (API routes)
      * - _next/static (static files)
+     * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 }
 ```
@@ -162,7 +164,7 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
-  const cookie = request.cookies.get('nextjs')?.value
+  let cookie = request.cookies.get('nextjs')?.value
   console.log(cookie) // => 'fast'
   const allCookies = request.cookies.getAll()
   console.log(allCookies) // => [{ name: 'nextjs', value: 'fast' }]
@@ -179,7 +181,7 @@ export function middleware(request: NextRequest) {
     value: 'fast',
     path: '/test',
   })
-  const cookie = response.cookies.get('vercel')
+  cookie = response.cookies.get('vercel')
   console.log(cookie) // => { name: 'vercel', value: 'fast', Path: '/test' }
   // The outgoing response will have a `Set-Cookie:vercel=fast;path=/test` header.
 
@@ -220,18 +222,7 @@ export function middleware(request: NextRequest) {
 
 ## Producing a Response
 
-You can respond to middleware directly by returning a `NextResponse` (responding from middleware is available since Next.js v13.0.0).
-
-To enable middleware responses, update `next.config.js`:
-
-```js
-// next.config.js
-module.exports = {
-  experimental: {
-    allowMiddlewareResponseBody: true,
-  },
-}
-```
+You can respond to middleware directly by returning a `NextResponse` (responding from middleware is available since Next.js v13.1.0).
 
 Once enabled, you can provide a response from middleware using the `Response` or `NextResponse` API:
 
@@ -254,6 +245,66 @@ export function middleware(request: NextRequest) {
       { status: 401, headers: { 'content-type': 'application/json' } }
     )
   }
+}
+```
+
+## Advanced Middleware Flags
+
+In `v13.1` of Next.js two additional flags were introduced for middleware, `skipMiddlewareUrlNormalize` and `skipTrailingSlashRedirect` to handle advanced use cases.
+
+`skipTrailingSlashRedirect` allows disabling Next.js default redirects for adding or removing trailing slashes allowing custom handling inside middleware which can allow maintaining the trailing slash for some paths but not others allowing easier incremental migrations.
+
+```js
+// next.config.js
+module.exports = {
+  skipTrailingSlashRedirect: true,
+}
+```
+
+```js
+// middleware.js
+
+const legacyPrefixes = ['/docs', '/blog']
+
+export default async function middleware(req) {
+  const { pathname } = req.nextUrl
+
+  if (legacyPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+    return NextResponse.next()
+  }
+
+  // apply trailing slash handling
+  if (
+    !pathname.endsWith('/') &&
+    !pathname.match(/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+)/)
+  ) {
+    req.nextUrl.pathname += '/'
+    return NextResponse.redirect(req.nextUrl)
+  }
+}
+```
+
+`skipMiddlewareUrlNormalize` allows disabling the URL normalizing Next.js does to make handling direct visits and client-transitions the same. There are some advanced cases where you need full control using the original URL which this unlocks.
+
+```js
+// next.config.js
+
+module.exports = {
+  skipMiddlewareUrlNormalize: true,
+}
+```
+
+```js
+// middleware.js
+
+export default async function middleware(req) {
+  const { pathname } = req.nextUrl
+
+  // GET /_next/data/build-id/hello.json
+
+  console.log(pathname)
+  // with the flag this now /_next/data/build-id/hello.json
+  // without the flag this would be normalized to /hello
 }
 ```
 

@@ -1,4 +1,6 @@
+import path from 'path'
 import {
+  SRC_DIR_NAMES,
   TemplateMode,
   TemplateType,
 } from '../../../../packages/create-next-app/templates'
@@ -40,7 +42,12 @@ export const projectSpecification: ProjectSpecification = {
   },
   default: {
     js: {
-      files: ['pages/index.js', 'pages/_app.js', 'pages/api/hello.js'],
+      files: [
+        'pages/index.js',
+        'pages/_app.js',
+        'pages/api/hello.js',
+        'jsconfig.json',
+      ],
       deps: [],
       devDeps: [],
     },
@@ -61,10 +68,11 @@ export const projectSpecification: ProjectSpecification = {
       deps: [],
       devDeps: [],
       files: [
-        'app/page.jsx',
-        'app/head.jsx',
-        'app/layout.jsx',
+        'app/page.js',
+        'app/head.js',
+        'app/layout.js',
         'pages/api/hello.js',
+        'jsconfig.json',
       ],
     },
     ts: {
@@ -86,15 +94,24 @@ export type GetProjectSettingsArgs = {
   template: TemplateType
   mode: TemplateMode
   setting: keyof ProjectSettings
+  srcDir?: boolean
 }
+
+export const mapSrcFiles = (files: string[], srcDir?: boolean) =>
+  files.map((file) =>
+    srcDir && SRC_DIR_NAMES.some((name) => file.startsWith(name))
+      ? path.join('src', file)
+      : file
+  )
 
 export const getProjectSetting = ({
   template,
   mode,
   setting,
+  srcDir,
 }: GetProjectSettingsArgs) => {
   return [
     ...projectSpecification.global[setting],
-    ...projectSpecification[template][mode][setting],
+    ...mapSrcFiles(projectSpecification[template][mode][setting], srcDir),
   ]
 }

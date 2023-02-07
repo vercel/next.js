@@ -1,12 +1,14 @@
 import path from 'path'
 import assert from 'assert'
-import { flushAllTraces, setGlobal, trace } from 'next/trace'
+import { flushAllTraces, setGlobal, trace } from 'next/src/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
 import { shouldRunTurboDevTest } from './next-test-utils'
+
+export type { NextInstance }
 
 // increase timeout to account for yarn install time
 jest.setTimeout(240 * 1000)
@@ -186,4 +188,59 @@ export async function createNext(
   } finally {
     flushAllTraces()
   }
+}
+
+export function createNextDescribe(
+  name: string,
+  options: Parameters<typeof createNext>[0] & {
+    skipDeployment?: boolean
+    dir?: string
+  },
+  fn: (context: {
+    isNextDev: boolean
+    isNextDeploy: boolean
+    isNextStart: boolean
+    next: NextInstance
+  }) => void
+): void {
+  describe(name, () => {
+    if (options.skipDeployment) {
+      // When the environment is running for deployment tests.
+      if ((global as any).isNextDeploy) {
+        it('should skip next deploy', () => {})
+        // No tests are run.
+        return
+      }
+    }
+
+    let next: NextInstance
+    beforeAll(async () => {
+      next = await createNext(options)
+    })
+    afterAll(async () => {
+      await next.destroy()
+    })
+
+    const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
+      get: function (_target, property) {
+        const prop = next[property]
+        return typeof prop === 'function' ? prop.bind(next) : prop
+      },
+    })
+    fn({
+      get isNextDev(): boolean {
+        return Boolean((global as any).isNextDev)
+      },
+
+      get isNextDeploy(): boolean {
+        return Boolean((global as any).isNextDeploy)
+      },
+      get isNextStart(): boolean {
+        return Boolean((global as any).isNextStart)
+      },
+      get next() {
+        return nextProxy
+      },
+    })
+  })
 }
