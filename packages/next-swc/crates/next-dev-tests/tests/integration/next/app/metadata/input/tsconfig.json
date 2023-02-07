@@ -19,7 +19,10 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "paths": {
+      "@turbo/pack-test-harness": ["../../../../../../test-harness"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

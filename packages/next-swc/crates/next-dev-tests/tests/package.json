@@ -2,7 +2,8 @@
   "name": "next-dev-tests",
   "private": true,
   "devDependencies": {
-    "@turbo/pack-test-harness": "*",
+    "@types/jest": "29.4.0",
+    "@turbo/pack-test-harness": "file:../test-harness",
     "autoprefixer": "^10.4.13",
     "loader-runner": "^4.3.0",
     "next": "13.1.7-canary.2",
