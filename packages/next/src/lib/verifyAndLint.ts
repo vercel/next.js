@@ -12,14 +12,13 @@ export async function verifyAndLint(
   dir: string,
   cacheLocation: string,
   configLintDirs: string[] | undefined,
-  numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined,
   telemetry: Telemetry,
   hasAppDir: boolean
 ): Promise<void> {
   try {
     const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
-      numWorkers,
+      numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }) as Worker & {

@@ -1,5 +1,3 @@
-import type { ResolvedMetadata } from './types/metadata-interface'
-
 import React from 'react'
 import {
   AppleWebAppMeta,
@@ -14,14 +12,13 @@ import {
   TwitterMetadata,
   AppLinksMeta,
 } from './generate/opengraph'
-import { resolveMetadata } from './resolve-metadata'
 import { IconsMetadata } from './generate/icons'
+import { accumulateMetadata, MetadataItems } from './resolve-metadata'
 
 // Generate the actual React elements from the resolved metadata.
-export async function Metadata({ metadata }: { metadata: any }) {
-  if (!metadata) return null
+export async function MetadataTree({ metadata }: { metadata: MetadataItems }) {
+  const resolved = await accumulateMetadata(metadata)
 
-  const resolved: ResolvedMetadata = await resolveMetadata(metadata)
   return (
     <>
       <BasicMetadata metadata={resolved} />

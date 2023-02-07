@@ -1,4 +1,4 @@
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/app-dynamic/no-ssr-error'
 
 export default function onRecoverableError(err: any, errorInfo: any) {
   const digest = err.digest || errorInfo.digest

@@ -10,9 +10,12 @@ export default function Page() {
         to /basic
       </Link>
       <br />
-
       <Link href="/title" id="to-title">
         to /title
+      </Link>
+      <br />
+      <Link href="/title-template/extra/inner" id="to-nested">
+        to /title-template/extra/inner
       </Link>
       <br />
     </>
