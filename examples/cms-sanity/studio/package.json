@@ -4,6 +4,7 @@
     "start": "sanity dev",
     "dev": "sanity dev",
     "build": "sanity build",
+    "cors:add": "npx sanity cors add",
     "deploy": "sanity deploy",
     "prestart": "npm run env",
     "predeploy": "npm run env",
