@@ -2,7 +2,7 @@ import { lazy } from 'react'
 import { PreviewSuspense } from 'next-sanity/preview'
 import { postQuery, postSlugsQuery } from '../../lib/queries'
 import { getClient, overlayDrafts, sanityClient } from '../../lib/sanity.server'
-import Post from '../../components/post-preview'
+import Post from '../../components/post'
 
 const PostPreview = lazy(() => import('../../components/post-preview'))
 

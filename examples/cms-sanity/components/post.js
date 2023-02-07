@@ -15,7 +15,6 @@ import MoreStories from './more-stories'
 export default function Post({ data = {}, preview = false }) {
   const router = useRouter()
 
-  console.log(data)
   const { post, morePosts } = data
   const slug = post?.slug
 
@@ -34,7 +33,7 @@ export default function Post({ data = {}, preview = false }) {
             <article>
               <Head>
                 <title>
-                  {post.title} | Next.js Blog Example with {CMS_NAME}
+                  {post.title ?? `Next.js Blog Example with ${CMS_NAME}`}
                 </title>
                 {post.coverImage?.asset?._ref && (
                   <meta
