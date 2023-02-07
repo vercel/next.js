@@ -13,11 +13,16 @@ use turbopack_core::{
     issue::{code_gen::CodeGenerationIssue, IssueSeverity},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::UrlReferenceSubType,
-    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
+    resolve::{
+        origin::{ResolveOrigin, ResolveOriginVc},
+        parse::RequestVc,
+        ResolveResultVc,
+    },
 };
 
 use super::base::{ReferencedAsset, ReferencedAssetVc};
 use crate::{
+    chunk::{EcmascriptChunkItem, EcmascriptChunkPlaceable},
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::AstPathVc,

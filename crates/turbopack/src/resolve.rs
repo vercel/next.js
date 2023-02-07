@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{FileSystem, FileSystemPathVc};
 use turbopack_core::resolve::{
     find_context_file,
     options::{

@@ -7,7 +7,7 @@ use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkGroupVc, ChunkReferenceVc, ChunkingContextVc, ChunksVc},
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     reference::AssetReferencesVc,
     virtual_asset::VirtualAssetVc,
 };

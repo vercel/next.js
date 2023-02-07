@@ -7,7 +7,7 @@ use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     reference::AssetReferencesVc,
     resolve::origin::{ResolveOrigin, ResolveOriginVc},
     virtual_asset::VirtualAssetVc,
@@ -15,7 +15,8 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContentVc, EcmascriptChunkItemVc,
-        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+        EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc, EcmascriptExports,
+        EcmascriptExportsVc,
     },
     AnalyzeEcmascriptModuleResultVc, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
     EcmascriptModuleAssetVc,
@@ -124,6 +125,11 @@ impl EcmascriptChunkPlaceable for MdxModuleAsset {
             context,
         })
         .into()
+    }
+
+    #[turbo_tasks::function]
+    fn get_exports(&self) -> EcmascriptExportsVc {
+        EcmascriptExports::Value.cell()
     }
 }
 

@@ -20,7 +20,7 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::dev::DevChunkingContextVc,
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     environment::ServerAddrVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     virtual_asset::VirtualAssetVc,

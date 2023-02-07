@@ -13,11 +13,11 @@ use turbopack_core::{
         chunk_content, chunk_content_split,
         optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
         Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem, ChunkItemVc,
-        ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContextVc, FromChunkableAsset,
-        ModuleId, ModuleIdVc,
+        ChunkReferenceVc, ChunkVc, ChunkableAssetVc, ChunkingContext, ChunkingContextVc,
+        FromChunkableAsset, ModuleId, ModuleIdVc,
     },
     code_builder::{CodeBuilder, CodeVc},
-    reference::{AssetReferenceVc, AssetReferencesVc},
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
 };
 use turbopack_ecmascript::utils::FormatIter;
@@ -25,7 +25,9 @@ use writer::expand_imports;
 
 use self::{optimize::CssChunkOptimizerVc, source_map::CssChunkSourceMapAssetReferenceVc};
 use crate::{
-    embed::CssEmbeddableVc, parse::ParseResultSourceMapVc, util::stringify_str,
+    embed::{CssEmbed, CssEmbeddable, CssEmbeddableVc},
+    parse::ParseResultSourceMapVc,
+    util::stringify_str,
     ImportAssetReferenceVc,
 };
 

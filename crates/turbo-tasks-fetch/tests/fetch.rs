@@ -2,7 +2,7 @@
 
 use turbo_tasks::primitives::{OptionStringVc, StringVc};
 use turbo_tasks_fetch::{fetch, register, FetchErrorKind};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemPathVc, FileSystemVc};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemPathVc, FileSystemVc};
 use turbo_tasks_testing::{register, run};
 use turbopack_core::issue::{Issue, IssueSeverity};
 

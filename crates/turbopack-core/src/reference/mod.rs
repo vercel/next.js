@@ -4,11 +4,10 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 
 use crate::{
-    asset::{AssetVc, AssetsVc},
+    asset::{Asset, AssetVc, AssetsVc},
     issue::IssueVc,
     resolve::{ResolveResult, ResolveResultVc},
 };
-
 pub mod source_map;
 
 pub use source_map::SourceMapVc;

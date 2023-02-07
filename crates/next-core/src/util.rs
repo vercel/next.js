@@ -5,7 +5,7 @@ use turbo_tasks::{primitives::StringVc, trace::TraceRawVcs, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::condition::ContextCondition;
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{Asset, AssetVc},
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
 };
 use turbopack_ecmascript::{

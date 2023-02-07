@@ -9,9 +9,9 @@ use turbo_tasks_fs::{
     glob::GlobVc, rope::Rope, to_sys_path, DirectoryEntry, File, FileSystemPathVc, ReadGlobResultVc,
 };
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{Asset, AssetVc},
     chunk::{dev::DevChunkingContextVc, ChunkGroupVc},
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     source_asset::SourceAssetVc,
     virtual_asset::VirtualAssetVc,

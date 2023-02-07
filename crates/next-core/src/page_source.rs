@@ -13,9 +13,9 @@ use turbo_tasks_fs::{
 };
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{Asset, AssetVc},
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     environment::ServerAddrVc,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source_asset::SourceAssetVc,

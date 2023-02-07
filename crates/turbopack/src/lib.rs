@@ -31,7 +31,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{Asset, AssetVc},
     context::{AssetContext, AssetContextVc},
     environment::EnvironmentVc,
     issue::{unsupported_module::UnsupportedModuleIssue, Issue, IssueVc},
@@ -45,6 +45,8 @@ use turbopack_core::{
         resolve, ResolveResultVc,
     },
 };
+
+use crate::transition::Transition;
 
 pub mod condition;
 pub mod evaluate_context;

@@ -8,7 +8,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{Asset, AssetVc},
+    context::AssetContext,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
@@ -18,7 +19,7 @@ use turbopack_core::{
             ConditionValue, ImportMap, ImportMapVc, ImportMapping, ResolveIntoPackage,
             ResolveModules, ResolveOptionsVc,
         },
-        origin::ResolveOriginVc,
+        origin::{ResolveOrigin, ResolveOriginVc},
         parse::{Request, RequestVc},
         pattern::QueryMapVc,
         resolve, AliasPattern, ResolveResultVc,

@@ -6,7 +6,7 @@ use turbopack::ecmascript::chunk::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
-    chunk::{ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    chunk::{ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext, ChunkingContextVc},
     reference::AssetReferencesVc,
 };
 

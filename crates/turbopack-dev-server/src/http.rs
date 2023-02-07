@@ -5,7 +5,7 @@ use mime_guess::mime;
 use turbo_tasks::TransientInstance;
 use turbo_tasks_fs::{FileContent, FileContentReadRef};
 use turbopack_cli_utils::issue::ConsoleUiVc;
-use turbopack_core::asset::AssetContent;
+use turbopack_core::{asset::AssetContent, version::VersionedContent};
 
 use crate::source::{
     request::SourceRequest,

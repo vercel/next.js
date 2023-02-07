@@ -5,7 +5,7 @@ use indexmap::indexset;
 use turbo_tasks::{primitives::StringVc, State, Value, ValueToString};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::{AssetVc, AssetsSetVc},
+    asset::{Asset, AssetVc, AssetsSetVc},
     introspect::{
         asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },

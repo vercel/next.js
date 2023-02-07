@@ -18,6 +18,7 @@ use turbopack_core::{
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemContentVc,
     EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptChunkVc,
+    EcmascriptExports, EcmascriptExportsVc,
 };
 
 #[turbo_tasks::value]
@@ -66,6 +67,11 @@ impl EcmascriptChunkPlaceable for JsonModuleAsset {
             context,
         })
         .into()
+    }
+
+    #[turbo_tasks::function]
+    fn get_exports(&self) -> EcmascriptExportsVc {
+        EcmascriptExports::Value.cell()
     }
 }
 

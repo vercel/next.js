@@ -16,8 +16,8 @@ use turbo_tasks_fs::{
     attach::AttachedFileSystemVc, to_sys_path, FileLinesContent, FileSystemPathVc,
 };
 use turbopack_core::issue::{
-    IssueProcessingPathItem, IssueSeverity, IssueVc, OptionIssueProcessingPathItemsVc, PlainIssue,
-    PlainIssueSource,
+    Issue, IssueProcessingPathItem, IssueSeverity, IssueVc, OptionIssueProcessingPathItemsVc,
+    PlainIssue, PlainIssueSource,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -2,12 +2,12 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::{
     introspect::{Introspectable, IntrospectableVc},
-    source_map::GenerateSourceMapVc,
+    source_map::{GenerateSourceMap, GenerateSourceMapVc},
 };
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
     ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
-    ContentSourcesVc, NeededData,
+    ContentSourcesVc, GetContentSourceContent, NeededData,
 };
 use url::Url;
 

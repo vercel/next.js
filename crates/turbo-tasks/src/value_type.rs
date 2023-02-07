@@ -51,6 +51,41 @@ pub trait ValueTraitVc:
     fn get_trait_type_id() -> TraitTypeId;
 }
 
+pub trait IntoSuperTrait<T>: ValueTraitVc
+where
+    T: ValueTraitVc,
+{
+    fn into_super_trait(self) -> T;
+}
+
+pub trait FromSubTrait<T>: ValueTraitVc
+where
+    T: ValueTraitVc,
+{
+    fn from_sub_trait(t: T) -> Self;
+}
+
+impl<T, U> IntoSuperTrait<U> for T
+where
+    T: ValueTraitVc,
+    U: ValueTraitVc + FromSubTrait<T>,
+{
+    fn into_super_trait(self) -> U {
+        U::from_sub_trait(self)
+    }
+}
+
+impl<T> FromSubTrait<T> for T
+where
+    T: ValueTraitVc,
+{
+    /// Returns the argument unchanged.
+    #[inline(always)]
+    fn from_sub_trait(t: T) -> T {
+        t
+    }
+}
+
 /// Marker trait that a turbo_tasks::value is prepared for
 /// serialization as Value<...> input.
 /// Either use `#[turbo_tasks::value(serialization: auto_for_input)]`

@@ -68,6 +68,7 @@ use self::{
 };
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc},
+    code_gen::CodeGenerateable,
     references::analyze_ecmascript_module,
 };
 

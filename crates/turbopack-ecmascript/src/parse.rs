@@ -23,7 +23,7 @@ use turbo_tasks::{primitives::U64Vc, Value, ValueToString};
 use turbo_tasks_fs::{FileContent, FileSystemPath, FileSystemPathVc};
 use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher};
 use turbopack_core::{
-    asset::{AssetContent, AssetVc},
+    asset::{Asset, AssetContent, AssetVc},
     source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
 };
 use turbopack_swc_utils::emitter::IssueEmitter;

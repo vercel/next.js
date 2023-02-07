@@ -5,7 +5,7 @@ use turbo_tasks::{primitives::JsonValueVc, trace::TraceRawVcs, Value};
 use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     source_transform::{SourceTransform, SourceTransformVc},
     virtual_asset::VirtualAssetVc,
 };

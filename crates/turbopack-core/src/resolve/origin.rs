@@ -3,7 +3,11 @@ use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 
 use super::{options::ResolveOptionsVc, parse::RequestVc, ResolveResult, ResolveResultVc};
-use crate::{asset::AssetOptionVc, context::AssetContextVc, reference_type::ReferenceType};
+use crate::{
+    asset::AssetOptionVc,
+    context::{AssetContext, AssetContextVc},
+    reference_type::ReferenceType,
+};
 
 /// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.

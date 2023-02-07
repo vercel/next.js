@@ -18,7 +18,7 @@ use swc_core::{
 use turbo_tasks::{Value, ValueToString};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    asset::{AssetContent, AssetVc},
+    asset::{Asset, AssetContent, AssetVc},
     source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
 };
 use turbopack_swc_utils::emitter::IssueEmitter;

@@ -1,4 +1,4 @@
-use turbo_tasks_fs::{embed_directory, FileContentVc, FileSystemPathVc, FileSystemVc};
+use turbo_tasks_fs::{embed_directory, FileContentVc, FileSystem, FileSystemPathVc, FileSystemVc};
 
 #[turbo_tasks::function]
 fn embed_fs() -> FileSystemVc {

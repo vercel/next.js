@@ -22,7 +22,7 @@ use turbopack_core::{
 
 use super::{base::ReferencedAsset, EsmAssetReferenceVc};
 use crate::{
-    chunk::{EcmascriptChunkPlaceableVc, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
     references::esm::base::insert_hoisted_stmt,

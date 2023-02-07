@@ -9,7 +9,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
     source_asset::SourceAssetVc,

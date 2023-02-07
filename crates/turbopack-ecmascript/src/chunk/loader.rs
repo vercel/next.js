@@ -8,7 +8,7 @@ use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetVc, ChunkingContextVc, ChunksVc,
+        ChunkableAssetVc, ChunkingContext, ChunkingContextVc, ChunksVc,
     },
     reference::AssetReferencesVc,
 };
@@ -73,6 +73,11 @@ impl EcmascriptChunkItem for ManifestLoaderItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> ChunkingContextVc {
         self.context
+    }
+
+    #[turbo_tasks::function]
+    fn related_path(&self) -> FileSystemPathVc {
+        self.manifest.path()
     }
 
     #[turbo_tasks::function]
@@ -236,6 +241,11 @@ impl EcmascriptChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> ChunkingContextVc {
         self.context
+    }
+
+    #[turbo_tasks::function]
+    fn related_path(&self) -> FileSystemPathVc {
+        self.manifest.path()
     }
 
     #[turbo_tasks::function]

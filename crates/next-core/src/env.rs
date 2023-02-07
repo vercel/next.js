@@ -1,7 +1,8 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks_env::{
-    CommandLineProcessEnvVc, CustomProcessEnvVc, EnvMapVc, FilterProcessEnvVc, ProcessEnvVc,
+    CommandLineProcessEnvVc, CustomProcessEnvVc, EnvMapVc, FilterProcessEnvVc, ProcessEnv,
+    ProcessEnvVc,
 };
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_env::{EmbeddableProcessEnvVc, TryDotenvProcessEnvVc};

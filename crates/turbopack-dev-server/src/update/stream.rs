@@ -7,7 +7,10 @@ use tokio_stream::wrappers::ReceiverStream;
 use turbo_tasks::{CollectiblesSource, State, TransientInstance};
 use turbopack_core::{
     issue::{IssueVc, PlainIssueReadRef},
-    version::{NotFoundVersionVc, PartialUpdate, TotalUpdate, Update, UpdateReadRef, VersionVc},
+    version::{
+        NotFoundVersionVc, PartialUpdate, TotalUpdate, Update, UpdateReadRef, VersionVc,
+        VersionedContent,
+    },
 };
 
 use crate::source::resolve::{ResolveSourceRequestResult, ResolveSourceRequestResultVc};

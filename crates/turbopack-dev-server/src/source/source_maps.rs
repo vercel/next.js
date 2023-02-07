@@ -4,7 +4,7 @@ use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContentVc,
     introspect::{Introspectable, IntrospectableVc},
-    source_map::GenerateSourceMapVc,
+    source_map::{GenerateSourceMap, GenerateSourceMapVc},
 };
 
 use super::{
@@ -12,6 +12,7 @@ use super::{
     ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult,
     ContentSourceResultVc, ContentSourceVc, NeededData,
 };
+use crate::source::GetContentSourceContent;
 
 /// SourceMapContentSource allows us to serve full source maps, and individual
 /// sections of source maps, of any found asset in the graph without adding

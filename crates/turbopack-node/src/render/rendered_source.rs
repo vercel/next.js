@@ -9,6 +9,7 @@ use turbopack_core::{
     introspect::{
         asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
+    reference::AssetReference,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
@@ -30,8 +31,9 @@ use super::{
     RenderData,
 };
 use crate::{
-    external_asset_entrypoints, get_intermediate_asset, node_entry::NodeEntryVc,
-    route_matcher::RouteMatcherVc,
+    external_asset_entrypoints, get_intermediate_asset,
+    node_entry::{NodeEntry, NodeEntryVc},
+    route_matcher::{RouteMatcher, RouteMatcherVc},
 };
 
 /// Creates a content source that renders something in Node.js with the passed

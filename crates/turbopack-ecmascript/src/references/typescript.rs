@@ -2,11 +2,14 @@ use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
+    context::AssetContext,
     reference::{AssetReference, AssetReferenceVc},
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        origin::ResolveOriginVc, parse::RequestVc, pattern::QueryMapVc, ResolveResult,
-        ResolveResultVc,
+        origin::{ResolveOrigin, ResolveOriginVc},
+        parse::RequestVc,
+        pattern::QueryMapVc,
+        ResolveResult, ResolveResultVc,
     },
     source_asset::SourceAssetVc,
 };

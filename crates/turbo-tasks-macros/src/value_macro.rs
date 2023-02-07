@@ -523,7 +523,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             fn value_debug_format(&self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString {
                 turbo_tasks::debug::ValueDebugFormatString::Async(Box::pin(async move {
                     Ok(if let Some(value_debug) = turbo_tasks::debug::ValueDebugVc::resolve_from(self).await? {
-                        value_debug.dbg_depth(depth).await?.to_string()
+                        turbo_tasks::debug::ValueDebug::dbg_depth(&value_debug, depth).await?.to_string()
                     } else {
                         // This case means `SelfVc` does not implement `ValueDebugVc`, which is not possible
                         // if this implementation exists.

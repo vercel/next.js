@@ -4,10 +4,11 @@ use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc, FileSystemVc,
+    DirectoryContent, DirectoryEntry, FileSystem, FileSystemEntryType, FileSystemPathVc,
+    FileSystemVc,
 };
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{Asset, AssetVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         pattern::{Pattern, PatternVc},

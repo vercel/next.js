@@ -1,6 +1,7 @@
 #![feature(min_specialization)]
 
 mod nft_json;
+
 use std::{
     collections::{BTreeSet, HashMap},
     env::current_dir,
@@ -25,7 +26,7 @@ use turbo_tasks::{
     NothingVc, TaskId, TransientInstance, TransientValue, TurboTasks, TurboTasksBackendApi, Value,
 };
 use turbo_tasks_fs::{
-    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystemVc, ReadGlobResultVc,
+    glob::GlobVc, DirectoryEntry, DiskFileSystemVc, FileSystem, FileSystemVc, ReadGlobResultVc,
 };
 use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
@@ -39,7 +40,7 @@ use turbopack::{
 use turbopack_cli_utils::issue::{ConsoleUi, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsVc},
-    context::AssetContextVc,
+    context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     issue::{IssueSeverity, IssueVc},
     reference::all_assets,

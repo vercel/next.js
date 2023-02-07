@@ -15,7 +15,10 @@ use super::{
     ContentSourceContent, ContentSourceDataVary, ContentSourceResult, ContentSourceVc,
     ProxyResultVc, StaticContentVc,
 };
-use crate::{handle_issues, source::ContentSourceData};
+use crate::{
+    handle_issues,
+    source::{ContentSource, ContentSourceData, GetContentSourceContent},
+};
 
 /// The result of [`resolve_source_request`]. Similar to a
 /// `ContentSourceContent`, but without the `Rewrite` variant as this is taken

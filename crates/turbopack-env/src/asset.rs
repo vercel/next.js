@@ -2,7 +2,7 @@ use std::fmt::Write as _;
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_env::ProcessEnvVc;
+use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},

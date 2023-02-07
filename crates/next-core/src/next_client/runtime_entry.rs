@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 use turbo_tasks::ValueToString;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
+    asset::Asset,
     context::AssetContextVc,
     resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
 };

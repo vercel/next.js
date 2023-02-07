@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::json;
-use turbo_tasks_fs::{File, FileSystemPathVc};
+use turbo_tasks_fs::{File, FileSystem, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     reference::all_assets,

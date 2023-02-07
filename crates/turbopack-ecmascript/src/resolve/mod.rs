@@ -3,6 +3,7 @@ pub mod node_native_binding;
 use anyhow::Result;
 use turbo_tasks::Value;
 use turbopack_core::{
+    context::AssetContext,
     reference_type::{
         CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType,
         UrlReferenceSubType,
@@ -10,7 +11,7 @@ use turbopack_core::{
     resolve::{
         handle_resolve_error,
         options::{ConditionValue, ResolveIntoPackage, ResolveOptions, ResolveOptionsVc},
-        origin::ResolveOriginVc,
+        origin::{ResolveOrigin, ResolveOriginVc},
         parse::RequestVc,
         resolve, ResolveResultVc,
     },
