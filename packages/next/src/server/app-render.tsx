@@ -840,7 +840,8 @@ function getPreloadedFontFilesInlineLinkTags(
     return null
   }
 
-  return [...fontFiles]
+  // Sorting to make order deterministic
+  return [...fontFiles].sort()
 }
 
 function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
@@ -1527,6 +1528,8 @@ export async function renderToHTMLOrFlight(
         Component: () => {
           return (
             <>
+              {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
+              <Component {...props} />
               {preloadedFontFiles?.length === 0 ? (
                 <link
                   data-next-font={
@@ -1574,7 +1577,6 @@ export async function renderToHTMLOrFlight(
                     />
                   ))
                 : null}
-              <Component {...props} />
             </>
           )
         },
