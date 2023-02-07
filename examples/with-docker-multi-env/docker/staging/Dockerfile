@@ -21,14 +21,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # This will do the trick, use the corresponding env file for each environment.
-COPY .env.staging.sample .env.production
+COPY .env.staging.sample .env.staging
 RUN yarn build
 
 # 3. Production image, copy all the files and run next
 FROM node:16-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
+ENV NODE_ENV=staging
 
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
