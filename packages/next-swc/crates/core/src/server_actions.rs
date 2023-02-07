@@ -393,9 +393,9 @@ fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> Stmt {
     })
 }
 
-fn get_server_directive_index_in_module(stmts: &Vec<ModuleItem>) -> i32 {
-    for i in 0..stmts.len() {
-        if let ModuleItem::Stmt(Stmt::Expr(first)) = &stmts[i] {
+fn get_server_directive_index_in_module(stmts: &[ModuleItem]) -> i32 {
+    for (i, stmt) in stmts.iter().enumerate() {
+        if let ModuleItem::Stmt(Stmt::Expr(first)) = stmt {
             match &*first.expr {
                 Expr::Lit(Lit::Str(Str { value, .. })) => {
                     if value == "use server" {
@@ -411,9 +411,9 @@ fn get_server_directive_index_in_module(stmts: &Vec<ModuleItem>) -> i32 {
     -1
 }
 
-fn get_server_directive_index_in_fn(stmts: &Vec<Stmt>) -> i32 {
-    for i in 0..stmts.len() {
-        if let Stmt::Expr(first) = &stmts[i] {
+fn get_server_directive_index_in_fn(stmts: &[Stmt]) -> i32 {
+    for (i, stmt) in stmts.iter().enumerate() {
+        if let Stmt::Expr(first) = stmt {
             match &*first.expr {
                 Expr::Lit(Lit::Str(Str { value, .. })) => {
                     if value == "use server" {
