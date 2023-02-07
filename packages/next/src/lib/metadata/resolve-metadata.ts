@@ -17,6 +17,12 @@ import { resolveOpenGraph } from './resolve-opengraph'
 import { mergeTitle } from './resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 import { isClientReference } from '../../build/is-client-reference'
+import {
+  getLayoutOrPageModule,
+  LoaderTree,
+} from '../../server/lib/app-dir-module'
+import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import { interopDefault } from '../interop-default'
 
 type FieldResolver<Key extends keyof Metadata> = (
   T: Metadata[Key]
@@ -323,7 +329,10 @@ function merge(
 }
 
 type MetadataResolver = (_parent: ResolvingMetadata) => Promise<Metadata>
-export type MetadataItems = (Metadata | MetadataResolver)[]
+export type MetadataItems = [
+  Metadata | MetadataResolver | null,
+  Metadata | null
+][]
 
 async function getDefinedMetadata(
   mod: any,
@@ -342,22 +351,55 @@ async function getDefinedMetadata(
     )
   }
 
-  return mod.generateMetadata
-    ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
-    : mod.metadata
+  return (
+    (mod.generateMetadata
+      ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
+      : mod.metadata) || null
+  )
 }
 
-// layout.metadata -> layout.metadata -> page.metadata
+async function collectStaticFsBasedIcons(
+  metadata: ComponentsType['metadata'],
+  type: 'icon' | 'apple'
+) {
+  if (!metadata?.[type]) return undefined
+  const iconPromises = metadata[type].map(
+    // TODO-APP: share the typing between next-metadata-image-loader and here
+    async (iconResolver) =>
+      interopDefault(await iconResolver()) as { url: string; sizes: string }
+  )
+  return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
+}
+
+async function resolveStaticMetadata(
+  components: ComponentsType
+): Promise<Metadata | null> {
+  const { metadata } = components
+  if (!metadata) return null
+
+  const [icon, apple] = await Promise.all([
+    collectStaticFsBasedIcons(metadata, 'icon'),
+    collectStaticFsBasedIcons(metadata, 'apple'),
+  ])
+
+  const icons: Metadata['icons'] = {}
+  if (icon) icons.icon = icon
+  if (apple) icons.apple = apple
+
+  return { icons }
+}
+
+// [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
 export async function collectMetadata(
-  mod: any,
+  loaderTree: LoaderTree,
   props: any,
   array: MetadataItems
 ) {
-  if (!mod) return
-  const metadata = await getDefinedMetadata(mod, props)
-  if (metadata) {
-    array.push(metadata)
-  }
+  const mod = await getLayoutOrPageModule(loaderTree)
+  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
+  const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
+
+  array.push([metadataExport, staticFilesMetadata])
 }
 
 export async function accumulateMetadata(
@@ -367,49 +409,31 @@ export async function accumulateMetadata(
   let parentPromise = Promise.resolve(resolvedMetadata)
 
   for (const item of metadataItems) {
+    const [metadataExport, staticFilesMetadata] = item
     const layerMetadataPromise =
-      typeof item === 'function' ? item(parentPromise) : Promise.resolve(item)
+      typeof metadataExport === 'function'
+        ? metadataExport(parentPromise)
+        : Promise.resolve(metadataExport)
+
     parentPromise = parentPromise.then((resolved) => {
-      return layerMetadataPromise.then((metadata) => {
-        merge(resolved, metadata, {
-          title: resolved.title?.template || null,
-          openGraph: resolved.openGraph?.title?.template || null,
-          twitter: resolved.twitter?.title?.template || null,
-        })
+      return layerMetadataPromise.then((exportedMetadata) => {
+        const metadata = exportedMetadata || staticFilesMetadata
+
+        if (metadata) {
+          // Overriding the metadata if static files metadata is present
+          Object.assign(metadata, staticFilesMetadata)
+
+          merge(resolved, metadata, {
+            title: resolved.title?.template || null,
+            openGraph: resolved.openGraph?.title?.template || null,
+            twitter: resolved.twitter?.title?.template || null,
+          })
+        }
+
         return resolved
       })
     })
   }
+
   return await parentPromise
-}
-
-// TODO: Implement this function.
-export async function resolveFileBasedMetadataForLoader(
-  _layer: number,
-  _dir: string
-) {
-  let metadataCode = ''
-
-  // const files = await fs.readdir(path.normalize(dir))
-  // for (const file of files) {
-  //   // TODO: Get a full list and filter out directories.
-  //   if (file === 'icon.svg') {
-  //     metadataCode += `{
-  //       type: 'icon',
-  //       layer: ${layer},
-  //       path: ${JSON.stringify(path.join(dir, file))},
-  //     },`
-  //   } else if (file === 'icon.jsx') {
-  //     metadataCode += `{
-  //       type: 'icon',
-  //       layer: ${layer},
-  //       mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-  //         path.join(dir, file)
-  //       )}),
-  //       path: ${JSON.stringify(path.join(dir, file))},
-  //     },`
-  //   }
-  // }
-
-  return metadataCode
 }
