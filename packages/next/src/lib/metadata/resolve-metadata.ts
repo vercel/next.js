@@ -16,6 +16,7 @@ import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph } from './resolve-opengraph'
 import { mergeTitle } from './resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
+import { isClientReference } from '../../build/is-client-reference'
 import {
   getLayoutOrPageModule,
   LoaderTree,
@@ -340,10 +341,7 @@ async function getDefinedMetadata(
   // Layer is a client component, we just skip it. It can't have metadata
   // exported. Note that during our SWC transpilation, it should check if
   // the exports are valid and give specific error messages.
-  if (
-    '$$typeof' in mod &&
-    (mod as any).$$typeof === Symbol.for('react.module.reference')
-  ) {
+  if (isClientReference(mod)) {
     return null
   }
 

@@ -102,7 +102,7 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 
 var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
 
-var REACT_MODULE_REFERENCE = Symbol.for('react.module.reference');
+var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
 function isValidElementType(type) {
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
@@ -118,7 +118,7 @@ function isValidElementType(type) {
     // types supported by any Flight configuration anywhere since
     // we don't know which Flight build this will end up being used
     // with.
-    type.$$typeof === REACT_MODULE_REFERENCE || type.getModuleId !== undefined) {
+    type.$$typeof === REACT_CLIENT_REFERENCE || type.getModuleId !== undefined) {
       return true;
     }
   }
@@ -968,6 +968,7 @@ function jsxDEV(type, config, maybeKey, source, self) {
 
 var ReactCurrentOwner$1 = ReactSharedInternals.ReactCurrentOwner;
 var ReactDebugCurrentFrame$1 = ReactSharedInternals.ReactDebugCurrentFrame;
+var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference');
 
 function setCurrentlyValidatingElement$1(element) {
   {
@@ -1107,11 +1108,11 @@ function validateExplicitKey(element, parentType) {
 
 function validateChildKeys(node, parentType) {
   {
-    if (typeof node !== 'object') {
+    if (typeof node !== 'object' || !node) {
       return;
     }
 
-    if (isArray(node)) {
+    if (node.$$typeof === REACT_CLIENT_REFERENCE$1) ; else if (isArray(node)) {
       for (var i = 0; i < node.length; i++) {
         var child = node[i];
 
@@ -1124,7 +1125,7 @@ function validateChildKeys(node, parentType) {
       if (node._store) {
         node._store.validated = true;
       }
-    } else if (node) {
+    } else {
       var iteratorFn = getIteratorFn(node);
 
       if (typeof iteratorFn === 'function') {
@@ -1157,6 +1158,10 @@ function validatePropTypes(element) {
     var type = element.type;
 
     if (type === null || type === undefined || typeof type === 'string') {
+      return;
+    }
+
+    if (type.$$typeof === REACT_CLIENT_REFERENCE$1) {
       return;
     }
 
@@ -1293,21 +1298,19 @@ function jsxWithValidation(type, props, key, isStaticChildren, source, self) {
       }
     }
 
-    {
-      if (hasOwnProperty.call(props, 'key')) {
-        var componentName = getComponentNameFromType(type);
-        var keys = Object.keys(props).filter(function (k) {
-          return k !== 'key';
-        });
-        var beforeExample = keys.length > 0 ? '{key: someKey, ' + keys.join(': ..., ') + ': ...}' : '{key: someKey}';
+    if (hasOwnProperty.call(props, 'key')) {
+      var componentName = getComponentNameFromType(type);
+      var keys = Object.keys(props).filter(function (k) {
+        return k !== 'key';
+      });
+      var beforeExample = keys.length > 0 ? '{key: someKey, ' + keys.join(': ..., ') + ': ...}' : '{key: someKey}';
 
-        if (!didWarnAboutKeySpread[componentName + beforeExample]) {
-          var afterExample = keys.length > 0 ? '{' + keys.join(': ..., ') + ': ...}' : '{}';
+      if (!didWarnAboutKeySpread[componentName + beforeExample]) {
+        var afterExample = keys.length > 0 ? '{' + keys.join(': ..., ') + ': ...}' : '{}';
 
-          error('A props object containing a "key" prop is being spread into JSX:\n' + '  let props = %s;\n' + '  <%s {...props} />\n' + 'React keys must be passed directly to JSX without using spread:\n' + '  let props = %s;\n' + '  <%s key={someKey} {...props} />', beforeExample, componentName, afterExample, componentName);
+        error('A props object containing a "key" prop is being spread into JSX:\n' + '  let props = %s;\n' + '  <%s {...props} />\n' + 'React keys must be passed directly to JSX without using spread:\n' + '  let props = %s;\n' + '  <%s key={someKey} {...props} />', beforeExample, componentName, afterExample, componentName);
 
-          didWarnAboutKeySpread[componentName + beforeExample] = true;
-        }
+        didWarnAboutKeySpread[componentName + beforeExample] = true;
       }
     }
 

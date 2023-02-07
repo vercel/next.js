@@ -51,6 +51,7 @@ import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
+import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -1103,6 +1104,8 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
+        console.warn(`\`head.js\` is deprecated, please use`)
+
         const Head = await interopDefault(await head[0]())
         return [<Head params={currentParams} />, metadataItems]
       }
@@ -1188,7 +1191,8 @@ export async function renderToHTMLOrFlight(
             />
           ))
         : null
-      const Comp = await interopDefault(await getComponent())
+
+      const Comp = interopDefault(await getComponent())
 
       return [Comp, styles]
     }
@@ -1361,7 +1365,10 @@ export async function renderToHTMLOrFlight(
           )
         }
 
-        if (layoutOrPageMod?.config?.amp) {
+        if (
+          !isClientReference(layoutOrPageMod) &&
+          layoutOrPageMod?.config?.amp
+        ) {
           throw new Error(
             'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
           )
@@ -1504,9 +1511,11 @@ export async function renderToHTMLOrFlight(
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
-      Component = await Promise.resolve().then(() => {
-        return preloadComponent(Component, props)
-      })
+      if (!isClientReference(layoutOrPageMod)) {
+        Component = await Promise.resolve().then(() =>
+          preloadComponent(Component, props)
+        )
+      }
 
       return {
         Component: () => {
