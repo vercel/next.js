@@ -189,7 +189,7 @@ impl ValueToString for WithClientChunksAssetReference {
 impl AssetReference for WithClientChunksAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(self.asset, Vec::new()).cell()
+        ResolveResult::asset(self.asset).cell()
     }
 }
 
