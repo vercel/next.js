@@ -30,7 +30,7 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
+// import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
@@ -51,6 +51,7 @@ import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
+import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -91,13 +92,6 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
-}
-
-async function getLayoutOrPageModule(loaderTree: LoaderTree) {
-  const { layout, page } = loaderTree[2]
-  const isLayout = typeof layout !== 'undefined'
-  const isPage = typeof page !== 'undefined'
-  return isLayout ? await layout[0]() : isPage ? await page[0]() : undefined
 }
 
 export class ReadonlyHeaders {
@@ -631,15 +625,6 @@ export type Segment =
   | [param: string, value: string, type: DynamicParamTypesShort]
 
 /**
- * LoaderTree is generated in next-app-loader.
- */
-type LoaderTree = [
-  segment: string,
-  parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: ComponentsType
-]
-
-/**
  * Router state
  */
 export type FlightRouterState = [
@@ -1103,8 +1088,7 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      const mod = await getLayoutOrPageModule(tree)
-      await collectMetadata(mod, layerProps, metadataItems)
+      await collectMetadata(tree, layerProps, metadataItems)
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
