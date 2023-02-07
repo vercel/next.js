@@ -46,7 +46,7 @@ impl ResolveOriginVc {
         reference_type: Value<ReferenceType>,
     ) -> Result<ResolveResultVc> {
         if let Some(asset) = *self.get_inner_asset(request).await? {
-            return Ok(ResolveResult::Single(asset, Vec::new()).cell());
+            return Ok(ResolveResult::asset(asset).cell());
         }
         Ok(self
             .context()

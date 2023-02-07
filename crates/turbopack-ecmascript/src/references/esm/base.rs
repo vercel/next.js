@@ -13,9 +13,7 @@ use turbopack_core::{
         ChunkingTypeOptionVc, ModuleId,
     },
     reference::{AssetReference, AssetReferenceVc},
-    resolve::{
-        origin::ResolveOriginVc, parse::RequestVc, ResolveResult, ResolveResultVc, SpecialType,
-    },
+    resolve::{origin::ResolveOriginVc, parse::RequestVc, PrimaryResolveResult, ResolveResultVc},
 };
 
 use crate::{
@@ -63,23 +61,28 @@ impl ReferencedAssetVc {
         resolve_result: ResolveResultVc,
         request: RequestVc,
     ) -> Result<Self> {
-        match &*resolve_result.await? {
-            ResolveResult::Special(SpecialType::OriginalReferenceExternal, _) => {
-                if let Some(request) = request.await?.request() {
-                    return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request).cell());
-                } else {
-                    return Ok(ReferencedAssetVc::cell(ReferencedAsset::None));
+        for result in resolve_result.await?.primary.iter() {
+            match result {
+                PrimaryResolveResult::OriginalReferenceExternal => {
+                    if let Some(request) = request.await?.request() {
+                        return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request).cell());
+                    } else {
+                        return Ok(ReferencedAssetVc::cell(ReferencedAsset::None));
+                    }
                 }
-            }
-            ResolveResult::Special(SpecialType::OriginalReferenceTypeExternal(request), _) => {
-                return Ok(ReferencedAsset::OriginalReferenceTypeExternal(request.clone()).cell());
-            }
-            _ => {}
-        }
-        let assets = resolve_result.primary_assets();
-        for asset in assets.await?.iter() {
-            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-                return Ok(ReferencedAssetVc::cell(ReferencedAsset::Some(placeable)));
+                PrimaryResolveResult::OriginalReferenceTypeExternal(request) => {
+                    return Ok(
+                        ReferencedAsset::OriginalReferenceTypeExternal(request.clone()).cell(),
+                    );
+                }
+                PrimaryResolveResult::Asset(asset) => {
+                    if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await?
+                    {
+                        return Ok(ReferencedAssetVc::cell(ReferencedAsset::Some(placeable)));
+                    }
+                }
+                // TODO ignore should probably be handled differently
+                _ => {}
             }
         }
         Ok(ReferencedAssetVc::cell(ReferencedAsset::None))

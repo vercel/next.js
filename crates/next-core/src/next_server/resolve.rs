@@ -5,7 +5,7 @@ use turbopack_core::resolve::{
     find_context_file, package_json,
     parse::RequestVc,
     plugin::{ResolvePlugin, ResolvePluginConditionVc, ResolvePluginVc},
-    FindContextFileResult, ResolveResult, ResolveResultOptionVc, SpecialType,
+    FindContextFileResult, PrimaryResolveResult, ResolveResult, ResolveResultOptionVc,
 };
 
 #[turbo_tasks::value]
@@ -91,7 +91,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
 
         // mark as external
         Ok(ResolveResultOptionVc::some(
-            ResolveResult::Special(SpecialType::OriginalReferenceExternal, Vec::new()).cell(),
+            ResolveResult::primary(PrimaryResolveResult::OriginalReferenceExternal).cell(),
         ))
     }
 }

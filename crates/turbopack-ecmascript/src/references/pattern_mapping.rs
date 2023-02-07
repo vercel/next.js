@@ -12,7 +12,7 @@ use turbopack_core::{
     resolve::{
         origin::{ResolveOrigin, ResolveOriginVc},
         parse::RequestVc,
-        ResolveResult, ResolveResultVc, SpecialType,
+        PrimaryResolveResult, ResolveResultVc,
     },
 };
 
@@ -119,30 +119,21 @@ impl PatternMappingVc {
         resolve_type: Value<ResolveType>,
     ) -> Result<PatternMappingVc> {
         let result = resolve_result.await?;
-        let asset = match &*result {
-            ResolveResult::Alternatives(assets, _) => {
-                if let Some(asset) = assets.first() {
-                    asset
-                } else {
-                    return Ok(PatternMappingVc::cell(PatternMapping::Invalid));
-                }
-            }
-            ResolveResult::Single(asset, _) => asset,
-            ResolveResult::Special(SpecialType::OriginalReferenceExternal, _) => {
-                return Ok(PatternMapping::OriginalReferenceExternal.cell())
-            }
-            ResolveResult::Special(SpecialType::OriginalReferenceTypeExternal(s), _) => {
-                return Ok(PatternMapping::OriginalReferenceTypeExternal(s.clone()).cell())
-            }
-            ResolveResult::Special(SpecialType::Ignore, _) => {
-                return Ok(PatternMapping::Ignored.cell())
-            }
-            ResolveResult::Unresolveable(_) => {
+        let asset = match result.primary.first() {
+            None => {
                 return Ok(PatternMapping::Unresolveable(
                     request_to_string(request).await?.to_string(),
                 )
-                .cell());
+                .cell())
             }
+            Some(PrimaryResolveResult::Asset(asset)) => *asset,
+            Some(PrimaryResolveResult::OriginalReferenceExternal) => {
+                return Ok(PatternMapping::OriginalReferenceExternal.cell())
+            }
+            Some(PrimaryResolveResult::OriginalReferenceTypeExternal(s)) => {
+                return Ok(PatternMapping::OriginalReferenceTypeExternal(s.clone()).cell())
+            }
+            Some(PrimaryResolveResult::Ignore) => return Ok(PatternMapping::Ignored.cell()),
             _ => {
                 // TODO implement mapping
                 CodeGenerationIssue {
@@ -174,7 +165,7 @@ impl PatternMappingVc {
                     )));
                 }
             } else if let Some(chunk_item) =
-                EcmascriptChunkItemVc::from_asset(context, *asset).await?
+                EcmascriptChunkItemVc::from_asset(context, asset).await?
             {
                 return Ok(PatternMappingVc::cell(PatternMapping::Single(
                     chunk_item.id().await?.clone_value(),

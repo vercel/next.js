@@ -210,7 +210,7 @@ impl TsExtendsReferenceVc {
 impl AssetReference for TsExtendsReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(self.config, Vec::new()).into()
+        ResolveResult::asset(self.config).into()
     }
 }
 

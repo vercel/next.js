@@ -10,6 +10,7 @@ use turbopack_core::{
         asset::IntrospectableAssetVc, Introspectable, IntrospectableChildrenVc, IntrospectableVc,
     },
     reference::AssetReference,
+    resolve::PrimaryResolveResult,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
@@ -105,10 +106,16 @@ impl GetContentSource for NodeRenderContentSource {
             set.extend(
                 reference
                     .resolve_reference()
-                    .primary_assets()
                     .await?
+                    .primary
                     .iter()
-                    .copied(),
+                    .filter_map(|result| {
+                        if let PrimaryResolveResult::Asset(asset) = result {
+                            Some(asset)
+                        } else {
+                            None
+                        }
+                    }),
             )
         }
         for &entry in entries.await?.iter() {

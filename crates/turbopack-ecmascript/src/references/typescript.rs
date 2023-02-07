@@ -35,10 +35,9 @@ impl TsConfigReferenceVc {
 impl AssetReference for TsConfigReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(
+        ResolveResult::asset(
             TsConfigModuleAssetVc::new(self.origin, SourceAssetVc::new(self.tsconfig).into())
                 .into(),
-            Vec::new(),
         )
         .into()
     }
@@ -82,15 +81,12 @@ impl AssetReference for TsReferencePathAssetReference {
                 .try_join(&self.path)
                 .await?
             {
-                ResolveResult::Single(
-                    self.origin.context().process(
-                        SourceAssetVc::new(*path).into(),
-                        Value::new(ReferenceType::TypeScript(
-                            TypeScriptReferenceSubType::Undefined,
-                        )),
-                    ),
-                    Vec::new(),
-                )
+                ResolveResult::asset(self.origin.context().process(
+                    SourceAssetVc::new(*path).into(),
+                    Value::new(ReferenceType::TypeScript(
+                        TypeScriptReferenceSubType::Undefined,
+                    )),
+                ))
                 .into()
             } else {
                 ResolveResult::unresolveable().into()

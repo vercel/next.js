@@ -8,6 +8,7 @@ use super::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 use crate::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     reference::{AssetReference, AssetReferencesVc},
+    resolve::PrimaryResolveResult,
 };
 
 #[turbo_tasks::value]
@@ -83,8 +84,10 @@ pub async fn children_from_asset_references(
     let mut children = HashSet::new();
     let references = references.await?;
     for reference in &*references {
-        for asset in &*reference.resolve_reference().primary_assets().await? {
-            children.insert((key, IntrospectableAssetVc::new(*asset)));
+        for result in reference.resolve_reference().await?.primary.iter() {
+            if let PrimaryResolveResult::Asset(asset) = result {
+                children.insert((key, IntrospectableAssetVc::new(*asset)));
+            }
         }
     }
     Ok(IntrospectableChildrenVc::cell(children))

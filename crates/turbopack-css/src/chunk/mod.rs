@@ -18,6 +18,7 @@ use turbopack_core::{
     },
     code_builder::{CodeBuilder, CodeVc},
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    resolve::PrimaryResolveResult,
     source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
 };
 use turbopack_ecmascript::utils::FormatIter;
@@ -310,11 +311,12 @@ impl Asset for CssChunk {
         let mut references = Vec::new();
         for r in content.external_asset_references.iter() {
             references.push(*r);
-            let assets = r.resolve_reference().primary_assets();
-            for asset in assets.await?.iter() {
-                if let Some(embeddable) = CssEmbeddableVc::resolve_from(asset).await? {
-                    let embed = embeddable.as_css_embed(this.context);
-                    references.extend(embed.references().await?.iter());
+            for result in r.resolve_reference().await?.primary.iter() {
+                if let PrimaryResolveResult::Asset(asset) = result {
+                    if let Some(embeddable) = CssEmbeddableVc::resolve_from(asset).await? {
+                        let embed = embeddable.as_css_embed(this.context);
+                        references.extend(embed.references().await?.iter());
+                    }
                 }
             }
         }

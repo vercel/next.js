@@ -10,7 +10,7 @@ use turbopack::{
 };
 use turbopack_core::{
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
-    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResult},
+    resolve::{origin::ResolveOriginVc, parse::RequestVc},
 };
 
 #[turbo_tasks::function]
@@ -57,13 +57,10 @@ pub async fn assert_can_resolve_react_refresh(
     let resolve_options =
         apply_cjs_specific_options(turbopack::resolve_options(path, resolve_options_context));
     for request in [react_refresh_request_in_next(), react_refresh_request()] {
-        let result = turbopack_core::resolve::resolve(path, request, resolve_options);
+        let result = turbopack_core::resolve::resolve(path, request, resolve_options).first_asset();
 
-        match &*result.await? {
-            ResolveResult::Single(_, _) | ResolveResult::Alternatives(_, _) => {
-                return Ok(AssertReactRefreshResult::Found(request).cell())
-            }
-            _ => {}
+        if result.await?.is_some() {
+            return Ok(AssertReactRefreshResult::Found(request).cell());
         }
     }
     ReactRefreshResolvingIssue {
@@ -82,26 +79,19 @@ pub async fn assert_can_resolve_react_refresh(
 /// Resolves the React Refresh runtime module from the given [AssetContextVc].
 #[turbo_tasks::function]
 pub async fn resolve_react_refresh(origin: ResolveOriginVc) -> Result<EcmascriptChunkPlaceableVc> {
-    match &*cjs_resolve(origin, react_refresh_request()).await? {
-        ResolveResult::Single(asset, _) => {
-            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
-                Ok(placeable)
-            } else {
-                Err(anyhow!("React Refresh runtime asset is not placeable"))
-            }
+    if let Some(asset) = *cjs_resolve(origin, react_refresh_request())
+        .first_asset()
+        .await?
+    {
+        if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(asset).await? {
+            Ok(placeable)
+        } else {
+            Err(anyhow!("React Refresh runtime asset is not placeable"))
         }
-        ResolveResult::Alternatives(assets, _) if !assets.is_empty() => {
-            if let Some(placeable) = EcmascriptChunkPlaceableVc::resolve_from(assets[0]).await? {
-                Ok(placeable)
-            } else {
-                Err(anyhow!("React Refresh runtime asset is not placeable"))
-            }
-        }
-        // The react-refresh-runtime module is not installed.
-        ResolveResult::Unresolveable(_) => Err(anyhow!(
+    } else {
+        Err(anyhow!(
             "could not resolve the `@next/react-refresh-utils/dist/runtime` module"
-        )),
-        _ => Err(anyhow!("invalid React Refresh runtime asset")),
+        ))
     }
 }
 

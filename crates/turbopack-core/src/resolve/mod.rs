@@ -2,16 +2,13 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
-    mem::take,
     pin::Pin,
 };
 
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{
     primitives::{BoolVc, StringVc, StringsVc},
-    trace::TraceRawVcs,
     TryJoinIterExt, Value, ValueToString, ValueToStringVc,
 };
 use turbo_tasks_fs::{
@@ -30,7 +27,7 @@ use self::{
     pattern::QueryMapVc,
 };
 use crate::{
-    asset::{AssetVc, AssetsVc},
+    asset::{AssetOptionVc, AssetVc, AssetsVc},
     issue::{
         package_json::{PackageJsonIssue, PackageJsonIssueVc},
         resolve::{ResolvingIssue, ResolvingIssueVc},
@@ -59,176 +56,158 @@ pub use alias_map::{
 };
 pub use exports::{ExportsValue, ResolveAliasMap, ResolveAliasMapVc};
 
-#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize)]
-pub enum SpecialType {
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub enum PrimaryResolveResult {
+    Asset(AssetVc),
     OriginalReferenceExternal,
     OriginalReferenceTypeExternal(String),
     Ignore,
     Empty,
     Custom(u8),
+    Unresolveable,
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
-pub enum ResolveResult {
-    Single(AssetVc, Vec<AssetReferenceVc>),
-    Keyed(HashMap<String, AssetVc>, Vec<AssetReferenceVc>),
-    Alternatives(Vec<AssetVc>, Vec<AssetReferenceVc>),
-    Special(SpecialType, Vec<AssetReferenceVc>),
-    Unresolveable(Vec<AssetReferenceVc>),
+pub struct ResolveResult {
+    pub primary: Vec<PrimaryResolveResult>,
+    pub references: Vec<AssetReferenceVc>,
 }
 
 impl Default for ResolveResult {
     fn default() -> Self {
-        ResolveResult::Unresolveable(Vec::new())
+        ResolveResult::unresolveable()
     }
 }
 
 impl ResolveResult {
     pub fn unresolveable() -> Self {
-        ResolveResult::Unresolveable(Vec::new())
+        ResolveResult {
+            primary: Vec::new(),
+            references: Vec::new(),
+        }
+    }
+
+    pub fn unresolveable_with_references(references: Vec<AssetReferenceVc>) -> ResolveResult {
+        ResolveResult {
+            primary: Vec::new(),
+            references,
+        }
+    }
+
+    pub fn primary(result: PrimaryResolveResult) -> ResolveResult {
+        ResolveResult {
+            primary: vec![result],
+            references: Vec::new(),
+        }
+    }
+
+    pub fn primary_with_references(
+        result: PrimaryResolveResult,
+        references: Vec<AssetReferenceVc>,
+    ) -> ResolveResult {
+        ResolveResult {
+            primary: vec![result],
+            references,
+        }
+    }
+
+    pub fn asset(asset: AssetVc) -> ResolveResult {
+        ResolveResult {
+            primary: vec![PrimaryResolveResult::Asset(asset)],
+            references: Vec::new(),
+        }
+    }
+
+    pub fn asset_with_references(
+        asset: AssetVc,
+        references: Vec<AssetReferenceVc>,
+    ) -> ResolveResult {
+        ResolveResult {
+            primary: vec![PrimaryResolveResult::Asset(asset)],
+            references,
+        }
+    }
+
+    pub fn assets(assets: Vec<AssetVc>) -> ResolveResult {
+        ResolveResult {
+            primary: assets
+                .into_iter()
+                .map(PrimaryResolveResult::Asset)
+                .collect(),
+            references: Vec::new(),
+        }
+    }
+
+    pub fn assets_with_references(
+        assets: Vec<AssetVc>,
+        references: Vec<AssetReferenceVc>,
+    ) -> ResolveResult {
+        ResolveResult {
+            primary: assets
+                .into_iter()
+                .map(PrimaryResolveResult::Asset)
+                .collect(),
+            references,
+        }
     }
 
     pub fn add_reference(&mut self, reference: AssetReferenceVc) {
-        match self {
-            ResolveResult::Single(_, list)
-            | ResolveResult::Keyed(_, list)
-            | ResolveResult::Alternatives(_, list)
-            | ResolveResult::Special(_, list)
-            | ResolveResult::Unresolveable(list) => list.push(reference),
-        }
+        self.references.push(reference);
     }
 
     pub fn get_references(&self) -> &Vec<AssetReferenceVc> {
-        match self {
-            ResolveResult::Single(_, list)
-            | ResolveResult::Keyed(_, list)
-            | ResolveResult::Alternatives(_, list)
-            | ResolveResult::Special(_, list)
-            | ResolveResult::Unresolveable(list) => list,
-        }
+        &self.references
     }
 
     fn clone_with_references(&self, references: Vec<AssetReferenceVc>) -> ResolveResult {
-        match self {
-            ResolveResult::Single(asset, _) => ResolveResult::Single(*asset, references),
-            ResolveResult::Keyed(map, _) => ResolveResult::Keyed(map.clone(), references),
-            ResolveResult::Alternatives(alternatives, _) => {
-                ResolveResult::Alternatives(alternatives.clone(), references)
-            }
-            ResolveResult::Special(special_type, _) => {
-                ResolveResult::Special(special_type.clone(), references)
-            }
-            ResolveResult::Unresolveable(_) => ResolveResult::Unresolveable(references),
+        ResolveResult {
+            primary: self.primary.clone(),
+            references,
         }
     }
 
     pub fn merge_alternatives(&mut self, other: &ResolveResult) {
-        match self {
-            ResolveResult::Single(asset, list) => {
-                *self = ResolveResult::Alternatives(vec![*asset], take(list))
-            }
-            ResolveResult::Keyed(_, list) => {
-                *self = ResolveResult::Unresolveable(take(list));
-            }
-            ResolveResult::Alternatives(_, _)
-            | ResolveResult::Special(_, _)
-            | ResolveResult::Unresolveable(_) => {
-                // already is appropriate type
-            }
-        }
-        match self {
-            ResolveResult::Single(_, _) | ResolveResult::Keyed(_, _) => {
-                unreachable!()
-            }
-            ResolveResult::Alternatives(assets, list) => match other {
-                ResolveResult::Single(asset, list2) => {
-                    assets.push(*asset);
-                    list.extend(list2.iter().cloned());
-                }
-                ResolveResult::Alternatives(assets2, list2) => {
-                    assets.extend(assets2.iter().cloned());
-                    list.extend(list2.iter().cloned());
-                }
-                ResolveResult::Keyed(_, _)
-                | ResolveResult::Special(_, _)
-                | ResolveResult::Unresolveable(_) => {
-                    list.extend(other.get_references().iter().cloned());
-                }
-            },
-            ResolveResult::Special(special, list) => match other {
-                ResolveResult::Special(special2, list2) if special2 == special => {
-                    list.extend(list2.iter().cloned());
-                }
-                ResolveResult::Unresolveable(list2) => {
-                    list.extend(list2.iter().cloned());
-                }
-                _ => {
-                    list.extend(other.get_references().iter().cloned());
-                    *self = ResolveResult::Unresolveable(take(list));
-                }
-            },
-            ResolveResult::Unresolveable(list) => match other {
-                ResolveResult::Single(asset, list2) => {
-                    list.extend(list2.iter().cloned());
-                    *self = ResolveResult::Alternatives(vec![*asset], take(list));
-                }
-                ResolveResult::Alternatives(assets, list2) => {
-                    list.extend(list2.iter().cloned());
-                    *self = ResolveResult::Alternatives(assets.clone(), take(list));
-                }
-                ResolveResult::Special(special, list2) => {
-                    list.extend(list2.iter().cloned());
-                    *self = ResolveResult::Special(special.clone(), take(list));
-                }
-                ResolveResult::Keyed(_, _) | ResolveResult::Unresolveable(_) => {
-                    list.extend(other.get_references().iter().cloned());
-                }
-            },
-        }
+        self.primary.extend(other.primary.iter().cloned());
+        self.references.extend(other.references.iter().copied());
     }
 
     pub fn is_unresolveable(&self) -> bool {
-        matches!(self, ResolveResult::Unresolveable(_))
+        self.primary.is_empty()
     }
 
-    pub async fn map<A, AF, R, RF>(&self, mut asset_fn: A, mut reference_fn: R) -> Result<Self>
+    pub async fn map<A, AF, R, RF>(&self, asset_fn: A, reference_fn: R) -> Result<Self>
     where
-        A: FnMut(AssetVc) -> AF,
+        A: Fn(AssetVc) -> AF,
         AF: Future<Output = Result<AssetVc>>,
-        R: FnMut(AssetReferenceVc) -> RF,
+        R: Fn(AssetReferenceVc) -> RF,
         RF: Future<Output = Result<AssetReferenceVc>>,
     {
-        Ok(match self {
-            ResolveResult::Single(asset, refs) => {
-                let asset = asset_fn(*asset).await?;
-                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
-                ResolveResult::Single(asset, refs)
-            }
-            ResolveResult::Keyed(map, refs) => {
-                let mut new_map = HashMap::new();
-                for (key, value) in map.iter() {
-                    new_map.insert(key.clone(), asset_fn(*value).await?);
-                }
-                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
-                ResolveResult::Keyed(new_map, refs)
-            }
-            ResolveResult::Alternatives(assets, refs) => {
-                let mut new_assets = Vec::new();
-                for asset in assets.iter() {
-                    new_assets.push(asset_fn(*asset).await?);
-                }
-                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
-                ResolveResult::Alternatives(new_assets, refs)
-            }
-            ResolveResult::Special(ty, refs) => {
-                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
-                ResolveResult::Special(ty.clone(), refs)
-            }
-            ResolveResult::Unresolveable(refs) => {
-                let refs = refs.iter().map(|r| reference_fn(*r)).try_join().await?;
-                ResolveResult::Unresolveable(refs)
-            }
+        Ok(Self {
+            primary: self
+                .primary
+                .iter()
+                .cloned()
+                .map(|result| {
+                    let asset_fn = &asset_fn;
+                    async move {
+                        if let PrimaryResolveResult::Asset(asset) = result {
+                            Ok(PrimaryResolveResult::Asset(asset_fn(asset).await?))
+                        } else {
+                            Ok(result)
+                        }
+                    }
+                })
+                .try_join()
+                .await?,
+            references: self
+                .references
+                .iter()
+                .copied()
+                .map(reference_fn)
+                .try_join()
+                .await?,
         })
     }
 }
@@ -266,7 +245,7 @@ impl ResolveResultVc {
                 return Ok(result_ref.clone_with_references(references).cell());
             }
         }
-        Ok(ResolveResult::Unresolveable(references).into())
+        Ok(ResolveResult::unresolveable_with_references(references).into())
     }
 
     #[turbo_tasks::function]
@@ -274,17 +253,17 @@ impl ResolveResultVc {
         if results.len() == 1 {
             return Ok(results.into_iter().next().unwrap());
         }
-        let mut iter = results.into_iter();
+        let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.await?.clone_value();
+            let mut current = current.clone_value();
             for result in iter {
                 // For clippy -- This explicit deref is necessary
-                let other = &*result.await?;
+                let other = &*result;
                 current.merge_alternatives(other);
             }
             Ok(Self::cell(current))
         } else {
-            Ok(Self::cell(ResolveResult::Unresolveable(Vec::new())))
+            Ok(Self::cell(ResolveResult::unresolveable()))
         }
     }
 
@@ -303,20 +282,20 @@ impl ResolveResultVc {
                 .unwrap()
                 .add_references(references));
         }
-        let mut iter = results.into_iter();
+        let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.await?.clone_value();
-            for reference in references {
-                current.add_reference(reference)
-            }
-            for result_vc in iter {
+            let mut current = current.clone_value();
+            for result in iter {
                 // For clippy -- This explicit deref is necessary
-                let result = &*result_vc.await?;
-                current.merge_alternatives(result);
+                let other = &*result;
+                current.merge_alternatives(other);
             }
+            current.references.extend(references);
             Ok(Self::cell(current))
         } else {
-            Ok(Self::cell(ResolveResult::Unresolveable(references)))
+            Ok(Self::cell(ResolveResult::unresolveable_with_references(
+                references,
+            )))
         }
     }
 
@@ -327,14 +306,32 @@ impl ResolveResultVc {
     }
 
     #[turbo_tasks::function]
+    pub async fn first_asset(self) -> Result<AssetOptionVc> {
+        let this = self.await?;
+        Ok(AssetOptionVc::cell(this.primary.iter().find_map(|item| {
+            if let PrimaryResolveResult::Asset(a) = item {
+                Some(*a)
+            } else {
+                None
+            }
+        })))
+    }
+
+    #[turbo_tasks::function]
     pub async fn primary_assets(self) -> Result<AssetsVc> {
         let this = self.await?;
-        Ok(AssetsVc::cell(match &*this {
-            ResolveResult::Single(asset, _) => vec![*asset],
-            ResolveResult::Keyed(map, _) => map.values().copied().collect(),
-            ResolveResult::Alternatives(assets, _) => assets.clone(),
-            ResolveResult::Special(_, _) | ResolveResult::Unresolveable(_) => Vec::new(),
-        }))
+        Ok(AssetsVc::cell(
+            this.primary
+                .iter()
+                .filter_map(|item| {
+                    if let PrimaryResolveResult::Asset(a) = item {
+                        Some(*a)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        ))
     }
 }
 
@@ -537,7 +534,7 @@ fn merge_results_with_references(
         return merge_results(results);
     }
     match results.len() {
-        0 => ResolveResult::Unresolveable(references).into(),
+        0 => ResolveResult::unresolveable_with_references(references).into(),
         1 => results
             .into_iter()
             .next()
@@ -555,7 +552,7 @@ pub async fn resolve_raw(
 ) -> Result<ResolveResultVc> {
     async fn to_result(path: FileSystemPathVc) -> Result<ResolveResultVc> {
         let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
-        Ok(ResolveResult::Single(
+        Ok(ResolveResult::asset_with_references(
             SourceAssetVc::new(*path).into(),
             symlinks
                 .iter()
@@ -747,10 +744,9 @@ pub async fn resolve(
         Request::Uri {
             protocol,
             remainder,
-        } => ResolveResult::Special(
-            SpecialType::OriginalReferenceTypeExternal(format!("{}{}", protocol, remainder)),
-            Vec::new(),
-        )
+        } => ResolveResult::primary(PrimaryResolveResult::OriginalReferenceTypeExternal(
+            format!("{}{}", protocol, remainder),
+        ))
         .into(),
         Request::Unknown { path } => {
             let issue: ResolvingIssueVc = ResolvingIssue {
@@ -862,7 +858,7 @@ async fn resolve_module_request(
     .await?;
 
     if result.packages.is_empty() {
-        return Ok(ResolveResult::Unresolveable(result.references.clone()).into());
+        return Ok(ResolveResult::unresolveable_with_references(result.references.clone()).into());
     }
 
     let mut results = vec![];
@@ -1014,7 +1010,9 @@ async fn resolve_alias_field_result(
     field_name: &str,
 ) -> Result<ResolveResultVc> {
     if result.as_bool() == Some(false) {
-        return Ok(ResolveResult::Special(SpecialType::Ignore, refs).cell());
+        return Ok(
+            ResolveResult::primary_with_references(PrimaryResolveResult::Ignore, refs).cell(),
+        );
     }
     if let Some(value) = result.as_str() {
         return Ok(resolve(
@@ -1033,7 +1031,7 @@ async fn resolve_alias_field_result(
     }
     .cell();
     issue.as_issue().emit();
-    Ok(ResolveResult::Unresolveable(refs).cell())
+    Ok(ResolveResult::unresolveable_with_references(refs).cell())
 }
 
 async fn resolved(
@@ -1103,7 +1101,7 @@ async fn resolved(
         }
     }
 
-    Ok(ResolveResult::Single(
+    Ok(ResolveResult::asset_with_references(
         SourceAssetVc::new(*path).into(),
         symlinks
             .iter()
@@ -1173,7 +1171,7 @@ impl AffectingResolvingAssetReferenceVc {
 impl AssetReference for AffectingResolvingAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(SourceAssetVc::new(self.path).into(), Vec::new()).into()
+        ResolveResult::asset(SourceAssetVc::new(self.path).into()).into()
     }
 }
 
