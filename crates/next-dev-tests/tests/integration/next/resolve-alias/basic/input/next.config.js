@@ -1,6 +1,6 @@
 module.exports = {
   experimental: {
-    resolveAlias: {
+    turbopackResolveAlias: {
       foo: ["bar"],
       foo2: { browser: "bar" },
     },

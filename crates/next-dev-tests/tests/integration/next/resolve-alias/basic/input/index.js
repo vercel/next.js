@@ -1,10 +1,10 @@
 import foo from "foo";
 import foo2 from "foo2";
 
-it("aliases foo to bar through the next.config.js experimental.resolveAlias property", () => {
+it("aliases foo to bar through the next.config.js experimental.turbopackResolveAlias property", () => {
   expect(foo).toBe(42);
 });
 
-it("aliases foo2 to bar through the next.config.js experimental.resolveAlias property with export condition", () => {
+it("aliases foo2 to bar through the next.config.js experimental.turbopackResolveAlias property with export condition", () => {
   expect(foo2).toBe(42);
 });
