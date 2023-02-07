@@ -3,6 +3,17 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NextConfig } from '../config'
 import type { Route } from '../router'
 
+type RouteResult =
+  | {
+      type: 'rewrite'
+      url: string
+      statusCode: number
+      headers: Record<string, undefined | number | string | string[]>
+    }
+  | {
+      type: 'none'
+    }
+
 export async function makeResolver(dir: string, nextConfig: NextConfig) {
   const url = require('url') as typeof import('url')
   const { default: Router } = require('../router') as typeof import('../router')
@@ -83,17 +94,19 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
 
     if (!res.originalResponse.headersSent) {
       res.setHeader('x-nextjs-route-result', '1')
-      const resolvedUrl = routeResults.get((req as any)._initUrl) || req.url!
-      const routeResult: {
-        url: string
-        statusCode: number
-        headers: Record<string, undefined | number | string | string[]>
-        isRedirect?: boolean
-      } = {
-        url: resolvedUrl,
-        statusCode: 200,
-        headers: {},
-      }
+      const resolvedUrl = routeResults.get((req as any)._initUrl)
+
+      const routeResult: RouteResult =
+        resolvedUrl == null
+          ? {
+              type: 'none',
+            }
+          : {
+              type: 'rewrite',
+              url: resolvedUrl,
+              statusCode: 200,
+              headers: {},
+            }
 
       res.body(JSON.stringify(routeResult)).send()
     }
