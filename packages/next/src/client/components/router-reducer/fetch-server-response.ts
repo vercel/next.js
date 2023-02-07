@@ -33,6 +33,8 @@ export async function fetchServerResponse(
   }
 
   const res = await fetch(url.toString(), {
+    // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
+    credentials: 'same-origin',
     headers,
   })
   const canonicalUrl = res.redirected
