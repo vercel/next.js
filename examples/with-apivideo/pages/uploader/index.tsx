@@ -1,4 +1,3 @@
-import type { NextPage } from 'next'
 import Head from 'next/head'
 import Image from 'next/image'
 import React, { ChangeEvent, useEffect, useRef, useState } from 'react'
@@ -7,7 +6,7 @@ import { VideoUploader, VideoUploadResponse } from '@api.video/video-uploader'
 import Status from '../../components/Status'
 import { useRouter } from 'next/router'
 
-const Uploader: NextPage = () => {
+export default function Uploader() {
   const [uploadToken, setUploadToken] = useState<{ token: string } | undefined>(
     undefined
   )
@@ -16,10 +15,7 @@ const Uploader: NextPage = () => {
   )
   const [video, setVideo] = useState<VideoUploadResponse | undefined>(undefined)
   const [ready, setReady] = useState<boolean>(false)
-  const [status, setStatus] = useState<{ ingested: boolean; encoded: boolean }>(
-    { ingested: false, encoded: false }
-  )
-  const [interId, setInterId] = useState<number | undefined>(undefined)
+  const [playable, setPlayable] = useState<boolean>(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -28,30 +24,6 @@ const Uploader: NextPage = () => {
       .then((res) => res.json())
       .then((res) => setUploadToken(res))
   }, [])
-  useEffect(() => {
-    if (video) {
-      const fetchVideoStatus = async (videoId: string): Promise<void> => {
-        const { status } = await fetch(`/api/${videoId}`).then((res) =>
-          res.json()
-        )
-        const { encoding, ingest } = status
-        setStatus({
-          ingested: ingest.status === 'uploaded',
-          encoded: encoding.playable,
-        })
-        if (ingest.status === 'uploaded' && encoding.playable) setReady(true)
-      }
-      const intervalId = window.setInterval(() => {
-        fetchVideoStatus(video.videoId)
-      }, 1000)
-      setInterId(intervalId)
-
-      return () => window.clearInterval(intervalId)
-    }
-  }, [video, ready])
-  useEffect(() => {
-    ready && window.clearInterval(interId)
-  }, [interId, ready])
 
   const handleSelectFile = async (
     e: ChangeEvent<HTMLInputElement>
@@ -60,7 +32,7 @@ const Uploader: NextPage = () => {
     if (!uploadToken || !uploadToken.token) return
     const clearState = (): void => {
       setReady(false)
-      setStatus({ ingested: false, encoded: false })
+      setPlayable(false)
       setVideo(undefined)
       setUploadProgress(undefined)
     }
@@ -74,6 +46,10 @@ const Uploader: NextPage = () => {
     uploader.onProgress((e) =>
       setUploadProgress(Math.round((e.uploadedBytes * 100) / e.totalBytes))
     )
+    uploader.onPlayable(() => {
+      setPlayable(true)
+      setReady(true)
+    })
     const video = await uploader.upload()
     setVideo(video)
   }
@@ -179,9 +155,9 @@ const Uploader: NextPage = () => {
             <div className="status-container">
               <Status title="Uploaded" done={uploadProgress >= 100} />
               <span />
-              <Status title="Ingested" done={status.ingested} />
+              <Status title="Ingested" done={uploadProgress >= 100} />
               <span />
-              <Status title="Playable" done={status.encoded} />
+              <Status title="Playable" done={playable} />
             </div>
             <Card
               content="https://ws.api.video/videos/{videoId}/source"
@@ -217,5 +193,3 @@ const Uploader: NextPage = () => {
     </div>
   )
 }
-
-export default Uploader

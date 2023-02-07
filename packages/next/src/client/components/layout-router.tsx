@@ -9,7 +9,7 @@ import type {
   ChildProp,
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
-import type { FocusAndScrollRef } from './reducer'
+import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, { useContext, useEffect, use } from 'react'
 import ReactDOM from 'react-dom'
@@ -19,12 +19,12 @@ import {
   GlobalLayoutRouterContext,
   TemplateContext,
 } from '../../shared/lib/app-router-context'
-import { fetchServerResponse } from './app-router'
+import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { useRouter } from './navigation'
-import { handleSmoothScroll } from '../../shared/lib/router/router'
+import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -118,6 +118,9 @@ class ScrollAndFocusHandler extends React.Component<{
   componentDidMount() {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef } = this.props
+
+    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
+    // This already caused a bug where the first child was a <link/> in head.
     const domNode = findDOMNode(this)
 
     if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {

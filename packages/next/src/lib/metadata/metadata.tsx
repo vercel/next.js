@@ -1,23 +1,36 @@
-import type { ResolvedMetadata } from './types/metadata-interface'
-
 import React from 'react'
-import { ResolvedBasicMetadata } from './generate/basic'
-import { ResolvedAlternatesMetadata } from './generate/alternate'
-import { ResolvedOpenGraphMetadata } from './generate/opengraph'
-import { resolveMetadata } from './resolve-metadata'
-import { ResolvedIconsMetadata } from './generate/icons'
+import {
+  AppleWebAppMeta,
+  FormatDetectionMeta,
+  ItunesMeta,
+  BasicMetadata,
+  VerificationMeta,
+} from './generate/basic'
+import { AlternatesMetadata } from './generate/alternate'
+import {
+  OpenGraphMetadata,
+  TwitterMetadata,
+  AppLinksMeta,
+} from './generate/opengraph'
+import { IconsMetadata } from './generate/icons'
+import { accumulateMetadata, MetadataItems } from './resolve-metadata'
 
 // Generate the actual React elements from the resolved metadata.
-export async function Metadata({ metadata }: { metadata: any }) {
-  if (!metadata) return null
+export async function MetadataTree({ metadata }: { metadata: MetadataItems }) {
+  const resolved = await accumulateMetadata(metadata)
 
-  const resolved: ResolvedMetadata = await resolveMetadata(metadata)
   return (
     <>
-      <ResolvedBasicMetadata metadata={resolved} />
-      <ResolvedAlternatesMetadata metadata={resolved} />
-      <ResolvedOpenGraphMetadata openGraph={resolved.openGraph} />
-      <ResolvedIconsMetadata icons={resolved.icons} />
+      <BasicMetadata metadata={resolved} />
+      <AlternatesMetadata alternates={resolved.alternates} />
+      <ItunesMeta itunes={resolved.itunes} />
+      <FormatDetectionMeta formatDetection={resolved.formatDetection} />
+      <VerificationMeta verification={resolved.verification} />
+      <AppleWebAppMeta appleWebApp={resolved.appleWebApp} />
+      <OpenGraphMetadata openGraph={resolved.openGraph} />
+      <TwitterMetadata twitter={resolved.twitter} />
+      <AppLinksMeta appLinks={resolved.appLinks} />
+      <IconsMetadata icons={resolved.icons} />
     </>
   )
 }

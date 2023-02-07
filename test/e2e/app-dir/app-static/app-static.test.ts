@@ -3,7 +3,7 @@ import cheerio from 'cheerio'
 import { promisify } from 'util'
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check, normalizeRegEx, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP, normalizeRegEx, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
@@ -43,9 +43,9 @@ createNextDescribe(
           'blog/tim.rsc',
           'blog/tim/first-post.html',
           'blog/tim/first-post.rsc',
-          'dynamic-error.html',
-          'dynamic-error.rsc',
-          'dynamic-error/page.js',
+          'dynamic-error/[id].html',
+          'dynamic-error/[id].rsc',
+          'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug].html',
           'dynamic-no-gen-params/[slug].rsc',
@@ -130,11 +130,6 @@ createNextDescribe(
             srcRoute: '/blog/[author]/[slug]',
             dataRoute: '/blog/tim/first-post.rsc',
           },
-          '/dynamic-error': {
-            dataRoute: '/dynamic-error.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/dynamic-error',
-          },
           '/blog/seb/second-post': {
             initialRevalidateSeconds: false,
             srcRoute: '/blog/[author]/[slug]',
@@ -214,6 +209,12 @@ createNextDescribe(
             fallback: false,
             routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
           },
+          '/dynamic-error/[id]': {
+            dataRoute: '/dynamic-error/[id].rsc',
+            dataRouteRegex: '^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$',
+            fallback: null,
+            routeRegex: '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$',
+          },
           '/dynamic-no-gen-params/[slug]': {
             dataRoute: '/dynamic-no-gen-params/[slug].rsc',
             dataRouteRegex: normalizeRegEx(
@@ -289,7 +290,38 @@ createNextDescribe(
       })
     }
 
-    if (!isDev) {
+    if (isDev) {
+      it('should bypass fetch cache with cache-control: no-cache', async () => {
+        const res = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3'
+        )
+
+        expect(res.status).toBe(200)
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        const layoutData = $('#layout-data').text()
+        const pageData = $('#page-data').text()
+
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3',
+          undefined,
+          {
+            headers: {
+              'cache-control': 'no-cache',
+            },
+          }
+        )
+
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+        expect($2('#layout-data').text()).not.toBe(layoutData)
+        expect($2('#page-data').text()).not.toBe(pageData)
+      })
+    } else {
       it('should properly error when static page switches to dynamic at runtime', async () => {
         const res = await next.fetch(
           '/static-to-dynamic-error/static-bailout-1'
@@ -322,7 +354,48 @@ createNextDescribe(
           )
         }
       })
+
+      it('should properly error when dynamic = "error" page uses dynamic', async () => {
+        const res = await next.fetch('/dynamic-error/static-bailout-1')
+        const outputIndex = next.cliOutput.length
+
+        expect(res.status).toBe(500)
+
+        if (isNextStart) {
+          expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
+            /Page with dynamic = "error" encountered dynamic data method on \/dynamic-error\/static-bailout-1/
+          )
+        }
+      })
     }
+
+    it('should honor fetch cache correctly', async () => {
+      await fetchViaHTTP(next.url, '/variable-revalidate/revalidate-3')
+
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate/revalidate-3'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const layoutData = $('#layout-data').text()
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate/revalidate-3'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
+    })
 
     it('Should not throw Dynamic Server Usage error when using generateStaticParams with previewData', async () => {
       const browserOnIndexPage = await next.browser('/ssg-preview')
