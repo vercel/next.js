@@ -343,7 +343,10 @@ fn process_input(dir: &Path, context: &str, input: &[String]) -> Result<Vec<Stri
         .collect()
 }
 
-pub async fn start(args: Arc<Args>) -> Result<Vec<String>> {
+pub async fn start(
+    args: Arc<Args>,
+    turbo_tasks: Option<&Arc<TurboTasks<MemoryBackend>>>,
+) -> Result<Vec<String>> {
     register();
     let &CommonArgs {
         visualize_graph,
@@ -406,7 +409,11 @@ pub async fn start(args: Arc<Args>) -> Result<Vec<String>> {
 
     run(
         args.clone(),
-        || TurboTasks::new(MemoryBackend::new(memory_limit.unwrap_or(usize::MAX))),
+        || {
+            turbo_tasks.cloned().unwrap_or_else(|| {
+                TurboTasks::new(MemoryBackend::new(memory_limit.unwrap_or(usize::MAX)))
+            })
+        },
         |tt, root_task, _| async move {
             if visualize_graph {
                 let mut stats = Stats::new();
