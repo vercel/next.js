@@ -2519,8 +2519,6 @@ export default async function getBaseWebpackConfig(
       // webpack config such as `@svgr/webpack` plugin or
       // the `babel-plugin-inline-react-svg` plugin.
       nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$/i
-      nextImageRule.resourceQuery = (queryString: string) =>
-        queryString !== METADATA_IMAGE_RESOURCE_QUERY
     }
   }
 

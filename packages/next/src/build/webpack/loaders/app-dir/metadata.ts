@@ -8,15 +8,15 @@ export const METADATA_IMAGE_RESOURCE_QUERY = '?__next_metadata'
 const staticAssetIconsImage = {
   icon: {
     filename: 'icon',
-    extensions: ['ico', 'jpg', 'png', 'svg'],
+    extensions: ['ico', 'jpg', 'jpeg', 'png', 'svg'],
   },
   apple: {
-    filename: 'apple-touch-icon',
-    extensions: ['jpg', 'png', 'svg'],
+    filename: 'apple-icon',
+    extensions: ['jpg', 'jpeg', 'png', 'svg'],
   },
 }
 
-// Produce all compositions with filename (icon, apple-touch-icon, etc.) with extensions (png, jpg, etc.)
+// Produce all compositions with filename (icon, apple-icon, etc.) with extensions (png, jpg, etc.)
 async function enumMetadataFiles(
   dir: string,
   filename: string,
