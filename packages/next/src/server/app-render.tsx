@@ -821,7 +821,7 @@ function getPreloadedFontFilesInlineLinkTags(
     return null
   }
 
-  const fontFiles: string[] = []
+  const fontFiles = new Set<string>()
   // If we find an entry in the manifest but it's empty, add a preconnect tag
   let foundFontUsage = false
 
@@ -832,7 +832,7 @@ function getPreloadedFontFilesInlineLinkTags(
       if (preloadedFontFiles) {
         foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
-          fontFiles.push(fontFile)
+          fontFiles.add(fontFile)
         }
       }
     }
@@ -842,7 +842,8 @@ function getPreloadedFontFilesInlineLinkTags(
     return null
   }
 
-  return fontFiles
+  // Sorting to make order deterministic
+  return [...fontFiles].sort()
 }
 
 function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
