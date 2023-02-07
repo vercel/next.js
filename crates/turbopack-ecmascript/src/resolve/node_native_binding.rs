@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::{glob::GlobVc, DirectoryEntry, FileContent, FileSystemPathVc};
 use turbopack_core::{
-    asset::{AssetContent, AssetVc},
+    asset::{Asset, AssetContent, AssetVc},
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         pattern::{Pattern, PatternVc},

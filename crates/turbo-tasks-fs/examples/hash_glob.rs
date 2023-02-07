@@ -13,8 +13,8 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 use turbo_tasks::{primitives::StringVc, util::FormatDuration, NothingVc, TurboTasks};
 use turbo_tasks_fs::{
-    glob::GlobVc, register, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystemPathVc,
-    FileSystemVc, ReadGlobResultVc,
+    glob::GlobVc, register, DirectoryEntry, DiskFileSystemVc, FileContent, FileSystem,
+    FileSystemPathVc, FileSystemVc, ReadGlobResultVc,
 };
 use turbo_tasks_memory::MemoryBackend;
 

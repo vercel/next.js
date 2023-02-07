@@ -7,7 +7,7 @@ use swc_core::common::{
 };
 use turbo_tasks::primitives::StringVc;
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{Asset, AssetVc},
     issue::{analyze::AnalyzeIssue, IssueSeverity, IssueSourceVc},
 };
 

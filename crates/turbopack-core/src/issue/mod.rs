@@ -26,7 +26,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
-    asset::{AssetContent, AssetVc},
+    asset::{Asset, AssetContent, AssetVc},
     source_pos::SourcePos,
 };
 

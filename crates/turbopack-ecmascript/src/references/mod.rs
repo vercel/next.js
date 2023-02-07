@@ -37,13 +37,17 @@ use swc_core::{
 use turbo_tasks::{TryJoinIterExt, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
-    asset::AssetVc,
+    asset::{Asset, AssetVc},
     environment::EnvironmentVc,
     reference::{AssetReferenceVc, AssetReferencesVc, SourceMapVc},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        find_context_file, origin::ResolveOriginVc, package_json, parse::RequestVc,
-        pattern::Pattern, resolve, FindContextFileResult, ResolveResult,
+        find_context_file,
+        origin::{ResolveOrigin, ResolveOriginVc},
+        package_json,
+        parse::RequestVc,
+        pattern::Pattern,
+        resolve, FindContextFileResult, ResolveResult,
     },
 };
 use turbopack_swc_utils::emitter::IssueEmitter;

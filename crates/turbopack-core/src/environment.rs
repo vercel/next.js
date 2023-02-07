@@ -10,7 +10,7 @@ use turbo_tasks::{
     primitives::{BoolVc, OptionStringVc, StringVc, StringsVc},
     Value,
 };
-use turbo_tasks_env::ProcessEnvVc;
+use turbo_tasks_env::{ProcessEnv, ProcessEnvVc};
 
 use crate::target::CompileTargetVc;
 

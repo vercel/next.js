@@ -39,7 +39,9 @@ use crate::{
     reference_type::ReferenceType,
     resolve::{
         options::{ConditionValue, ResolveOptions},
+        origin::ResolveOrigin,
         pattern::{read_matches, Pattern, PatternMatch, PatternVc},
+        plugin::ResolvePlugin,
     },
     source_asset::SourceAssetVc,
 };

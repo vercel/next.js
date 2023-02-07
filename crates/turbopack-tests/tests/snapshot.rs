@@ -28,9 +28,9 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
-    asset::{AssetContent, AssetContentVc, AssetVc},
-    chunk::{dev::DevChunkingContextVc, ChunkableAssetVc},
-    context::AssetContextVc,
+    asset::{Asset, AssetContent, AssetContentVc, AssetVc},
+    chunk::{dev::DevChunkingContextVc, ChunkableAsset, ChunkableAssetVc},
+    context::{AssetContext, AssetContextVc},
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     issue::IssueVc,
     reference::all_referenced_assets,

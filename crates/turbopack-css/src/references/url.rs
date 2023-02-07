@@ -5,18 +5,22 @@ use swc_core::{
 };
 use turbo_tasks::{primitives::StringVc, Value, ValueToString, ValueToStringVc};
 use turbopack_core::{
-    asset::AssetVc,
-    chunk::ChunkingContextVc,
+    asset::{Asset, AssetVc},
+    chunk::{ChunkingContext, ChunkingContextVc},
     reference::{AssetReference, AssetReferenceVc},
     reference_type::UrlReferenceSubType,
-    resolve::{origin::ResolveOriginVc, parse::RequestVc, ResolveResultVc},
+    resolve::{
+        origin::{ResolveOrigin, ResolveOriginVc},
+        parse::RequestVc,
+        ResolveResultVc,
+    },
 };
 use turbopack_ecmascript::resolve::url_resolve;
 
 use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc, CodeGeneration, CodeGenerationVc},
     create_visitor,
-    embed::CssEmbeddableVc,
+    embed::{CssEmbed, CssEmbeddable, CssEmbeddableVc},
     references::AstPathVc,
 };
 

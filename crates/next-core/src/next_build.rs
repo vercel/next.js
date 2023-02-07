@@ -2,11 +2,14 @@ use anyhow::{Context, Result};
 use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext};
-use turbopack_core::resolve::{
-    options::{ImportMapping, ImportMappingVc},
-    parse::RequestVc,
-    pattern::Pattern,
-    resolve,
+use turbopack_core::{
+    asset::Asset,
+    resolve::{
+        options::{ImportMapping, ImportMappingVc},
+        parse::RequestVc,
+        pattern::Pattern,
+        resolve,
+    },
 };
 
 #[turbo_tasks::function]

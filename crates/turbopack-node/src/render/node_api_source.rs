@@ -15,7 +15,11 @@ use turbopack_dev_server::source::{
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
 use super::{render_proxy::render_proxy, RenderData};
-use crate::{get_intermediate_asset, node_entry::NodeEntryVc, route_matcher::RouteMatcherVc};
+use crate::{
+    get_intermediate_asset,
+    node_entry::{NodeEntry, NodeEntryVc},
+    route_matcher::{RouteMatcher, RouteMatcherVc},
+};
 
 /// Creates a [NodeApiContentSource].
 #[turbo_tasks::function]

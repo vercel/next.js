@@ -4,7 +4,7 @@ use turbo_tasks_env::ProcessEnvVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::EcmascriptModuleAssetVc;
 use turbopack_core::{
-    chunk::{ChunkGroupVc, ChunkableAssetVc},
+    chunk::{ChunkGroupVc, ChunkableAsset, ChunkableAssetVc},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOriginVc, parse::RequestVc},
 };

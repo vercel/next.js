@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
-    parse_macro_input, ItemTrait, Path, PathSegment, Signature, TraitBound, TraitItem,
+    parse_macro_input, parse_quote, ItemTrait, Path, PathSegment, Signature, TraitBound, TraitItem,
     TraitItemMethod, TypeParamBound,
 };
 use turbo_tasks_macros_shared::{
@@ -138,6 +138,10 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 });
 
                 *sig = external_sig;
+                *default = Some(parse_quote! {{
+                    let result = turbo_tasks::dynamic_call(*#function_id_ident, vec![#(#input_raw_vc_arguments),*]);
+                    #convert_result_code
+                }});
             }
         }
     }
@@ -168,7 +172,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             fn value_debug_format(&self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString {
                 turbo_tasks::debug::ValueDebugFormatString::Async(Box::pin(async move {
                     Ok(if let Some(value_debug) = turbo_tasks::debug::ValueDebugVc::resolve_from(self).await? {
-                        format!(concat!(stringify!(#ident), "({})"), value_debug.dbg_depth(depth).await?.as_str())
+                        format!(concat!(stringify!(#ident), "({})"), turbo_tasks::debug::ValueDebug::dbg_depth(&value_debug, depth).await?.as_str())
                     } else {
                         // This case means the `Vc` pointed to by this `Vc` does not implement `ValueDebug`.
                         // This could happen if we provide a way to opt-out of the default `ValueDebug` derive,
@@ -181,9 +185,15 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
 
+    let where_clause = if !default_method_registers.is_empty() || !supertraits.is_empty() {
+        Some(quote! { where turbo_tasks::TaskInput: for<'a> std::convert::From<&'a Self> })
+    } else {
+        None
+    };
+
     let expanded = quote! {
         #(#attrs)*
-        #vis #trait_token #ident #colon_token #(#supertraits)+* {
+        #vis #trait_token #ident #colon_token #(#supertraits)+* #where_clause {
             #(#items)*
         }
 
@@ -233,8 +243,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 let raw_vc: turbo_tasks::RawVc = super_trait_vc.into();
                 #ref_ident { node: raw_vc }
             }
-
-            #(pub #trait_fns)*
         }
 
         impl turbo_tasks::CollectiblesSource for #ref_ident {
@@ -254,13 +262,24 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             }
         }
 
-        impl<T> #ident for T where #ref_ident: std::convert::From<T>, turbo_tasks::TaskInput: for<'a> std::convert::From<&'a T> #(, #supertrait_refs: std::convert::From<T>)* {
-            #(default #trait_fns)*
+        impl<T> #ident for T
+        where
+            T: turbo_tasks::ValueTraitVc,
+            #ref_ident: turbo_tasks::FromSubTrait<T>,
+            turbo_tasks::TaskInput: for<'a> std::convert::From<&'a T>
+            #(, #supertrait_refs: turbo_tasks::FromSubTrait<T>)* {
+            #(#trait_fns)*
         }
 
         #(
             impl From<#ref_ident> for #supertrait_refs {
                 fn from(node_ref: #ref_ident) -> Self {
+                    node_ref.node.into()
+                }
+            }
+
+            impl turbo_tasks::FromSubTrait<#ref_ident> for #supertrait_refs {
+                fn from_sub_trait(node_ref: #ref_ident) -> Self {
                     node_ref.node.into()
                 }
             }

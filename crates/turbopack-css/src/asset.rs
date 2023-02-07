@@ -22,7 +22,7 @@ use crate::{
         CssChunkItem, CssChunkItemContent, CssChunkItemContentVc, CssChunkItemVc,
         CssChunkPlaceable, CssChunkPlaceableVc, CssChunkVc, CssImport,
     },
-    code_gen::CodeGenerateableVc,
+    code_gen::{CodeGenerateable, CodeGenerateableVc},
     parse::{parse, ParseResult, ParseResultSourceMap, ParseResultVc},
     path_visitor::ApplyVisitors,
     references::{analyze_css_stylesheet, import::ImportAssetReferenceVc},

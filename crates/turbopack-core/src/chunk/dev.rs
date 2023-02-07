@@ -7,7 +7,10 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use super::{ChunkingContext, ChunkingContextVc};
-use crate::{asset::AssetVc, environment::EnvironmentVc};
+use crate::{
+    asset::{Asset, AssetVc},
+    environment::EnvironmentVc,
+};
 
 pub struct DevChunkingContextBuilder {
     context: DevChunkingContext,

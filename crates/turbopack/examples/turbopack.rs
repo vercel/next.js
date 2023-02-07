@@ -12,7 +12,7 @@ use std::{
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
 use turbo_tasks::{util::FormatDuration, NothingVc, TurboTasks, TurboTasksBackendApi, Value};
-use turbo_tasks_fs::{DiskFileSystemVc, FileSystemVc};
+use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
 use turbo_tasks_memory::{
     stats::{ReferenceType, Stats},
     viz::graph::{visualize_stats_tree, wrap_html},

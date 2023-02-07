@@ -6,8 +6,8 @@ use turbo_tasks_fs::FileContent;
 
 use super::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
 use crate::{
-    asset::{AssetContent, AssetContentVc, AssetVc},
-    reference::AssetReferencesVc,
+    asset::{Asset, AssetContent, AssetContentVc, AssetVc},
+    reference::{AssetReference, AssetReferencesVc},
 };
 
 #[turbo_tasks::value]
