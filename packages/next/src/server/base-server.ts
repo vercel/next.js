@@ -30,7 +30,6 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
-import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -493,7 +492,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Parse the querystring ourselves if the user doesn't handle querystring parsing
       if (typeof parsedUrl.query === 'string') {
-        parsedUrl.query = parseQs(parsedUrl.query)
+        parsedUrl.query = Object.fromEntries(
+          new URLSearchParams(parsedUrl.query)
+        )
       }
       // in minimal mode we detect RSC revalidate if the .rsc
       // path is requested
