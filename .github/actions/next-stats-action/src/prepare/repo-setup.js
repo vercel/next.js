@@ -137,7 +137,7 @@ module.exports = (actionInfo) => {
             if (!pkgData.files) {
               pkgData.files = []
             }
-            pkgData.files.push('native')
+            pkgData.files.push('native/*')
             require('console').log(
               'using swc binaries: ',
               await exec(`ls ${path.join(path.dirname(pkgDataPath), 'native')}`)
@@ -154,7 +154,7 @@ module.exports = (actionInfo) => {
                 pkgData.dependencies['@next/swc'] =
                   pkgDatas.get('@next/swc').packedPkgPath
               } else {
-                pkgData.files.push('native')
+                pkgData.files.push('native/*')
               }
             }
           }
@@ -170,11 +170,19 @@ module.exports = (actionInfo) => {
         // to the correct versions
         await Promise.all(
           Array.from(pkgDatas.keys()).map(async (pkgName) => {
-            const { pkg, pkgPath } = pkgDatas.get(pkgName)
-            await exec(
-              `cd ${pkgPath} && yarn pack -f '${pkg}-packed.tgz'`,
-              true
+            const { pkg, pkgPath, pkgData, packedPkgPath } =
+              pkgDatas.get(pkgName)
+            // Copied from pnpm source: https://github.com/pnpm/pnpm/blob/5a5512f14c47f4778b8d2b6d957fb12c7ef40127/releasing/plugin-commands-publishing/src/pack.ts#L96
+            const tmpTarball = path.join(
+              pkgPath,
+              `${pkgData.name.replace('@', '').replace('/', '-')}-${
+                pkgData.version
+              }.tgz`
             )
+            await execa('pnpm', ['pack'], {
+              cwd: pkgPath,
+            })
+            await fs.copyFile(tmpTarball, packedPkgPath)
           })
         )
 
