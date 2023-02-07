@@ -6,7 +6,6 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
 import { NotFound as DefaultNotFound } from '../client/components/error'
-import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -38,7 +37,6 @@ import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/app-dynamic/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
   NEXT_ROUTER_PREFETCH,
@@ -989,7 +987,11 @@ export async function renderToHTMLOrFlight(
      * that we need to resolve the final metadata.
      */
 
-    const requestId = nanoid(12)
+    const requestId =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? crypto.randomUUID()
+        : require('next/dist/compiled/nanoid').nanoid()
+
     const searchParamsProps = { searchParams: query }
 
     stripInternalQueries(query)
@@ -1582,17 +1584,18 @@ export async function renderToHTMLOrFlight(
     const streamToBufferedResult = async (
       renderResult: RenderResult
     ): Promise<string> => {
-      const renderChunks: Buffer[] = []
-      const writable = new Writable({
-        write(chunk, _encoding, callback) {
-          renderChunks.push(chunk)
-          callback()
-        },
-      })
-      await renderResult.pipe(writable)
-      return Buffer.concat(renderChunks).toString()
-    }
+      const renderChunks: string[] = []
 
+      const writable = {
+        write(chunk: any) {
+          renderChunks.push(decodeText(chunk))
+        },
+        end() {},
+        destroy() {},
+      }
+      await renderResult.pipe(writable as any)
+      return renderChunks.join('')
+    }
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
     const generateFlight = async (): Promise<RenderResult> => {
       // TODO-APP: throw on invalid flightRouterState
