@@ -37,18 +37,17 @@ You'll get:
 # Configuration
 
 - [Step 1. Set up the environment](#step-1-set-up-the-environment)
-- [Step 2. Configure CORS for localhost](#step-2-configure-cors-for-localhost)
-- [Step 3. Run Next.js locally in development mode](#step-3-run-nextjs-locally-in-development-mode)
-- [Step 4. Populate content](#step-4-populate-content)
-- [Step 5. Deploy to production & use Preview Mode from anywhere](#step-5-deploy-to-production--use-preview-mode-from-anywhere)
+- [Step 2. Run Next.js locally in development mode](#step-3-run-nextjs-locally-in-development-mode)
+- [Step 3. Populate content](#step-3-populate-content)
+- [Step 4. Deploy to production & use Preview Mode from anywhere](#step-4-deploy-to-production--use-preview-mode-from-anywhere)
   - [If you didn't Deploy with Vercel earlier do so now](#if-you-didnt-deploy-with-vercel-earlier-do-so-now)
   - [Configure CORS for production](#configure-cors-for-production)
   - [Add the preview secret environment variable](#add-the-preview-secret-environment-variable)
   - [How to test locally that the secret is setup correctly](#how-to-test-locally-that-the-secret-is-setup-correctly)
   - [How to start Preview Mode for Next.js in production from a local Studio](#how-to-start-preview-mode-for-nextjs-in-production-from-a-local-studio)
   - [If you regret sending a preview link to someone](#if-you-regret-sending-a-preview-link-to-someone)
-- [Step 6. Deploy your Studio and publish from anywhere](#step-6-deploy-your-studio-and-publish-from-anywhere)
-- [Step 7. Setup Revalidation Webhook](#step-7-setup-revalidation-webhook)
+- [Step 5. Deploy your Studio and publish from anywhere](#step-5-deploy-your-studio-and-publish-from-anywhere)
+- [Step 6. Setup Revalidation Webhook](#step-6-setup-revalidation-webhook)
   - [Testing the Webhook](#testing-the-webhook)
 - [Next steps](#next-steps)
 
@@ -71,15 +70,7 @@ Download the environment variables needed to connect Next.js and Studio to your 
 npx vercel env pull
 ```
 
-## Step 2. Configure CORS for localhost
-
-Needed for live previewing unpublished/draft content.
-
-```bash
-npm --prefix studio run cors:add -- http://localhost:3000 --credentials
-```
-
-## Step 3. Run Next.js locally in development mode
+## Step 2. Run Next.js locally in development mode
 
 ```bash
 npm install && npm run dev
@@ -91,6 +82,8 @@ yarn install && yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
+Note: This also installs dependencies for Sanity Studio as a post-install step.
+
 ## Step 4. Populate content
 
 In another terminal start up the studio:
@@ -100,13 +93,6 @@ npm run studio:dev
 ```
 
 Your studio should be up and running on [http://localhost:3333](http://localhost:3333)!
-
-### Configure CORS for localhost
-
-You will be prompted for this when opening the studio for the first time.
-Follow the instructions to take you to Sanity Manage.
-
-Needed for live previewing unpublished/draft content.
 
 ### Create content
 
@@ -159,7 +145,7 @@ We're all set to do some content creation!
 
 To exit Preview Mode, you can click on _"Click here to exit preview mode"_ at the top.
 
-## Step 5. Deploy to production & use Preview Mode from anywhere
+## Step 4. Deploy to production & use Preview Mode from anywhere
 
 ### If you didn't [Deploy with Vercel earlier](#step-1-set-up-the-environment) do so now
 
@@ -260,7 +246,7 @@ npx vercel env add SANITY_STUDIO_PREVIEW_SECRET
 npx vercel --prod
 ```
 
-## Step 6. Deploy your Studio and publish from anywhere
+## Step 5. Deploy your Studio and publish from anywhere
 
 Live previewing content is fun, but collaborating on content in real-time is next-level:
 
@@ -287,7 +273,7 @@ Success! Studio deployed to https://cms-sanity.sanity.studio/
 
 This snippet is stripped from verbose information, you'll see a lot of extra stuff in your terminal.
 
-## Step 7. Setup Revalidation Webhook
+## Step 6. Setup Revalidation Webhook
 
 Using GROQ Webhooks Next.js can rebuild pages that have changed content. It rebuilds so fast it can almost compete with Preview Mode.
 
