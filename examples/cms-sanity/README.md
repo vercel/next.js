@@ -37,17 +37,18 @@ You'll get:
 # Configuration
 
 - [Step 1. Set up the environment](#step-1-set-up-the-environment)
-- [Step 2. Run Next.js locally in development mode](#step-3-run-nextjs-locally-in-development-mode)
-- [Step 3. Populate content](#step-4-populate-content)
-- [Step 4. Deploy to production & use Preview Mode from anywhere](#step-5-deploy-to-production--use-preview-mode-from-anywhere)
+- [Step 2. Configure CORS for localhost](#step-2-configure-cors-for-localhost)
+- [Step 3. Run Next.js locally in development mode](#step-3-run-nextjs-locally-in-development-mode)
+- [Step 4. Populate content](#step-4-populate-content)
+- [Step 5. Deploy to production & use Preview Mode from anywhere](#step-5-deploy-to-production--use-preview-mode-from-anywhere)
   - [If you didn't Deploy with Vercel earlier do so now](#if-you-didnt-deploy-with-vercel-earlier-do-so-now)
   - [Configure CORS for production](#configure-cors-for-production)
   - [Add the preview secret environment variable](#add-the-preview-secret-environment-variable)
   - [How to test locally that the secret is setup correctly](#how-to-test-locally-that-the-secret-is-setup-correctly)
   - [How to start Preview Mode for Next.js in production from a local Studio](#how-to-start-preview-mode-for-nextjs-in-production-from-a-local-studio)
   - [If you regret sending a preview link to someone](#if-you-regret-sending-a-preview-link-to-someone)
-- [Step 5. Deploy your Studio and publish from anywhere](#step-6-deploy-your-studio-and-publish-from-anywhere)
-- [Step 6. Setup Revalidation Webhook](#step-7-setup-revalidation-webhook)
+- [Step 6. Deploy your Studio and publish from anywhere](#step-6-deploy-your-studio-and-publish-from-anywhere)
+- [Step 7. Setup Revalidation Webhook](#step-7-setup-revalidation-webhook)
   - [Testing the Webhook](#testing-the-webhook)
 - [Next steps](#next-steps)
 
@@ -68,6 +69,14 @@ Download the environment variables needed to connect Next.js and Studio to your 
 
 ```bash
 npx vercel env pull
+```
+
+## Step 2. Configure CORS for localhost
+
+Needed for live previewing unpublished/draft content.
+
+```bash
+npm --prefix studio run cors:add -- http://localhost:3000 --credentials
 ```
 
 ## Step 3. Run Next.js locally in development mode
