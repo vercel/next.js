@@ -226,7 +226,7 @@ function isClientReference(reference) {
   return reference.$$typeof === CLIENT_REFERENCE_TAG;
 }
 function resolveModuleMetaData(config, clientReference) {
-  var resolvedModuleData = config.clientManifest[clientReference.filepath][clientReference.name];
+  var resolvedModuleData = config[clientReference.filepath][clientReference.name];
 
   if (clientReference.async) {
     return {
@@ -2448,8 +2448,8 @@ function importServerContexts(contexts) {
   return rootContextSnapshot;
 }
 
-function renderToReadableStream(model, webpackMaps, options) {
-  var request = createRequest(model, webpackMaps, options ? options.onError : undefined, options ? options.context : undefined, options ? options.identifierPrefix : undefined);
+function renderToReadableStream(model, webpackMap, options) {
+  var request = createRequest(model, webpackMap, options ? options.onError : undefined, options ? options.context : undefined, options ? options.identifierPrefix : undefined);
 
   if (options && options.signal) {
     var signal = options.signal;
@@ -2534,7 +2534,7 @@ function Pa(a,b){a.pendingChunks++;var c=U(a,null,D,a.abortableTasks);switch(b.s
 function Ra(a){if("fulfilled"===a.status)return a.value;if("rejected"===a.status)throw a.reason;throw a;}function Sa(a){switch(a.status){case "fulfilled":case "rejected":break;default:"string"!==typeof a.status&&(a.status="pending",a.then(function(b){"pending"===a.status&&(a.status="fulfilled",a.value=b)},function(b){"pending"===a.status&&(a.status="rejected",a.reason=b)}))}return{$$typeof:y,_payload:a,_init:Ra}}
 function X(a,b,c,d,f,g){if(null!==d&&void 0!==d)throw Error("Refs cannot be used in Server Components, nor passed to Client Components.");if("function"===typeof b){if(b.$$typeof===v)return[w,b,c,f];L=0;M=g;f=b(f);return"object"===typeof f&&null!==f&&"function"===typeof f.then?"fulfilled"===f.status?f.value:Sa(f):f}if("string"===typeof b)return[w,b,c,f];if("symbol"===typeof b)return b===ia?f.children:[w,b,c,f];if(null!=b&&"object"===typeof b){if(b.$$typeof===v)return[w,b,c,f];switch(b.$$typeof){case y:var h=
 b._init;b=h(b._payload);return X(a,b,c,d,f,g);case la:return a=b.render,L=0,M=g,a(f,void 0);case oa:return X(a,b.type,c,d,f,g);case ja:return xa(b._context,f.value),[w,b,c,{value:f.value,children:f.children,__pop:Oa}]}}throw Error("Unsupported Server Component type: "+Ta(b));}function Qa(a,b){var c=a.pingedTasks;c.push(b);1===c.length&&Ua(a)}function U(a,b,c,d){var f={id:a.nextChunkId++,status:0,model:b,context:c,ping:function(){return Qa(a,f)},thenableState:null};d.add(f);return f}
-function Va(a,b,c,d){var f=d.filepath+"#"+d.name+(d.async?"#async":""),g=a.writtenModules,h=g.get(f);if(void 0!==h)return b[0]===w&&"1"===c?"$L"+h.toString(16):"$"+h.toString(16);try{var k=a.bundlerConfig.clientManifest[d.filepath][d.name];var l=d.async?{id:k.id,chunks:k.chunks,name:k.name,async:!0}:k;a.pendingChunks++;var x=a.nextChunkId++,da=t(l),ea=x.toString(16)+":I"+da+"\n";var fa=q.encode(ea);a.completedModuleChunks.push(fa);g.set(f,x);return b[0]===w&&"1"===c?"$L"+x.toString(16):"$"+x.toString(16)}catch(ha){return a.pendingChunks++,
+function Va(a,b,c,d){var f=d.filepath+"#"+d.name+(d.async?"#async":""),g=a.writtenModules,h=g.get(f);if(void 0!==h)return b[0]===w&&"1"===c?"$L"+h.toString(16):"$"+h.toString(16);try{var k=a.bundlerConfig[d.filepath][d.name];var l=d.async?{id:k.id,chunks:k.chunks,name:k.name,async:!0}:k;a.pendingChunks++;var x=a.nextChunkId++,da=t(l),ea=x.toString(16)+":I"+da+"\n";var fa=q.encode(ea);a.completedModuleChunks.push(fa);g.set(f,x);return b[0]===w&&"1"===c?"$L"+x.toString(16):"$"+x.toString(16)}catch(ha){return a.pendingChunks++,
 b=a.nextChunkId++,c=V(a,ha),W(a,b,c),"$"+b.toString(16)}}function Wa(a){return Object.prototype.toString.call(a).replace(/^\[object (.*)\]$/,function(a,c){return c})}function Ta(a){switch(typeof a){case "string":return JSON.stringify(10>=a.length?a:a.substr(0,10)+"...");case "object":if(sa(a))return"[...]";a=Wa(a);return"Object"===a?"{...}":a;case "function":return"function";default:return String(a)}}
 function Y(a){if("string"===typeof a)return a;switch(a){case ma:return"Suspense";case na:return"SuspenseList"}if("object"===typeof a)switch(a.$$typeof){case la:return Y(a.render);case oa:return Y(a.type);case y:var b=a._payload;a=a._init;try{return Y(a(b))}catch(c){}}return""}
 function Z(a,b){var c=Wa(a);if("Object"!==c&&"Array"!==c)return c;c=-1;var d=0;if(sa(a)){var f="[";for(var g=0;g<a.length;g++){0<g&&(f+=", ");var h=a[g];h="object"===typeof h&&null!==h?Z(h):Ta(h);""+g===b?(c=f.length,d=h.length,f+=h):f=10>h.length&&40>f.length+h.length?f+h:f+"..."}f+="]"}else if(a.$$typeof===w)f="<"+Y(a.type)+"/>";else{f="{";g=Object.keys(a);for(h=0;h<g.length;h++){0<h&&(f+=", ");var k=g[h],l=JSON.stringify(k);f+=('"'+k+'"'===l?k:l)+": ";l=a[k];l="object"===typeof l&&null!==l?Z(l):

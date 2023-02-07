@@ -573,9 +573,7 @@ function createServerComponentRenderer(
     if (!RSCStream) {
       RSCStream = ComponentMod.renderToReadableStream(
         <ComponentToRender />,
-        {
-          clientManifest: serverComponentManifest,
-        },
+        serverComponentManifest,
         {
           context: serverContexts,
           onError: serverComponentsErrorHandler,
@@ -1107,7 +1105,7 @@ export async function renderToHTMLOrFlight(
       }
 
       const mod = await getLayoutOrPageModule(tree)
-      await collectMetadata(mod, layerProps, metadataItems) // export meadata or export async generateMetadata
+      await collectMetadata(mod, layerProps, metadataItems)
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
@@ -1792,9 +1790,7 @@ export async function renderToHTMLOrFlight(
       // which contains the subset React.
       const readable = ComponentMod.renderToReadableStream(
         flightData,
-        {
-          clientManifest: serverComponentManifest,
-        },
+        serverComponentManifest,
         {
           context: serverContexts,
           onError: flightDataRendererErrorHandler,
