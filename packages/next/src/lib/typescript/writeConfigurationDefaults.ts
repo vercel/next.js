@@ -204,7 +204,7 @@ export async function writeConfigurationDefaults(
             'tsconfig.json'
           )} extends another configuration, which means we cannot add the Next.js TypeScript plugin automatically. To improve your development experience, we recommend adding the Next.js plugin (\`${chalk.cyan(
             '"plugins": [{ "name": "next" }]'
-          )}\`) manually to your TypeScript configuration.\n`
+          )}\`) manually to your TypeScript configuration. Learn more: https://beta.nextjs.org/docs/configuring/typescript#using-the-typescript-plugin\n`
         )
       } else {
         if (!('plugins' in userTsConfig.compilerOptions)) {
