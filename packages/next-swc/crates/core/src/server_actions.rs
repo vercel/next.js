@@ -93,16 +93,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // All export functions in a server file are actions
             in_action_fn = true;
         } else {
-            // Check if the first item is `"use server"`
+            // Check if the function has `"use server"`
             if let Some(body) = &mut f.function.body {
-                if let Some(Stmt::Expr(first)) = body.stmts.first() {
-                    match &*first.expr {
-                        Expr::Lit(Lit::Str(Str { value, .. })) if value == "use server" => {
-                            in_action_fn = true;
-                            body.stmts.remove(0);
-                        }
-                        _ => {}
-                    }
+                let directive_index = get_server_directive_index_in_fn(&body.stmts);
+                if directive_index >= 0 {
+                    in_action_fn = true;
+                    body.stmts.remove(directive_index.try_into().unwrap());
                 }
             }
         }
@@ -128,7 +124,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if !f.function.is_async {
             HANDLER.with(|handler| {
                 handler
-                    .struct_span_err(f.ident.span, "Server actions must be async")
+                    .struct_span_err(f.ident.span, "Server actions must be async functions")
                     .emit();
             });
         }
@@ -321,18 +317,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_module_items(&mut self, stmts: &mut Vec<ModuleItem>) {
-        if let Some(ModuleItem::Stmt(Stmt::Expr(first))) = stmts.first() {
-            match &*first.expr {
-                Expr::Lit(Lit::Str(Str { value, .. })) if value == "use server" => {
-                    self.in_action_file = true;
-                    self.has_action = true;
-                }
-                _ => {}
-            }
-        }
-
-        if self.in_action_file {
-            stmts.remove(0);
+        let directive_index = get_server_directive_index_in_module(stmts);
+        if directive_index >= 0 {
+            self.in_action_file = true;
+            self.has_action = true;
+            stmts.remove(directive_index.try_into().unwrap());
         }
 
         let old_annotations = self.annotations.take();
@@ -402,6 +391,42 @@ fn annotate(fn_name: &Ident, field_name: &str, value: Box<Expr>) -> Stmt {
         }
         .into(),
     })
+}
+
+fn get_server_directive_index_in_module(stmts: &[ModuleItem]) -> i32 {
+    for (i, stmt) in stmts.iter().enumerate() {
+        if let ModuleItem::Stmt(Stmt::Expr(first)) = stmt {
+            match &*first.expr {
+                Expr::Lit(Lit::Str(Str { value, .. })) => {
+                    if value == "use server" {
+                        return i as i32;
+                    }
+                }
+                _ => return -1,
+            }
+        } else {
+            return -1;
+        }
+    }
+    -1
+}
+
+fn get_server_directive_index_in_fn(stmts: &[Stmt]) -> i32 {
+    for (i, stmt) in stmts.iter().enumerate() {
+        if let Stmt::Expr(first) = stmt {
+            match &*first.expr {
+                Expr::Lit(Lit::Str(Str { value, .. })) => {
+                    if value == "use server" {
+                        return i as i32;
+                    }
+                }
+                _ => return -1,
+            }
+        } else {
+            return -1;
+        }
+    }
+    -1
 }
 
 fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<Id> {
