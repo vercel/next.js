@@ -1,6 +1,6 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
-import { relative } from 'path'
+import { getModuleTrace, getImportTraceForOverlay } from './getModuleTrace'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 function formatRSCErrorMessage(
@@ -127,24 +127,11 @@ export function getRscError(
     return false
   }
 
-  // Get the module trace:
-  // https://cs.github.com/webpack/webpack/blob/9fcaa243573005d6fdece9a3f8d89a0e8b399613/lib/stats/DefaultStatsFactoryPlugin.js#L414
-  const visitedModules = new Set()
-  const moduleTrace = []
-
-  let current = module
-  let isPagesDir = false
-  while (current) {
-    if (visitedModules.has(current)) break
-    if (/[\\/]pages/.test(current.resource.replace(compiler.context, ''))) {
-      isPagesDir = true
-    }
-    visitedModules.add(current)
-    moduleTrace.push(current)
-    const origin = compilation.moduleGraph.getIssuer(current)
-    if (!origin) break
-    current = origin
-  }
+  const { isPagesDir, moduleTrace } = getModuleTrace(
+    module,
+    compilation,
+    compiler
+  )
 
   const formattedError = formatRSCErrorMessage(
     err.message,
@@ -157,14 +144,7 @@ export function getRscError(
     'ReactServerComponentsError:\n' +
       formattedError[0] +
       formattedError[1] +
-      moduleTrace
-        .map((m) =>
-          m.resource
-            ? '  ' + relative(compiler.context, m.resource).replace(/\?.+$/, '')
-            : ''
-        )
-        .filter(Boolean)
-        .join('\n')
+      getImportTraceForOverlay(compiler, moduleTrace)
   )
 
   // Delete the stack because it's created here.

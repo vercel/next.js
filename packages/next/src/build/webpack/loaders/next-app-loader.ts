@@ -1,13 +1,17 @@
 import type webpack from 'webpack'
-import chalk from 'next/dist/compiled/chalk'
 import type { ValueOf } from '../../../shared/lib/constants'
+import type { ModuleReference, CollectedMetadata } from './app-dir/types'
+
+import path from 'path'
+import chalk from 'next/dist/compiled/chalk'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
-import { resolveFileBasedMetadataForLoader } from '../../../lib/metadata/resolve-metadata'
+import { buildMetadata, discoverStaticMetadataFiles } from './app-dir/metadata'
+
+const isNotResolvedError = (err: any) => err.message.includes("Can't resolve")
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -19,32 +23,39 @@ const FILE_TYPES = {
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
-
 const PAGE_SEGMENT = 'page$'
 
-// TODO-APP: check if this can be narrowed.
-type ComponentModule = () => any
-type ModuleReference = [componentModule: ComponentModule, filePath: string]
 export type ComponentsType = {
   readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
   readonly page?: ModuleReference
+} & {
+  readonly metadata?: CollectedMetadata
 }
 
-async function createTreeCodeFromPath({
-  pagePath,
-  resolve,
-  resolveParallelSegments,
-}: {
-  pagePath: string
-  resolve: (
-    pathname: string,
-    resolveDir?: boolean
-  ) => Promise<string | undefined>
-  resolveParallelSegments: (
-    pathname: string
-  ) => [key: string, segment: string][]
-}) {
+async function createTreeCodeFromPath(
+  pagePath: string,
+  {
+    resolver,
+    resolvePath,
+    resolveParallelSegments,
+    isDev,
+    addDependency,
+    addMissingDependency,
+  }: {
+    resolver: (
+      pathname: string,
+      resolveDir?: boolean
+    ) => Promise<string | undefined>
+    resolvePath: (pathname: string) => Promise<string>
+    resolveParallelSegments: (
+      pathname: string
+    ) => [key: string, segment: string][]
+    isDev: boolean
+    addDependency: (dep: string) => any
+    addMissingDependency: (dep: string) => any
+  }
+) {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
@@ -56,7 +67,6 @@ async function createTreeCodeFromPath({
     segments: string[]
   ): Promise<{
     treeCode: string
-    treeMetadataCode: string
   }> {
     const segmentPath = segments.join('/')
 
@@ -71,98 +81,88 @@ async function createTreeCodeFromPath({
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
 
-    let metadataCode = ''
+    let metadata: Awaited<ReturnType<typeof discoverStaticMetadataFiles>> = null
+    try {
+      const routerDirPath = `${appDirPrefix}${segmentPath}`
+      const resolvedRouteDir = await resolver(routerDirPath, true)
+
+      if (resolvedRouteDir) {
+        metadata = await discoverStaticMetadataFiles(resolvedRouteDir, {
+          isDev,
+          resolvePath,
+          addDependency,
+          addMissingDependency,
+        })
+      }
+    } catch (err: any) {
+      if (isNotResolvedError(err)) {
+        throw err
+      }
+    }
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
-        const resolvedPagePath = await resolve(matchedPagePath)
+        const resolvedPagePath = await resolver(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
-
-        metadataCode += `{
-          type: 'page',
-          layer: ${
-            // There's an extra virtual segment.
-            segments.length - 1
-          },
-          mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-            resolvedPagePath
-          )}),
-          path: ${JSON.stringify(resolvedPagePath)},
-        },`
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
-          )}), ${JSON.stringify(resolvedPagePath)}]}]`
+          )}), ${JSON.stringify(resolvedPagePath)}],
+          ${buildMetadata(metadata)}
+        }]`
         continue
       }
 
       const parallelSegmentPath = segmentPath + '/' + parallelSegment
-      const { treeCode: subtreeCode, treeMetadataCode: subTreeMetadataCode } =
-        await createSubtreePropsFromSegmentPath([...segments, parallelSegment])
+      const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
+        [...segments, parallelSegment]
+      )
 
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
         Object.values(FILE_TYPES).map(async (file) => {
           return [
             file,
-            await resolve(`${appDirPrefix}${parallelSegmentPath}/${file}`),
+            await resolver(`${appDirPrefix}${parallelSegmentPath}/${file}`),
           ] as const
         })
       )
 
       const layoutPath = filePaths.find(
-        ([type, path]) => type === 'layout' && !!path
+        ([type, filePath]) => type === 'layout' && !!filePath
       )?.[1]
       if (!rootLayout) {
         rootLayout = layoutPath
       }
-
-      // Collect metadata for the layout
-      if (layoutPath) {
-        metadataCode += `{
-          type: 'layout',
-          layer: ${segments.length},
-          mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-            layoutPath
-          )}),
-          path: ${JSON.stringify(layoutPath)},
-        },`
-      }
-      metadataCode += await resolveFileBasedMetadataForLoader(
-        segments.length,
-        (await resolve(`${appDirPrefix}${parallelSegmentPath}/`, true))!
-      )
-      metadataCode += subTreeMetadataCode
 
       if (!rootLayout) {
         rootLayout = layoutPath
       }
 
       if (!globalError) {
-        globalError = await resolve(
+        globalError = await resolver(
           `${appDirPrefix}${parallelSegmentPath}/${GLOBAL_ERROR_FILE_TYPE}`
         )
       }
 
+      const definedFilePaths = filePaths.filter(
+        ([, filePath]) => filePath !== undefined
+      )
       props[parallelKey] = `[
         '${parallelSegment}',
         ${subtreeCode},
         {
-          ${filePaths
-            .filter(([, filePath]) => filePath !== undefined)
+          ${definedFilePaths
             .map(([file, filePath]) => {
-              if (filePath === undefined) {
-                return ''
-              }
-
               return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
                 filePath
               )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
+          ${definedFilePaths.length ? buildMetadata(metadata) : ''}
         }
       ]`
     }
@@ -173,15 +173,13 @@ async function createTreeCodeFromPath({
           .map(([key, value]) => `${key}: ${value}`)
           .join(',\n')}
       }`,
-      treeMetadataCode: metadataCode,
     }
   }
 
-  const { treeCode, treeMetadataCode } =
-    await createSubtreePropsFromSegmentPath([])
+  const { treeCode } = await createSubtreePropsFromSegmentPath([])
+
   return {
     treeCode: `const tree = ${treeCode}.children;`,
-    treeMetadataCode: `const metadata = [${treeMetadataCode}];`,
     pages: `const pages = ${JSON.stringify(pages)};`,
     rootLayout,
     globalError,
@@ -192,7 +190,7 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   return (
     pathToTurnAbsolute
       // Replace all POSIX path separators with the current OS path separator
-      .replace(/\//g, sep)
+      .replace(/\//g, path.sep)
       .replace(/^private-next-app-dir/, appDir)
   )
 }
@@ -235,9 +233,9 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
   const resolveParallelSegments = (pathname: string) => {
     const matched: Record<string, string> = {}
-    for (const path of normalizedAppPaths) {
-      if (path.startsWith(pathname + '/')) {
-        const rest = path.slice(pathname.length + 1).split('/')
+    for (const appPath of normalizedAppPaths) {
+      if (appPath.startsWith(pathname + '/')) {
+        const rest = appPath.slice(pathname.length + 1).split('/')
 
         let matchedSegment = rest[0]
         // It is the actual page, mark it specially.
@@ -270,7 +268,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         const absolutePathWithExtension = `${absolutePath}${ext}`
         this.addMissingDependency(absolutePathWithExtension)
       }
-      if (err.message.includes("Can't resolve")) {
+      if (isNotResolvedError(err)) {
         return undefined
       }
       throw err
@@ -279,28 +277,30 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
   const {
     treeCode,
-    treeMetadataCode,
     pages: pageListCode,
     rootLayout,
     globalError,
-  } = await createTreeCodeFromPath({
-    pagePath,
-    resolve: resolver,
+  } = await createTreeCodeFromPath(pagePath, {
+    resolver,
+    resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
+    isDev: !!isDev,
+    addDependency: this.addDependency.bind(this),
+    addMissingDependency: this.addMissingDependency.bind(this),
   })
 
   if (!rootLayout) {
-    const errorMessage = `${chalk.bold(
-      pagePath.replace(`${APP_DIR_ALIAS}/`, '')
-    )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
-
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
-      Log.error(errorMessage)
+      Log.error(
+        `${chalk.bold(
+          pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+        )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
+      )
       process.exit(1)
     } else {
       // In dev we'll try to create a root layout
-      const createdRootLayout = await verifyRootLayout({
+      const [createdRootLayout, rootLayoutPath] = await verifyRootLayout({
         appDir: appDir,
         dir: rootDir!,
         tsconfigPath: tsconfigPath!,
@@ -308,14 +308,26 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         pageExtensions,
       })
       if (!createdRootLayout) {
-        throw new Error(errorMessage)
+        let message = `${chalk.bold(
+          pagePath.replace(`${APP_DIR_ALIAS}/`, '')
+        )} doesn't have a root layout. `
+
+        if (rootLayoutPath) {
+          message += `We tried to create ${chalk.bold(
+            path.relative(this._compiler?.context ?? '', rootLayoutPath)
+          )} for you but something went wrong.`
+        } else {
+          message +=
+            'To fix this error, make sure every page has a root layout.'
+        }
+
+        throw new Error(message)
       }
     }
   }
 
   const result = `
     export ${treeCode}
-    export ${treeMetadataCode}
     export ${pageListCode}
 
     export { default as AppRouter } from 'next/dist/client/components/app-router'
