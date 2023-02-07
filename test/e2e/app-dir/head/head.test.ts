@@ -41,8 +41,23 @@ createNextDescribe(
     })
 
     it('should use head from layout when not on page', async () => {
+      const errors = []
+      next.on('stderr', (args) => {
+        errors.push(args)
+      })
+
       const $ = await next.render$('/blog/about')
       const headTags = $('head').children().toArray()
+
+      if (globalThis.isNextDev) {
+        expect(
+          errors.filter(
+            (output) =>
+              output ===
+              `\`head.js\` is detected being used in route /blog, please migrate to metadata API for replacement. Checkout https://beta.nextjs.org/docs/api-reference/metadata for more details.\n`
+          ).length
+        ).toBe(1)
+      }
 
       expect(
         headTags.find((el) => el.attribs.src === '/hello1.js')
