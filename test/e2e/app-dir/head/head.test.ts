@@ -1,6 +1,7 @@
 import fs from 'fs-extra'
 import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
 createNextDescribe(
@@ -50,13 +51,15 @@ createNextDescribe(
       const headTags = $('head').children().toArray()
 
       if (globalThis.isNextDev) {
-        expect(
-          errors.filter(
-            (output) =>
-              output ===
-              `\`head.js\` is detected being used in route /blog, please migrate to metadata API for replacement. Checkout https://beta.nextjs.org/docs/api-reference/metadata for more details.\n`
-          ).length
-        ).toBe(1)
+        await check(
+          () =>
+            errors.filter(
+              (output) =>
+                output ===
+                '`head.js` is detected being used in route /blog, please migrate to metadata API for replacement. Checkout https://beta.nextjs.org/docs/api-reference/metadata for more details.\n'
+            ).length,
+          /1/
+        )
       }
 
       expect(
@@ -116,13 +119,15 @@ createNextDescribe(
       expect(html).not.toMatch(/<title>legacy-head<\/title>/)
 
       if (globalThis.isNextDev) {
-        expect(
-          errors.filter(
-            (output) =>
-              output ===
-              `Warning: You're using \`next/head\` inside app directory, please migrate to \`head.js\`. Checkout https://beta.nextjs.org/docs/api-reference/file-conventions/head for details.\n`
-          ).length
-        ).toBe(1)
+        await check(
+          () =>
+            errors.filter(
+              (output) =>
+                output ===
+                `Warning: You're using \`next/head\` inside app directory, please migrate to \`head.js\`. Checkout https://beta.nextjs.org/docs/api-reference/file-conventions/head for details.\n`
+            ).length,
+          /1/
+        )
 
         const dynamicChunkPath = path.join(
           next.testDir,
