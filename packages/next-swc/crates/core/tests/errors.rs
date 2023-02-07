@@ -1,3 +1,13 @@
+use next_binding::swc::{
+    core::{
+        common::FileName,
+        ecma::{
+            parser::{EsConfig, Syntax},
+            transforms::testing::{test_fixture, FixtureTestConfig},
+        },
+    },
+    testing::fixture,
+};
 use next_swc::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
     next_dynamic::next_dynamic,
@@ -6,14 +16,6 @@ use next_swc::{
     react_server_components::server_components,
 };
 use std::path::PathBuf;
-use swc_core::{
-    common::FileName,
-    ecma::{
-        parser::{EsConfig, Syntax},
-        transforms::testing::{test_fixture, FixtureTestConfig},
-    },
-};
-use testing::fixture;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
@@ -87,6 +89,7 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: true },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,
@@ -110,6 +113,7 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: false },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,

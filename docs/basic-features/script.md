@@ -143,7 +143,7 @@ There are a number of trade-offs that need to be considered when loading a third
 Inline scripts, or scripts not loaded from an external file, are also supported by the Script component. They can be written by placing the JavaScript within curly braces:
 
 ```jsx
-<Script id="show-banner">
+<Script id="show-banner" strategy="afterInteractive">
   {`document.getElementById('banner').classList.remove('hidden')`}
 </Script>
 ```
@@ -153,6 +153,7 @@ Or by using the `dangerouslySetInnerHTML` property:
 ```jsx
 <Script
   id="show-banner"
+  strategy="afterInteractive"
   dangerouslySetInnerHTML={{
     __html: `document.getElementById('banner').classList.remove('hidden')`,
   }}

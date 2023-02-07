@@ -420,7 +420,7 @@ describe('Middleware Runtime', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('AboutA')
 
-      const browser = await webdriver(next.url, `/`)
+      const browser = await webdriver(next.url, `/404`)
       await browser.eval(`next.router.push('/rewrite-2')`)
       await check(async () => {
         const content = await browser.eval('document.documentElement.innerHTML')
@@ -679,7 +679,7 @@ describe('Middleware Runtime', () => {
 
       // Check that no server requests were made to ?hello=world,
       // as it's a shallow request.
-      expect(requests).toEqual([
+      expect(requests.filter((req) => req.includes('_next/data'))).toEqual([
         `${next.url}/_next/data/${next.buildId}${
           i18n ? '/en' : ''
         }/sha.json?hello=goodbye`,

@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
 
-use swc_core::{
+use next_binding::swc::core::{
     common::{errors::HANDLER, FileName, DUMMY_SP},
     ecma::ast::{
         ArrayLit, ArrowExpr, BinExpr, BinaryOp, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
@@ -234,7 +234,6 @@ impl Fold for NextDynamicPatcher {
                         })))];
 
                     let mut has_ssr_false = false;
-                    let mut has_suspense = false;
 
                     if expr.args.len() == 2 {
                         if let Expr::Object(ObjectLit {
@@ -267,15 +266,6 @@ impl Fold for NextDynamicPatcher {
                                                 has_ssr_false = true
                                             }
                                         }
-                                        if sym == "suspense" {
-                                            if let Some(Lit::Bool(Bool {
-                                                value: true,
-                                                span: _,
-                                            })) = value.as_lit()
-                                            {
-                                                has_suspense = true
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -283,17 +273,7 @@ impl Fold for NextDynamicPatcher {
                         }
                     }
 
-                    // Don't strip the `loader` argument if suspense is true
-                    // See https://github.com/vercel/next.js/issues/36636 for background.
-
-                    // Also don't strip the `loader` argument for server components (both
-                    // server/client layers), since they're aliased to a
-                    // React.lazy implementation.
-                    if has_ssr_false
-                        && !has_suspense
-                        && self.is_server
-                        && !self.is_server_components
-                    {
+                    if has_ssr_false && self.is_server && !self.is_server_components {
                         expr.args[0] = Lit::Null(Null { span: DUMMY_SP }).as_arg();
                     }
 

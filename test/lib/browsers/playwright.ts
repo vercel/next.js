@@ -277,12 +277,12 @@ export class Playwright extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute(attr) {
-    return this.chain((el) => el.getAttribute(attr))
+  async getAttribute<T = any>(attr) {
+    return this.chain((el) => el.getAttribute(attr)) as T
   }
 
-  async hasElementByCssSelector(selector: string) {
-    return this.eval(`!!document.querySelector('${selector}')`) as any
+  hasElementByCssSelector(selector: string) {
+    return this.eval<boolean>(`!!document.querySelector('${selector}')`)
   }
 
   keydown(key: string): BrowserInterface {
@@ -344,22 +344,22 @@ export class Playwright extends BrowserInterface {
     })
   }
 
-  async eval(snippet) {
-    // TODO: should this and evalAsync be chained? Might lead
-    // to bad chains
-    return page
-      .evaluate(snippet)
-      .catch((err) => {
-        console.error('eval error:', err)
-        return null
-      })
-      .then(async (val) => {
-        await page.waitForLoadState()
-        return val
-      })
+  eval<T = any>(snippet): Promise<T> {
+    return this.chainWithReturnValue(() =>
+      page
+        .evaluate(snippet)
+        .catch((err) => {
+          console.error('eval error:', err)
+          return null
+        })
+        .then(async (val) => {
+          await page.waitForLoadState()
+          return val as T
+        })
+    )
   }
 
-  async evalAsync(snippet) {
+  async evalAsync<T = any>(snippet) {
     if (typeof snippet === 'function') {
       snippet = snippet.toString()
     }
@@ -377,7 +377,7 @@ export class Playwright extends BrowserInterface {
       })()`
     }
 
-    return page.evaluate(snippet).catch(() => null)
+    return page.evaluate<T>(snippet).catch(() => null)
   }
 
   async log() {

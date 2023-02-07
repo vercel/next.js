@@ -23,10 +23,13 @@ import {
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
-export type ServerRuntime = 'nodejs' | 'experimental-edge' | undefined
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'
+
+// @ts-ignore This path is generated at build time and conflicts otherwise
+export { Metadata } from '../dist/lib/metadata/types/metadata-interface'
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -40,7 +43,6 @@ declare module 'react' {
     nonce?: string
   }
 
-  // TODO-APP: check if this is the right type.
   function use<T>(promise: Promise<T> | React.Context<T>): T
   function cache<T extends Function>(fn: T): T
 }

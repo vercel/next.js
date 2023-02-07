@@ -13,12 +13,12 @@ describe('@next/font/google loader', () => {
       [
         'Inter',
         {},
-        'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=optional',
+        'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap',
       ],
       [
         'Inter',
         { weight: '400' },
-        'https://fonts.googleapis.com/css2?family=Inter:wght@400&display=optional',
+        'https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap',
       ],
       [
         'Inter',
@@ -33,7 +33,7 @@ describe('@next/font/google loader', () => {
       [
         'Source_Sans_Pro',
         { weight: '200', style: 'italic' },
-        'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@1,200&display=optional',
+        'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@1,200&display=swap',
       ],
       [
         'Roboto_Flex',
@@ -56,32 +56,32 @@ describe('@next/font/google loader', () => {
       [
         'Oooh_Baby',
         { weight: '400' },
-        'https://fonts.googleapis.com/css2?family=Oooh+Baby:wght@400&display=optional',
+        'https://fonts.googleapis.com/css2?family=Oooh+Baby:wght@400&display=swap',
       ],
       [
         'Albert_Sans',
         { weight: 'variable', style: 'italic' },
-        'https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@1,100..900&display=optional',
+        'https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@1,100..900&display=swap',
       ],
       [
         'Fraunces',
         { weight: 'variable', style: 'italic', axes: ['WONK', 'opsz', 'SOFT'] },
-        'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@1,9..144,100..900,0..100,0..1&display=optional',
+        'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@1,9..144,100..900,0..100,0..1&display=swap',
       ],
       [
         'Molle',
         { weight: '400' },
-        'https://fonts.googleapis.com/css2?family=Molle:ital,wght@1,400&display=optional',
+        'https://fonts.googleapis.com/css2?family=Molle:ital,wght@1,400&display=swap',
       ],
       [
         'Roboto',
         { weight: ['500', '300', '400'], style: ['normal', 'italic'] },
-        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=optional',
+        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap',
       ],
       [
         'Roboto Mono',
         { style: ['italic', 'normal'] },
-        'https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=optional',
+        'https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap',
       ],
       [
         'Fraunces',
@@ -89,27 +89,27 @@ describe('@next/font/google loader', () => {
           style: ['normal', 'italic'],
           axes: ['WONK', 'opsz', 'SOFT'],
         },
-        'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&display=optional',
+        'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&display=swap',
       ],
       [
         'Poppins',
         { weight: ['900', '400', '100'] },
-        'https://fonts.googleapis.com/css2?family=Poppins:wght@100;400;900&display=optional',
+        'https://fonts.googleapis.com/css2?family=Poppins:wght@100;400;900&display=swap',
       ],
       [
         'Nabla',
         {},
-        'https://fonts.googleapis.com/css2?family=Nabla&display=optional',
+        'https://fonts.googleapis.com/css2?family=Nabla&display=swap',
       ],
       [
         'Nabla',
         { axes: ['EDPT', 'EHLT'] },
-        'https://fonts.googleapis.com/css2?family=Nabla:EDPT,EHLT@0..200,0..24&display=optional',
+        'https://fonts.googleapis.com/css2?family=Nabla:EDPT,EHLT@0..200,0..24&display=swap',
       ],
       [
         'Ballet',
         {},
-        'https://fonts.googleapis.com/css2?family=Ballet&display=optional',
+        'https://fonts.googleapis.com/css2?family=Ballet&display=swap',
       ],
     ])('%s', async (functionName: string, data: any, url: string) => {
       fetch.mockResolvedValue({
@@ -335,6 +335,62 @@ describe('@next/font/google loader', () => {
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unexpected \`variable\` in weight array for font \`Inter\`. You only need \`variable\`, it includes all available weights."`
+      )
+    })
+
+    test('Invalid subset in call', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'], subsets: ['latin', 'oops'] }],
+          config: { subsets: ['ignored'] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Unknown subset \`oops\` for font \`Inter\`.
+              Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`"
+            `)
+    })
+
+    test('Invalid subset in config', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: { subsets: ['whoops'] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Unknown subset \`whoops\` for font \`Inter\`.
+              Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`"
+            `)
+    })
+
+    test('Missing subsets in config and call', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: {},
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Missing selected subsets for font \`Inter\`. Please specify subsets in the function call or in your \`next.config.js\`. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets"`
       )
     })
   })

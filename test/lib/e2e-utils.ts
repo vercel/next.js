@@ -1,10 +1,14 @@
 import path from 'path'
 import assert from 'assert'
+import { flushAllTraces, setGlobal, trace } from 'next/src/trace'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { NextInstance, NextInstanceOpts } from './next-modes/base'
 import { NextDevInstance } from './next-modes/next-dev'
 import { NextStartInstance } from './next-modes/next-start'
 import { NextDeployInstance } from './next-modes/next-deploy'
 import { shouldRunTurboDevTest } from './next-test-utils'
+
+export type { NextInstance }
 
 // increase timeout to account for yarn install time
 jest.setTimeout(240 * 1000)
@@ -105,6 +109,15 @@ if (typeof afterAll === 'function') {
   })
 }
 
+const setupTracing = () => {
+  if (!process.env.NEXT_TEST_TRACE) return
+
+  setGlobal('distDir', './test/.trace')
+  // This is a hacky way to use tracing utils even for tracing test utils.
+  // We want the same treatment as DEVELOPMENT_SERVER - adds a reasonable treshold for logs size.
+  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+}
+
 /**
  * Sets up and manages a Next.js instance in the configured
  * test mode. The next instance will be isolated from the monorepo
@@ -118,45 +131,116 @@ export async function createNext(
       throw new Error(`createNext called without destroying previous instance`)
     }
 
-    const useTurbo = !!process.env.TEST_WASM
-      ? false
-      : opts?.turbo ?? shouldRunTurboDevTest()
+    setupTracing()
+    return await trace('createNext').traceAsyncFn(async (rootSpan) => {
+      const useTurbo = !!process.env.TEST_WASM
+        ? false
+        : opts?.turbo ?? shouldRunTurboDevTest()
 
-    if (testMode === 'dev') {
-      // next dev
-      nextInstance = new NextDevInstance({
-        ...opts,
-        turbo: useTurbo,
-      })
-    } else if (testMode === 'deploy') {
-      // Vercel
-      nextInstance = new NextDeployInstance({
-        ...opts,
-        turbo: false,
-      })
-    } else {
-      // next build + next start
-      nextInstance = new NextStartInstance({
-        ...opts,
-        turbo: false,
-      })
-    }
+      if (testMode === 'dev') {
+        // next dev
+        rootSpan.traceChild('init next dev instance').traceFn(() => {
+          nextInstance = new NextDevInstance({
+            ...opts,
+            turbo: useTurbo,
+          })
+        })
+      } else if (testMode === 'deploy') {
+        // Vercel
+        rootSpan.traceChild('init next deploy instance').traceFn(() => {
+          nextInstance = new NextDeployInstance({
+            ...opts,
+            turbo: false,
+          })
+        })
+      } else {
+        // next build + next start
+        rootSpan.traceChild('init next start instance').traceFn(() => {
+          nextInstance = new NextStartInstance({
+            ...opts,
+            turbo: false,
+          })
+        })
+      }
 
-    nextInstance.on('destroy', () => {
-      nextInstance = undefined
+      nextInstance.on('destroy', () => {
+        nextInstance = undefined
+      })
+
+      await nextInstance.setup(rootSpan)
+
+      if (!opts.skipStart) {
+        await rootSpan
+          .traceChild('start next instance')
+          .traceAsyncFn(async () => {
+            await nextInstance.start()
+          })
+      }
+
+      return nextInstance!
     })
-
-    await nextInstance.setup()
-
-    if (!opts.skipStart) {
-      await nextInstance.start()
-    }
-    return nextInstance!
   } catch (err) {
     require('console').error('Failed to create next instance', err)
     try {
       nextInstance.destroy()
     } catch (_) {}
     process.exit(1)
+  } finally {
+    flushAllTraces()
   }
+}
+
+export function createNextDescribe(
+  name: string,
+  options: Parameters<typeof createNext>[0] & {
+    skipDeployment?: boolean
+    dir?: string
+  },
+  fn: (context: {
+    isNextDev: boolean
+    isNextDeploy: boolean
+    isNextStart: boolean
+    next: NextInstance
+  }) => void
+): void {
+  describe(name, () => {
+    if (options.skipDeployment) {
+      // When the environment is running for deployment tests.
+      if ((global as any).isNextDeploy) {
+        it('should skip next deploy', () => {})
+        // No tests are run.
+        return
+      }
+    }
+
+    let next: NextInstance
+    beforeAll(async () => {
+      next = await createNext(options)
+    })
+    afterAll(async () => {
+      await next.destroy()
+    })
+
+    const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
+      get: function (_target, property) {
+        const prop = next[property]
+        return typeof prop === 'function' ? prop.bind(next) : prop
+      },
+    })
+    fn({
+      get isNextDev(): boolean {
+        return Boolean((global as any).isNextDev)
+      },
+
+      get isNextDeploy(): boolean {
+        return Boolean((global as any).isNextDeploy)
+      },
+      get isNextStart(): boolean {
+        return Boolean((global as any).isNextStart)
+      },
+      get next() {
+        return nextProxy
+      },
+    })
+  })
 }

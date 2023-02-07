@@ -5,10 +5,10 @@ on:
 name: Generate Pull Request Stats
 
 env:
-  NAPI_CLI_VERSION: 2.12.0
+  NAPI_CLI_VERSION: 2.13.3
   TURBO_VERSION: 1.6.3
   RUST_TOOLCHAIN: nightly-2022-11-04
-  PNPM_VERSION: 7.3.0
+  PNPM_VERSION: 7.24.3
 
 jobs:
   build-native-dev:
@@ -24,32 +24,20 @@ jobs:
           fetch-depth: 25
 
       - name: Check non-docs only change
-        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: docs-change
 
-      - name: Setup node
-        uses: actions/setup-node@v3
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          node-version: 16
-          check-latest: true
-
-      - name: Install
-        uses: actions-rs/toolchain@v1
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        with:
-          profile: minimal
-          toolchain: nightly-2022-11-04
-
       - name: Cache cargo registry
-        uses: actions/cache@v1
+        uses: actions/cache@v3
+        timeout-minutes: 5
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/registry
           key: stable-ubuntu-latest-node@14-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
-        uses: actions/cache@v1
+        uses: actions/cache@v3
+        timeout-minutes: 5
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/git
@@ -57,11 +45,12 @@ jobs:
 
       # We use week in the turbo cache key to keep the cache from infinitely growing
       - id: get-week
-        run: echo ::set-output name=WEEK::$(date +%U)
+        run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v3
+        timeout-minutes: 5
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: .turbo
@@ -76,25 +65,28 @@ jobs:
       # So we get latest cache
       - name: Cache built files
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: ./packages/next-target
           key: next-swc-cargo-cache-ubuntu-latest--${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             next-swc-cargo-cache-ubuntu-latest
 
-      # since the repo's dependencies aren't installed we need
-      # to install napi globally
-      - run: npm i -g @napi-rs/cli@${NAPI_CLI_VERSION}
-      - run: npm i -g turbo@${TURBO_VERSION} pnpm@${PNPM_VERSION}
-
-      - name: Build
+      - name: Build in docker
+        uses: addnab/docker-run-action@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
-        run: turbo run build-native --cache-dir=".turbo"
-        env:
-          MACOSX_DEPLOYMENT_TARGET: '10.13'
-          TURBO_TOKEN: ${{secrets.TURBO_TOKEN}}
-          TURBO_TEAM: nextjs
-          TURBO_PROJECT: nextjs
+        with:
+          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
+          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          run: |
+            set -e &&
+            rustup toolchain install "${RUST_TOOLCHAIN}" &&
+            rustup default "${RUST_TOOLCHAIN}" &&
+            rustup target add x86_64-unknown-linux-gnu &&
+            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
+            unset CC_x86_64_unknown_linux_gnu && unset CC &&
+            turbo run build-native --cache-dir=".turbo" -- --target x86_64-unknown-linux-gnu &&
+            strip packages/next-swc/native/next-swc.*.node
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
@@ -118,7 +110,7 @@ jobs:
           fetch-depth: 25
 
       - name: Check non-docs only change
-        run: echo "::set-output name=DOCS_CHANGE::$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')"
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: docs-change
 
       - uses: actions/download-artifact@v3

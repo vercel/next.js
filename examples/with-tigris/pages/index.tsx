@@ -4,7 +4,7 @@ import Head from 'next/head'
 import React, { useEffect, useState } from 'react'
 import EachTodo from '../components/EachToDo'
 import LoaderWave from '../components/LoaderWave'
-import { TodoItem } from '../models/tigris/todoStarterApp/todoItems'
+import { TodoItem } from '../db/models/todoItems'
 import styles from '../styles/Home.module.css'
 
 const Home: NextPage = () => {

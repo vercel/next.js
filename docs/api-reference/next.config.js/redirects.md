@@ -50,6 +50,7 @@ module.exports = {
 - `basePath`: `false` or `undefined` - if false the `basePath` won't be included when matching, can be used for external redirects only.
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
+- `missing` is an array of [missing objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
 Redirects are checked before the filesystem which includes pages and `/public` files.
 
@@ -140,9 +141,9 @@ module.exports = {
 
 ## Header, Cookie, and Query Matching
 
-To only match a redirect when header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the redirect to be applied.
+To only match a redirect when header, cookie, or query values also match the `has` field or don't match the `missing` field can be used. Both the `source` and all `has` items must match and all `missing` items must not match for the redirect to be applied.
 
-`has` items have the following fields:
+`has` and `missing` items can have the following fields:
 
 - `type`: `String` - must be either `header`, `cookie`, `host`, or `query`.
 - `key`: `String` - the key from the selected type to match against.
@@ -160,6 +161,19 @@ module.exports = {
           {
             type: 'header',
             key: 'x-redirect-me',
+          },
+        ],
+        permanent: false,
+        destination: '/another-page',
+      },
+      // if the header `x-dont-redirect` is present,
+      // this redirect will NOT be applied
+      {
+        source: '/:path((?!another-page$).*)',
+        missing: [
+          {
+            type: 'header',
+            key: 'x-do-not-redirect',
           },
         ],
         permanent: false,
@@ -237,7 +251,7 @@ module.exports = {
       {
         // does not add /docs since basePath: false is set
         source: '/without-basePath',
-        destination: '/another',
+        destination: 'https://example.com',
         basePath: false,
         permanent: false,
       },

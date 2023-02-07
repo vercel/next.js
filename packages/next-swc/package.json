@@ -1,12 +1,16 @@
 {
   "name": "@next/swc",
-  "version": "13.0.7-canary.1",
+  "version": "13.1.7-canary.7",
   "private": true,
   "scripts": {
-    "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin --js false native",
+    "clean": "rm -rf ./native/*",
+    "build-native": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin,rustls-tls --js false native",
+    "build-native-woa": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --features plugin,native-tls --js false native",
     "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --js false native",
+    "build-native-no-plugin-woa": "napi build --platform -p next-swc-napi --cargo-name next_swc_napi --cargo-flags=--no-default-features --features native-tls --js false native",
     "build-wasm": "wasm-pack build crates/wasm --scope=next",
-    "cache-build-native": "echo $(ls native)"
+    "cache-build-native": "echo $(ls native)",
+    "test-pack": "cd ../../ && pnpm test-pack next-swc"
   },
   "napi": {
     "name": "next-swc",
@@ -27,6 +31,6 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.12.0"
+    "@napi-rs/cli": "2.13.3"
   }
 }

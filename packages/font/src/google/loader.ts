@@ -3,9 +3,6 @@ import type { AdjustFontFallback, FontLoader } from 'next/font'
 import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
 // @ts-ignore
 import * as Log from 'next/dist/build/output/log'
-// @ts-ignore
-import chalk from 'next/dist/compiled/chalk'
-// @ts-ignore
 import {
   fetchCSSFromGoogleFonts,
   fetchFontFile,
@@ -39,8 +36,6 @@ const downloadGoogleFonts: FontLoader = async ({
   isServer,
   loaderContext,
 }) => {
-  const subsets = config?.subsets || []
-
   const {
     fontFamily,
     weights,
@@ -51,18 +46,8 @@ const downloadGoogleFonts: FontLoader = async ({
     fallback,
     adjustFontFallback,
     variable,
-    subsets: callSubsets,
-  } = validateData(functionName, data)
-
-  if (isServer && preload && !callSubsets && !config?.subsets) {
-    Log.warn(
-      `The ${chalk.bold('@next/font/google')} font ${chalk.bold(
-        fontFamily
-      )} has no selected subsets. Please specify subsets in the function call or in your ${chalk.bold(
-        'next.config.js'
-      )}, otherwise no fonts will be preloaded. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets`
-    )
-  }
+    subsets,
+  } = validateData(functionName, data, config)
 
   const fontAxes = getFontAxes(
     fontFamily,
@@ -92,6 +77,17 @@ const downloadGoogleFonts: FontLoader = async ({
         `Failed to find font override values for font \`${fontFamily}\``
       )
     }
+  }
+
+  const result = {
+    fallbackFonts: fallback,
+    weight:
+      weights.length === 1 && weights[0] !== 'variable'
+        ? weights[0]
+        : undefined,
+    style: styles.length === 1 ? styles[0] : undefined,
+    variable,
+    adjustFontFallback: adjustFontFallbackMetrics,
   }
 
   try {
@@ -132,8 +128,7 @@ const downloadGoogleFonts: FontLoader = async ({
         ) {
           fontFiles.push({
             googleFontFileUrl,
-            preloadFontFile:
-              !!preload && (callSubsets ?? subsets).includes(currentSubset),
+            preloadFontFile: !!preload && subsets.includes(currentSubset),
           })
         }
       }
@@ -156,11 +151,12 @@ const downloadGoogleFonts: FontLoader = async ({
         }
 
         const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]
-        // Emit font file to .next/static/fonts
+        // Emit font file to .next/static/media
         const selfHostedFileUrl = emitFontFile(
           fontFileBuffer,
           ext,
-          preloadFontFile
+          preloadFontFile,
+          !!adjustFontFallbackMetrics
         )
 
         return {
@@ -180,20 +176,14 @@ const downloadGoogleFonts: FontLoader = async ({
     }
 
     return {
+      ...result,
       css: updatedCssResponse,
-      fallbackFonts: fallback,
-      weight:
-        weights.length === 1 && weights[0] !== 'variable'
-          ? weights[0]
-          : undefined,
-      style: styles.length === 1 ? styles[0] : undefined,
-      variable,
-      adjustFontFallback: adjustFontFallbackMetrics,
     }
   } catch (err) {
     loaderContext.cacheable(false)
     if (isDev) {
       if (isServer) {
+        console.error(err)
         Log.error(
           `Failed to download \`${fontFamily}\` from Google Fonts. Using fallback font instead.`
         )
@@ -213,14 +203,8 @@ const downloadGoogleFonts: FontLoader = async ({
       css += '\n}'
 
       return {
+        ...result,
         css,
-        fallbackFonts: fallback,
-        weight:
-          weights.length === 1 && weights[0] !== 'variable'
-            ? weights[0]
-            : undefined,
-        style: styles.length === 1 ? styles[0] : undefined,
-        variable,
       }
     } else {
       throw err
