@@ -30,7 +30,6 @@ import type { PayloadOptions } from './send-payload'
 import type { PrerenderManifest } from '../build'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
 
-import { parse as parseQs } from 'querystring'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -493,7 +492,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // Parse the querystring ourselves if the user doesn't handle querystring parsing
       if (typeof parsedUrl.query === 'string') {
-        parsedUrl.query = parseQs(parsedUrl.query)
+        parsedUrl.query = Object.fromEntries(
+          new URLSearchParams(parsedUrl.query)
+        )
       }
       // in minimal mode we detect RSC revalidate if the .rsc
       // path is requested
@@ -1374,9 +1375,26 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       isRedirect = (renderOpts as any).isRedirect
 
       if (isAppPath && isSSG && isrRevalidate === 0) {
-        throw new Error(
-          `Page changed from static to dynamic at runtime ${urlPathname}, see more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`
+        const staticBailoutInfo: {
+          stack?: string
+          description?: string
+        } = (renderOpts as any).staticBailoutInfo || {}
+
+        const err = new Error(
+          `Page changed from static to dynamic at runtime ${urlPathname}${
+            staticBailoutInfo.description
+              ? `, reason: ${staticBailoutInfo.description}`
+              : ``
+          }` +
+            `\nsee more here https://nextjs.org/docs/messages/app-static-to-dynamic-error`
         )
+
+        if (staticBailoutInfo.stack) {
+          const stack = staticBailoutInfo.stack as string
+          err.stack = err.message + stack.substring(stack.indexOf('\n'))
+        }
+
+        throw err
       }
 
       let value: ResponseCacheValue | null
@@ -1937,7 +1955,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               <script>
                 async function check() {
                   const res = await fetch(location.href).catch(() => ({}))
-                  
+
                   if (res.status === 200) {
                     location.reload()
                   } else {

@@ -283,7 +283,7 @@ export function runNextCommand(argv, options = {}) {
 
 export function runNextCommandDev(argv, stdOut, opts = {}) {
   const nextDir = path.dirname(require.resolve('next/package'))
-  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const nextBin = opts.nextBin || path.join(nextDir, 'dist/bin/next')
   const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
@@ -769,22 +769,13 @@ export function readNextBuildClientPageFile(appDir, page) {
 export function getPagesManifest(dir) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return readJson(serverFile)
-  }
-  return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+  return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir, content) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return writeFile(serverFile, content)
-  }
-  return writeFile(
-    path.join(dir, '.next/serverless/pages-manifest.json'),
-    content
-  )
+  return writeFile(serverFile, content)
 }
 
 export function getPageFileFromPagesManifest(dir, page) {

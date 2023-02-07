@@ -4,10 +4,10 @@ exports[`ReactRefreshLogBox app default Can't resolve @import in CSS file 1`] = 
 "./app/styles2.css
 Module not found: Can't resolve './boom.css'
 
-Import trace for requested module:
-./app/styles1.css
+https://nextjs.org/docs/messages/module-not-found
 
-https://nextjs.org/docs/messages/module-not-found"
+Import trace for requested module:
+./app/styles1.css"
 `;
 
 exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
@@ -15,10 +15,10 @@ exports[`ReactRefreshLogBox app default Import trace when module not found in la
 Module not found: Can't resolve 'non-existing-module'
 > 1 | import \\"non-existing-module\\"
 
-Import trace for requested module:
-./app/layout.js
+https://nextjs.org/docs/messages/module-not-found
 
-https://nextjs.org/docs/messages/module-not-found"
+Import trace for requested module:
+./app/layout.js"
 `;
 
 exports[`ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
@@ -76,46 +76,6 @@ exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 
 
 exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
 
-exports[`ReactRefreshLogBox app default logbox: can recover from a component error 1`] = `
-"child.js (4:16) @ Child
-
-  2 |   // hello
-  3 |   export default function Child() {
-> 4 |     throw new Error('oops')
-    |          ^
-  5 |   }
-  6 | "
-`;
-
-exports[`ReactRefreshLogBox app default logbox: can recover from a event handler error 1`] = `
-"index.js (8:18) @ eval
-
-   6 | const increment = useCallback(() => {
-   7 |   setCount(c => c + 1)
->  8 |   throw new Error('oops')
-     |        ^
-   9 | }, [setCount])
-  10 | return (
-  11 |   <main>"
-`;
-
-exports[`ReactRefreshLogBox app default logbox: can recover from a syntax error without losing state 1`] = `
-"./index.js
-Error: 
-  x Unexpected eof
-   ,----
- 1 | export default () => <div/
-   \`----
-
-Caused by:
-    0: failed to process input file
-    1: Syntax Error
-
-Import trace for requested module:
-./index.js
-./app/page.js"
-`;
-
 exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
 "index.js (4:14) @ eval
 
@@ -128,18 +88,6 @@ exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
   7 |     return <h1>Default Export</h1>;"
 `;
 
-exports[`ReactRefreshLogBox app default render error not shown right after syntax error 1`] = `
-"index.js (6:18) @ ClassDefault.render
-
-  4 | class ClassDefault extends React.Component {
-  5 |   render() {
-> 6 |     throw new Error('nooo');
-    |          ^
-  7 |     return <h1>Default Export</h1>;
-  8 |   }
-  9 | }"
-`;
-
 exports[`ReactRefreshLogBox app default should strip whitespace correctly with newline 1`] = `
 "index.js (9:34) @ onClick
 
@@ -150,73 +98,6 @@ exports[`ReactRefreshLogBox app default should strip whitespace correctly with n
   10 | }}>
   11 |   click me
   12 | </a>"
-`;
-
-exports[`ReactRefreshLogBox app default stuck error 1`] = `
-"Foo.js (4:10) @ Foo
-
-  2 |   // intentionally skips export
-  3 |   export default function Foo() {
-> 4 |     return React.createElement('h1', null, 'Foo');
-    |    ^
-  5 |   }
-  6 | "
-`;
-
-exports[`ReactRefreshLogBox app default syntax > runtime error 1`] = `
-"index.js (6:16) @ Error
-
-  4 | setInterval(() => {
-  5 |   i++
-> 6 |   throw Error('no ' + i)
-    |        ^
-  7 | }, 1000)
-  8 | export default function FunctionNamed() {
-  9 |   return <div />"
-`;
-
-exports[`ReactRefreshLogBox app default syntax > runtime error 2`] = `
-"./index.js
-Error: 
-  x Expected '}', got '<eof>'
-   ,-[5:1]
- 5 |           i++
- 6 |           throw Error('no ' + i)
- 7 |         }, 1000)
- 8 |         export default function FunctionNamed() {
-   :                                                 ^
-   \`----
-
-Caused by:
-    0: failed to process input file
-    1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error
-
-Import trace for requested module:
-./index.js
-./app/page.js"
-`;
-
-exports[`ReactRefreshLogBox app default syntax > runtime error 3`] = `
-"./index.js
-Error: 
-  x Expected '}', got '<eof>'
-   ,-[5:1]
- 5 |           i++
- 6 |           throw Error('no ' + i)
- 7 |         }, 1000)
- 8 |         export default function FunctionNamed() {
-   :                                                 ^
-   \`----
-
-Caused by:
-    0: failed to process input file
-    1: error was recoverable, but proceeding would result in wrong codegen
-    2: Syntax Error
-
-Import trace for requested module:
-./index.js
-./app/page.js"
 `;
 
 exports[`ReactRefreshLogBox app default unterminated JSX 1`] = `
@@ -241,8 +122,7 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error
+    Syntax Error
 
 Import trace for requested module:
 ./index.js

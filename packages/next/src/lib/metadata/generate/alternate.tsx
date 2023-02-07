@@ -2,28 +2,31 @@ import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
 
-export function ResolvedAlternatesMetadata({
-  metadata,
+export function AlternatesMetadata({
+  alternates,
 }: {
-  metadata: ResolvedMetadata
+  alternates: ResolvedMetadata['alternates']
 }) {
+  if (!alternates) return null
   return (
     <>
-      {metadata.alternates.canonical ? (
-        <link rel="canonical" href={metadata.alternates.canonical.toString()} />
+      {alternates.canonical ? (
+        <link rel="canonical" href={alternates.canonical.toString()} />
       ) : null}
-      {Object.entries(metadata.alternates.languages).map(([locale, url]) =>
-        url ? (
-          <link
-            key={locale}
-            rel="alternate"
-            hrefLang={locale}
-            href={url.toString()}
-          />
-        ) : null
-      )}
-      {metadata.alternates.media
-        ? Object.entries(metadata.alternates.media).map(([media, url]) =>
+      {alternates.languages
+        ? Object.entries(alternates.languages).map(([locale, url]) =>
+            url ? (
+              <link
+                key={locale}
+                rel="alternate"
+                hrefLang={locale}
+                href={url.toString()}
+              />
+            ) : null
+          )
+        : null}
+      {alternates.media
+        ? Object.entries(alternates.media).map(([media, url]) =>
             url ? (
               <link
                 key={media}
@@ -34,8 +37,8 @@ export function ResolvedAlternatesMetadata({
             ) : null
           )
         : null}
-      {metadata.alternates.types
-        ? Object.entries(metadata.alternates.types).map(([type, url]) =>
+      {alternates.types
+        ? Object.entries(alternates.types).map(([type, url]) =>
             url ? (
               <link
                 key={type}

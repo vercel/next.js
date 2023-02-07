@@ -2,6 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import crypto from 'crypto'
 import { check, getRedboxHeader, hasRedbox, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
+import stripAnsi from 'strip-ansi'
 
 createNextDescribe(
   'app dir',
@@ -15,6 +16,22 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    if (isDev) {
+      it('should not have duplicate config warnings', async () => {
+        await next.fetch('/')
+        expect(
+          stripAnsi(next.cliOutput).match(
+            /You have enabled experimental feature/g
+          ).length
+        ).toBe(1)
+        expect(
+          stripAnsi(next.cliOutput).match(
+            /Experimental features are not covered by semver/g
+          ).length
+        ).toBe(1)
+      })
+    }
+
     if (!isNextDeploy) {
       it('should not share edge workers', async () => {
         const controller1 = new AbortController()
@@ -122,39 +139,6 @@ createNextDescribe(
         expect(stderr.some((err) => err.includes('Invalid hook call'))).toBe(
           false
         )
-      })
-
-      it('should handle next/dynamic correctly', async () => {
-        const $ = await next.render$('/dashboard/dynamic')
-        // filter out the script
-        const selector = 'body div'
-        const serverContent = $(selector).text()
-        // should load chunks generated via async import correctly with React.lazy
-        expect(serverContent).toContain('next-dynamic lazy')
-        // should support `dynamic` in both server and client components
-        expect(serverContent).toContain('next-dynamic dynamic on server')
-        expect(serverContent).toContain('next-dynamic dynamic on client')
-        expect(serverContent).toContain('next-dynamic server import client')
-        expect(serverContent).not.toContain(
-          'next-dynamic dynamic no ssr on client'
-        )
-
-        expect(serverContent).not.toContain(
-          'next-dynamic dynamic no ssr on server'
-        )
-
-        // client component under server component with ssr: false will not be rendered either in flight or SSR
-        expect($.html()).not.toContain('client component under sever no ssr')
-
-        const browser = await next.browser('/dashboard/dynamic')
-        const clientContent = await browser.elementByCss(selector).text()
-        expect(clientContent).toContain('next-dynamic dynamic no ssr on server')
-        expect(clientContent).toContain('client component under sever no ssr')
-        await browser.waitForElementByCss('#css-text-dynamic-no-ssr-client')
-
-        expect(
-          await browser.elementByCss('#css-text-dynamic-no-ssr-client').text()
-        ).toBe('next-dynamic dynamic no ssr on client:suffix')
       })
 
       it('should serve polyfills for browsers that do not support modules', async () => {
@@ -621,6 +605,26 @@ createNextDescribe(
         } finally {
           await browser.close()
         }
+      })
+
+      it('should push to external url', async () => {
+        const browser = await next.browser('/link-external/push')
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementByCss('#external-link').click()
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
+        expect(await browser.eval('window.history.length')).toBe(3)
+      })
+
+      it('should replace to external url', async () => {
+        const browser = await next.browser('/link-external/replace')
+        expect(await browser.eval('window.history.length')).toBe(2)
+        await browser.elementByCss('#external-link').click()
+        expect(await browser.waitForElementByCss('h1').text()).toBe(
+          'Example Domain'
+        )
+        expect(await browser.eval('window.history.length')).toBe(2)
       })
     })
 
@@ -2485,7 +2489,6 @@ createNextDescribe(
           )
         })
 
-        // TODO-APP: Enable in development
         it('should redirect client-side', async () => {
           const browser = await next.browser('/redirect/client-side')
           await browser
@@ -2495,6 +2498,13 @@ createNextDescribe(
           // eslint-disable-next-line jest/no-standalone-expect
           expect(await browser.elementByCss('#result-page').text()).toBe(
             'Result Page'
+          )
+        })
+
+        it('should redirect to external url', async () => {
+          const browser = await next.browser('/redirect/external')
+          expect(await browser.waitForElementByCss('h1').text()).toBe(
+            'Example Domain'
           )
         })
       })

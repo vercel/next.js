@@ -45,7 +45,7 @@ export type ColorSchemeEnum =
   | 'dark light'
   | 'only light'
 
-export type Robots = {
+type RobotsInfo = {
   // all and none will be inferred from index/follow boolean options
   index?: boolean
   follow?: boolean
@@ -59,12 +59,26 @@ export type Robots = {
   nosnippet?: boolean
   noimageindex?: boolean
   nocache?: boolean
-
+  notranslate?: boolean
+  indexifembedded?: boolean
+  nositelinkssearchbox?: boolean
+  unavailable_after?: string
+  'max-video-preview'?: number | string
+  'max-image-preview'?: 'none' | 'standard' | 'large'
+  'max-snippet'?: number
+}
+export type Robots = RobotsInfo & {
   // if you want to specify an alternate robots just for google
-  googleBot?: string | Robots
+  googleBot?: string | RobotsInfo
 }
 
-export type Icon = string | IconDescriptor | URL
+export type ResolvedRobots = {
+  basic: string | null
+  googleBot: string | null
+}
+
+export type IconURL = string | URL
+export type Icon = IconURL | IconDescriptor
 export type IconDescriptor = {
   url: string | URL
   type?: string
@@ -74,20 +88,39 @@ export type IconDescriptor = {
 }
 export type Icons = {
   // rel="icon"
-  icon?: Icon | Array<Icon>
+  icon?: Icon | Icon[]
   // rel="shortcut icon"
-  shortcut?: Icon | Array<Icon>
+  shortcut?: Icon | Icon[]
   // rel="apple-touch-icon"
-  apple?: Icon | Array<Icon>
+  apple?: Icon | Icon[]
   // rel inferred from descriptor, defaults to "icon"
-  other?: Icon | Array<Icon>
+  other?: IconDescriptor | IconDescriptor[]
 }
 
 export type Verification = {
-  google?: null | string | number | Array<string | number>
-  yahoo?: null | string | number | Array<string | number>
+  google?: null | string | number | (string | number)[]
+  yahoo?: null | string | number | (string | number)[]
+  yandex?: null | string | number | (string | number)[]
+  me?: null | string | number | (string | number)[]
   // if you ad-hoc additional verification
   other?: {
-    [name: string]: string | number | Array<string | number>
+    [name: string]: string | number | (string | number)[]
   }
+}
+
+export type ResolvedVerification = {
+  google?: null | (string | number)[]
+  yahoo?: null | (string | number)[]
+  yandex?: null | (string | number)[]
+  me?: null | (string | number)[]
+  other?: {
+    [name: string]: (string | number)[]
+  }
+}
+
+export type ResolvedIcons = {
+  icon?: IconDescriptor[]
+  shortcut?: IconDescriptor[]
+  apple?: IconDescriptor[]
+  other?: IconDescriptor[]
 }

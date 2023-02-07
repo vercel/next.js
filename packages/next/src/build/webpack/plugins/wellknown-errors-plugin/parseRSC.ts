@@ -1,11 +1,12 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
-import { relative } from 'path'
+import { getModuleTrace, getImportTraceForOverlay } from './getModuleTrace'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 function formatRSCErrorMessage(
   message: string,
-  isPagesDir: boolean
+  isPagesDir: boolean,
+  fileName: string
 ): [string, string] {
   let formattedMessage = message
   let formattedVerboseMessage = ''
@@ -19,6 +20,8 @@ function formatRSCErrorMessage(
   const NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN =
     /.+NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN\n/s
   const NEXT_RSC_ERR_INVALID_API = /.+NEXT_RSC_ERR_INVALID_API: (.*?)\n/s
+  const NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT =
+    /.+NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT/
 
   if (NEXT_RSC_ERR_REACT_API.test(message)) {
     const matches = message.match(NEXT_RSC_ERR_REACT_API)
@@ -100,6 +103,12 @@ function formatRSCErrorMessage(
       `\n\n"$1" is not supported in app/. Read more: https://beta.nextjs.org/docs/data-fetching/fundamentals\n\n`
     )
     formattedVerboseMessage = '\n\nFile path:\n'
+  } else if (NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT.test(message)) {
+    formattedMessage = message.replace(
+      NEXT_RSC_ERR_ERROR_FILE_SERVER_COMPONENT,
+      `\n\n${fileName} must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.\n\n`
+    )
+    formattedVerboseMessage = '\n\nImport path:\n'
   }
 
   return [formattedMessage, formattedVerboseMessage]
@@ -118,39 +127,24 @@ export function getRscError(
     return false
   }
 
-  // Get the module trace:
-  // https://cs.github.com/webpack/webpack/blob/9fcaa243573005d6fdece9a3f8d89a0e8b399613/lib/stats/DefaultStatsFactoryPlugin.js#L414
-  const visitedModules = new Set()
-  const moduleTrace = []
+  const { isPagesDir, moduleTrace } = getModuleTrace(
+    module,
+    compilation,
+    compiler
+  )
 
-  let current = module
-  let isPagesDir = false
-  while (current) {
-    if (visitedModules.has(current)) break
-    if (/[\\/]pages/.test(current.resource.replace(compiler.context, ''))) {
-      isPagesDir = true
-    }
-    visitedModules.add(current)
-    moduleTrace.push(current)
-    const origin = compilation.moduleGraph.getIssuer(current)
-    if (!origin) break
-    current = origin
-  }
-
-  const formattedError = formatRSCErrorMessage(err.message, isPagesDir)
+  const formattedError = formatRSCErrorMessage(
+    err.message,
+    isPagesDir,
+    fileName
+  )
 
   const error = new SimpleWebpackError(
     fileName,
-    formattedError[0] +
+    'ReactServerComponentsError:\n' +
+      formattedError[0] +
       formattedError[1] +
-      moduleTrace
-        .map((m) =>
-          m.resource
-            ? '  ' + relative(compiler.context, m.resource).replace(/\?.+$/, '')
-            : ''
-        )
-        .filter(Boolean)
-        .join('\n')
+      getImportTraceForOverlay(compiler, moduleTrace)
   )
 
   // Delete the stack because it's created here.

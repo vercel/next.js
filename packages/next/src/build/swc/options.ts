@@ -129,6 +129,11 @@ function getBaseSWCOptions({
     serverComponents: hasServerComponents
       ? { isServer: !!isServerLayer }
       : undefined,
+    serverActions: hasServerComponents
+      ? {
+          isServer: !!isServerLayer,
+        }
+      : undefined,
   }
 }
 
@@ -219,6 +224,7 @@ export function getLoaderSWCOptions({
   development,
   isServer,
   pagesDir,
+  appDir,
   isPageFile,
   hasReactRefresh,
   nextConfig,
@@ -265,6 +271,7 @@ any) {
       isDevelopment: development,
       isServer,
       pagesDir,
+      appDir,
       isPageFile,
       env: {
         targets: {
@@ -290,6 +297,7 @@ any) {
       isDevelopment: development,
       isServer,
       pagesDir,
+      appDir,
       isPageFile,
       ...(supportedBrowsers && supportedBrowsers.length > 0
         ? {
