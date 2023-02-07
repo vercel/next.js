@@ -84,7 +84,7 @@ Common causes with css-in-js libraries:
 
 #### Local Overrides
 
-It's possible you may have Local Overrides enabled in Chrome devtools. With this enabled, the HTML served will be different from what the SSR emitted. It also won't show up in view-source, so you may be left wondering what is going on
+It's possible you may have [Local Overrides enabled in Chrome devtools](https://developer.chrome.com/blog/new-in-devtools-65/#overrides). With this enabled, the HTML served will be different from what the SSR emitted. It also won't show up in view-source, so you may be left wondering what is going on.
 
 ### Useful Links
 
