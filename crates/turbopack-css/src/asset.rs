@@ -14,7 +14,10 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
     context::AssetContextVc,
     reference::{AssetReference, AssetReferencesVc},
-    resolve::origin::{ResolveOrigin, ResolveOriginVc},
+    resolve::{
+        origin::{ResolveOrigin, ResolveOriginVc},
+        PrimaryResolveResult,
+    },
 };
 
 use crate::{
@@ -168,12 +171,14 @@ impl CssChunkItem for ModuleChunkItem {
 
         for reference in references.iter() {
             if let Some(import) = ImportAssetReferenceVc::resolve_from(reference).await? {
-                for asset in &*import.resolve_reference().primary_assets().await? {
-                    if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
-                        imports.push(CssImport::Internal(
-                            import,
-                            placeable.as_chunk_item(context),
-                        ));
+                for result in import.resolve_reference().await?.primary.iter() {
+                    if let PrimaryResolveResult::Asset(asset) = result {
+                        if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
+                            imports.push(CssImport::Internal(
+                                import,
+                                placeable.as_chunk_item(context),
+                            ));
+                        }
                     }
                 }
             }

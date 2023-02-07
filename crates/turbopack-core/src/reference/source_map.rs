@@ -9,28 +9,27 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-pub struct SourceMap {
+pub struct SourceMapReference {
     from: FileSystemPathVc,
     file: FileSystemPathVc,
 }
 
 #[turbo_tasks::value_impl]
-impl SourceMapVc {
+impl SourceMapReferenceVc {
     #[turbo_tasks::function]
     pub fn new(from: FileSystemPathVc, file: FileSystemPathVc) -> Self {
-        Self::cell(SourceMap { from, file })
+        Self::cell(SourceMapReference { from, file })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl AssetReference for SourceMap {
+impl AssetReference for SourceMapReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> ResolveResultVc {
         let file_type = self.file.get_type().await;
         if let Ok(file_type_result) = file_type.as_ref() {
             if let FileSystemEntryType::File = &**file_type_result {
-                return ResolveResult::Single(SourceAssetVc::new(self.file).into(), Vec::new())
-                    .into();
+                return ResolveResult::asset(SourceAssetVc::new(self.file).into()).into();
             }
         }
         ResolveResult::unresolveable().into()
@@ -38,7 +37,7 @@ impl AssetReference for SourceMap {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for SourceMap {
+impl ValueToString for SourceMapReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<StringVc> {
         Ok(StringVc::cell(format!(

@@ -67,7 +67,7 @@ impl AssetReference for EcmascriptChunkSourceMapAssetReference {
         let asset = EcmascriptChunkSourceMapAsset { chunk: self.chunk }
             .cell()
             .into();
-        Ok(ResolveResult::Single(asset, vec![]).cell())
+        Ok(ResolveResult::asset(asset).cell())
     }
 }
 

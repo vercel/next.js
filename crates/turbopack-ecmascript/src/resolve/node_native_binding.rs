@@ -10,7 +10,8 @@ use turbopack_core::{
     reference::{AssetReference, AssetReferenceVc},
     resolve::{
         pattern::{Pattern, PatternVc},
-        resolve_raw, AffectingResolvingAssetReferenceVc, ResolveResult, ResolveResultVc,
+        resolve_raw, AffectingResolvingAssetReferenceVc, PrimaryResolveResult, ResolveResult,
+        ResolveResultVc,
     },
     source_asset::SourceAssetVc,
     target::{CompileTargetVc, Platform},
@@ -92,12 +93,14 @@ pub async fn resolve_node_pre_gyp_files(
         static ref LIBC_TEMPLATE: Regex =
             Regex::new(r"\{libc\}").expect("create node_libc regex failed");
     }
-    let config = resolve_raw(context, config_file_pattern, true).await?;
+    let config = resolve_raw(context, config_file_pattern, true)
+        .first_asset()
+        .await?;
     let compile_target = compile_target.await?;
-    if let ResolveResult::Single(ref config_path, _) = &*config {
-        if let AssetContent::File(file) = &*config_path.content().await? {
+    if let Some(config_asset) = *config {
+        if let AssetContent::File(file) = &*config_asset.content().await? {
             if let FileContent::Content(ref config_file) = &*file.await? {
-                let config_file_path = config_path.path();
+                let config_file_path = config_asset.path();
                 let config_file_dir = config_file_path.parent();
                 let node_pre_gyp_config: NodePreGypConfigJson =
                     serde_json::from_reader(config_file.read())?;
@@ -145,7 +148,7 @@ pub async fn resolve_node_pre_gyp_files(
                     }
                     assets.insert(SourceAssetVc::new(resolved_file_vc).into());
                 }
-                for entry in config_path
+                for entry in config_asset
                     .path()
                     .parent()
                     // TODO
@@ -170,7 +173,7 @@ pub async fn resolve_node_pre_gyp_files(
                         _ => {}
                     }
                 }
-                return Ok(ResolveResult::Alternatives(
+                return Ok(ResolveResult::assets_with_references(
                     assets.into_iter().collect(),
                     vec![AffectingResolvingAssetReferenceVc::new(config_file_path).into()],
                 )
@@ -231,8 +234,8 @@ pub async fn resolve_node_gyp_build_files(
     }
     let binding_gyp_pat = PatternVc::new(Pattern::Constant("binding.gyp".to_owned()));
     let gyp_file = resolve_raw(context, binding_gyp_pat, true).await?;
-    if let ResolveResult::Single(binding_gyp, gyp_file_references) = &*gyp_file {
-        let mut merged_references = gyp_file_references.clone();
+    if let [PrimaryResolveResult::Asset(binding_gyp)] = &gyp_file.primary[..] {
+        let mut merged_references = gyp_file.references.clone();
         if let AssetContent::File(file) = &*binding_gyp.content().await? {
             if let FileContent::Content(config_file) = &*file.await? {
                 if let Some(captured) =
@@ -248,13 +251,15 @@ pub async fn resolve_node_gyp_build_files(
                             true,
                         )
                         .await?;
-                        if let ResolveResult::Single(file, references) = &*resolved_prebuilt_file {
-                            resolved.insert(SourceAssetVc::new(file.path()).into());
-                            merged_references.extend_from_slice(references);
+                        if let [PrimaryResolveResult::Asset(asset)] =
+                            &resolved_prebuilt_file.primary[..]
+                        {
+                            resolved.insert(asset.resolve().await?);
+                            merged_references.extend_from_slice(&resolved_prebuilt_file.references);
                         }
                     }
                     if !resolved.is_empty() {
-                        return Ok(ResolveResult::Alternatives(
+                        return Ok(ResolveResult::assets_with_references(
                             resolved.into_iter().collect(),
                             merged_references,
                         )
@@ -330,14 +335,15 @@ pub async fn resolve_node_bindings_files(
     }
     let mut root_context = context;
     loop {
-        if let ResolveResult::Single(file, _) = &*resolve_raw(
+        let resolved = resolve_raw(
             root_context,
             Pattern::Constant("package.json".to_owned()).into(),
             true,
         )
-        .await?
-        {
-            if let AssetContent::File(file) = &*file.content().await? {
+        .first_asset()
+        .await?;
+        if let Some(asset) = *resolved {
+            if let AssetContent::File(file) = &*asset.content().await? {
                 if let FileContent::Content(_) = &*file.await? {
                     break;
                 }
@@ -358,7 +364,7 @@ pub async fn resolve_node_bindings_files(
         })
         .collect();
 
-    Ok(ResolveResult::Alternatives(
+    Ok(ResolveResult::assets_with_references(
         bindings_try,
         vec![SourceAssetReferenceVc::new(
             SourceAssetVc::new(root_context).into(),

@@ -154,7 +154,7 @@ impl ValueToString for CssProxyToCssAssetReference {
 impl AssetReference for CssProxyToCssAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(self.module.into(), Vec::new()).cell()
+        ResolveResult::asset(self.module.into()).cell()
     }
 }
 

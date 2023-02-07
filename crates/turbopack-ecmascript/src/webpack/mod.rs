@@ -92,9 +92,8 @@ impl AssetReference for WebpackChunkAssetReference {
                 let filename = format!("./chunks/{}.js", chunk_id);
                 let source = SourceAssetVc::new(context_path.join(&filename)).into();
 
-                ResolveResult::Single(
+                ResolveResult::asset(
                     WebpackModuleAssetVc::new(source, self.runtime, self.transforms).into(),
-                    Vec::new(),
                 )
                 .into()
             }
@@ -127,9 +126,8 @@ pub struct WebpackEntryAssetReference {
 impl AssetReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(
+        ResolveResult::asset(
             WebpackModuleAssetVc::new(self.source, self.runtime, self.transforms).into(),
-            Vec::new(),
         )
         .into()
     }
@@ -166,15 +164,16 @@ impl AssetReference for WebpackRuntimeAssetReference {
             options,
         );
 
-        if let ResolveResult::Single(source, ref refs) = *resolved.await? {
-            return Ok(ResolveResult::Single(
-                WebpackModuleAssetVc::new(source, self.runtime, self.transforms).into(),
-                refs.clone(),
+        Ok(resolved
+            .await?
+            .map(
+                |source| async move {
+                    Ok(WebpackModuleAssetVc::new(source, self.runtime, self.transforms).into())
+                },
+                |r| async move { Ok(r) },
             )
-            .into());
-        }
-
-        Ok(ResolveResult::unresolveable().into())
+            .await?
+            .cell())
     }
 }
 

@@ -12,7 +12,7 @@ use turbopack_core::{
     resolve::{
         origin::{ResolveOrigin, ResolveOriginVc},
         parse::RequestVc,
-        ResolveResultVc,
+        PrimaryResolveResult, ResolveResultVc,
     },
 };
 use turbopack_ecmascript::resolve::url_resolve;
@@ -51,13 +51,14 @@ impl UrlAssetReferenceVc {
 
     #[turbo_tasks::function]
     async fn get_referenced_asset(self, context: ChunkingContextVc) -> Result<ReferencedAssetVc> {
-        let assets = self.resolve_reference().primary_assets();
-        for asset in assets.await?.iter() {
-            if let Some(embeddable) = CssEmbeddableVc::resolve_from(asset).await? {
-                return Ok(ReferencedAsset::Some(
-                    embeddable.as_css_embed(context).embeddable_asset(),
-                )
-                .into());
+        for result in self.resolve_reference().await?.primary.iter() {
+            if let PrimaryResolveResult::Asset(asset) = result {
+                if let Some(embeddable) = CssEmbeddableVc::resolve_from(asset).await? {
+                    return Ok(ReferencedAsset::Some(
+                        embeddable.as_css_embed(context).embeddable_asset(),
+                    )
+                    .into());
+                }
             }
         }
         Ok(ReferencedAssetVc::cell(ReferencedAsset::None))

@@ -110,7 +110,7 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
                 .into(),
             );
 
-        Ok(ImportMapResult::Result(ResolveResult::Single(js_asset.into(), vec![]).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::asset(js_asset.into()).into()).into())
     }
 }
 
@@ -227,7 +227,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             .into(),
         );
 
-        Ok(ImportMapResult::Result(ResolveResult::Single(css_asset.into(), vec![]).into()).into())
+        Ok(ImportMapResult::Result(ResolveResult::asset(css_asset.into()).into()).into())
     }
 }
 

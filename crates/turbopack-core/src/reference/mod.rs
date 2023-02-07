@@ -6,11 +6,11 @@ use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
     issue::IssueVc,
-    resolve::{ResolveResult, ResolveResultVc},
+    resolve::{PrimaryResolveResult, ResolveResult, ResolveResultVc},
 };
 pub mod source_map;
 
-pub use source_map::SourceMapVc;
+pub use source_map::SourceMapReferenceVc;
 
 /// A reference to one or multiple [Asset]s or other special things.
 /// There are a bunch of optional traits that can influence how these references
@@ -57,7 +57,7 @@ impl SingleAssetReference {
 impl AssetReference for SingleAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> ResolveResultVc {
-        ResolveResult::Single(self.asset, vec![]).cell()
+        ResolveResult::asset(self.asset).cell()
     }
 }
 
@@ -101,30 +101,17 @@ pub async fn all_referenced_assets(asset: AssetVc) -> Result<AssetsVc> {
     // while let Some(result) = race_pop(&mut queue).await {
     // match &*result? {
     while let Some(resolve_result) = queue.pop_front() {
-        match &*resolve_result.await? {
-            ResolveResult::Single(module, references) => {
-                assets.push(*module);
-                for reference in references {
-                    queue.push_back(reference.resolve_reference());
-                }
+        let ResolveResult {
+            primary,
+            references,
+        } = &*resolve_result.await?;
+        for result in primary {
+            if let PrimaryResolveResult::Asset(asset) = *result {
+                assets.push(asset);
             }
-            ResolveResult::Alternatives(modules, references) => {
-                assets.extend(modules);
-                for reference in references {
-                    queue.push_back(reference.resolve_reference());
-                }
-            }
-            ResolveResult::Special(_, references) => {
-                for reference in references {
-                    queue.push_back(reference.resolve_reference());
-                }
-            }
-            ResolveResult::Keyed(_, _) => todo!(),
-            ResolveResult::Unresolveable(references) => {
-                for reference in references {
-                    queue.push_back(reference.resolve_reference());
-                }
-            }
+        }
+        for reference in references {
+            queue.push_back(reference.resolve_reference());
         }
     }
     Ok(AssetsVc::cell(assets))
