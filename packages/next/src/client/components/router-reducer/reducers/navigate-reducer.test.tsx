@@ -1,5 +1,4 @@
 import React from 'react'
-import { matchSegment } from '../../match-segments'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render'
 const flightData: FlightData = [
