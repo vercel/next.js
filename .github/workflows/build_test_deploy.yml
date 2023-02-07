@@ -11,6 +11,8 @@ env:
   TURBO_VERSION: 1.6.3
   RUST_TOOLCHAIN: nightly-2022-11-04
   PNPM_VERSION: 7.24.3
+  # 16 * 1024 * 1024
+  RUST_MIN_STACK: 59228416
 
 jobs:
   check-examples:
@@ -931,7 +933,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
-          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          options: -e RUST_MIN_STACK=${{ env.RUST_MIN_STACK }} -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
           run: |
             set -e &&
             rustup toolchain install "${RUST_TOOLCHAIN}" &&
