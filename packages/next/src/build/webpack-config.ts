@@ -61,6 +61,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
+import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/app-dir/metadata'
 
 const EXTERNAL_PACKAGES = require('../lib/server-external-packages.json')
 
@@ -1855,7 +1856,7 @@ export default async function getBaseWebpackConfig(
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
                 resourceQuery: (queryString: string) =>
-                  queryString !== '?__next_metadata',
+                  queryString !== METADATA_IMAGE_RESOURCE_QUERY,
                 options: {
                   isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
@@ -2505,7 +2506,7 @@ export default async function getBaseWebpackConfig(
       // the `babel-plugin-inline-react-svg` plugin.
       nextImageRule.test = /\.(png|jpg|jpeg|gif|webp|avif|ico|bmp)$/i
       nextImageRule.resourceQuery = (queryString: string) =>
-        queryString !== '?__next_metadata'
+        queryString !== METADATA_IMAGE_RESOURCE_QUERY
     }
   }
 
