@@ -421,13 +421,15 @@ export async function accumulateMetadata(
 
         if (metadata) {
           // Overriding the metadata if static files metadata is present
-          Object.assign(metadata, staticFilesMetadata)
-
-          merge(resolved, metadata, {
-            title: resolved.title?.template || null,
-            openGraph: resolved.openGraph?.title?.template || null,
-            twitter: resolved.twitter?.title?.template || null,
-          })
+          merge(
+            resolved,
+            { ...metadata, ...staticFilesMetadata },
+            {
+              title: resolved.title?.template || null,
+              openGraph: resolved.openGraph?.title?.template || null,
+              twitter: resolved.twitter?.title?.template || null,
+            }
+          )
         }
 
         return resolved
