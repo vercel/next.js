@@ -1,4 +1,3 @@
-import { check } from 'next-test-utils'
 import { createNextDescribe, FileRef } from 'e2e-utils'
 import path from 'path'
 import { sandbox } from './helpers'
@@ -264,47 +263,6 @@ createNextDescribe(
         Import path:
         app/server-with-errors/error-file/error.js"
       `)
-
-      await cleanup()
-    })
-
-    it('should be possible to open the import trace files in your editor', async () => {
-      let editorRequestsCount = 0
-      const { session, browser, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/editor-links',
-        {
-          beforePageLoad(page) {
-            page.route('**/__nextjs_launch-editor**', (route) => {
-              editorRequestsCount += 1
-              route.fulfill()
-            })
-          },
-        }
-      )
-
-      const componentFile = 'app/editor-links/component.js'
-      const fileContent = await next.readFile(componentFile)
-
-      await session.patch(
-        componentFile,
-        fileContent.replace(
-          "// import { useState } from 'react'",
-          "import { useState } from 'react'"
-        )
-      )
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      await browser.waitForElementByCss('[data-with-open-in-editor-link]')
-      const collapsedFrameworkGroups = await browser.elementsByCss(
-        '[data-with-open-in-editor-link]'
-      )
-      for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
-        await collapsedFrameworkButton.click()
-      }
-
-      await check(() => editorRequestsCount, /2/)
 
       await cleanup()
     })

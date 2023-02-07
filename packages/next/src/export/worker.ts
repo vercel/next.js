@@ -32,7 +32,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/app-dynamic/no-ssr-error'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 
 loadRequireHook()
@@ -366,7 +366,7 @@ export default async function exportPage({
             )
           } else if (isDynamicError) {
             throw new Error(
-              `Page with dynamic = "error" encountered dynamic data method ${path}.`
+              `Page with dynamic = "error" encountered dynamic data method on ${path}.`
             )
           }
 

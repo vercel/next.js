@@ -43,9 +43,9 @@ createNextDescribe(
           'blog/tim.rsc',
           'blog/tim/first-post.html',
           'blog/tim/first-post.rsc',
-          'dynamic-error.html',
-          'dynamic-error.rsc',
-          'dynamic-error/page.js',
+          'dynamic-error/[id].html',
+          'dynamic-error/[id].rsc',
+          'dynamic-error/[id]/page.js',
           'dynamic-no-gen-params-ssr/[slug]/page.js',
           'dynamic-no-gen-params/[slug].html',
           'dynamic-no-gen-params/[slug].rsc',
@@ -130,11 +130,6 @@ createNextDescribe(
             srcRoute: '/blog/[author]/[slug]',
             dataRoute: '/blog/tim/first-post.rsc',
           },
-          '/dynamic-error': {
-            dataRoute: '/dynamic-error.rsc',
-            initialRevalidateSeconds: false,
-            srcRoute: '/dynamic-error',
-          },
           '/blog/seb/second-post': {
             initialRevalidateSeconds: false,
             srcRoute: '/blog/[author]/[slug]',
@@ -213,6 +208,12 @@ createNextDescribe(
             dataRouteRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)\\.rsc$'),
             fallback: false,
             routeRegex: normalizeRegEx('^\\/blog\\/([^\\/]+?)(?:\\/)?$'),
+          },
+          '/dynamic-error/[id]': {
+            dataRoute: '/dynamic-error/[id].rsc',
+            dataRouteRegex: '^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$',
+            fallback: null,
+            routeRegex: '^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$',
           },
           '/dynamic-no-gen-params/[slug]': {
             dataRoute: '/dynamic-no-gen-params/[slug].rsc',
@@ -350,6 +351,19 @@ createNextDescribe(
         if (isNextStart) {
           expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
             /Page changed from static to dynamic at runtime \/static-to-dynamic-error-forced\/static-bailout-1, reason: cookies/
+          )
+        }
+      })
+
+      it('should properly error when dynamic = "error" page uses dynamic', async () => {
+        const res = await next.fetch('/dynamic-error/static-bailout-1')
+        const outputIndex = next.cliOutput.length
+
+        expect(res.status).toBe(500)
+
+        if (isNextStart) {
+          expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
+            /Page with dynamic = "error" encountered dynamic data method on \/dynamic-error\/static-bailout-1/
           )
         }
       })

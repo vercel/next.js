@@ -22,6 +22,7 @@ import entryConfig from './rules/config'
 import serverLayer from './rules/server'
 import entryDefault from './rules/entry'
 import clientBoundary from './rules/client-boundary'
+import metadata from './rules/metadata'
 
 export function createTSPlugin(modules: {
   typescript: typeof import('typescript/lib/tsserverlibrary')
@@ -59,14 +60,22 @@ export function createTSPlugin(modules: {
       }
       if (!isAppEntryFile(fileName)) return prior
 
-      // Remove specified entries from completion list if it's a server entry.
+      // If it's a server entry.
       if (!getIsClientEntry(fileName)) {
+        // Remove specified entries from completion list
         prior.entries = serverLayer.filterCompletionsAtPosition(prior.entries)
+
+        // Provide autocompletion for metadata fields
+        prior = metadata.filterCompletionsAtPosition(
+          fileName,
+          position,
+          options,
+          prior
+        )
       }
 
       // Add auto completions for export configs.
-      const entries = entryConfig.getCompletionsAtPosition(fileName, position)
-      prior.entries = [...prior.entries, ...entries]
+      entryConfig.addCompletionsAtPosition(fileName, position, prior)
 
       const source = getSource(fileName)
       if (!source) return prior
@@ -106,6 +115,17 @@ export function createTSPlugin(modules: {
       )
       if (entryCompletionEntryDetails) return entryCompletionEntryDetails
 
+      const metadataCompletionEntryDetails = metadata.getCompletionEntryDetails(
+        fileName,
+        position,
+        entryName,
+        formatOptions,
+        source,
+        preferences,
+        data
+      )
+      if (metadataCompletionEntryDetails) return metadataCompletionEntryDetails
+
       return info.languageService.getCompletionEntryDetails(
         fileName,
         position,
@@ -137,6 +157,9 @@ export function createTSPlugin(modules: {
         ) {
           return
         }
+
+        const metadataInfo = metadata.getQuickInfoAtPosition(fileName, position)
+        if (metadataInfo) return metadataInfo
       }
 
       const overriden = entryConfig.getQuickInfoAtPosition(fileName, position)
@@ -191,7 +214,16 @@ export function createTSPlugin(modules: {
                 source,
                 node
               )
-            prior.push(...diagnostics)
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
+            prior.push(...diagnostics, ...metadataDiagnostics)
           }
 
           if (isClientEntry) {
