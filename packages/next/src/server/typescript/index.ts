@@ -214,11 +214,15 @@ export function createTSPlugin(modules: {
                 source,
                 node
               )
-            const metadataDiagnostics =
-              metadata.getSemanticDiagnosticsForExportVariableStatement(
-                fileName,
-                node
-              )
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
             prior.push(...diagnostics, ...metadataDiagnostics)
           }
 

@@ -8,7 +8,7 @@ const serverLayer = {
       // Remove disallowed React APIs.
       if (
         DISALLOWED_SERVER_REACT_APIS.includes(e.name) &&
-        e.kindModifiers === 'declare'
+        e.source === 'react'
       ) {
         return false
       }
