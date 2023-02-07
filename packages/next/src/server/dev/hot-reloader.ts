@@ -17,7 +17,9 @@ import {
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
-import getBaseWebpackConfig from '../../build/webpack-config'
+import getBaseWebpackConfig, {
+  loadProjectInfo,
+} from '../../build/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import {
@@ -478,32 +480,45 @@ export default class HotReloader {
 
       return webpackConfigSpan
         .traceChild('generate-webpack-config')
-        .traceAsyncFn(() =>
-          Promise.all([
+        .traceAsyncFn(async () => {
+          const info = await loadProjectInfo({
+            dir: this.dir,
+            config: commonWebpackOptions.config,
+            dev: true,
+          })
+          return Promise.all([
             // order is important here
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
               compilerType: COMPILER_NAMES.client,
               entrypoints: entrypoints.client,
+              ...info,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
               compilerType: COMPILER_NAMES.server,
               entrypoints: entrypoints.server,
+              ...info,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
               compilerType: COMPILER_NAMES.edgeServer,
               entrypoints: entrypoints.edgeServer,
+              ...info,
             }),
           ])
-        )
+        })
     })
   }
 
   public async buildFallbackError(): Promise<void> {
     if (this.fallbackWatcher) return
 
+    const info = await loadProjectInfo({
+      dir: this.dir,
+      config: this.config,
+      dev: true,
+    })
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
       runWebpackSpan: this.hotReloaderSpan,
       dev: true,
@@ -534,6 +549,7 @@ export default class HotReloader {
           pageExtensions: this.config.pageExtensions,
         })
       ).client,
+      ...info,
     })
     const fallbackCompiler = webpack(fallbackConfig)
 
