@@ -48,7 +48,7 @@ If you are coming from an older major version, check out our [upgrade guides](ht
 
 ### Note
 
-If you want to report a bug on GitHub, you should upgrade to the latest canary release of Next.js first, to see if the bug has already been fixed in canary.
+If you want to report a bug on GitHub, you should upgrade to the newest canary release of Next.js first, to see if the bug has already been fixed in canary.
 
 ### Useful Links
 

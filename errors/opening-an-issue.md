@@ -2,7 +2,7 @@
 
 #### Why This Message Occurred
 
-When `next info` was run, Next.js detected that it was not on the latest canary release.
+When `next info` was run, Next.js detected that it was not on the newest canary release.
 
 `next@canary` is the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Think of canary as a public beta.
 

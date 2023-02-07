@@ -113,7 +113,7 @@ function Staleness(props: VersionInfo) {
       break
     }
     case 'stale-prerelease': {
-      text = `Using old canary (${installed})`
+      text = `Next.js (${installed}) is outdated`
       title = `There is a newer canary version (${expected}) available, please upgrade! `
       break
     }
