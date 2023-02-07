@@ -10,7 +10,7 @@ import {
 } from '../shared/lib/constants'
 import { runCompiler } from './compiler'
 import * as Log from './output/log'
-import getBaseWebpackConfig from './webpack-config'
+import getBaseWebpackConfig, { loadProjectInfo } from './webpack-config'
 import { NextError } from '../lib/is-error'
 import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
@@ -81,14 +81,20 @@ async function webpackBuildImpl(): Promise<number> {
 
   const configs = await runWebpackSpan
     .traceChild('generate-webpack-config')
-    .traceAsyncFn(() =>
-      Promise.all([
+    .traceAsyncFn(async () => {
+      const info = await loadProjectInfo({
+        dir,
+        config: commonWebpackOptions.config,
+        dev: false,
+      })
+      return Promise.all([
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
           middlewareMatchers: entrypoints.middlewareMatchers,
           runWebpackSpan,
           compilerType: COMPILER_NAMES.client,
           entrypoints: entrypoints.client,
+          ...info,
         }),
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
@@ -96,6 +102,7 @@ async function webpackBuildImpl(): Promise<number> {
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.server,
           entrypoints: entrypoints.server,
+          ...info,
         }),
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
@@ -103,9 +110,10 @@ async function webpackBuildImpl(): Promise<number> {
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
+          ...info,
         }),
       ])
-    )
+    })
 
   const clientConfig = configs[0]
 
