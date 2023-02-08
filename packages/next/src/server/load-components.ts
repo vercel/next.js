@@ -13,6 +13,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   FLIGHT_MANIFEST,
+  ACTIONS_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -33,6 +34,7 @@ export type LoadComponentsReturnType = {
   subresourceIntegrityManifest?: Record<string, string>
   reactLoadableManifest: ReactLoadableManifest
   serverComponentManifest?: any
+  serverActionsManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
@@ -97,16 +99,21 @@ export async function loadComponents({
     requirePage(pathname, distDir, isAppPath)
   )
 
-  const [buildManifest, reactLoadableManifest, serverComponentManifest] =
-    await Promise.all([
-      loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
-      loadManifest<ReactLoadableManifest>(
-        join(distDir, REACT_LOADABLE_MANIFEST)
-      ),
-      hasServerComponents
-        ? loadManifest(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
-        : null,
-    ])
+  const [
+    buildManifest,
+    reactLoadableManifest,
+    serverComponentManifest,
+    serverActionsManifest,
+  ] = await Promise.all([
+    loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
+    loadManifest<ReactLoadableManifest>(join(distDir, REACT_LOADABLE_MANIFEST)),
+    hasServerComponents
+      ? loadManifest(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
+      : null,
+    hasServerComponents
+      ? loadManifest(join(distDir, 'server', ACTIONS_MANIFEST + '.json'))
+      : null,
+  ])
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
@@ -126,6 +133,7 @@ export async function loadComponents({
     getStaticProps,
     getStaticPaths,
     serverComponentManifest,
+    serverActionsManifest,
     isAppPath,
     pathname,
   }

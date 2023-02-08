@@ -45,9 +45,16 @@ export const injectedClientEntries = new Map()
 export const serverModuleIds = new Map<string, string | number>()
 export const edgeServerModuleIds = new Map<string, string | number>()
 
-// A map to track "path:name" -> "hash".
-let serverActions: Record<string, string> = {}
+export type ActionManifest = {
+  [actionId: string]: {
+    workers: {
+      [name: string]: string | number
+    }
+  }
+}
 
+// A map to track "action" -> "list of bundles".
+let serverActions: ActionManifest = {}
 let serverCSSManifest: FlightCSSManifest = {}
 let edgeServerCSSManifest: FlightCSSManifest = {}
 
@@ -82,17 +89,6 @@ export class FlightClientEntryPlugin {
     })
 
     compiler.hooks.afterCompile.tap(PLUGIN_NAME, (compilation) => {
-      traverseModules(compilation, (mod) => {
-        // const modId = compilation.chunkGraph.getModuleId(mod) + ''
-        // The module must has request, and resource so it's not a new entry created with loader.
-        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
-        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
-          if (compilation.moduleGraph.isAsync(mod)) {
-            ASYNC_CLIENT_MODULES.add(mod.resource)
-          }
-        }
-      })
-
       const recordModule = (modId: string, mod: any) => {
         const modResource = mod.resourceResolveData?.path || mod.resource
 
@@ -124,6 +120,15 @@ export class FlightClientEntryPlugin {
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
+        // const modId = compilation.chunkGraph.getModuleId(mod) + ''
+        // The module must has request, and resource so it's not a new entry created with loader.
+        // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
+        if (mod.request && mod.resource && !mod.buildInfo.rsc) {
+          if (compilation.moduleGraph.isAsync(mod)) {
+            ASYNC_CLIENT_MODULES.add(mod.resource)
+          }
+        }
+
         recordModule(String(modId), mod)
       })
     })
@@ -136,7 +141,7 @@ export class FlightClientEntryPlugin {
           // asset hash via extract mini css plugin.
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => this.createAsset(assets)
+        (assets) => this.createAsset(compilation, assets)
       )
     })
   }
@@ -261,20 +266,19 @@ export class FlightClientEntryPlugin {
         })
       )
 
-      // Create action entries
+      // Create action entry
       serverActions = {}
-      actionEntryImports.forEach((actionNames, actionPath) => {
-        for (const actionName of actionNames) {
-          addActionEntryList.push(
-            this.injectActionEntry({
-              compiler,
-              compilation,
-              actionPath,
-              actionName,
-            })
-          )
-        }
-      })
+      if (actionEntryImports.size > 0) {
+        addActionEntryList.push(
+          this.injectActionEntry({
+            compiler,
+            compilation,
+            actions: actionEntryImports,
+            entryName: name,
+            bundlePath: name,
+          })
+        )
+      }
     })
 
     // After optimizing all the modules, we collect the CSS that are still used
@@ -653,43 +657,48 @@ export class FlightClientEntryPlugin {
   injectActionEntry({
     compiler,
     compilation,
-    actionPath,
-    actionName,
+    actions,
+    entryName,
+    bundlePath,
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
-    actionPath: string
-    actionName: string
+    actions: Map<string, string[]>
+    entryName: string
+    bundlePath: string
   }) {
+    const actionsArray = Array.from(actions.entries())
     const actionLoader = `next-flight-action-entry-loader?${stringify({
-      actionPath,
-      actionName,
+      actions: JSON.stringify(actionsArray),
     })}!`
 
-    const actionHash = generateActionId(actionPath, actionName)
-    serverActions[actionPath + ':' + actionName] = actionHash
-
-    // Inject the entry to the server compiler (__sc_client__).
-    const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {
-      name: 'action/' + actionHash,
-    })
-
-    return new Promise((resolve, reject) => {
-      compilation.addEntry(
-        compiler.context,
-        actionEntryDep,
-        {
-          name: 'action/' + actionHash,
-          layer: WEBPACK_LAYERS.server,
-        },
-        (err?: Error | null, entry?: any) => {
-          if (err) {
-            return reject(err)
+    for (const [p, names] of actionsArray) {
+      for (const name of names) {
+        const id = generateActionId(p, name)
+        if (typeof serverActions[id] === 'undefined') {
+          serverActions[id] = {
+            workers: {},
           }
-          resolve(entry)
         }
-      )
+        serverActions[id].workers[bundlePath] = ''
+      }
+    }
+
+    // Inject the entry to the server compiler
+    const actionEntryDep = webpack.EntryPlugin.createDependency(actionLoader, {
+      name: bundlePath,
     })
+
+    return this.addEntry(
+      compilation,
+      // Reuse compilation context.
+      compiler.context,
+      actionEntryDep,
+      {
+        name: entryName,
+        layer: WEBPACK_LAYERS.server,
+      }
+    )
   }
 
   addEntry(
@@ -721,7 +730,30 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  createAsset(assets: webpack.Compilation['assets']) {
+  createAsset(
+    compilation: webpack.Compilation,
+    assets: webpack.Compilation['assets']
+  ) {
+    const actionModId: Record<string, string | number> = {}
+
+    traverseModules(compilation, (mod, _chunk, chunkGroup, modId) => {
+      // Go through all action entries and record the module ID for each entry.
+      if (
+        chunkGroup.name &&
+        mod.request &&
+        /next-flight-action-entry-loader/.test(mod.request)
+      ) {
+        actionModId[chunkGroup.name] = modId
+      }
+    })
+
+    for (let id in serverActions) {
+      const action = serverActions[id]
+      for (let name in action.workers) {
+        action.workers[name] = actionModId[name]
+      }
+    }
+
     const file = ACTIONS_MANIFEST
     const json = JSON.stringify(serverActions, null, this.dev ? 2 : undefined)
     assets[file + '.json'] = new sources.RawSource(
