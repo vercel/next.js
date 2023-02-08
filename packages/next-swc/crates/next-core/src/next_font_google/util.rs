@@ -214,6 +214,7 @@ pub(crate) fn get_stylesheet_url(
 mod tests {
     use anyhow::Result;
     use indexmap::indexset;
+    use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::get_font_axes;
     use crate::next_font_google::{
@@ -224,7 +225,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_font() -> Result<()> {
-        let data: FontData = serde_json::from_str(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -252,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_missing_axes() -> Result<()> {
-        let data: FontData = serde_json::from_str(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -280,7 +281,7 @@ mod tests {
 
     #[test]
     fn test_selecting_axes() -> Result<()> {
-        let data: FontData = serde_json::from_str(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "Inter": {
@@ -327,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_no_wght_axis() -> Result<()> {
-        let data: FontData = serde_json::from_str(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "Inter": {
@@ -368,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_no_variable() -> Result<()> {
-        let data: FontData = serde_json::from_str(
+        let data: FontData = parse_json_with_source_context(
             r#"
             {
                 "Hind": {

@@ -179,13 +179,14 @@ pub fn options_from_request(
 mod tests {
     use anyhow::Result;
     use indexmap::{indexset, IndexMap};
+    use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{options_from_request, FontDataEntry, NextFontGoogleOptions};
     use crate::next_font_google::{options::FontWeights, request::NextFontRequest};
 
     #[test]
     fn test_errors_on_unknown_font() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -196,7 +197,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "Inter",
@@ -218,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_default_values_when_no_arguments() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -229,7 +230,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "ABeeZee",
@@ -261,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_errors_when_no_weights_chosen_no_variable() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -272,7 +273,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "ABeeZee",
@@ -297,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unnecessary_weights() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -308,7 +309,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "ABeeZee",
@@ -336,7 +337,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unvavailable_weights() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -347,7 +348,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "ABeeZee",
@@ -374,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_defaults_to_only_style_when_one_available() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -385,7 +386,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "ABeeZee",
@@ -406,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_defaults_to_normal_style_when_multiple() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -417,7 +418,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "ABeeZee",
@@ -438,7 +439,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_styles() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -449,7 +450,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "ABeeZee",
@@ -478,7 +479,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_unknown_display() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -489,7 +490,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "ABeeZee",
@@ -519,7 +520,7 @@ mod tests {
 
     #[test]
     fn test_errors_on_axes_without_variable() -> Result<()> {
-        let data: IndexMap<String, FontDataEntry> = serde_json::from_str(
+        let data: IndexMap<String, FontDataEntry> = parse_json_with_source_context(
             r#"
             {
                 "ABeeZee": {
@@ -530,7 +531,7 @@ mod tests {
   "#,
         )?;
 
-        let request: NextFontRequest = serde_json::from_str(
+        let request: NextFontRequest = parse_json_with_source_context(
             r#"
             {
                 "import": "ABeeZee",
