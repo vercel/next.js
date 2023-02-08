@@ -118,6 +118,9 @@ class ScrollAndFocusHandler extends React.Component<{
   componentDidMount() {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef } = this.props
+
+    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
+    // This already caused a bug where the first child was a <link/> in head.
     const domNode = findDOMNode(this)
 
     if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
