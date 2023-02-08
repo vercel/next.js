@@ -14,13 +14,9 @@ If you are testing out a canary release, upgrade Next.js with one of the followi
 npm i next@canary
 ```
 
-or
-
 ```sh
 yarn add next@canary
 ```
-
-or
 
 ```sh
 pnpm add next@canary
@@ -32,13 +28,9 @@ If you are using a stable release, upgrade Next.js with one of the following:
 npm i next@latest
 ```
 
-or
-
 ```sh
 yarn add next@latest
 ```
-
-or
 
 ```sh
 pnpm add next@latest
