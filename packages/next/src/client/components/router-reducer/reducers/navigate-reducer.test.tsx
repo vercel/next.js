@@ -46,7 +46,7 @@ const demographicsFlightData: FlightData = [
       <body>Root layout from response</body>
     </html>,
     <>
-      <title>Head</title>
+      <title>Demographics Head</title>
     </>,
   ],
 ]
@@ -1319,7 +1319,7 @@ describe('navigateReducer', () => {
               [
                 'parallel-tab-bar',
                 {
-                  status: CacheStates.READY,
+                  status: CacheStates.LAZY_INITIALIZED,
                   parallelRoutes: new Map([
                     [
                       'audience',
@@ -1352,7 +1352,7 @@ describe('navigateReducer', () => {
                                       parallelRoutes: new Map(),
                                       head: (
                                         <>
-                                          <title>Head</title>
+                                          <title>Demographics Head</title>
                                         </>
                                       ),
                                     },
@@ -1386,44 +1386,15 @@ describe('navigateReducer', () => {
                           {
                             status: CacheStates.READY,
                             data: null,
-                            subTreeData: <>Linking page</>,
+                            subTreeData: <>Children Page</>,
                             parallelRoutes: new Map(),
-                          },
-                        ],
-                        [
-                          'about',
-                          {
-                            status: CacheStates.READY,
-                            data: null,
-                            subTreeData: <h1>About Page!</h1>,
-                            parallelRoutes: new Map([
-                              [
-                                'children',
-                                new Map([
-                                  [
-                                    '',
-                                    {
-                                      status: CacheStates.LAZY_INITIALIZED,
-                                      data: null,
-                                      head: (
-                                        <>
-                                          <title>About page!</title>
-                                        </>
-                                      ),
-                                      parallelRoutes: new Map(),
-                                      subTreeData: null,
-                                    },
-                                  ],
-                                ]),
-                              ],
-                            ]),
                           },
                         ],
                       ]),
                     ],
                   ]),
                   data: null,
-                  subTreeData: <>Linking layout level</>,
+                  subTreeData: null,
                 },
               ],
             ]),
