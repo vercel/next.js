@@ -173,32 +173,48 @@ export const css = curry(async function css(
 
   const fns: ConfigurationFn[] = []
 
-  // Resolve the configured font loaders, the resolved files are noop files that next-font-loader will match
-  let fontLoaders: [string, string][] | undefined = ctx.experimental.fontLoaders
-    ? ctx.experimental.fontLoaders.map(({ loader: fontLoader, options }) => [
-        path.join(require.resolve(fontLoader), '../target.css'),
-        options,
-      ])
-    : undefined
+  const googleLoaderOptions =
+    ctx.experimental?.fontLoaders?.find(
+      (loaderConfig) => loaderConfig.loader === '@next/font/google'
+    )?.options ?? {}
+  const fontLoaders: Array<[string | RegExp, string, any?]> = [
+    [
+      require.resolve('next/font/google/target.css'),
+      '@next/font/google/loader',
+      googleLoaderOptions,
+    ],
+    [require.resolve('next/font/local/target.css'), '@next/font/local/loader'],
 
-  fontLoaders?.forEach(([fontLoaderPath, fontLoaderOptions]) => {
-    // Matches the resolved font loaders noop files to run next-font-loader
-    fns.push(
-      loader({
-        oneOf: [
-          markRemovable({
-            sideEffects: false,
-            test: fontLoaderPath,
-            use: getNextFontLoader(
-              ctx,
-              lazyPostCSSInitializer,
-              fontLoaderOptions
-            ),
-          }),
-        ],
-      })
-    )
-  })
+    // TODO: remove this in the next major version
+    [
+      /node_modules\/@next\/font\/google\/target.css/,
+      '@next/font/google/loader',
+      googleLoaderOptions,
+    ],
+    [/node_modules\/@next\/font\/local\/target.css/, '@next/font/local/loader'],
+  ]
+
+  fontLoaders.forEach(
+    ([fontLoaderTarget, fontLoaderPath, fontLoaderOptions]) => {
+      // Matches the resolved font loaders noop files to run next-font-loader
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
+              sideEffects: false,
+              test: fontLoaderTarget,
+              use: getNextFontLoader(
+                ctx,
+                lazyPostCSSInitializer,
+                fontLoaderPath,
+                fontLoaderOptions
+              ),
+            }),
+          ],
+        })
+      )
+    }
+  )
 
   // CSS cannot be imported in _document. This comes before everything because
   // global CSS nor CSS modules work in said file.
