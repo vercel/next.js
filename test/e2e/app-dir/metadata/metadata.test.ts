@@ -190,7 +190,7 @@ createNextDescribe(
 
       it('should support alternate tags', async () => {
         const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com')
+        await checkLink(browser, 'canonical', 'https://example.com/')
         await checkMeta(
           browser,
           'en-US',
@@ -322,7 +322,7 @@ createNextDescribe(
         expect(await getTitle(browser)).toBe('synchronous generateMetadata')
       })
 
-      it('should handle metadataBase for urls resolved as only URL type', () => {
+      it('should handle metadataBase for urls resolved as only URL type', async () => {
         // including few urls in opengraph and alternates
         const url$ = await next.render$('/metadata-base/url')
 
@@ -333,7 +333,7 @@ createNextDescribe(
 
         // override metadataBase
         const urlInstance$ = await next.render$('/metadata-base/url-instance')
-        expect(urlInstance$('meta[property="og:url"]')).toBe(
+        expect(urlInstance$('meta[property="og:url"]').attr('content')).toBe(
           'http://https//outerspace.com/huozhi.png'
         )
       })
