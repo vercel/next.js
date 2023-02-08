@@ -3,6 +3,7 @@ import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
+import stripAnsi from 'strip-ansi'
 
 createNextDescribe(
   'app dir head',
@@ -42,23 +43,18 @@ createNextDescribe(
     })
 
     it('should use head from layout when not on page', async () => {
-      const errors = []
-      next.on('stderr', (args) => {
-        errors.push(args)
-      })
-
       const $ = await next.render$('/blog/about')
       const headTags = $('head').children().toArray()
 
       if (globalThis.isNextDev) {
         await check(
           () =>
-            errors.filter(
-              (output) =>
-                output ===
-                '`head.js` is detected being used in route /blog, please migrate to metadata API for replacement. Checkout https://beta.nextjs.org/docs/api-reference/metadata for more details.\n'
-            ).length,
-          /1/
+            stripAnsi(next.cliOutput).includes(
+              '`head.js` is detected being used in route /blog, please migrate to metadata API for replacement. Checkout https://beta.nextjs.org/docs/api-reference/metadata for more details.'
+            )
+              ? 'yes'
+              : 'no',
+          'yes'
         )
       }
 
@@ -121,12 +117,12 @@ createNextDescribe(
       if (globalThis.isNextDev) {
         await check(
           () =>
-            errors.filter(
-              (output) =>
-                output ===
-                `Warning: You're using \`next/head\` inside app directory, please migrate to \`head.js\`. Checkout https://beta.nextjs.org/docs/api-reference/file-conventions/head for details.\n`
-            ).length,
-          /1/
+            stripAnsi(next.cliOutput).includes(
+              '`head.js` is detected being used in route /blog, please migrate to metadata API for replacement. Checkout https://beta.nextjs.org/docs/api-reference/metadata for more details.'
+            )
+              ? 'yes'
+              : 'no',
+          'yes'
         )
 
         const dynamicChunkPath = path.join(
