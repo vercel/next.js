@@ -3,20 +3,20 @@
 // If you're using ESLint on your project, we recommend installing the ESLint Cypress plugin instead:
 // https://github.com/cypress-io/eslint-plugin-cypress
 
-// Cypress E2E Test
-describe('Navigation', () => {
-  it('should navigate to the about page', () => {
-    // Start from the index page
-    cy.visit('http://localhost:3000/')
+import About from './about'
 
-    // Find a link with an href attribute containing "about" and click it
-    cy.get('a[href*="about"]').click()
-
-    // The new url should include "/about"
-    cy.url().should('include', '/about')
+// Cypress Component Test
+describe('<AboutPage />', () => {
+  it('should render and display expected content', () => {
+    // Mount the React component for the About page
+    cy.mount(<About />)
 
     // The new page should contain an h1 with "About page"
     cy.get('h1').contains('About Page')
+
+    // Validate that a link with the expected URL is present
+    // *Following* the link is better suited to an E2E test
+    cy.get('a[href="/"]').should('be.visible')
   })
 })
 

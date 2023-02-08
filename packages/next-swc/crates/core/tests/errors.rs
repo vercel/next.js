@@ -1,9 +1,12 @@
 use next_binding::swc::{
     core::{
-        common::FileName,
+        common::{chain, FileName, Mark},
         ecma::{
             parser::{EsConfig, Syntax},
-            transforms::testing::{test_fixture, FixtureTestConfig},
+            transforms::{
+                base::resolver,
+                testing::{test_fixture, FixtureTestConfig},
+            },
         },
     },
     testing::fixture,
@@ -14,6 +17,7 @@ use next_swc::{
     next_font_loaders::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
     react_server_components::server_components,
+    server_actions::{self, server_actions},
 };
 use std::path::PathBuf;
 
@@ -135,6 +139,30 @@ fn next_font_loaders_errors(input: PathBuf) {
                 relative_file_path_from_root: "pages/test.tsx".into(),
                 font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
             })
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/errors/server-actions/**/input.js")]
+fn react_server_actions_errors(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            chain!(
+                resolver(Mark::new(), Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config { is_server: true },
+                    _tr.comments.as_ref().clone(),
+                )
+            )
         },
         &input,
         &output,
