@@ -1,4 +1,4 @@
-import path from 'path'
+import path from '../../../shared/lib/isomorphic/path'
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 export function isStringOrURL(icon: any): icon is string | URL {
