@@ -10,7 +10,7 @@ An `<img>` element was used to display an image.
 
 Use [`next/image`](https://nextjs.org/docs/api-reference/next/image) to improve performance with automatic [Image Optimization](https://nextjs.org/docs/basic-features/image-optimization).
 
-> Note: If deploying to a [managed hosting provider](https://nextjs.org/docs/deployment), remember to check pricing since optimized images might be charged differently that the original images. If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
+> Note: If deploying to a [managed hosting provider](https://nextjs.org/docs/deployment), remember to check pricing since optimized images might be charged differently than the original images. If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
 
 ```jsx
 import Image from 'next/image'
