@@ -30,7 +30,7 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
+// import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
@@ -51,6 +51,9 @@ import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
+import { isClientReference } from '../build/is-client-reference'
+import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
+import { warnOnce } from '../shared/lib/utils/warn-once'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -91,13 +94,6 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
-}
-
-async function getLayoutOrPageModule(loaderTree: LoaderTree) {
-  const { layout, page } = loaderTree[2]
-  const isLayout = typeof layout !== 'undefined'
-  const isPage = typeof page !== 'undefined'
-  return isLayout ? await layout[0]() : isPage ? await page[0]() : undefined
 }
 
 export class ReadonlyHeaders {
@@ -631,15 +627,6 @@ export type Segment =
   | [param: string, value: string, type: DynamicParamTypesShort]
 
 /**
- * LoaderTree is generated in next-app-loader.
- */
-type LoaderTree = [
-  segment: string,
-  parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: ComponentsType
-]
-
-/**
  * Router state
  */
 export type FlightRouterState = [
@@ -1103,8 +1090,7 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      const mod = await getLayoutOrPageModule(tree)
-      await collectMetadata(mod, layerProps, metadataItems)
+      await collectMetadata(tree, layerProps, metadataItems)
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
@@ -1119,6 +1105,12 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
+        if (process.env.NODE_ENV !== 'production') {
+          warnOnce(
+            `\`head.js\` is being used in route /${segment}. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
+          )
+        }
+
         const Head = await interopDefault(await head[0]())
         return [<Head params={currentParams} />, metadataItems]
       }
@@ -1204,7 +1196,8 @@ export async function renderToHTMLOrFlight(
             />
           ))
         : null
-      const Comp = await interopDefault(await getComponent())
+
+      const Comp = interopDefault(await getComponent())
 
       return [Comp, styles]
     }
@@ -1377,7 +1370,10 @@ export async function renderToHTMLOrFlight(
           )
         }
 
-        if (layoutOrPageMod?.config?.amp) {
+        if (
+          !isClientReference(layoutOrPageMod) &&
+          layoutOrPageMod?.config?.amp
+        ) {
           throw new Error(
             'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
           )
@@ -1520,9 +1516,11 @@ export async function renderToHTMLOrFlight(
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
-      Component = await Promise.resolve().then(() => {
-        return preloadComponent(Component, props)
-      })
+      if (!isClientReference(layoutOrPageMod)) {
+        Component = await Promise.resolve().then(() =>
+          preloadComponent(Component, props)
+        )
+      }
 
       return {
         Component: () => {

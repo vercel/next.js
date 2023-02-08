@@ -36,6 +36,7 @@ import {
   InitialRouterStateParameters,
 } from './router-reducer/create-initial-router-state'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
+import { isBot } from '../../shared/lib/router/utils/is-bot'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
@@ -212,7 +213,10 @@ function Router({
       forward: () => window.history.forward(),
       prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.
-        if (prefetched.has(href)) {
+        if (
+          prefetched.has(href) ||
+          (typeof window !== 'undefined' && isBot(window.navigator.userAgent))
+        ) {
           return
         }
         prefetched.add(href)
