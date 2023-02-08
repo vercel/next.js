@@ -316,6 +316,11 @@ createNextDescribe(
           /params - blog query - xxx/
         )
       })
+
+      it('should support synchronous generateMetadata export', async () => {
+        const browser = await next.browser('/basic/sync-generate-metadata')
+        expect(await getTitle(browser)).toBe('synchronous generateMetadata')
+      })
     })
 
     describe('opengraph', () => {
