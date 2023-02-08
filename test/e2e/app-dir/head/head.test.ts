@@ -50,7 +50,7 @@ createNextDescribe(
         await check(
           () =>
             stripAnsi(next.cliOutput).includes(
-              '`head.js` is detected being used in route /blog, please migrate to metadata API for replacement. Checkout https://beta.nextjs.org/docs/api-reference/metadata for more details.'
+              `\`head.js\` is being used in route /blog. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
             )
               ? 'yes'
               : 'no',
@@ -107,10 +107,6 @@ createNextDescribe(
     })
 
     it('should treat next/head as client components but not apply', async () => {
-      const errors = []
-      next.on('stderr', (args) => {
-        errors.push(args)
-      })
       const html = await next.render('/next-head')
       expect(html).not.toMatch(/<title>legacy-head<\/title>/)
 
@@ -118,7 +114,7 @@ createNextDescribe(
         await check(
           () =>
             stripAnsi(next.cliOutput).includes(
-              '`head.js` is detected being used in route /blog, please migrate to metadata API for replacement. Checkout https://beta.nextjs.org/docs/api-reference/metadata for more details.'
+              `\`head.js\` is being used in route /blog. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
             )
               ? 'yes'
               : 'no',
