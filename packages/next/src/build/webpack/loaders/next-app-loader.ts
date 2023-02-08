@@ -116,7 +116,7 @@ async function createTreeCodeFromPath(
         continue
       }
 
-      const parallelSegmentPath = path.join(segmentPath, parallelSegment)
+      const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
         [...segments, parallelSegment]
       )
