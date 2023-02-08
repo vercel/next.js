@@ -16,6 +16,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import stripAnsi from 'strip-ansi'
 
 describe('Prerender', () => {
   let next: NextInstance
@@ -1527,6 +1528,12 @@ describe('Prerender', () => {
               page: '/something',
             },
             {
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr.json$`
+              ),
+              page: '/ssr',
+            },
+            {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
               )}/user/(?<user>[^/]+?)/profile\\.json$`,
@@ -1771,6 +1778,16 @@ describe('Prerender', () => {
           expect(initialHtml).toBe(newHtml)
         })
       }
+
+      it('should not throw error for manual revalidate for SSR path', async () => {
+        const res = await fetchViaHTTP(next.url, '/api/manual-revalidate', {
+          pathname: '/ssr',
+        })
+
+        expect(res.status).toBe(200)
+        expect(await res.json()).toEqual({ revalidated: false })
+        expect(stripAnsi(next.cliOutput)).not.toContain('hasHeader')
+      })
 
       it('should revalidate manual revalidate with preview cookie', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/preview')
