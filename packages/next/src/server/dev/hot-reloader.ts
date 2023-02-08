@@ -49,6 +49,7 @@ import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/container/Errors'
+import { getRegistry } from '../../lib/helpers/get-registry'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -481,9 +482,8 @@ export default class HotReloader {
       try {
         installed = require('next/package.json').version
 
-        const res = await fetch(
-          'https://registry.npmjs.org/-/package/next/dist-tags'
-        )
+        const registry = getRegistry()
+        const res = await fetch(`${registry}-/package/next/dist-tags`)
 
         if (!res.ok) return { installed, staleness: 'unknown' }
 
