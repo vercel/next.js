@@ -1528,6 +1528,12 @@ describe('Prerender', () => {
               page: '/something',
             },
             {
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr.json$`
+              ),
+              page: '/ssr',
+            },
+            {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
               )}/user/(?<user>[^/]+?)/profile\\.json$`,
