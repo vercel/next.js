@@ -2220,6 +2220,20 @@ createNextDescribe(
             .join('\n')
           expect(errors).toInclude('Error during SSR')
         })
+
+        // Pages directory shouldn't be affected when `appDir` is enabled
+        describe('pages dir', () => {
+          it('should include css modules after page transition', async () => {
+            const browser = await next.browser('/css-modules/page1')
+            await browser.elementByCss('a').click()
+            await browser.waitForElementByCss('#page2')
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+              )
+            ).toBe('rgb(205, 92, 92)')
+          })
+        })
       }
     })
 

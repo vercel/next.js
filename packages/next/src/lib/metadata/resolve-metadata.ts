@@ -328,7 +328,9 @@ function merge(
   }
 }
 
-type MetadataResolver = (_parent: ResolvingMetadata) => Promise<Metadata>
+type MetadataResolver = (
+  _parent: ResolvingMetadata
+) => Metadata | Promise<Metadata>
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
   Metadata | null
@@ -410,10 +412,11 @@ export async function accumulateMetadata(
 
   for (const item of metadataItems) {
     const [metadataExport, staticFilesMetadata] = item
-    const layerMetadataPromise =
+    const layerMetadataPromise = Promise.resolve(
       typeof metadataExport === 'function'
         ? metadataExport(parentPromise)
-        : Promise.resolve(metadataExport)
+        : metadataExport
+    )
 
     parentPromise = parentPromise.then((resolved) => {
       return layerMetadataPromise.then((exportedMetadata) => {
