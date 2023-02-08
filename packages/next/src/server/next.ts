@@ -155,6 +155,10 @@ export class NextServer {
           overrideBuiltInReactPackages()
         }
 
+        if (conf.beforeNextInit) {
+          await conf.beforeNextInit()
+        }
+
         this.server = await this.createServer({
           ...this.options,
           conf,

@@ -27,6 +27,9 @@ const configSchema = {
     basePath: {
       type: 'string',
     },
+    beforeNextInit: {
+      isFunction: true,
+    } as any,
     cleanDistDir: {
       type: 'boolean',
     },

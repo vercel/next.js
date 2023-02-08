@@ -448,6 +448,11 @@ export interface NextConfig extends Record<string, any> {
   swcMinify?: boolean
 
   /**
+   * A function that gets called before the Next server is initialized.
+   */
+  beforeNextInit?: () => void | Promise<void>
+
+  /**
    * Optionally enable compiler transforms
    *
    * @see [Supported Compiler Options](https://nextjs.org/docs/advanced-features/compiler#supported-features)
