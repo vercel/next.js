@@ -32,7 +32,7 @@ type FontOptions = {
 }
 export function validateData(functionName: string, fontData: any): FontOptions {
   if (functionName) {
-    nextFontError(`@next/font/local has no named exports`)
+    nextFontError(`next/font/local has no named exports`)
   }
   let {
     src,
