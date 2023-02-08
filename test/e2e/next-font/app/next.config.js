@@ -5,9 +5,6 @@ module.exports = {
         loader: '@next/font/google',
         options: { subsets: ['latin'] },
       },
-      {
-        loader: '@next/font/local',
-      },
     ],
   },
 }
