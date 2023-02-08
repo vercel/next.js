@@ -32,7 +32,7 @@ export function createInitialRouterState({
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
   }
   if (initialHead) {
-    // fillLazyItemsTillLeafWithHead(cache, undefined, initialTree, initialHead)
+    fillLazyItemsTillLeafWithHead(cache, undefined, initialTree, initialHead)
   }
   return {
     tree: initialTree,

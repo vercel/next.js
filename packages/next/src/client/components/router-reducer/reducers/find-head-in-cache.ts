@@ -5,16 +5,12 @@ export function findHeadInCache(
   childSegmentMap: ChildSegmentMap,
   parallelRoutes: FlightRouterState[1]
 ): React.ReactNode {
-  const isLastItem = Object.keys(parallelRoutes).length === 0
-  if (isLastItem) {
-    return cache.head
+  if (!childSegmentMap) {
+    return undefined
   }
   for (const key in parallelRoutes) {
     const [segment, childParallelRoutes] = parallelRoutes[key]
-    const childSegmentMap = cache.parallelRoutes.get(key)
-    if (!childSegmentMap) {
-      continue
-    }
+    const isLastItem = Object.keys(childParallelRoutes).length === 0
 
     const cacheKey = Array.isArray(segment) ? segment[1] : segment
 
@@ -23,9 +19,14 @@ export function findHeadInCache(
       continue
     }
 
-    const item = findHeadInCache(cacheNode, childParallelRoutes)
-    if (item) {
-      return item
+    if (isLastItem && cacheNode.head) return cacheNode.head
+
+    const segmentMap = cacheNode.parallelRoutes.get(key)
+    if (segmentMap) {
+      const item = findHeadInCache(segmentMap, childParallelRoutes)
+      if (item) {
+        return item
+      }
     }
   }
 
