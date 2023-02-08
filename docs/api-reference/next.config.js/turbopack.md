@@ -2,7 +2,7 @@
 description: Configure Next.js with Turbopack to load webpack loaders
 ---
 
-# Turbopack-specific options
+# Turbopack-specific options (experimental)
 
 > **Warning**: These features are experimental and will only work with `next --turbo`.
 
