@@ -1107,7 +1107,7 @@ export async function renderToHTMLOrFlight(
       if (head) {
         if (process.env.NODE_ENV !== 'production') {
           warnOnce(
-            `\`head.js\` is detected being used in route /${segment}, please migrate to metadata API for replacement. Checkout https://beta.nextjs.org/docs/api-reference/metadata for more details.`
+            `\`head.js\` is being used in route /${segment}. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
           )
         }
 
