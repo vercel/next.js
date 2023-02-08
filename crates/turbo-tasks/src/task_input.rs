@@ -860,3 +860,49 @@ impl TryFrom<&TaskInput> for RawVc {
         }
     }
 }
+
+macro_rules! tuple_impls {
+    ( $( $name:ident )+ ) => {
+        impl<$($name: Into<TaskInput>),+> From<($($name,)+)> for TaskInput {
+            #[allow(non_snake_case)]
+            fn from(s: ($($name,)+)) -> Self {
+                let ($($name,)+) = s;
+                let ($($name,)+) = ($($name.into(),)+);
+                TaskInput::List(vec![ $($name,)+ ])
+            }
+        }
+
+        impl<'a, $($name: FromTaskInput<'a, Error = anyhow::Error>,)+> FromTaskInput<'a> for ($($name,)+) {
+            type Error = anyhow::Error;
+
+            #[allow(non_snake_case)]
+            fn try_from(value: &'a TaskInput) -> Result<Self, Self::Error> {
+                match value {
+                    TaskInput::List(value) => {
+                        let mut iter = value.iter();
+                        $(
+                            let $name = iter.next().ok_or_else(|| anyhow!("missing tuple element"))?;
+                            let $name = FromTaskInput::try_from($name)?;
+                        )+
+                        Ok(($($name,)+))
+                    },
+                    _ => Err(anyhow!("invalid task input type, expected list")),
+                }
+            }
+        }
+    };
+
+}
+
+tuple_impls! { A }
+tuple_impls! { A B }
+tuple_impls! { A B C }
+tuple_impls! { A B C D }
+tuple_impls! { A B C D E }
+tuple_impls! { A B C D E F }
+tuple_impls! { A B C D E F G }
+tuple_impls! { A B C D E F G H }
+tuple_impls! { A B C D E F G H I }
+tuple_impls! { A B C D E F G H I J }
+tuple_impls! { A B C D E F G H I J K }
+tuple_impls! { A B C D E F G H I J K L }
