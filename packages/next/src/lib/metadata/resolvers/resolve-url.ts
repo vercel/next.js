@@ -1,11 +1,11 @@
 import path from '../../../shared/lib/isomorphic/path'
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
-export function isStringOrURL(icon: any): icon is string | URL {
+function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
 }
 
-export function resolveUrlValuesOfObject(
+function resolveUrlValuesOfObject(
   obj: Record<string, string | URL | null> | null | undefined,
   metadataBase: ResolvedMetadata['metadataBase']
 ): null | Record<string, URL | null> {
@@ -17,7 +17,7 @@ export function resolveUrlValuesOfObject(
   return result
 }
 
-export function resolveUrl(
+function resolveUrl(
   url: string | URL | null | undefined,
   metadataBase: URL | null
 ): URL | null {
@@ -38,3 +38,5 @@ export function resolveUrl(
 
   return new URL(joinedPath, metadataBase)
 }
+
+export { resolveUrl, resolveUrlValuesOfObject, isStringOrURL }
