@@ -1,6 +1,7 @@
 'use client'
 import type {
   AppRouterInstance,
+  CacheNode,
   ChildSegmentMap,
 } from '../../shared/lib/app-router-context'
 import type {
@@ -11,7 +12,7 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, useEffect, use } from 'react'
+import React, { useContext, useEffect, useMemo, use } from 'react'
 import ReactDOM from 'react-dom'
 import {
   CacheStates,
@@ -26,6 +27,37 @@ import { matchSegment } from './match-segments'
 import { useRouter } from './navigation'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { getURLFromRedirectError, isRedirectError } from './redirect'
+
+function findHeadInCache(
+  childSegmentMap: ChildSegmentMap,
+  parallelRoutes: FlightRouterState[1]
+): React.ReactNode {
+  const isLastItem = Object.keys(parallelRoutes).length === 0
+  if (isLastItem) {
+    return cache.head
+  }
+  for (const key in parallelRoutes) {
+    const [segment, childParallelRoutes] = parallelRoutes[key]
+    const childSegmentMap = cache.parallelRoutes.get(key)
+    if (!childSegmentMap) {
+      continue
+    }
+
+    const cacheKey = Array.isArray(segment) ? segment[1] : segment
+
+    const cacheNode = childSegmentMap.get(cacheKey)
+    if (!cacheNode) {
+      continue
+    }
+
+    const item = findHeadInCache(cacheNode, childParallelRoutes)
+    if (item) {
+      return item
+    }
+  }
+
+  return undefined
+}
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -181,6 +213,7 @@ export function InnerLayoutRouter({
   // TODO-APP: implement `<Offscreen>` when available.
   // isActive,
   path,
+  headRenderedAboveThisLevel,
 }: {
   parallelRouterKey: string
   url: string
@@ -190,6 +223,7 @@ export function InnerLayoutRouter({
   tree: FlightRouterState
   isActive: boolean
   path: string
+  headRenderedAboveThisLevel: boolean
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
@@ -197,6 +231,13 @@ export function InnerLayoutRouter({
   }
 
   const { changeByServerResponse, tree: fullTree, focusAndScrollRef } = context
+
+  const head = useMemo(() => {
+    if (headRenderedAboveThisLevel) {
+      return null
+    }
+    return findHeadInCache(childNodes, tree[1])
+  }, [childNodes, tree, headRenderedAboveThisLevel])
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(path)
@@ -310,8 +351,10 @@ export function InnerLayoutRouter({
         childNodes: childNode.parallelRoutes,
         // TODO-APP: overriding of url for parallel routes
         url: url,
+        headRenderedAboveThisLevel: true,
       }}
     >
+      {head}
       {childNode.subTreeData}
     </LayoutRouterContext.Provider>
   )
@@ -494,7 +537,7 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { childNodes, tree, url } = context
+  const { childNodes, tree, url, headRenderedAboveThisLevel } = context
 
   // Get the current parallelRouter cache node
   let childNodesForParallelRouter = childNodes.get(parallelRouterKey)
@@ -564,6 +607,7 @@ export default function OuterLayoutRouter({
                         segmentPath={segmentPath}
                         path={preservedSegment}
                         isActive={currentChildSegment === preservedSegment}
+                        headRenderedAboveThisLevel={headRenderedAboveThisLevel}
                       />
                     </RedirectBoundary>
                   </NotFoundBoundary>

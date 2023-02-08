@@ -4,6 +4,7 @@ import type { FlightRouterState } from '../../../server/app-render'
 
 import { CacheStates } from '../../../shared/lib/app-router-context'
 import { createHrefFromUrl } from './create-href-from-url'
+import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 
 export interface InitialRouterStateParameters {
   initialTree: FlightRouterState
@@ -12,6 +13,7 @@ export interface InitialRouterStateParameters {
   initialParallelRoutes: CacheNode['parallelRoutes']
   isServer: boolean
   location: Location | null
+  initialHead: ReactNode
 }
 
 export function createInitialRouterState({
@@ -21,15 +23,20 @@ export function createInitialRouterState({
   initialParallelRoutes,
   isServer,
   location,
+  initialHead,
 }: InitialRouterStateParameters) {
+  const cache: CacheNode = {
+    status: CacheStates.READY,
+    data: null,
+    subTreeData: children,
+    parallelRoutes: isServer ? new Map() : initialParallelRoutes,
+  }
+  if (initialHead) {
+    // fillLazyItemsTillLeafWithHead(cache, undefined, initialTree, initialHead)
+  }
   return {
     tree: initialTree,
-    cache: {
-      status: CacheStates.READY,
-      data: null,
-      subTreeData: children,
-      parallelRoutes: isServer ? new Map() : initialParallelRoutes,
-    } as CacheNode,
+    cache,
     prefetchCache: new Map(),
     pushRef: { pendingPush: false, mpaNavigation: false },
     focusAndScrollRef: { apply: false },
