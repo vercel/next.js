@@ -27,37 +27,7 @@ import { matchSegment } from './match-segments'
 import { useRouter } from './navigation'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { getURLFromRedirectError, isRedirectError } from './redirect'
-
-function findHeadInCache(
-  childSegmentMap: ChildSegmentMap,
-  parallelRoutes: FlightRouterState[1]
-): React.ReactNode {
-  const isLastItem = Object.keys(parallelRoutes).length === 0
-  if (isLastItem) {
-    return cache.head
-  }
-  for (const key in parallelRoutes) {
-    const [segment, childParallelRoutes] = parallelRoutes[key]
-    const childSegmentMap = cache.parallelRoutes.get(key)
-    if (!childSegmentMap) {
-      continue
-    }
-
-    const cacheKey = Array.isArray(segment) ? segment[1] : segment
-
-    const cacheNode = childSegmentMap.get(cacheKey)
-    if (!cacheNode) {
-      continue
-    }
-
-    const item = findHeadInCache(cacheNode, childParallelRoutes)
-    if (item) {
-      return item
-    }
-  }
-
-  return undefined
-}
+import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
