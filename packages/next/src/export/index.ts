@@ -404,9 +404,11 @@ export default async function exportApp(
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: hasAppDir,
-      fontLoaderManifest: nextConfig.experimental.fontLoaders
-        ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
-        : undefined,
+      fontLoaderManifest: require(join(
+        distDir,
+        'server',
+        `${FONT_LOADER_MANIFEST}.json`
+      )),
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
