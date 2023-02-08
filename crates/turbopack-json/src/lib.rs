@@ -122,9 +122,10 @@ impl EcmascriptChunkItem for JsonChunkItem {
         let data = content.parse_json().await?;
         match &*data {
             FileJsonContent::Content(data) => {
-                let js_str_content = serde_json::to_string(data)?;
+                let js_str_content = serde_json::to_string(&data.to_string())?;
                 let inner_code =
                     format!("__turbopack_export_value__(JSON.parse({js_str_content}));");
+
                 Ok(EcmascriptChunkItemContent {
                     inner_code: inner_code.into(),
                     ..Default::default()
@@ -139,6 +140,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
                 } else {
                     write!(message, "{}", e)?;
                 }
+
                 Err(Error::msg(message))
             }
             FileJsonContent::NotFound => {
