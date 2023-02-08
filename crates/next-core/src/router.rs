@@ -4,7 +4,7 @@ use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     Value,
 };
-use turbo_tasks_fs::{to_sys_path, FileSystemPathVc};
+use turbo_tasks_fs::{json::parse_json_rope_with_source_context, to_sys_path, FileSystemPathVc};
 use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::AssetVc,
@@ -187,7 +187,7 @@ pub async fn route(
 
     match &*result {
         JavaScriptValue::Value(val) => {
-            let result: RouterIncomingMessage = serde_json::from_reader(val.read())?;
+            let result: RouterIncomingMessage = parse_json_rope_with_source_context(val)?;
             Ok(RouterResult::from(result).cell())
         }
         JavaScriptValue::Error => Ok(RouterResult::Error.cell()),

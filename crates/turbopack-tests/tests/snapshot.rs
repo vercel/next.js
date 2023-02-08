@@ -14,8 +14,9 @@ use test_generator::test_resources;
 use turbo_tasks::{debug::ValueDebug, NothingVc, TryJoinIterExt, TurboTasks, Value, ValueToString};
 use turbo_tasks_env::DotenvProcessEnvVc;
 use turbo_tasks_fs::{
-    util::sys_to_unix, DirectoryContent, DirectoryEntry, DiskFileSystemVc, File, FileContent,
-    FileSystem, FileSystemEntryType, FileSystemPathVc, FileSystemVc,
+    json::parse_json_with_source_context, util::sys_to_unix, DirectoryContent, DirectoryEntry,
+    DiskFileSystemVc, File, FileContent, FileSystem, FileSystemEntryType, FileSystemPathVc,
+    FileSystemVc,
 };
 use turbo_tasks_hash::encode_hex;
 use turbo_tasks_memory::MemoryBackend;
@@ -128,7 +129,7 @@ async fn run_test(resource: String) -> Result<FileSystemPathVc> {
     let options_file = fs::read_to_string(test_path.join("options.json"));
     let options = match options_file {
         Err(_) => SnapshotOptions::default(),
-        Ok(options_str) => serde_json::from_str(&options_str).unwrap(),
+        Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
     let root_fs = DiskFileSystemVc::new("workspace".to_string(), WORKSPACE_ROOT.clone());
     let project_fs = DiskFileSystemVc::new("project".to_string(), WORKSPACE_ROOT.clone());

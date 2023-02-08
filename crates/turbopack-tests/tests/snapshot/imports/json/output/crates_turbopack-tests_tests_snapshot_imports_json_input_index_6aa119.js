@@ -13,11 +13,11 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 })()),
 "[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/package.json (json)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-__turbopack_export_value__(JSON.parse("{\"name\":\"json-snapshot\"}"));
+__turbopack_export_value__(JSON.parse({"name":"json-snapshot"}));
 })()),
 "[project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)": (() => {{
 
-throw new Error("An error occurred while generating the chunk item [project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)\n  at Execution of module_factory failed\n  at Execution of JsonChunkItem::content failed\n  at Unable to make a module from invalid JSON\n  at Execution of FileJsonContent::to_string failed\n  at File is not valid JSON");
+throw new Error("An error occurred while generating the chunk item [project]/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)\n  at Execution of module_factory failed\n  at Execution of JsonChunkItem::content failed\n  at Unable to make a module from invalid JSON: expected `,` or `}` at line 3 column 26\n  at nested.?\n     1 | {\n     2 |   \"nested\": {\n       |                          v\n     3 +     \"this-is\": \"invalid\" // lint-staged will remove trailing commas, so here's a comment\n       |                          ^\n     4 |   }\n     5 | }\n");
 
 }}),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {

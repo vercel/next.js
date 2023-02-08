@@ -6,7 +6,10 @@ use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
     TryJoinIterExt, Value,
 };
-use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPathVc};
+use turbo_tasks_fs::{
+    json::parse_json_rope_with_source_context, File, FileContent, FileSystemEntryType,
+    FileSystemPathVc,
+};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     context::{AssetContext, AssetContextVc},
@@ -235,7 +238,7 @@ impl PostCssTransformedAssetVc {
                 assets: Vec::new()
             }.cell());
         };
-        let processed_css: PostCssProcessingResult = serde_json::from_reader(val.read())
+        let processed_css: PostCssProcessingResult = parse_json_rope_with_source_context(val)
             .context("Unable to deserializate response from PostCSS transform operation")?;
         // TODO handle SourceMap
         let file = File::from(processed_css.css);

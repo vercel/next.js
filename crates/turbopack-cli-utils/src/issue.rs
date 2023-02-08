@@ -1,6 +1,5 @@
 use std::{
-    borrow::Cow,
-    cmp::{min, Ordering},
+    cmp::min,
     collections::{hash_map::Entry, HashMap, HashSet},
     fmt::Write as _,
     path::PathBuf,
@@ -13,7 +12,9 @@ use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use turbo_tasks::{RawVc, TransientValue, TryJoinIterExt, ValueToString};
 use turbo_tasks_fs::{
-    attach::AttachedFileSystemVc, to_sys_path, FileLinesContent, FileSystemPathVc,
+    attach::AttachedFileSystemVc,
+    source_context::{get_source_context, SourceContextLine},
+    to_sys_path, FileLinesContent, FileSystemPathVc,
 };
 use turbopack_core::issue::{
     Issue, IssueProcessingPathItem, IssueSeverity, IssueVc, OptionIssueProcessingPathItemsVc,
@@ -79,84 +80,90 @@ fn severity_to_style(severity: IssueSeverity) -> Style {
 
 fn format_source_content(source: &PlainIssueSource, formatted_issue: &mut String) {
     if let FileLinesContent::Lines(lines) = source.asset.content.lines() {
-        let context_start = source.start.line.saturating_sub(4);
-        let context_end = source.end.line + 4;
-        for (i, l) in lines
-            .iter()
-            .map(|l| &l.content)
-            .enumerate()
-            .take(context_end + 1)
-            .skip(context_start)
-        {
-            let n = i + 1;
-            fn safe_split_at(s: &str, i: usize) -> (&str, &str) {
-                if i < s.len() {
-                    s.split_at(s.floor_char_boundary(i))
-                } else {
-                    (s, "")
+        let start_line = source.start.line;
+        let end_line = source.end.line;
+        let start_column = source.start.column;
+        let end_column = source.end.column;
+        let lines = lines.iter().map(|l| l.content.as_str());
+        let ctx = get_source_context(lines, start_line, start_column, end_line, end_column);
+        let f = formatted_issue;
+        for line in ctx.0 {
+            match line {
+                SourceContextLine::Context { line, outside } => {
+                    writeln!(f, "{}", format_args!("{line:>6} | {outside}").dimmed()).unwrap();
                 }
-            }
-            fn limit_len(s: &str) -> Cow<'_, str> {
-                if s.len() < 200 {
-                    return Cow::Borrowed(s);
-                }
-                let (a, b) = s.split_at(s.floor_char_boundary(98));
-                let (_, c) = b.split_at(b.ceil_char_boundary(b.len() - 99));
-                Cow::Owned(format!("{}...{}", a, c))
-            }
-            match (i.cmp(&source.start.line), i.cmp(&source.end.line)) {
-                // outside
-                (Ordering::Less, _) | (_, Ordering::Greater) => {
+                SourceContextLine::Start {
+                    line,
+                    before,
+                    inside,
+                } => {
                     writeln!(
-                        formatted_issue,
-                        "{:>6}   {}",
-                        n.dimmed(),
-                        limit_len(l).dimmed()
+                        f,
+                        "       | {}{}{}",
+                        " ".repeat(before.len()),
+                        "v".bold(),
+                        "-".repeat(inside.len()).bold(),
+                    )
+                    .unwrap();
+                    writeln!(f, "{line:>6} + {}{}", before.dimmed(), inside.bold()).unwrap();
+                }
+                SourceContextLine::End {
+                    line,
+                    inside,
+                    after,
+                } => {
+                    writeln!(f, "{line:>6} + {}{}", inside.bold(), after.dimmed()).unwrap();
+                    writeln!(
+                        f,
+                        "       +{}{}",
+                        "-".repeat(inside.len()).bold(),
+                        "^".bold()
                     )
                     .unwrap();
                 }
-                // start line
-                (Ordering::Equal, Ordering::Less) => {
-                    let (before, marked) = safe_split_at(l, source.start.column);
+                SourceContextLine::StartAndEnd {
+                    line,
+                    before,
+                    inside,
+                    after,
+                } => {
+                    if inside.len() >= 2 {
+                        writeln!(
+                            f,
+                            "       + {}{}{}{}",
+                            " ".repeat(before.len()),
+                            "v".bold(),
+                            "-".repeat(inside.len() - 2).bold(),
+                            "v".bold(),
+                        )
+                        .unwrap();
+                    } else {
+                        writeln!(f, "       | {}{}", " ".repeat(before.len()), "v".bold()).unwrap();
+                    }
                     writeln!(
-                        formatted_issue,
-                        "{:>6} + {}{}",
-                        n,
-                        limit_len(before).dimmed(),
-                        limit_len(marked).bold()
+                        f,
+                        "{line:>6} + {}{}{}",
+                        before.dimmed(),
+                        inside.bold(),
+                        after.dimmed()
                     )
                     .unwrap();
+                    if inside.len() >= 2 {
+                        writeln!(
+                            f,
+                            "       + {}{}{}{}",
+                            " ".repeat(before.len()),
+                            "^".bold(),
+                            "-".repeat(inside.len() - 2).bold(),
+                            "^".bold(),
+                        )
+                        .unwrap();
+                    } else {
+                        writeln!(f, "       | {}{}", " ".repeat(before.len()), "^".bold()).unwrap();
+                    }
                 }
-                // start and end line
-                (Ordering::Equal, Ordering::Equal) => {
-                    let real_start = l.floor_char_boundary(source.start.column);
-                    let (before, temp) = safe_split_at(l, real_start);
-                    let (middle, after) = safe_split_at(temp, source.end.column - real_start);
-                    writeln!(
-                        formatted_issue,
-                        "{:>6} > {}{}{}",
-                        n,
-                        limit_len(before).dimmed(),
-                        limit_len(middle).bold(),
-                        limit_len(after).dimmed()
-                    )
-                    .unwrap();
-                }
-                // end line
-                (Ordering::Greater, Ordering::Equal) => {
-                    let (marked, after) = safe_split_at(l, source.end.column);
-                    writeln!(
-                        formatted_issue,
-                        "{:>6} + {}{}",
-                        n,
-                        limit_len(marked).bold(),
-                        limit_len(after).dimmed()
-                    )
-                    .unwrap();
-                }
-                // middle line
-                (Ordering::Greater, Ordering::Less) => {
-                    writeln!(formatted_issue, "{:>6} | {}", n, limit_len(l).bold()).unwrap()
+                SourceContextLine::Inside { line, inside } => {
+                    writeln!(f, "{:>6} + {}", line.bold(), inside.bold()).unwrap();
                 }
             }
         }

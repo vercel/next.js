@@ -2,7 +2,9 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use turbo_tasks::{primitives::JsonValueVc, trace::TraceRawVcs, Value};
-use turbo_tasks_fs::{File, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{
+    json::parse_json_rope_with_source_context, File, FileContent, FileSystemPathVc,
+};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetContentVc, AssetVc},
     context::{AssetContext, AssetContextVc},
@@ -178,7 +180,7 @@ impl WebpackLoadersProcessedAssetVc {
                 assets: Vec::new()
             }.cell());
         };
-        let processed: WebpackLoadersProcessingResult = serde_json::from_reader(val.read())
+        let processed: WebpackLoadersProcessingResult = parse_json_rope_with_source_context(val)
             .context("Unable to deserializate response from webpack loaders transform operation")?;
         // TODO handle SourceMap
         let file = File::from(processed.source);

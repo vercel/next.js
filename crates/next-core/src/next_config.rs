@@ -8,6 +8,7 @@ use turbo_tasks::{
     Value,
 };
 use turbo_tasks_env::EnvMapVc;
+use turbo_tasks_fs::json::parse_json_rope_with_source_context;
 use turbopack::{
     evaluate_context::node_evaluate_asset_context,
     module_options::{WebpackLoadersOptions, WebpackLoadersOptionsVc},
@@ -485,7 +486,7 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
     .await?;
     match &*config_value {
         JavaScriptValue::Value(val) => {
-            let next_config: NextConfig = serde_json::from_reader(val.read())?;
+            let next_config: NextConfig = parse_json_rope_with_source_context(val)?;
             let next_config = next_config.cell();
 
             Ok(next_config)

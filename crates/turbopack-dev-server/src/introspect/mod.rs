@@ -2,7 +2,7 @@ use std::{collections::HashSet, fmt::Display};
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt};
-use turbo_tasks_fs::{File, FileContent};
+use turbo_tasks_fs::{json::parse_json_with_source_context, File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
     introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
@@ -87,7 +87,7 @@ impl ContentSource for IntrospectionSource {
                 self_vc.as_introspectable()
             }
         } else {
-            serde_json::from_str(path)?
+            parse_json_with_source_context(path)?
         };
         let ty = introspectable.ty().await?;
         let title = introspectable.title().await?;
