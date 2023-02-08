@@ -324,7 +324,7 @@ createNextDescribe(
 
       it('should handle metadataBase for urls resolved as only URL type', () => {
         // including few urls in opengraph and alternates
-        const url$ = next.render$('/metadata-base/url')
+        const url$ = await next.render$('/metadata-base/url')
 
         // compose with metadataBase
         expect(url$('link[rel="canonical"]').attr('href')).toBe(
@@ -332,7 +332,7 @@ createNextDescribe(
         )
 
         // override metadataBase
-        const urlInstance$ = next.render$('/metadata-base/url-instance')
+        const urlInstance$ = await next.render$('/metadata-base/url-instance')
         expect(urlInstance$('meta[property="og:url"]')).toBe(
           'http://https//outerspace.com/huozhi.png'
         )

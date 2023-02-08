@@ -51,8 +51,9 @@ export function resolveOpenGraph(
   metadataBase: ResolvedMetadata['metadataBase']
 ): ResolvedMetadata['openGraph'] {
   if (!openGraph) return null
+
   const url = resolveUrl(openGraph.url, metadataBase)
-  const resolved = {} as ResolvedOpenGraph
+  const resolved = { ...openGraph } as ResolvedOpenGraph
 
   function assignProps(og: OpenGraph) {
     const ogType = og && 'type' in og ? og.type : undefined
