@@ -1,5 +1,5 @@
 ---
-description: Configure Next.js with Turbopack to load webpack loaders
+description: Configure Next.js with Turbopack-specific options
 ---
 
 # Turbopack-specific options (experimental)
@@ -15,7 +15,7 @@ To configure loaders, add the names of the loaders you've installed and any opti
 ```js
 module.exports = {
   experimental: {
-    turbopack: {
+    turbo: {
       loaders: {
         // Option format
         '.md': [
@@ -53,7 +53,7 @@ To configure resolve aliases, map imported patterns to their new destination in 
 ```js
 module.exports = {
   experimental: {
-    turbopack: {
+    turbo: {
       resolveAlias: {
         underscore: 'lodash',
         mocha: { browser: 'mocha/browser-entry.js' },
