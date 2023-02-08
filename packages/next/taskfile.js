@@ -358,7 +358,6 @@ export async function ncc_edge_runtime_cookies() {
     name: '@edge-runtime/cookies',
     version: pkg.version,
     main: './index.js',
-    type: 'module',
     license: pkg.license,
   })
 
