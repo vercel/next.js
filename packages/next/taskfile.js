@@ -363,7 +363,7 @@ export async function ncc_edge_runtime_cookies() {
   })
 
   await fs.copy(
-    require.resolve('@edge-runtime/cookies/dist/index.mjs'),
+    require.resolve('@edge-runtime/cookies/dist/index.js'),
     join(dest, 'index.js')
   )
   await fs.copy(
