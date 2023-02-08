@@ -507,7 +507,7 @@ importers:
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
       '@edge-runtime/cookies': 3.0.4
-      '@edge-runtime/primitives': 2.0.0
+      '@edge-runtime/primitives': 2.0.5
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.13.3
       '@napi-rs/triples': 1.1.0
@@ -593,7 +593,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.0.0
+      edge-runtime: 2.0.6
       events: 3.3.0
       fibers: '>= 3.1.0'
       find-cache-dir: 3.3.1
@@ -718,7 +718,7 @@ importers:
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
       '@edge-runtime/cookies': 3.0.4
-      '@edge-runtime/primitives': 2.0.0
+      '@edge-runtime/primitives': 2.0.5
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.13.3
       '@napi-rs/triples': 1.1.0
@@ -801,7 +801,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.0.0
+      edge-runtime: 2.0.6
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -4378,8 +4378,9 @@ packages:
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/format/1.1.0:
-    resolution: {integrity: sha512-MkLDDtPhXZIMx83NykdFmOpF7gVWIdd6GBHYb8V/E+PKWvD2pK/qWx9B30oN1iDJ2XBm0SGDjz02S8nDHI9lMQ==}
+  /@edge-runtime/format/2.0.0:
+    resolution: {integrity: sha512-y0KPyCwbIiuRDc8qZ9JHJZp+SFqeHOTEpbAFwmXtEhK1sJsKhF3j+R8zn2TtpW3TKMb7d62RWbiqo3gZWwWkMQ==}
+    engines: {node: '>=14'}
     dev: true
 
   /@edge-runtime/jest-environment/2.0.0:
@@ -4397,10 +4398,22 @@ packages:
     resolution: {integrity: sha512-AXqUq1zruTJAICrllUvZcgciIcEGHdF6KJ3r6FM0n4k8LpFxZ62tPWVIJ9HKm+xt+ncTBUZxwgUaQ73QMUQEKw==}
     dev: true
 
+  /@edge-runtime/primitives/2.0.5:
+    resolution: {integrity: sha512-jETA9w1MDTf2n0KMYl9b2eZqG7FZXSTaiB8y4CpMwZOD/0ZL/HBdq9Pj48o1c2jbvlDWjxxsn0NaoPWsqBCUGg==}
+    engines: {node: '>=14'}
+    dev: true
+
   /@edge-runtime/vm/2.0.0:
     resolution: {integrity: sha512-BOLrAX8IWHRXu1siZocwLguKJPEUv7cr+rG8tI4hvHgMdIsBWHJlLeB8EjuUVnIURFrUiM49lVKn8DRrECmngw==}
     dependencies:
       '@edge-runtime/primitives': 2.0.0
+    dev: true
+
+  /@edge-runtime/vm/2.0.5:
+    resolution: {integrity: sha512-6orUuYOUTWxVPoBjhQ7bQxqvkTICUFvlhumcsULb3FfBPQ6RRb9tjtTX6u06KNCPtvX0L4Fc5OicjEUZvvz8Nw==}
+    engines: {node: '>=14'}
+    dependencies:
+      '@edge-runtime/primitives': 2.0.5
     dev: true
 
   /@emotion/unitless/0.7.5:
@@ -11148,14 +11161,14 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime/2.0.0:
-    resolution: {integrity: sha512-TmRJhKi4mlM1e+zgF4CSzVU5gJ1sWj7ia+XhVgZ8PYyYUxk4PPjJU8qScpSLsAbdSxoBghLxdMuwuCzdYLd1sQ==}
+  /edge-runtime/2.0.6:
+    resolution: {integrity: sha512-lSZEatDxx6RxpYsntQowhykj/KJWV6chll5pM51+H3ImT1gYB+S5s10pNgyC0hi7IEX6vRwEdwvLLBwtPd7KyQ==}
+    engines: {node: '>=14'}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 1.1.0
-      '@edge-runtime/vm': 2.0.0
+      '@edge-runtime/format': 2.0.0
+      '@edge-runtime/vm': 2.0.5
       exit-hook: 2.2.1
-      http-status: 1.5.3
       mri: 1.2.0
       picocolors: 1.0.0
       pretty-bytes: 5.6.0
@@ -13811,11 +13824,6 @@ packages:
       assert-plus: 1.0.0
       jsprim: 1.4.1
       sshpk: 1.16.1
-
-  /http-status/1.5.3:
-    resolution: {integrity: sha512-jCClqdnnwigYslmtfb28vPplOgoiZ0siP2Z8C5Ua+3UKbx410v+c+jT+jh1bbI4TvcEySuX0vd/CfFZFbDkJeQ==}
-    engines: {node: '>= 0.4.0'}
-    dev: true
 
   /https-browserify/1.0.0:
     resolution: {integrity: sha1-7AbBDgo0wPL68Zn3/X/Hj//QPHM=}
