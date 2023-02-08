@@ -5,8 +5,7 @@ import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import type { DynamicRoutes, PageChecker, Route } from './router'
-import type { NextConfig } from './config-shared'
+import type { Route, RouterOptions } from './router'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { UrlWithParsedQuery } from 'url'
 
@@ -27,6 +26,8 @@ import {
   normalizeVercelUrl,
 } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { RouteHandlers } from './route-handlers/route-handlers'
+import { DefaultRouteMatcherManager } from './route-matcher-managers/default-route-matcher-manager'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -48,6 +49,15 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     // Extend `renderOpts`.
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
+  }
+
+  protected getRoutes() {
+    const matchers = new DefaultRouteMatcherManager()
+    const handlers = new RouteHandlers()
+
+    // TODO: implement for edge runtime
+
+    return { matchers, handlers }
   }
 
   protected handleCompression() {
@@ -149,22 +159,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       .fontLoaderManifest
   }
 
-  protected generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  } {
+  protected generateRoutes(): RouterOptions {
     const fsRoutes: Route[] = [
       {
         match: getPathMatch('/_next/data/:path*'),
@@ -332,7 +327,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     if (useFileSystemPublicRoutes) {
       this.appPathRoutes = this.getAppPathRoutes()
-      this.dynamicRoutes = this.getDynamicRoutes()
+      // this.dynamicRoutes = this.getDynamicRoutes()
     }
 
     return {
@@ -347,8 +342,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       catchAllRoute,
       catchAllMiddleware: [],
       useFileSystemPublicRoutes,
-      dynamicRoutes: this.dynamicRoutes,
-      pageChecker: this.hasPage.bind(this),
+      matchers: this.matchers,
       nextConfig: this.nextConfig,
     }
   }
@@ -357,6 +351,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   protected async handleApiRequest() {
     return false
   }
+
   protected async renderHTML(
     req: WebNextRequest,
     _res: WebNextResponse,

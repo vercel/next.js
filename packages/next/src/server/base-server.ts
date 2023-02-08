@@ -1,10 +1,10 @@
 import type { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
-import type { DynamicRoutes, PageChecker, Route } from './router'
+import type { RouterOptions } from './router'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
-import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
+import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
@@ -80,6 +80,8 @@ import {
   FLIGHT_PARAMETERS,
   FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
+import type { RouteHandlers } from './route-handlers/route-handlers'
+import { RouteMatcherManager } from './route-matcher-managers/route-matcher-manager'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -88,7 +90,7 @@ export type FindComponentsResult = {
 
 export interface RoutingItem {
   page: string
-  match: RouteMatch
+  match: RouteMatchFn
   re?: RegExp
 }
 
@@ -173,18 +175,18 @@ type ResponsePayload = {
 }
 
 export default abstract class Server<ServerOptions extends Options = Options> {
-  protected dir: string
-  protected quiet: boolean
-  protected nextConfig: NextConfigComplete
-  protected distDir: string
-  protected publicDir: string
-  protected hasStaticDir: boolean
-  protected hasAppDir: boolean
-  protected pagesManifest?: PagesManifest
-  protected appPathsManifest?: PagesManifest
-  protected buildId: string
-  protected minimalMode: boolean
-  protected renderOpts: {
+  protected readonly dir: string
+  protected readonly quiet: boolean
+  protected readonly nextConfig: NextConfigComplete
+  protected readonly distDir: string
+  protected readonly publicDir: string
+  protected readonly hasStaticDir: boolean
+  protected readonly hasAppDir: boolean
+  protected readonly pagesManifest?: PagesManifest
+  protected readonly appPathsManifest?: PagesManifest
+  protected readonly buildId: string
+  protected readonly minimalMode: boolean
+  protected readonly renderOpts: {
     poweredByHeader: boolean
     buildId: string
     generateEtags: boolean
@@ -222,7 +224,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase
   protected router: Router
-  protected dynamicRoutes?: DynamicRoutes
+  // protected dynamicRoutes?: DynamicRoutes
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
@@ -260,22 +262,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getCustomRoutes(): CustomRoutes
   protected abstract hasPage(pathname: string): Promise<boolean>
 
-  protected abstract generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  }
+  protected abstract generateRoutes(): RouterOptions
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -323,6 +310,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     dev: boolean
     forceReload?: boolean
   }): void
+
+  protected readonly matchers: RouteMatcherManager
+  protected readonly handlers: RouteHandlers
+
+  protected abstract getRoutes(): {
+    matchers: RouteMatcherManager
+    handlers: RouteHandlers
+  }
 
   public constructor(options: ServerOptions) {
     const {
@@ -408,12 +403,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ? this.nextConfig.crossOrigin
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
-    }
-
-    // Only the `publicRuntimeConfig` key is exposed to the client side
-    // It'll be rendered as part of __NEXT_DATA__ on the client side
-    if (Object.keys(publicRuntimeConfig).length > 0) {
-      this.renderOpts.runtimeConfig = publicRuntimeConfig
+      // Only the `publicRuntimeConfig` key is exposed to the client side
+      // It'll be rendered as part of __NEXT_DATA__ on the client side
+      runtimeConfig:
+        Object.keys(publicRuntimeConfig).length > 0
+          ? publicRuntimeConfig
+          : undefined,
     }
 
     // Initialize next/config with the environment configuration
@@ -424,6 +419,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     this.pagesManifest = this.getPagesManifest()
     this.appPathsManifest = this.getAppPathsManifest()
+
+    // Configure the routes.
+    const { matchers, handlers } = this.getRoutes()
+    this.matchers = matchers
+    this.handlers = handlers
 
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
@@ -559,9 +559,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (urlPathname.startsWith(`/_next/data/`)) {
             parsedUrl.query.__nextDataReq = '1'
           }
+
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
           matchedPath = this.stripNextDataPath(matchedPath, false)
 
+          // Perform locale detection and normalization.
           if (this.nextConfig.i18n) {
             const localeResult = normalizeLocalePath(
               matchedPath,
@@ -574,21 +576,27 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             }
           }
           matchedPath = denormalizePagePath(matchedPath)
+
           let srcPathname = matchedPath
-
-          if (
-            !isDynamicRoute(srcPathname) &&
-            !(await this.hasPage(removeTrailingSlash(srcPathname)))
-          ) {
-            for (const dynamicRoute of this.dynamicRoutes || []) {
-              if (dynamicRoute.match(srcPathname)) {
-                srcPathname = dynamicRoute.page
-                break
-              }
-            }
+          const match = await this.matchers.match(matchedPath)
+          if (match) {
+            srcPathname = match.pathname
           }
+          const pageIsDynamic = typeof match?.params !== 'undefined'
 
-          const pageIsDynamic = isDynamicRoute(srcPathname)
+          // NOTE: converted to the new match syntax
+          // if (
+          //   !isDynamicRoute(srcPathname) &&
+          //   !(await this.hasPage(removeTrailingSlash(srcPathname)))
+          // ) {
+          //   for (const dynamicRoute of this.dynamicRoutes || []) {
+          //     if (dynamicRoute.match(srcPathname)) {
+          //       srcPathname = dynamicRoute.page
+          //       break
+          //     }
+          //   }
+          // }
+
           const utils = getUtils({
             pageIsDynamic,
             page: srcPathname,
@@ -830,7 +838,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const appPathRoutes: Record<string, string[]> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      const normalizedPath = normalizeAppPath(entry) || '/'
+      const normalizedPath = normalizeAppPath(entry)
       if (!appPathRoutes[normalizedPath]) {
         appPathRoutes[normalizedPath] = []
       }
@@ -1717,33 +1725,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query._nextBubbleNoFallback
 
     try {
-      // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
-      // route correctly and not loaded immediately without parsing params.
-      if (!isDynamicRoute(page)) {
-        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
-        if (result !== false) return result
-      }
-
-      if (this.dynamicRoutes) {
-        for (const dynamicRoute of this.dynamicRoutes) {
-          const params = dynamicRoute.match(pathname)
-          if (!params) {
-            continue
-          }
-          page = dynamicRoute.page
-          const result = await this.renderPageComponent(
-            {
-              ...ctx,
-              pathname: page,
-              renderOpts: {
-                ...ctx.renderOpts,
-                params,
-              },
+      const match = await this.matchers.match(pathname)
+      if (match) {
+        const result = await this.renderPageComponent(
+          {
+            ...ctx,
+            pathname: match.pathname,
+            renderOpts: {
+              ...ctx.renderOpts,
+              params: match.params,
             },
-            bubbleNoFallback
-          )
-          if (result !== false) return result
-        }
+          },
+          bubbleNoFallback
+        )
+        if (result !== false) return result
       }
 
       // currently edge functions aren't receiving the x-matched-path

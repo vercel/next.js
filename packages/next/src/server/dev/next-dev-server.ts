@@ -63,7 +63,7 @@ import {
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
+import { getSortedRoutes } from '../../shared/lib/router/utils'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
@@ -78,6 +78,16 @@ import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
 import { pageFiles } from '../../build/webpack/plugins/flight-types-plugin'
+import { DevPagesRouteMatcher } from '../route-matchers/dev-pages-route-matcher'
+import { DevPagesAPIRouteMatcher } from '../route-matchers/dev-pages-api-route-matcher'
+import { DevAppPageRouteMatcher } from '../route-matchers/dev-app-page-route-matcher'
+import { DevAppRouteRouteMatcher } from '../route-matchers/dev-app-route-route-matcher'
+import {
+  DevRouteMatcherManager,
+  RouteEnsurer,
+} from '../route-matcher-managers/dev-route-matcher-manager'
+import { DefaultRouteMatcherManager } from '../route-matcher-managers/default-route-matcher-manager'
+import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -207,6 +217,52 @@ export default class DevServer extends Server {
     )
     this.pagesDir = pagesDir
     this.appDir = appDir
+  }
+
+  protected getRoutes() {
+    const { pagesDir, appDir } = findPagesDir(
+      this.dir,
+      !!this.nextConfig.experimental.appDir
+    )
+
+    const ensurer: RouteEnsurer = {
+      ensure: async (match) => {
+        await this.hotReloader!.ensurePage({
+          match,
+          page: match.pathname,
+          clientOnly: false,
+        })
+      },
+    }
+
+    const routes = super.getRoutes()
+    const matchers = new DevRouteMatcherManager(routes.matchers, ensurer)
+    const handlers = routes.handlers
+
+    // Grab the locale normalizer if it's set.
+    const localeNormalizer =
+      routes.matchers instanceof DefaultRouteMatcherManager
+        ? routes.matchers.localeNormalizer
+        : new LocaleRouteNormalizer(this.nextConfig.i18n?.locales)
+
+    const extensions = this.nextConfig.pageExtensions
+
+    // If the pages directory is available, then configure those matchers.
+    if (pagesDir) {
+      matchers.push(
+        new DevPagesRouteMatcher(pagesDir, extensions, localeNormalizer)
+      )
+      matchers.push(
+        new DevPagesAPIRouteMatcher(pagesDir, extensions, localeNormalizer)
+      )
+    }
+
+    if (appDir) {
+      matchers.push(new DevAppPageRouteMatcher(appDir, extensions))
+      matchers.push(new DevAppRouteRouteMatcher(appDir, extensions))
+    }
+
+    return { matchers, handlers }
   }
 
   protected getBuildId(): string {
@@ -423,7 +479,7 @@ export default class DevServer extends Server {
             }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName) || '/'
+            pageName = normalizeAppPath(pageName)
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }
@@ -636,14 +692,9 @@ export default class DevServer extends Server {
           }
           this.sortedRoutes = sortedRoutes
 
-          this.dynamicRoutes = this.sortedRoutes
-            .filter(isDynamicRoute)
-            .map((page) => ({
-              page,
-              match: getRouteMatcher(getRouteRegex(page)),
-            }))
+          await this.matchers.compile()
 
-          this.router.setDynamicRoutes(this.dynamicRoutes)
+          // this.router.setDynamicRoutes(dynamicRoutes)
           this.router.setCatchallMiddleware(
             this.generateCatchAllMiddlewareRoute(true)
           )
@@ -851,7 +902,8 @@ export default class DevServer extends Server {
     }
 
     if (await this.hasPublicFile(decodedPath)) {
-      if (await this.hasPage(pathname!)) {
+      const match = await this.matchers.match(pathname!, { skipDynamic: true })
+      if (match) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://nextjs.org/docs/messages/conflicting-public-file-page`
         )
@@ -1229,9 +1281,12 @@ export default class DevServer extends Server {
   generateRoutes() {
     const { fsRoutes, ...otherRoutes } = super.generateRoutes()
 
+    // Create a shallow copy so we can mutate it.
+    const routes = [...fsRoutes]
+
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
-    fsRoutes.unshift({
+    routes.unshift({
       match: getPathMatch('/_next/development/:path*'),
       type: 'route',
       name: '_next/development catchall',
@@ -1244,7 +1299,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.unshift({
+    routes.unshift({
       match: getPathMatch(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
       ),
@@ -1268,7 +1323,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.unshift({
+    routes.unshift({
       match: getPathMatch(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
       ),
@@ -1284,7 +1339,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.push({
+    routes.push({
       match: getPathMatch('/:path*'),
       type: 'route',
       name: 'catchall public directory route',
@@ -1307,7 +1362,7 @@ export default class DevServer extends Server {
       },
     })
 
-    return { fsRoutes, ...otherRoutes }
+    return { fsRoutes: routes, ...otherRoutes }
   }
 
   // In development public files are not added to the router but handled as a fallback instead
@@ -1502,7 +1557,7 @@ export default class DevServer extends Server {
     return errors[0]
   }
 
-  protected isServeableUrl(untrustedFileUrl: string): boolean {
+  protected isServableUrl(untrustedFileUrl: string): boolean {
     // This method mimics what the version of `send` we use does:
     // 1. decodeURIComponent:
     //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989

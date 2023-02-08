@@ -3,7 +3,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
-import type { Route } from './router'
+import type { Route, RouterOptions } from './router'
 import {
   CacheFs,
   DecodeError,
@@ -21,18 +21,14 @@ import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type {
   Params,
-  RouteMatch,
+  RouteMatchFn,
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { NextConfig } from './config-shared'
-import type { DynamicRoutes, PageChecker } from './router'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
-import { isAPIRoute } from '../lib/is-api-route'
-import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
@@ -92,7 +88,7 @@ import { getCustomRoute, stringifyQuery } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { getClonableBody } from './body-streams'
+import { getCloneableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
@@ -100,6 +96,18 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
+import { RouteHandlers } from './route-handlers/route-handlers'
+import { DefaultRouteMatcherManager } from './route-matcher-managers/default-route-matcher-manager'
+import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
+import { PagesRouteMatcher } from './route-matchers/pages-route-matcher'
+import { PagesAPIRouteMatcher } from './route-matchers/pages-api-route-matcher'
+import { AppRouteRouteMatcher } from './route-matchers/app-route-route-matcher'
+import { RouteKind } from './route-kind'
+import { AppRouteRouteHandler } from './route-handlers/app-route/app-route-route-handler'
+import { AppPageRouteMatcher } from './route-matchers/app-page-route-matcher'
+import { isRouteMatchKind, RouteMatch } from './route-matches/route-match'
+import { NodeManifestLoader } from './manifest-loaders/node-manifest-loader'
+import { RouteMatcherManager } from './route-matcher-managers/route-matcher-manager'
 
 export * from './base-server'
 
@@ -124,7 +132,7 @@ const MiddlewareMatcherCache = new WeakMap<
 
 const EdgeMatcherCache = new WeakMap<
   MiddlewareManifest['functions'][string],
-  RouteMatch
+  RouteMatchFn
 >()
 
 function getMiddlewareMatcher(
@@ -183,7 +191,7 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
 
 function getEdgeMatcher(
   info: MiddlewareManifest['functions'][string]
-): RouteMatch {
+): RouteMatchFn {
   const stored = EdgeMatcherCache.get(info)
   if (stored) {
     return stored
@@ -261,6 +269,49 @@ export default class NextNodeServer extends BaseServer {
     setHttpClientAndAgentOptions(this.nextConfig)
   }
 
+  protected getRoutes() {
+    // Configure the locale normalizer, it's used for routes inside `pages/`.
+    const localeNormalizer = this.nextConfig.i18n?.locales
+      ? new LocaleRouteNormalizer(this.nextConfig.i18n.locales)
+      : undefined
+
+    // Configure the matchers and handlers.
+    const matchers: RouteMatcherManager = new DefaultRouteMatcherManager(
+      localeNormalizer
+    )
+    const handlers = new RouteHandlers()
+
+    const manifestLoader = new NodeManifestLoader(this.distDir)
+
+    // Match pages under `pages/`.
+    matchers.push(
+      new PagesRouteMatcher(this.distDir, manifestLoader, localeNormalizer)
+    )
+
+    // NOTE: we don't have a handler for the pages route type yet
+
+    // Match api routes under `pages/api/`.
+    matchers.push(new PagesAPIRouteMatcher(this.distDir, manifestLoader))
+
+    // NOTE: we don't have a handler for the pages api route type yet
+
+    // If the app directory is enabled, then add the app matchers and handlers.
+    if (this.hasAppDir) {
+      // Match app pages under `app/`.
+      matchers.push(new AppPageRouteMatcher(this.distDir, manifestLoader))
+
+      // NOTE: we don't have a handler for the app page route type yet
+
+      matchers.push(new AppRouteRouteMatcher(this.distDir, manifestLoader))
+      handlers.set(RouteKind.APP_ROUTE, new AppRouteRouteHandler())
+    }
+
+    // Compile the matchers.
+    matchers.compile()
+
+    return { matchers, handlers }
+  }
+
   protected loadEnvConfig({
     dev,
     forceReload,
@@ -326,10 +377,10 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
-    if (this.hasAppDir) {
-      const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
-      return require(appPathsManifestPath)
-    }
+    if (!this.hasAppDir) return undefined
+
+    const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
+    return require(appPathsManifestPath)
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
@@ -1027,22 +1078,7 @@ export default class NextNodeServer extends BaseServer {
     return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
-  protected generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  } {
+  protected generateRoutes(): RouterOptions {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
     const staticFilesRoutes = this.generateStaticRoutes()
@@ -1203,12 +1239,21 @@ export default class NextNodeServer extends BaseServer {
         }
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
-        if (isAPIRoute(pathname)) {
-          delete query._nextBubbleNoFallback
+        const match = await this.matchers.match(pathname)
 
-          const handled = await this.handleApiRequest(req, res, pathname, query)
-          if (handled) {
-            return { finished: true }
+        // Try to handle the given route with the configured handlers.
+        if (match) {
+          let handled = await this.handlers.handle(match, req, res)
+          if (handled) return { finished: true }
+
+          // If the route was detected as being a Pages API route, then handle
+          // it.
+          // TODO: move this behavior into a route handler.
+          if (isRouteMatchKind(match, RouteKind.PAGES_API)) {
+            delete query._nextBubbleNoFallback
+
+            handled = await this.handleApiRequest(req, res, query, match)
+            if (handled) return { finished: true }
           }
         }
 
@@ -1233,7 +1278,7 @@ export default class NextNodeServer extends BaseServer {
 
     if (useFileSystemPublicRoutes) {
       this.appPathRoutes = this.getAppPathRoutes()
-      this.dynamicRoutes = this.getDynamicRoutes()
+      // this.dynamicRoutes = this.getDynamicRoutes()
     }
 
     return {
@@ -1244,8 +1289,7 @@ export default class NextNodeServer extends BaseServer {
       catchAllRoute,
       catchAllMiddleware,
       useFileSystemPublicRoutes,
-      dynamicRoutes: this.dynamicRoutes,
-      pageChecker: this.hasPage.bind(this),
+      matchers: this.matchers,
       nextConfig: this.nextConfig,
     }
   }
@@ -1262,34 +1306,18 @@ export default class NextNodeServer extends BaseServer {
   protected async handleApiRequest(
     req: BaseNextRequest,
     res: BaseNextResponse,
-    pathname: string,
-    query: ParsedUrlQuery
+    query: ParsedUrlQuery,
+    match: RouteMatch<RouteKind.PAGES_API>
   ): Promise<boolean> {
-    let page = pathname
-    let params: Params | undefined = undefined
-    let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
+    const { pathname, params } = match
 
-    if (!pageFound && this.dynamicRoutes) {
-      for (const dynamicRoute of this.dynamicRoutes) {
-        params = dynamicRoute.match(pathname) || undefined
-        if (isAPIRoute(dynamicRoute.page) && params) {
-          page = dynamicRoute.page
-          pageFound = true
-          break
-        }
-      }
-    }
-
-    if (!pageFound) {
-      return false
-    }
     // Make sure the page is built before getting the path
     // or else it won't be in the manifest yet
-    await this.ensureApiPage(page)
+    await this.ensureApiPage(pathname)
 
     let builtPagePath
     try {
-      builtPagePath = this.getPagePath(page)
+      builtPagePath = this.getPagePath(pathname)
     } catch (err) {
       if (isError(err) && err.code === 'ENOENT') {
         return false
@@ -1297,7 +1325,7 @@ export default class NextNodeServer extends BaseServer {
       throw err
     }
 
-    return this.runApi(req, res, query, params, page, builtPagePath)
+    return this.runApi(req, res, query, params, pathname, builtPagePath)
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1415,7 +1443,7 @@ export default class NextNodeServer extends BaseServer {
     path: string,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
-    if (!this.isServeableUrl(path)) {
+    if (!this.isServableUrl(path)) {
       return this.render404(req, res, parsedUrl)
     }
 
@@ -1470,7 +1498,7 @@ export default class NextNodeServer extends BaseServer {
       : []
   }
 
-  protected isServeableUrl(untrustedFileUrl: string): boolean {
+  protected isServableUrl(untrustedFileUrl: string): boolean {
     // This method mimics what the version of `send` we use does:
     // 1. decodeURIComponent:
     //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
@@ -1740,18 +1768,26 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const page: { name?: string; params?: { [key: string]: string } } = {}
-    if (await this.hasPage(normalizedPathname)) {
-      page.name = params.parsedUrl.pathname
-    } else if (this.dynamicRoutes) {
-      for (const dynamicRoute of this.dynamicRoutes) {
-        const matchParams = dynamicRoute.match(normalizedPathname)
-        if (matchParams) {
-          page.name = dynamicRoute.page
-          page.params = matchParams
-          break
-        }
-      }
+
+    const match = await this.matchers.match(normalizedPathname)
+    if (match) {
+      page.name = match.params ? match.pathname : params.parsedUrl.pathname
+      page.params = match.params
     }
+
+    // NOTE: converted to the new match syntax
+    // if (await this.hasPage(normalizedPathname)) {
+    //   page.name = params.parsedUrl.pathname
+    // } else if (this.dynamicRoutes) {
+    //   for (const dynamicRoute of this.dynamicRoutes) {
+    //     const matchParams = dynamicRoute.match(normalizedPathname)
+    //     if (matchParams) {
+    //       page.name = dynamicRoute.page
+    //       page.params = matchParams
+    //       break
+    //     }
+    //   }
+    // }
 
     const middleware = this.getMiddleware()
     if (!middleware) {
@@ -2077,7 +2113,7 @@ export default class NextNodeServer extends BaseServer {
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
     addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
     addRequestMeta(req, '_protocol', protocol)
-    addRequestMeta(req, '__NEXT_CLONABLE_BODY', getClonableBody(req.body))
+    addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req.body))
   }
 
   protected async runEdgeFunction(params: {

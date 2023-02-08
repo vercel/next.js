@@ -49,6 +49,8 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
+import { RouteKind } from '../route-kind'
+import { RouteMatch } from '../route-matches/route-match'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -1148,10 +1150,12 @@ export default class HotReloader {
     page,
     clientOnly,
     appPaths,
+    match,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: string[] | null
+    match?: RouteMatch<RouteKind>
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
@@ -1167,6 +1171,7 @@ export default class HotReloader {
       page,
       clientOnly,
       appPaths,
+      match,
     }) as any
   }
 }

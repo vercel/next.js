@@ -23,6 +23,8 @@ import {
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
+import { RouteKind } from '../route-kind'
+import { RouteMatch } from '../route-matches/route-match'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -331,7 +333,7 @@ async function findPagePathData(
 
       return {
         absolutePagePath: join(appDir, pagePath),
-        bundlePath: posix.join('app', normalizePagePath(pageUrl)),
+        bundlePath: posix.join('app', pageUrl),
         page: posix.normalize(pageUrl),
       }
     }
@@ -369,6 +371,25 @@ async function findPagePathData(
   } else {
     throw new PageNotFoundError(normalizedPagePath)
   }
+}
+
+async function findRoutePathData(
+  rootDir: string,
+  page: string,
+  extensions: string[],
+  pagesDir?: string,
+  appDir?: string,
+  match?: RouteMatch<RouteKind>
+): ReturnType<typeof findPagePathData> {
+  if (match) {
+    return {
+      absolutePagePath: match.filename,
+      page: match.page,
+      bundlePath: match.bundlePath,
+    }
+  }
+
+  return findPagePathData(rootDir, page, extensions, pagesDir, appDir)
 }
 
 export function onDemandEntryHandler({
@@ -558,10 +579,12 @@ export function onDemandEntryHandler({
       page,
       clientOnly,
       appPaths = null,
+      match,
     }: {
       page: string
       clientOnly: boolean
       appPaths?: string[] | null
+      match?: RouteMatch<RouteKind>
     }): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
@@ -571,12 +594,13 @@ export function onDemandEntryHandler({
       }, stalledTime * 1000)
 
       try {
-        const pagePathData = await findPagePathData(
+        const pagePathData = await findRoutePathData(
           rootDir,
           page,
           nextConfig.pageExtensions,
           pagesDir,
-          appDir
+          appDir,
+          match
         )
 
         const isInsideAppDir =
