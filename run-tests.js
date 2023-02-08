@@ -492,10 +492,9 @@ async function main() {
       }
     }
   }
-  await cleanUpAndExit(0)
 }
 
 main().catch((err) => {
   console.error(err)
-  process.exit(1)
+  cleanUpAndExit(1)
 })
