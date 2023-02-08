@@ -17,6 +17,7 @@ const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
+const shouldContinueTestsOnError = !!process.env.NEXT_TEST_CONTINUE_ON_ERROR
 const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
 const TIMINGS_API_HEADERS = {
   Accept: 'application/vnd.github.v3+json',
@@ -418,7 +419,14 @@ async function main() {
             console.log(`Failed to load test output`, err)
           }
         }
-        cleanUpAndExit(1)
+
+        if (!shouldContinueTestsOnError) {
+          cleanUpAndExit(1)
+        } else {
+          console.log(
+            `CONTINUE_ON_ERROR enabled, continuing tests after ${test} failed`
+          )
+        }
       }
       sema.release()
       dirSema.release()
