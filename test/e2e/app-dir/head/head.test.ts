@@ -1,7 +1,9 @@
 import fs from 'fs-extra'
 import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
+import stripAnsi from 'strip-ansi'
 
 createNextDescribe(
   'app dir head',
@@ -43,6 +45,18 @@ createNextDescribe(
     it('should use head from layout when not on page', async () => {
       const $ = await next.render$('/blog/about')
       const headTags = $('head').children().toArray()
+
+      if (globalThis.isNextDev) {
+        await check(
+          () =>
+            stripAnsi(next.cliOutput).includes(
+              `\`head.js\` is being used in route /blog. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
+            )
+              ? 'yes'
+              : 'no',
+          'yes'
+        )
+      }
 
       expect(
         headTags.find((el) => el.attribs.src === '/hello1.js')
@@ -93,21 +107,19 @@ createNextDescribe(
     })
 
     it('should treat next/head as client components but not apply', async () => {
-      const errors = []
-      next.on('stderr', (args) => {
-        errors.push(args)
-      })
       const html = await next.render('/next-head')
       expect(html).not.toMatch(/<title>legacy-head<\/title>/)
 
       if (globalThis.isNextDev) {
-        expect(
-          errors.filter(
-            (output) =>
-              output ===
-              `Warning: You're using \`next/head\` inside app directory, please migrate to \`head.js\`. Checkout https://beta.nextjs.org/docs/api-reference/file-conventions/head for details.\n`
-          ).length
-        ).toBe(1)
+        await check(
+          () =>
+            stripAnsi(next.cliOutput).includes(
+              `\`head.js\` is being used in route /blog. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
+            )
+              ? 'yes'
+              : 'no',
+          'yes'
+        )
 
         const dynamicChunkPath = path.join(
           next.testDir,

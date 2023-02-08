@@ -1,5 +1,3 @@
-import type { Metadata } from './types/metadata-interface'
-
 import React from 'react'
 import {
   AppleWebAppMeta,
@@ -15,10 +13,10 @@ import {
   AppLinksMeta,
 } from './generate/opengraph'
 import { IconsMetadata } from './generate/icons'
-import { accumulateMetadata } from './resolve-metadata'
+import { accumulateMetadata, MetadataItems } from './resolve-metadata'
 
 // Generate the actual React elements from the resolved metadata.
-export async function MetadataTree({ metadata }: { metadata: Metadata[] }) {
+export async function MetadataTree({ metadata }: { metadata: MetadataItems }) {
   const resolved = await accumulateMetadata(metadata)
 
   return (
