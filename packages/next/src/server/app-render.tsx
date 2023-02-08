@@ -53,6 +53,7 @@ import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
+import { warnOnce } from '../shared/lib/utils/warn-once'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -1104,7 +1105,11 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
-        console.warn(`\`head.js\` is deprecated, please use`)
+        if (process.env.NODE_ENV !== 'production') {
+          warnOnce(
+            `\`head.js\` is being used in route /${segment}. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
+          )
+        }
 
         const Head = await interopDefault(await head[0]())
         return [<Head params={currentParams} />, metadataItems]
