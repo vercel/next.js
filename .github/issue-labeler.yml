@@ -14,8 +14,8 @@
   - 'ESLint (eslint-config-next)'
 'area: Font Optimization':
   - 'Font optimization (@next/font)'
-'area: next/head / head.js':
-  - 'Head component/file (next/head / head.js)'
+'area: Metadata':
+  - 'metadata, generateMetadata, next/head, head.js'
 'area: I18n':
   - 'Internationalzation (i18n)'
 'area: next/image':
