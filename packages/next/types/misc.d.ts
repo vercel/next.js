@@ -341,8 +341,7 @@ declare module 'next/dist/compiled/edge-runtime' {
 }
 
 declare module 'next/dist/compiled/@edge-runtime/cookies' {
-  import m from '@edge-runtime/cookies'
-  export = m
+  export * from '@edge-runtime/cookies'
 }
 
 declare module 'next/dist/compiled/@edge-runtime/primitives' {
