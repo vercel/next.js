@@ -1,3 +1,4 @@
+import { NEXT_TS_ERRORS } from '../constant'
 import { getInfo, getSource, getTs, isPositionInsideNode } from '../utils'
 
 const TYPE_ANOTATION = ': Metadata'
@@ -220,6 +221,32 @@ const metadata = {
     }
 
     return prior
+  },
+
+  getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+    fileName: string,
+    node: ts.VariableStatement
+  ) {
+    const source = getSource(fileName)
+    const ts = getTs()
+
+    for (const declaration of node.declarationList.declarations) {
+      const name = declaration.name.getText()
+      if (['metadata', 'generateMetadata'].includes(name)) {
+        // It is not allowed to use `metadata` or `generateMetadata` in client entry
+        return [
+          {
+            file: source,
+            category: ts.DiagnosticCategory.Error,
+            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+            messageText: `The Next.js '${name}' API is not allowed in a client component.`,
+            start: declaration.name.getStart(),
+            length: declaration.name.getWidth(),
+          },
+        ]
+      }
+    }
+    return []
   },
 
   getSemanticDiagnosticsForExportVariableStatement(
