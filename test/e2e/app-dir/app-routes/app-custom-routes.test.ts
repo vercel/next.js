@@ -11,10 +11,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev }) => {
-    // TODO: handle next development server case
-    if (isNextDev) return
-
+  ({ next }) => {
     describe('basic fetch request with a response', () => {
       describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
         'made via a %s request',
