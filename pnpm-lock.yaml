@@ -19,7 +19,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 2.0.0
+      '@edge-runtime/jest-environment': 2.0.5
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': ^1.5.1
       '@mdx-js/react': ^1.6.18
@@ -194,7 +194,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 2.0.0
+      '@edge-runtime/jest-environment': 2.0.5
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 1.6.22_react@18.2.0
       '@mdx-js/react': 1.6.22_react@18.2.0
@@ -1471,7 +1471,7 @@ packages:
       '@babel/helper-module-imports': 7.16.7
       '@babel/helper-simple-access': 7.18.2
       '@babel/helper-split-export-declaration': 7.16.7
-      '@babel/helper-validator-identifier': 7.16.7
+      '@babel/helper-validator-identifier': 7.19.1
       '@babel/template': 7.20.7
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
@@ -1699,7 +1699,7 @@ packages:
     resolution: {integrity: sha512-5FnTQLSLswEj6IkgVw5KusNUUFY9ZGqe/TRFnP/BKYHYgfh7tc+C7mwiy95/yNP7Dh9x580Vv8r7u7ZfTBFxdw==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      '@babel/helper-validator-identifier': 7.16.7
+      '@babel/helper-validator-identifier': 7.19.1
       chalk: 2.4.2
       js-tokens: 4.0.0
 
@@ -4383,10 +4383,11 @@ packages:
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/jest-environment/2.0.0:
-    resolution: {integrity: sha512-Bic/DlNqVFIoHzO1rvSR+XE+xHoHRFD3oLoQ3w5VfjpyWEzCtPeY9bWJ0KuhdVAhbmcsS+62Ym8eoJXsJEb3hw==}
+  /@edge-runtime/jest-environment/2.0.5:
+    resolution: {integrity: sha512-ACyaujVJb+Ewsnpn6XXp5DLnaPO8uLtKg6EuwXThIk9bPDyOdFbNkpBAuW/pZgCJIpfVi2XE2cGcuXjLK3T9ew==}
+    engines: {node: '>=14'}
     dependencies:
-      '@edge-runtime/vm': 2.0.0
+      '@edge-runtime/vm': 2.0.5
       '@jest/environment': 28.1.3
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
@@ -4394,19 +4395,9 @@ packages:
       jest-util: 28.1.3
     dev: true
 
-  /@edge-runtime/primitives/2.0.0:
-    resolution: {integrity: sha512-AXqUq1zruTJAICrllUvZcgciIcEGHdF6KJ3r6FM0n4k8LpFxZ62tPWVIJ9HKm+xt+ncTBUZxwgUaQ73QMUQEKw==}
-    dev: true
-
   /@edge-runtime/primitives/2.0.5:
     resolution: {integrity: sha512-jETA9w1MDTf2n0KMYl9b2eZqG7FZXSTaiB8y4CpMwZOD/0ZL/HBdq9Pj48o1c2jbvlDWjxxsn0NaoPWsqBCUGg==}
     engines: {node: '>=14'}
-    dev: true
-
-  /@edge-runtime/vm/2.0.0:
-    resolution: {integrity: sha512-BOLrAX8IWHRXu1siZocwLguKJPEUv7cr+rG8tI4hvHgMdIsBWHJlLeB8EjuUVnIURFrUiM49lVKn8DRrECmngw==}
-    dependencies:
-      '@edge-runtime/primitives': 2.0.0
     dev: true
 
   /@edge-runtime/vm/2.0.5:
@@ -6311,7 +6302,7 @@ packages:
     engines: {node: '>= 8.0.0'}
     dependencies:
       estree-walker: 2.0.2
-      picomatch: 2.2.3
+      picomatch: 2.3.1
     dev: true
 
   /@rushstack/eslint-patch/1.1.3:
