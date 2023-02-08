@@ -511,6 +511,7 @@ importers:
       '@napi-rs/cli': 2.13.3
       '@napi-rs/triples': 1.1.0
       '@next/env': 13.1.7-canary.7
+      '@next/font': 13.1.7-canary.7
       '@next/polyfill-module': 13.1.7-canary.7
       '@next/polyfill-nomodule': 13.1.7-canary.7
       '@next/react-dev-overlay': 13.1.7-canary.7
@@ -685,6 +686,7 @@ importers:
       ws: 8.2.3
     dependencies:
       '@next/env': link:../next-env
+      '@next/font': link:../font
       '@swc/helpers': 0.4.14
       caniuse-lite: 1.0.30001406
       fibers: 5.0.3
