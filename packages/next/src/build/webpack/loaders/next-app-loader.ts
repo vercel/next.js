@@ -116,7 +116,7 @@ async function createTreeCodeFromPath(
         continue
       }
 
-      const parallelSegmentPath = segmentPath + '/' + parallelSegment
+      const parallelSegmentPath = path.join(segmentPath, parallelSegment)
       const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
         [...segments, parallelSegment]
       )
@@ -126,7 +126,7 @@ async function createTreeCodeFromPath(
         Object.values(FILE_TYPES).map(async (file) => {
           return [
             file,
-            await resolver(`${appDirPrefix}${parallelSegmentPath}/${file}`),
+            await resolver(path.join(appDirPrefix, parallelSegmentPath, file)),
           ] as const
         })
       )

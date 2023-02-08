@@ -321,6 +321,22 @@ createNextDescribe(
         const browser = await next.browser('/basic/sync-generate-metadata')
         expect(await getTitle(browser)).toBe('synchronous generateMetadata')
       })
+
+      it('should handle metadataBase for urls resolved as only URL type', () => {
+        // including few urls in opengraph and alternates
+        const url$ = next.render$('/metadata-base/url')
+
+        // compose with metadataBase
+        expect(url$('link[rel="canonical"]').attr('href')).toBe(
+          'https://bar.example/url/subpath'
+        )
+
+        // override metadataBase
+        const urlInstance$ = next.render$('/metadata-base/url-instance')
+        expect(urlInstance$('meta[property="og:url"]')).toBe(
+          'http://https//outerspace.com/huozhi.png'
+        )
+      })
     })
 
     describe('opengraph', () => {

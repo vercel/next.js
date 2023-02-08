@@ -195,7 +195,7 @@ export function OpenGraphMetadata({
   return (
     <>
       <Meta property="og:determiner" content={openGraph.determiner} />
-      <Meta property="og:title" content={openGraph.title?.absolute} />
+      <Meta property="og:title" content={openGraph.title?.absolute || null} />
       <Meta property="og:description" content={openGraph.description} />
       <Meta property="og:url" content={openGraph.url?.toString()} />
       <Meta property="og:site_name" content={openGraph.siteName} />
