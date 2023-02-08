@@ -77,7 +77,7 @@ interface ExperimentalTurboOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/api-reference/next.config.js/turbopack-loaders)
    */
-  loaders?: Record<string, TurboLoaderItem | TurboLoaderItem[]>
+  loaders?: Record<string, TurboLoaderItem[]>
 }
 
 export interface WebpackConfigContext {
