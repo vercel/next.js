@@ -4,18 +4,23 @@
 #![feature(iter_advance_by)]
 #![feature(io_error_more)]
 #![feature(main_separator_str)]
+#![feature(box_syntax)]
+#![feature(round_char_boundary)]
 
 pub mod attach;
 pub mod embed;
 pub mod glob;
 mod invalidator_map;
+pub mod json;
 mod mutex_map;
 mod read_glob;
 mod retry;
 pub mod rope;
+pub mod source_context;
 pub mod util;
 
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     fmt::{self, Debug, Display, Formatter},
     fs::FileType,
@@ -52,7 +57,7 @@ use turbo_tasks::{
 use turbo_tasks_hash::hash_xxh3_hash64;
 use util::{join_path, normalize_path, sys_to_unix, unix_to_sys};
 
-use self::mutex_map::MutexMap;
+use self::{json::UnparseableJson, mutex_map::MutexMap};
 #[cfg(target_family = "windows")]
 use crate::util::is_windows_raw_path;
 use crate::{
@@ -1403,10 +1408,15 @@ impl FileContent {
 
     pub fn parse_json(&self) -> FileJsonContent {
         match self {
-            FileContent::Content(file) => match serde_json::from_reader(file.read()) {
-                Ok(data) => FileJsonContent::Content(data),
-                Err(_) => FileJsonContent::Unparseable,
-            },
+            FileContent::Content(file) => {
+                let de = &mut serde_json::Deserializer::from_reader(file.read());
+                match serde_path_to_error::deserialize(de) {
+                    Ok(data) => FileJsonContent::Content(data),
+                    Err(e) => FileJsonContent::Unparseable(
+                        box UnparseableJson::from_serde_path_to_error(e),
+                    ),
+                }
+            }
             FileContent::NotFound => FileJsonContent::NotFound,
         }
     }
@@ -1424,11 +1434,16 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::Unparseable,
+                        None => FileJsonContent::unparseable(
+                            "text content doesn't contain any json data",
+                        ),
                     },
-                    Err(_) => FileJsonContent::Unparseable,
+                    Err(e) => FileJsonContent::Unparseable(box UnparseableJson::from_jsonc_error(
+                        e,
+                        string.as_ref(),
+                    )),
                 },
-                Err(_) => FileJsonContent::Unparseable,
+                Err(_) => FileJsonContent::unparseable("binary is not valid utf-8 text"),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -1483,7 +1498,7 @@ impl FileContentVc {
 #[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileJsonContent {
     Content(Value),
-    Unparseable,
+    Unparseable(Box<UnparseableJson>),
     NotFound,
 }
 
@@ -1497,9 +1512,29 @@ impl ValueToString for FileJsonContent {
     async fn to_string(&self) -> Result<StringVc> {
         match self {
             FileJsonContent::Content(json) => Ok(StringVc::cell(json.to_string())),
-            FileJsonContent::Unparseable => Err(anyhow!("File is not valid JSON")),
+            FileJsonContent::Unparseable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
             FileJsonContent::NotFound => Err(anyhow!("File not found")),
         }
+    }
+}
+
+impl FileJsonContent {
+    pub fn unparseable(message: &'static str) -> Self {
+        FileJsonContent::Unparseable(Box::new(UnparseableJson {
+            message: Cow::Borrowed(message),
+            path: None,
+            start_location: None,
+            end_location: None,
+        }))
+    }
+
+    pub fn unparseable_with_message(message: Cow<'static, str>) -> Self {
+        FileJsonContent::Unparseable(Box::new(UnparseableJson {
+            message,
+            path: None,
+            start_location: None,
+            end_location: None,
+        }))
     }
 }
 

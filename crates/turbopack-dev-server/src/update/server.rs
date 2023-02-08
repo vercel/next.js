@@ -11,6 +11,7 @@ use pin_project_lite::pin_project;
 use tokio::select;
 use tokio_stream::StreamMap;
 use turbo_tasks::{TransientInstance, TurboTasksApi};
+use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_cli_utils::issue::ConsoleUiVc;
 use turbopack_core::version::Update;
 
@@ -185,12 +186,11 @@ impl Stream for UpdateClient {
             }
         };
 
-        match serde_json::from_str(&msg) {
+        match parse_json_with_source_context(&msg).context("deserializing websocket message") {
             Ok(msg) => Poll::Ready(Some(Ok(msg))),
             Err(err) => {
                 *this.ended = true;
 
-                let err = Error::new(err).context("deserializing websocket message");
                 Poll::Ready(Some(Err(err)))
             }
         }

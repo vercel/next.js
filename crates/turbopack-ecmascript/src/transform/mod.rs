@@ -24,7 +24,7 @@ use turbo_tasks::{
     primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPathVc};
 use turbopack_core::environment::EnvironmentVc;
 
 use self::server_to_client_proxy::{create_proxy_module, is_client_module};
@@ -186,7 +186,7 @@ impl EcmascriptInputTransform {
                 program.visit_mut_with(&mut styled_components::styled_components(
                     FileName::Anon,
                     file_name_hash,
-                    serde_json::from_str("{}")?,
+                    parse_json_with_source_context("{}")?,
                 ));
             }
             EcmascriptInputTransform::StyledJsx => {

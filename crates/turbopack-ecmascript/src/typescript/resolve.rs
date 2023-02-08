@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Write};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
@@ -6,7 +6,9 @@ use turbo_tasks::{
     primitives::{StringVc, StringsVc},
     Value, ValueToString, ValueToStringVc,
 };
-use turbo_tasks_fs::{FileJsonContent, FileJsonContentVc, FileSystemPathVc};
+use turbo_tasks_fs::{
+    FileContent, FileContentVc, FileJsonContent, FileJsonContentVc, FileSystemPathVc,
+};
 use turbopack_core::{
     asset::{Asset, AssetVc},
     context::AssetContext,
@@ -35,18 +37,26 @@ pub struct TsConfigIssue {
 }
 
 pub async fn read_tsconfigs(
-    mut data: FileJsonContentVc,
+    mut data: FileContentVc,
     mut tsconfig: AssetVc,
     resolve_options: ResolveOptionsVc,
 ) -> Result<Vec<(FileJsonContentVc, AssetVc)>> {
     let mut configs = Vec::new();
     loop {
-        match &*data.await? {
-            FileJsonContent::Unparseable => {
+        let parsed_data = data.parse_json_with_comments();
+        match &*parsed_data.await? {
+            FileJsonContent::Unparseable(e) => {
+                let mut message = "tsconfig is not parseable: invalid JSON: ".to_string();
+                if let FileContent::Content(content) = &*data.await? {
+                    let text = content.content().to_str()?;
+                    e.write_with_content(&mut message, text.as_ref())?;
+                } else {
+                    write!(message, "{}", e)?;
+                }
                 TsConfigIssue {
                     severity: IssueSeverity::Error.into(),
                     path: tsconfig.path(),
-                    message: StringVc::cell("tsconfig is not parseable: invalid JSON".into()),
+                    message: StringVc::cell(message),
                 }
                 .cell()
                 .as_issue()
@@ -65,7 +75,7 @@ pub async fn read_tsconfigs(
                 break;
             }
             FileJsonContent::Content(json) => {
-                configs.push((data, tsconfig));
+                configs.push((parsed_data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
                     let context = tsconfig.path().parent();
                     let result = resolve(
@@ -79,7 +89,7 @@ pub async fn read_tsconfigs(
                     // "some/path/node_modules/xyz/abc.json" and "some/node_modules/xyz/abc.json".
                     // We only want to use the first one.
                     if let Some(asset) = *result {
-                        data = asset.content().parse_json_with_comments();
+                        data = asset.content().file_content();
                         tsconfig = asset;
                     } else {
                         TsConfigIssue {
@@ -136,7 +146,7 @@ pub async fn tsconfig_resolve_options(
     resolve_in_tsconfig_options: ResolveOptionsVc,
 ) -> Result<TsConfigResolveOptionsVc> {
     let configs = read_tsconfigs(
-        tsconfig.read().parse_json_with_comments(),
+        tsconfig.read(),
         SourceAssetVc::new(tsconfig).into(),
         resolve_in_tsconfig_options,
     )

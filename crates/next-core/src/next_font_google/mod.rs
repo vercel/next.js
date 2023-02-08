@@ -4,7 +4,7 @@ use indoc::formatdoc;
 use once_cell::sync::Lazy;
 use turbo_tasks::primitives::{OptionStringVc, OptionU16Vc, StringVc, U32Vc};
 use turbo_tasks_fetch::fetch;
-use turbo_tasks_fs::{FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{json::parse_json_with_source_context, FileContent, FileSystemPathVc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     issue::IssueSeverity,
@@ -34,8 +34,9 @@ pub(crate) mod request;
 mod util;
 
 pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2";
-static FONT_DATA: Lazy<FontData> =
-    Lazy::new(|| serde_json::from_str(include_str!("__generated__/font-data.json")).unwrap());
+static FONT_DATA: Lazy<FontData> = Lazy::new(|| {
+    parse_json_with_source_context(include_str!("__generated__/font-data.json")).unwrap()
+});
 
 type FontData = IndexMap<String, FontDataEntry>;
 
@@ -371,6 +372,6 @@ async fn font_options_from_query_map(query: QueryMapVc) -> Result<NextFontGoogle
             bail!("Expected one entry");
         };
 
-    self::options::options_from_request(&serde_json::from_str(json)?, &FONT_DATA)
+    self::options::options_from_request(&parse_json_with_source_context(json)?, &FONT_DATA)
         .map(NextFontGoogleOptionsVc::cell)
 }

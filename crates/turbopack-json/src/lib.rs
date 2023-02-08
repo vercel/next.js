@@ -7,9 +7,11 @@
 
 #![feature(min_specialization)]
 
-use anyhow::{Context, Result};
+use std::fmt::Write;
+
+use anyhow::{bail, Error, Result};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
@@ -116,20 +118,36 @@ impl EcmascriptChunkItem for JsonChunkItem {
     async fn content(&self) -> Result<EcmascriptChunkItemContentVc> {
         // We parse to JSON and then stringify again to ensure that the
         // JSON is valid.
-        let content = self
-            .module
-            .path()
-            .read_json()
-            .to_string()
-            .await
-            .context("Unable to make a module from invalid JSON")?;
-        let js_str_content = serde_json::to_string(content.as_str())?;
-        let inner_code = format!("__turbopack_export_value__(JSON.parse({js_str_content}));");
-        Ok(EcmascriptChunkItemContent {
-            inner_code: inner_code.into(),
-            ..Default::default()
+        let content = self.module.path().read();
+        let data = content.parse_json().await?;
+        match &*data {
+            FileJsonContent::Content(data) => {
+                let js_str_content = serde_json::to_string(data)?;
+                let inner_code =
+                    format!("__turbopack_export_value__(JSON.parse({js_str_content}));");
+                Ok(EcmascriptChunkItemContent {
+                    inner_code: inner_code.into(),
+                    ..Default::default()
+                }
+                .into())
+            }
+            FileJsonContent::Unparseable(e) => {
+                let mut message = "Unable to make a module from invalid JSON: ".to_string();
+                if let FileContent::Content(content) = &*content.await? {
+                    let text = content.content().to_str()?;
+                    e.write_with_content(&mut message, text.as_ref())?;
+                } else {
+                    write!(message, "{}", e)?;
+                }
+                Err(Error::msg(message))
+            }
+            FileJsonContent::NotFound => {
+                bail!(
+                    "JSON file not found: {}",
+                    self.module.path().to_string().await?
+                );
+            }
         }
-        .into())
     }
 }
 

@@ -4,7 +4,10 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
-use turbo_tasks_fs::{glob::GlobVc, DirectoryEntry, FileContent, FileSystemPathVc};
+use turbo_tasks_fs::{
+    glob::GlobVc, json::parse_json_rope_with_source_context, DirectoryEntry, FileContent,
+    FileSystemPathVc,
+};
 use turbopack_core::{
     asset::{Asset, AssetContent, AssetVc},
     reference::{AssetReference, AssetReferenceVc},
@@ -103,7 +106,7 @@ pub async fn resolve_node_pre_gyp_files(
                 let config_file_path = config_asset.path();
                 let config_file_dir = config_file_path.parent();
                 let node_pre_gyp_config: NodePreGypConfigJson =
-                    serde_json::from_reader(config_file.read())?;
+                    parse_json_rope_with_source_context(config_file.content())?;
                 let mut assets: IndexSet<AssetVc> = IndexSet::new();
                 for version in node_pre_gyp_config.binary.napi_versions.iter() {
                     let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
