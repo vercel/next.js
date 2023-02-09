@@ -36,7 +36,7 @@ fn test(input: &Path, minify: bool) {
                     output_path: Some(output.clone()),
 
                     config: next_binding::swc::core::base::config::Config {
-                        is_module: next_binding::swc::core::base::config::IsModule::Bool(true),
+                        is_module: Some(true),
 
                         jsc: next_binding::swc::core::base::config::JscConfig {
                             minify: if minify {
