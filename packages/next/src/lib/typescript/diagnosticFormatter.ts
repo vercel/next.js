@@ -25,7 +25,7 @@ function getFormattedLinkDiagnosticMessageText(
       )
 
     if (match) {
-      const [_, href] = match
+      const [, href] = match
       return `"${chalk.bold(
         href
       )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
