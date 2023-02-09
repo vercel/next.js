@@ -74,7 +74,7 @@ async function createTreeCodeFromPath(
     const props: Record<string, string> = {}
 
     // We need to resolve all parallel routes in this level.
-    const parallelSegments: [key: string, segment: string][] = []
+    const parallelSegments: [key: string, segment: string | string[]][] = []
     if (segments.length === 0) {
       parallelSegments.push(['children', ''])
     } else {
