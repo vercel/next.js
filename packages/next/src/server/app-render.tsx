@@ -30,7 +30,6 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-// import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
@@ -1758,7 +1757,8 @@ export async function renderToHTMLOrFlight(
             createSegmentPath: (child) => child,
             loaderTreeToFilter: loaderTree,
             parentParams: {},
-            flightRouterState: providedFlightRouterState,
+            // TODO: This is for debugging purposes only.
+            flightRouterState: undefined && providedFlightRouterState,
             isFirst: true,
             // For flight, render metadata inside leaf page
             rscPayloadHead: (

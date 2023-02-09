@@ -10,6 +10,8 @@ export function prefetchReducer(
   state: ReadonlyReducerState,
   action: PrefetchAction
 ): ReducerState {
+  // TODO: This is for debugging purposes only
+  return state
   const { url, serverResponse } = action
   const [flightData, canonicalUrlOverride] = serverResponse
 

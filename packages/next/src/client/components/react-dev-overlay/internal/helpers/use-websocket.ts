@@ -45,21 +45,20 @@ export function useSendMessage(webSocketRef: ReturnType<typeof useWebsocket>) {
 export function useWebsocketPing(
   websocketRef: ReturnType<typeof useWebsocket>
 ) {
-  const sendMessage = useSendMessage(websocketRef)
-  const { tree } = useContext(GlobalLayoutRouterContext)
-
-  useEffect(() => {
-    // Taken from on-demand-entries-client.js
-    // TODO-APP: check 404 case
-    const interval = setInterval(() => {
-      sendMessage(
-        JSON.stringify({
-          event: 'ping',
-          tree,
-          appDirRoute: true,
-        })
-      )
-    }, 2500)
-    return () => clearInterval(interval)
-  }, [tree, sendMessage])
+  // const sendMessage = useSendMessage(websocketRef)
+  // const { tree } = useContext(GlobalLayoutRouterContext)
+  // useEffect(() => {
+  //   // Taken from on-demand-entries-client.js
+  //   // TODO-APP: check 404 case
+  //   const interval = setInterval(() => {
+  //     sendMessage(
+  //       JSON.stringify({
+  //         event: 'ping',
+  //         tree,
+  //         appDirRoute: true,
+  //       })
+  //     )
+  //   }, 2500)
+  //   return () => clearInterval(interval)
+  // }, [tree, sendMessage])
 }
