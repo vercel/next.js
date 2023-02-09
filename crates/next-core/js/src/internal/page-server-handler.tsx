@@ -119,7 +119,7 @@ export default function startHandler({
       devFiles: [],
       ampDevFiles: [],
       polyfillFiles: [],
-      lowPriorityFiles: [],
+      lowPriorityFiles: ["static/development/_buildManifest.js"],
       rootMainFiles: [],
       ampFirstPages: [],
     };
