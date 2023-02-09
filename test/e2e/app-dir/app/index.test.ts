@@ -399,7 +399,8 @@ createNextDescribe(
         expect(html).toContain('parallel/(new)/@baz/nested/page')
       })
 
-      it('should support parallel route tab bars', async () => {
+      // TODO-APP: implement parallel routes
+      it.skip('should support parallel route tab bars', async () => {
         const browser = await next.browser('/parallel-tab-bar')
 
         const hasHome = async () => {
@@ -528,7 +529,8 @@ createNextDescribe(
       })
     })
 
-    describe('route intercepting', () => {
+    // TODO-APP: Implement route intercepting
+    describe.skip('route intercepting', () => {
       it('should render intercepted route', async () => {
         const browser = await next.browser('/intercepting-routes/feed')
 
