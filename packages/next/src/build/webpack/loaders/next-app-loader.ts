@@ -50,7 +50,7 @@ async function createTreeCodeFromPath(
     resolvePath: (pathname: string) => Promise<string>
     resolveParallelSegments: (
       pathname: string
-    ) => [key: string, segment: string][]
+    ) => [key: string, segment: string | string[]][]
     isDev: boolean
     addDependency: (dep: string) => any
     addMissingDependency: (dep: string) => any
@@ -102,7 +102,10 @@ async function createTreeCodeFromPath(
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
-        const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
+        const matchedPagePath = `${appDirPrefix}${segmentPath}${
+          parallelKey === 'children' ? '' : `/@${parallelKey}`
+        }/page`
+
         const resolvedPagePath = await resolver(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
@@ -118,7 +121,11 @@ async function createTreeCodeFromPath(
 
       const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
-        [...segments, parallelSegment]
+        [
+          ...segments,
+          ...(parallelKey === 'children' ? [] : [`@${parallelKey}`]),
+          Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment,
+        ]
       )
 
       // `page` is not included here as it's added above.
@@ -152,7 +159,9 @@ async function createTreeCodeFromPath(
         ([, filePath]) => filePath !== undefined
       )
       props[parallelKey] = `[
-        '${parallelSegment}',
+        '${
+          Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment
+        }',
         ${subtreeCode},
         {
           ${definedFilePaths
@@ -231,25 +240,35 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
-  const resolveParallelSegments = (pathname: string) => {
-    const matched: Record<string, string> = {}
+  const resolveParallelSegments = (
+    pathname: string
+  ): [string, string | string[]][] => {
+    const matched: Record<string, string | string[]> = {}
     for (const appPath of normalizedAppPaths) {
       if (appPath.startsWith(pathname + '/')) {
         const rest = appPath.slice(pathname.length + 1).split('/')
 
-        let matchedSegment = rest[0]
         // It is the actual page, mark it specially.
-        if (rest.length === 1 && matchedSegment === 'page') {
-          matchedSegment = PAGE_SEGMENT
+        if (rest.length === 1 && rest[0] === 'page') {
+          matched.children = PAGE_SEGMENT
+          continue
         }
 
-        const matchedKey = matchedSegment.startsWith('@')
-          ? matchedSegment.slice(1)
-          : 'children'
+        const isParallelRoute = rest[0].startsWith('@')
+        if (isParallelRoute && rest.length === 2 && rest[1] === 'page') {
+          matched[rest[0].slice(1)] = PAGE_SEGMENT
+          continue
+        }
 
-        matched[matchedKey] = matchedSegment
+        if (isParallelRoute) {
+          matched[rest[0].slice(1)] = rest.slice(1)
+          continue
+        }
+
+        matched.children = rest[0]
       }
     }
+
     return Object.entries(matched)
   }
 
