@@ -17,9 +17,9 @@ const loadNextConfig = async (silent) => {
   nextConfig.exportPathMap = nextConfig.exportPathMap && {};
   nextConfig.webpack = nextConfig.webpack && {};
 
-  if (nextConfig.experimental?.turbopackLoaders) {
+  if (nextConfig.experimental?.turbopack?.loaders) {
     ensureLoadersHaveSerializableOptions(
-      nextConfig.experimental.turbopackLoaders
+      nextConfig.experimental.turbopack.loaders
     );
   }
 
