@@ -2223,7 +2223,7 @@ createNextDescribe(
 
         // Pages directory shouldn't be affected when `appDir` is enabled
         describe('pages dir', () => {
-          it('should include css modules after page transition', async () => {
+          it('should include css modules and global css after page transition', async () => {
             const browser = await next.browser('/css-modules/page1')
             await browser.elementByCss('a').click()
             await browser.waitForElementByCss('#page2')
@@ -2232,6 +2232,12 @@ createNextDescribe(
                 `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
               )
             ).toBe('rgb(205, 92, 92)')
+
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('.page-2')).backgroundColor`
+              )
+            ).toBe('rgb(255, 228, 181)')
           })
         })
       }
