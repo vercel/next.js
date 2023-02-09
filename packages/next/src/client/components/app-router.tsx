@@ -36,6 +36,7 @@ import {
   InitialRouterStateParameters,
 } from './router-reducer/create-initial-router-state'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
+import { isBot } from '../../shared/lib/router/utils/is-bot'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
@@ -58,7 +59,7 @@ const HotReloader:
 const prefetched = new Set<string>()
 
 type AppRouterProps = Omit<
-  InitialRouterStateParameters,
+  Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
   initialHead: ReactNode
@@ -96,6 +97,12 @@ function findHeadInCache(
   return undefined
 }
 
+function isExternalURL(url: URL) {
+  return url.origin !== window.location.origin
+}
+
+const isServer = typeof window === 'undefined'
+
 /**
  * The global router that wraps the application components.
  */
@@ -113,6 +120,8 @@ function Router({
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
+        isServer,
+        location: !isServer ? window.location : null,
       }),
     [children, initialCanonicalUrl, initialTree]
   )
@@ -180,9 +189,13 @@ function Router({
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
+      const url = new URL(href, location.origin)
+
       return dispatch({
         type: ACTION_NAVIGATE,
-        url: new URL(href, location.origin),
+        url,
+        isExternalUrl: isExternalURL(url),
+        locationSearch: location.search,
         forceOptimisticNavigation,
         navigateType,
         cache: {
@@ -200,11 +213,18 @@ function Router({
       forward: () => window.history.forward(),
       prefetch: async (href) => {
         // If prefetch has already been triggered, don't trigger it again.
-        if (prefetched.has(href)) {
+        if (
+          prefetched.has(href) ||
+          (typeof window !== 'undefined' && isBot(window.navigator.userAgent))
+        ) {
           return
         }
         prefetched.add(href)
         const url = new URL(href, location.origin)
+        // External urls can't be prefetched in the same way.
+        if (isExternalURL(url)) {
+          return
+        }
         try {
           const routerTree = window.history.state?.tree || initialTree
           const serverResponse = await fetchServerResponse(
@@ -250,6 +270,7 @@ function Router({
               parallelRoutes: new Map(),
             },
             mutable: {},
+            origin: window.location.origin,
           })
         })
       },
@@ -261,7 +282,12 @@ function Router({
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
     if (pushRef.mpaNavigation) {
-      window.location.href = canonicalUrl
+      const location = window.location
+      if (pushRef.pendingPush) {
+        location.assign(canonicalUrl)
+      } else {
+        location.replace(canonicalUrl)
+      }
       return
     }
 

@@ -129,6 +129,11 @@ function getBaseSWCOptions({
     serverComponents: hasServerComponents
       ? { isServer: !!isServerLayer }
       : undefined,
+    serverActions: hasServerComponents
+      ? {
+          isServer: !!isServerLayer,
+        }
+      : undefined,
   }
 }
 

@@ -9,7 +9,7 @@ export function Meta({
   property?: string
   content: string | number | URL | null | undefined
 }): React.ReactElement | null {
-  if (typeof content !== 'undefined' && content !== null) {
+  if (typeof content !== 'undefined' && content !== null && content !== '') {
     return (
       <meta
         {...(name ? { name } : { property })}
@@ -29,7 +29,7 @@ type MultiMetaContent =
   | null
   | undefined
 
-export function ExtendMeta({
+function ExtendMeta({
   content,
   namePrefix,
   propertyPrefix,
@@ -91,6 +91,7 @@ export function MultiMeta({
         } else {
           return (
             <ExtendMeta
+              key={keyPrefix + '_' + index}
               namePrefix={namePrefix}
               propertyPrefix={propertyPrefix}
               content={content}

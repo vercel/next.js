@@ -12,6 +12,10 @@ export const metadata = {
       index: true,
       follow: false,
       noimageindex: true,
+
+      'max-video-preview': 'standard',
+      'max-image-preview': -1,
+      'max-snippet': -1,
     },
   },
 }

@@ -27,6 +27,7 @@ function createTypeGuardFile(
 ) {
   return `// File: ${fullPath}
 import * as entry from '${relativePath}'
+import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface'
 type TEntry = typeof entry
 
 check<IEntry, TEntry>(entry)
@@ -68,6 +69,7 @@ interface IEntry {
       : ''
   }
   metadata?: any
+  generateMetadata?: (props: PageProps, parent: ResolvingMetadata) => any | Promise<any>
 }
 
 // =============

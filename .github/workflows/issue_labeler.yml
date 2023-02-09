@@ -13,8 +13,9 @@ jobs:
     name: Triage
     runs-on: ubuntu-latest
     steps:
-      - uses: github/issue-labeler@v2.5
+      - uses: balazsorban44/issue-labeler@sync-labels-config
         with:
           repo-token: '${{ secrets.GITHUB_TOKEN }}'
           configuration-path: '.github/issue-labeler.yml'
           enable-versioned-regex: 0
+          sync-labels: 0

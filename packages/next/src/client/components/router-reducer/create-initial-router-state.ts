@@ -10,6 +10,8 @@ export interface InitialRouterStateParameters {
   initialCanonicalUrl: string
   children: ReactNode
   initialParallelRoutes: CacheNode['parallelRoutes']
+  isServer: boolean
+  location: Location | null
 }
 
 export function createInitialRouterState({
@@ -17,6 +19,8 @@ export function createInitialRouterState({
   children,
   initialCanonicalUrl,
   initialParallelRoutes,
+  isServer,
+  location,
 }: InitialRouterStateParameters) {
   return {
     tree: initialTree,
@@ -24,8 +28,7 @@ export function createInitialRouterState({
       status: CacheStates.READY,
       data: null,
       subTreeData: children,
-      parallelRoutes:
-        typeof window === 'undefined' ? new Map() : initialParallelRoutes,
+      parallelRoutes: isServer ? new Map() : initialParallelRoutes,
     } as CacheNode,
     prefetchCache: new Map(),
     pushRef: { pendingPush: false, mpaNavigation: false },
@@ -33,9 +36,9 @@ export function createInitialRouterState({
     canonicalUrl:
       // location.href is read as the initial value for canonicalUrl in the browser
       // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
-      typeof window !== 'undefined'
+      location
         ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
-          createHrefFromUrl(window.location)
+          createHrefFromUrl(location)
         : initialCanonicalUrl,
   }
 }

@@ -1,5 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
 export default function Page() {
   return (
@@ -11,6 +12,6 @@ export default function Page() {
   )
 }
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'this is the page title',
 }

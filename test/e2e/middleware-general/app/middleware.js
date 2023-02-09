@@ -49,6 +49,12 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (
+    url.pathname.includes('/_next/static/chunks/pages/_app-non-existent.js')
+  ) {
+    return NextResponse.rewrite('https://example.vercel.sh')
+  }
+
   if (url.pathname === '/api/edge-search-params') {
     const newUrl = url.clone()
     newUrl.searchParams.set('foo', 'bar')

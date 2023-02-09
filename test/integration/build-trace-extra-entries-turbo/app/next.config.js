@@ -22,6 +22,7 @@ module.exports = {
   experimental: {
     turbotrace: {
       contextDirectory: path.join(__dirname, '..', '..', '..', '..'),
+      memoryLimit: 4096,
     },
   },
 }
