@@ -1,4 +1,4 @@
-import type { NextConfig } from '../../../../server/config-shared'
+import type { NextConfigComplete } from '../../../../server/config-shared'
 
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
@@ -10,7 +10,10 @@ import {
   WebNextRequest,
   WebNextResponse,
 } from '../../../../server/base-http/web'
-import { SERVER_RUNTIME } from '../../../../lib/constants'
+import {
+  SERVER_HOOKS_FILENAME,
+  SERVER_RUNTIME,
+} from '../../../../lib/constants'
 
 export function getRender({
   dev,
@@ -31,6 +34,7 @@ export function getRender({
   config,
   buildId,
   fontLoaderManifest,
+  serverHooksPath,
 }: {
   pagesType: 'app' | 'pages' | 'root'
   dev: boolean
@@ -48,9 +52,10 @@ export function getRender({
   serverComponentManifest: any
   serverCSSManifest: any
   appServerMod: any
-  config: NextConfig
+  config: NextConfigComplete
   buildId: string
   fontLoaderManifest: FontLoaderManifest
+  serverHooksPath: string
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
@@ -61,6 +66,20 @@ export function getRender({
     fontLoaderManifest,
     Document,
     App: appMod?.default as AppType,
+  }
+
+  try {
+    const serverHooks = require((config.dir || '.',
+    config.distDir,
+    'server',
+    `edge-${SERVER_HOOKS_FILENAME}`))
+
+    serverHooks.beforeNextInit?.()
+  } catch (err: any) {
+    console.error('Error loading server hooks', err)
+    if (err.code !== 'MODULE_NOT_FOUND') {
+      throw err
+    }
   }
 
   const server = new WebServer({

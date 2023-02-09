@@ -4,6 +4,10 @@ import type { ServerRuntime } from '../../types'
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
 
+// Pattern to detect server hooks file
+export const SERVER_HOOKS_FILENAME = 'server-hooks'
+export const SERVER_HOOKS_LOCATION_REGEXP = `(?:src/)?${SERVER_HOOKS_FILENAME}`
+
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias
 export const PAGES_DIR_ALIAS = 'private-next-pages'

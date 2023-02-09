@@ -26,6 +26,7 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
+  SERVER_HOOKS_FILENAME,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -1825,6 +1826,13 @@ export function isCustomErrorPage(page: string) {
 export function isMiddlewareFile(file: string) {
   return (
     file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+  )
+}
+
+export function isServerHooksFile(file: string) {
+  return (
+    file === `/${SERVER_HOOKS_FILENAME}` ||
+    file === `/src/${SERVER_HOOKS_FILENAME}`
   )
 }
 

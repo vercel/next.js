@@ -16,6 +16,7 @@ import {
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
+  SERVER_HOOKS_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -35,6 +36,7 @@ import { warn } from './output/log'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
+  isServerHooksFile,
   NestedMiddlewareError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
@@ -185,6 +187,13 @@ export function getEdgeServerEntry(opts: {
     return `next-edge-function-loader?${stringify(loaderParams)}!`
   }
 
+  if (isServerHooksFile(opts.page)) {
+    return {
+      import: opts.page,
+      filename: `edge-${SERVER_HOOKS_FILENAME}.js`,
+    }
+  }
+
   const loaderParams: EdgeSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
@@ -253,6 +262,10 @@ export async function runDependingOnPageType<T>(params: {
   page: string
   pageRuntime: ServerRuntime
 }): Promise<void> {
+  if (isServerHooksFile(params.page)) {
+    await Promise.all([params.onServer(), params.onEdgeServer()])
+    return
+  }
   if (isMiddlewareFile(params.page)) {
     await params.onEdgeServer()
     return

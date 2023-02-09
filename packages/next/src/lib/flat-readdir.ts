@@ -2,7 +2,7 @@ import { join } from 'path'
 import { nonNullable } from './non-nullable'
 import { promises } from 'fs'
 
-export async function flatReaddir(dir: string, include: RegExp) {
+export async function flatReaddir(dir: string, includes: RegExp[]) {
   const dirents = await promises.readdir(dir, { withFileTypes: true })
   const result = await Promise.all(
     dirents.map(async (part) => {
@@ -14,7 +14,10 @@ export async function flatReaddir(dir: string, include: RegExp) {
         }
       }
 
-      if (part.isDirectory() || !include.test(part.name)) {
+      if (
+        part.isDirectory() ||
+        !includes.some((include) => include.test(part.name))
+      ) {
         return null
       }
 

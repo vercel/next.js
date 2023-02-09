@@ -18,3 +18,5 @@ export default function page() {
 
   return <div>{previous ? 'HOT' : 'COLD'}</div>
 }
+
+export const runtime = 'edge'
