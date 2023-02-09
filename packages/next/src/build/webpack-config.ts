@@ -2001,6 +2001,15 @@ export default async function getBaseWebpackConfig(
               "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
           },
         },
+        {
+          test: /node_modules\/server-only\/index.js/,
+          loader: 'next-invalid-import-error-loader',
+          issuerLayer: WEBPACK_LAYERS.client,
+          options: {
+            message:
+              "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
+          },
+        },
       ].filter(Boolean),
     },
     plugins: [
