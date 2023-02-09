@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
-        ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident},
+        ast::{CallExpr, Callee, Expr, ExprOrSpread},
         utils::private_ident,
     },
-    quote,
+    quote, quote_expr,
 };
 use turbo_tasks::{
     debug::ValueDebugFormat, primitives::StringVc, trace::TraceRawVcs, TryJoinIterExt, Value,
@@ -118,11 +118,6 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
     async fn code_generation(&self, context: ChunkingContextVc) -> Result<CodeGenerationVc> {
         let mut visitors = Vec::new();
 
-        enum ResolvedElement {
-            PatternMapping(PatternMappingReadRef),
-            Expr(Expr),
-        }
-
         let resolved_elements = self
             .dependencies_requests
             .iter()
@@ -138,6 +133,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                                 Value::new(Cjs),
                             )
                             .await?,
+                            request.await?.request(),
                         )
                     }
                     AmdDefineDependencyElement::Exports => {
@@ -158,96 +154,109 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
 
         let path = self.path.await?;
         visitors.push(
-            // Transforms `define([dep1, dep2], factory)` into:
-            // ```js
-            // __turbopack_export_value__(
-            //   factory(
-            //     __turbopack_require__(dep1),
-            //     __turbopack_require__(dep2),
-            //   ),
-            // );
-            // ```
             create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
-                let CallExpr { args, callee, .. } = call_expr;
-                if let Some(factory) = take(args).pop().map(|e| e.expr) {
-                    let deps = resolved_elements.iter().map(|element| {
-                        match element {
-                            ResolvedElement::PatternMapping(pm) => {
-                                match &**pm {
-                                    PatternMapping::Invalid => Expr::Ident(Ident::new("undefined".into(), DUMMY_SP)),
-                                    pm => Expr::Call(CallExpr {
-                                        span: DUMMY_SP,
-                                        callee: Callee::Expr(
-                                            box Expr::Ident(Ident::new(
-                                                if pm.is_internal_import() {
-                                                    "__turbopack_require__"
-                                                } else {
-                                                    "__turbopack_external_require__"
-                                                }.into(), DUMMY_SP
-                                            ))
-                                        ),
-                                        args: vec![
-                                            pm.create().into(),
-                                        ],
-                                        type_args: None
-                                    }),
-                                }
-                            }
-                            ResolvedElement::Expr(expr) => {
-                                expr.clone()
-                            }
-                        }
-                    }).map(|expr| ExprOrSpread {
-                        expr: box expr,
-                        spread: None,
-                    }).collect();
-                    match factory_type {
-                        AmdDefineFactoryType::Unknown => {
-                            // ((f, r = typeof f !== "function" ? f : f([...])) => r !== undefined && __turbopack_export_value__(r))(...)
-                            let f = private_ident!("f");
-                            let call_f = Expr::Call(CallExpr {
-                                args: deps,
-                                callee: Callee::Expr(box Expr::Ident(f.clone())),
-                                span: DUMMY_SP,
-                                type_args: None
-                            });
-                            *callee = Callee::Expr(box quote!("($f1, r = typeof $f2 !== \"function\" ? $f3 : $call_f) => r !== undefined && __turbopack_export_value(r)" as Expr,
-                                f1 = f.clone(),
-                                f2 = f.clone(),
-                                f3 = f,
-                                call_f: Expr = call_f
-                            ));
-                            args.push(ExprOrSpread {
-                                expr: factory,
-                                spread: None
-                            });
-                        },
-                        AmdDefineFactoryType::Function => {
-                            // (r => r !== undefined && __turbopack_export_value__(r))(...([...]))
-                            *callee = Callee::Expr(box quote!("r => r !== undefined && __turbopack_export_value__(r)" as Expr));
-                            args.push(ExprOrSpread {
-                                expr: box Expr::Call(CallExpr {
-                                    args: deps,
-                                    callee: Callee::Expr(factory),
-                                    span: DUMMY_SP,
-                                    type_args: None
-                                }),
-                                spread: None
-                            });
-                        },
-                        AmdDefineFactoryType::Value => {
-                            // __turbopack_export_value__(...)
-                            *callee = Callee::Expr(box quote!("__turbopack_export_value__" as Expr));
-                            args.push(ExprOrSpread {
-                                expr: factory,
-                                spread: None
-                            });
-                        },
-                    }
-                }
+                transform_amd_factory(call_expr, &resolved_elements, factory_type)
             }),
         );
 
         Ok(CodeGeneration { visitors }.into())
+    }
+}
+
+enum ResolvedElement {
+    PatternMapping(PatternMappingReadRef, Option<String>),
+    Expr(Expr),
+}
+
+/// Transforms `define([dep1, dep2], factory)` into:
+/// ```js
+/// __turbopack_export_value__(
+///   factory(
+///     __turbopack_require__(dep1),
+///     __turbopack_require__(dep2),
+///   ),
+/// );
+/// ```
+fn transform_amd_factory(
+    call_expr: &mut CallExpr,
+    resolved_elements: &[ResolvedElement],
+    factory_type: AmdDefineFactoryType,
+) {
+    let CallExpr { args, callee, .. } = call_expr;
+    let Some(factory) = take(args).pop().map(|e| e.expr) else {
+        return;
+    };
+
+    let deps = resolved_elements
+        .iter()
+        .map(|element| match element {
+            ResolvedElement::PatternMapping(pm, req) => match &**pm {
+                PatternMapping::Invalid => quote_expr!("undefined"),
+                pm => {
+                    let arg = if let Some(req) = req {
+                        pm.apply(req.as_str().into())
+                    } else {
+                        pm.create()
+                    };
+
+                    if pm.is_internal_import() {
+                        quote_expr!("__turbopack_require__($arg)", arg: Expr = arg)
+                    } else {
+                        quote_expr!("__turbopack_external_require__($arg)", arg: Expr = arg)
+                    }
+                }
+            },
+            ResolvedElement::Expr(expr) => Box::new(expr.clone()),
+        })
+        .map(ExprOrSpread::from)
+        .collect();
+
+    match factory_type {
+        AmdDefineFactoryType::Unknown => {
+            // ((f, r = typeof f !== "function" ? f : f([...])) => r !== undefined &&
+            // __turbopack_export_value__(r))(...)
+            let f = private_ident!("f");
+            let call_f = Expr::Call(CallExpr {
+                args: deps,
+                callee: Callee::Expr(box Expr::Ident(f.clone())),
+                span: DUMMY_SP,
+                type_args: None,
+            });
+            *callee = Callee::Expr(quote_expr!(
+                "($f1, r = typeof $f2 !== \"function\" ? $f3 : $call_f) => r !== undefined && \
+                 __turbopack_export_value(r)",
+                f1 = f.clone(),
+                f2 = f.clone(),
+                f3 = f,
+                call_f: Expr = call_f
+            ));
+            args.push(ExprOrSpread {
+                expr: factory,
+                spread: None,
+            });
+        }
+        AmdDefineFactoryType::Function => {
+            // (r => r !== undefined && __turbopack_export_value__(r))(...([...]))
+            *callee = Callee::Expr(quote_expr!(
+                "r => r !== undefined && __turbopack_export_value__(r)"
+            ));
+            args.push(ExprOrSpread {
+                expr: box Expr::Call(CallExpr {
+                    args: deps,
+                    callee: Callee::Expr(factory),
+                    span: DUMMY_SP,
+                    type_args: None,
+                }),
+                spread: None,
+            });
+        }
+        AmdDefineFactoryType::Value => {
+            // __turbopack_export_value__(...)
+            *callee = Callee::Expr(quote_expr!("__turbopack_export_value__"));
+            args.push(ExprOrSpread {
+                expr: factory,
+                spread: None,
+            });
+        }
     }
 }
