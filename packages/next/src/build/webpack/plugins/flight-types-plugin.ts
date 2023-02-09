@@ -179,7 +179,7 @@ export class FlightTypesPlugin {
       (isApp
         ? page.replace(/\/page\.[^./]+$/, '')
         : page.replace(/\.[^./]+$/, '')
-      ).replace(/\index$/, '') || '/'
+      ).replace(/\/index$/, '') || '/'
 
     if (isDynamicRoute(route)) {
       route = route
@@ -188,13 +188,13 @@ export class FlightTypesPlugin {
           if (part.startsWith('[') && part.endsWith(']')) {
             if (part.startsWith('[...')) {
               // /[...slug]
-              return '${CatchAllSlug<T>}'
+              return `\${CatchAllSlug<T>}`
             } else if (part.startsWith('[[...') && part.endsWith(']]')) {
               // /[[...slug]]
-              return '${OptionalCatchAllSlug<T>}'
+              return `\${OptionalCatchAllSlug<T>}`
             }
             // /[slug]
-            return '${SafeSlug<T>}'
+            return `\${SafeSlug<T>}`
           }
           return part
         })
