@@ -70,6 +70,16 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
+    it('should be able to rewrite on _next/static/chunks/pages/ 404', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/_next/static/chunks/pages/_app-non-existent.js'
+      )
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('Example Domain')
+    })
+
     if ((global as any).isNextDev) {
       it('refreshes the page when middleware changes ', async () => {
         const browser = await webdriver(next.url, `/about`)

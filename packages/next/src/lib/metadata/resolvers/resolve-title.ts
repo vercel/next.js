@@ -1,5 +1,5 @@
-import type { Metadata } from './types/metadata-interface'
-import type { AbsoluteTemplateString } from './types/metadata-types'
+import type { Metadata } from '../types/metadata-interface'
+import type { AbsoluteTemplateString } from '../types/metadata-types'
 
 function resolveTitleTemplate(template: string | null, title: string) {
   return template ? template.replace(/%s/g, title) : title
@@ -31,11 +31,11 @@ export function mergeTitle<T extends { title?: Metadata['title'] }>(
   }
 
   const target = source
-  if (source.title && typeof source.title !== 'string') {
-    const targetTitle = source.title as AbsoluteTemplateString
+  if (title && typeof title !== 'string') {
+    const targetTitle = title as AbsoluteTemplateString
     targetTitle.template = template
     targetTitle.absolute = resolved || ''
   } else {
-    target.title = { absolute: resolved || source.title || '', template }
+    target.title = { absolute: resolved || title || '', template }
   }
 }
