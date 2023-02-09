@@ -28,6 +28,7 @@ export function startServer(opts: StartServerOptions) {
         warn(
           'The server is running out of memory, restarting to free up memory.'
         )
+        server.close()
         process.exit(WORKER_SELF_EXIT_CODE)
       }
     })
