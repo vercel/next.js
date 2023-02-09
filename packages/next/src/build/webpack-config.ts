@@ -2122,6 +2122,7 @@ export default async function getBaseWebpackConfig(
           appDir,
           dev,
           isEdgeServer,
+          typedRoutes: !!config.experimental.typedRoutes,
         }),
       !dev &&
         isClient &&

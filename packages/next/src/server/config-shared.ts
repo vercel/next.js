@@ -176,6 +176,10 @@ export interface ExperimentalConfig {
     maxFiles?: number
   }
   mdxRs?: boolean
+
+  // Generate Route types and enable type checking for Link and Router.push, etc.
+  // This option requires `appDir` to be enabled first.
+  typedRoutes?: boolean
 }
 
 export type ExportPathMap = {
@@ -619,6 +623,7 @@ export const defaultConfig: NextConfig = {
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
     turbotrace: undefined,
+    typedRoutes: false,
   },
 }
 

@@ -11,6 +11,28 @@ export enum DiagnosticCategory {
   Message = 3,
 }
 
+function getFormattedLinkDiagnosticMessageText(
+  diagnostic: import('typescript').Diagnostic
+) {
+  const message = diagnostic.messageText
+  if (typeof message === 'string' && diagnostic.code === 2322) {
+    const match =
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'Route<string> | URL'\./
+      ) ||
+      message.match(
+        /Type '"(.+)"' is not assignable to type 'URL | Route<string>'\./
+      )
+
+    if (match) {
+      const [_, href] = match
+      return `"${chalk.bold(
+        href
+      )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
+    }
+  }
+}
+
 function getFormattedLayoutAndPageDiagnosticMessageText(
   baseDir: string,
   diagnostic: import('typescript').Diagnostic
@@ -166,10 +188,13 @@ export async function getFormattedDiagnostic(
 
   let message = ''
 
-  const layoutReason = isLayoutOrPageError
-    ? getFormattedLayoutAndPageDiagnosticMessageText(baseDir, diagnostic)
-    : null
+  const linkReason = getFormattedLinkDiagnosticMessageText(diagnostic)
+  const layoutReason =
+    !linkReason && isLayoutOrPageError
+      ? getFormattedLayoutAndPageDiagnosticMessageText(baseDir, diagnostic)
+      : null
   const reason =
+    linkReason ||
     layoutReason ||
     ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')
   const category = diagnostic.category

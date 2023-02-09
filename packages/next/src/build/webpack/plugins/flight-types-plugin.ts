@@ -14,6 +14,7 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
+  typedRoutes: boolean
 }
 
 function createTypeGuardFile(
@@ -100,7 +101,7 @@ const edgeRouteTypes: string[] = []
 
 export const pageFiles = new Set<string>()
 
-function createLinkTypeFile() {
+function createRouteDefinitions() {
   const fallback =
     !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
 
@@ -128,7 +129,7 @@ type OptionalCatchAllSlug<S extends string> =
   
 import { UrlObject } from 'url'
 
-type Route<T extends string> = ${fallback}
+type Route<T extends string = string> = ${fallback}
 ${
   edgeRouteTypes.map((route) => `  | ${route}`).join('\n') +
   nodeRouteTypes.map((route) => `  | ${route}`).join('\n')
@@ -136,6 +137,7 @@ ${
 
 declare module 'next/link' {
   export default function Link<T extends string>(props: {
+    [key: string]: any
     /**
      * The path or URL to navigate to. This is the only required prop. It can also be an object.
      * 
@@ -143,6 +145,10 @@ declare module 'next/link' {
      */
     href: Route<T> | UrlObject
   }): JSX.Element
+}
+
+declare module 'next' {
+  export { Route }
 }`
 }
 
@@ -153,6 +159,7 @@ export class FlightTypesPlugin {
   pagesDir: string
   dev: boolean
   isEdgeServer: boolean
+  typedRoutes: boolean
 
   constructor(options: Options) {
     this.dir = options.dir
@@ -161,9 +168,12 @@ export class FlightTypesPlugin {
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
     this.pagesDir = path.join(this.appDir, '..', 'pages')
+    this.typedRoutes = options.typedRoutes
   }
 
   collectPage(filePath: string) {
+    if (!this.typedRoutes) return
+
     const isApp = filePath.startsWith(this.appDir + path.sep)
 
     // Filter out non-page files in app dir
@@ -325,16 +335,18 @@ export class FlightTypesPlugin {
 
           await Promise.all(promises)
 
-          pageFiles.forEach((file) => {
-            this.collectPage(file)
-          })
+          if (this.typedRoutes) {
+            pageFiles.forEach((file) => {
+              this.collectPage(file)
+            })
 
-          const linkTypePath = path.join('types', 'link.d.ts')
-          const assetPath =
-            assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
-          assets[assetPath] = new sources.RawSource(
-            createLinkTypeFile()
-          ) as unknown as webpack.sources.RawSource
+            const linkTypePath = path.join('types', 'link.d.ts')
+            const assetPath =
+              assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
+            assets[assetPath] = new sources.RawSource(
+              createRouteDefinitions()
+            ) as unknown as webpack.sources.RawSource
+          }
 
           callback()
         }

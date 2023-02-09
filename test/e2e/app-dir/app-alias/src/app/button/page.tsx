@@ -1,25 +1,10 @@
-import Link from 'next/link'
+import Button from '@/ui/button'
+import React from 'react'
 
 export default function page() {
-  const test = 'a/b'
+  if ('useState' in React) {
+    throw new Error('React is not resolved correctly.')
+  }
 
-  return (
-    <>
-      <Link href="/aaa" />
-      <Link href="/aaa?q=1" />
-      <Link href="/typing" />
-      <Link href="/button" />
-      <Link href="/buttooon" />
-      <Link href="/blog/" />
-      <Link href="/blog/a/b" />
-      <Link href="/blog/v/w" />
-      <Link href="/dashboard/" />
-      <Link href="/dashboard/123" />
-      <Link href="/dashboard/user" />
-      <Link href="/dashboard/user/" />
-      <Link href="/dashboard/user/x" />
-      <Link href={`/blog/${test}`} />
-      <Link href={`/blog/a/${test}`} />
-    </>
-  )
+  return <Button>click</Button>
 }

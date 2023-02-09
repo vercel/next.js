@@ -435,6 +435,9 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        typedRoutes: {
+          type: 'boolean',
+        },
         turbopackLoaders: {
           type: 'object',
         },
