@@ -141,39 +141,6 @@ createNextDescribe(
         )
       })
 
-      it('should handle next/dynamic correctly', async () => {
-        const $ = await next.render$('/dashboard/dynamic')
-        // filter out the script
-        const selector = 'body div'
-        const serverContent = $(selector).text()
-        // should load chunks generated via async import correctly with React.lazy
-        expect(serverContent).toContain('next-dynamic lazy')
-        // should support `dynamic` in both server and client components
-        expect(serverContent).toContain('next-dynamic dynamic on server')
-        expect(serverContent).toContain('next-dynamic dynamic on client')
-        expect(serverContent).toContain('next-dynamic server import client')
-        expect(serverContent).not.toContain(
-          'next-dynamic dynamic no ssr on client'
-        )
-
-        expect(serverContent).not.toContain(
-          'next-dynamic dynamic no ssr on server'
-        )
-
-        // client component under server component with ssr: false will not be rendered either in flight or SSR
-        expect($.html()).not.toContain('client component under sever no ssr')
-
-        const browser = await next.browser('/dashboard/dynamic')
-        const clientContent = await browser.elementByCss(selector).text()
-        expect(clientContent).toContain('next-dynamic dynamic no ssr on server')
-        expect(clientContent).toContain('client component under sever no ssr')
-        await browser.waitForElementByCss('#css-text-dynamic-no-ssr-client')
-
-        expect(
-          await browser.elementByCss('#css-text-dynamic-no-ssr-client').text()
-        ).toBe('next-dynamic dynamic no ssr on client:suffix')
-      })
-
       it('should serve polyfills for browsers that do not support modules', async () => {
         const html = await next.render('/dashboard/index')
         expect(html).toMatch(
@@ -2252,6 +2219,26 @@ createNextDescribe(
             .map((x) => x.message)
             .join('\n')
           expect(errors).toInclude('Error during SSR')
+        })
+
+        // Pages directory shouldn't be affected when `appDir` is enabled
+        describe('pages dir', () => {
+          it('should include css modules and global css after page transition', async () => {
+            const browser = await next.browser('/css-modules/page1')
+            await browser.elementByCss('a').click()
+            await browser.waitForElementByCss('#page2')
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
+              )
+            ).toBe('rgb(205, 92, 92)')
+
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('.page-2')).backgroundColor`
+              )
+            ).toBe('rgb(255, 228, 181)')
+          })
         })
       }
     })

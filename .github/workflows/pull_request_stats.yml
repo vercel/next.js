@@ -29,7 +29,7 @@ jobs:
 
       - name: Cache cargo registry
         uses: actions/cache@v3
-        timeout-minutes: 2
+        timeout-minutes: 5
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/registry
@@ -37,7 +37,7 @@ jobs:
 
       - name: Cache cargo index
         uses: actions/cache@v3
-        timeout-minutes: 2
+        timeout-minutes: 5
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: ~/.cargo/git
@@ -50,7 +50,7 @@ jobs:
       - name: Turbo Cache
         id: turbo-cache
         uses: actions/cache@v3
-        timeout-minutes: 2
+        timeout-minutes: 5
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           path: .turbo
@@ -65,7 +65,7 @@ jobs:
       # So we get latest cache
       - name: Cache built files
         uses: actions/cache@v3
-        timeout-minutes: 2
+        timeout-minutes: 5
         with:
           path: ./packages/next-target
           key: next-swc-cargo-cache-ubuntu-latest--${{ hashFiles('**/Cargo.lock') }}

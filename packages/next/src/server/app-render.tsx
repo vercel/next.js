@@ -6,7 +6,6 @@ import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-ma
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
 import { NotFound as DefaultNotFound } from '../client/components/error'
-import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
@@ -31,14 +30,13 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
+// import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/app-dynamic/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
   NEXT_ROUTER_PREFETCH,
@@ -54,6 +52,9 @@ import { runWithStaticGenerationAsyncStorage } from './run-with-static-generatio
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import type { LogErrorWithOriginalStack } from './dev/next-dev-server'
+import { isClientReference } from '../build/is-client-reference'
+import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
+import { warnOnce } from '../shared/lib/utils/warn-once'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -94,13 +95,6 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
-}
-
-async function getLayoutOrPageModule(loaderTree: LoaderTree) {
-  const { layout, page } = loaderTree[2]
-  const isLayout = typeof layout !== 'undefined'
-  const isPage = typeof page !== 'undefined'
-  return isLayout ? await layout[0]() : isPage ? await page[0]() : undefined
 }
 
 export class ReadonlyHeaders {
@@ -641,15 +635,6 @@ export type Segment =
   | [param: string, value: string, type: DynamicParamTypesShort]
 
 /**
- * LoaderTree is generated in next-app-loader.
- */
-type LoaderTree = [
-  segment: string,
-  parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: ComponentsType
-]
-
-/**
  * Router state
  */
 export type FlightRouterState = [
@@ -850,7 +835,8 @@ function getPreloadedFontFilesInlineLinkTags(
     return null
   }
 
-  return [...fontFiles]
+  // Sorting to make order deterministic
+  return [...fontFiles].sort()
 }
 
 function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
@@ -1003,7 +989,11 @@ export async function renderToHTMLOrFlight(
      * that we need to resolve the final metadata.
      */
 
-    const requestId = nanoid(12)
+    const requestId =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? crypto.randomUUID()
+        : require('next/dist/compiled/nanoid').nanoid()
+
     const searchParamsProps = { searchParams: query }
 
     stripInternalQueries(query)
@@ -1114,8 +1104,7 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      const mod = await getLayoutOrPageModule(tree)
-      await collectMetadata(mod, layerProps, metadataItems)
+      await collectMetadata(tree, layerProps, metadataItems)
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
@@ -1130,6 +1119,12 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
+        if (process.env.NODE_ENV !== 'production') {
+          warnOnce(
+            `\`head.js\` is being used in route /${segment}. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
+          )
+        }
+
         const Head = await interopDefault(await head[0]())
         return [<Head params={currentParams} />, metadataItems]
       }
@@ -1215,7 +1210,8 @@ export async function renderToHTMLOrFlight(
             />
           ))
         : null
-      const Comp = await interopDefault(await getComponent())
+
+      const Comp = interopDefault(await getComponent())
 
       return [Comp, styles]
     }
@@ -1388,7 +1384,10 @@ export async function renderToHTMLOrFlight(
           )
         }
 
-        if (layoutOrPageMod?.config?.amp) {
+        if (
+          !isClientReference(layoutOrPageMod) &&
+          layoutOrPageMod?.config?.amp
+        ) {
           throw new Error(
             'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
           )
@@ -1531,14 +1530,18 @@ export async function renderToHTMLOrFlight(
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
-      Component = await Promise.resolve().then(() => {
-        return preloadComponent(Component, props)
-      })
+      if (!isClientReference(layoutOrPageMod)) {
+        Component = await Promise.resolve().then(() =>
+          preloadComponent(Component, props)
+        )
+      }
 
       return {
         Component: () => {
           return (
             <>
+              {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
+              <Component {...props} />
               {preloadedFontFiles?.length === 0 ? (
                 <link
                   data-next-font={
@@ -1586,7 +1589,6 @@ export async function renderToHTMLOrFlight(
                     />
                   ))
                 : null}
-              <Component {...props} />
             </>
           )
         },
@@ -1596,17 +1598,18 @@ export async function renderToHTMLOrFlight(
     const streamToBufferedResult = async (
       renderResult: RenderResult
     ): Promise<string> => {
-      const renderChunks: Buffer[] = []
-      const writable = new Writable({
-        write(chunk, _encoding, callback) {
-          renderChunks.push(chunk)
-          callback()
-        },
-      })
-      await renderResult.pipe(writable)
-      return Buffer.concat(renderChunks).toString()
-    }
+      const renderChunks: string[] = []
 
+      const writable = {
+        write(chunk: any) {
+          renderChunks.push(decodeText(chunk))
+        },
+        end() {},
+        destroy() {},
+      }
+      await renderResult.pipe(writable as any)
+      return renderChunks.join('')
+    }
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
     const generateFlight = async (): Promise<RenderResult> => {
       // TODO-APP: throw on invalid flightRouterState

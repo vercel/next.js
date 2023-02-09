@@ -53,6 +53,7 @@ import {
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
 import { AssetBinding } from './webpack/loaders/get-module-build-info'
+import { isClientReference } from './is-client-reference'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -1100,14 +1101,18 @@ export const collectGenerateParams = async (
     : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
 
+  const isClientComponent = isClientReference(mod)
+
   const result = {
     isLayout,
     segmentPath: `/${parentSegments.join('/')}${
       segment[0] && parentSegments.length > 0 ? '/' : ''
     }${segment[0]}`,
     config,
-    getStaticPaths: mod?.getStaticPaths,
-    generateStaticParams: mod?.generateStaticParams,
+    getStaticPaths: isClientComponent ? undefined : mod?.getStaticPaths,
+    generateStaticParams: isClientComponent
+      ? undefined
+      : mod?.generateStaticParams,
   }
 
   if (segment[0]) {
@@ -1269,6 +1274,7 @@ export async function isPageStatic({
       let encodedPrerenderRoutes: Array<string> | undefined
       let prerenderFallback: boolean | 'blocking' | undefined
       let appConfig: AppConfig = {}
+      let isClientComponent: boolean = false
 
       if (isEdgeRuntime(pageRuntime)) {
         const runtime = await getRuntimeContext({
@@ -1288,6 +1294,7 @@ export async function isPageStatic({
         const mod =
           runtime.context._ENTRIES[`middleware_${edgeInfo.name}`].ComponentMod
 
+        isClientComponent = isClientReference(mod)
         componentsResult = {
           Component: mod.default,
           ComponentMod: mod,
@@ -1313,6 +1320,7 @@ export async function isPageStatic({
         | undefined
 
       if (pageType === 'app') {
+        isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
         const generateParams = await collectGenerateParams(tree)
 
@@ -1458,7 +1466,10 @@ export async function isPageStatic({
       }
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
-      const config: PageConfig = componentsResult.pageConfig
+      const config: PageConfig = isClientComponent
+        ? {}
+        : componentsResult.pageConfig
+
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',

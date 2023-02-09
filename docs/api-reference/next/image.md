@@ -269,7 +269,15 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
 
-This prop can be assigned to all images by updating `next.config.js` with the following configuration:
+```js
+import Image from 'next/image'
+
+const UnoptimizedImage = (props) => {
+  return <Image {...props} unoptimized />
+}
+```
+
+Since Next.js 12.3.0, this prop can be assigned to all images by updating `next.config.js` with the following configuration:
 
 ```js
 module.exports = {
