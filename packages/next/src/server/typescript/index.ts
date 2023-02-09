@@ -257,6 +257,19 @@ export function createTSPlugin(modules: {
           ts.isFunctionDeclaration(node) &&
           node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
+          if (isAppEntry) {
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
+            prior.push(...metadataDiagnostics)
+          }
+
           // export function ...
           if (isClientEntry) {
             prior.push(
