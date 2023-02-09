@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Inter } from "@next/font/google";
+import { Inter } from "next/font/google";
 
 const interNoArgs = Inter();
 const interWithVariableName = Inter({

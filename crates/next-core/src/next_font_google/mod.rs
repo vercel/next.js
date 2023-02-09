@@ -82,14 +82,19 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
                     formatdoc!(
                         r#"
                             import cssModule from "@vercel/turbopack-next/internal/font/google/cssmodule.module.css?{}";
-                            export default {{
+                            const fontData = {{
                                 className: cssModule.className,
                                 style: {{
                                     fontFamily: "{}",
                                     {}{}
                                 }},
-                                variable: cssModule.variable
                             }};
+
+                            if (cssModule.variable != null) {{
+                                fontData.variable = cssModule.variable;
+                            }}
+
+                            export default fontData;
                         "#,
                         // Pass along whichever options we received to the css handler
                         qstring::QString::new(query.as_ref().unwrap().iter().collect()),
@@ -362,10 +367,10 @@ async fn font_options_from_query_map(query: QueryMapVc) -> Result<NextFontGoogle
     // of Issues should be okay.
     let query_map = query_map
         .as_ref()
-        .context("@next/font/google queries must exist")?;
+        .context("next/font/google queries must exist")?;
 
     if query_map.len() != 1 {
-        bail!("@next/font/google queries must only have one entry");
+        bail!("next/font/google queries must only have one entry");
     }
 
     let Some((json, _)) = query_map.iter().next() else {
