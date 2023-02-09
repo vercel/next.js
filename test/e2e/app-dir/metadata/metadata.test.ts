@@ -454,6 +454,23 @@ createNextDescribe(
           ])
         ).toEqual({ sizes: '180x180', type: 'image/png' })
       })
+
+      it('should support root level of favicon.ico', async () => {
+        let $ = await next.render$('/')
+        let $icon = $('link[rel="icon"]')
+        expect($icon.attr('href')).toMatch(
+          /_next\/static\/media\/metadata\/favicon.\w+.ico/
+        )
+        expect($icon.attr('type')).toBe('image/x-icon')
+        expect($icon.attr('sizes')).toBe('any')
+
+        $ = await next.render$('/basic')
+        $icon = $('link[rel="icon"]')
+        expect($icon.attr('href')).toMatch(
+          /_next\/static\/media\/metadata\/favicon.\w+.ico/
+        )
+        expect($icon.attr('sizes')).toBe('any')
+      })
     })
 
     describe('file based icons', () => {
@@ -467,9 +484,11 @@ createNextDescribe(
           /\/_next\/static\/media\/metadata\/icon1\.\w+\.png/
         )
         expect($icon.attr('sizes')).toBe('32x32')
+        expect($icon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('href')).toMatch(
           /\/_next\/static\/media\/metadata\/apple-icon\.\w+\.png/
         )
+        expect($appleIcon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('sizes')).toMatch('114x114')
       })
 

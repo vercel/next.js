@@ -1,3 +1,5 @@
+import type webpack from 'webpack'
+import type { AppLoaderOptions } from '../next-app-loader'
 import path from 'path'
 import { stringify } from 'querystring'
 
@@ -14,6 +16,10 @@ const staticAssetIconsImage = {
     filename: 'apple-icon',
     extensions: ['jpg', 'jpeg', 'png', 'svg'],
   },
+  favicon: {
+    filename: 'favicon',
+    extensions: ['ico'],
+  },
 }
 
 // Produce all compositions with filename (icon, apple-icon, etc.) with extensions (png, jpg, etc.)
@@ -23,12 +29,10 @@ async function enumMetadataFiles(
   extensions: string[],
   {
     resolvePath,
-    addDependency,
-    addMissingDependency,
+    loaderContext,
   }: {
     resolvePath: (pathname: string) => Promise<string>
-    addDependency: (dep: string) => any
-    addMissingDependency: (dep: string) => any
+    loaderContext: webpack.LoaderContext<any>
   }
 ) {
   const collectedFiles: string[] = []
@@ -43,14 +47,14 @@ async function enumMetadataFiles(
       const pathname = path.join(dir, `${name}.${ext}`)
       try {
         const resolved = await resolvePath(pathname)
-        addDependency(resolved)
+        loaderContext.addDependency(resolved)
 
         collectedFiles.push(resolved)
       } catch (err: any) {
         if (!err.message.includes("Can't resolve")) {
           throw err
         }
-        addMissingDependency(pathname)
+        loaderContext.addMissingDependency(pathname)
       }
     }
   }
@@ -61,15 +65,15 @@ async function enumMetadataFiles(
 export async function discoverStaticMetadataFiles(
   resolvedDir: string,
   {
-    isDev,
     resolvePath,
-    addDependency,
-    addMissingDependency,
+    isRootLayer,
+    loaderContext,
+    loaderOptions,
   }: {
-    isDev: boolean
-    addDependency: (dep: string) => any
-    addMissingDependency: (dep: string) => any
     resolvePath: (pathname: string) => Promise<string>
+    isRootLayer: boolean
+    loaderContext: webpack.LoaderContext<any>
+    loaderOptions: AppLoaderOptions
   }
 ) {
   let hasStaticMetadataFiles = false
@@ -83,11 +87,15 @@ export async function discoverStaticMetadataFiles(
 
   const opts = {
     resolvePath,
-    addDependency,
-    addMissingDependency,
+    loaderContext,
   }
 
-  async function collectIconModuleIfExists(type: 'icon' | 'apple') {
+  const metadataImageLoaderOptions = {
+    isDev: loaderOptions.isDev,
+    assetPrefix: loaderOptions.assetPrefix,
+  }
+
+  async function collectIconModuleIfExists(type: 'icon' | 'apple' | 'favicon') {
     const resolvedMetadataFiles = await enumMetadataFiles(
       resolvedDir,
       staticAssetIconsImage[type].filename,
@@ -98,19 +106,26 @@ export async function discoverStaticMetadataFiles(
       .sort((a, b) => a.localeCompare(b))
       .forEach((filepath) => {
         const iconModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-          `next-metadata-image-loader?${stringify({ isDev })}!` +
+          `next-metadata-image-loader?${stringify(
+            metadataImageLoaderOptions
+          )}!` +
             filepath +
             METADATA_IMAGE_RESOURCE_QUERY
         )})`
 
         hasStaticMetadataFiles = true
-        iconsMetadata[type].push(iconModule)
+        if (type === 'favicon') {
+          iconsMetadata.icon.unshift(iconModule)
+        } else {
+          iconsMetadata[type].push(iconModule)
+        }
       })
   }
 
   await Promise.all([
     collectIconModuleIfExists('icon'),
     collectIconModuleIfExists('apple'),
+    isRootLayer && collectIconModuleIfExists('favicon'),
   ])
 
   return hasStaticMetadataFiles ? iconsMetadata : null
