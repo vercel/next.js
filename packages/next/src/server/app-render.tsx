@@ -1757,8 +1757,7 @@ export async function renderToHTMLOrFlight(
             createSegmentPath: (child) => child,
             loaderTreeToFilter: loaderTree,
             parentParams: {},
-            // TODO: This is for debugging purposes only.
-            flightRouterState: undefined && providedFlightRouterState,
+            flightRouterState: providedFlightRouterState,
             isFirst: true,
             // For flight, render metadata inside leaf page
             rscPayloadHead: (
