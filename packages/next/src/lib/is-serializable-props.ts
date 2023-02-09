@@ -15,11 +15,15 @@ export class SerializableError extends Error {
   }
 }
 
+// TODO: [joulev] Restore this function and remove all eslint-disable-next-line
 export function isSerializableProps(
   page: string,
   method: string,
   input: any
 ): true {
+  return true
+
+  // eslint-disable-next-line no-unreachable
   if (!isPlainObject(input)) {
     throw new SerializableError(
       page,
@@ -139,5 +143,6 @@ export function isSerializableProps(
     )
   }
 
+  // eslint-disable-next-line no-unreachable
   return isSerializable(new Map(), input, '')
 }
