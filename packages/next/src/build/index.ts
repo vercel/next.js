@@ -1286,8 +1286,8 @@ export default async function build(
                           isSsg = true
                         }
                         if (
-                          (!isDynamicRoute(page) ||
-                            !workerResult.prerenderRoutes?.length) &&
+                          !isDynamicRoute(page) &&
+                          !workerResult.prerenderRoutes?.length &&
                           workerResult.appConfig?.revalidate !== 0
                         ) {
                           appStaticPaths.set(originalAppPath, [page])
