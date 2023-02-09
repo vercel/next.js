@@ -1,4 +1,5 @@
 import loadConfig from "next/dist/server/config";
+import loadCustomRoutes from "next/dist/lib/load-custom-routes";
 import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
 import assert from "assert";
 
@@ -12,6 +13,12 @@ const loadNextConfig = async (silent) => {
   );
 
   nextConfig.generateBuildId = await nextConfig.generateBuildId?.();
+
+  const customRoutes = await loadCustomRoutes(nextConfig);
+
+  nextConfig.headers = customRoutes.headers;
+  nextConfig.rewrites = customRoutes.rewrites;
+  nextConfig.redirects = customRoutes.redirects;
 
   // TODO: these functions takes arguments, have to be supported in a different way
   nextConfig.exportPathMap = nextConfig.exportPathMap && {};

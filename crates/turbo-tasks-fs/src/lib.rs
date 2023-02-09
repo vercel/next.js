@@ -1406,6 +1406,13 @@ impl FileContent {
         matches!(self, FileContent::Content(_))
     }
 
+    pub fn as_content(&self) -> Option<&File> {
+        match self {
+            FileContent::Content(file) => Some(file),
+            FileContent::NotFound => None,
+        }
+    }
+
     pub fn parse_json(&self) -> FileJsonContent {
         match self {
             FileContent::Content(file) => {

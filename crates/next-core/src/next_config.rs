@@ -48,6 +48,7 @@ pub struct NextConfig {
     pub images: ImageConfig,
     pub page_extensions: Vec<String>,
     pub react_strict_mode: Option<bool>,
+    pub rewrites: Rewrites,
     pub transpile_packages: Option<Vec<String>>,
 
     // unsupported
@@ -68,8 +69,7 @@ pub struct NextConfig {
     // this is a function in js land
     generate_build_id: Option<serde_json::Value>,
     generate_etags: bool,
-    // this is a function in js land
-    headers: Option<serde_json::Value>,
+    headers: Vec<Header>,
     http_agent_options: HttpAgentConfig,
     i18n: Option<I18NConfig>,
     on_demand_entries: OnDemandEntriesConfig,
@@ -79,10 +79,7 @@ pub struct NextConfig {
     powered_by_header: bool,
     production_browser_source_maps: bool,
     public_runtime_config: IndexMap<String, serde_json::Value>,
-    // this is a function in js land
-    redirects: Option<serde_json::Value>,
-    // this is a function in js land
-    rewrites: Option<serde_json::Value>,
+    redirects: Vec<Redirect>,
     sass_options: IndexMap<String, serde_json::Value>,
     server_runtime_config: IndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
@@ -159,6 +156,100 @@ struct I18NConfig {
 #[serde(rename_all = "kebab-case")]
 enum OutputType {
     Standalone,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum RouteHas {
+    Header {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Cookie {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Query {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Host {
+        value: String,
+    },
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct HeaderValue {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct Header {
+    pub source: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_path: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locale: Option<bool>,
+    pub headers: Vec<HeaderValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has: Option<Vec<RouteHas>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub missing: Option<Vec<RouteHas>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub enum RedirectStatus {
+    StatusCode(f64),
+    Permanent(bool),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct Redirect {
+    pub source: String,
+    pub destination: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_path: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locale: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has: Option<Vec<RouteHas>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub missing: Option<Vec<RouteHas>>,
+
+    #[serde(flatten)]
+    pub status: RedirectStatus,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct Rewrite {
+    pub source: String,
+    pub destination: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_path: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locale: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has: Option<Vec<RouteHas>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub missing: Option<Vec<RouteHas>>,
+}
+
+#[turbo_tasks::value(eq = "manual")]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Rewrites {
+    pub before_files: Vec<Rewrite>,
+    pub after_files: Vec<Rewrite>,
+    pub fallback: Vec<Rewrite>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -394,6 +485,11 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn page_extensions(self) -> Result<StringsVc> {
         Ok(StringsVc::cell(self.await?.page_extensions.clone()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn rewrites(self) -> Result<RewritesVc> {
+        Ok(self.await?.rewrites.clone().cell())
     }
 
     #[turbo_tasks::function]
