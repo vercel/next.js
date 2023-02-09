@@ -29,11 +29,15 @@ export function createInitialRouterState({
     status: CacheStates.READY,
     data: null,
     subTreeData: children,
+    // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
   }
-  if (initialHead) {
+
+  // When the cache hasn't been seeded yet we fill the cache with the head.
+  if (!isServer && initialParallelRoutes.size === 0) {
     fillLazyItemsTillLeafWithHead(cache, undefined, initialTree, initialHead)
   }
+
   return {
     tree: initialTree,
     cache,
