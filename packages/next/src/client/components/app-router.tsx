@@ -39,9 +39,12 @@ import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 
+const isServer = typeof window === 'undefined'
+
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
-let initialParallelRoutes: CacheNode['parallelRoutes'] =
-  typeof window === 'undefined' ? null! : new Map()
+let initialParallelRoutes: CacheNode['parallelRoutes'] = isServer
+  ? null!
+  : new Map()
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -70,8 +73,6 @@ type AppRouterProps = Omit<
 function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
 }
-
-const isServer = typeof window === 'undefined'
 
 /**
  * The global router that wraps the application components.
