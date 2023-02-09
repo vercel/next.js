@@ -571,6 +571,10 @@
             {
               "title": "Build indicator",
               "path": "/docs/api-reference/next.config.js/build-indicator.md"
+            },
+            {
+              "title": "Turbopack-specific options",
+              "path": "/docs/api-reference/next.config.js/turbopack.md"
             }
           ]
         }

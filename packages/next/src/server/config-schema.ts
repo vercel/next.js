@@ -441,8 +441,17 @@ const configSchema = {
         webpackBuildWorker: {
           type: 'boolean',
         },
-        turbopackLoaders: {
+        turbo: {
           type: 'object',
+          additionalProperties: false,
+          properties: {
+            loaders: {
+              type: 'object',
+            },
+            resolveAlias: {
+              type: 'object',
+            },
+          },
         },
         turbotrace: {
           type: 'object',
@@ -477,6 +486,9 @@ const configSchema = {
             },
             memoryLimit: {
               type: 'integer',
+            },
+            skipEntries: {
+              type: 'boolean',
             },
           },
         },

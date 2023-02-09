@@ -174,7 +174,7 @@ type ResolvedOpenGraphMetadata = {
   images?: Array<OGImage>
   audio?: Array<OGAudio>
   videos?: Array<OGVideo>
-  url?: URL
+  url: null | URL
   countryName?: string
   ttl?: number
 }

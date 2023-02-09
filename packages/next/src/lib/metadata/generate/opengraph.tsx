@@ -1,8 +1,8 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
+import type { TwitterAppDescriptor } from '../types/twitter-types'
 
 import React from 'react'
 import { Meta, MultiMeta } from './meta'
-import { TwitterAppDescriptor } from '../types/twitter-types'
 
 export function OpenGraphMetadata({
   openGraph,

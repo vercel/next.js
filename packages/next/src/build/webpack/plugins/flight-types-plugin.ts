@@ -66,7 +66,7 @@ interface IEntry {
       : ''
   }
   metadata?: any
-  generateMetadata?: (props: PageProps, parent: ResolvingMetadata) => Promise<any>
+  generateMetadata?: (props: PageProps, parent: ResolvingMetadata) => any | Promise<any>
 }
 
 // =============
