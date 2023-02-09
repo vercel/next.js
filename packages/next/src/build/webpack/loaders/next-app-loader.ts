@@ -40,8 +40,8 @@ async function createTreeCodeFromPath(
     resolvePath,
     resolveParallelSegments,
     isDev,
-    addDependency,
-    addMissingDependency,
+    loaderContext,
+    loaderOptions,
   }: {
     resolver: (
       pathname: string,
@@ -52,8 +52,8 @@ async function createTreeCodeFromPath(
       pathname: string
     ) => [key: string, segment: string][]
     isDev: boolean
-    addDependency: (dep: string) => any
-    addMissingDependency: (dep: string) => any
+    loaderContext: webpack.LoaderContext<AppLoaderOptions>
+    loaderOptions: AppLoaderOptions
   }
 ) {
   const splittedPath = pagePath.split(/[\\/]/)
@@ -72,10 +72,11 @@ async function createTreeCodeFromPath(
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
+    const isRootLayer = segments.length === 0
 
     // We need to resolve all parallel routes in this level.
     const parallelSegments: [key: string, segment: string][] = []
-    if (segments.length === 0) {
+    if (isRootLayer) {
       parallelSegments.push(['children', ''])
     } else {
       parallelSegments.push(...resolveParallelSegments(segmentPath))
@@ -88,10 +89,10 @@ async function createTreeCodeFromPath(
 
       if (resolvedRouteDir) {
         metadata = await discoverStaticMetadataFiles(resolvedRouteDir, {
-          isDev,
           resolvePath,
-          addDependency,
-          addMissingDependency,
+          isRootLayer,
+          loaderContext,
+          loaderOptions,
         })
       }
     } catch (err: any) {
@@ -144,7 +145,7 @@ async function createTreeCodeFromPath(
 
       if (!globalError) {
         globalError = await resolver(
-          `${appDirPrefix}${parallelSegmentPath}/${GLOBAL_ERROR_FILE_TYPE}`
+          `${appDirPrefix}${parallelSegmentPath}${GLOBAL_ERROR_FILE_TYPE}`
         )
       }
 
@@ -195,16 +196,22 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   )
 }
 
-const nextAppLoader: webpack.LoaderDefinitionFunction<{
+export type AppLoaderOptions = {
   name: string
   pagePath: string
   appDir: string
   appPaths: string[] | null
   pageExtensions: string[]
+  basePath: string
+  assetPrefix: string
   rootDir?: string
   tsconfigPath?: string
   isDev?: boolean
-}> = async function nextAppLoader() {
+}
+type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
+
+const nextAppLoader: AppLoader = async function nextAppLoader() {
+  const loaderOptions = this.getOptions() || {}
   const {
     name,
     appDir,
@@ -214,7 +221,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     rootDir,
     tsconfigPath,
     isDev,
-  } = this.getOptions() || {}
+  } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   buildInfo.route = {
@@ -285,8 +292,8 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
     isDev: !!isDev,
-    addDependency: this.addDependency.bind(this),
-    addMissingDependency: this.addMissingDependency.bind(this),
+    loaderContext: this,
+    loaderOptions: loaderOptions,
   })
 
   if (!rootLayout) {
