@@ -354,6 +354,12 @@ pub async fn insert_next_shared_aliases(
 
     import_map.insert_alias(
         // Request path from js via next-font swc transform
+        AliasPattern::exact("next/font/google/target.css"),
+        ImportMapping::Dynamic(NextFontGoogleReplacerVc::new(project_path).into()).into(),
+    );
+
+    import_map.insert_alias(
+        // Request path from js via next-font swc transform
         AliasPattern::exact("@next/font/google/target.css"),
         ImportMapping::Dynamic(NextFontGoogleReplacerVc::new(project_path).into()).into(),
     );

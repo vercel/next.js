@@ -61,9 +61,15 @@ pub fn get_next_dynamic_transform_rule(
 /// Returns a rule which applies the Next.js font transform.
 pub fn get_next_font_transform_rule() -> ModuleRule {
     #[allow(unused_mut)] // This is mutated when next-font-local is enabled
-    let mut font_loaders = vec!["@next/font/google".to_owned()];
+    let mut font_loaders = vec![
+        "next/font/google".to_owned(),
+        "@next/font/google".to_owned(),
+    ];
     #[cfg(feature = "next-font-local")]
-    font_loaders.push("@next/font/local".to_owned());
+    {
+        font_loaders.push("next/font/local".to_owned());
+        font_loaders.push("@next/font/local".to_owned());
+    }
 
     ModuleRule::new(
         // TODO: Only match in pages (not pages/api), app/, etc.
