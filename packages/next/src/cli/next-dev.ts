@@ -442,37 +442,68 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       const isDebugging = process.execArgv.some((localArg) =>
         localArg.startsWith('--inspect')
       )
+
+      const isDebuggingWithBrk = process.execArgv.some((localArg) =>
+        localArg.startsWith('--inspect-brk')
+      )
+
       const debugPort = (() => {
         const debugPortStr = process.execArgv
-          .find((localArg) => localArg.startsWith('--inspect'))
+          .find(
+            (localArg) =>
+              localArg.startsWith('--inspect') ||
+              localArg.startsWith('--inspect-brk')
+          )
           ?.split('=')[1]
         return debugPortStr ? parseInt(debugPortStr, 10) : 9229
       })()
-      if (isDebugging) {
+
+      if (isDebugging || isDebuggingWithBrk) {
         warn(
-          `--inspect option detected, the Next.js server should be inspected at port ${
+          `the --inspect${
+            isDebuggingWithBrk ? '-brk' : ''
+          } option was detected, the Next.js server should be inspected at port ${
             debugPort + 1
           }.`
         )
       }
 
-      const setupFork = (env?: NodeJS.ProcessEnv) => {
+      const genExecArgv = () => {
+        const execArgv = process.execArgv.filter((localArg) => {
+          return (
+            !localArg.startsWith('--inspect') &&
+            !localArg.startsWith('--inspect-brk')
+          )
+        })
+
+        if (isDebugging || isDebuggingWithBrk) {
+          execArgv.push(
+            `--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort + 1}`
+          )
+        }
+
+        return execArgv
+      }
+
+      const setupFork = (env?: NodeJS.ProcessEnv, newDir?: string) => {
         const startDir = dir
         const [, script, ...nodeArgs] = process.argv
         let shouldFilter = false
-        childProcess = fork(script, nodeArgs, {
-          env: {
-            ...(env ? env : process.env),
-            FORCE_COLOR: '1',
-            __NEXT_DEV_CHILD_PROCESS: '1',
-          },
-          // @ts-ignore TODO: remove ignore when types are updated
-          windowsHide: true,
-          stdio: ['ipc', 'pipe', 'pipe'],
-          execArgv: isDebugging
-            ? [...process.execArgv, `--inspect=${debugPort + 1}`]
-            : process.execArgv,
-        })
+        childProcess = fork(
+          newDir ? script.replace(startDir, newDir) : script,
+          nodeArgs,
+          {
+            env: {
+              ...(env ? env : process.env),
+              FORCE_COLOR: '1',
+              __NEXT_DEV_CHILD_PROCESS: '1',
+            },
+            // @ts-ignore TODO: remove ignore when types are updated
+            windowsHide: true,
+            stdio: ['ipc', 'pipe', 'pipe'],
+            execArgv: genExecArgv(),
+          }
+        )
 
         // since errors can start being logged from the fork
         // before we detect the project directory rename
@@ -537,13 +568,16 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         childProcessExitUnsub()
         childProcess?.kill()
         process.chdir(newDir)
-        childProcessExitUnsub = setupFork({
-          ...Object.keys(process.env).reduce((newEnv, key) => {
-            newEnv[key] = process.env[key]?.replace(dir, newDir)
-            return newEnv
-          }, {} as typeof process.env),
-          NEXT_PRIVATE_DEV_DIR: newDir,
-        })
+        childProcessExitUnsub = setupFork(
+          {
+            ...Object.keys(process.env).reduce((newEnv, key) => {
+              newEnv[key] = process.env[key]?.replace(dir, newDir)
+              return newEnv
+            }, {} as typeof process.env),
+            NEXT_PRIVATE_DEV_DIR: newDir,
+          },
+          newDir
+        )
       }
       const parentDir = path.join('/', dir, '..')
       const watchedEntryLength = parentDir.split('/').length + 1
