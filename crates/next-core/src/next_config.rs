@@ -244,11 +244,17 @@ pub enum RemotePatternProtocal {
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
+pub struct ExperimentalTurboConfig {
+    pub loaders: Option<IndexMap<String, WebpackLoaderConfigs>>,
+    pub resolve_alias: Option<IndexMap<String, JsonValue>>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
     pub app_dir: Option<bool>,
     pub server_components_external_packages: Option<Vec<String>>,
-    pub turbopack_loaders: Option<IndexMap<String, WebpackLoaderConfigs>>,
-    pub turbopack_resolve_alias: Option<IndexMap<String, JsonValue>>,
+    pub turbo: Option<ExperimentalTurboConfig>,
 
     // unsupported
     adjust_font_fallbacks: Option<bool>,
@@ -399,11 +405,12 @@ impl NextConfigVc {
 
     #[turbo_tasks::function]
     pub async fn webpack_loaders_options(self) -> Result<WebpackLoadersOptionsVc> {
-        let Some(ref turbopack_loaders) = self.await?.experimental.turbopack_loaders else {
+        let this = self.await?;
+        let Some(turbo_loaders) = this.experimental.turbo.as_ref().and_then(|t| t.loaders.as_ref()) else {
             return Ok(WebpackLoadersOptionsVc::cell(WebpackLoadersOptions::default()));
         };
         let mut extension_to_loaders = IndexMap::new();
-        for (ext, loaders) in turbopack_loaders {
+        for (ext, loaders) in turbo_loaders {
             extension_to_loaders.insert(ext.clone(), WebpackLoaderConfigsVc::cell(loaders.clone()));
         }
         Ok(WebpackLoadersOptions {
@@ -416,7 +423,7 @@ impl NextConfigVc {
     #[turbo_tasks::function]
     pub async fn resolve_alias_options(self) -> Result<ResolveAliasMapVc> {
         let this = self.await?;
-        let Some(resolve_alias) = this.experimental.turbopack_resolve_alias.as_ref() else {
+        let Some(resolve_alias) = this.experimental.turbo.as_ref().and_then(|t| t.resolve_alias.as_ref()) else {
             return Ok(ResolveAliasMapVc::cell(ResolveAliasMap::default()));
         };
         let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
