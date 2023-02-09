@@ -39,7 +39,6 @@ async function createTreeCodeFromPath(
     resolver,
     resolvePath,
     resolveParallelSegments,
-    isDev,
     loaderContext,
     loaderOptions,
   }: {
@@ -51,7 +50,6 @@ async function createTreeCodeFromPath(
     resolveParallelSegments: (
       pathname: string
     ) => [key: string, segment: string][]
-    isDev: boolean
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     loaderOptions: AppLoaderOptions
   }
@@ -291,7 +289,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     resolver,
     resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
-    isDev: !!isDev,
     loaderContext: this,
     loaderOptions: loaderOptions,
   })
