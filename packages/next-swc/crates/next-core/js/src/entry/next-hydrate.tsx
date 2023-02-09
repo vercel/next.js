@@ -58,16 +58,6 @@ async function loadPageChunk(assetPrefix: string, chunkPath: string) {
   };
 
   const pagePath = window.__NEXT_DATA__.page;
-  window.__BUILD_MANIFEST = {
-    [pagePath]: [],
-    __rewrites: {
-      beforeFiles: [],
-      afterFiles: [],
-      fallback: [],
-    } as any,
-    sortedPages: [pagePath, "/_app"],
-  };
-
   window.__NEXT_P.push(["/_app", () => _app]);
   window.__NEXT_P.push([pagePath, () => page]);
 
@@ -79,9 +69,33 @@ async function loadPageChunk(assetPrefix: string, chunkPath: string) {
   // during hydration. To make this dependency clearer, we pass `router` as an
   // explicit argument instead of relying on the `router` import binding.
   subscribeToCurrentPageData({ assetPrefix, router });
+  subscribeToPageManifest({ assetPrefix });
 
   console.debug("The page has been hydrated");
 })().catch((err) => console.error(err));
+
+function subscribeToPageManifest({ assetPrefix }: { assetPrefix: string }) {
+  // adapted from https://github.com/vercel/next.js/blob/836ac9cc7f290e95b564a61341fa95a5f4f0327e/packages/next/src/client/next-dev.ts#L57
+  subscribeToUpdate(
+    {
+      path: "_next/static/development/_devPagesManifest.json",
+    },
+    (update) => {
+      if (["restart", "partial"].includes(update.type)) {
+        return;
+      }
+
+      fetch(`${assetPrefix}/_next/static/development/_devPagesManifest.json`)
+        .then((res) => res.json())
+        .then((manifest) => {
+          window.__DEV_PAGES_MANIFEST = manifest;
+        })
+        .catch((err) => {
+          console.log(`Failed to fetch devPagesManifest`, err);
+        });
+    }
+  );
+}
 
 /**
  * Subscribes to the current page's data updates from the HMR server.

@@ -2,8 +2,9 @@ import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Buffer } from "node:buffer";
 import { createServer, makeRequest } from "@vercel/turbopack-next/ipc/server";
-import loadNextConfig from "@vercel/turbopack-next/entry/config/next";
 import { makeResolver } from "next/dist/server/router.js";
+import loadConfig from "next/dist/server/config";
+import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
 
 import "next/dist/server/node-polyfill-fetch.js";
 
@@ -48,10 +49,22 @@ type MiddlewareHeadersResponse = {
 };
 
 let resolveRouteMemo: Promise<
-  (req: IncomingMessage, res: ServerResponse) => Promise<unknown>
+  (req: IncomingMessage, res: ServerResponse) => Promise<void>
 >;
-async function getResolveRoute(dir: string) {
-  const nextConfig = await loadNextConfig(true);
+
+async function getResolveRoute(
+  dir: string
+): ReturnType<
+  typeof import("next/dist/server/lib/route-resolver").makeResolver
+> {
+  const nextConfig = await loadConfig(
+    PHASE_DEVELOPMENT_SERVER,
+    process.cwd(),
+    undefined,
+    undefined,
+    true
+  );
+
   return await makeResolver(dir, nextConfig);
 }
 
@@ -113,7 +126,7 @@ export default async function route(
 async function handleClientResponse(
   _ipc: Ipc<RouterRequest, IpcOutgoingMessage>,
   clientResponse: IncomingMessage
-): Promise<MessageData | void> {
+): Promise<MessageData> {
   if (clientResponse.headers["x-nextjs-route-result"] === "1") {
     clientResponse.setEncoding("utf8");
     // We're either a redirect or a rewrite
