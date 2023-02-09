@@ -182,7 +182,9 @@ export const css = curry(async function css(
 
   const googleLoaderOptions =
     ctx.experimental?.fontLoaders?.find(
-      (loaderConfig) => loaderConfig.loader === '@next/font/google'
+      (loaderConfig) =>
+        loaderConfig.loader === 'next/font/google' ||
+        loaderConfig.loader === '@next/font/google'
     )?.options ?? {}
   const fontLoaders: Array<[string | RegExp, string, any?]> = [
     [
