@@ -31,7 +31,7 @@ wasm-bindgen-futures = "0.4.8"
 getrandom = { version = "0.2.5", optional = true, default-features = false }
 js-sys = "0.3.59"
 serde-wasm-bindgen = "0.4.3"
-next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230201.1", features = [
+next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230208.1", features = [
   "__swc_core_binding_wasm",
   "__feature_mdx_rs",
 ] }
