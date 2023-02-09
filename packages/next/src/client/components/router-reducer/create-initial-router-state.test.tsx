@@ -1,4 +1,5 @@
 import React from 'react'
+import { FlightRouterState } from '../../../server/app-render'
 import { CacheNode, CacheStates } from '../../../shared/lib/app-router-context'
 import { createInitialRouterState } from './create-initial-router-state'
 
