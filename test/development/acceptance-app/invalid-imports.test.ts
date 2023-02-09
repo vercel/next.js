@@ -10,6 +10,8 @@ createNextDescribe(
     dependencies: {
       react: 'latest',
       'react-dom': 'latest',
+      'server-only': 'latest',
+      'client-only': 'latest',
     },
     skipStart: true,
   },
