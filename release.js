@@ -14,15 +14,11 @@ const prNumberRegex = /\(#([-0-9]+)\)$/
 const getCommitPullRequest = async (commit, github) => {
   const match = prNumberRegex.exec(commit.title)
 
-  if (!match) {
-    return null
-  }
+  if (!match) null;
 
   const number = parseInt(match[1], 10)
 
-  if (!number) {
-    return null
-  }
+  if (!number) null;
 
   const { data } = await github.connection.pullRequests.get({
     owner: github.repoDetails.user,
