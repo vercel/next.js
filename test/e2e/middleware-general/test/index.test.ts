@@ -70,10 +70,10 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
-    it('should be able to rewrite on _next/static 404', async () => {
+    it('should be able to rewrite on _next/static/chunks/pages/ 404', async () => {
       const res = await fetchViaHTTP(
         next.url,
-        '/_next/static/_app-non-existent.js'
+        '/_next/static/chunks/pages/_app-non-existent.js'
       )
 
       expect(res.status).toBe(200)

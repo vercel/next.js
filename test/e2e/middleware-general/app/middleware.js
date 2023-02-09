@@ -49,7 +49,7 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
-  if (url.pathname.includes('/_next/static/_app-non-existent.js')) {
+  if (url.pathname.includes('/_next/static/chunks/pages/_app-non-existent.js')) {
     return NextResponse.rewrite('https://example.vercel.sh')
   }
 
