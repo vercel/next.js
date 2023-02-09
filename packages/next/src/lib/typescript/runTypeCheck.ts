@@ -41,8 +41,8 @@ export async function runTypeCheck(
   const requiredConfig = getRequiredConfiguration(ts)
 
   const options = {
-    ...effectiveConfiguration.options,
     ...requiredConfig,
+    ...effectiveConfiguration.options,
     declarationMap: false,
     emitDeclarationOnly: false,
     noEmit: true,
