@@ -501,7 +501,7 @@ describe('create next app', () => {
       await execa('bun', ['--version'])
     } catch (_) {
       // install bun if not available
-      await execa('curl', ['-fsSL', 'https://bun.sh/install | bash'])
+      await execa('npm', ['i', '-g', 'bun'])
     }
 
     await useTempDir(async (cwd) => {
