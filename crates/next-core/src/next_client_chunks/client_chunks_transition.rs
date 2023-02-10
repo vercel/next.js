@@ -14,7 +14,7 @@ use turbopack_node::execution_context::ExecutionContextVc;
 use super::with_chunks::WithChunksAsset;
 use crate::{
     next_client::context::{
-        get_client_chunking_context, get_client_environment, get_client_module_options_context,
+        get_client_chunking_context, get_client_module_options_context,
         get_client_resolve_options_context, ClientContextType,
     },
     next_config::NextConfigVc,
@@ -37,10 +37,9 @@ impl NextClientChunksTransitionVc {
         execution_context: ExecutionContextVc,
         ty: Value<ClientContextType>,
         server_root: FileSystemPathVc,
-        browserslist_query: &str,
+        client_environment: EnvironmentVc,
         next_config: NextConfigVc,
     ) -> NextClientChunksTransitionVc {
-        let client_environment = get_client_environment(browserslist_query);
         let client_chunking_context =
             get_client_chunking_context(project_path, server_root, client_environment, ty);
 
