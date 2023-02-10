@@ -15,9 +15,11 @@ import type { BuildManifest } from "next/dist/server/get-page-files";
 import type { ReactLoadableManifest } from "next/dist/server/load-components";
 
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
+import { headersFromEntries } from "@vercel/turbopack-next/internal/utils";
 import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { RenderData } from "types/turbopack";
 import type { ChunkGroup } from "types/next";
+import { parse } from "node:querystring";
 
 const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>;
 
@@ -195,7 +197,7 @@ export default function startHandler({
     const req: IncomingMessage = {
       url: renderData.url,
       method: "GET",
-      headers: renderData.headers,
+      headers: headersFromEntries(renderData.rawHeaders),
     } as any;
     const res: ServerResponse = new ServerResponseShim(req) as any;
 
@@ -211,7 +213,8 @@ export default function startHandler({
     // `Error.getInitialProps` to detect the status code.
     res.statusCode = statusCode;
 
-    const query = { ...renderData.query, ...renderData.params };
+    const parsedQuery = parse(renderData.rawQuery);
+    const query = { ...parsedQuery, ...renderData.params };
 
     const renderResult = await renderToHTML(
       /* req: IncomingMessage */

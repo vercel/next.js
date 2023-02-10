@@ -2,13 +2,12 @@
 // the other imports
 import { IPC } from "@vercel/turbopack-next/ipc/index";
 
+import type { RenderData } from "types/turbopack";
 import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { ClientRequest, IncomingMessage, Server } from "node:http";
 import type { ServerResponse } from "node:http";
 import { createServer, makeRequest } from "@vercel/turbopack-next/ipc/server";
 import { Buffer } from "node:buffer";
-
-import type { NextParsedUrlQuery } from "next/dist/server/request-meta";
 
 const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>;
 
@@ -33,13 +32,6 @@ type IpcOutgoingMessage =
       data: Array<number>;
     };
 
-type RenderData = {
-  method: string;
-  params: Record<string, string>;
-  path: string;
-  query: NextParsedUrlQuery;
-};
-
 type ResponseHeaders = {
   status: number;
   headers: string[];
@@ -48,7 +40,7 @@ type ResponseHeaders = {
 type Handler = (data: {
   request: IncomingMessage;
   response: ServerResponse<IncomingMessage>;
-  query: NextParsedUrlQuery;
+  query: string;
   params: Record<string, string>;
   path: string;
 }) => Promise<void>;
@@ -118,7 +110,13 @@ export default function startHandler(handler: Handler): void {
       clientResponsePromise,
       serverRequest,
       serverResponse,
-    } = await makeRequest(server, renderData.method, renderData.path);
+    } = await makeRequest(
+      server,
+      renderData.method,
+      renderData.path,
+      renderData.rawQuery,
+      renderData.rawHeaders
+    );
 
     return {
       clientRequest,
@@ -127,7 +125,7 @@ export default function startHandler(handler: Handler): void {
       apiOperation: handler({
         request: serverRequest,
         response: serverResponse,
-        query: renderData.query,
+        query: renderData.rawQuery,
         params: renderData.params,
         path: renderData.path,
       }),

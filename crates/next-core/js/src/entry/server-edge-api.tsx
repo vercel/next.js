@@ -17,7 +17,7 @@ import {
   NodeNextRequest,
   NodeNextResponse,
 } from "next/dist/server/base-http/node";
-import type { ParsedUrlQuery } from "querystring";
+import { parse, ParsedUrlQuery } from "querystring";
 import type { Params } from "next/dist/shared/lib/router/utils/route-matcher";
 import { FetchEventResult } from "next/dist/server/web/types";
 import { getClonableBody } from "next/dist/server/body-streams";
@@ -45,7 +45,7 @@ async function runEdgeFunction({
 }: {
   req: BaseNextRequest | NodeNextRequest;
   res: BaseNextResponse | NodeNextResponse;
-  query: ParsedUrlQuery;
+  query: string;
   path: string;
   params: Params | undefined;
   onWarning?: (warning: Error) => void;
@@ -60,9 +60,10 @@ async function runEdgeFunction({
 
   // For edge to "fetch" we must always provide an absolute URL
   const initialUrl = new URL(path, "http://n");
+  const parsedQuery = parse(query);
   const queryString = urlQueryToSearchParams({
     ...Object.fromEntries(initialUrl.searchParams),
-    ...query,
+    ...parsedQuery,
   }).toString();
 
   initialUrl.search = queryString;
