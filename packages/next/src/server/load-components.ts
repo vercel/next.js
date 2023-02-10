@@ -111,7 +111,9 @@ export async function loadComponents({
       ? loadManifest(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
       : null,
     hasServerComponents
-      ? loadManifest(join(distDir, 'server', ACTIONS_MANIFEST + '.json'))
+      ? loadManifest(join(distDir, 'server', ACTIONS_MANIFEST + '.json')).catch(
+          () => null
+        )
       : null,
   ])
 
