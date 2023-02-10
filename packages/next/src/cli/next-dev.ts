@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import arg from 'next/dist/compiled/arg/index.js'
-import { startServer } from '../server/lib/start-server'
+import { startServer, WORKER_SELF_EXIT_CODE } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
@@ -13,19 +13,22 @@ import type { NextConfig } from '../../types'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { isIPv6 } from 'net'
-import cluster from 'cluster'
+import { ChildProcess, fork } from 'child_process'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists } from '../lib/file-exists'
 import Watchpack from 'next/dist/compiled/watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { warn } from '../build/output/log'
 
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 let dir: string
 let unwatchConfigFiles: () => void
+
+const isChildProcess = !!process.env.__NEXT_DEV_CHILD_PROCESS
 
 const handleSessionStop = async () => {
   if (sessionStopHandled) return
@@ -81,7 +84,7 @@ const handleSessionStop = async () => {
   process.exit(0)
 }
 
-if (cluster.isMaster) {
+if (!isChildProcess) {
   process.on('SIGINT', handleSessionStop)
   process.on('SIGTERM', handleSessionStop)
 } else {
@@ -200,9 +203,8 @@ const nextDev: CliCommand = async (argv) => {
     'configFileName',
     'env',
     'experimental.appDir',
-    'experimental.resolveAlias',
     'experimental.serverComponentsExternalPackages',
-    'experimental.turbopackLoaders',
+    'experimental.turbo',
     'images',
     'pageExtensions',
     'onDemandEntries',
@@ -433,16 +435,75 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
     // this is a temporary solution until we can fix the memory leaks.
     // the logic for the worker killing itself is in `packages/next/server/lib/start-server.ts`
-    if (!process.env.__NEXT_DISABLE_MEMORY_WATCHER && cluster.isMaster) {
+    if (!process.env.__NEXT_DISABLE_MEMORY_WATCHER && !isChildProcess) {
       let config: NextConfig
+      let childProcess: ChildProcess | null = null
 
-      const setupFork = (env?: Parameters<typeof cluster.fork>[0]) => {
-        const startDir = dir
-        let shouldFilter = false
-        cluster.fork({
-          ...env,
-          FORCE_COLOR: '1',
+      const isDebugging = process.execArgv.some((localArg) =>
+        localArg.startsWith('--inspect')
+      )
+
+      const isDebuggingWithBrk = process.execArgv.some((localArg) =>
+        localArg.startsWith('--inspect-brk')
+      )
+
+      const debugPort = (() => {
+        const debugPortStr = process.execArgv
+          .find(
+            (localArg) =>
+              localArg.startsWith('--inspect') ||
+              localArg.startsWith('--inspect-brk')
+          )
+          ?.split('=')[1]
+        return debugPortStr ? parseInt(debugPortStr, 10) : 9229
+      })()
+
+      if (isDebugging || isDebuggingWithBrk) {
+        warn(
+          `the --inspect${
+            isDebuggingWithBrk ? '-brk' : ''
+          } option was detected, the Next.js server should be inspected at port ${
+            debugPort + 1
+          }.`
+        )
+      }
+
+      const genExecArgv = () => {
+        const execArgv = process.execArgv.filter((localArg) => {
+          return (
+            !localArg.startsWith('--inspect') &&
+            !localArg.startsWith('--inspect-brk')
+          )
         })
+
+        if (isDebugging || isDebuggingWithBrk) {
+          execArgv.push(
+            `--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort + 1}`
+          )
+        }
+
+        return execArgv
+      }
+
+      const setupFork = (env?: NodeJS.ProcessEnv, newDir?: string) => {
+        const startDir = dir
+        const [, script, ...nodeArgs] = process.argv
+        let shouldFilter = false
+        childProcess = fork(
+          newDir ? script.replace(startDir, newDir) : script,
+          nodeArgs,
+          {
+            env: {
+              ...(env ? env : process.env),
+              FORCE_COLOR: '1',
+              __NEXT_DEV_CHILD_PROCESS: '1',
+            },
+            // @ts-ignore TODO: remove ignore when types are updated
+            windowsHide: true,
+            stdio: ['ipc', 'pipe', 'pipe'],
+            execArgv: genExecArgv(),
+          }
+        )
 
         // since errors can start being logged from the fork
         // before we detect the project directory rename
@@ -474,40 +535,27 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           process[fd].write(chunk)
         }
 
-        for (const workerId in cluster.workers) {
-          cluster.workers[workerId]?.process.stdout?.on('data', (chunk) => {
-            filterForkErrors(chunk, 'stdout')
-          })
-          cluster.workers[workerId]?.process.stderr?.on('data', (chunk) => {
-            filterForkErrors(chunk, 'stderr')
-          })
-        }
-      }
+        childProcess?.stdout?.on('data', (chunk) => {
+          filterForkErrors(chunk, 'stdout')
+        })
+        childProcess?.stderr?.on('data', (chunk) => {
+          filterForkErrors(chunk, 'stderr')
+        })
 
-      const handleClusterExit = () => {
-        const callback = async (worker: cluster.Worker) => {
-          // ignore if we killed the worker
-          if ((worker as any).killed) return
-
-          // TODO: we should track how many restarts are
-          // occurring and how long in-between them
-          if (worker.exitedAfterDisconnect) {
+        const callback = async (code: number | null) => {
+          if (code === WORKER_SELF_EXIT_CODE) {
             setupFork()
           } else if (!sessionStopHandled) {
             await handleSessionStop()
             process.exit(1)
           }
         }
-        cluster.addListener('exit', callback)
-        return () => cluster.removeListener('exit', callback)
+        childProcess?.addListener('exit', callback)
+        return () => childProcess?.removeListener('exit', callback)
       }
-      let clusterExitUnsub = handleClusterExit()
-      // x-ref: https://nodejs.org/api/cluster.html#clustersettings
-      // @ts-expect-error type is incorrect
-      cluster.settings.windowsHide = true
-      cluster.settings.stdio = ['ipc', 'pipe', 'pipe']
 
-      setupFork()
+      let childProcessExitUnsub = setupFork()
+
       config = await loadConfig(
         PHASE_DEVELOPMENT_SERVER,
         dir,
@@ -517,27 +565,19 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       )
 
       const handleProjectDirRename = (newDir: string) => {
-        clusterExitUnsub()
-
-        for (const workerId in cluster.workers) {
-          try {
-            // @ts-expect-error custom field
-            cluster.workers[workerId].killed = true
-            cluster.workers[workerId]!.process.kill('SIGKILL')
-          } catch (_) {}
-        }
+        childProcessExitUnsub()
+        childProcess?.kill()
         process.chdir(newDir)
-        // @ts-expect-error type is incorrect
-        cluster.settings.cwd = newDir
-        cluster.settings.exec = cluster.settings.exec?.replace(dir, newDir)
-        setupFork({
-          ...Object.keys(process.env).reduce((newEnv, key) => {
-            newEnv[key] = process.env[key]?.replace(dir, newDir)
-            return newEnv
-          }, {} as typeof process.env),
-          NEXT_PRIVATE_DEV_DIR: newDir,
-        })
-        clusterExitUnsub = handleClusterExit()
+        childProcessExitUnsub = setupFork(
+          {
+            ...Object.keys(process.env).reduce((newEnv, key) => {
+              newEnv[key] = process.env[key]?.replace(dir, newDir)
+              return newEnv
+            }, {} as typeof process.env),
+            NEXT_PRIVATE_DEV_DIR: newDir,
+          },
+          newDir
+        )
       }
       const parentDir = path.join('/', dir, '..')
       const watchedEntryLength = parentDir.split('/').length + 1

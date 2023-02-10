@@ -190,7 +190,7 @@ createNextDescribe(
 
       it('should support alternate tags', async () => {
         const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com')
+        await checkLink(browser, 'canonical', 'https://example.com/')
         await checkMeta(
           browser,
           'en-US',
@@ -316,6 +316,27 @@ createNextDescribe(
           /params - blog query - xxx/
         )
       })
+
+      it('should support synchronous generateMetadata export', async () => {
+        const browser = await next.browser('/basic/sync-generate-metadata')
+        expect(await getTitle(browser)).toBe('synchronous generateMetadata')
+      })
+
+      it('should handle metadataBase for urls resolved as only URL type', async () => {
+        // including few urls in opengraph and alternates
+        const url$ = await next.render$('/metadata-base/url')
+
+        // compose with metadataBase
+        expect(url$('link[rel="canonical"]').attr('href')).toBe(
+          'https://bar.example/url/subpath'
+        )
+
+        // override metadataBase
+        const urlInstance$ = await next.render$('/metadata-base/url-instance')
+        expect(urlInstance$('meta[property="og:url"]').attr('content')).toBe(
+          'http://https//outerspace.com/huozhi.png'
+        )
+      })
     })
 
     describe('opengraph', () => {
@@ -433,6 +454,23 @@ createNextDescribe(
           ])
         ).toEqual({ sizes: '180x180', type: 'image/png' })
       })
+
+      it('should support root level of favicon.ico', async () => {
+        let $ = await next.render$('/')
+        let $icon = $('link[rel="icon"]')
+        expect($icon.attr('href')).toMatch(
+          /_next\/static\/media\/metadata\/favicon.\w+.ico/
+        )
+        expect($icon.attr('type')).toBe('image/x-icon')
+        expect($icon.attr('sizes')).toBe('any')
+
+        $ = await next.render$('/basic')
+        $icon = $('link[rel="icon"]')
+        expect($icon.attr('href')).toMatch(
+          /_next\/static\/media\/metadata\/favicon.\w+.ico/
+        )
+        expect($icon.attr('sizes')).toBe('any')
+      })
     })
 
     describe('file based icons', () => {
@@ -446,9 +484,11 @@ createNextDescribe(
           /\/_next\/static\/media\/metadata\/icon1\.\w+\.png/
         )
         expect($icon.attr('sizes')).toBe('32x32')
+        expect($icon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('href')).toMatch(
           /\/_next\/static\/media\/metadata\/apple-icon\.\w+\.png/
         )
+        expect($appleIcon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('sizes')).toMatch('114x114')
       })
 
