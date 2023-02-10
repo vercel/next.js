@@ -1895,14 +1895,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       let using404Page = false
 
       // use static 404 page if available and is 404 response
-      if (is404 && (await this.hasPage('/404'))) {
-        result = await this.findPageComponents({
-          pathname: '/404',
-          query,
-          params: {},
-          isAppPath: false,
-        })
-        using404Page = result !== null
+      if (is404) {
+        if (this.nextConfig.experimental.appDir) {
+          // find not-found.tsx in the app directory
+        } else if (await this.hasPage('/404')) {
+          result = await this.findPageComponents({
+            pathname: '/404',
+            query,
+            params: {},
+            isAppPath: false,
+          })
+          using404Page = result !== null
+        }
       }
       let statusPage = `/${res.statusCode}`
 
