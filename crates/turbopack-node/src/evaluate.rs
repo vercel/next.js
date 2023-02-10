@@ -1,6 +1,7 @@
-use std::{borrow::Cow, collections::HashMap, thread::available_parallelism};
+use std::{borrow::Cow, collections::HashMap, thread::available_parallelism, time::Duration};
 
 use anyhow::Result;
+use futures_retry::{FutureRetry, RetryPolicy};
 use turbo_tasks::{
     primitives::{JsonValueVc, StringVc},
     CompletionVc, TryJoinIterExt, Value, ValueToString,
@@ -116,6 +117,27 @@ pub async fn get_evaluate_pool(
     Ok(pool.cell())
 }
 
+struct PoolErrorHandler;
+
+/// Number of attempts before we start slowing down the retry.
+const MAX_FAST_ATTEMPTS: usize = 5;
+/// Total number of attempts.
+const MAX_ATTEMPTS: usize = MAX_FAST_ATTEMPTS * 2;
+
+impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
+    type OutError = anyhow::Error;
+
+    fn handle(&mut self, attempt: usize, err: anyhow::Error) -> RetryPolicy<Self::OutError> {
+        if attempt >= MAX_ATTEMPTS {
+            RetryPolicy::ForwardError(err)
+        } else if attempt >= MAX_FAST_ATTEMPTS {
+            RetryPolicy::WaitRetry(Duration::from_secs(1))
+        } else {
+            RetryPolicy::Repeat
+        }
+    }
+}
+
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 #[turbo_tasks::function]
@@ -140,13 +162,29 @@ pub async fn evaluate(
         debug,
     )
     .await?;
-    let mut operation = pool.operation().await?;
+
     let args = args.into_iter().try_join().await?;
-    operation
-        .send(EvalJavaScriptOutgoingMessage::Evaluate {
-            args: args.iter().map(|v| &**v).collect(),
-        })
-        .await?;
+
+    // Workers in the pool could be in a bad state that we didn't detect yet.
+    // The bad state might even be unnoticable until we actually send the job to the
+    // worker. So we retry picking workers from the pools until we succeed
+    // sending the job.
+
+    let (mut operation, _) = FutureRetry::new(
+        || async {
+            let mut operation = pool.operation().await?;
+            operation
+                .send(EvalJavaScriptOutgoingMessage::Evaluate {
+                    args: args.iter().map(|v| &**v).collect(),
+                })
+                .await?;
+            Ok(operation)
+        },
+        PoolErrorHandler,
+    )
+    .await
+    .map_err(|(e, _)| e)?;
+
     let mut file_dependencies = Vec::new();
     let mut dir_dependencies = Vec::new();
     let output = loop {
@@ -159,10 +197,17 @@ pub async fn evaluate(
                 .cell()
                 .as_issue()
                 .emit();
+                // Do not reuse the process in case of error
+                operation.disallow_reuse();
                 break JavaScriptValue::Error;
             }
             EvalJavaScriptIncomingMessage::JsonValue { data } => {
-                break JavaScriptValue::Value(data.into())
+                if args.is_empty() {
+                    // Assume this is a one-off operation, so we can kill the process
+                    // TODO use a better way to decide that.
+                    operation.wait_or_kill().await?;
+                }
+                break JavaScriptValue::Value(data.into());
             }
             EvalJavaScriptIncomingMessage::FileDependency { path } => {
                 // TODO We might miss some changes that happened during execution
@@ -193,11 +238,6 @@ pub async fn evaluate(
     }
     for dep in dir_dependencies {
         dep.await?;
-    }
-    if args.is_empty() {
-        // Assume this is a one-off operation, so we can kill the process
-        // TODO use a better way to decide that.
-        operation.wait_or_kill().await?;
     }
     Ok(output.cell())
 }

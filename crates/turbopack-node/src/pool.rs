@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    future::Future,
     mem::take,
     path::{Path, PathBuf},
     process::{ExitStatus, Stdio},
@@ -317,6 +318,7 @@ impl NodeJsPool {
             process: Some(process.run().await?),
             permit,
             processes: self.processes.clone(),
+            allow_process_reuse: true,
         })
     }
 }
@@ -327,13 +329,28 @@ pub struct NodeJsOperation {
     #[allow(dead_code)]
     permit: OwnedSemaphorePermit,
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
+    allow_process_reuse: bool,
 }
 
 impl NodeJsOperation {
-    fn process_mut(&mut self) -> Result<&mut RunningNodeJsPoolProcess> {
-        self.process
+    async fn with_process<'a, F: Future<Output = Result<T>> + Send + 'a, T>(
+        &'a mut self,
+        f: impl FnOnce(&'a mut RunningNodeJsPoolProcess) -> F,
+    ) -> Result<T> {
+        let process = self
+            .process
             .as_mut()
-            .context("Node.js operation already finished")
+            .context("Node.js operation already finished")?;
+
+        if !self.allow_process_reuse {
+            bail!("Node.js process is no longer usable");
+        }
+
+        let result = f(process).await;
+        if result.is_err() {
+            self.allow_process_reuse = false;
+        }
+        result
     }
 
     pub async fn recv<M>(&mut self) -> Result<M>
@@ -341,10 +358,10 @@ impl NodeJsOperation {
         M: DeserializeOwned,
     {
         let message = self
-            .process_mut()?
-            .recv()
-            .await
-            .context("receiving message")?;
+            .with_process(
+                |process| async move { process.recv().await.context("receiving message") },
+            )
+            .await?;
         serde_json::from_slice(&message).context("deserializing message")
     }
 
@@ -352,10 +369,12 @@ impl NodeJsOperation {
     where
         M: Serialize,
     {
-        self.process_mut()?
-            .send(serde_json::to_vec(&message).context("serializing message")?)
-            .await
-            .context("sending message")
+        let message = serde_json::to_vec(&message).context("serializing message")?;
+        self.with_process(|process| async move {
+            process.send(message).await.context("sending message")?;
+            Ok(())
+        })
+        .await
     }
 
     pub async fn wait_or_kill(mut self) -> Result<ExitStatus> {
@@ -375,15 +394,21 @@ impl NodeJsOperation {
 
         Ok(status)
     }
+
+    pub fn disallow_reuse(&mut self) {
+        self.allow_process_reuse = false;
+    }
 }
 
 impl Drop for NodeJsOperation {
     fn drop(&mut self) {
-        if let Some(process) = self.process.take() {
-            self.processes
-                .lock()
-                .unwrap()
-                .push(NodeJsPoolProcess::Running(process));
+        if self.allow_process_reuse {
+            if let Some(process) = self.process.take() {
+                self.processes
+                    .lock()
+                    .unwrap()
+                    .push(NodeJsPoolProcess::Running(process));
+            }
         }
     }
 }
