@@ -62,15 +62,18 @@ export async function loadDefaultErrorComponents(distDir: string) {
   }
 }
 
-async function loadManifest<T>(manifestPath: string, attempts = 1): Promise<T> {
-  try {
-    return require(manifestPath)
-  } catch (err) {
-    if (attempts >= 3) {
-      throw err
+/**
+ * Load manifest file with retries, defaults to 3 attempts.
+ */
+async function loadManifest<T>(manifestPath: string, attempts = 3): Promise<T> {
+  while (true) {
+    try {
+      return require(manifestPath)
+    } catch (err) {
+      attempts--
+      if (attempts <= 0) throw err
+      await new Promise((resolve) => setTimeout(resolve, 100))
     }
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    return loadManifest(manifestPath, attempts + 1)
   }
 }
 

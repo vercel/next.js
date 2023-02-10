@@ -67,28 +67,6 @@ createNextDescribe(
           const html = await next.render('/css/css-page')
           expect(html).not.toContain('/pages/_app.css')
         })
-
-        if (!isDev) {
-          it('should not include unused css modules in the page in prod', async () => {
-            const browser = await next.browser('/css/css-page/unused')
-            expect(
-              await browser.eval(
-                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included')))`
-              )
-            ).toBe(false)
-          })
-
-          it('should not include unused css modules in nested pages in prod', async () => {
-            const browser = await next.browser(
-              '/css/css-page/unused-nested/inner'
-            )
-            expect(
-              await browser.eval(
-                `[...document.styleSheets].some(({ rules }) => [...rules].some(rule => rule.selectorText.includes('this_should_not_be_included_in_inner_path')))`
-              )
-            ).toBe(false)
-          })
-        }
       })
 
       describe('client layouts', () => {
@@ -218,6 +196,16 @@ createNextDescribe(
               `window.getComputedStyle(document.querySelector('button')).fontSize`
             )
           ).toBe('50px')
+        })
+      })
+
+      describe('chunks', () => {
+        it('should bundle css resources into chunks', async () => {
+          const html = await next.render('/dashboard')
+          expect(
+            [...html.matchAll(/<link rel="stylesheet" href="[^.]+\.css"/g)]
+              .length
+          ).toBe(3)
         })
       })
 
