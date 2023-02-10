@@ -12,6 +12,7 @@ bench = false
 [dependencies]
 anyhow = "1.0.47"
 futures = "0.3.25"
+futures-retry = "0.6.0"
 indexmap = { workspace = true, features = ["serde"] }
 mime = "0.3.16"
 serde = "1.0.136"
