@@ -21,7 +21,7 @@ use turbopack::{
 use turbopack_core::{
     chunk::dev::DevChunkingContextVc,
     context::{AssetContext, AssetContextVc},
-    environment::ServerAddrVc,
+    environment::{EnvironmentVc, ServerAddrVc},
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     virtual_asset::VirtualAssetVc,
 };
@@ -78,11 +78,10 @@ async fn next_client_transition(
     server_root: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
-    browserslist_query: &str,
+    client_environment: EnvironmentVc,
     next_config: NextConfigVc,
 ) -> Result<TransitionVc> {
     let ty = Value::new(ClientContextType::App { app_dir });
-    let client_environment = get_client_environment(browserslist_query);
     let client_chunking_context =
         get_client_chunking_context(project_path, server_root, client_environment, ty);
     let client_module_options_context = get_client_module_options_context(
@@ -172,7 +171,7 @@ fn app_context(
     server_root: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
-    browserslist_query: &str,
+    client_environment: EnvironmentVc,
     ssr: bool,
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
@@ -204,7 +203,7 @@ fn app_context(
             server_root,
             app_dir,
             env,
-            browserslist_query,
+            client_environment,
             next_config,
         ),
     );
@@ -216,7 +215,7 @@ fn app_context(
             execution_context,
             client_ty,
             server_root,
-            browserslist_query,
+            client_environment,
             next_config,
         )
         .into(),
@@ -270,7 +269,10 @@ pub async fn create_app_source(
         src_app
     } else {
         return Ok(NoContentSourceVc::new().into());
-    };
+    }
+    .resolve()
+    .await?;
+    let client_environment = get_client_environment(browserslist_query);
 
     let context_ssr = app_context(
         project_path,
@@ -278,7 +280,7 @@ pub async fn create_app_source(
         server_root,
         app_dir,
         env,
-        browserslist_query,
+        client_environment,
         true,
         next_config,
         server_addr,
@@ -289,7 +291,7 @@ pub async fn create_app_source(
         server_root,
         app_dir,
         env,
-        browserslist_query,
+        client_environment,
         false,
         next_config,
         server_addr,
@@ -306,7 +308,7 @@ pub async fn create_app_source(
         execution_context,
         server_root,
         env,
-        browserslist_query,
+        client_environment,
         next_config,
     );
 
