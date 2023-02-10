@@ -1,4 +1,4 @@
-import type { VersionInfo } from '../../packages/next/src/client/components/react-dev-overlay/internal/container/Errors'
+import type { VersionInfo } from '../../packages/next/src/client/components/react-dev-overlay/internal/components/VersionStalenessInfo'
 import { parseVersionInfo } from 'next/dist/server/dev/hot-reloader'
 
 describe('parse version info', () => {
