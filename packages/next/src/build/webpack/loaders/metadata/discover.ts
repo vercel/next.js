@@ -124,9 +124,11 @@ export async function discoverStaticMetadataFiles(
       .sort((a, b) => a.localeCompare(b))
       .forEach((filepath) => {
         const imageModule = `() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-          `next-metadata-image-loader?${stringify(
-            metadataImageLoaderOptions
-          )}!` +
+          `next-metadata-image-loader?${stringify({
+            ...metadataImageLoaderOptions,
+            numericSizes:
+              type === 'twitter' || type === 'opengraph' ? '1' : undefined,
+          })}!` +
             filepath +
             METADATA_IMAGE_RESOURCE_QUERY
         )})`

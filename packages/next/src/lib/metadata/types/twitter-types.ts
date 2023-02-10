@@ -64,16 +64,16 @@ type TwitterPlayerDescriptor = {
 }
 
 type ResolvedTwitterImage = {
-  url: null | URL
+  url: null | URL | string
   alt?: string
 }
 type ResolvedTwitterSummary = {
-  site: string | null
-  siteId: string | null
-  creator: string | null
-  creatorId: string | null
-  description: string | null
-  title: AbsoluteTemplateString
+  site?: string | null
+  siteId?: string | null
+  creator?: string | null
+  creatorId?: string | null
+  description?: string | null
+  title?: AbsoluteTemplateString
   images?: Array<ResolvedTwitterImage>
 }
 type ResolvedTwitterPlayer = ResolvedTwitterSummary & {

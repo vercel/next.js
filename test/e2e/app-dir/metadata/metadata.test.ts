@@ -407,6 +407,31 @@ createNextDescribe(
           'author3',
         ])
       })
+
+      it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
+        const $ = await next.render$('/opengraph/static')
+        expect($('[property="og:image:url"]').attr('content')).toMatch(
+          /_next\/static\/media\/metadata\/opengraph-image.\w+.png/
+        )
+        expect($('[property="og:image:type"]').attr('content')).toBe(
+          'image/png'
+        )
+        expect($('[property="og:image:width"]').attr('content')).toBe('114')
+        expect($('[property="og:image:height"]').attr('content')).toBe('114')
+
+        expect($('[name="twitter:image"]').attr('content')).toMatch(
+          /_next\/static\/media\/metadata\/twitter-image.\w+.svg/
+        )
+        expect($('[name="twitter:card"]').attr('content')).toBe(
+          'summary_large_image'
+        )
+
+        // favicon shouldn't be overridden
+        const $icon = $('link[rel="icon"]')
+        expect($icon.attr('href')).toMatch(
+          /_next\/static\/media\/metadata\/favicon.\w+.ico/
+        )
+      })
     })
 
     describe('icons', () => {
@@ -477,7 +502,7 @@ createNextDescribe(
       it('should render icon and apple touch icon meta if their images are specified', async () => {
         const $ = await next.render$('/icons/static/nested')
 
-        const $icon = $('head > link[rel="icon"]')
+        const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
@@ -495,7 +520,7 @@ createNextDescribe(
       it('should not render if image file is not specified', async () => {
         const $ = await next.render$('/icons/static')
 
-        const $icon = $('head > link[rel="icon"]')
+        const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
@@ -515,7 +540,7 @@ createNextDescribe(
 
           await check(async () => {
             const $ = await next.render$('/icons/static')
-            const $icon = $('head > link[rel="icon"]')
+            const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
           }, /\/_next\/static\/media\/metadata\/icon2\.\w+\.png/)
 

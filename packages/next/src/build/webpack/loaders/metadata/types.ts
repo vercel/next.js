@@ -9,8 +9,8 @@ export type ModuleReference = [
 export type CollectingMetadata = {
   icon: string[]
   apple: string[]
-  opengraph: null | string
   twitter: null | string
+  opengraph: null | string
 }
 
 // Contain the collecting evaluated image module
@@ -24,5 +24,10 @@ export type CollectedMetadata = {
 export type MetadataImageModule = {
   url: string
   type?: string
-  sizes?: string
-}
+} & (
+  | { sizes?: string }
+  | {
+      width?: number
+      height?: number
+    }
+)
