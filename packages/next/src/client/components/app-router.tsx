@@ -36,6 +36,8 @@ import {
   InitialRouterStateParameters,
 } from './router-reducer/create-initial-router-state'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
+import { isBot } from '../../shared/lib/router/utils/is-bot'
+import { addBasePath } from '../add-base-path'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
 let initialParallelRoutes: CacheNode['parallelRoutes'] =
@@ -188,12 +190,13 @@ function Router({
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
-      const url = new URL(href, location.origin)
+      const url = new URL(addBasePath(href), location.origin)
 
       return dispatch({
         type: ACTION_NAVIGATE,
         url,
         isExternalUrl: isExternalURL(url),
+        locationSearch: location.search,
         forceOptimisticNavigation,
         navigateType,
         cache: {
@@ -210,12 +213,17 @@ function Router({
       back: () => window.history.back(),
       forward: () => window.history.forward(),
       prefetch: async (href) => {
+        const hrefWithBasePath = addBasePath(href)
+
         // If prefetch has already been triggered, don't trigger it again.
-        if (prefetched.has(href)) {
+        if (
+          prefetched.has(hrefWithBasePath) ||
+          (typeof window !== 'undefined' && isBot(window.navigator.userAgent))
+        ) {
           return
         }
-        prefetched.add(href)
-        const url = new URL(href, location.origin)
+        prefetched.add(hrefWithBasePath)
+        const url = new URL(hrefWithBasePath, location.origin)
         // External urls can't be prefetched in the same way.
         if (isExternalURL(url)) {
           return

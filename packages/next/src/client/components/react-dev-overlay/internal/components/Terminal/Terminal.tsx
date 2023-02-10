@@ -5,13 +5,19 @@ import { EditorLink } from './EditorLink'
 export type TerminalProps = { content: string }
 
 function getImportTraceFiles(content: string): [string, string[]] {
-  if (/ReactServerComponentsError:/.test(content)) {
+  if (
+    /ReactServerComponentsError:/.test(content) ||
+    /Import trace for requested module:/.test(content)
+  ) {
     // It's an RSC Build Error
     const lines = content.split('\n')
 
     // Grab the lines at the end containing the files
     const files = []
-    while (/app\/.+\./.test(lines[lines.length - 1])) {
+    while (
+      /.+\..+/.test(lines[lines.length - 1]) &&
+      !lines[lines.length - 1].includes(':')
+    ) {
       const file = lines.pop()!.trim()
       files.unshift(file)
     }

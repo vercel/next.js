@@ -214,11 +214,15 @@ export function createTSPlugin(modules: {
                 source,
                 node
               )
-            const metadataDiagnostics =
-              metadata.getSemanticDiagnosticsForExportVariableStatement(
-                fileName,
-                node
-              )
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
             prior.push(...diagnostics, ...metadataDiagnostics)
           }
 
@@ -253,6 +257,19 @@ export function createTSPlugin(modules: {
           ts.isFunctionDeclaration(node) &&
           node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
+          if (isAppEntry) {
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
+            prior.push(...metadataDiagnostics)
+          }
+
           // export function ...
           if (isClientEntry) {
             prior.push(
@@ -266,6 +283,19 @@ export function createTSPlugin(modules: {
       })
 
       return prior
+    }
+
+    // Get definition and link for specific node
+    proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
+      if (isAppEntryFile(fileName) && !getIsClientEntry(fileName)) {
+        const metadataDefinition = metadata.getDefinitionAndBoundSpan(
+          fileName,
+          position
+        )
+        if (metadataDefinition) return metadataDefinition
+      }
+
+      return info.languageService.getDefinitionAndBoundSpan(fileName, position)
     }
 
     return proxy

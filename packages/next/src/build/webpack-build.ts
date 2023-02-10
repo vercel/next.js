@@ -10,7 +10,7 @@ import {
 } from '../shared/lib/constants'
 import { runCompiler } from './compiler'
 import * as Log from './output/log'
-import getBaseWebpackConfig from './webpack-config'
+import getBaseWebpackConfig, { loadProjectInfo } from './webpack-config'
 import { NextError } from '../lib/is-error'
 import { injectedClientEntries } from './webpack/plugins/flight-client-entry-plugin'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
@@ -19,6 +19,7 @@ import { isMainThread, parentPort, Worker, workerData } from 'worker_threads'
 import { createEntrypoints } from './entries'
 import loadConfig from '../server/config'
 import { trace } from '../trace'
+import { WEBPACK_LAYERS } from '../lib/constants'
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -81,14 +82,20 @@ async function webpackBuildImpl(): Promise<number> {
 
   const configs = await runWebpackSpan
     .traceChild('generate-webpack-config')
-    .traceAsyncFn(() =>
-      Promise.all([
+    .traceAsyncFn(async () => {
+      const info = await loadProjectInfo({
+        dir,
+        config: commonWebpackOptions.config,
+        dev: false,
+      })
+      return Promise.all([
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
           middlewareMatchers: entrypoints.middlewareMatchers,
           runWebpackSpan,
           compilerType: COMPILER_NAMES.client,
           entrypoints: entrypoints.client,
+          ...info,
         }),
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
@@ -96,6 +103,7 @@ async function webpackBuildImpl(): Promise<number> {
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.server,
           entrypoints: entrypoints.server,
+          ...info,
         }),
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
@@ -103,9 +111,10 @@ async function webpackBuildImpl(): Promise<number> {
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
+          ...info,
         }),
       ])
-    )
+    })
 
   const clientConfig = configs[0]
 
@@ -144,16 +153,20 @@ async function webpackBuildImpl(): Promise<number> {
       injectedClientEntries.forEach((value, key) => {
         const clientEntry = clientConfig.entry as webpack.EntryObject
         if (key === APP_CLIENT_INTERNALS) {
-          clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = [
-            // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
-            // @ts-expect-error clientEntry['main-app'] is type EntryDescription { import: ... }
-            ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
-            value,
-          ]
+          clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] = {
+            import: [
+              // TODO-APP: cast clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] to type EntryDescription once it's available from webpack
+              // @ts-expect-error clientEntry['main-app'] is type EntryDescription { import: ... }
+              ...clientEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP].import,
+              value,
+            ],
+            layer: WEBPACK_LAYERS.appClient,
+          }
         } else {
           clientEntry[key] = {
             dependOn: [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP],
             import: value,
+            layer: WEBPACK_LAYERS.appClient,
           }
         }
       })

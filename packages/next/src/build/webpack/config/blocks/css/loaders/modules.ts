@@ -6,6 +6,7 @@ import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
+  hasAppDir: boolean,
   postcss: any,
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
@@ -16,7 +17,7 @@ export function getCssModuleLoader(
     // loader
     loaders.push(
       getClientStyleLoader({
-        hasAppDir: ctx.hasAppDir,
+        hasAppDir: hasAppDir,
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
       })

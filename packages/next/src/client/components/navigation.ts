@@ -12,7 +12,6 @@ import {
   PathnameContext,
   // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
-import { bailoutToClientRendering } from './bailout-to-client-rendering'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
@@ -78,9 +77,14 @@ export function useSearchParams() {
     return new ReadonlyURLSearchParams(searchParams || new URLSearchParams())
   }, [searchParams])
 
-  if (bailoutToClientRendering()) {
-    // TODO-APP: handle dynamic = 'force-static' here and on the client
-    return readonlySearchParams
+  if (typeof window === 'undefined') {
+    // AsyncLocalStorage should not be included in the client bundle.
+    const { bailoutToClientRendering } =
+      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
+    if (bailoutToClientRendering()) {
+      // TODO-APP: handle dynamic = 'force-static' here and on the client
+      return readonlySearchParams
+    }
   }
 
   if (!searchParams) {

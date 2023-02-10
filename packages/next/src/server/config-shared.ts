@@ -46,6 +46,40 @@ export interface TypeScriptConfig {
   tsconfigPath?: string
 }
 
+type JSONValue =
+  | string
+  | number
+  | boolean
+  | JSONValue[]
+  | { [k: string]: JSONValue }
+
+type TurboLoaderItem =
+  | string
+  | {
+      loader: string
+      // At the moment, Turbopack options must be JSON-serializable, so restrict values.
+      options: Record<string, JSONValue>
+    }
+
+interface ExperimentalTurboOptions {
+  /**
+   * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
+   *
+   * @see [Resolve Alias](https://nextjs.org/docs/api-reference/next.config.js/resolve-alias)
+   */
+  resolveAlias?: Record<
+    string,
+    string | string[] | Record<string, string | string[]>
+  >
+
+  /**
+   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/api-reference/next.config.js/turbopack-loaders)
+   */
+  loaders?: Record<string, TurboLoaderItem[]>
+}
+
 export interface WebpackConfigContext {
   /** Next.js root directory */
   dir: string
@@ -157,9 +191,7 @@ export interface ExperimentalConfig {
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
 
-  // webpack loaders to use when running turbopack
-  turbopackLoaders?: Record<string, string | string[]>
-
+  turbo?: ExperimentalTurboOptions
   turbotrace?: {
     logLevel?:
       | 'bug'
@@ -625,6 +657,7 @@ export const defaultConfig: NextConfig = {
     enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
+    turbo: undefined,
     turbotrace: undefined,
   },
 }
