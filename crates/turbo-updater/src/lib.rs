@@ -94,7 +94,6 @@ pub fn check_for_updates(
     current_version: &str,
     timeout: Option<Duration>,
     interval: Option<Duration>,
-    is_global_turbo: bool,
 ) -> Result<(), UpdateNotifierError> {
     // bail early if the user has disabled update notifications
     if should_skip_notification() {
@@ -117,13 +116,7 @@ pub fn check_for_updates(
     if let Ok(Some(version)) = informer.check_version() {
         let latest_version = version.to_string();
         // TODO: make this package manager aware
-        let update_cmd = style(if is_global_turbo {
-            "npm i -g turbo"
-        } else {
-            "npm i turbo"
-        })
-        .cyan()
-        .bold();
+        let update_cmd = style("npx @turbo/codemod update").cyan().bold();
 
         let msg = format!(
             "
