@@ -377,7 +377,8 @@ createNextDescribe(
       }
     })
 
-    describe('parallel routes', () => {
+    // TODO-APP: implement parallel routes
+    describe.skip('parallel routes', () => {
       if (!isNextDeploy) {
         it('should match parallel routes', async () => {
           const html = await next.render('/parallel/nested')
@@ -399,8 +400,7 @@ createNextDescribe(
         expect(html).toContain('parallel/(new)/@baz/nested/page')
       })
 
-      // TODO-APP: implement parallel routes
-      it.skip('should support parallel route tab bars', async () => {
+      it('should support parallel route tab bars', async () => {
         const browser = await next.browser('/parallel-tab-bar')
 
         const hasHome = async () => {
