@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
@@ -97,7 +95,9 @@ pub async fn create_page_source(
         src_pages
     } else {
         return Ok(NoContentSourceVc::new().into());
-    };
+    }
+    .resolve()
+    .await?;
 
     let client_ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
@@ -113,13 +113,6 @@ pub async fn create_page_source(
     );
     let client_resolve_options_context =
         get_client_resolve_options_context(project_path, client_ty, next_config);
-    let client_context: AssetContextVc = ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(HashMap::new()),
-        client_environment,
-        client_module_options_context,
-        client_resolve_options_context,
-    )
-    .into();
 
     let client_chunking_context =
         get_client_chunking_context(project_path, server_root, client_environment, client_ty);
@@ -171,7 +164,15 @@ pub async fn create_page_source(
 
     let server_module_options_context =
         get_server_module_options_context(project_path, execution_context, server_ty, next_config);
-    let server_transitions = TransitionsByNameVc::cell(
+
+    let server_data_module_options_context = get_server_module_options_context(
+        project_path,
+        execution_context,
+        server_data_ty,
+        next_config,
+    );
+
+    let transitions = TransitionsByNameVc::cell(
         [
             ("next-edge".to_string(), next_edge_transition),
             ("next-client".to_string(), next_client_transition),
@@ -182,7 +183,7 @@ pub async fn create_page_source(
                     execution_context,
                     client_ty,
                     server_root,
-                    browserslist_query,
+                    client_environment,
                     next_config,
                 )
                 .into(),
@@ -192,23 +193,22 @@ pub async fn create_page_source(
         .collect(),
     );
 
+    let client_context: AssetContextVc = ModuleAssetContextVc::new(
+        transitions,
+        client_environment,
+        client_module_options_context,
+        client_resolve_options_context,
+    )
+    .into();
     let server_context: AssetContextVc = ModuleAssetContextVc::new(
-        server_transitions,
+        transitions,
         server_environment,
         server_module_options_context,
         server_resolve_options_context,
     )
     .into();
-
-    let server_data_module_options_context = get_server_module_options_context(
-        project_path,
-        execution_context,
-        server_data_ty,
-        next_config,
-    );
-
     let server_data_context: AssetContextVc = ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(HashMap::new()),
+        transitions,
         server_environment,
         server_data_module_options_context,
         server_resolve_options_context,
@@ -226,7 +226,7 @@ pub async fn create_page_source(
         execution_context,
         server_root,
         env,
-        browserslist_query,
+        client_environment,
         next_config,
     );
 
