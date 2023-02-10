@@ -406,7 +406,6 @@ impl TaskScope {
         // This method checks if everything was cleaned up correctly
         // no more tasks should be attached to this scope in any way
 
-        // println!("assert_unused {:?}", self);
         assert_eq!(
             self.tasks.load(Ordering::Acquire),
             0,

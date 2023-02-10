@@ -17,6 +17,7 @@ use turbopack_core::{
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
         handle_resolve_error,
+        node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapVc, ImportMapping, ResolveIntoPackage,
             ResolveModules, ResolveOptionsVc,
@@ -143,12 +144,11 @@ impl Default for TsConfigResolveOptionsVc {
 #[turbo_tasks::function]
 pub async fn tsconfig_resolve_options(
     tsconfig: FileSystemPathVc,
-    resolve_in_tsconfig_options: ResolveOptionsVc,
 ) -> Result<TsConfigResolveOptionsVc> {
     let configs = read_tsconfigs(
         tsconfig.read(),
         SourceAssetVc::new(tsconfig).into(),
-        resolve_in_tsconfig_options,
+        node_cjs_resolve_options(tsconfig.root()),
     )
     .await?;
 

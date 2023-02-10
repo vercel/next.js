@@ -27,7 +27,7 @@ use self::{
     pattern::QueryMapVc,
 };
 use crate::{
-    asset::{AssetOptionVc, AssetVc, AssetsVc},
+    asset::{Asset, AssetOptionVc, AssetVc, AssetsVc},
     issue::{
         package_json::{PackageJsonIssue, PackageJsonIssueVc},
         resolve::{ResolvingIssue, ResolvingIssueVc},
@@ -45,6 +45,7 @@ use crate::{
 
 mod alias_map;
 pub(crate) mod exports;
+pub mod node;
 pub mod options;
 pub mod origin;
 pub mod parse;
@@ -608,6 +609,78 @@ pub async fn resolve(
     request: RequestVc,
     options: ResolveOptionsVc,
 ) -> Result<ResolveResultVc> {
+    let raw_result = resolve_internal(context, request, options);
+    let result = handle_resolve_plugins(context, request, options, raw_result);
+    Ok(result)
+}
+
+#[turbo_tasks::function]
+async fn handle_resolve_plugins(
+    context: FileSystemPathVc,
+    request: RequestVc,
+    options: ResolveOptionsVc,
+    result: ResolveResultVc,
+) -> Result<ResolveResultVc> {
+    async fn apply_plugins_to_path(
+        path: FileSystemPathVc,
+        context: FileSystemPathVc,
+        request: RequestVc,
+        options: ResolveOptionsVc,
+    ) -> Result<Option<ResolveResultVc>> {
+        for plugin in &options.await?.plugins {
+            if *plugin.after_resolve_condition().matches(path).await? {
+                if let Some(result) = *plugin.after_resolve(path, context, request).await? {
+                    return Ok(Some(result));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    let mut changed = false;
+    let result_value = result.await?;
+
+    let mut new_primary = Vec::new();
+    let mut new_references = Vec::new();
+
+    for primary in result_value.primary.iter() {
+        if let PrimaryResolveResult::Asset(asset) = primary {
+            if let Some(new_result) =
+                apply_plugins_to_path(asset.path().resolve().await?, context, request, options)
+                    .await?
+            {
+                let new_result = new_result.await?;
+                changed = true;
+                new_primary.extend(new_result.primary.iter().cloned());
+                new_references.extend(new_result.references.iter().copied());
+            } else {
+                new_primary.push(primary.clone());
+            }
+        } else {
+            new_primary.push(primary.clone());
+        }
+    }
+
+    if !changed {
+        return Ok(result);
+    }
+
+    let mut references = result_value.references.clone();
+    references.append(&mut new_references);
+
+    Ok(ResolveResult {
+        primary: new_primary,
+        references,
+    }
+    .cell())
+}
+
+#[turbo_tasks::function]
+async fn resolve_internal(
+    context: FileSystemPathVc,
+    request: RequestVc,
+    options: ResolveOptionsVc,
+) -> Result<ResolveResultVc> {
     // This explicit deref of `options` is necessary
     #[allow(clippy::explicit_auto_deref)]
     let options_value: &ResolveOptions = &*options.await?;
@@ -637,7 +710,7 @@ pub async fn resolve(
         Request::Alternatives { requests } => {
             let results = requests
                 .iter()
-                .map(|req| resolve(context, *req, options))
+                .map(|req| resolve_internal(context, *req, options))
                 .collect();
             merge_results(results)
         }
@@ -683,7 +756,7 @@ pub async fn resolve(
             }
             let new_pat = Pattern::alternatives(patterns);
 
-            resolve(
+            resolve_internal(
                 context,
                 RequestVc::raw(Value::new(new_pat), *force_in_context),
                 options,
@@ -713,7 +786,7 @@ pub async fn resolve(
             .into();
             issue.as_issue().emit();
 
-            resolve(context.root(), relative, options)
+            resolve_internal(context.root(), relative, options)
         }
         Request::Windows { path: _ } => {
             let issue: ResolvingIssueVc = ResolvingIssue {
@@ -796,7 +869,7 @@ async fn resolve_into_folder(
                         )
                     })?;
                 let request = RequestVc::parse(Value::new(str.into()));
-                return Ok(resolve(package_path, request, options));
+                return Ok(resolve_internal(package_path, request, options));
             }
             ResolveIntoPackage::MainField(name) => {
                 if let FileJsonContent::Content(package_json) = &*package_json.await? {
@@ -804,7 +877,7 @@ async fn resolve_into_folder(
                         let request =
                             RequestVc::parse(Value::new(normalize_request(field_value).into()));
 
-                        let result = &*resolve(package_path, request, options).await?;
+                        let result = &*resolve_internal(package_path, request, options).await?;
                         // we are not that strict when a main field fails to resolve
                         // we continue to try other alternatives
                         if !result.is_unresolveable() {
@@ -927,7 +1000,7 @@ async fn resolve_module_request(
             let mut new_pat = path.clone();
             new_pat.push_front(".".to_string().into());
             let relative = RequestVc::relative(Value::new(new_pat), true);
-            results.push(resolve(*package_path, relative, options));
+            results.push(resolve_internal(*package_path, relative, options));
         }
     }
 
@@ -964,7 +1037,7 @@ async fn resolve_import_map_result(
                 issue.as_issue().emit();
                 ResolveResult::unresolveable().cell()
             } else {
-                resolve(context, request, options)
+                resolve_internal(context, request, options)
             }
         }
         ImportMapResult::Alternatives(list) => {
@@ -1015,7 +1088,7 @@ async fn resolve_alias_field_result(
         );
     }
     if let Some(value) = result.as_str() {
-        return Ok(resolve(
+        return Ok(resolve_internal(
             package_path,
             RequestVc::parse(Value::new(Pattern::Constant(value.to_string()))),
             resolve_options,
@@ -1041,7 +1114,6 @@ async fn resolved(
     ResolveOptions {
         resolved_map,
         in_package,
-        plugins,
         ..
     }: &ResolveOptions,
     options: ResolveOptionsVc,
@@ -1075,14 +1147,6 @@ async fn resolved(
                         }
                     }
                 }
-            }
-        }
-    }
-
-    for plugin in plugins {
-        if *plugin.condition().matches(*path).await? {
-            if let Some(result) = *plugin.after_resolve(*path, original_request).await? {
-                return Ok(result);
             }
         }
     }
@@ -1144,7 +1208,7 @@ fn handle_exports_field(
     for path in results {
         if let Some(path) = normalize_path(path) {
             let request = RequestVc::relative(Value::new(format!("./{}", path).into()), false);
-            resolved_results.push(resolve(package_path, request, options));
+            resolved_results.push(resolve_internal(package_path, request, options));
         }
     }
     // other options do not apply anymore when an exports field exist
