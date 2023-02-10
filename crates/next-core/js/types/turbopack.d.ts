@@ -5,6 +5,6 @@ export type RenderData = {
   method: string;
   url: string;
   path: string;
-  query: NextParsedUrlQuery;
-  headers: Record<string, HeaderValue>;
+  rawQuery: string;
+  rawHeaders: Array<[string, string]>;
 };

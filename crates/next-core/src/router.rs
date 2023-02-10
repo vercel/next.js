@@ -12,7 +12,6 @@ use turbopack_core::{
     resolve::{find_context_file, FindContextFileResult},
     source_asset::SourceAssetVc,
 };
-use turbopack_dev_server::source::{headers::Headers, query::Query};
 use turbopack_ecmascript::{
     chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
     EcmascriptModuleAssetType, EcmascriptModuleAssetVc,
@@ -43,8 +42,8 @@ fn next_configs() -> StringsVc {
 pub struct RouterRequest {
     pub method: String,
     pub pathname: String,
-    pub query: Query,
-    pub headers: Headers,
+    pub raw_query: String,
+    pub raw_headers: Vec<(String, String)>,
 }
 
 #[turbo_tasks::value(shared)]

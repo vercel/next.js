@@ -20,9 +20,8 @@ use turbopack_dev_server::{
         lazy_instantiated::{GetContentSource, GetContentSourceVc, LazyInstantiatedContentSource},
         specificity::SpecificityVc,
         ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
-        ContentSourceDataFilter, ContentSourceDataVary, ContentSourceDataVaryVc,
-        ContentSourceResult, ContentSourceResultVc, ContentSourceVc, GetContentSourceContent,
-        GetContentSourceContentVc,
+        ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceResult, ContentSourceResultVc,
+        ContentSourceVc, GetContentSourceContent, GetContentSourceContentVc,
     },
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
@@ -177,8 +176,8 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
         ContentSourceDataVary {
             method: true,
             url: true,
-            headers: Some(ContentSourceDataFilter::All),
-            query: Some(ContentSourceDataFilter::All),
+            raw_headers: true,
+            raw_query: true,
             ..Default::default()
         }
         .cell()
@@ -193,8 +192,8 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
         let ContentSourceData {
             method: Some(method),
             url: Some(url),
-            headers: Some(headers),
-            query: Some(query),
+            raw_headers: Some(raw_headers),
+            raw_query: Some(raw_query),
             ..
         } = &*data else {
             return Err(anyhow!("Missing request data"));
@@ -212,8 +211,8 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
                 params: params.clone(),
                 method: method.clone(),
                 url: url.clone(),
-                query: query.clone(),
-                headers: headers.clone(),
+                raw_query: raw_query.clone(),
+                raw_headers: raw_headers.clone(),
                 path: format!("/{}", this.pathname.await?),
             }
             .cell(),

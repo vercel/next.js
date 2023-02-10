@@ -33,7 +33,8 @@ import "@vercel/turbopack-next/polyfill/async-local-storage";
 import { RenderOpts, renderToHTMLOrFlight } from "next/dist/server/app-render";
 import { PassThrough } from "stream";
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
-import { ParsedUrlQuery } from "node:querystring";
+import { headersFromEntries } from "@vercel/turbopack-next/internal/utils";
+import { parse, ParsedUrlQuery } from "node:querystring";
 
 globalThis.__next_require__ = (data) => {
   const [, , ssr_id] = JSON.parse(data);
@@ -173,9 +174,11 @@ async function runOperation(renderData: RenderData) {
   const req: IncomingMessage = {
     url: renderData.url,
     method: renderData.method,
-    headers: renderData.headers,
+    headers: headersFromEntries(renderData.rawHeaders),
   } as any;
   const res: ServerResponse = new ServerResponseShim(req) as any;
+  const parsedQuery = parse(renderData.rawQuery);
+  const query = { ...parsedQuery, ...renderData.params };
   const renderOpt: Omit<
     RenderOpts,
     "App" | "Document" | "Component" | "pathname"
@@ -215,10 +218,7 @@ async function runOperation(renderData: RenderData) {
     req,
     res,
     renderData.path,
-    {
-      ...renderData.query,
-      ...renderData.params,
-    },
+    query,
     renderOpt as any as RenderOpts
   );
 

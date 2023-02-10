@@ -8,9 +8,8 @@ use turbopack_core::introspect::{
 };
 use turbopack_dev_server::source::{
     specificity::SpecificityVc, ContentSource, ContentSourceContent, ContentSourceContentVc,
-    ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary, ContentSourceDataVaryVc,
-    ContentSourceResult, ContentSourceResultVc, ContentSourceVc, GetContentSourceContent,
-    GetContentSourceContentVc,
+    ContentSourceData, ContentSourceDataVary, ContentSourceDataVaryVc, ContentSourceResult,
+    ContentSourceResultVc, ContentSourceVc, GetContentSourceContent, GetContentSourceContentVc,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceablesVc;
 
@@ -105,8 +104,8 @@ impl GetContentSourceContent for NodeApiGetContentResult {
         ContentSourceDataVary {
             method: true,
             url: true,
-            headers: Some(ContentSourceDataFilter::All),
-            query: Some(ContentSourceDataFilter::All),
+            raw_headers: true,
+            raw_query: true,
             body: true,
             cache_buster: true,
             ..Default::default()
@@ -122,8 +121,8 @@ impl GetContentSourceContent for NodeApiGetContentResult {
         let ContentSourceData {
             method: Some(method),
             url: Some(url),
-            headers: Some(headers),
-            query: Some(query),
+            raw_headers: Some(raw_headers),
+            raw_query: Some(raw_query),
             body: Some(body),
             ..
         } = &*data else {
@@ -141,8 +140,8 @@ impl GetContentSourceContent for NodeApiGetContentResult {
                 params: params.clone(),
                 method: method.clone(),
                 url: url.clone(),
-                query: query.clone(),
-                headers: headers.clone(),
+                raw_query: raw_query.clone(),
+                raw_headers: raw_headers.clone(),
                 path: format!("/{}", self.path),
             }
             .cell(),

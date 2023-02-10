@@ -207,18 +207,23 @@ impl From<VersionedContentVc> for ContentSourceContentVc {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Clone, Debug, PartialOrd, Ord, Hash, Default)]
 pub struct ContentSourceData {
-    /// http method, if requested
+    /// HTTP method, if requested.
     pub method: Option<String>,
-    /// The full url (including query string), if requested
+    /// The full url (including query string), if requested.
     pub url: Option<String>,
-    /// query string items, if requested
+    /// Query string items, if requested.
     pub query: Option<Query>,
-    /// http headers, might contain multiple headers with the same name, if
-    /// requested
+    /// raw query string, if requested. Does not include the `?`.
+    pub raw_query: Option<String>,
+    /// HTTP headers, might contain multiple headers with the same name, if
+    /// requested.
     pub headers: Option<Headers>,
-    /// request body, if requested
+    /// Raw HTTP headers, might contain multiple headers with the same name, if
+    /// requested.
+    pub raw_headers: Option<Vec<(String, String)>>,
+    /// Request body, if requested.
     pub body: Option<BodyVc>,
-    /// see [ContentSourceDataVary::cache_buster]
+    /// See [ContentSourceDataVary::cache_buster].
     pub cache_buster: u64,
 }
 
@@ -354,7 +359,9 @@ pub struct ContentSourceDataVary {
     pub method: bool,
     pub url: bool,
     pub query: Option<ContentSourceDataFilter>,
+    pub raw_query: bool,
     pub headers: Option<ContentSourceDataFilter>,
+    pub raw_headers: bool,
     pub body: bool,
     /// When true, a `cache_buster` value is added to the [ContentSourceData].
     /// This value will be different on every request, which ensures the
@@ -367,12 +374,25 @@ impl ContentSourceDataVary {
     /// Merges two vary specification to create a combination of both that cover
     /// all information requested by either one
     pub fn extend(&mut self, other: &ContentSourceDataVary) {
-        self.method = self.method || other.method;
-        self.url = self.url || other.url;
-        self.body = self.body || other.body;
-        self.cache_buster = self.cache_buster || other.cache_buster;
-        ContentSourceDataFilter::extend_options(&mut self.query, &other.query);
-        ContentSourceDataFilter::extend_options(&mut self.headers, &other.headers);
+        let ContentSourceDataVary {
+            method,
+            url,
+            query,
+            raw_query,
+            headers,
+            raw_headers,
+            body,
+            cache_buster,
+            placeholder_for_future_extensions: _,
+        } = self;
+        *method = *method || other.method;
+        *url = *url || other.url;
+        *body = *body || other.body;
+        *cache_buster = *cache_buster || other.cache_buster;
+        *raw_query = *raw_query || other.raw_query;
+        *raw_headers = *raw_headers || other.raw_headers;
+        ContentSourceDataFilter::extend_options(query, &other.query);
+        ContentSourceDataFilter::extend_options(headers, &other.headers);
     }
 
     /// Returns true if `self` at least contains all values that the
@@ -383,7 +403,9 @@ impl ContentSourceDataVary {
             method,
             url,
             query,
+            raw_query,
             headers,
+            raw_headers,
             body,
             cache_buster,
             placeholder_for_future_extensions: _,
@@ -395,6 +417,12 @@ impl ContentSourceDataVary {
             return false;
         }
         if other.body && !body {
+            return false;
+        }
+        if other.raw_query && !raw_query {
+            return false;
+        }
+        if other.raw_headers && !raw_headers {
             return false;
         }
         if other.cache_buster && !cache_buster {

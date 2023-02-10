@@ -1,7 +1,7 @@
 import type { ClientRequest, IncomingMessage, Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import http, { ServerResponse } from "node:http";
-import qs from "node:querystring";
+import { headersFromEntries } from "@vercel/turbopack-next/internal/utils";
 
 /**
  * Creates a server that listens a random port.
@@ -23,8 +23,8 @@ export function makeRequest(
   server: Server,
   method: string,
   path: string,
-  query?: Record<string, string>,
-  headers?: Record<string, string>
+  rawQuery?: string,
+  rawHeaders?: Array<[string, string]>
 ): Promise<{
   clientRequest: ClientRequest;
   clientResponsePromise: Promise<IncomingMessage>;
@@ -106,11 +106,10 @@ export function makeRequest(
       port: address.port,
       method,
       path:
-        query && Object.keys(query).length > 0
-          ? `${path}?${qs.stringify(query)}`
-          : path,
-      headers,
+        rawQuery != null && rawQuery.length > 0 ? `${path}?${rawQuery}` : path,
+      headers: rawHeaders != null ? headersFromEntries(rawHeaders) : undefined,
     });
+
     // Otherwise Node.js waits for the first chunk of data to be written before sending the request.
     clientRequest.flushHeaders();
 
