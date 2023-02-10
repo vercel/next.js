@@ -7,7 +7,7 @@ on:
 name: Build, test, and deploy
 
 env:
-  NAPI_CLI_VERSION: 2.13.3
+  NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.6.3
   RUST_TOOLCHAIN: nightly-2022-11-04
   PNPM_VERSION: 7.24.3
@@ -932,8 +932,10 @@ jobs:
         with:
           image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
           options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          # turn on some optimization while building Rust codes to prevent tests timeout
           run: |
             set -e &&
+            export CARGO_PROFILE_DEV_OPT_LEVEL=1 &&
             rustup toolchain install "${RUST_TOOLCHAIN}" &&
             rustup default "${RUST_TOOLCHAIN}" &&
             rustup target add x86_64-unknown-linux-gnu &&
