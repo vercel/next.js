@@ -438,6 +438,9 @@ export class FlightClientEntryPlugin {
         (addClientEntryAndSSRModules) => addClientEntryAndSSRModules[1]
       )
     )
+
+    // Wait for action entries to be added.
+    await Promise.all(addActionEntryList)
   }
 
   collectComponentInfoFromDependencies({

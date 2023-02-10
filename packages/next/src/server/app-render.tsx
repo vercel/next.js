@@ -1809,7 +1809,8 @@ export async function renderToHTMLOrFlight(
       return generateFlight()
     }
 
-    if (isAction) {
+    // For action requests, we handle them differently with a sepcial render result.
+    if (isAction && process.env.NEXT_RUNTIME !== 'edge') {
       const workerName = 'app' + renderOpts.pathname
       const actionModId = serverActionsManifest[actionId].workers[workerName]
 
