@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "nightwatch test/component/ --headless",
+    "test:e2e": "nightwatch",
+    "test-safari:e2e": "nightwatch --env safari"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@nightwatch/react": "^0.4.3",
+    "@types/node": "^18.0.6",
+    "chromedriver": "^109.0.0",
+    "geckodriver": "^3.2.0",
+    "nightwatch": "^2.6.13"
+  }
+}

@@ -1,0 +1,73 @@
+.container {
+  min-height: 100vh;
+  padding: 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.main {
+  padding: 5rem 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.description {
+  line-height: 1.5;
+  font-size: 1.5rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 500px;
+  margin: 0 auto;
+  padding: 30px;
+  background-color: #f2f2f2;
+  border-radius: 10px;
+}
+
+.formGroup {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.formLabel {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.formInput,
+.formTextarea {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  box-sizing: border-box;
+  border-radius: 5px;
+}
+
+.formInput[type="email"] {
+  border: 1px solid #ccc;
+}
+
+.formTextarea {
+  height: 150px;
+  border: 1px solid #ccc;
+}
+
+.formButton {
+  width: 120px;
+  padding: 10px 20px;
+  background-color: #0070f3;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+}
