@@ -60,7 +60,7 @@ describe('build trace with extra entries', () => {
     ).toBe(true)
     expect(
       tracedFiles.some((file) =>
-        file.includes('nested-structure/dist/constants.js')
+        file.includes('nested-structure/lib/constants.js')
       )
     ).toBe(true)
     expect(
