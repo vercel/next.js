@@ -22,7 +22,7 @@ module.exports = function (task) {
       } = {}
     ) {
       // Don't compile .d.ts
-      if (file.base.endsWith('.d.ts')) return
+      if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
 
       const isClient = serverOrClient === 'client'
 
@@ -65,7 +65,8 @@ module.exports = function (task) {
         },
         env: {
           targets: {
-            node: '12.0.0',
+            // follow the version defined in packages/next/package.json#engine
+            node: '14.6.0',
           },
         },
         jsc: {
@@ -98,7 +99,11 @@ module.exports = function (task) {
 
       const filePath = path.join(file.dir, file.base)
       const fullFilePath = path.join(__dirname, filePath)
-      const distFilePath = path.dirname(path.join(__dirname, 'dist', filePath))
+      const distFilePath = path.dirname(
+        // we must strip src from filePath as it isn't carried into
+        // the dist file path
+        path.join(__dirname, 'dist', filePath.replace(/^src[/\\]/, ''))
+      )
 
       const options = {
         filename: path.join(file.dir, file.base),
@@ -113,10 +118,15 @@ module.exports = function (task) {
       const output = yield transform(source, options)
       const ext = path.extname(file.base)
 
-      // Make sure the output content keeps the `"client"` directive.
+      // Make sure the output content keeps the `"use client"` directive.
       // TODO: Remove this once SWC fixes the issue.
-      if (/^['"]client['"]/.test(source)) {
-        output.code = '"client";\n' + output.code
+      if (/^['"]use client['"]/.test(source)) {
+        output.code =
+          '"use client";\n' +
+          output.code
+            .split('\n')
+            .map((l) => (/^['"]use client['"]/.test(l) ? '' : l))
+            .join('\n')
       }
 
       // Replace `.ts|.tsx` with `.js` in files with an extension
@@ -155,8 +165,17 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
 }
 
 function setNextVersion(code) {
-  return code.replace(
-    /process\.env\.__NEXT_VERSION/g,
-    `"${require('./package.json').version}"`
-  )
+  return code
+    .replace(
+      /process\.env\.__NEXT_VERSION/g,
+      `"${require('./package.json').version}"`
+    )
+    .replace(
+      /process\.env\.REQUIRED_APP_REACT_VERSION/,
+      `"${
+        require('../../package.json').devDependencies[
+          'react-server-dom-webpack'
+        ]
+      }"`
+    )
 }

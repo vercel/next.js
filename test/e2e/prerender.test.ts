@@ -16,6 +16,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import stripAnsi from 'strip-ansi'
 
 describe('Prerender', () => {
   let next: NextInstance
@@ -752,20 +753,6 @@ describe('Prerender', () => {
       expect(value).toMatch(/Hi \[third\] \[fourth\]/)
     })
 
-    if (!(global as any).isNextDeploy) {
-      it('should show error about renaming unstable_revalidate', async () => {
-        const res = await fetchViaHTTP(next.url, '/api/manual-revalidate', {
-          pathname: '/blog/first',
-          deprecated: '1',
-        })
-        expect(res.status).toBe(500)
-
-        expect(next.cliOutput).toContain(
-          '"unstable_revalidate" has been renamed to "revalidate"'
-        )
-      })
-    }
-
     if ((global as any).isNextStart) {
       // TODO: dev currently renders this page as blocking, meaning it shows the
       // server error instead of continuously retrying. Do we want to change this?
@@ -1074,7 +1061,7 @@ describe('Prerender', () => {
         // we need to reload the page to trigger getStaticProps
         await browser.refresh()
 
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         const errOverlayContent = await getRedboxHeader(browser)
 
         await next.patchFile(indexPage, origContent)
@@ -1213,7 +1200,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1229,7 +1216,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        expect(await hasRedbox(browser)).toBe(true)
+        expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1541,6 +1528,12 @@ describe('Prerender', () => {
               page: '/something',
             },
             {
+              dataRouteRegex: normalizeRegEx(
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr.json$`
+              ),
+              page: '/ssr',
+            },
+            {
               namedDataRouteRegex: `^/_next/data/${escapeRegex(
                 next.buildId
               )}/user/(?<user>[^/]+?)/profile\\.json$`,
@@ -1785,6 +1778,16 @@ describe('Prerender', () => {
           expect(initialHtml).toBe(newHtml)
         })
       }
+
+      it('should not throw error for manual revalidate for SSR path', async () => {
+        const res = await fetchViaHTTP(next.url, '/api/manual-revalidate', {
+          pathname: '/ssr',
+        })
+
+        expect(res.status).toBe(200)
+        expect(await res.json()).toEqual({ revalidated: false })
+        expect(stripAnsi(next.cliOutput)).not.toContain('hasHeader')
+      })
 
       it('should revalidate manual revalidate with preview cookie', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/preview')
@@ -2072,6 +2075,9 @@ describe('Prerender', () => {
           const { version, files } = JSON.parse(contents)
           expect(version).toBe(1)
 
+          console.log(
+            check.tests.map((item) => files.some((file) => item.test(file)))
+          )
           expect(
             check.tests.every((item) => files.some((file) => item.test(file)))
           ).toBe(true)

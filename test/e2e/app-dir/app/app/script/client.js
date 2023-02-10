@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 export default function Client() {
   if (typeof window !== 'undefined') {

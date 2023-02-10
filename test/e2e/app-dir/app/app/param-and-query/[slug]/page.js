@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 export default function Page({ params, searchParams }) {
   return (

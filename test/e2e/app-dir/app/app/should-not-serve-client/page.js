@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 export default function ShouldNotServeClientDotJs(props) {
   return (

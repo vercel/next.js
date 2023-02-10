@@ -6,17 +6,15 @@
  * This is a comment.
  */
 
-"client";
+"use client";
 
 // This is a comment.
 
 "foo";
 
-"client";
+"use client";
 
 import "fs"
-
-"client";
 
 "bar";
 

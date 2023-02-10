@@ -1,12 +1,3 @@
-const fs = require('fs')
-const path = require('path')
-// this page is conditionally added when not testing
-// in webpack 4 mode since it's not supported for webpack 4
-const imagePageData = fs.readFileSync(
-  path.join(__dirname, './image.js'),
-  'utf8'
-)
-
 const clientGlobs = [
   {
     name: 'Client Bundles (main, webpack)',
@@ -85,17 +76,11 @@ module.exports = {
       diff: 'onOutputChange',
       diffConfigFiles: [
         {
-          path: 'pages/image.js',
-          content: imagePageData,
-        },
-        {
           path: 'next.config.js',
           content: `
             module.exports = {
               experimental: {
                 appDir: true,
-                // remove after next stable relase (current v12.3.1)
-                serverComponents: true,
               },
               generateBuildId: () => 'BUILD_ID',
               webpack(config) {
@@ -110,18 +95,12 @@ module.exports = {
       // renames to apply to make file names deterministic
       renames,
       configFiles: [
-        {
-          path: 'pages/image.js',
-          content: imagePageData,
-        },
         {
           path: 'next.config.js',
           content: `
           module.exports = {
               experimental: {
                 appDir: true,
-                // remove after next stable relase (current v12.3.1)
-                serverComponents: true,
               },
               generateBuildId: () => 'BUILD_ID'
             }
@@ -135,82 +114,16 @@ module.exports = {
         'http://localhost:$PORT/link',
         'http://localhost:$PORT/withRouter',
       ],
-      pagesToBench: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/error-in-render',
-      ],
-      benchOptions: {
-        reqTimeout: 60,
-        concurrency: 50,
-        numRequests: 2500,
-      },
-    },
-    {
-      title: 'Default Build with SWC',
-      diff: 'onOutputChange',
-      diffConfigFiles: [
-        {
-          path: 'pages/image.js',
-          content: imagePageData,
-        },
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              experimental: {
-                appDir: true,
-                // remove after next stable relase (current v12.3.1)
-                serverComponents: true
-              },
-              generateBuildId: () => 'BUILD_ID',
-              swcMinify: true,
-              webpack(config) {
-                config.optimization.minimize = false
-                config.optimization.minimizer = undefined
-                return config
-              }
-            }
-          `,
-        },
-      ],
-      // renames to apply to make file names deterministic
-      renames,
-      configFiles: [
-        {
-          path: 'pages/image.js',
-          content: imagePageData,
-        },
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              experimental: {
-                appDir: true,
-                // remove after next stable relase (current v12.3.1)
-                serverComponents: true
-              },
-              swcMinify: true,
-              generateBuildId: () => 'BUILD_ID'
-            }
-          `,
-        },
-      ],
-      filesToTrack: clientGlobs,
-      // will be output to fetched-pages/${pathname}.html
-      pagesToFetch: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/link',
-        'http://localhost:$PORT/withRouter',
-      ],
-      pagesToBench: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/error-in-render',
-      ],
-      benchOptions: {
-        reqTimeout: 60,
-        concurrency: 50,
-        numRequests: 2500,
-      },
+      // TODO: investigate replacing "ab" for this
+      // pagesToBench: [
+      //   'http://localhost:$PORT/',
+      //   'http://localhost:$PORT/error-in-render',
+      // ],
+      // benchOptions: {
+      //   reqTimeout: 60,
+      //   concurrency: 50,
+      //   numRequests: 2500,
+      // },
     },
   ],
 }

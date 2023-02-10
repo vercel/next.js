@@ -27,6 +27,10 @@ const Color = () => (
       blurDataURL={rgbDataURL(237, 181, 6)}
       width={750}
       height={1000}
+      style={{
+        maxWidth: '100%',
+        height: 'auto',
+      }}
     />
     <Image
       alt="Cat"
@@ -35,6 +39,10 @@ const Color = () => (
       blurDataURL={rgbDataURL(2, 129, 210)}
       width={750}
       height={1000}
+      style={{
+        maxWidth: '100%',
+        height: 'auto',
+      }}
     />
   </div>
 )

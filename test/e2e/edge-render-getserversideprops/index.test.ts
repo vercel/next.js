@@ -4,14 +4,10 @@ import { fetchViaHTTP, normalizeRegEx, renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import escapeStringRegexp from 'escape-string-regexp'
+import fs from 'fs-extra'
 
 describe('edge-render-getserversideprops', () => {
   let next: NextInstance
-
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    it('should skip for react v17', () => {})
-    return
-  }
 
   beforeAll(async () => {
     next = await createNext({
@@ -20,6 +16,28 @@ describe('edge-render-getserversideprops', () => {
     })
   })
   afterAll(() => next.destroy())
+
+  if ((global as any).isNextStart) {
+    it('should not output trace files for edge routes', async () => {
+      expect(await fs.pathExists(join(next.testDir, '.next/pages'))).toBe(false)
+      expect(
+        await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js'))
+      ).toBe(true)
+      expect(
+        await fs.pathExists(
+          join(next.testDir, '.next/server/pages/[id].js.nft.json')
+        )
+      ).toBe(false)
+      expect(
+        await fs.pathExists(join(next.testDir, '.next/server/pages/index.js'))
+      ).toBe(true)
+      expect(
+        await fs.pathExists(
+          join(next.testDir, '.next/server/pages/index.js.nft.json')
+        )
+      ).toBe(false)
+    })
+  }
 
   it('should have correct query/params on index', async () => {
     const html = await renderViaHTTP(next.url, '/')

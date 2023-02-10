@@ -23,9 +23,7 @@ const AboutPage = () => {
       <button onClick={handleIncrease}>Increase</button>
       <button onClick={handleIncrease15}>Increase By 15</button>
       <p>
-        <Link href="/">
-          <a>Home</a>
-        </Link>
+        <Link href="/">Home</Link>
       </p>
     </>
   )

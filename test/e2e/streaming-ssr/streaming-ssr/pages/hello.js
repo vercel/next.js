@@ -4,9 +4,7 @@ export default function Page() {
   return (
     <div>
       <p>hello nextjs</p>
-      <Link href="/">
-        <a>home</a>
-      </Link>
+      <Link href="/">home</Link>
     </div>
   )
 }

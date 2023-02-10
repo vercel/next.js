@@ -5,24 +5,16 @@ export default function Header() {
     <header>
       <ul>
         <li>
-          <Link href="/">
-            <a>Home</a>
-          </Link>
+          <Link href="/">Home</Link>
         </li>
         <li>
-          <Link href="/about">
-            <a>About</a>
-          </Link>
+          <Link href="/about">About</Link>
         </li>
         <li>
-          <Link href="/post/first">
-            <a>First Post</a>
-          </Link>
+          <Link href="/post/first">First Post</Link>
         </li>
         <li>
-          <Link href="/post/second">
-            <a>Second Post</a>
-          </Link>
+          <Link href="/post/second">Second Post</Link>
         </li>
       </ul>
     </header>

@@ -38,8 +38,8 @@ export default class MyApp extends App<{ html: string }> {
       html && router.pathname !== '/hello' ? (
         <>
           <div dangerouslySetInnerHTML={{ __html: html }} />
-          <Link href={href}>
-            <a id={href === '/' ? 'home' : 'another'}>to {href}</a>
+          <Link href={href} id={href === '/' ? 'home' : 'another'}>
+            to{href}
           </Link>
         </>
       ) : (

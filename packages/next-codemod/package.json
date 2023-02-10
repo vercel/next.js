@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "12.3.2-canary.24",
+  "version": "13.1.7-canary.8",
   "license": "MIT",
   "dependencies": {
     "chalk": "4.1.0",
@@ -22,7 +22,8 @@
     "build": "pnpm tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm tsc -d -w -p tsconfig.json",
-    "test": "jest"
+    "test": "jest",
+    "test-pack": "cd ../../ && pnpm test-pack next-codemod"
   },
   "bin": "./bin/next-codemod.js",
   "devDependencies": {

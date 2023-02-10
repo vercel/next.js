@@ -26,7 +26,6 @@ describe('tsconfig.json verifier', () => {
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
         \\"compilerOptions\\": {
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -75,7 +74,6 @@ describe('tsconfig.json verifier', () => {
     expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
       "{
         \\"compilerOptions\\": {
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -143,7 +141,6 @@ describe('tsconfig.json verifier', () => {
           \\"module\\": \\"esnext\\" // should not be umd
           // end-object comment
           ,
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -192,7 +189,6 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"module\\": \\"commonjs\\",
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -238,7 +234,6 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"module\\": \\"es2020\\",
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -288,7 +283,6 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           \\"esModuleInterop\\": true,
           \\"moduleResolution\\": \\"node16\\",
-          \\"target\\": \\"es5\\",
           \\"lib\\": [
             \\"dom\\",
             \\"dom.iterable\\",
@@ -318,6 +312,102 @@ describe('tsconfig.json verifier', () => {
     `)
   })
 
+  it('allows you to set target mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(tsConfig, `{ "compilerOptions": { "target": "es2022" } }`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('target')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"target\\": \\"es2022\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to set node16 module mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "node16", "moduleResolution": "node16" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+      stderr: true,
+      stdout: true,
+    })
+    expect(stderr + stdout).not.toContain('moduleResolution')
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"node16\\",
+          \\"moduleResolution\\": \\"node16\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"incremental\\": true,
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
   it('allows you to extend another configuration file', async () => {
     expect(await exists(tsConfig)).toBe(false)
     expect(await exists(tsConfigBase)).toBe(false)
@@ -327,7 +417,6 @@ describe('tsconfig.json verifier', () => {
       `
       {
         "compilerOptions": {
-          "target": "es5",
           "lib": [
             "dom",
             "dom.iterable",
@@ -383,7 +472,6 @@ describe('tsconfig.json verifier', () => {
       `
       {
         "compilerOptions": {
-          "target": "es5",
           "lib": [
             "dom",
             "dom.iterable",

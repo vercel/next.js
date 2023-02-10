@@ -1,3 +1,13 @@
+use next_binding::swc::{
+    core::{
+        common::{chain, comments::SingleThreadedComments, FileName, Mark},
+        ecma::parser::{EsConfig, Syntax},
+        ecma::transforms::base::resolver,
+        ecma::transforms::react::jsx,
+        ecma::transforms::testing::{test, test_fixture},
+    },
+    testing::fixture,
+};
 use next_swc::{
     amp_attributes::amp_attributes,
     next_dynamic::next_dynamic,
@@ -8,16 +18,10 @@ use next_swc::{
     react_server_components::server_components,
     relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
+    server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use std::path::PathBuf;
-use swc_core::{
-    common::{chain, comments::SingleThreadedComments, FileName, Mark},
-    ecma::parser::{EsConfig, Syntax},
-    ecma::transforms::react::jsx,
-    ecma::transforms::testing::{test, test_fixture},
-};
-use testing::fixture;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsConfig {
@@ -29,7 +33,13 @@ fn syntax() -> Syntax {
 #[fixture("tests/fixture/amp/**/input.js")]
 fn amp_attributes_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture(syntax(), &|_tr| amp_attributes(), &input, &output);
+    test_fixture(
+        syntax(),
+        &|_tr| amp_attributes(),
+        &input,
+        &output,
+        Default::default(),
+    );
 }
 
 #[fixture("tests/fixture/next-dynamic/**/input.js")]
@@ -43,17 +53,20 @@ fn next_dynamic_fixture(input: PathBuf) {
             next_dynamic(
                 true,
                 false,
+                false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
         },
         &input,
         &output_dev,
+        Default::default(),
     );
     test_fixture(
         syntax(),
         &|_tr| {
             next_dynamic(
+                false,
                 false,
                 false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
@@ -62,6 +75,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         },
         &input,
         &output_prod,
+        Default::default(),
     );
     test_fixture(
         syntax(),
@@ -69,12 +83,14 @@ fn next_dynamic_fixture(input: PathBuf) {
             next_dynamic(
                 false,
                 true,
+                false,
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),
             )
         },
         &input,
         &output_server,
+        Default::default(),
     );
 }
 
@@ -88,7 +104,7 @@ fn next_ssg_fixture(input: PathBuf) {
             let jsx = jsx::<SingleThreadedComments>(
                 tr.cm.clone(),
                 None,
-                swc_core::ecma::transforms::react::Options {
+                next_binding::swc::core::ecma::transforms::react::Options {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
@@ -106,13 +122,20 @@ fn next_ssg_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
 #[fixture("tests/fixture/page-config/**/input.js")]
 fn page_config_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
-    test_fixture(syntax(), &|_tr| page_config_test(), &input, &output);
+    test_fixture(
+        syntax(),
+        &|_tr| page_config_test(),
+        &input,
+        &output,
+        Default::default(),
+    );
 }
 
 #[fixture("tests/fixture/relay/**/input.ts*")]
@@ -134,6 +157,7 @@ fn relay_no_artifact_dir_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -145,6 +169,7 @@ fn remove_console_fixture(input: PathBuf) {
         &|_tr| remove_console(next_swc::remove_console::Config::All(true)),
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -156,6 +181,7 @@ fn react_remove_properties_default_fixture(input: PathBuf) {
         &|_tr| remove_properties(next_swc::react_remove_properties::Config::All(true)),
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -173,6 +199,7 @@ fn react_remove_properties_custom_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -194,6 +221,7 @@ fn shake_exports_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -209,6 +237,7 @@ fn shake_exports_fixture_default(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -224,10 +253,12 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: true },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -243,10 +274,12 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: false },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,
         &output,
+        Default::default(),
     );
 }
 
@@ -263,5 +296,27 @@ fn next_font_loaders_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/server-actions/**/input.js")]
+fn server_actions_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            chain!(
+                resolver(Mark::new(), Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config { is_server: true },
+                    _tr.comments.as_ref().clone(),
+                )
+            )
+        },
+        &input,
+        &output,
+        Default::default(),
     );
 }

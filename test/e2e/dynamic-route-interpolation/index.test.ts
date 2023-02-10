@@ -23,8 +23,8 @@ describe('Dynamic Route Interpolation', () => {
             return (
               <>
                 <p id="slug">{props.slug}</p>
-                <Link href={router.asPath}>
-                  <a id="now">{props.now}</a>
+                <Link id="now" href={router.asPath}>
+                  {props.now}
                 </Link>
               </>
             )

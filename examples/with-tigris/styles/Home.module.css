@@ -1,0 +1,138 @@
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  margin-top: 50px;
+  justify-content: space-between;
+  align-content: space-around;
+}
+
+.searchHeader {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.searchInput {
+  min-width: 300px;
+}
+
+.results {
+  position: relative;
+  background-color: #fff;
+  min-width: 600px;
+  min-height: 200px;
+  border-radius: 8px;
+  color: #0f2832;
+  overflow: hidden;
+}
+
+.container input {
+  border: 1px solid #fff;
+  background-color: white;
+  padding: 8px 16px;
+  background-color: #fff;
+  border-radius: 8px;
+  border-color: #d9dbe1;
+  color: #0f2832;
+  width: 100%;
+  display: block;
+  height: 40px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: 0px;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  caret-color: #4ed9b2;
+}
+
+.container input:hover,
+.container input:focus,
+.container input:active,
+.container input:focus-visible {
+  border-color: #4ed9b2;
+  outline: #4ed9b2;
+}
+
+.container input:disabled {
+  pointer-events: none;
+  border: 1px solid #d9dbe1;
+  color: #a2a3a8;
+}
+
+.container button {
+  align-items: center;
+  border-radius: 8px;
+  color: #0f2832;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 19px;
+  min-height: 40px;
+  min-width: 80px;
+  padding: 6px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.5s;
+  background-color: #efb700;
+}
+
+.container button:hover,
+.container button:focus,
+.container button:active {
+  background-color: #fddc7b;
+}
+
+.errorText {
+  font-size: 12px;
+  text-align: center;
+  padding: 20px;
+  color: #ed6f6c;
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(2px);
+  }
+  50% {
+    transform: translateX(0px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.invalid {
+  animation: shake 0.2s ease-in-out 0s 2;
+}
+
+.noItems {
+  padding: 20px;
+  text-align: center;
+  margin-top: 20px;
+  color: #a2a3a8;
+}
+
+.clearSearch {
+  background-color: transparent !important;
+  color: #efb700 !important;
+  border-radius: 4px !important;
+  margin: 0 auto;
+  display: block;
+  text-align: center;
+  min-height: 20px !important;
+  margin-top: 20px;
+}
+
+.clearSearch:hover {
+  color: #fddc7b !important;
+}

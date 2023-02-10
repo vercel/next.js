@@ -19,14 +19,10 @@ export default function Tag({ posts, categories, slug }) {
                 <h2>Blog Posts by Tag</h2>
                 <ul className="breadcrumb-nav">
                   <li>
-                    <Link href="/">
-                      <a>Home</a>
-                    </Link>
+                    <Link href="/">Home</Link>
                   </li>
                   <li>
-                    <Link href="/blog">
-                      <a>Blog</a>
-                    </Link>
+                    <Link href="/blog">Blog</Link>
                   </li>
                   <li>Tag: {slug}</li>
                 </ul>

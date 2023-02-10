@@ -111,6 +111,10 @@ The Next.js Edge Runtime is based on standard Web APIs, which is used by [Middle
 - [`WeakSet`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet)
 - [`WebAssembly`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly)
 
+## Next.js Specific Polyfills
+
+- [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage)
+
 ## Environment Variables
 
 You can use `process.env` to access [Environment Variables](/docs/basic-features/environment-variables.md) for both `next dev` and `next build`.
@@ -144,7 +148,7 @@ You can relax the check to allow specific files with your Middleware or Edge API
 
 ```javascript
 export const config = {
-  runtime: 'experimental-edge', // for Edge API Routes only
+  runtime: 'edge', // for Edge API Routes only
   unstable_allowDynamic: [
     '/lib/utilities.js', // allows a single file
     '/node_modules/function-bind/**', // use a glob to allow anything in the function-bind 3rd party module

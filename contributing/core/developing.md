@@ -7,9 +7,9 @@
 To develop locally:
 
 1. Install the [GitHub CLI](https://github.com/cli/cli#installation).
-1. Clone the Next.js repository:
+1. Clone the Next.js repository (download only recent commits for faster clone):
    ```
-   gh repo clone vercel/next.js
+   gh repo clone vercel/next.js -- --depth=3000 --branch canary --single-branch
    ```
 1. Create a new branch:
    ```
@@ -30,7 +30,7 @@ To develop locally:
 1. In a new terminal, run `pnpm types` to compile declaration files from
    TypeScript.
    _Note: You may need to repeat this step if your types get outdated._
-1. When you changes are finished commit them to the branch:
+1. When your changes are finished, commit them to the branch:
    ```
    git add .
    git commit -m "DESCRIBE_YOUR_CHANGES_HERE"

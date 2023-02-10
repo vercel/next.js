@@ -13,27 +13,27 @@ describe('@next/font/google loader', () => {
       [
         'Inter',
         {},
-        'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=optional',
+        'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap',
       ],
       [
         'Inter',
-        { variant: '400' },
-        'https://fonts.googleapis.com/css2?family=Inter:wght@400&display=optional',
+        { weight: '400' },
+        'https://fonts.googleapis.com/css2?family=Inter:wght@400&display=swap',
       ],
       [
         'Inter',
-        { variant: '900', display: 'block' },
+        { weight: '900', display: 'block' },
         'https://fonts.googleapis.com/css2?family=Inter:wght@900&display=block',
       ],
       [
         'Source_Sans_Pro',
-        { variant: '900', display: 'auto' },
+        { weight: '900', display: 'auto' },
         'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@900&display=auto',
       ],
       [
         'Source_Sans_Pro',
-        { variant: '200-italic' },
-        'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@1,200&display=optional',
+        { weight: '200', style: 'italic' },
+        'https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital,wght@1,200&display=swap',
       ],
       [
         'Roboto_Flex',
@@ -42,7 +42,7 @@ describe('@next/font/google loader', () => {
       ],
       [
         'Roboto_Flex',
-        { display: 'fallback', variant: 'variable', axes: ['opsz'] },
+        { display: 'fallback', weight: 'variable', axes: ['opsz'] },
         'https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=fallback',
       ],
       [
@@ -55,18 +55,61 @@ describe('@next/font/google loader', () => {
       ],
       [
         'Oooh_Baby',
-        { variant: '400' },
-        'https://fonts.googleapis.com/css2?family=Oooh+Baby:wght@400&display=optional',
+        { weight: '400' },
+        'https://fonts.googleapis.com/css2?family=Oooh+Baby:wght@400&display=swap',
       ],
       [
         'Albert_Sans',
-        { variant: 'variable-italic' },
-        'https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@1,100..900&display=optional',
+        { weight: 'variable', style: 'italic' },
+        'https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@1,100..900&display=swap',
       ],
       [
         'Fraunces',
-        { variant: 'variable-italic', axes: ['WONK', 'opsz', 'SOFT'] },
-        'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@1,9..144,100..900,0..100,0..1&display=optional',
+        { weight: 'variable', style: 'italic', axes: ['WONK', 'opsz', 'SOFT'] },
+        'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@1,9..144,100..900,0..100,0..1&display=swap',
+      ],
+      [
+        'Molle',
+        { weight: '400' },
+        'https://fonts.googleapis.com/css2?family=Molle:ital,wght@1,400&display=swap',
+      ],
+      [
+        'Roboto',
+        { weight: ['500', '300', '400'], style: ['normal', 'italic'] },
+        'https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap',
+      ],
+      [
+        'Roboto Mono',
+        { style: ['italic', 'normal'] },
+        'https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap',
+      ],
+      [
+        'Fraunces',
+        {
+          style: ['normal', 'italic'],
+          axes: ['WONK', 'opsz', 'SOFT'],
+        },
+        'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1;1,9..144,100..900,0..100,0..1&display=swap',
+      ],
+      [
+        'Poppins',
+        { weight: ['900', '400', '100'] },
+        'https://fonts.googleapis.com/css2?family=Poppins:wght@100;400;900&display=swap',
+      ],
+      [
+        'Nabla',
+        {},
+        'https://fonts.googleapis.com/css2?family=Nabla&display=swap',
+      ],
+      [
+        'Nabla',
+        { axes: ['EDPT', 'EHLT'] },
+        'https://fonts.googleapis.com/css2?family=Nabla:EDPT,EHLT@0..200,0..24&display=swap',
+      ],
+      [
+        'Ballet',
+        {},
+        'https://fonts.googleapis.com/css2?family=Ballet&display=swap',
       ],
     ])('%s', async (functionName: string, data: any, url: string) => {
       fetch.mockResolvedValue({
@@ -79,7 +122,10 @@ describe('@next/font/google loader', () => {
         config: { subsets: [] },
         emitFontFile: jest.fn(),
         resolve: jest.fn(),
-        fs: {} as any,
+        loaderContext: {} as any,
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
       })
       expect(css).toBe('OK')
       expect(fetch).toHaveBeenCalledTimes(1)
@@ -87,130 +133,7 @@ describe('@next/font/google loader', () => {
     })
   })
 
-  describe('Fallback fonts', () => {
-    test('Inter', async () => {
-      fetch.mockResolvedValue({
-        ok: true,
-        text: async () => '',
-      })
-      const { adjustFontFallback, fallbackFonts } = await loader({
-        functionName: 'Inter',
-        data: [],
-        config: { subsets: [] },
-        emitFontFile: jest.fn(),
-        resolve: jest.fn(),
-        fs: {} as any,
-      })
-      expect(adjustFontFallback).toEqual({
-        ascentOverride: '47.65%',
-        descentOverride: '11.88%',
-        fallbackFont: 'Arial',
-        lineGapOverride: '0.00%',
-        sizeAdjust: '203.32%',
-      })
-      expect(fallbackFonts).toBeUndefined()
-    })
-
-    test('Source Code Pro', async () => {
-      fetch.mockResolvedValue({
-        ok: true,
-        text: async () => '',
-      })
-      const { fallbackFonts, adjustFontFallback } = await loader({
-        functionName: 'Source_Code_Pro',
-        data: [],
-        config: { subsets: [] },
-        emitFontFile: jest.fn(),
-        resolve: jest.fn(),
-        fs: {} as any,
-      })
-      expect(adjustFontFallback).toEqual({
-        ascentOverride: '148.26%',
-        descentOverride: '41.13%',
-        fallbackFont: 'Arial',
-        lineGapOverride: '0.00%',
-        sizeAdjust: '66.37%',
-      })
-      expect(fallbackFonts).toBeUndefined()
-    })
-
-    test('Fraunces', async () => {
-      fetch.mockResolvedValue({
-        ok: true,
-        text: async () => '',
-      })
-      const { adjustFontFallback, fallbackFonts } = await loader({
-        functionName: 'Fraunces',
-        data: [{ fallback: ['Abc', 'Def'] }],
-        config: { subsets: [] },
-        emitFontFile: jest.fn(),
-        resolve: jest.fn(),
-        fs: {} as any,
-      })
-      expect(adjustFontFallback).toEqual({
-        ascentOverride: '63.47%',
-        descentOverride: '16.55%',
-        fallbackFont: 'Times New Roman',
-        lineGapOverride: '0.00%',
-        sizeAdjust: '154.08%',
-      })
-      expect(fallbackFonts).toEqual(['Abc', 'Def'])
-    })
-
-    test('adjustFontFallback disabled', async () => {
-      fetch.mockResolvedValue({
-        ok: true,
-        text: async () => '',
-      })
-      const { css, fallbackFonts } = await loader({
-        functionName: 'Inter',
-        data: [{ adjustFontFallback: false, fallback: ['system-ui', 'Arial'] }],
-        config: { subsets: [] },
-        emitFontFile: jest.fn(),
-        resolve: jest.fn(),
-        fs: {} as any,
-      })
-      expect(css).toBe('')
-      expect(fallbackFonts).toEqual(['system-ui', 'Arial'])
-    })
-  })
-
   describe('Errors', () => {
-    test('Failed to fetch', async () => {
-      fetch.mockResolvedValue({
-        ok: false,
-      })
-
-      await expect(
-        loader({
-          functionName: 'Inter',
-          data: [],
-          config: { subsets: [] },
-          emitFontFile: jest.fn(),
-          resolve: jest.fn(),
-          fs: {} as any,
-        })
-      ).rejects.toThrowErrorMatchingInlineSnapshot(`
-                        "Failed to fetch font  \`Inter\`.
-                        URL: https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=optional"
-                    `)
-    })
-
-    test('Missing config with subsets', async () => {
-      await expect(
-        loader({
-          functionName: 'Inter',
-          data: [],
-          config: undefined,
-          emitFontFile: jest.fn(),
-          resolve: jest.fn(),
-          fs: {} as any,
-        })
-      ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"Please specify subsets for \`@next/font/google\` in your \`next.config.js\`"`
-      )
-    })
-
     test('Missing function name', async () => {
       await expect(
         loader({
@@ -219,7 +142,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"@next/font/google has no default export"`
@@ -234,30 +160,36 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Unknown font \`Unknown Font\`"`
       )
     })
 
-    test('Unknown variant', async () => {
+    test('Unknown weight', async () => {
       await expect(
         loader({
           functionName: 'Inter',
-          data: [{ variant: '123' }],
+          data: [{ weight: '123' }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-                      "Unknown variant \`123\` for font \`Inter\`.
-                      Available variants: \`100\`, \`200\`, \`300\`, \`400\`, \`500\`, \`600\`, \`700\`, \`800\`, \`900\`, \`variable\`"
-                  `)
+              "Unknown weight \`123\` for font \`Inter\`.
+              Available weights: \`100\`, \`200\`, \`300\`, \`400\`, \`500\`, \`600\`, \`700\`, \`800\`, \`900\`, \`variable\`"
+            `)
     })
 
-    test('Missing variant for non variable font', async () => {
+    test('Missing weight for non variable font', async () => {
       await expect(
         loader({
           functionName: 'Abel',
@@ -265,11 +197,33 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
-              "Missing variant for font \`Abel\`.
-              Available variants: \`400\`"
+              "Missing weight for font \`Abel\`.
+              Available weights: \`400\`"
+            `)
+    })
+
+    test('Unknown style', async () => {
+      await expect(
+        loader({
+          functionName: 'Molle',
+          data: [{ weight: '400', style: 'normal' }],
+          config: { subsets: [] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Unknown style \`normal\` for font \`Molle\`.
+              Available styles: \`italic\`"
             `)
     })
 
@@ -281,7 +235,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
                       "Invalid display value \`invalid\` for font \`Inter\`.
@@ -293,11 +250,14 @@ describe('@next/font/google loader', () => {
       await expect(
         loader({
           functionName: 'Abel',
-          data: [{ variant: '400', axes: [] }],
+          data: [{ weight: '400', axes: [] }],
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Axes can only be defined for variable fonts"`
@@ -312,7 +272,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
         `"Font \`Lora\` has no definable \`axes\`"`
@@ -327,7 +290,10 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid axes value for font \`Inter\`, expected an array of axes.
@@ -343,12 +309,142 @@ describe('@next/font/google loader', () => {
           config: { subsets: [] },
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
-          fs: {} as any,
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(`
               "Invalid axes value \`INVALID\` for font \`Roboto Flex\`.
               Available axes: \`GRAD\`, \`XTRA\`, \`YOPQ\`, \`YTAS\`, \`YTDE\`, \`YTFI\`, \`YTLC\`, \`YTUC\`, \`opsz\`, \`slnt\`, \`wdth\`"
             `)
     })
+
+    test('Variable in weight array', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: { subsets: [] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Unexpected \`variable\` in weight array for font \`Inter\`. You only need \`variable\`, it includes all available weights."`
+      )
+    })
+
+    test('Invalid subset in call', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'], subsets: ['latin', 'oops'] }],
+          config: { subsets: ['ignored'] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Unknown subset \`oops\` for font \`Inter\`.
+              Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`"
+            `)
+    })
+
+    test('Invalid subset in config', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: { subsets: ['whoops'] },
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(`
+              "Unknown subset \`whoops\` for font \`Inter\`.
+              Available subsets: \`cyrillic\`, \`cyrillic-ext\`, \`greek\`, \`greek-ext\`, \`latin\`, \`latin-ext\`, \`vietnamese\`"
+            `)
+    })
+
+    test('Missing subsets in config and call', async () => {
+      await expect(
+        loader({
+          functionName: 'Inter',
+          data: [{ weight: ['100', 'variable'] }],
+          config: {},
+          emitFontFile: jest.fn(),
+          resolve: jest.fn(),
+          loaderContext: {} as any,
+          isDev: false,
+          isServer: true,
+          variableName: 'myFont',
+        })
+      ).rejects.toThrowErrorMatchingInlineSnapshot(
+        `"Missing selected subsets for font \`Inter\`. Please specify subsets in the function call or in your \`next.config.js\`. Read more: https://nextjs.org/docs/messages/google-fonts-missing-subsets"`
+      )
+    })
+  })
+
+  it('should not send duplicate requests when several font variants use the same font file', async () => {
+    fetch
+      .mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => '',
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => `
+/* latin */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 100;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v24/6NUu8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib14c7qv8oRcTn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v24/6NUu8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib14c7qv8oRcTn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/fraunces/v24/6NUu8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib14c7qv8oRcTn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+      `,
+      })
+    const { css } = await loader({
+      functionName: 'Fraunces',
+      data: [{ weight: ['100', '300', '900'] }],
+      config: { subsets: [] },
+      emitFontFile: jest.fn(),
+      resolve: jest.fn(),
+      loaderContext: {} as any,
+      isDev: false,
+      isServer: true,
+      variableName: 'myFont',
+    })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(css).not.toInclude('https://fonts.gstatic.com/s/fraunces/v24/')
   })
 })

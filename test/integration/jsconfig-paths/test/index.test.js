@@ -3,6 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import * as path from 'path'
 import {
   renderViaHTTP,
@@ -74,7 +75,7 @@ function runTests() {
       await renderViaHTTP(appPort, '/basic-alias')
 
       const found = await check(
-        () => output,
+        () => stripAnsi(output),
         /Module not found: Can't resolve '@c\/worldd'/,
         false
       )

@@ -1,4 +1,4 @@
-'client'
+'use client'
 
 import css from 'styled-jsx/css'
 

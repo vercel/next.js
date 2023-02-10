@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-In your `next.config.js` file you passed invalid options that either are the incorrect type or an unknown field.
+In your `next.config.js` file you passed invalid options that either are the incorrect type or an unknown field. This warning is shown to help catch typos that cause expected configs to not be applied.
 
 #### Possible Ways to Fix It
 
@@ -17,6 +17,12 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
+```
+
+For example for the below warning, there is a typo and `rewritess` needs to be renamed to `rewrites` to resolve the issue.
+
+```sh
+The root value has an unexpected property, rewritess, which is not in the list of allowed properties
 ```
 
 ### Useful Links

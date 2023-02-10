@@ -12,6 +12,10 @@ const PlaceholderBlur = () => (
       placeholder="blur"
       width={700}
       height={475}
+      style={{
+        maxWidth: '100%',
+        height: 'auto',
+      }}
     />
   </div>
 )

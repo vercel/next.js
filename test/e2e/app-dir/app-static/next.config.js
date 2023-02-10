@@ -1,8 +1,7 @@
 module.exports = {
   experimental: {
     appDir: true,
-    legacyBrowsers: false,
-    browsersListForSwc: true,
+    fetchCache: true,
   },
   // assetPrefix: '/assets',
   rewrites: async () => {
@@ -12,6 +11,14 @@ module.exports = {
         {
           source: '/rewritten-to-dashboard',
           destination: '/dashboard',
+        },
+        {
+          source: '/rewritten-use-search-params',
+          destination: '/hooks/use-search-params',
+        },
+        {
+          source: '/rewritten-use-pathname',
+          destination: '/hooks/use-pathname/slug',
         },
       ],
     }

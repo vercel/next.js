@@ -6,7 +6,6 @@ import fs from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
-  initNextServerScript,
   killApp,
   launchApp,
   nextBuild,
@@ -14,12 +13,10 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import os from 'os'
 import { join } from 'path'
 import qs from 'querystring'
 
 const appDir = join(__dirname, '..')
-const nextConfigPath = join(appDir, 'next.config.js')
 
 async function getBuildId() {
   return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
@@ -269,22 +266,8 @@ function runTests(startServer = nextStart) {
   })
 }
 
-const startServerlessEmulator = async (dir, port) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId() }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env)
-}
-
 describe('Prerender Preview Mode', () => {
   describe('Development Mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
     let appPort, app
     it('should start development application', async () => {
       appPort = await findPort()
@@ -307,6 +290,7 @@ describe('Prerender Preview Mode', () => {
 
     it('should return cookies to be expired after dev server reboot', async () => {
       await killApp(app)
+      appPort = await findPort()
       app = await launchApp(appDir, appPort)
 
       const res = await fetchViaHTTP(
@@ -398,38 +382,6 @@ describe('Prerender Preview Mode', () => {
   })
 
   describe('Server Mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
     runTests()
-  })
-
-  describe.skip('Serverless Mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfigPath,
-        `module.exports = { target: 'experimental-serverless-trace' }` + os.EOL
-      )
-    })
-    afterAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
-    runTests()
-  })
-
-  describe.skip('Emulated Serverless Mode', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfigPath,
-        `module.exports = { target: 'experimental-serverless-trace' }` + os.EOL
-      )
-    })
-    afterAll(async () => {
-      await fs.remove(nextConfigPath)
-    })
-
-    runTests(startServerlessEmulator)
   })
 })

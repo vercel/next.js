@@ -1,9 +1,11 @@
 import { Inter, Roboto } from '@next/font/google'
-const inter = Inter({ variant: '900', display: 'swap', preload: false })
+const inter = Inter({ weight: '900', display: 'swap', preload: false })
 const roboto = Roboto({
-  variant: '100-italic',
+  weight: '100',
+  style: 'italic',
   display: 'swap',
   preload: true,
+  subsets: ['vietnamese'],
 })
 
 export default function Component() {

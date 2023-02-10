@@ -2,6 +2,8 @@
 
 This example supports deloying a static Next.js application (using `next export`) to GitHub Pages.
 
+The `out` directory should not be ignored by version control.
+
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
@@ -20,7 +22,7 @@ pnpm create next-app --example github-pages nextjs-github-pages
 1.  Edit `next.config.js` to match your GitHub repository name.
 1.  Push the starter code to the `main` branch.
 1.  Run the `deploy` script (e.g. `npm run deploy`) to create the `gh-pages` branch.
-1.  On GitHub, go to **Settings** > **Pages** > **Source**, and choose `gh-pages` as the branch with the `/root` folder. Hit **Save**.
+1.  On GitHub, go to **Settings** > **Pages** > **Branch**, and choose `gh-pages` as the branch with the `/root` folder. Hit **Save**.
 1.  Make a change.
 1.  Run the `deploy` script again to push the changes to GitHub Pages.
 

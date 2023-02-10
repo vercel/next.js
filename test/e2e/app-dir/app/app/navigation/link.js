@@ -1,6 +1,6 @@
-'client'
+'use client'
 
-import { useRouter } from 'next/dist/client/components/hooks-client'
+import { useRouter } from 'next/navigation'
 import React from 'react'
 import { useEffect } from 'react'
 
@@ -17,7 +17,7 @@ export default function HardLink({ href, children, ...props }) {
         e.preventDefault()
         React.startTransition(() => {
           router.push(href)
-          router.reload()
+          router.refresh()
         })
       }}
     >

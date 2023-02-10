@@ -6,7 +6,7 @@
  * This is a comment.
  */
 
-"client";
+"use client";
 
 // This is a comment.
 

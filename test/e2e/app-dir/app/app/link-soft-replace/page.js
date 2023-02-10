@@ -5,11 +5,11 @@ export default function Page() {
   return (
     <>
       <h1 id="render-id">{nanoid()}</h1>
-      <Link href="/link-soft-replace" replace>
-        <a id="self-link">Self Link</a>
+      <Link href="/link-soft-replace" replace id="self-link">
+        Self Link
       </Link>
-      <Link href="/link-soft-replace/subpage" replace>
-        <a id="subpage-link">Subpage</a>
+      <Link href="/link-soft-replace/subpage" replace id="subpage-link">
+        Subpage
       </Link>
     </>
   )

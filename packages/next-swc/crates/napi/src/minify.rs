@@ -25,23 +25,22 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
-use crate::{
-    complete_output, get_compiler,
-    util::{CtxtExt, MapErr},
-};
-use fxhash::FxHashMap;
-use napi::{CallContext, JsObject, Task};
-use serde::Deserialize;
 use std::sync::Arc;
-use swc_core::{
-    base::{config::JsMinifyOptions, try_with_handler, TransformOutput},
+
+use fxhash::FxHashMap;
+use napi::bindgen_prelude::*;
+use next_binding::swc::core::{
+    base::{try_with_handler, TransformOutput},
     common::{errors::ColorConfig, sync::Lrc, FileName, SourceFile, SourceMap, GLOBALS},
 };
+use serde::Deserialize;
 
-struct MinifyTask {
-    c: Arc<swc_core::base::Compiler>,
+use crate::{get_compiler, util::MapErr};
+
+pub struct MinifyTask {
+    c: Arc<next_binding::swc::core::base::Compiler>,
     code: MinifyTarget,
-    opts: swc_core::base::config::JsMinifyOptions,
+    opts: next_binding::swc::core::base::config::JsMinifyOptions,
 }
 
 #[derive(Deserialize)]
@@ -72,15 +71,16 @@ impl MinifyTarget {
     }
 }
 
+#[napi]
 impl Task for MinifyTask {
     type Output = TransformOutput;
 
-    type JsValue = JsObject;
+    type JsValue = TransformOutput;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         try_with_handler(
             self.c.cm.clone(),
-            swc_core::base::HandlerOpts {
+            next_binding::swc::core::base::HandlerOpts {
                 color: ColorConfig::Never,
                 skip_filename: true,
             },
@@ -88,54 +88,50 @@ impl Task for MinifyTask {
                 GLOBALS.set(&Default::default(), || {
                     let fm = self.code.to_file(self.c.cm.clone());
 
-                    self.c.minify(
-                        fm,
-                        handler,
-                        &JsMinifyOptions {
-                            ..self.opts.clone()
-                        },
-                    )
+                    self.c.minify(fm, handler, &self.opts)
                 })
             },
         )
         .convert_err()
     }
 
-    fn resolve(self, env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
-        complete_output(&env, output, Default::default())
+    fn resolve(&mut self, _: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(output)
     }
 }
 
-#[js_function(2)]
-pub fn minify(cx: CallContext) -> napi::Result<JsObject> {
-    let code = cx.get_deserialized(0)?;
-    let opts = cx.get_deserialized(1)?;
+#[napi]
+pub fn minify(
+    input: Buffer,
+    opts: Buffer,
+    signal: Option<AbortSignal>,
+) -> napi::Result<AsyncTask<MinifyTask>> {
+    let code = serde_json::from_slice(&input)?;
+    let opts = serde_json::from_slice(&opts)?;
 
-    let c = get_compiler(&cx);
+    let c = get_compiler();
 
     let task = MinifyTask { c, code, opts };
 
-    cx.env.spawn(task).map(|t| t.promise_object())
+    Ok(AsyncTask::with_optional_signal(task, signal))
 }
 
-#[js_function(2)]
-pub fn minify_sync(cx: CallContext) -> napi::Result<JsObject> {
-    let code: MinifyTarget = cx.get_deserialized(0)?;
-    let opts = cx.get_deserialized(1)?;
+#[napi]
+pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput> {
+    let code: MinifyTarget = serde_json::from_slice(&input)?;
+    let opts = serde_json::from_slice(&opts)?;
 
-    let c = get_compiler(&cx);
+    let c = get_compiler();
 
     let fm = code.to_file(c.cm.clone());
 
-    let output = try_with_handler(
+    try_with_handler(
         c.cm.clone(),
-        swc_core::base::HandlerOpts {
+        next_binding::swc::core::base::HandlerOpts {
             color: ColorConfig::Never,
             skip_filename: true,
         },
         |handler| GLOBALS.set(&Default::default(), || c.minify(fm, handler, &opts)),
     )
-    .convert_err()?;
-
-    complete_output(cx.env, output, Default::default())
+    .convert_err()
 }

@@ -26,27 +26,25 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use crate::{
-    complete_output, get_compiler,
-    util::{deserialize_json, CtxtExt, MapErr},
-};
-use anyhow::{anyhow, bail, Context as _};
-use fxhash::FxHashSet;
-use napi::{CallContext, Env, JsBoolean, JsBuffer, JsObject, JsString, JsUnknown, Status, Task};
-use next_swc::{custom_before_pass, TransformOptions};
 use std::fs::read_to_string;
 use std::{
     cell::RefCell,
-    convert::TryFrom,
     panic::{catch_unwind, AssertUnwindSafe},
     rc::Rc,
     sync::Arc,
 };
-use swc_core::{
+
+use anyhow::{anyhow, bail, Context as _};
+use fxhash::FxHashSet;
+use napi::bindgen_prelude::*;
+use next_binding::swc::core::{
     base::{try_with_handler, Compiler, TransformOutput},
-    common::{errors::ColorConfig, FileName, GLOBALS},
+    common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, GLOBALS},
     ecma::transforms::base::pass::noop,
 };
+use next_swc::{custom_before_pass, TransformOptions};
+
+use crate::{complete_output, get_compiler, util::MapErr};
 
 /// Input to transform
 #[derive(Debug)]
@@ -60,12 +58,17 @@ pub enum Input {
 pub struct TransformTask {
     pub c: Arc<Compiler>,
     pub input: Input,
-    pub options: String,
+    pub options: Buffer,
+}
+
+#[inline]
+fn skip_filename() -> bool {
+    cfg!(debug_assertions)
 }
 
 impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<String>);
-    type JsValue = JsObject;
+    type JsValue = Object;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
@@ -73,13 +76,13 @@ impl Task for TransformTask {
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
                     self.c.cm.clone(),
-                    swc_core::base::HandlerOpts {
-                        color: ColorConfig::Never,
-                        skip_filename: true,
+                    next_binding::swc::core::base::HandlerOpts {
+                        color: ColorConfig::Always,
+                        skip_filename: skip_filename(),
                     },
                     |handler| {
                         self.c.run(|| {
-                            let options: TransformOptions = deserialize_json(&self.options)?;
+                            let options: TransformOptions = serde_json::from_slice(&self.options)?;
                             let fm = match &self.input {
                                 Input::Source { src } => {
                                     let filename = if options.swc.filename.is_empty() {
@@ -109,12 +112,14 @@ impl Task for TransformTask {
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
 
+                            let comments = SingleThreadedComments::default();
                             self.c.process_js_with_custom_pass(
                                 fm,
                                 None,
                                 handler,
                                 &options.swc,
-                                |_, comments| {
+                                comments.clone(),
+                                |_| {
                                     custom_before_pass(
                                         cm,
                                         file,
@@ -123,7 +128,7 @@ impl Task for TransformTask {
                                         eliminated_packages.clone(),
                                     )
                                 },
-                                |_, _| noop(),
+                                |_| noop(),
                             )
                         })
                     },
@@ -150,7 +155,7 @@ impl Task for TransformTask {
     }
 
     fn resolve(
-        self,
+        &mut self,
         env: Env,
         (output, eliminated_packages): Self::Output,
     ) -> napi::Result<Self::JsValue> {
@@ -158,58 +163,48 @@ impl Task for TransformTask {
     }
 }
 
-/// returns `compiler, (src / path), options, plugin, callback`
-pub fn schedule_transform<F>(cx: &CallContext, op: F) -> napi::Result<TransformTask>
-where
-    F: FnOnce(&Arc<Compiler>, Input, bool, String) -> TransformTask,
-{
-    let c = get_compiler(cx);
+#[napi]
+pub fn transform(
+    src: Either3<String, Buffer, Undefined>,
+    _is_module: bool,
+    options: Buffer,
+    signal: Option<AbortSignal>,
+) -> napi::Result<AsyncTask<TransformTask>> {
+    let c = get_compiler();
 
-    let unknown_src = cx.get::<JsUnknown>(0)?;
-    let src = match unknown_src.get_type()? {
-        napi::ValueType::String => napi::Result::Ok(Input::Source {
-            src: JsString::try_from(unknown_src)?
-                .into_utf8()?
-                .as_str()?
-                .to_owned(),
-        }),
-        napi::ValueType::Object => napi::Result::Ok(Input::Source {
-            src: String::from_utf8_lossy(JsBuffer::try_from(unknown_src)?.into_value()?.as_ref())
-                .to_string(),
-        }),
-        napi::ValueType::Undefined => napi::Result::Ok(Input::FromFilename),
-        _ => Err(napi::Error::new(
-            Status::GenericFailure,
-            "first argument must be a String or Buffer".to_string(),
-        )),
-    }?;
-    let is_module = cx.get::<JsBoolean>(1)?;
-    let options = cx.get_buffer_as_string(2)?;
+    let input = match src {
+        Either3::A(src) => Input::Source { src },
+        Either3::B(src) => Input::Source {
+            src: String::from_utf8_lossy(&src).to_string(),
+        },
+        Either3::C(_) => Input::FromFilename,
+    };
 
-    Ok(op(&c, src, is_module.get_value()?, options))
+    let task = TransformTask { c, input, options };
+    Ok(AsyncTask::with_optional_signal(task, signal))
 }
 
-#[js_function(4)]
-pub fn transform(cx: CallContext) -> napi::Result<JsObject> {
-    let task = schedule_transform(&cx, |c, input, _, options| TransformTask {
-        c: c.clone(),
-        input,
-        options,
-    })?;
-    cx.env.spawn(task).map(|handle| handle.promise_object())
-}
+#[napi]
+pub fn transform_sync(
+    env: Env,
+    src: Either3<String, Buffer, Undefined>,
+    _is_module: bool,
+    options: Buffer,
+) -> napi::Result<Object> {
+    let c = get_compiler();
 
-#[js_function(4)]
-pub fn transform_sync(cx: CallContext) -> napi::Result<JsObject> {
-    let mut task = schedule_transform(&cx, |c, input, _, options| TransformTask {
-        c: c.clone(),
-        input,
-        options,
-    })?;
+    let input = match src {
+        Either3::A(src) => Input::Source { src },
+        Either3::B(src) => Input::Source {
+            src: String::from_utf8_lossy(&src).to_string(),
+        },
+        Either3::C(_) => Input::FromFilename,
+    };
+
+    let mut task = TransformTask { c, input, options };
     let output = task.compute()?;
-    task.resolve(*cx.env, output)
+    task.resolve(env, output)
 }
-
 #[test]
 fn test_deser() {
     const JSON_STR: &str = r#"{"jsc":{"parser":{"syntax":"ecmascript","dynamicImport":true,"jsx":true},"transform":{"react":{"runtime":"automatic","pragma":"React.createElement","pragmaFrag":"React.Fragment","throwIfNamespace":true,"development":false,"useBuiltins":true}},"target":"es5"},"filename":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js","sourceMaps":false,"sourceFileName":"/Users/timneutkens/projects/next.js/packages/next/dist/client/next.js"}"#;

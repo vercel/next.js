@@ -1,38 +1,12 @@
-# Switchable Runtime (Alpha)
+---
+description: Learn more about the switchable runtimes (Edge and Node.js) in Next.js.
+---
 
-Next.js has two _server runtimes_ to run your application: the **Node.js Runtime** (default) and the [**Edge Runtime**](/docs/api-reference/edge-runtime.md). When server-rendering or serving API routes, the application code will be executed in the Node.js Runtime by default; and for [Middleware](/docs/middleware.md), it will be running in the Edge Runtime.
+# Edge and Node.js Runtimes
 
-|                                                                                                                                                            | Node (server) | Node (lambda) | Edge             |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------- | ---------------- |
-| [Cold Boot](https://vercel.com/docs/concepts/functions/conceptual-model#cold-and-hot-boots?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) | /             | ~250ms        | Instant          |
-| [HTTP Streaming](https://github.com/reactwg/react-18/discussions/37)                                                                                       | Yes           | No            | Yes              |
-| IO                                                                                                                                                         | All           | All           | `fetch`          |
-| Scalability                                                                                                                                                | /             | High          | Highest          |
-| Security                                                                                                                                                   | Normal        | High          | High             |
-| Latency                                                                                                                                                    | Normal        | Low           | Lowest           |
-| Code Size                                                                                                                                                  | /             | 50MB          | 1MB              |
-| NPM Packages                                                                                                                                               | All           | All           | A smaller subset |
+Next.js has two **server runtimes** where you can render parts of your application code: the **Node.js Runtime** and the [**Edge Runtime**](/docs/api-reference/edge-runtime.md). Depending on your deployment infrastructure, both runtimes support streaming.
 
-Next.js' default runtime configuration is good for most use cases, but there’re still many reasons to change to one runtime over the other one. For example, to enable [React 18's](/docs/advanced-features/react-18/overview) [SSR streaming](/docs/advanced-features/react-18/streaming.md) feature, you need to use a runtime that is compatible with Web Streams. For API routes that rely on native Node.js APIs, they need to run with the **Node.js Runtime**. However, if an API only uses something like cookie-based authentication, using Middleware and the [**Edge Runtime**](/docs/api-reference/edge-runtime.md) will be a better choice due to its lower latency as well as better scalability.
-
-Starting with `12.2`, Next.js enables you to customize the runtime for each Next.js route, for both Pages and API routes.
-
-## Global Runtime Option
-
-You can set the experimental option `runtime` to either `'nodejs'` or `'experimental-edge'` in your `next.config.js` file:
-
-```jsx
-// next.config.js
-module.exports = {
-  experimental: {
-    runtime: 'experimental-edge',
-  },
-}
-```
-
-This option determines which runtime should be used as the default rendering runtime for all pages.
-
-You can detect which runtime you're using by looking at the `process.env.NEXT_RUNTIME` Environment Variable during runtime, and examining the `options.nextRuntime` variable during webpack compilation.
+By default, Next.js uses the Node.js runtime. [Middleware](https://nextjs.org/docs/advanced-features/middleware) and [Edge API Routes](https://nextjs.org/docs/api-routes/edge-api-routes) use the Edge runtime.
 
 ## Page Runtime Option
 
@@ -49,7 +23,23 @@ export const config = {
 }
 ```
 
-When both the per-page runtime and global runtime are set, the per-page runtime overrides the global runtime. If the per-page runtime is _not_ set, the global runtime option will be used.
+## Runtime Differences
+
+|                                                                                                                                                     | Node (Server) | Node (Serverless) | Edge                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------- | -------------------------------------------------------- |
+| Name                                                                                                                                                | `nodejs`      | `nodejs`          | `edge` or `experimental-edge` if using Next.js Rendering |
+| [Cold Boot](https://vercel.com/docs/concepts/get-started/compute#cold-and-hot-boots?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) | /             | ~250ms            | Instant                                                  |
+| HTTP Streaming                                                                                                                                      | Yes           | Yes               | Yes                                                      |
+| IO                                                                                                                                                  | All           | All               | `fetch`                                                  |
+| Scalability                                                                                                                                         | /             | High              | Highest                                                  |
+| Security                                                                                                                                            | Normal        | High              | High                                                     |
+| Latency                                                                                                                                             | Normal        | Low               | Lowest                                                   |
+| Code Size                                                                                                                                           | /             | 50 MB             | 4 MB                                                     |
+| NPM Packages                                                                                                                                        | All           | All               | A smaller subset                                         |
+
+Next.js' default runtime configuration is good for most use cases, but there are still many reasons to change to one runtime over the other one.
+
+For example, for API routes that rely on native Node.js APIs, they need to run with the Node.js Runtime. However, if an API only uses something like cookie-based authentication, using Middleware and the Edge Runtime will be a better choice due to its lower latency as well as better scalability.
 
 ## Edge API Routes
 
@@ -57,7 +47,7 @@ When both the per-page runtime and global runtime are set, the per-page runtime 
 
 ```typescript
 export const config = {
-  runtime: 'experimental-edge',
+  runtime: 'edge',
 }
 
 export default (req) => new Response('Hello world!')

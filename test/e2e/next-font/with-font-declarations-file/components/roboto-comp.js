@@ -3,8 +3,8 @@ import { roboto } from '../fonts'
 
 export default function Roboto() {
   return (
-    <Link href="/inter">
-      <a className={roboto.className}>To inter</a>
+    <Link href="/inter" className={roboto.className}>
+      To inter
     </Link>
   )
 }

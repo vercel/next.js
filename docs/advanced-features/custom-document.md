@@ -4,6 +4,10 @@ description: Extend the default document markup added by Next.js.
 
 # Custom `Document`
 
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can modify the initial `html` and `body` tags using a root layout.
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
+
 A custom `Document` can update the `<html>` and `<body>` tags used to render a [Page](/docs/basic-features/pages.md). This file is only rendered on the server, so event handlers like `onClick` cannot be used in `_document`.
 
 To override the default `Document`, create the file `pages/_document.js` as shown below:
@@ -48,7 +52,7 @@ Or add a `className` to the `body` tag:
 
 > **Note:** This is advanced and only needed for libraries like CSS-in-JS to support server-side rendering. This is not needed for built-in `styled-jsx` support.
 
-To prepare for [React 18](/docs/advanced-features/react-18.md), we recommend avoiding customizing `getInitialProps` and `renderPage`, if possible.
+For [React 18](/docs/advanced-features/react-18.md) support, we recommend avoiding customizing `getInitialProps` and `renderPage`, if possible.
 
 The `ctx` object shown below is equivalent to the one received in [`getInitialProps`](/docs/api-reference/data-fetching/get-initial-props.md#context-object), with the addition of `renderPage`.
 

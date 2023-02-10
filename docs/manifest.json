@@ -40,12 +40,12 @@
                   "path": "/docs/basic-features/data-fetching/get-server-side-props.md"
                 },
                 {
-                  "title": "getStaticPaths",
-                  "path": "/docs/basic-features/data-fetching/get-static-paths.md"
-                },
-                {
                   "title": "getStaticProps",
                   "path": "/docs/basic-features/data-fetching/get-static-props.md"
+                },
+                {
+                  "title": "getStaticPaths",
+                  "path": "/docs/basic-features/data-fetching/get-static-paths.md"
                 },
                 {
                   "title": "Incremental Static Regeneration",
@@ -151,7 +151,7 @@
               "path": "/docs/api-routes/response-helpers.md"
             },
             {
-              "title": "Edge API Routes (Beta)",
+              "title": "Edge API Routes",
               "path": "/docs/api-routes/edge-api-routes.md"
             }
           ]
@@ -198,6 +198,10 @@
             {
               "title": "Next.js Compiler",
               "path": "/docs/advanced-features/compiler.md"
+            },
+            {
+              "title": "Turbopack",
+              "path": "/docs/advanced-features/turbopack.md"
             },
             {
               "title": "Preview Mode",
@@ -421,14 +425,24 @@
           "path": "/docs/api-reference/next/server.md"
         },
         {
+          "title": "@next/font",
+          "path": "/docs/api-reference/next/font.md"
+        },
+        {
           "path": "/docs/api-reference/next/streaming",
           "redirect": {
             "destination": "/docs/advanced-features/react-18"
           }
         },
         {
-          "title": "next/future/image",
-          "path": "/docs/api-reference/next/future/image.md"
+          "path": "/docs/api-reference/next/future/image",
+          "redirect": {
+            "destination": "/docs/api-reference/next/image"
+          }
+        },
+        {
+          "title": "next/legacy/image",
+          "path": "/docs/api-reference/next/legacy/image.md"
         },
         {
           "title": "Edge Runtime",
@@ -557,6 +571,10 @@
             {
               "title": "Build indicator",
               "path": "/docs/api-reference/next.config.js/build-indicator.md"
+            },
+            {
+              "title": "Turbopack-specific options",
+              "path": "/docs/api-reference/next.config.js/turbopack.md"
             }
           ]
         }

@@ -17,9 +17,15 @@ const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
+const shouldContinueTestsOnError = !!process.env.NEXT_TEST_CONTINUE_ON_ERROR
 const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
 const TIMINGS_API_HEADERS = {
   Accept: 'application/vnd.github.v3+json',
+  ...(process.env.TEST_TIMINGS_TOKEN
+    ? {
+        Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
+      }
+    : {}),
 }
 
 const testFilters = {
@@ -28,6 +34,11 @@ const testFilters = {
   production: 'production/',
   development: 'development/',
 }
+
+const mockTrace = () => ({
+  traceAsyncFn: (fn) => fn(mockTrace()),
+  traceChild: () => mockTrace(),
+})
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
@@ -44,11 +55,22 @@ const cleanUpAndExit = async (code) => {
 }
 
 async function getTestTimings() {
-  const timingsRes = await fetch(TIMINGS_API, {
-    headers: {
-      ...TIMINGS_API_HEADERS,
-    },
-  })
+  let timingsRes
+
+  const doFetch = () =>
+    fetch(TIMINGS_API, {
+      headers: {
+        ...TIMINGS_API_HEADERS,
+      },
+    })
+  timingsRes = await doFetch()
+
+  if (timingsRes.status === 403) {
+    const delay = 15
+    console.log(`Got 403 response waiting ${delay} seconds before retry`)
+    await new Promise((resolve) => setTimeout(resolve, delay * 1000))
+    timingsRes = await doFetch()
+  }
 
   if (!timingsRes.ok) {
     throw new Error(`request status: ${timingsRes.status}`)
@@ -214,6 +236,7 @@ async function main() {
   })
 
   if (
+    process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
     ((testType && testType !== 'unit') || hasIsolatedTests)
   ) {
@@ -223,8 +246,11 @@ async function main() {
     console.log('Creating Next.js install for isolated tests')
     const reactVersion = process.env.NEXT_TEST_REACT_VERSION || 'latest'
     const testStarter = await createNextInstall({
-      react: reactVersion,
-      'react-dom': reactVersion,
+      parentSpan: mockTrace(),
+      dependencies: {
+        react: reactVersion,
+        'react-dom': reactVersion,
+      },
     })
     process.env.NEXT_TEST_STARTER = testStarter
   }
@@ -254,6 +280,7 @@ async function main() {
           '--runInBand',
           '--forceExit',
           '--verbose',
+          '--silent',
           ...(isTestJob
             ? ['--json', `--outputFile=${test}${RESULTS_EXT}`]
             : []),
@@ -267,6 +294,7 @@ async function main() {
             // run tests in headless mode by default
             HEADLESS: 'true',
             TRACE_PLAYWRIGHT: 'true',
+            NEXT_TELEMETRY_DISABLED: '1',
             ...(isFinalRun
               ? {
                   // Events can be finicky in CI. This switches to a more
@@ -356,7 +384,13 @@ async function main() {
         } catch (err) {
           if (i < numRetries) {
             try {
-              const testDir = path.dirname(path.join(__dirname, test))
+              let testDir = path.dirname(path.join(__dirname, test))
+
+              // if test is nested in a test folder traverse up a dir to ensure
+              // we clean up relevant test files
+              if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
+                testDir = path.join(testDir, '../')
+              }
               console.log('Cleaning test files at', testDir)
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)
@@ -385,7 +419,14 @@ async function main() {
             console.log(`Failed to load test output`, err)
           }
         }
-        cleanUpAndExit(1)
+
+        if (!shouldContinueTestsOnError) {
+          cleanUpAndExit(1)
+        } else {
+          console.log(
+            `CONTINUE_ON_ERROR enabled, continuing tests after ${test} failed`
+          )
+        }
       }
       sema.release()
       dirSema.release()
@@ -437,7 +478,6 @@ async function main() {
           method: 'PATCH',
           headers: {
             ...TIMINGS_API_HEADERS,
-            Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
           },
           body: JSON.stringify({
             files: {
@@ -460,10 +500,9 @@ async function main() {
       }
     }
   }
-  await cleanUpAndExit(0)
 }
 
 main().catch((err) => {
   console.error(err)
-  process.exit(1)
+  cleanUpAndExit(1)
 })
