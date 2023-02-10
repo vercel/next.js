@@ -285,6 +285,19 @@ export function createTSPlugin(modules: {
       return prior
     }
 
+    // Get definition and link for specific node
+    proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
+      if (isAppEntryFile(fileName) && !getIsClientEntry(fileName)) {
+        const metadataDefinition = metadata.getDefinitionAndBoundSpan(
+          fileName,
+          position
+        )
+        if (metadataDefinition) return metadataDefinition
+      }
+
+      return info.languageService.getDefinitionAndBoundSpan(fileName, position)
+    }
+
     return proxy
   }
 

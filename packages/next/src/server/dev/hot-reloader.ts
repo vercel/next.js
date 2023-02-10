@@ -654,6 +654,7 @@ export default class HotReloader {
                       rootDir: this.dir,
                       isDev: true,
                       tsconfigPath: this.config.typescript.tsconfigPath,
+                      assetPrefix: this.config.assetPrefix,
                     }).import
                   : undefined
 
@@ -735,6 +736,7 @@ export default class HotReloader {
                         rootDir: this.dir,
                         isDev: true,
                         tsconfigPath: this.config.typescript.tsconfigPath,
+                        assetPrefix: this.config.assetPrefix,
                       })
                     : relativeRequest,
                   hasAppDir,
