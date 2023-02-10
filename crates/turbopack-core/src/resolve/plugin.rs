@@ -19,7 +19,7 @@ impl ResolvePluginConditionVc {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn matches(self, fs_path: FileSystemPathVc) -> Result<BoolVc> {
+    pub async fn matches(self, fs_path: FileSystemPathVc) -> Result<BoolVc> {
         let this = self.await?;
         let root = this.root.await?;
         let glob = this.glob.await?;
@@ -39,11 +39,15 @@ impl ResolvePluginConditionVc {
 #[turbo_tasks::value_trait]
 pub trait ResolvePlugin {
     /// A condition which determines if the hooks gets called.
-    fn condition(&self) -> ResolvePluginConditionVc;
+    fn after_resolve_condition(&self) -> ResolvePluginConditionVc;
 
     /// This hook gets called when a full filepath has been resolved and the
     /// condition matches. If a value is returned it replaces the resolve
     /// result.
-    fn after_resolve(&self, fs_path: FileSystemPathVc, request: RequestVc)
-        -> ResolveResultOptionVc;
+    fn after_resolve(
+        &self,
+        fs_path: FileSystemPathVc,
+        context: FileSystemPathVc,
+        request: RequestVc,
+    ) -> ResolveResultOptionVc;
 }

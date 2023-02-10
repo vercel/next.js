@@ -10,9 +10,8 @@ use turbopack_core::resolve::{
     },
     AliasMap, AliasPattern, FindContextFileResult,
 };
-use turbopack_ecmascript::{
-    resolve::apply_cjs_specific_options,
-    typescript::resolve::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
+use turbopack_ecmascript::typescript::resolve::{
+    apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options,
 };
 
 use crate::resolve_options_context::ResolveOptionsContextVc;
@@ -246,12 +245,10 @@ pub async fn resolve_options(
 
     let resolve_options = if options_context_value.enable_typescript {
         let tsconfig = find_context_file(context, tsconfig()).await?;
-        let cjs_resolve_options = apply_cjs_specific_options(resolve_options);
         match *tsconfig {
-            FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
-                resolve_options,
-                tsconfig_resolve_options(path, cjs_resolve_options),
-            ),
+            FindContextFileResult::Found(path, _) => {
+                apply_tsconfig_resolve_options(resolve_options, tsconfig_resolve_options(path))
+            }
             FindContextFileResult::NotFound(_) => resolve_options,
         }
     } else {
