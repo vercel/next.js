@@ -26,6 +26,51 @@ import {
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
 
+type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
+
+type MetadataResolver = (
+  _parent: ResolvingMetadata
+) => Metadata | Promise<Metadata>
+export type MetadataItems = [
+  Metadata | MetadataResolver | null,
+  StaticMetadata
+][]
+
+function mergeStaticMetadata(
+  metadata: ResolvedMetadata,
+  staticFilesMetadata: StaticMetadata
+) {
+  if (!staticFilesMetadata) return
+  const { icon, apple, opengraph, twitter } = staticFilesMetadata
+  if (icon || apple) {
+    if (!metadata.icons) metadata.icons = { icon: [], apple: [] }
+    if (icon) metadata.icons.icon.push(...icon)
+    if (apple) metadata.icons.apple.push(...apple)
+  }
+  if (twitter) {
+    const resolvedTwitter = resolveTwitter(
+      {
+        card: 'summary_large_image',
+        images: twitter,
+      },
+      null
+    )
+    metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
+  }
+
+  if (opengraph) {
+    const resolvedOg = resolveOpenGraph(
+      {
+        images: opengraph,
+      },
+      null
+    )
+    metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
+  }
+
+  return metadata
+}
+
 // Merge the source metadata into the resolved target metadata.
 function merge(
   target: ResolvedMetadata,
@@ -127,16 +172,6 @@ function merge(
   mergeStaticMetadata(target, staticFilesMetadata)
 }
 
-type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
-
-type MetadataResolver = (
-  _parent: ResolvingMetadata
-) => Metadata | Promise<Metadata>
-export type MetadataItems = [
-  Metadata | MetadataResolver | null,
-  StaticMetadata
-][]
-
 async function getDefinedMetadata(
   mod: any,
   props: any
@@ -218,41 +253,6 @@ export async function collectMetadata(
   const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
 
   array.push([metadataExport, staticFilesMetadata])
-}
-
-function mergeStaticMetadata(
-  metadata: ResolvedMetadata,
-  staticFilesMetadata: StaticMetadata
-) {
-  if (!staticFilesMetadata) return
-  const { icon, apple, opengraph, twitter } = staticFilesMetadata
-  if (icon || apple) {
-    if (!metadata.icons) metadata.icons = { icon: [], apple: [] }
-    if (icon) metadata.icons.icon.push(...icon)
-    if (apple) metadata.icons.apple.push(...apple)
-  }
-  if (twitter) {
-    const resolvedTwitter = resolveTwitter(
-      {
-        card: 'summary_large_image',
-        images: twitter,
-      },
-      null
-    )
-    metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
-  }
-
-  if (opengraph) {
-    const resolvedOg = resolveOpenGraph(
-      {
-        images: opengraph,
-      },
-      null
-    )
-    metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
-  }
-
-  return metadata
 }
 
 export async function accumulateMetadata(
