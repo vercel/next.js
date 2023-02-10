@@ -6,6 +6,6 @@ use next_binding::turbo::node_file_trace::{start, Args};
 #[napi]
 pub async fn run_turbo_tracing(options: Buffer) -> napi::Result<Vec<String>> {
     let args: Args = serde_json::from_slice(options.as_ref())?;
-    let files = start(Arc::new(args)).await?;
+    let files = start(Arc::new(args), None).await?;
     Ok(files)
 }
