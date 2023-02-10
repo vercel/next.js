@@ -217,6 +217,7 @@ export function getAppEntry(opts: {
   appDir: string
   appPaths: string[] | null
   pageExtensions: string[]
+  assetPrefix: string
   isDev?: boolean
   rootDir?: string
   tsconfigPath?: string
@@ -410,6 +411,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
+              assetPrefix: config.assetPrefix,
             })
           } else {
             server[serverBundlePath] = [mappings[page]]
@@ -426,6 +428,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
+              assetPrefix: config.assetPrefix,
             }).import
           }
 

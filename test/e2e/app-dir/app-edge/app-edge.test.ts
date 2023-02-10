@@ -16,6 +16,11 @@ createNextDescribe(
       expect(pageHtml).toContain('<p>pages-edge-ssr</p>')
     })
 
+    it('should retrieve cookies in a server component in the edge runtime', async () => {
+      const res = await next.fetch('/edge-apis/cookies')
+      expect(await res.text()).toInclude('Hello')
+    })
+
     if ((globalThis as any).isNextDev) {
       it('should resolve module without error in edge runtime', async () => {
         const logs = []
