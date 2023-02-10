@@ -481,14 +481,8 @@ const configSchema = {
             processCwd: {
               type: 'string',
             },
-            maxFiles: {
-              type: 'integer',
-            },
             memoryLimit: {
               type: 'integer',
-            },
-            skipEntries: {
-              type: 'boolean',
             },
           },
         },
