@@ -19,10 +19,10 @@ name = "mod"
 harness = false
 
 [features]
-# By default, we enable native-tls for reqwest downstream trasntive features.
-# This is for the convinience for all of daily dev workflow i.e running
+# By default, we enable native-tls for reqwest via downstream transitive features.
+# This is for the convenience of running daily dev workflows, i.e running
 # `cargo xxx` without explicitly specifying features, not that we want to
-# promote this as default backend. Actual configuration is done when build next-swc,
+# promote this as default backend. Actual configuration is done when building next-swc,
 # and also turbopack standalone when we have it.
 default = ["cli", "custom_allocator", "native-tls"]
 cli = ["clap"]
