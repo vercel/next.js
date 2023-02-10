@@ -79,7 +79,10 @@ class ReactDevOverlay extends React.PureComponent<
                 missingTags={rootLayoutMissingTagsError.missingTags}
               />
             ) : hasBuildError ? (
-              <BuildError message={state.buildError!} />
+              <BuildError
+                message={state.buildError!}
+                versionInfo={state.versionInfo}
+              />
             ) : reactError ? (
               <Errors
                 versionInfo={state.versionInfo}
@@ -87,7 +90,11 @@ class ReactDevOverlay extends React.PureComponent<
                 errors={[reactError]}
               />
             ) : hasRuntimeErrors ? (
-              <Errors initialDisplayState="minimized" errors={state.errors} />
+              <Errors
+                initialDisplayState="minimized"
+                errors={state.errors}
+                versionInfo={state.versionInfo}
+              />
             ) : undefined}
           </ShadowPortal>
         ) : undefined}
