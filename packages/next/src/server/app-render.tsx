@@ -51,7 +51,6 @@ import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
-import type { LogErrorWithOriginalStack } from './dev/next-dev-server'
 import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 import { warnOnce } from '../shared/lib/utils/warn-once'
@@ -191,7 +190,7 @@ export type RenderOptsPartial = {
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
   nextExport?: boolean
-  devErrorLogger?: LogErrorWithOriginalStack
+  appDirDevErrorLogger?: (err: any) => Promise<void>
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -217,17 +216,24 @@ function interopDefault(mod: any) {
 /**
  * Create error handler for renderers.
  */
-function createErrorHandler(
+function createErrorHandler({
   /**
    * Used for debugging
    */
-  _source: string,
-  isDev: boolean,
-  isNextExport: boolean,
-  errorLogger: LogErrorWithOriginalStack | undefined,
-  capturedErrors: Error[],
+  _source,
+  dev,
+  isNextExport,
+  errorLogger,
+  capturedErrors,
+  allCapturedErrors,
+}: {
+  _source: string
+  dev?: boolean
+  isNextExport?: boolean
+  errorLogger?: (err: any) => Promise<void>
+  capturedErrors: Error[]
   allCapturedErrors?: Error[]
-) {
+}) {
   return (err: any): string => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
@@ -242,7 +248,7 @@ function createErrorHandler(
     }
 
     // Format server errors in development to add more helpful error messages
-    if (isDev) {
+    if (dev) {
       formatServerError(err)
     }
     // Used for debugging error source
@@ -258,7 +264,7 @@ function createErrorHandler(
       )
     ) {
       if (errorLogger) {
-        errorLogger(err, 'app-dir').catch(() => {})
+        errorLogger(err).catch(() => {})
       } else {
         console.error(err)
       }
@@ -919,28 +925,28 @@ export async function renderToHTMLOrFlight(
   const allCapturedErrors: Error[] = []
 
   const isNextExport = !!renderOpts.nextExport
-  const serverComponentsErrorHandler = createErrorHandler(
-    'serverComponentsRenderer',
-    !!dev,
+  const serverComponentsErrorHandler = createErrorHandler({
+    _source: 'serverComponentsRenderer',
+    dev,
     isNextExport,
-    renderOpts.devErrorLogger,
-    capturedErrors
-  )
-  const flightDataRendererErrorHandler = createErrorHandler(
-    'flightDataRenderer',
-    !!dev,
-    isNextExport,
-    renderOpts.devErrorLogger,
-    capturedErrors
-  )
-  const htmlRendererErrorHandler = createErrorHandler(
-    'htmlRenderer',
-    !!dev,
-    isNextExport,
-    renderOpts.devErrorLogger,
+    errorLogger: renderOpts.appDirDevErrorLogger,
     capturedErrors,
-    allCapturedErrors
-  )
+  })
+  const flightDataRendererErrorHandler = createErrorHandler({
+    _source: 'flightDataRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+  })
+  const htmlRendererErrorHandler = createErrorHandler({
+    _source: 'htmlRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+    allCapturedErrors,
+  })
 
   patchFetch(ComponentMod)
   const generateStaticHTML = supportsDynamicHTML !== true

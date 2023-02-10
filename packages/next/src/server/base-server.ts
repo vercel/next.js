@@ -80,7 +80,6 @@ import {
   FLIGHT_PARAMETERS,
   FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
-import type { LogErrorWithOriginalStack } from './dev/next-dev-server'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -219,7 +218,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
-    devErrorLogger?: LogErrorWithOriginalStack
+    appDirDevErrorLogger?: (err: any) => Promise<void>
   }
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase
