@@ -19,6 +19,10 @@ import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
+import {
+  VersionInfo,
+  VersionStalenessInfo,
+} from '../components/VersionStalenessInfo'
 
 export type SupportedErrorEvent = {
   id: number
@@ -76,62 +80,6 @@ const HotlinkedText: React.FC<{
           })
         : text}
     </>
-  )
-}
-
-export interface VersionInfo {
-  installed: string
-  staleness:
-    | 'fresh'
-    | 'stale-patch'
-    | 'stale-minor'
-    | 'stale-major'
-    | 'stale-prerelease'
-    | 'newer-than-npm'
-    | 'unknown'
-  expected?: string
-}
-
-function Staleness(props: VersionInfo) {
-  if (!props) return null
-  const { staleness, installed, expected } = props
-  let text = ''
-  let title = ''
-  switch (staleness) {
-    case 'fresh':
-      text = 'Next.js is up to date'
-      title = `Latest available version is detected (${installed}).`
-      break
-    case 'stale-patch':
-    case 'stale-minor':
-      text = `Next.js (${installed}) out of date`
-      title = `There is a newer version (${expected}) available, upgrade recommended! `
-      break
-    case 'stale-major': {
-      text = `Next.js (${installed}) is outdated`
-      title = `An outdated version detected (latest is ${expected}), upgrade is highly recommended!`
-      break
-    }
-    case 'stale-prerelease': {
-      text = `Next.js (${installed}) is outdated`
-      title = `There is a newer canary version (${expected}) available, please upgrade! `
-      break
-    }
-    case 'newer-than-npm':
-    case 'unknown':
-      break
-    default:
-      break
-  }
-
-  if (!text) return null
-  return (
-    <small
-      className="nextjs-container-build-error-version-status"
-      title={title}
-    >
-      {text}
-    </small>
   )
 }
 
@@ -329,19 +277,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
                 <span>{readyErrors.length}</span> unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              {versionInfo ? (
-                <small className="nextjs-container-build-error-version-status">
-                  <span className={versionInfo.staleness} />
-                  <Staleness {...versionInfo} />{' '}
-                  <a
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    href="https://nextjs.org/docs/messages/version-staleness"
-                  >
-                    (learn more)
-                  </a>
-                </small>
-              ) : null}
+              {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
@@ -435,25 +371,5 @@ export const styles = css`
   }
   .nextjs-toast-errors-hide-button:hover {
     opacity: 1;
-  }
-  .nextjs-container-build-error-version-status {
-    flex: 1;
-    text-align: right;
-  }
-  .nextjs-container-build-error-version-status span {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 5px;
-    background: var(--color-ansi-bright-black);
-  }
-  .nextjs-container-build-error-version-status span.fresh {
-    background: var(--color-ansi-green);
-  }
-  .nextjs-container-build-error-version-status span.outdated {
-    background: var(--color-ansi-red);
-  }
-  .nextjs-container-build-error-version-status span.stale {
-    background: var(--color-ansi-yellow);
   }
 `
