@@ -42,6 +42,7 @@ import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
@@ -195,11 +196,11 @@ export type RenderOptsPartial = {
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 /**
- * Flight Response is always set to application/octet-stream to ensure it does not get interpreted as HTML.
+ * Flight Response is always set to RSC_CONTENT_TYPE_HEADER to ensure it does not get interpreted as HTML.
  */
 class FlightRenderResult extends RenderResult {
   constructor(response: string | ReadableStream<Uint8Array>) {
-    super(response, { contentType: 'application/octet-stream' })
+    super(response, { contentType: RSC_CONTENT_TYPE_HEADER })
   }
 }
 
