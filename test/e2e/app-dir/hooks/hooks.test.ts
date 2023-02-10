@@ -52,7 +52,7 @@ createNextDescribe(
       it('should have the canonical url pathname on rewrite', async () => {
         const $ = await next.render$('/rewritten-use-pathname')
         expect($('#pathname').attr('data-pathname')).toBe(
-          '/written-use-pathname'
+          '/rewritten-use-pathname'
         )
       })
     })
