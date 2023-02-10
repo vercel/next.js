@@ -34,8 +34,7 @@ import {
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
-
-import type { VersionInfo } from './internal/container/Errors'
+import type { VersionInfo } from './internal/components/VersionStalenessInfo'
 
 interface Dispatcher {
   onBuildOk(): void
