@@ -24,6 +24,10 @@ import {
   resolveViewport,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
+import {
+  CollectingMetadata,
+  MetadataImageModule,
+} from '../../build/webpack/loaders/app-dir/types'
 
 // Merge the source metadata into the resolved target metadata.
 function merge(
@@ -158,15 +162,22 @@ async function getDefinedMetadata(
 
 async function collectStaticFsBasedIcons(
   metadata: ComponentsType['metadata'],
-  type: 'icon' | 'apple'
-) {
+  type: keyof CollectingMetadata
+): Promise<MetadataImageModule | MetadataImageModule[] | undefined> {
   if (!metadata?.[type]) return undefined
-  const iconPromises = metadata[type].map(
-    // TODO-APP: share the typing between next-metadata-image-loader and here
-    async (iconResolver) =>
-      interopDefault(await iconResolver()) as { url: string; sizes: string }
-  )
-  return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
+
+  if (type === 'icon' || type === 'apple') {
+    const iconPromises = metadata[type].map(
+      // TODO-APP: share the typing between next-metadata-image-loader and here
+      async (iconResolver) => interopDefault(await iconResolver())
+    )
+    return iconPromises?.length > 0
+      ? await Promise.all(iconPromises)
+      : undefined
+  } else {
+    const imageResolver = metadata[type]
+    return imageResolver ? interopDefault(await imageResolver()) : undefined
+  }
 }
 
 async function resolveStaticMetadata(
@@ -175,16 +186,36 @@ async function resolveStaticMetadata(
   const { metadata } = components
   if (!metadata) return null
 
-  const [icon, apple] = await Promise.all([
+  const [icon, apple, opengraph, twitter] = await Promise.all([
     collectStaticFsBasedIcons(metadata, 'icon'),
     collectStaticFsBasedIcons(metadata, 'apple'),
+    collectStaticFsBasedIcons(metadata, 'opengraph'),
+    collectStaticFsBasedIcons(metadata, 'twitter'),
   ])
 
-  const icons: Metadata['icons'] = {}
-  if (icon) icons.icon = icon
-  if (apple) icons.apple = apple
+  const staticMetadata = {
+    icons: {
+      icon: [],
+      apple: [],
+    },
+    openGraph: { images: [] },
+    twitter: { images: [] },
+  }
 
-  return { icons }
+  // @ts-ignore
+  if (icon) staticMetadata.icons.icon = [icon]
+  // @ts-ignore
+  if (apple) staticMetadata.icons.apple.push(apple)
+  if (opengraph) {
+    // @ts-ignore
+    staticMetadata.openGraph.images.push(opengraph)
+  }
+  if (twitter) {
+    // @ts-ignore
+    staticMetadata.twitter.images.push(twitter)
+  }
+
+  return staticMetadata
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
@@ -222,6 +253,7 @@ export async function accumulateMetadata(
           // Overriding the metadata if static files metadata is present
           merge(
             resolved,
+            // TODO: deep merge metadata
             { ...metadata, ...staticFilesMetadata },
             {
               title: resolved.title?.template || null,

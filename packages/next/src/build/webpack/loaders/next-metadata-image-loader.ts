@@ -1,3 +1,4 @@
+import type { MetadataImageModule } from './app-dir/types'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 
@@ -12,7 +13,9 @@ const mimeTypeMap = {
   png: 'image/png',
   ico: 'image/x-icon',
   svg: 'image/svg+xml',
-} as const
+  avif: 'image/avif',
+  webp: 'image/webp',
+}
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
@@ -41,14 +44,16 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     throw err
   }
 
-  const stringifiedData = JSON.stringify({
+  const imageData: MetadataImageModule = {
     url: outputPath,
     ...(extension in mimeTypeMap && {
       type: mimeTypeMap[extension as keyof typeof mimeTypeMap],
     }),
     sizes:
       extension === 'ico' ? 'any' : `${imageSize.width}x${imageSize.height}`,
-  })
+  }
+
+  const stringifiedData = JSON.stringify(imageData)
 
   this.emitFile(`../${isDev ? '' : '../'}${interpolatedName}`, content, null)
 

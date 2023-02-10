@@ -5,7 +5,24 @@ export type ModuleReference = [
   filePath: string
 ]
 
+// Contain the collecting image module paths
+export type CollectingMetadata = {
+  icon: string[]
+  apple: string[]
+  opengraph: null | string
+  twitter: null | string
+}
+
+// Contain the collecting evaluated image module
 export type CollectedMetadata = {
   icon: ComponentModule[]
   apple: ComponentModule[]
+  twitter: ComponentModule | null
+  opengraph: ComponentModule | null
+}
+
+export type MetadataImageModule = {
+  url: string
+  type?: string
+  sizes?: string
 }
