@@ -4,7 +4,10 @@ use console::style;
 use semver::Version as SemVerVersion;
 use serde::Deserialize;
 use thiserror::Error as ThisError;
-use update_informer::{Check, Package, Registry, Result as UpdateResult, Version};
+use update_informer::{
+    http_client::{HttpClient, SendRequest},
+    Check, Package, Registry, Result as UpdateResult,
+};
 
 mod ui;
 
@@ -48,13 +51,12 @@ struct NPMRegistry;
 
 impl Registry for NPMRegistry {
     const NAME: &'static str = "npm-registry";
-    fn get_latest_version(
+    fn get_latest_version<T: SendRequest>(
+        http: HttpClient<T>,
         pkg: &Package,
-        version: &Version,
-        timeout: Duration,
     ) -> UpdateResult<Option<String>> {
         // determine tag to request
-        let tag = get_tag_from_version(&version.get().pre);
+        let tag = get_tag_from_version(&pkg.version().semver().pre);
         // since we're overloading tag within name, we need to split it back out
         let full_name = pkg.to_string();
         let split_name: Vec<&str> = full_name.split('/').collect();
@@ -64,9 +66,34 @@ impl Registry for NPMRegistry {
             name = name,
             tag = tag
         );
-        let resp = ureq::get(&url).timeout(timeout).call()?;
-        let result = resp.into_json::<NpmVersionData>().unwrap();
+
+        let result: NpmVersionData = http.get(&url)?;
         Ok(Some(result.version))
+    }
+}
+
+// Source https://github.com/mgrachev/update-informer/blob/main/src/http_client/reqwest.rs
+// Vendored here until update-informer allows us to control tls implementation
+pub struct ReqwestHttpClient;
+
+impl SendRequest for ReqwestHttpClient {
+    fn get<T: serde::de::DeserializeOwned>(
+        url: &str,
+        timeout: Duration,
+        headers: Option<(&str, &str)>,
+    ) -> Result<T, Box<dyn std::error::Error>> {
+        let mut req = reqwest::blocking::Client::builder()
+            .timeout(timeout)
+            .build()?
+            .get(url);
+
+        if let Some((key, val)) = headers {
+            req = req.header(key, val)
+        }
+
+        let json = req.send()?.json()?;
+
+        Ok(json)
     }
 }
 
@@ -111,6 +138,7 @@ pub fn check_for_updates(
     let timeout = timeout.unwrap_or(DEFAULT_TIMEOUT);
     let interval = interval.unwrap_or(DEFAULT_INTERVAL);
     let informer = update_informer::new(NPMRegistry, package_name, current_version)
+        .http_client(ReqwestHttpClient)
         .timeout(timeout)
         .interval(interval);
     if let Ok(Some(version)) = informer.check_version() {
