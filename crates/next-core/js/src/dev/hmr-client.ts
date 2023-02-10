@@ -284,8 +284,6 @@ function handleSocketMessage(msg: ServerMessage) {
   const hasCriticalIssues = handleIssues(msg);
   const aggregatedMsg = aggregateUpdates(msg, hasCriticalIssues);
 
-  if (hasCriticalIssues) return;
-
   const runHooks = chunksWithUpdates.size === 0;
 
   if (aggregatedMsg.type !== "issues") {
