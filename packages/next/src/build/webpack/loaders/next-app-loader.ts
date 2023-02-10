@@ -138,10 +138,6 @@ async function createTreeCodeFromPath(
         rootLayout = layoutPath
       }
 
-      if (!rootLayout) {
-        rootLayout = layoutPath
-      }
-
       if (!globalError) {
         globalError = await resolver(
           `${appDirPrefix}${parallelSegmentPath}/${GLOBAL_ERROR_FILE_TYPE}`
