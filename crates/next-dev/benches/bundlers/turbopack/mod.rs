@@ -49,7 +49,7 @@ impl Bundler for Turbopack {
         npm::install(
             install_dir,
             &[
-                NpmPackage::new("next", "13.1.7-canary.2"),
+                NpmPackage::new("next", "13.1.7-canary.8"),
                 // Dependency on this is inserted by swc's preset_env
                 NpmPackage::new("@swc/helpers", "^0.4.11"),
             ],
