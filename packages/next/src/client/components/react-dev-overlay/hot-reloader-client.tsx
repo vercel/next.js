@@ -225,7 +225,11 @@ function processMessage(
       }
 
       const { errors, warnings, versionInfo } = obj
-      dispatcher.onVersionInfo(versionInfo)
+
+      // Is undefined when it's a 'built' event
+      if (versionInfo) {
+        dispatcher.onVersionInfo(versionInfo)
+      }
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
       if (hasErrors) {
