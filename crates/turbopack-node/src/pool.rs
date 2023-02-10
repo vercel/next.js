@@ -28,34 +28,16 @@ enum NodeJsPoolProcess {
 }
 
 struct SpawnedNodeJsPoolProcess {
-    child: Option<Child>,
+    child: Child,
     listener: TcpListener,
+    shared_stdout: SharedOutputSet,
+    shared_stderr: SharedOutputSet,
     debug: bool,
 }
 
 struct RunningNodeJsPoolProcess {
     child: Option<Child>,
     connection: TcpStream,
-}
-
-impl Drop for SpawnedNodeJsPoolProcess {
-    fn drop(&mut self) {
-        if let Some(mut child) = self.child.take() {
-            tokio::spawn(async move {
-                let _ = child.kill().await;
-            });
-        }
-    }
-}
-
-impl Drop for RunningNodeJsPoolProcess {
-    fn drop(&mut self) {
-        if let Some(mut child) = self.child.take() {
-            tokio::spawn(async move {
-                let _ = child.kill().await;
-            });
-        }
-    }
 }
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -134,53 +116,87 @@ impl NodeJsPoolProcess {
         cmd.envs(env);
         cmd.stderr(Stdio::piped());
         cmd.stdout(Stdio::piped());
+        cmd.kill_on_drop(true);
 
-        let mut child = cmd.spawn().context("spawning node pooled process")?;
-
-        tokio::spawn(handle_output_stream(
-            child.stdout.take().unwrap(),
-            shared_stdout,
-            stdout(),
-        ));
-        tokio::spawn(handle_output_stream(
-            child.stderr.take().unwrap(),
-            shared_stderr,
-            stderr(),
-        ));
+        let child = cmd.spawn().context("spawning node pooled process")?;
 
         Ok(Self::Spawned(SpawnedNodeJsPoolProcess {
             listener,
-            child: Some(child),
+            child,
             debug,
+            shared_stdout,
+            shared_stderr,
         }))
     }
 
     async fn run(self) -> Result<RunningNodeJsPoolProcess> {
         Ok(match self {
-            NodeJsPoolProcess::Spawned(mut spawned) => {
-                let timeout = if spawned.debug {
+            NodeJsPoolProcess::Spawned(SpawnedNodeJsPoolProcess {
+                mut child,
+                listener,
+                shared_stdout,
+                shared_stderr,
+                debug,
+            }) => {
+                let timeout = if debug {
                     Duration::MAX
                 } else {
                     CONNECT_TIMEOUT
                 };
 
+                async fn get_output(child: &mut Child) -> Result<(String, String)> {
+                    let mut stdout = Vec::new();
+                    let mut stderr = Vec::new();
+                    child
+                        .stdout
+                        .take()
+                        .unwrap()
+                        .read_to_end(&mut stdout)
+                        .await?;
+                    child
+                        .stderr
+                        .take()
+                        .unwrap()
+                        .read_to_end(&mut stderr)
+                        .await?;
+                    Ok((String::from_utf8(stdout)?, String::from_utf8(stderr)?))
+                }
+
                 let (connection, _) = select! {
-                    connection = spawned.listener.accept() => connection.context("accepting connection")?,
-                    status = spawned.child.as_mut().unwrap().wait() => {
+                    connection = listener.accept() => connection.context("accepting connection")?,
+                    status = child.wait() => {
                         match status {
                             Ok(status) => {
-                                bail!("node process exited before we could connect to it with {}", status);
+                                let (stdout, stderr) = get_output(&mut child).await?;
+                                bail!("node process exited before we could connect to it with {status}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
                             }
                             Err(err) => {
-                                bail!("node process exited before we could connect to it: {:?}", err);
+                                let _ = child.start_kill();
+                                let (stdout, stderr) = get_output(&mut child).await?;
+                                bail!("node process exited before we could connect to it: {err:?}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
                             },
                         }
                     },
-                    _ = sleep(timeout) => bail!("timed out waiting for the Node.js process to connect ({:?} timeout)", timeout),
+                    _ = sleep(timeout) => {
+                        let _ = child.start_kill();
+                        let (stdout, stderr) = get_output(&mut child).await?;
+                        bail!("timed out waiting for the Node.js process to connect ({timeout:?} timeout)\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
+                    },
                 };
 
+                tokio::spawn(handle_output_stream(
+                    child.stdout.take().unwrap(),
+                    shared_stdout,
+                    stdout(),
+                ));
+                tokio::spawn(handle_output_stream(
+                    child.stderr.take().unwrap(),
+                    shared_stderr,
+                    stderr(),
+                ));
+
                 RunningNodeJsPoolProcess {
-                    child: spawned.child.take(),
+                    child: Some(child),
                     connection,
                 }
             }
