@@ -120,7 +120,6 @@ export class FlightClientEntryPlugin {
       }
 
       traverseModules(compilation, (mod, _chunk, _chunkGroup, modId) => {
-        // const modId = compilation.chunkGraph.getModuleId(mod) + ''
         // The module must has request, and resource so it's not a new entry created with loader.
         // Using the client layer module, which doesn't have `rsc` tag in buildInfo.
         if (mod.request && mod.resource && !mod.buildInfo.rsc) {
