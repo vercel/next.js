@@ -1,5 +1,5 @@
 import React from 'react'
-import Loadable from './loadable'
+import Loadable from './lazy-dynamic/loadable'
 
 type ComponentModule<P = {}> = { default: React.ComponentType<P> }
 

@@ -20,6 +20,10 @@ import { createEntrypoints } from './entries'
 import loadConfig from '../server/config'
 import { trace } from '../trace'
 import { WEBPACK_LAYERS } from '../lib/constants'
+import {
+  TraceEntryPointsPlugin,
+  TurbotraceContext,
+} from './webpack/plugins/next-trace-entrypoints-plugin'
 
 type CompilerResult = {
   errors: webpack.StatsError[]
@@ -37,7 +41,16 @@ function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
   return plugin instanceof TelemetryPlugin
 }
 
-async function webpackBuildImpl(): Promise<number> {
+function isTraceEntryPointsPlugin(
+  plugin: unknown
+): plugin is TraceEntryPointsPlugin {
+  return plugin instanceof TraceEntryPointsPlugin
+}
+
+async function webpackBuildImpl(): Promise<{
+  duration: number
+  turbotraceContext?: TurbotraceContext
+}> {
   let result: CompilerResult | null = {
     warnings: [],
     errors: [],
@@ -117,6 +130,7 @@ async function webpackBuildImpl(): Promise<number> {
     })
 
   const clientConfig = configs[0]
+  const serverConfig = configs[1]
 
   if (
     clientConfig.optimization &&
@@ -141,7 +155,7 @@ async function webpackBuildImpl(): Promise<number> {
     // injected to this set and then will be consumed by the client compiler.
     injectedClientEntries.clear()
 
-    const serverResult = await runCompiler(configs[1], {
+    const serverResult = await runCompiler(serverConfig, {
       runWebpackSpan,
     })
     const edgeServerResult = configs[2]
@@ -206,6 +220,10 @@ async function webpackBuildImpl(): Promise<number> {
     clientConfig as webpack.Configuration
   ).plugins?.find(isTelemetryPlugin)
 
+  const traceEntryPointsPlugin = (
+    serverConfig as webpack.Configuration
+  ).plugins?.find(isTraceEntryPointsPlugin)
+
   const webpackBuildEnd = process.hrtime(webpackBuildStart)
   if (buildSpinner) {
     buildSpinner.stopAndPersist()
@@ -257,7 +275,10 @@ async function webpackBuildImpl(): Promise<number> {
     } else {
       Log.info('Compiled successfully')
     }
-    return webpackBuildEnd[0]
+    return {
+      duration: webpackBuildEnd[0],
+      turbotraceContext: traceEntryPointsPlugin?.turbotraceContext,
+    }
   }
 }
 
@@ -279,7 +300,19 @@ async function workerMain() {
 
   try {
     const result = await webpackBuildImpl()
-    parentPort!.postMessage(result)
+    const { entriesTrace } = result.turbotraceContext ?? {}
+    if (entriesTrace) {
+      const { entryNameMap, depModArray } = entriesTrace
+      if (depModArray) {
+        result.turbotraceContext!.entriesTrace!.depModArray = depModArray
+      }
+      if (entryNameMap) {
+        const entryEntries = Array.from(entryNameMap?.entries() ?? [])
+        // @ts-expect-error
+        result.turbotraceContext.entriesTrace.entryNameMap = entryEntries
+      }
+    }
+    parentPort!.postMessage(JSON.stringify(result))
   } catch (e) {
     parentPort!.postMessage(e)
   } finally {
@@ -305,17 +338,35 @@ async function webpackBuildWithWorker() {
     },
   })
 
-  const result = await new Promise((resolve, reject) => {
-    worker.on('message', resolve)
-    worker.on('error', reject)
-    worker.on('exit', (code) => {
-      if (code !== 0) {
-        reject(new Error(`Worker stopped with exit code ${code}`))
-      }
+  const result = JSON.parse(
+    await new Promise((resolve, reject) => {
+      worker.on('message', (data) => {
+        if (data instanceof Error) {
+          reject(data)
+        } else {
+          resolve(data)
+        }
+      })
+      worker.on('error', reject)
+      worker.on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Worker stopped with exit code ${code}`))
+        }
+      })
     })
-  })
+  ) as {
+    duration: number
+    turbotraceContext?: TurbotraceContext
+  }
 
-  return result as number
+  if (result.turbotraceContext?.entriesTrace) {
+    const { entryNameMap } = result.turbotraceContext.entriesTrace
+    if (entryNameMap) {
+      result.turbotraceContext.entriesTrace.entryNameMap = new Map(entryNameMap)
+    }
+  }
+
+  return result
 }
 
 export async function webpackBuild() {
