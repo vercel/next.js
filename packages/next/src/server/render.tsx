@@ -261,6 +261,7 @@ export type RenderOptsPartial = {
   crossOrigin?: string
   images: ImageConfigComplete
   largePageDataBytes?: number
+  useDevalue?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -1410,6 +1411,7 @@ export async function renderToHTML(
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
+    useDevalue: renderOpts.useDevalue,
     fontLoaderManifest: renderOpts.fontLoaderManifest,
   }
 

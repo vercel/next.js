@@ -218,6 +218,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
+    useDevalue?: boolean
   }
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase
@@ -408,6 +409,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ? this.nextConfig.crossOrigin
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
+      useDevalue: this.nextConfig.experimental.useDevalue,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

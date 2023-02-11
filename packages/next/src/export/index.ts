@@ -403,6 +403,7 @@ export default async function exportApp(
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
+      useDevalue: nextConfig.experimental.useDevalue,
       serverComponents: hasAppDir,
       fontLoaderManifest: nextConfig.experimental.fontLoaders
         ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))

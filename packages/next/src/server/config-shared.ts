@@ -171,6 +171,15 @@ export interface ExperimentalConfig {
   }
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
+
+  /**
+   * If set to `true`, Next.js will use [`devalue`](https://github.com/rich-harris/devalue)
+   * to serialize data returned by `getStaticProps` and similar functions.
+   * If set to `false` (default), Next.js will use `JSON.stringify` and
+   * `JSON.parse` instead.
+   */
+  useDevalue?: boolean
+
   /**
    * If set to `false`, webpack won't fall back to polyfill Node.js modules in the browser
    * Full list of old polyfills is accessible here:
@@ -651,6 +660,7 @@ export const defaultConfig: NextConfig = {
     swcPlugins: undefined,
     swcMinifyDebugOptions: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
+    useDevalue: false,
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,

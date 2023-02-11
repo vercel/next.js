@@ -995,7 +995,9 @@ export class NextScript extends React.Component<OriginProps> {
   }
 
   static getInlineScriptSource(context: Readonly<HtmlProps>): string {
-    const { __NEXT_DATA__, largePageDataBytes } = context
+    const { __NEXT_DATA__, largePageDataBytes, useDevalue } = context
+    // TODO: [joulev] Remove me
+    console.log('useDevalue', useDevalue)
     try {
       const data = JSON.stringify(__NEXT_DATA__)
       const bytes =

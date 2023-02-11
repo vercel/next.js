@@ -305,6 +305,9 @@ const configSchema = {
         largePageDataBytes: {
           type: 'number',
         },
+        useDevalue: {
+          type: 'boolean',
+        },
         legacyBrowsers: {
           type: 'boolean',
         },
