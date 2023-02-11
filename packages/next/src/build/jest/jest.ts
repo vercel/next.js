@@ -7,6 +7,7 @@ import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { loadBindings, lockfilePatchPromise } from '../swc'
+import { pathsToModuleNameMapper } from './paths-to-module-name-mapper'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -95,8 +96,23 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
+      // Derive moduleNameMapper settings from jsconfig
+      let moduleDirectoriesJsConfig
+      let moduleNameMapperJsConfig = {}
+      if (jsConfig?.compilerOptions?.baseUrl === '.') {
+        // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
+        moduleDirectoriesJsConfig = ['node_modules', '<rootDir>/']
+        moduleNameMapperJsConfig = pathsToModuleNameMapper(
+          jsConfig?.compilerOptions?.paths,
+          { prefix: '<rootDir>/', useESM: isEsmProject }
+        )
+      }
+
       const transpiled = (nextConfig?.transpilePackages ?? []).join('|')
       return {
+        ...(moduleDirectoriesJsConfig
+          ? { moduleDirectories: moduleDirectoriesJsConfig }
+          : {}),
         ...resolvedJestConfig,
 
         moduleNameMapper: {
@@ -118,6 +134,9 @@ export default function nextJest(options: { dir?: string } = {}) {
 
           // Handle @next/font
           '@next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
+
+          // If we were able to derive moduleNameMapper settings from the paths in jsconfig
+          ...moduleNameMapperJsConfig,
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
