@@ -35,7 +35,7 @@ const staticAssetIconsImage = {
   },
   twitter: {
     filename: 'twitter-image',
-    extensions: ['jpg', 'jpeg', 'png', 'svg', 'avif', 'webp', 'svg'],
+    extensions: ['jpg', 'jpeg', 'png'],
   },
 }
 
