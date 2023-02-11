@@ -8,14 +8,8 @@ export class NodeManifestLoader implements ManifestLoader {
   static require(id: string) {
     try {
       return require(id)
-    } catch (err: any) {
-      // If a manifest can't be found, we should gracefully fail by returning
-      // null.
-      if (err.code === 'MODULE_NOT_FOUND') {
-        return null
-      }
-
-      throw err
+    } catch {
+      return null
     }
   }
 

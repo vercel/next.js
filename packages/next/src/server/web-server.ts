@@ -26,8 +26,6 @@ import {
   normalizeVercelUrl,
 } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
-import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
