@@ -20,6 +20,7 @@ import { getRequestMeta } from './request-meta'
 import { formatNextPathnameInfo } from '../shared/lib/router/utils/format-next-pathname-info'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import { RouteMatcherManager } from './future/route-matcher-managers/route-matcher-manager'
+import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 
 type RouteResult = {
   finished: boolean
@@ -168,7 +169,10 @@ export default class Router {
               name: 'page checker',
               match: getPathMatch('/:path*'),
               fn: async (req, res, params, parsedUrl, upgradeHead) => {
-                const match = await this.matchers.test(parsedUrl.pathname!, {
+                // Next.js performs all route matching without the trailing slash.
+                const pathname = removeTrailingSlash(parsedUrl.pathname || '/')
+
+                const match = await this.matchers.test(pathname, {
                   // We need to skip dynamic route matching because the next
                   // step we're processing the afterFiles rewrites which must
                   // not include dynamic matches.
