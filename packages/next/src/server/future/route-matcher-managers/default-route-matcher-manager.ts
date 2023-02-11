@@ -9,12 +9,19 @@ import { RouteMatcher } from '../route-matchers/route-matcher'
 import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 
+interface RouteMatchers {
+  static: ReadonlyArray<RouteMatcher>
+  dynamic: ReadonlyArray<RouteMatcher>
+  duplicates: Record<string, ReadonlyArray<RouteMatcher>>
+}
+
 export class DefaultRouteMatcherManager implements RouteMatcherManager {
   private readonly providers: Array<RouteMatcherProvider> = []
-  private readonly matchers: {
-    static: ReadonlyArray<RouteMatcher>
-    dynamic: ReadonlyArray<RouteMatcher>
-  } = { static: [], dynamic: [] }
+  protected readonly matchers: RouteMatchers = {
+    static: [],
+    dynamic: [],
+    duplicates: {},
+  }
   private cache: ReadonlyArray<RouteMatcher> = []
   private lastCompilationID = this.compilationID
 
@@ -51,22 +58,33 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
         await Promise.all(this.providers.map((provider) => provider.matchers()))
 
       // Use this to detect duplicate pathnames.
-      const all = new Set<string>()
+      const all = new Map<string, RouteMatcher>()
+      const duplicates: Record<string, RouteMatcher[]> = {}
       for (const providerMatchers of providersMatchers) {
         for (const matcher of providerMatchers) {
-          if (all.has(matcher.route.pathname)) {
-            // TODO: when a duplicate route is detected, what should we do?
-            throw new Error(
-              `Invariant: duplicate pathname detected '${matcher.route.pathname}', remove one of the conflicting files`
-            )
+          // Test to see if the matcher being added is a duplicate.
+          const duplicate = all.get(matcher.route.pathname)
+          if (duplicate) {
+            const others = duplicates[matcher.route.pathname] ?? [duplicate]
+            others.push(matcher)
+            duplicates[matcher.route.pathname] = others
+
+            // Currently, this is a bit delicate, as the order for which we'll
+            // receive the matchers is not deterministic.
+            // TODO: see if we should error for duplicates in production?
+            continue
           }
 
           matchers.push(matcher)
 
           // Add the matcher's pathname to the set.
-          all.add(matcher.route.pathname)
+          all.set(matcher.route.pathname, matcher)
         }
       }
+
+      // Update the duplicate matchers. This is used in the development manager
+      // to warn about duplicates.
+      this.matchers.duplicates = duplicates
 
       // If the cache is the same as what we just parsed, we can exit now. We
       // can tell by using the `===` which compares object identity, which for

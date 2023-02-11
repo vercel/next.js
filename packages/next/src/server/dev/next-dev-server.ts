@@ -241,7 +241,11 @@ export default class DevServer extends Server {
     }
 
     const routes = super.getRoutes()
-    const matchers = new DevRouteMatcherManager(routes.matchers, ensurer)
+    const matchers = new DevRouteMatcherManager(
+      routes.matchers,
+      ensurer,
+      this.dir
+    )
     const handlers = routes.handlers
 
     const extensions = this.nextConfig.pageExtensions

@@ -3,6 +3,9 @@ import { RouteMatch } from '../route-matches/route-match'
 import { RouteDefinition } from '../route-definitions/route-definition'
 import { DefaultRouteMatcherManager } from './default-route-matcher-manager'
 import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
+import path from '../../../shared/lib/isomorphic/path'
+import { warn } from '../../../build/output/log'
+import chalk from 'next/dist/compiled/chalk'
 
 export interface RouteEnsurer {
   ensure(match: RouteMatch): Promise<void>
@@ -11,7 +14,8 @@ export interface RouteEnsurer {
 export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
   constructor(
     private readonly production: RouteMatcherManager,
-    private readonly ensurer: RouteEnsurer
+    private readonly ensurer: RouteEnsurer,
+    private readonly dir: string
   ) {
     super()
   }
@@ -86,5 +90,18 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 
     // Compile the development routes.
     await super.reload()
+
+    // Check for and warn of any duplicates.
+    for (const [pathname, matchers] of Object.entries(
+      this.matchers.duplicates
+    )) {
+      warn(
+        `Duplicate page detected. ${matchers
+          .map((matcher) =>
+            chalk.cyan(path.relative(this.dir, matcher.route.filename))
+          )
+          .join(' and ')} resolve to ${chalk.cyan(pathname)}.`
+      )
+    }
   }
 }
