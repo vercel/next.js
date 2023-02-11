@@ -120,7 +120,11 @@ import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
-import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
+import {
+  RSC,
+  RSC_CONTENT_TYPE_HEADER,
+  RSC_VARY_HEADER,
+} from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 
@@ -777,6 +781,7 @@ export default async function build(
           rsc: {
             header: RSC,
             varyHeader: RSC_VARY_HEADER,
+            contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
           },
           skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
         }
