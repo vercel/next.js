@@ -201,6 +201,13 @@ export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
   initialData = JSON.parse(
     document.getElementById('__NEXT_DATA__')!.textContent!
   )
+  const rawProps = initialData.props as unknown as string
+  if (initialData.useDevalue) {
+    // eslint-disable-next-line no-eval
+    initialData.props = (0, eval)('(' + rawProps + ')')
+  } else {
+    initialData.props = JSON.parse(rawProps)
+  }
   window.__NEXT_DATA__ = initialData
 
   defaultLocale = initialData.defaultLocale

@@ -7,9 +7,15 @@ declare global {
   const __webpack_runtime_id__: string
 }
 
-const data = JSON.parse(
+let data = JSON.parse(
   (document.getElementById('__NEXT_DATA__') as any).textContent
 )
+if (data.useDevalue) {
+  // eslint-disable-next-line no-eval
+  data.props = (0, eval)('(' + data.props + ')')
+} else {
+  data.props = JSON.parse(data.props)
+}
 window.__NEXT_DATA__ = data
 
 let { assetPrefix, page } = data

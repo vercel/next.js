@@ -1378,6 +1378,7 @@ export async function renderToHTML(
       domainLocales,
       isPreview: isPreview === true ? true : undefined,
       notFoundSrcPage: notFoundSrcPage && dev ? notFoundSrcPage : undefined,
+      useDevalue: renderOpts.useDevalue,
     },
     buildManifest: filteredBuildManifest,
     docComponentsRendered,
@@ -1411,7 +1412,6 @@ export async function renderToHTML(
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
-    useDevalue: renderOpts.useDevalue,
     fontLoaderManifest: renderOpts.fontLoaderManifest,
   }
 

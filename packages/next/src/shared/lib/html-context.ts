@@ -43,7 +43,6 @@ export type HtmlProps = {
   runtime?: ServerRuntime
   hasConcurrentFeatures?: boolean
   largePageDataBytes?: number
-  useDevalue?: boolean
   fontLoaderManifest?: FontLoaderManifest
 }
 

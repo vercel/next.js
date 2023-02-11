@@ -995,10 +995,13 @@ export class NextScript extends React.Component<OriginProps> {
   }
 
   static getInlineScriptSource(context: Readonly<HtmlProps>): string {
-    const { __NEXT_DATA__, largePageDataBytes, useDevalue } = context
-    const serialize = useDevalue ? require('devalue') : JSON.stringify
+    const { __NEXT_DATA__, largePageDataBytes } = context
     try {
-      const data = serialize(__NEXT_DATA__)
+      const serialize = __NEXT_DATA__.useDevalue
+        ? require('devalue')
+        : JSON.stringify
+      const { props, ...rest } = __NEXT_DATA__
+      const data = JSON.stringify({ ...rest, props: serialize(props) })
       const bytes =
         process.env.NEXT_RUNTIME === 'edge'
           ? new TextEncoder().encode(data).buffer.byteLength

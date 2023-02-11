@@ -111,6 +111,7 @@ export type NEXT_DATA = {
   scriptLoader?: any[]
   isPreview?: boolean
   notFoundSrcPage?: string
+  useDevalue?: boolean
 }
 
 /**
