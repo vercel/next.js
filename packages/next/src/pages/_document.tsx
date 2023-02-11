@@ -996,10 +996,9 @@ export class NextScript extends React.Component<OriginProps> {
 
   static getInlineScriptSource(context: Readonly<HtmlProps>): string {
     const { __NEXT_DATA__, largePageDataBytes, useDevalue } = context
-    // TODO: [joulev] Remove me
-    console.log('useDevalue', useDevalue)
+    const serialize = useDevalue ? require('devalue') : JSON.stringify
     try {
-      const data = JSON.stringify(__NEXT_DATA__)
+      const data = serialize(__NEXT_DATA__)
       const bytes =
         process.env.NEXT_RUNTIME === 'edge'
           ? new TextEncoder().encode(data).buffer.byteLength

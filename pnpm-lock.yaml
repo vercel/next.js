@@ -687,6 +687,7 @@ importers:
       '@next/env': link:../next-env
       '@swc/helpers': 0.4.14
       caniuse-lite: 1.0.30001406
+      devalue: 2.0.1
       fibers: 5.0.3
       node-sass: 7.0.3
       postcss: 8.4.14
@@ -797,7 +798,6 @@ importers:
       cssnano-simple: 3.0.1_postcss@8.4.14
       data-uri-to-buffer: 3.0.1
       debug: 4.1.1
-      devalue: 2.0.1
       domain-browser: 4.19.0
       edge-runtime: 2.0.0
       events: 3.3.0
@@ -10864,7 +10864,7 @@ packages:
 
   /devalue/2.0.1:
     resolution: {integrity: sha512-I2TiqT5iWBEyB8GRfTDP0hiLZ0YeDJZ+upDxjBfOC2lebO5LezQMv7QvIUTzdb64jQyAKLf1AHADtGN+jw6v8Q==}
-    dev: true
+    dev: false
 
   /dezalgo/1.0.3:
     resolution: {integrity: sha512-K7i4zNfT2kgQz3GylDw40ot9GAE47sFZ9EXHFSPP6zONLgH6kWXE0KWJchkbQJLBkRazq4APwZ4OwiFFlT95OQ==}

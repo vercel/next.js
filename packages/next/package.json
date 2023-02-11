@@ -80,6 +80,7 @@
     "@next/env": "13.1.7-canary.8",
     "@swc/helpers": "0.4.14",
     "caniuse-lite": "^1.0.30001406",
+    "devalue": "2.0.1",
     "postcss": "8.4.14",
     "styled-jsx": "5.1.1"
   },
@@ -204,7 +205,6 @@
     "cssnano-simple": "3.0.1",
     "data-uri-to-buffer": "3.0.1",
     "debug": "4.1.1",
-    "devalue": "2.0.1",
     "domain-browser": "4.19.0",
     "edge-runtime": "2.0.0",
     "events": "3.3.0",
