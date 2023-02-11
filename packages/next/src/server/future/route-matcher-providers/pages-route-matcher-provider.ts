@@ -1,4 +1,4 @@
-import path from 'path'
+import path from '../../../shared/lib/isomorphic/path'
 import { isAPIRoute } from '../../../lib/is-api-route'
 import {
   BLOCKED_PAGES,
@@ -10,7 +10,6 @@ import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
 import { RouteKind } from '../route-kind'
 import { PagesRouteMatcher } from '../route-matchers/pages-route-matcher'
 import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
-import { NodeManifestLoader } from './helpers/manifest-loaders/node-manifest-loader'
 import { RouteMatcherProvider } from './route-matcher-provider'
 
 export class PagesRouteMatcherProvider
@@ -18,14 +17,12 @@ export class PagesRouteMatcherProvider
 {
   constructor(
     private readonly distDir: string,
-    private readonly manifestLoader: ManifestLoader = new NodeManifestLoader(
-      distDir
-    ),
+    private readonly manifestLoader: ManifestLoader,
     private readonly localeNormalizer?: LocaleRouteNormalizer
   ) {}
 
   public async matchers(): Promise<ReadonlyArray<PagesRouteMatcher>> {
-    const manifest = await this.manifestLoader.load(PAGES_MANIFEST)
+    const manifest = this.manifestLoader.load(PAGES_MANIFEST)
     if (!manifest) return []
 
     // This matcher is only for Pages routes, not Pages API routes which are

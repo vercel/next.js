@@ -3,18 +3,18 @@ import {
   getURLFromRedirectError,
   isRedirectError,
 } from '../../../client/components/redirect'
-import {
+import type {
   RequestAsyncStorage,
   RequestStore,
 } from '../../../client/components/request-async-storage'
-import { Params } from '../../../shared/lib/router/utils/route-matcher'
-import { AsyncStorageWrapper } from '../../async-storage/async-storage-wrapper'
+import type { Params } from '../../../shared/lib/router/utils/route-matcher'
+import type { AsyncStorageWrapper } from '../../async-storage/async-storage-wrapper'
 import {
   RequestAsyncStorageWrapper,
-  RequestContext,
+  type RequestContext,
 } from '../../async-storage/request-async-storage-wrapper'
-import { BaseNextRequest, BaseNextResponse } from '../../base-http'
-import { NodeNextRequest, NodeNextResponse } from '../../base-http/node'
+import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
+import type { NodeNextRequest, NodeNextResponse } from '../../base-http/node'
 import { getRequestMeta } from '../../request-meta'
 import {
   handleBadRequestResponse,

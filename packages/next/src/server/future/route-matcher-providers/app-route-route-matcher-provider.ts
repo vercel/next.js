@@ -1,4 +1,4 @@
-import path from 'path'
+import path from '../../../shared/lib/isomorphic/path'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import {
   APP_PATHS_MANIFEST,
@@ -8,7 +8,6 @@ import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { RouteKind } from '../route-kind'
 import { AppRouteRouteMatcher } from '../route-matchers/app-route-route-matcher'
 import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
-import { NodeManifestLoader } from './helpers/manifest-loaders/node-manifest-loader'
 import { RouteMatcherProvider } from './route-matcher-provider'
 
 export class AppRouteRouteMatcherProvider
@@ -16,13 +15,11 @@ export class AppRouteRouteMatcherProvider
 {
   constructor(
     private readonly distDir: string,
-    private readonly manifestLoader: ManifestLoader = new NodeManifestLoader(
-      distDir
-    )
+    private readonly manifestLoader: ManifestLoader
   ) {}
 
   public async matchers(): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
-    const manifest = await this.manifestLoader.load(APP_PATHS_MANIFEST)
+    const manifest = this.manifestLoader.load(APP_PATHS_MANIFEST)
     if (!manifest) return []
 
     // This matcher only matches app routes.

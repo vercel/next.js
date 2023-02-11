@@ -34,7 +34,9 @@ import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
+  APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
+  PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
@@ -80,6 +82,13 @@ import {
 } from '../client/components/app-router-headers'
 import { RouteMatcherManager } from './future/route-matcher-managers/route-matcher-manager'
 import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
+import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
+import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
+import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
+import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/app-route-route-matcher-provider'
+import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
+import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
+import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -310,11 +319,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly matchers: RouteMatcherManager
   protected readonly handlers: RouteHandlerManager
 
-  protected abstract getRoutes(): {
-    matchers: RouteMatcherManager
-    handlers: RouteHandlerManager
-  }
-
   public constructor(options: ServerOptions) {
     const {
       dir = '.',
@@ -431,6 +435,63 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.setAssetPrefix(assetPrefix)
 
     this.responseCache = this.getResponseCache({ dev })
+  }
+
+  protected getRoutes(): {
+    matchers: RouteMatcherManager
+    handlers: RouteHandlerManager
+  } {
+    // Create a new manifest loader that get's the manifests from the server.
+    const manifestLoader = new ServerManifestLoader((name) => {
+      switch (name) {
+        case PAGES_MANIFEST:
+          return this.getPagesManifest() ?? null
+        case APP_PATHS_MANIFEST:
+          return this.getAppPathsManifest() ?? null
+        default:
+          return null
+      }
+    })
+
+    // Configure the locale normalizer, it's used for routes inside `pages/`.
+    const localeNormalizer =
+      this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
+        ? new LocaleRouteNormalizer(
+            this.nextConfig.i18n.locales,
+            this.nextConfig.i18n.defaultLocale
+          )
+        : undefined
+
+    // Configure the matchers and handlers.
+    const matchers: RouteMatcherManager = new DefaultRouteMatcherManager()
+    const handlers = new RouteHandlerManager()
+
+    // Match pages under `pages/`.
+    matchers.push(
+      new PagesRouteMatcherProvider(
+        this.distDir,
+        manifestLoader,
+        localeNormalizer
+      )
+    )
+
+    // Match api routes under `pages/api/`.
+    matchers.push(
+      new PagesAPIRouteMatcherProvider(this.distDir, manifestLoader)
+    )
+
+    // If the app directory is enabled, then add the app matchers and handlers.
+    if (this.hasAppDir) {
+      // Match app pages under `app/`.
+      matchers.push(
+        new AppPageRouteMatcherProvider(this.distDir, manifestLoader)
+      )
+      matchers.push(
+        new AppRouteRouteMatcherProvider(this.distDir, manifestLoader)
+      )
+    }
+
+    return { matchers, handlers }
   }
 
   public logError(err: Error): void {

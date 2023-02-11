@@ -1,14 +1,13 @@
-import path from 'path'
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
 import {
   APP_PATHS_MANIFEST,
   SERVER_DIRECTORY,
 } from '../../../shared/lib/constants'
+import path from '../../../shared/lib/isomorphic/path'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { RouteKind } from '../route-kind'
 import { AppPageRouteMatcher } from '../route-matchers/app-page-route-matcher'
 import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
-import { NodeManifestLoader } from './helpers/manifest-loaders/node-manifest-loader'
 import { RouteMatcherProvider } from './route-matcher-provider'
 
 export class AppPageRouteMatcherProvider
@@ -16,13 +15,11 @@ export class AppPageRouteMatcherProvider
 {
   constructor(
     private readonly distDir: string,
-    private readonly manifestLoader: ManifestLoader = new NodeManifestLoader(
-      distDir
-    )
+    private readonly manifestLoader: ManifestLoader
   ) {}
 
   public async matchers(): Promise<ReadonlyArray<AppPageRouteMatcher>> {
-    const manifest = await this.manifestLoader.load(APP_PATHS_MANIFEST)
+    const manifest = this.manifestLoader.load(APP_PATHS_MANIFEST)
     if (!manifest) return []
 
     // This matcher only matches app pages.

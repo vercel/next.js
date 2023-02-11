@@ -32,6 +32,8 @@ import {
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
   COMPILER_NAMES,
+  PAGES_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
@@ -86,6 +88,8 @@ import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/
 import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
 import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
 import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
+import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -1219,12 +1223,22 @@ export default class DevServer extends Server {
     })
   }
 
-  protected getPagesManifest(): undefined {
-    return undefined
+  protected getPagesManifest(): PagesManifest | undefined {
+    return (
+      NodeManifestLoader.require(
+        pathJoin(this.serverDistDir, PAGES_MANIFEST)
+      ) ?? undefined
+    )
   }
 
-  protected getAppPathsManifest(): undefined {
-    return undefined
+  protected getAppPathsManifest(): PagesManifest | undefined {
+    if (!this.hasAppDir) return undefined
+
+    return (
+      NodeManifestLoader.require(
+        pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)
+      ) ?? undefined
+    )
   }
 
   protected getMiddleware() {

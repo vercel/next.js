@@ -1,4 +1,4 @@
-import path from 'path'
+import path from '../../../shared/lib/isomorphic/path'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { removePagePathTail } from '../../../shared/lib/page-path/remove-page-path-tail'

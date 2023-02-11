@@ -96,17 +96,8 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
-import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
 import { RouteKind } from './future/route-kind'
 
-import { NodeManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
-import { RouteMatcherManager } from './future/route-matcher-managers/route-matcher-manager'
-import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
-import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
-import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
-import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
-import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/app-route-route-matcher-provider'
 import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-handler'
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 
@@ -271,57 +262,13 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getRoutes() {
-    // Configure the locale normalizer, it's used for routes inside `pages/`.
-    const localeNormalizer =
-      this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
-        ? new LocaleRouteNormalizer(
-            this.nextConfig.i18n.locales,
-            this.nextConfig.i18n.defaultLocale
-          )
-        : undefined
+    const routes = super.getRoutes()
 
-    // Configure the matchers and handlers.
-    const matchers: RouteMatcherManager = new DefaultRouteMatcherManager()
-    const handlers = new RouteHandlerManager()
-
-    const manifestLoader = new NodeManifestLoader(this.distDir)
-
-    // Match pages under `pages/`.
-    matchers.push(
-      new PagesRouteMatcherProvider(
-        this.distDir,
-        manifestLoader,
-        localeNormalizer
-      )
-    )
-
-    // NOTE: we don't have a handler for the pages route type yet
-
-    // Match api routes under `pages/api/`.
-    matchers.push(
-      new PagesAPIRouteMatcherProvider(this.distDir, manifestLoader)
-    )
-
-    // NOTE: we don't have a handler for the pages api route type yet
-
-    // If the app directory is enabled, then add the app matchers and handlers.
     if (this.hasAppDir) {
-      // Match app pages under `app/`.
-      matchers.push(
-        new AppPageRouteMatcherProvider(this.distDir, manifestLoader)
-      )
-
-      // NOTE: we don't have a handler for the app page route type yet
-
-      matchers.push(
-        new AppRouteRouteMatcherProvider(this.distDir, manifestLoader)
-      )
-      handlers.set(RouteKind.APP_ROUTE, new AppRouteRouteHandler())
+      routes.handlers.set(RouteKind.APP_ROUTE, new AppRouteRouteHandler())
     }
 
-    // TODO: ensure that the matchers are reloaded
-
-    return { matchers, handlers }
+    return routes
   }
 
   protected loadEnvConfig({

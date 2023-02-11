@@ -50,15 +50,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected getRoutes() {
-    const matchers = new DefaultRouteMatcherManager()
-    const handlers = new RouteHandlerManager()
-
-    // TODO: implement for edge runtime
-
-    return { matchers, handlers }
-  }
-
   protected handleCompression() {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
