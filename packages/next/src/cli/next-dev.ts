@@ -61,7 +61,7 @@ const handleSessionStop = async () => {
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
-      const pagesResult = await findPagesDir(dir, !!config.experimental.appDir)
+      const pagesResult = findPagesDir(dir, !!config.experimental.appDir)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
