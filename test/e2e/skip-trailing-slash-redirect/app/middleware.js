@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server'
 
 export default function handler(req) {
   console.log(req.nextUrl)
+  let { pathname } = req.nextUrl
+
+  if (pathname.includes('docs') || pathname.includes('chained-rewrite')) {
+    if (pathname === '/docs') {
+      pathname = '/'
+    }
+
+    return NextResponse.rewrite(
+      `https://middleware-external-rewrite-target-k7lawa47r-uncurated-tests.vercel.app${pathname}`
+    )
+  }
 
   if (req.nextUrl.pathname.startsWith('/_next/data/missing-id')) {
     console.log(`missing-id rewrite: ${req.nextUrl.toString()}`)

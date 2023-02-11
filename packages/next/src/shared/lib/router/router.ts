@@ -194,93 +194,79 @@ function getMiddlewareData<T extends FetchDataOutput>(
   }
 
   if (rewriteTarget) {
-    if (rewriteTarget.startsWith('/')) {
-      const parsedRewriteTarget = parseRelativeUrl(rewriteTarget)
-      const pathnameInfo = getNextPathnameInfo(parsedRewriteTarget.pathname, {
-        nextConfig,
-        parseData: true,
-      })
-
-      let fsPathname = removeTrailingSlash(pathnameInfo.pathname)
-      return Promise.all([
-        options.router.pageLoader.getPageList(),
-        getClientBuildManifest(),
-      ]).then(([pages, { __rewrites: rewrites }]: any) => {
-        let as = addLocale(pathnameInfo.pathname, pathnameInfo.locale)
-
-        if (
-          isDynamicRoute(as) ||
-          (!rewriteHeader &&
-            pages.includes(
-              normalizeLocalePath(removeBasePath(as), options.router.locales)
-                .pathname
-            ))
-        ) {
-          const parsedSource = getNextPathnameInfo(
-            parseRelativeUrl(source).pathname,
-            { parseData: true }
-          )
-
-          as = addBasePath(parsedSource.pathname)
-          parsedRewriteTarget.pathname = as
-        }
-
-        if (process.env.__NEXT_HAS_REWRITES) {
-          const result = resolveRewrites(
-            as,
-            pages,
-            rewrites,
-            parsedRewriteTarget.query,
-            (path: string) => resolveDynamicRoute(path, pages),
-            options.router.locales
-          )
-
-          if (result.matchedPage) {
-            parsedRewriteTarget.pathname = result.parsedAs.pathname
-            as = parsedRewriteTarget.pathname
-            Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
-          }
-        } else if (!pages.includes(fsPathname)) {
-          const resolvedPathname = resolveDynamicRoute(fsPathname, pages)
-
-          if (resolvedPathname !== fsPathname) {
-            fsPathname = resolvedPathname
-          }
-        }
-
-        const resolvedHref = !pages.includes(fsPathname)
-          ? resolveDynamicRoute(
-              normalizeLocalePath(
-                removeBasePath(parsedRewriteTarget.pathname),
-                options.router.locales
-              ).pathname,
-              pages
-            )
-          : fsPathname
-
-        if (isDynamicRoute(resolvedHref)) {
-          const matches = getRouteMatcher(getRouteRegex(resolvedHref))(as)
-          Object.assign(parsedRewriteTarget.query, matches || {})
-        }
-
-        return {
-          type: 'rewrite' as const,
-          parsedAs: parsedRewriteTarget,
-          resolvedHref,
-        }
-      })
-    }
-
-    const src = parsePath(source)
-    const pathname = formatNextPathnameInfo({
-      ...getNextPathnameInfo(src.pathname, { nextConfig, parseData: true }),
-      defaultLocale: options.router.defaultLocale,
-      buildId: '',
+    const parsedRewriteTarget = parseRelativeUrl(rewriteTarget)
+    const pathnameInfo = getNextPathnameInfo(parsedRewriteTarget.pathname, {
+      nextConfig,
+      parseData: true,
     })
 
-    return Promise.resolve({
-      type: 'redirect-external' as const,
-      destination: `${pathname}${src.query}${src.hash}`,
+    let fsPathname = removeTrailingSlash(pathnameInfo.pathname)
+    return Promise.all([
+      options.router.pageLoader.getPageList(),
+      getClientBuildManifest(),
+    ]).then(([pages, { __rewrites: rewrites }]: any) => {
+      let as = addLocale(pathnameInfo.pathname, pathnameInfo.locale)
+
+      if (
+        isDynamicRoute(as) ||
+        (!rewriteHeader &&
+          pages.includes(
+            normalizeLocalePath(removeBasePath(as), options.router.locales)
+              .pathname
+          ))
+      ) {
+        const parsedSource = getNextPathnameInfo(
+          parseRelativeUrl(source).pathname,
+          { parseData: true }
+        )
+
+        as = addBasePath(parsedSource.pathname)
+        parsedRewriteTarget.pathname = as
+      }
+
+      if (process.env.__NEXT_HAS_REWRITES) {
+        const result = resolveRewrites(
+          as,
+          pages,
+          rewrites,
+          parsedRewriteTarget.query,
+          (path: string) => resolveDynamicRoute(path, pages),
+          options.router.locales
+        )
+
+        if (result.matchedPage) {
+          parsedRewriteTarget.pathname = result.parsedAs.pathname
+          as = parsedRewriteTarget.pathname
+          Object.assign(parsedRewriteTarget.query, result.parsedAs.query)
+        }
+      } else if (!pages.includes(fsPathname)) {
+        const resolvedPathname = resolveDynamicRoute(fsPathname, pages)
+
+        if (resolvedPathname !== fsPathname) {
+          fsPathname = resolvedPathname
+        }
+      }
+
+      const resolvedHref = !pages.includes(fsPathname)
+        ? resolveDynamicRoute(
+            normalizeLocalePath(
+              removeBasePath(parsedRewriteTarget.pathname),
+              options.router.locales
+            ).pathname,
+            pages
+          )
+        : fsPathname
+
+      if (isDynamicRoute(resolvedHref)) {
+        const matches = getRouteMatcher(getRouteRegex(resolvedHref))(as)
+        Object.assign(parsedRewriteTarget.query, matches || {})
+      }
+
+      return {
+        type: 'rewrite' as const,
+        parsedAs: parsedRewriteTarget,
+        resolvedHref,
+      }
     })
   }
 
