@@ -18,11 +18,11 @@ describe('pathsToModuleNameMapper', () => {
   test('should convert tsconfig mapping', () => {
     expect(pathsToModuleNameMapper(tsconfigMap, { prefix: '<rootDir>/' }))
       .toMatchInlineSnapshot(`
-      {
-        "^@foo\\-bar/common$": "<rootDir>/../common/dist/library",
-        "^@pkg/(.*)$": "<rootDir>/./packages/$1",
+      Object {
+        "^@foo\\\\-bar/common$": "<rootDir>/../common/dist/library",
+        "^@pkg/(.*)$": "<rootDir>/packages/$1",
         "^api/(.*)$": "<rootDir>/src/api/$1",
-        "^client$": [
+        "^client$": Array [
           "<rootDir>/src/client",
           "<rootDir>/src/client/index",
         ],
@@ -30,7 +30,7 @@ describe('pathsToModuleNameMapper', () => {
         "^mocks/(.*)$": "<rootDir>/test/mocks/$1",
         "^server$": "<rootDir>/src/server",
         "^test/(.*)$": "<rootDir>/test/$1",
-        "^test/(.*)/mock$": [
+        "^test/(.*)/mock$": Array [
           "<rootDir>/test/mocks/$1",
           "<rootDir>/test/__mocks__/$1",
         ],
@@ -71,8 +71,8 @@ describe('pathsToModuleNameMapper', () => {
         '<rootDir>/test/__mocks__/$1',
       ],
       '^@foo\\-bar/common$': '<rootDir>/../common/dist/library',
-      '^@pkg/(.*)\\.js$': '<rootDir>/./packages/$1',
-      '^@pkg/(.*)$': '<rootDir>/./packages/$1',
+      '^@pkg/(.*)\\.js$': '<rootDir>/packages/$1',
+      '^@pkg/(.*)$': '<rootDir>/packages/$1',
       '^(\\.{1,2}/.*)\\.js$': '$1',
     })
   })
