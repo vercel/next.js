@@ -1,5 +1,5 @@
 import { loadEnvConfig } from '@next/env'
-import { resolve, join } from 'path'
+import { relative, resolve, join } from 'path'
 import loadConfig from '../../server/config'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
@@ -60,6 +60,7 @@ export default function nextJest(options: { dir?: string } = {}) {
     // Function that is provided as the module.exports of jest.config.js
     // Will be called and awaited by Jest
     return async () => {
+      let resolvedDir
       let nextConfig
       let jsConfig
       let resolvedBaseUrl
@@ -68,7 +69,7 @@ export default function nextJest(options: { dir?: string } = {}) {
       let hasServerComponents: boolean | undefined
 
       if (options.dir) {
-        const resolvedDir = resolve(options.dir)
+        resolvedDir = resolve(options.dir)
         const packageConfig = loadClosestPackageJson(resolvedDir)
         isEsmProject = packageConfig.type === 'module'
 
@@ -96,15 +97,23 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
-      // Derive moduleNameMapper settings from jsconfig
+      // Automatically set up 'moduleDirectories' and 'moduleNameMapper'
+      // configuration based on the paths that are defined in the jsconfig
       let moduleDirectoriesJsConfig
-      let moduleNameMapperJsConfig = {}
-      if (jsConfig?.compilerOptions?.baseUrl === '.') {
-        // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
-        moduleDirectoriesJsConfig = ['node_modules', '<rootDir>/']
+      let moduleNameMapperJsConfig
+      if (
+        typeof resolvedDir !== 'undefined' &&
+        typeof resolvedBaseUrl !== 'undefined'
+      ) {
+        const relativePathFromRootToBaseUrl = relative(
+          resolvedDir,
+          resolvedBaseUrl
+        )
+        const jestRootDir = join('<rootDir>/', relativePathFromRootToBaseUrl)
+        moduleDirectoriesJsConfig = ['node_modules', jestRootDir]
         moduleNameMapperJsConfig = pathsToModuleNameMapper(
-          jsConfig?.compilerOptions?.paths,
-          { prefix: '<rootDir>/', useESM: isEsmProject }
+          jsConfig?.compilerOptions?.paths ?? {},
+          { prefix: jestRootDir, useESM: isEsmProject }
         )
       }
 
@@ -136,7 +145,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           '@next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
 
           // If we were able to derive moduleNameMapper settings from the paths in jsconfig
-          ...moduleNameMapperJsConfig,
+          ...(moduleNameMapperJsConfig || {}),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
