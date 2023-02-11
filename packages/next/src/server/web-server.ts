@@ -26,9 +26,8 @@ import {
   normalizeVercelUrl,
 } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { RouteHandlers } from './route-handlers/route-handlers'
-import { DefaultRouteMatcherManager } from './route-matcher-managers/default-route-matcher-manager'
-
+import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
+import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
@@ -53,7 +52,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
   protected getRoutes() {
     const matchers = new DefaultRouteMatcherManager()
-    const handlers = new RouteHandlers()
+    const handlers = new RouteHandlerManager()
 
     // TODO: implement for edge runtime
 
@@ -327,7 +326,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     if (useFileSystemPublicRoutes) {
       this.appPathRoutes = this.getAppPathRoutes()
-      // this.dynamicRoutes = this.getDynamicRoutes()
     }
 
     return {

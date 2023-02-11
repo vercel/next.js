@@ -38,7 +38,7 @@ import {
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
-import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
+import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   setLazyProp,
   getCookieParser,
@@ -68,8 +68,6 @@ import {
   normalizeAppPath,
   normalizeRscPath,
 } from '../shared/lib/router/utils/app-paths'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
@@ -80,8 +78,8 @@ import {
   FLIGHT_PARAMETERS,
   FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
-import type { RouteHandlers } from './route-handlers/route-handlers'
-import { RouteMatcherManager } from './route-matcher-managers/route-matcher-manager'
+import { RouteMatcherManager } from './future/route-matcher-managers/route-matcher-manager'
+import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -224,7 +222,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase
   protected router: Router
-  // protected dynamicRoutes?: DynamicRoutes
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
@@ -246,7 +243,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
-    appPaths?: string[] | null
     sriEnabled?: boolean
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
@@ -312,11 +308,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }): void
 
   protected readonly matchers: RouteMatcherManager
-  protected readonly handlers: RouteHandlers
+  protected readonly handlers: RouteHandlerManager
 
   protected abstract getRoutes(): {
     matchers: RouteMatcherManager
-    handlers: RouteHandlers
+    handlers: RouteHandlerManager
   }
 
   public constructor(options: ServerOptions) {
@@ -425,6 +421,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.matchers = matchers
     this.handlers = handlers
 
+    // Start route compilation. We don't wait for the routes to finish loading
+    // because we use the `waitTillReady` promise below in `handleRequest` to
+    // wait. Also we can't `await` in the constructor.
+    matchers.reload()
+
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
@@ -443,6 +444,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
+      // Wait for the matchers to be ready.
+      await this.matchers.waitTillReady()
+
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
       const _res = (res as any).originalResponse || res
@@ -580,22 +584,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           let srcPathname = matchedPath
           const match = await this.matchers.match(matchedPath)
           if (match) {
-            srcPathname = match.pathname
+            srcPathname = match.route.pathname
           }
           const pageIsDynamic = typeof match?.params !== 'undefined'
-
-          // NOTE: converted to the new match syntax
-          // if (
-          //   !isDynamicRoute(srcPathname) &&
-          //   !(await this.hasPage(removeTrailingSlash(srcPathname)))
-          // ) {
-          //   for (const dynamicRoute of this.dynamicRoutes || []) {
-          //     if (dynamicRoute.match(srcPathname)) {
-          //       srcPathname = dynamicRoute.page
-          //       break
-          //     }
-          //   }
-          // }
 
           const utils = getUtils({
             pageIsDynamic,
@@ -809,29 +800,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     _parsedUrl: UrlWithParsedQuery
   ): Promise<boolean> {
     return false
-  }
-
-  protected getDynamicRoutes(): Array<RoutingItem> {
-    const addedPages = new Set<string>()
-
-    return getSortedRoutes(
-      [
-        ...Object.keys(this.appPathRoutes || {}),
-        ...Object.keys(this.pagesManifest!),
-      ].map(
-        (page) =>
-          normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
-      )
-    )
-      .map((page) => {
-        if (addedPages.has(page) || !isDynamicRoute(page)) return null
-        addedPages.add(page)
-        return {
-          page,
-          match: getRouteMatcher(getRouteRegex(page)),
-        }
-      })
-      .filter((item): item is RoutingItem => Boolean(item))
   }
 
   protected getAppPathRoutes(): Record<string, string[]> {
@@ -1699,7 +1667,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       query,
       params: ctx.renderOpts.params || {},
       isAppPath,
-      appPaths,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
     })
     if (result) {
@@ -1725,12 +1692,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     delete query._nextBubbleNoFallback
 
     try {
-      const match = await this.matchers.match(pathname)
-      if (match) {
+      for await (const match of this.matchers.matchAll(pathname)) {
         const result = await this.renderPageComponent(
           {
             ...ctx,
-            pathname: match.pathname,
+            pathname: match.route.pathname,
             renderOpts: {
               ...ctx.renderOpts,
               params: match.params,

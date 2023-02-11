@@ -78,16 +78,14 @@ import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
 import { pageFiles } from '../../build/webpack/plugins/flight-types-plugin'
-import { DevPagesRouteMatcher } from '../route-matchers/dev-pages-route-matcher'
-import { DevPagesAPIRouteMatcher } from '../route-matchers/dev-pages-api-route-matcher'
-import { DevAppPageRouteMatcher } from '../route-matchers/dev-app-page-route-matcher'
-import { DevAppRouteRouteMatcher } from '../route-matchers/dev-app-route-route-matcher'
 import {
   DevRouteMatcherManager,
   RouteEnsurer,
-} from '../route-matcher-managers/dev-route-matcher-manager'
-import { DefaultRouteMatcherManager } from '../route-matcher-managers/default-route-matcher-manager'
-import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
+} from '../future/route-matcher-managers/dev-route-matcher-manager'
+import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
+import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
+import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
+import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -229,7 +227,7 @@ export default class DevServer extends Server {
       ensure: async (match) => {
         await this.hotReloader!.ensurePage({
           match,
-          page: match.pathname,
+          page: match.route.page,
           clientOnly: false,
         })
       },
@@ -239,27 +237,17 @@ export default class DevServer extends Server {
     const matchers = new DevRouteMatcherManager(routes.matchers, ensurer)
     const handlers = routes.handlers
 
-    // Grab the locale normalizer if it's set.
-    const localeNormalizer =
-      routes.matchers instanceof DefaultRouteMatcherManager
-        ? routes.matchers.localeNormalizer
-        : new LocaleRouteNormalizer(this.nextConfig.i18n?.locales)
-
     const extensions = this.nextConfig.pageExtensions
 
     // If the pages directory is available, then configure those matchers.
     if (pagesDir) {
-      matchers.push(
-        new DevPagesRouteMatcher(pagesDir, extensions, localeNormalizer)
-      )
-      matchers.push(
-        new DevPagesAPIRouteMatcher(pagesDir, extensions, localeNormalizer)
-      )
+      matchers.push(new DevPagesRouteMatcherProvider(pagesDir, extensions))
+      matchers.push(new DevPagesAPIRouteMatcherProvider(pagesDir, extensions))
     }
 
     if (appDir) {
-      matchers.push(new DevAppPageRouteMatcher(appDir, extensions))
-      matchers.push(new DevAppRouteRouteMatcher(appDir, extensions))
+      matchers.push(new DevAppPageRouteMatcherProvider(appDir, extensions))
+      matchers.push(new DevAppRouteRouteMatcherProvider(appDir, extensions))
     }
 
     return { matchers, handlers }
@@ -692,9 +680,10 @@ export default class DevServer extends Server {
           }
           this.sortedRoutes = sortedRoutes
 
-          await this.matchers.compile()
+          // Reload the matchers. The filesystem would have been written to,
+          // and the matchers need to re-scan it to update the router.
+          await this.matchers.reload()
 
-          // this.router.setDynamicRoutes(dynamicRoutes)
           this.router.setCatchallMiddleware(
             this.generateCatchAllMiddlewareRoute(true)
           )
@@ -781,6 +770,7 @@ export default class DevServer extends Server {
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
     await this.startWatcher()
+    await this.matchers.reload()
     this.setDevReady!()
 
     if (this.nextConfig.experimental.nextScriptWorkers) {
@@ -1370,11 +1360,6 @@ export default class DevServer extends Server {
     return []
   }
 
-  // In development dynamic routes cannot be known ahead of time
-  protected getDynamicRoutes(): never[] {
-    return []
-  }
-
   _filterAmpDevelopmentScript(
     html: string,
     event: { line: number; col: number; code: string }
@@ -1454,10 +1439,6 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async ensureApiPage(pathname: string): Promise<void> {
-    return this.hotReloader!.ensurePage({ page: pathname, clientOnly: false })
-  }
-
   private persistPatchedGlobals(): void {
     this.originalFetch = global.fetch
   }
@@ -1471,13 +1452,11 @@ export default class DevServer extends Server {
     query,
     params,
     isAppPath,
-    appPaths,
   }: {
     pathname: string
     query: ParsedUrlQuery
     params: Params
     isAppPath: boolean
-    appPaths?: string[] | null
   }): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
@@ -1486,12 +1465,6 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      await this.hotReloader!.ensurePage({
-        page: pathname,
-        appPaths,
-        clientOnly: false,
-      })
-
       // When the new page is compiled, we need to reload the server component
       // manifest.
       if (!!this.appDir) {

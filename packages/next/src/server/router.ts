@@ -19,9 +19,7 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { getRequestMeta } from './request-meta'
 import { formatNextPathnameInfo } from '../shared/lib/router/utils/format-next-pathname-info'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { RouteDefinition } from './route-matchers/route-matcher'
-import { RouteKind } from './route-kind'
-import { RouteMatcherManager } from './route-matcher-managers/route-matcher-manager'
+import { RouteMatcherManager } from './future/route-matcher-managers/route-matcher-manager'
 
 type RouteResult = {
   finished: boolean
@@ -50,16 +48,6 @@ export type Route = {
     upgradeHead?: Buffer
   ) => Promise<RouteResult> | RouteResult
 }
-
-export interface DynamicRoute<K extends RouteKind> {
-  route: RouteDefinition<K>
-  match: RouteMatchFn
-}
-
-export type DynamicRoutes = ReadonlyArray<{
-  route: { pathname: string }
-  match: RouteMatchFn
-}>
 
 export type RouterOptions = {
   headers: ReadonlyArray<Route>
@@ -91,25 +79,11 @@ export default class Router {
     fallback: ReadonlyArray<Route>
   }
   private readonly catchAllRoute: Route
-  private readonly matchers: RouteMatcherManager
+  private readonly matchers: Pick<RouteMatcherManager, 'test'>
   private readonly useFileSystemPublicRoutes: boolean
   private readonly nextConfig: NextConfig
   private compiledRoutes: ReadonlyArray<Route>
   private needsRecompilation: boolean
-
-  /**
-   * context stores information used by the router.
-   */
-  private readonly context = new WeakMap<
-    BaseNextRequest,
-    {
-      /**
-       * pageChecks is the memoized record of all checks made against pages to
-       * help de-duplicate work.
-       */
-      pageChecks: Record<string, boolean>
-    }
-  >()
 
   constructor({
     headers = [],
@@ -139,10 +113,6 @@ export default class Router {
     // Perform the initial route compilation.
     this.compiledRoutes = this.compileRoutes()
     this.needsRecompilation = false
-  }
-
-  get locales() {
-    return this.nextConfig.i18n?.locales || []
   }
 
   get basePath() {
@@ -198,7 +168,7 @@ export default class Router {
               name: 'page checker',
               match: getPathMatch('/:path*'),
               fn: async (req, res, params, parsedUrl, upgradeHead) => {
-                const match = await this.matchers.match(parsedUrl.pathname!, {
+                const match = await this.matchers.test(parsedUrl.pathname!, {
                   // We need to skip dynamic route matching because the next
                   // step we're processing the afterFiles rewrites which must
                   // not include dynamic matches.
@@ -251,8 +221,7 @@ export default class Router {
     parsedUrl: NextUrlWithParsedQuery,
     upgradeHead?: Buffer
   ) {
-    const originalFsPathname = parsedUrl.pathname
-    const fsPathname = removePathPrefix(originalFsPathname!, this.basePath)
+    const fsPathname = removePathPrefix(parsedUrl.pathname!, this.basePath)
 
     for (const route of this.fsRoutes) {
       const params = route.match(fsPathname)
@@ -267,10 +236,8 @@ export default class Router {
       }
     }
 
-    const match = await this.matchers.match(fsPathname)
-    if (!match) {
-      return false
-    }
+    const match = await this.matchers.test(fsPathname)
+    if (!match) return false
 
     // Matched a page or dynamic route so render it using catchAllRoute
     const params = this.catchAllRoute.match(parsedUrl.pathname)
@@ -325,7 +292,7 @@ export default class Router {
         continue
       }
 
-      const originalPathname = parsedUrlUpdated.pathname as string
+      const originalPathname = parsedUrlUpdated.pathname!
       const pathnameInfo = getNextPathnameInfo(originalPathname, {
         nextConfig: this.nextConfig,
         parseData: false,

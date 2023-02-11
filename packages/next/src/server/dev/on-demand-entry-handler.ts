@@ -23,8 +23,9 @@ import {
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
-import { RouteKind } from '../route-kind'
-import { RouteMatch } from '../route-matches/route-match'
+import { RouteMatch } from '../future/route-matches/route-match'
+import { RouteKind } from '../future/route-kind'
+import { AppPageRouteMatch } from '../future/route-matches/app-page-route-match'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -152,7 +153,7 @@ interface Entry extends EntryType {
    * All parallel pages that match the same entry, for example:
    * ['/parallel/@bar/nested/@a/page', '/parallel/@bar/nested/@b/page', '/parallel/@foo/nested/@a/page', '/parallel/@foo/nested/@b/page']
    */
-  appPaths: string[] | null
+  appPaths: ReadonlyArray<string> | null
 }
 
 interface ChildEntry extends EntryType {
@@ -379,13 +380,15 @@ async function findRoutePathData(
   extensions: string[],
   pagesDir?: string,
   appDir?: string,
-  match?: RouteMatch<RouteKind>
+  match?: RouteMatch
 ): ReturnType<typeof findPagePathData> {
   if (match) {
+    // If the match is available, we don't have to discover the data from the
+    // filesystem.
     return {
-      absolutePagePath: match.filename,
-      page: match.page,
-      bundlePath: match.bundlePath,
+      absolutePagePath: match.route.filename,
+      page: match.route.page,
+      bundlePath: match.route.bundlePath,
     }
   }
 
@@ -583,8 +586,8 @@ export function onDemandEntryHandler({
     }: {
       page: string
       clientOnly: boolean
-      appPaths?: string[] | null
-      match?: RouteMatch<RouteKind>
+      appPaths?: ReadonlyArray<string> | null
+      match?: RouteMatch
     }): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
@@ -592,6 +595,13 @@ export function onDemandEntryHandler({
           `Ensuring ${page} has taken longer than ${stalledTime}s, if this continues to stall this may be a bug`
         )
       }, stalledTime * 1000)
+
+      // If the route is actually an app page route, then we should have access
+      // to the app route match, and therefore, the appPaths from it.
+      if (match?.route.kind === RouteKind.APP_PAGE) {
+        const { route } = match as AppPageRouteMatch
+        appPaths = route.appPaths
+      }
 
       try {
         const pagePathData = await findRoutePathData(

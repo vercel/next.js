@@ -215,7 +215,7 @@ export function getAppEntry(opts: {
   name: string
   pagePath: string
   appDir: string
-  appPaths: string[] | null
+  appPaths: ReadonlyArray<string> | null
   pageExtensions: string[]
   assetPrefix: string
   isDev?: boolean

@@ -96,18 +96,19 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
-import { RouteHandlers } from './route-handlers/route-handlers'
-import { DefaultRouteMatcherManager } from './route-matcher-managers/default-route-matcher-manager'
-import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
-import { PagesRouteMatcher } from './route-matchers/pages-route-matcher'
-import { PagesAPIRouteMatcher } from './route-matchers/pages-api-route-matcher'
-import { AppRouteRouteMatcher } from './route-matchers/app-route-route-matcher'
-import { RouteKind } from './route-kind'
-import { AppRouteRouteHandler } from './route-handlers/app-route/app-route-route-handler'
-import { AppPageRouteMatcher } from './route-matchers/app-page-route-matcher'
-import { isRouteMatchKind, RouteMatch } from './route-matches/route-match'
-import { NodeManifestLoader } from './manifest-loaders/node-manifest-loader'
-import { RouteMatcherManager } from './route-matcher-managers/route-matcher-manager'
+import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
+import { RouteKind } from './future/route-kind'
+
+import { NodeManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
+import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
+import { RouteMatcherManager } from './future/route-matcher-managers/route-matcher-manager'
+import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
+import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
+import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
+import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
+import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/app-route-route-matcher-provider'
+import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-handler'
+import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 
 export * from './base-server'
 
@@ -271,43 +272,54 @@ export default class NextNodeServer extends BaseServer {
 
   protected getRoutes() {
     // Configure the locale normalizer, it's used for routes inside `pages/`.
-    const localeNormalizer = this.nextConfig.i18n?.locales
-      ? new LocaleRouteNormalizer(this.nextConfig.i18n.locales)
-      : undefined
+    const localeNormalizer =
+      this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
+        ? new LocaleRouteNormalizer(
+            this.nextConfig.i18n.locales,
+            this.nextConfig.i18n.defaultLocale
+          )
+        : undefined
 
     // Configure the matchers and handlers.
-    const matchers: RouteMatcherManager = new DefaultRouteMatcherManager(
-      localeNormalizer
-    )
-    const handlers = new RouteHandlers()
+    const matchers: RouteMatcherManager = new DefaultRouteMatcherManager()
+    const handlers = new RouteHandlerManager()
 
     const manifestLoader = new NodeManifestLoader(this.distDir)
 
     // Match pages under `pages/`.
     matchers.push(
-      new PagesRouteMatcher(this.distDir, manifestLoader, localeNormalizer)
+      new PagesRouteMatcherProvider(
+        this.distDir,
+        manifestLoader,
+        localeNormalizer
+      )
     )
 
     // NOTE: we don't have a handler for the pages route type yet
 
     // Match api routes under `pages/api/`.
-    matchers.push(new PagesAPIRouteMatcher(this.distDir, manifestLoader))
+    matchers.push(
+      new PagesAPIRouteMatcherProvider(this.distDir, manifestLoader)
+    )
 
     // NOTE: we don't have a handler for the pages api route type yet
 
     // If the app directory is enabled, then add the app matchers and handlers.
     if (this.hasAppDir) {
       // Match app pages under `app/`.
-      matchers.push(new AppPageRouteMatcher(this.distDir, manifestLoader))
+      matchers.push(
+        new AppPageRouteMatcherProvider(this.distDir, manifestLoader)
+      )
 
       // NOTE: we don't have a handler for the app page route type yet
 
-      matchers.push(new AppRouteRouteMatcher(this.distDir, manifestLoader))
+      matchers.push(
+        new AppRouteRouteMatcherProvider(this.distDir, manifestLoader)
+      )
       handlers.set(RouteKind.APP_ROUTE, new AppRouteRouteHandler())
     }
 
-    // Compile the matchers.
-    matchers.compile()
+    // TODO: ensure that the matchers are reloaded
 
     return { matchers, handlers }
   }
@@ -1249,10 +1261,16 @@ export default class NextNodeServer extends BaseServer {
           // If the route was detected as being a Pages API route, then handle
           // it.
           // TODO: move this behavior into a route handler.
-          if (isRouteMatchKind(match, RouteKind.PAGES_API)) {
+          if (match.route.kind === RouteKind.PAGES_API) {
             delete query._nextBubbleNoFallback
 
-            handled = await this.handleApiRequest(req, res, query, match)
+            handled = await this.handleApiRequest(
+              req,
+              res,
+              query,
+              // TODO: see if we can add a runtime check for this
+              match as PagesAPIRouteMatch
+            )
             if (handled) return { finished: true }
           }
         }
@@ -1278,7 +1296,6 @@ export default class NextNodeServer extends BaseServer {
 
     if (useFileSystemPublicRoutes) {
       this.appPathRoutes = this.getAppPathRoutes()
-      // this.dynamicRoutes = this.getDynamicRoutes()
     }
 
     return {
@@ -1294,9 +1311,6 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
-  // Used to build API page in development
-  protected async ensureApiPage(_pathname: string): Promise<void> {}
-
   /**
    * Resolves `API` request, in development builds on demand
    * @param req http request
@@ -1307,25 +1321,14 @@ export default class NextNodeServer extends BaseServer {
     req: BaseNextRequest,
     res: BaseNextResponse,
     query: ParsedUrlQuery,
-    match: RouteMatch<RouteKind.PAGES_API>
+    match: PagesAPIRouteMatch
   ): Promise<boolean> {
-    const { pathname, params } = match
+    const {
+      route: { pathname, filename },
+      params,
+    } = match
 
-    // Make sure the page is built before getting the path
-    // or else it won't be in the manifest yet
-    await this.ensureApiPage(pathname)
-
-    let builtPagePath
-    try {
-      builtPagePath = this.getPagePath(pathname)
-    } catch (err) {
-      if (isError(err) && err.code === 'ENOENT') {
-        return false
-      }
-      throw err
-    }
-
-    return this.runApi(req, res, query, params, pathname, builtPagePath)
+    return this.runApi(req, res, query, params, pathname, filename)
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1771,23 +1774,11 @@ export default class NextNodeServer extends BaseServer {
 
     const match = await this.matchers.match(normalizedPathname)
     if (match) {
-      page.name = match.params ? match.pathname : params.parsedUrl.pathname
+      page.name = match.params
+        ? match.route.pathname
+        : params.parsedUrl.pathname
       page.params = match.params
     }
-
-    // NOTE: converted to the new match syntax
-    // if (await this.hasPage(normalizedPathname)) {
-    //   page.name = params.parsedUrl.pathname
-    // } else if (this.dynamicRoutes) {
-    //   for (const dynamicRoute of this.dynamicRoutes) {
-    //     const matchParams = dynamicRoute.match(normalizedPathname)
-    //     if (matchParams) {
-    //       page.name = dynamicRoute.page
-    //       page.params = matchParams
-    //       break
-    //     }
-    //   }
-    // }
 
     const middleware = this.getMiddleware()
     if (!middleware) {
