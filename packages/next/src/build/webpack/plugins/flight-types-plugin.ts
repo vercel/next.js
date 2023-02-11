@@ -32,7 +32,7 @@ type TEntry = typeof entry
 
 check<IEntry, TEntry>(entry)
 
-type PageParams = Record<string, string>
+type PageParams = any
 interface PageProps {
   params: any
   searchParams?: any
@@ -57,7 +57,7 @@ interface IEntry {
       : `default: PageComponent`
   }
   config?: {}
-  generateStaticParams?: (params?: PageParams) => any[] | Promise<any[]>
+  generateStaticParams?: (args: { params: PageParams }) => any[] | Promise<any[]>
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
