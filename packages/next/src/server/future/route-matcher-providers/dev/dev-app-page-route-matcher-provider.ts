@@ -1,5 +1,4 @@
 import { FileReader } from './helpers/file-reader/file-reader'
-import { DefaultFileReader } from './helpers/file-reader/default-file-reader'
 import { AppPageRouteMatcher } from '../../route-matchers/app-page-route-matcher'
 import { RouteMatcherProvider } from '../route-matcher-provider'
 import { Normalizer } from '../../normalizers/normalizer'
@@ -23,7 +22,7 @@ export class DevAppPageRouteMatcherProvider
   constructor(
     private readonly appDir: string,
     extensions: ReadonlyArray<string>,
-    private readonly reader: FileReader = new DefaultFileReader()
+    private readonly reader: FileReader
   ) {
     // Match any page file that ends with `/page.${extension}` under the app
     // directory.

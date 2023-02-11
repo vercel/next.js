@@ -9,12 +9,7 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
 
   it('returns no routes with an empty filesystem', async () => {
     const reader: FileReader = { read: jest.fn(() => []) }
-    const matcher = new DevPagesAPIRouteMatcherProvider(
-      dir,
-      extensions,
-      undefined,
-      reader
-    )
+    const matcher = new DevPagesAPIRouteMatcherProvider(dir, extensions, reader)
     const matchers = await matcher.matchers()
     expect(matchers).toHaveLength(0)
     expect(reader.read).toBeCalledWith(dir)
@@ -79,7 +74,6 @@ describe('DevPagesAPIRouteMatcherProvider', () => {
         const matcher = new DevPagesAPIRouteMatcherProvider(
           dir,
           extensions,
-          undefined,
           reader
         )
         const matchers = await matcher.matchers()

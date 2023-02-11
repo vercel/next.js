@@ -1,6 +1,5 @@
 import { Normalizer } from '../../normalizers/normalizer'
 import { FileReader } from './helpers/file-reader/file-reader'
-import { DefaultFileReader } from './helpers/file-reader/default-file-reader'
 import { PagesAPIRouteMatcher } from '../../route-matchers/pages-api-route-matcher'
 import { RouteMatcherProvider } from '../route-matcher-provider'
 import { AbsoluteFilenameNormalizer } from '../../normalizers/absolute-filename-normalizer'
@@ -24,8 +23,8 @@ export class DevPagesAPIRouteMatcherProvider
   constructor(
     private readonly pagesDir: string,
     private readonly extensions: ReadonlyArray<string>,
-    private readonly localeNormalizer?: Normalizer,
-    private readonly reader: FileReader = new DefaultFileReader()
+    private readonly reader: FileReader,
+    private readonly localeNormalizer?: Normalizer
   ) {
     // Match any route file that ends with `/${filename}.${extension}` under the
     // pages directory.

@@ -91,6 +91,8 @@ import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-provide
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { LocaleRouteNormalizer } from '../future/normalizers/locale-route-normalizer'
+import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
+import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -244,6 +246,8 @@ export default class DevServer extends Server {
 
     const extensions = this.nextConfig.pageExtensions
 
+    const fileReader = new CachedFileReader(new DefaultFileReader())
+
     // If the pages directory is available, then configure those matchers.
     if (pagesDir) {
       const localeNoramlizer =
@@ -254,19 +258,26 @@ export default class DevServer extends Server {
             )
           : undefined
 
-      matchers.push(new DevPagesRouteMatcherProvider(pagesDir, extensions))
+      matchers.push(
+        new DevPagesRouteMatcherProvider(pagesDir, extensions, fileReader)
+      )
       matchers.push(
         new DevPagesAPIRouteMatcherProvider(
           pagesDir,
           extensions,
+          fileReader,
           localeNoramlizer
         )
       )
     }
 
     if (appDir) {
-      matchers.push(new DevAppPageRouteMatcherProvider(appDir, extensions))
-      matchers.push(new DevAppRouteRouteMatcherProvider(appDir, extensions))
+      matchers.push(
+        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
+      )
+      matchers.push(
+        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
+      )
     }
 
     return { matchers, handlers }
