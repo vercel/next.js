@@ -37,12 +37,12 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       callbacks = { resolve, reject }
     })
 
-    try {
-      // Grab the compilation ID for this run, we'll verify it at the end to
-      // ensure that if any routes were added before reloading is finished that
-      // we error out.
-      const compilationID = this.compilationID
+    // Grab the compilation ID for this run, we'll verify it at the end to
+    // ensure that if any routes were added before reloading is finished that
+    // we error out.
+    const compilationID = this.compilationID
 
+    try {
       // Collect all the matchers from each provider.
       const matchers: Array<RouteMatcher> = []
 
@@ -129,12 +129,11 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
           'Invariant: expected compilation to finish before new matchers were added, possible missing await'
         )
       }
-
-      // The compilation ID matched, so mark the complication as finished.
-      this.lastCompilationID = compilationID
     } catch (err) {
       callbacks!.reject(err)
     } finally {
+      // The compilation ID matched, so mark the complication as finished.
+      this.lastCompilationID = compilationID
       callbacks!.resolve()
     }
   }
@@ -181,7 +180,9 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // before it was recompiled (an error). We also don't want to affect request
     // times.
     if (this.lastCompilationID !== this.compilationID) {
-      throw new Error('Invariant: expected routes to be compiled before match')
+      throw new Error(
+        'Invariant: expected routes to have been loaded before match'
+      )
     }
 
     // If this pathname doesn't look like a dynamic route, and this pathname is
