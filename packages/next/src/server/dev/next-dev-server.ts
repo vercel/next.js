@@ -1466,11 +1466,15 @@ export default class DevServer extends Server {
     query,
     params,
     isAppPath,
+    appPaths = null,
+    shouldEnsure,
   }: {
     pathname: string
     query: ParsedUrlQuery
     params: Params
     isAppPath: boolean
+    appPaths?: string[] | null
+    shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
@@ -1479,6 +1483,14 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
+      if (shouldEnsure) {
+        await this.hotReloader!.ensurePage({
+          page: pathname,
+          appPaths,
+          clientOnly: false,
+        })
+      }
+
       // When the new page is compiled, we need to reload the server component
       // manifest.
       if (!!this.appDir) {

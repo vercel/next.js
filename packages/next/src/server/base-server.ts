@@ -253,6 +253,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     params: Params
     isAppPath: boolean
     sriEnabled?: boolean
+    appPaths?: string[] | null
+    shouldEnsure: boolean
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
@@ -1729,6 +1731,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       params: ctx.renderOpts.params || {},
       isAppPath,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
+      appPaths,
+      // Ensuring for loading page component routes is done via the matcher.
+      shouldEnsure: false,
     })
     if (result) {
       try {
@@ -1923,6 +1928,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           query,
           params: {},
           isAppPath: false,
+          // Ensuring can't be done here because you never "match" a 404 route.
+          shouldEnsure: true,
         })
         using404Page = result !== null
       }
@@ -1941,6 +1948,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             query,
             params: {},
             isAppPath: false,
+            // Ensuring can't be done here because you never "match" a 500
+            // route.
+            shouldEnsure: true,
           })
         }
       }
@@ -1951,6 +1961,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           query,
           params: {},
           isAppPath: false,
+          // Ensuring can't be done here because you never "match" an error
+          // route.
+          shouldEnsure: true,
         })
         statusPage = '/_error'
       }
