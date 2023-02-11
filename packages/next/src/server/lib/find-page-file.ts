@@ -37,7 +37,12 @@ export async function findPageFile(
     await Promise.all(
       pagePaths.map(async (path) => {
         const filePath = join(pagesDir, path)
-        return (await fileExists(filePath)) ? path : null
+        try {
+          return (await fileExists(filePath)) ? path : null
+        } catch (err: any) {
+          if (!err?.code?.includes('ENOTDIR')) throw err
+        }
+        return null
       })
     )
   ).filter(nonNullable)

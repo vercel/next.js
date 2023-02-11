@@ -391,6 +391,29 @@ const metadata = {
     const insight = languageService.getQuickInfoAtPosition(fileName, newPos)
     return insight
   },
+
+  getDefinitionAndBoundSpan(fileName: string, position: number) {
+    const node = getMetadataExport(fileName, position)
+    if (!node) return
+    if (isTyped(node)) return
+    if (!isPositionInsideNode(position, node)) return
+    // We annotate with the type in a vritual language service
+    const pos = updateVirtualFileWithType(fileName, node)
+    if (pos === undefined) return
+    const { languageService } = getProxiedLanguageService()
+    const newPos = position <= pos[0] ? position : position + pos[1]
+
+    const definitionInfoAndBoundSpan =
+      languageService.getDefinitionAndBoundSpan(fileName, newPos)
+
+    if (definitionInfoAndBoundSpan) {
+      // Adjust the start position of the text span
+      if (definitionInfoAndBoundSpan.textSpan.start > pos[0]) {
+        definitionInfoAndBoundSpan.textSpan.start -= pos[1]
+      }
+    }
+    return definitionInfoAndBoundSpan
+  },
 }
 
 export default metadata

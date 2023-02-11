@@ -438,7 +438,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.1.7-canary.7
+      '@next/eslint-plugin-next': 13.1.7-canary.8
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -508,14 +508,14 @@ importers:
       '@babel/types': 7.18.0
       '@edge-runtime/primitives': 2.0.0
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.13.3
+      '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.1.7-canary.7
-      '@next/polyfill-module': 13.1.7-canary.7
-      '@next/polyfill-nomodule': 13.1.7-canary.7
-      '@next/react-dev-overlay': 13.1.7-canary.7
-      '@next/react-refresh-utils': 13.1.7-canary.7
-      '@next/swc': 13.1.7-canary.7
+      '@next/env': 13.1.7-canary.8
+      '@next/polyfill-module': 13.1.7-canary.8
+      '@next/polyfill-nomodule': 13.1.7-canary.8
+      '@next/react-dev-overlay': 13.1.7-canary.8
+      '@next/react-refresh-utils': 13.1.7-canary.8
+      '@next/swc': 13.1.7-canary.8
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
@@ -718,7 +718,7 @@ importers:
       '@babel/types': 7.18.0
       '@edge-runtime/primitives': 2.0.0
       '@hapi/accept': 5.0.2
-      '@napi-rs/cli': 2.13.3
+      '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
       '@next/polyfill-module': link:../next-polyfill-module
       '@next/polyfill-nomodule': link:../next-polyfill-nomodule
@@ -961,9 +961,9 @@ importers:
 
   packages/next-swc:
     specifiers:
-      '@napi-rs/cli': 2.13.3
+      '@napi-rs/cli': 2.14.7
     devDependencies:
-      '@napi-rs/cli': 2.13.3
+      '@napi-rs/cli': 2.14.7
 
   packages/react-dev-overlay:
     specifiers:
@@ -5912,8 +5912,8 @@ packages:
       glob-to-regexp: 0.3.0
     dev: true
 
-  /@napi-rs/cli/2.13.3:
-    resolution: {integrity: sha512-nAlbKuakQ+YHZE+M3Afih9UA1jr+gx63Gt4xHA+j2xD1NY6TjQ+QCgF9Yaj/YZIkCc2t3CZh52znFrfbU8b2bA==}
+  /@napi-rs/cli/2.14.7:
+    resolution: {integrity: sha512-H+YCgdbBNMWn8c878C3RsRYcMxamWI7rB0H+1TqOy9n6u31isikcRyW1VDyoNHp7ApfmzV0+tpPopVi0W7WHAA==}
     engines: {node: '>= 10'}
     hasBin: true
     dev: true

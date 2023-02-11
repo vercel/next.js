@@ -441,8 +441,13 @@ function loadNative(isCustomTurbopack = false) {
             require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startDev(devOptions)
           }
         },
-        startTrace: (options = {}) =>
-          bindings.runTurboTracing(toBuffer({ exact: true, ...options })),
+        startTrace: (options = {}, turboTasks: unknown) =>
+          bindings.runTurboTracing(
+            toBuffer({ exact: true, ...options }),
+            turboTasks
+          ),
+        createTurboTasks: (memoryLimit?: number): unknown =>
+          bindings.createTurboTasks(memoryLimit),
       },
       mdx: {
         compile: (src: string, options: any) =>

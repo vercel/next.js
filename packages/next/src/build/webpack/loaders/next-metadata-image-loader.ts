@@ -5,18 +5,18 @@ interface Options {
   isServer: boolean
   isDev: boolean
   assetPrefix: string
-  basePath: string
 }
+
+const mimeTypeMap = {
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  ico: 'image/x-icon',
+  svg: 'image/svg+xml',
+} as const
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const {
-    // TODO-APP: support assetPrefix
-    assetPrefix = '',
-    // isServer,
-    isDev,
-    // basePath
-  } = options
+  const { assetPrefix, isDev } = options
   const context = this.rootContext
 
   const opts = { context, content }
@@ -43,7 +43,11 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
 
   const stringifiedData = JSON.stringify({
     url: outputPath,
-    sizes: `${imageSize.width}x${imageSize.height}`,
+    ...(extension in mimeTypeMap && {
+      type: mimeTypeMap[extension as keyof typeof mimeTypeMap],
+    }),
+    sizes:
+      extension === 'ico' ? 'any' : `${imageSize.width}x${imageSize.height}`,
   })
 
   this.emitFile(`../${isDev ? '' : '../'}${interpolatedName}`, content, null)
