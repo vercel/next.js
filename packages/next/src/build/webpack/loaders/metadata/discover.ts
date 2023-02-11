@@ -31,11 +31,11 @@ const staticAssetIconsImage = {
   opengraph: {
     filename: 'opengraph-image',
     // TODO: share basic image extensions with next/image related utils
-    extensions: ['jpg', 'jpeg', 'png', 'svg', 'avif', 'webp', 'svg'],
+    extensions: ['jpg', 'jpeg', 'png', 'svg', 'gif', 'avif', 'webp', 'svg'],
   },
   twitter: {
     filename: 'twitter-image',
-    extensions: ['jpg', 'jpeg', 'png'],
+    extensions: ['jpg', 'jpeg', 'png', 'gif'],
   },
 }
 

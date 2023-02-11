@@ -263,11 +263,14 @@ export async function accumulateMetadata(
 
   for (const item of metadataItems) {
     const [metadataExport, staticFilesMetadata] = item
-    const layerMetadataPromise = Promise.resolve(
+    const currentMetadata =
       typeof metadataExport === 'function'
         ? metadataExport(parentPromise)
         : metadataExport
-    )
+    const layerMetadataPromise =
+      currentMetadata instanceof Promise
+        ? currentMetadata
+        : Promise.resolve(currentMetadata)
 
     parentPromise = parentPromise.then((resolved) => {
       return layerMetadataPromise.then((metadata) => {
