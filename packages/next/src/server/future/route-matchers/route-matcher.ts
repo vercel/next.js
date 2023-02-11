@@ -10,6 +10,13 @@ import { RouteMatch } from '../route-matches/route-match'
 export abstract class RouteMatcher<M extends RouteMatch = RouteMatch> {
   private readonly dynamic?: RouteMatchFn
 
+  /**
+   * When set, this is an array of all the other matchers that are duplicates of
+   * this one. This is used by the managers to warn the users about possible
+   * duplicate matches on routes.
+   */
+  public duplicated?: Array<RouteMatcher>
+
   constructor(public readonly route: M['route']) {
     if (isDynamicRoute(route.pathname)) {
       this.dynamic = getRouteMatcher(getRouteRegex(route.pathname))

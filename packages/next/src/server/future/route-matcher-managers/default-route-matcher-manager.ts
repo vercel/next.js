@@ -65,9 +65,25 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
           // Test to see if the matcher being added is a duplicate.
           const duplicate = all.get(matcher.route.pathname)
           if (duplicate) {
+            // This looks a little weird, but essentially if the pathname
+            // already exists in the duplicates map, then we got that array
+            // reference. Otherwise, we create a new array with the original
+            // duplicate first. Then we push the new matcher into the duplicate
+            // array, and reset it to the duplicates object (which may be a
+            // no-op if the pathname already existed in the duplicates object).
+            // Then we set the array of duplicates on both the original
+            // duplicate object and the new one, so we can keep them in sync.
+            // If a new duplicate is found, and it matches an existing pathname,
+            // the retrieval of the `other` will actually return the array
+            // reference used by all other duplicates. This is why ReadonlyArray
+            // is so important! Array's are always references!
             const others = duplicates[matcher.route.pathname] ?? [duplicate]
             others.push(matcher)
             duplicates[matcher.route.pathname] = others
+
+            // Add duplicated details to each route.
+            duplicate.duplicated = others
+            matcher.duplicated = others
 
             // Currently, this is a bit delicate, as the order for which we'll
             // receive the matchers is not deterministic.
@@ -187,6 +203,21 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     return null
   }
 
+  /**
+   * This is a point for other managers to override to inject other checking
+   * behavior like duplicate route checking on a per-request basis.
+   *
+   * @param pathname the pathname to validate against
+   * @param matcher the matcher to validate/test with
+   * @returns the match if found
+   */
+  protected validate(
+    pathname: string,
+    matcher: RouteMatcher
+  ): RouteMatch | null {
+    return matcher.match(pathname)
+  }
+
   public async *matchAll(
     pathname: string,
     options?: MatchOptions | undefined
@@ -209,7 +240,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // with the list of normalized routes.
     if (!isDynamicRoute(pathname)) {
       for (const matcher of this.matchers.static) {
-        const match = matcher.match(pathname)
+        const match = this.validate(pathname, matcher)
         if (!match) continue
 
         yield match
@@ -221,7 +252,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
     // Loop over the dynamic matchers, yielding each match.
     for (const matcher of this.matchers.dynamic) {
-      const match = matcher.match(pathname)
+      const match = this.validate(pathname, matcher)
       if (!match) continue
 
       yield match

@@ -6,6 +6,7 @@ import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import path from '../../../shared/lib/isomorphic/path'
 import { warn } from '../../../build/output/log'
 import chalk from 'next/dist/compiled/chalk'
+import { RouteMatcher } from '../route-matchers/route-matcher'
 
 export interface RouteEnsurer {
   ensure(match: RouteMatch): Promise<void>
@@ -31,6 +32,45 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     // which uses `matchAll` here, this does not call `ensure` on the match
     // found via the development matches.
     return match !== null
+  }
+
+  protected validate(
+    pathname: string,
+    matcher: RouteMatcher
+  ): RouteMatch | null {
+    const match = matcher.match(pathname)
+
+    // If a match was found, check to see if there were any conflicting app or
+    // pages files.
+    // TODO: maybe expand this to _any_ duplicated routes instead?
+    if (
+      match &&
+      matcher.duplicated &&
+      matcher.duplicated.some(
+        (duplicate) =>
+          duplicate.route.kind === RouteKind.APP_PAGE ||
+          duplicate.route.kind === RouteKind.APP_ROUTE
+      ) &&
+      matcher.duplicated.some(
+        (duplicate) =>
+          duplicate.route.kind === RouteKind.PAGES ||
+          duplicate.route.kind === RouteKind.PAGES_API
+      )
+    ) {
+      throw new Error(
+        `Conflicting app and page file found: ${matcher.duplicated
+          // Sort the error output so that the app pages (starting with "app")
+          // are first.
+          .sort((a, b) => a.route.filename.localeCompare(b.route.filename))
+          .map(
+            (duplicate) =>
+              `"${path.relative(this.dir, duplicate.route.filename)}"`
+          )
+          .join(' and ')}. Please remove one to continue.`
+      )
+    }
+
+    return match
   }
 
   public async *matchAll(
