@@ -9,22 +9,24 @@ import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-
 import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
 import { RouteKind } from '../route-kind'
 import { PagesRouteMatcher } from '../route-matchers/pages-route-matcher'
-import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
-import { RouteMatcherProvider } from './route-matcher-provider'
+import {
+  Manifest,
+  ManifestLoader,
+} from './helpers/manifest-loaders/manifest-loader'
+import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
 
-export class PagesRouteMatcherProvider
-  implements RouteMatcherProvider<PagesRouteMatcher>
-{
+export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesRouteMatcher> {
   constructor(
     private readonly distDir: string,
-    private readonly manifestLoader: ManifestLoader,
+    manifestLoader: ManifestLoader,
     private readonly localeNormalizer?: LocaleRouteNormalizer
-  ) {}
+  ) {
+    super(PAGES_MANIFEST, manifestLoader)
+  }
 
-  public async matchers(): Promise<ReadonlyArray<PagesRouteMatcher>> {
-    const manifest = this.manifestLoader.load(PAGES_MANIFEST)
-    if (!manifest) return []
-
+  protected async transform(
+    manifest: Manifest
+  ): Promise<ReadonlyArray<PagesRouteMatcher>> {
     // This matcher is only for Pages routes, not Pages API routes which are
     // included in this manifest.
     const pathnames = Object.keys(manifest)

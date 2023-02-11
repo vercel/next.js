@@ -7,21 +7,23 @@ import {
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { RouteKind } from '../route-kind'
 import { AppRouteRouteMatcher } from '../route-matchers/app-route-route-matcher'
-import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
-import { RouteMatcherProvider } from './route-matcher-provider'
+import {
+  Manifest,
+  ManifestLoader,
+} from './helpers/manifest-loaders/manifest-loader'
+import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
 
-export class AppRouteRouteMatcherProvider
-  implements RouteMatcherProvider<AppRouteRouteMatcher>
-{
+export class AppRouteRouteMatcherProvider extends ManifestRouteMatcherProvider<AppRouteRouteMatcher> {
   constructor(
     private readonly distDir: string,
-    private readonly manifestLoader: ManifestLoader
-  ) {}
+    manifestLoader: ManifestLoader
+  ) {
+    super(APP_PATHS_MANIFEST, manifestLoader)
+  }
 
-  public async matchers(): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
-    const manifest = this.manifestLoader.load(APP_PATHS_MANIFEST)
-    if (!manifest) return []
-
+  protected async transform(
+    manifest: Manifest
+  ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     // This matcher only matches app routes.
     const pages = Object.keys(manifest).filter((page) => isAppRouteRoute(page))
 

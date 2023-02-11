@@ -15,6 +15,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     static: ReadonlyArray<RouteMatcher>
     dynamic: ReadonlyArray<RouteMatcher>
   } = { static: [], dynamic: [] }
+  private cache: ReadonlyArray<RouteMatcher> = []
   private lastCompilationID = this.compilationID
 
   /**
@@ -45,10 +46,14 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       // Collect all the matchers from each provider.
       const matchers: Array<RouteMatcher> = []
 
+      // Get all the providers matchers.
+      const providersMatchers: ReadonlyArray<ReadonlyArray<RouteMatcher>> =
+        await Promise.all(this.providers.map((provider) => provider.matchers()))
+
       // Use this to detect duplicate pathnames.
       const all = new Set<string>()
-      for (const provider of this.providers) {
-        for (const matcher of await provider.matchers()) {
+      for (const providerMatchers of providersMatchers) {
+        for (const matcher of providerMatchers) {
           if (all.has(matcher.route.pathname)) {
             // TODO: when a duplicate route is detected, what should we do?
             throw new Error(
@@ -63,20 +68,31 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
         }
       }
 
+      // If the cache is the same as what we just parsed, we can exit now. We
+      // can tell by using the `===` which compares object identity, which for
+      // the manifest matchers, will return the same matcher each time.
+      if (
+        this.cache.length === matchers.length &&
+        this.cache.every(
+          (cachedMatcher, index) => cachedMatcher === matchers[index]
+        )
+      ) {
+        return
+      }
+      this.cache = matchers
+
       // For matchers that are for static routes, filter them now.
       this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic)
 
       // For matchers that are for dynamic routes, filter them and sort them now.
       const dynamic = matchers.filter((matcher) => matcher.isDynamic)
 
-      /**
-       * Because `getSortedRoutes` only accepts an array of strings, we need to
-       * build a reference between the pathnames used for dynamic routing and the
-       * underlying matchers used to perform the match for each route. We take the
-       * fact that the pathnames are unique to build a reference of their original
-       * index in the array so that when we call `getSortedRoutes`, we can lookup
-       * the associated matcher.
-       */
+      // Because `getSortedRoutes` only accepts an array of strings, we need to
+      // build a reference between the pathnames used for dynamic routing and
+      // the underlying matchers used to perform the match for each route. We
+      // take the fact that the pathnames are unique to build a reference of
+      // their original index in the array so that when we call
+      // `getSortedRoutes`, we can lookup the associated matcher.
 
       // Generate a filename to index map, this will be used to re-sort the array.
       const indexes = new Map<string, number>()
