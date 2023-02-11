@@ -22,7 +22,7 @@ const staticAssetIconsImage = {
   },
   apple: {
     filename: 'apple-icon',
-    extensions: ['jpg', 'jpeg', 'png', 'svg'],
+    extensions: ['jpg', 'jpeg', 'png'],
   },
   favicon: {
     filename: 'favicon',
@@ -30,8 +30,7 @@ const staticAssetIconsImage = {
   },
   opengraph: {
     filename: 'opengraph-image',
-    // TODO: share basic image extensions with next/image related utils
-    extensions: ['jpg', 'jpeg', 'png', 'svg', 'gif', 'avif', 'webp', 'svg'],
+    extensions: ['jpg', 'jpeg', 'png', 'gif'],
   },
   twitter: {
     filename: 'twitter-image',
