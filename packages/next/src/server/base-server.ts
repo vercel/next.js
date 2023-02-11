@@ -479,7 +479,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // Match api routes under `pages/api/`.
     matchers.push(
-      new PagesAPIRouteMatcherProvider(this.distDir, manifestLoader)
+      new PagesAPIRouteMatcherProvider(
+        this.distDir,
+        manifestLoader,
+        localeNormalizer
+      )
     )
 
     // If the app directory is enabled, then add the app matchers and handlers.

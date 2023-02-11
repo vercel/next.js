@@ -90,6 +90,7 @@ import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-provider
 import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
+import { LocaleRouteNormalizer } from '../future/normalizers/locale-route-normalizer'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -245,8 +246,22 @@ export default class DevServer extends Server {
 
     // If the pages directory is available, then configure those matchers.
     if (pagesDir) {
+      const localeNoramlizer =
+        this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
+          ? new LocaleRouteNormalizer(
+              this.nextConfig.i18n.locales,
+              this.nextConfig.i18n.defaultLocale
+            )
+          : undefined
+
       matchers.push(new DevPagesRouteMatcherProvider(pagesDir, extensions))
-      matchers.push(new DevPagesAPIRouteMatcherProvider(pagesDir, extensions))
+      matchers.push(
+        new DevPagesAPIRouteMatcherProvider(
+          pagesDir,
+          extensions,
+          localeNoramlizer
+        )
+      )
     }
 
     if (appDir) {

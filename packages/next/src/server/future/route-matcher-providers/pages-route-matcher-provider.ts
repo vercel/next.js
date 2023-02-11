@@ -27,7 +27,7 @@ export class PagesRouteMatcherProvider
 
     // This matcher is only for Pages routes, not Pages API routes which are
     // included in this manifest.
-    let pathnames = Object.keys(manifest)
+    const pathnames = Object.keys(manifest)
       .filter((pathname) => !isAPIRoute(pathname))
       // Remove any blocked pages (page that can't be routed to, like error or
       // internal pages).

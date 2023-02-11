@@ -24,6 +24,7 @@ export class DevPagesAPIRouteMatcherProvider
   constructor(
     private readonly pagesDir: string,
     private readonly extensions: ReadonlyArray<string>,
+    private readonly localeNormalizer?: Normalizer,
     private readonly reader: FileReader = new DefaultFileReader()
   ) {
     // Match any route file that ends with `/${filename}.${extension}` under the
@@ -85,13 +86,16 @@ export class DevPagesAPIRouteMatcherProvider
       // TODO: what do we do if this route is a duplicate?
 
       matchers.push(
-        new PagesAPIRouteMatcher({
-          kind: RouteKind.PAGES_API,
-          pathname,
-          page,
-          bundlePath,
-          filename,
-        })
+        new PagesAPIRouteMatcher(
+          {
+            kind: RouteKind.PAGES_API,
+            pathname,
+            page,
+            bundlePath,
+            filename,
+          },
+          this.localeNormalizer
+        )
       )
     }
 
