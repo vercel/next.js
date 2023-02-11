@@ -113,7 +113,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         moduleDirectoriesJsConfig = ['node_modules', jestRootDir]
         moduleNameMapperJsConfig = pathsToModuleNameMapper(
           jsConfig?.compilerOptions?.paths ?? {},
-          { prefix: jestRootDir, useESM: isEsmProject }
+          { prefix: jestRootDir, useESM: isEsmProject, logger: Log }
         )
       }
 

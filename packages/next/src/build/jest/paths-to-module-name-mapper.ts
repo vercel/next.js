@@ -1,4 +1,4 @@
-// Copied from: https://github.com/kulshekhar/ts-jest/blob/5a0880add0da8d71900eee20c7642e6be65f6a66/src/config/paths-to-module-name-mapper.ts
+// Copied from ts-jest: https://github.com/kulshekhar/ts-jest/blob/5a0880add0da8d71900eee20c7642e6be65f6a66/src/config/paths-to-module-name-mapper.ts
 
 // we don't need to escape all chars, so commented out is the real one
 // const escapeRegex = (str: string) => str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
@@ -6,15 +6,26 @@ const escapeRegex = (str: string) => str.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&')
 
 export const pathsToModuleNameMapper = (
   mapping: Record<string, string[]>,
-  { prefix = '', useESM = false }: { prefix?: string; useESM?: boolean } = {}
+  {
+    prefix = '',
+    useESM = false,
+    logger,
+  }: {
+    prefix?: string
+    useESM?: boolean
+    logger?: {
+      warn: (...args: any[]) => void
+    }
+  } = {}
 ) => {
   const jestMap: Record<string, string | string[]> = {}
   for (const fromPath of Object.keys(mapping)) {
     const toPaths = mapping[fromPath]
     // check that we have only one target path
     if (toPaths.length === 0) {
-      // logger.warn(interpolate(Errors.NotMappingPathWithEmptyMap, { path: fromPath }))
-
+      logger?.warn(
+        `[next/jest]: Not mapping "${fromPath}" because it has no target.`
+      )
       continue
     }
 
@@ -51,7 +62,9 @@ export const pathsToModuleNameMapper = (
       )}$`
       jestMap[cjsPattern] = paths.length === 1 ? paths[0] : paths
     } else {
-      // logger.warn(interpolate(Errors.NotMappingMultiStarPath, { path: fromPath }))
+      logger?.warn(
+        `[next/jest]: Not mapping "${fromPath}" because it has more than one star ('*').`
+      )
     }
   }
 

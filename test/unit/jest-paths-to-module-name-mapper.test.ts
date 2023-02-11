@@ -1,6 +1,8 @@
 /* eslint-env jest */
 import { pathsToModuleNameMapper } from 'next/dist/build/jest/paths-to-module-name-mapper'
 
+// Tests copied from ts-jest: https://github.com/kulshekhar/ts-jest/blob/5a0880add0da8d71900eee20c7642e6be65f6a66/src/config/paths-to-module-name-mapper.spec.ts
+
 const tsconfigMap = {
   log: ['src/utils/log'],
   server: ['src/server'],
