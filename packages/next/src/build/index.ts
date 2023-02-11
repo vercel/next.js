@@ -121,7 +121,6 @@ import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
-import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import {
   RSC,
   RSC_CONTENT_TYPE_HEADER,
