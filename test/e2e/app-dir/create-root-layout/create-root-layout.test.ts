@@ -46,7 +46,7 @@ describe('app-dir create root layout', () => {
             /did not have a root layout/
           )
           expect(stripAnsi(next.cliOutput.slice(outputIndex))).toMatch(
-            'Your page app/route/page.js did not have a root layout. We created app/layout.js and app/head.js for you.'
+            'Your page app/route/page.js did not have a root layout. We created app/layout.js for you.'
           )
 
           expect(await next.readFile('app/layout.js')).toMatchInlineSnapshot(`
@@ -60,19 +60,6 @@ describe('app-dir create root layout', () => {
                     }
                     "
                 `)
-
-          expect(await next.readFile('app/head.js')).toMatchInlineSnapshot(`
-            "export default function Head() {
-              return (
-                <>
-                  <title></title>
-                  <meta content=\\"width=device-width, initial-scale=1\\" name=\\"viewport\\" />
-                  <link rel=\\"icon\\" href=\\"/favicon.ico\\" />
-                </>
-              )
-            }
-            "
-          `)
         })
       })
 
@@ -106,7 +93,7 @@ describe('app-dir create root layout', () => {
             /did not have a root layout/
           )
           expect(stripAnsi(next.cliOutput.slice(outputIndex))).toInclude(
-            'Your page app/(group)/page.js did not have a root layout. We created app/(group)/layout.js and app/(group)/head.js for you.'
+            'Your page app/(group)/page.js did not have a root layout. We created app/(group)/layout.js for you.'
           )
 
           expect(await next.readFile('app/(group)/layout.js'))
@@ -121,20 +108,6 @@ describe('app-dir create root layout', () => {
                     }
                     "
                 `)
-
-          expect(await next.readFile('app/(group)/head.js'))
-            .toMatchInlineSnapshot(`
-            "export default function Head() {
-              return (
-                <>
-                  <title></title>
-                  <meta content=\\"width=device-width, initial-scale=1\\" name=\\"viewport\\" />
-                  <link rel=\\"icon\\" href=\\"/favicon.ico\\" />
-                </>
-              )
-            }
-            "
-          `)
         })
       })
 
@@ -168,7 +141,7 @@ describe('app-dir create root layout', () => {
             /did not have a root layout/
           )
           expect(stripAnsi(next.cliOutput.slice(outputIndex))).toInclude(
-            'Your page app/(group)/route/second/inner/page.js did not have a root layout. We created app/(group)/route/second/layout.js and app/(group)/route/second/head.js for you.'
+            'Your page app/(group)/route/second/inner/page.js did not have a root layout. We created app/(group)/route/second/layout.js for you.'
           )
 
           expect(await next.readFile('app/(group)/route/second/layout.js'))
@@ -183,20 +156,6 @@ describe('app-dir create root layout', () => {
                     }
                     "
                 `)
-
-          expect(await next.readFile('app/(group)/route/second/head.js'))
-            .toMatchInlineSnapshot(`
-            "export default function Head() {
-              return (
-                <>
-                  <title></title>
-                  <meta content=\\"width=device-width, initial-scale=1\\" name=\\"viewport\\" />
-                  <link rel=\\"icon\\" href=\\"/favicon.ico\\" />
-                </>
-              )
-            }
-            "
-          `)
         })
       })
     })
