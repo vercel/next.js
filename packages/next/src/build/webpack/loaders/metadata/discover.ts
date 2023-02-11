@@ -97,8 +97,8 @@ export async function discoverStaticMetadataFiles(
   const staticImagesMetadata: CollectingMetadata = {
     icon: [],
     apple: [],
-    twitter: null,
-    opengraph: null,
+    twitter: [],
+    opengraph: [],
   }
 
   const opts = {
@@ -136,8 +136,6 @@ export async function discoverStaticMetadataFiles(
         hasStaticMetadataFiles = true
         if (type === 'favicon') {
           staticImagesMetadata.icon.unshift(imageModule)
-        } else if (type === 'twitter' || type === 'opengraph') {
-          staticImagesMetadata[type] = imageModule
         } else {
           staticImagesMetadata[type].push(imageModule)
         }
@@ -162,8 +160,8 @@ export function buildMetadata(
     ? `${METADATA_TYPE}: {
     icon: [${metadata.icon.join(',')}],
     apple: [${metadata.apple.join(',')}],
-    opengraph: ${metadata.opengraph},
-    twitter: ${metadata.twitter},
+    opengraph: [${metadata.opengraph.join(',')}],
+    twitter: [${metadata.twitter.join(',')}],
   }`
     : ''
 }

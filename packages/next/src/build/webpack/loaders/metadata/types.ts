@@ -9,16 +9,16 @@ export type ModuleReference = [
 export type CollectingMetadata = {
   icon: string[]
   apple: string[]
-  twitter: null | string
-  opengraph: null | string
+  twitter: string[]
+  opengraph: string[]
 }
 
 // Contain the collecting evaluated image module
 export type CollectedMetadata = {
   icon: ComponentModule[]
   apple: ComponentModule[]
-  twitter: ComponentModule | null
-  opengraph: ComponentModule | null
+  twitter: ComponentModule[] | null
+  opengraph: ComponentModule[] | null
 }
 
 export type MetadataImageModule = {

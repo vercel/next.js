@@ -196,9 +196,9 @@ async function getDefinedMetadata(
   )
 }
 
-async function collectStaticIconsFiles(
+async function collectStaticImagesFiles(
   metadata: ComponentsType['metadata'],
-  type: 'icon' | 'apple'
+  type: keyof NonNullable<ComponentsType['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
 
@@ -210,26 +210,15 @@ async function collectStaticIconsFiles(
   return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
 }
 
-async function collectStaticOgImageFiles(
-  metadata: ComponentsType['metadata'],
-  type: 'twitter' | 'opengraph'
-) {
-  if (!metadata?.[type]) return undefined
-  const imageResolver = metadata[type]
-  return imageResolver
-    ? (interopDefault(await imageResolver()) as MetadataImageModule)
-    : undefined
-}
-
 async function resolveStaticMetadata(components: ComponentsType) {
   const { metadata } = components
   if (!metadata) return null
 
   const [icon, apple, opengraph, twitter] = await Promise.all([
-    collectStaticIconsFiles(metadata, 'icon'),
-    collectStaticIconsFiles(metadata, 'apple'),
-    collectStaticOgImageFiles(metadata, 'opengraph'),
-    collectStaticOgImageFiles(metadata, 'twitter'),
+    collectStaticImagesFiles(metadata, 'icon'),
+    collectStaticImagesFiles(metadata, 'apple'),
+    collectStaticImagesFiles(metadata, 'opengraph'),
+    collectStaticImagesFiles(metadata, 'twitter'),
   ])
 
   const staticMetadata = {

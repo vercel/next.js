@@ -420,7 +420,7 @@ createNextDescribe(
         expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
         expect($('[name="twitter:image"]').attr('content')).toMatch(
-          /_next\/static\/media\/metadata\/twitter-image.\w+.svg/
+          /_next\/static\/media\/metadata\/twitter-image.\w+.png/
         )
         expect($('[name="twitter:card"]').attr('content')).toBe(
           'summary_large_image'
