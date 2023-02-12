@@ -11,7 +11,6 @@ createNextDescribe(
       pages: new FileRef(join(__dirname, 'pages')),
       pkg: new FileRef(join(__dirname, 'pkg')),
     },
-    // skipStart: true,
     dependencies: {
       typescript: 'latest',
       '@types/react': 'latest',
