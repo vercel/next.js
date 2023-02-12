@@ -1,4 +1,16 @@
 import type { NextConfigComplete } from '../server/config-shared'
+import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import type { AssetBinding } from './webpack/loaders/get-module-build-info'
+import type { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
+import type { BuildManifest } from '../server/get-page-files'
+import type {
+  Redirect,
+  Rewrite,
+  Header,
+  CustomRoutes,
+} from '../lib/load-custom-routes'
+import type { UnwrapPromise } from '../lib/coalesced-function'
+import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
@@ -9,12 +21,6 @@ import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import browserslist from 'next/dist/compiled/browserslist'
-import {
-  Redirect,
-  Rewrite,
-  Header,
-  CustomRoutes,
-} from '../lib/load-custom-routes'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
@@ -28,10 +34,7 @@ import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
-import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
-import { BuildManifest } from '../server/get-page-files'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { UnwrapPromise } from '../lib/coalesced-function'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
@@ -43,16 +46,13 @@ import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
-import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { getRuntimeContext } from '../server/web/sandbox'
 import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
-import { AssetBinding } from './webpack/loaders/get-module-build-info'
 import { isClientReference } from './is-client-reference'
 
 loadRequireHook()
