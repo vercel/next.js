@@ -108,24 +108,27 @@ function createRouteDefinitions() {
     !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
 
   return `
+type SearchOrHash = \`?\${string}\` | \`#\${string}\`
+type Suffix = '' | SearchOrHash
+
 type SafeSlug<S extends string> = 
   S extends \`\${string}/\${string}\`
     ? never
-    : S extends \`\${string}?\${string}\`
+    : S extends \`\${string}\${SearchOrHash}\`
     ? never
     : S extends ''
     ? never
     : S
 
 type CatchAllSlug<S extends string> = 
-  S extends \`\${string}?\${string}\`
+  S extends \`\${string}\${SearchOrHash}\`
     ? never
     : S extends ''
     ? never
     : S
 
 type OptionalCatchAllSlug<S extends string> = 
-  S extends \`\${string}?\${string}\`
+  S extends \`\${string}\${SearchOrHash}\`
     ? never
     : S
   
@@ -138,15 +141,19 @@ ${
 }
 
 declare module 'next/link' {
-  export default function Link<T extends string>(props: {
-    [key: string]: any
+  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
+
+  export type LinkProps<T extends string> = Omit<OriginalLinkProps, 'href'> & {
     /**
      * The path or URL to navigate to. This is the only required prop. It can also be an object.
      * 
      * https://nextjs.org/docs/api-reference/next/link
      */
     href: Route<T> | UrlObject
-  }): JSX.Element
+    children: React.ReactNode
+  }
+
+  export default function Link<T extends string>(props: LinkProps<T>): JSX.Element
 }
 
 declare module 'next' {
@@ -214,7 +221,7 @@ export class FlightTypesPlugin {
     }
 
     ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).push(
-      `\`${route}\${'' | \`?\${string}\`}\``
+      `\`${route}\${Suffix}\``
     )
   }
 
