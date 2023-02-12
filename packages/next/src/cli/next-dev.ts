@@ -54,8 +54,8 @@ const handleSessionStop = async () => {
         distDir: path.join(dir, config.distDir),
       })
 
-    let appDir: boolean = !!traceGlobals.get('pagesDir')
-    let pagesDir: boolean = !!traceGlobals.get('appDir')
+    let pagesDir: boolean = !!traceGlobals.get('pagesDir')
+    let appDir: boolean = !!traceGlobals.get('appDir')
 
     if (
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
