@@ -10,7 +10,7 @@ export default function handler(req) {
     }
 
     return NextResponse.rewrite(
-      `https://middleware-external-rewrite-target-k7lawa47r-uncurated-tests.vercel.app${pathname}`
+      `https://middleware-external-rewrite-target-epsp8idgo-uncurated-tests.vercel.app${pathname}`
     )
   }
 

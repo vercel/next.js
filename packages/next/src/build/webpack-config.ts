@@ -306,6 +306,9 @@ export function getDefineEnv({
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.skipMiddlewareUrlNormalize
     ),
+    'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE': JSON.stringify(
+      config.experimental.externalMiddlewareRewritesResolve
+    ),
     'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
       config.skipTrailingSlashRedirect
     ),
