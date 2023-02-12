@@ -8,7 +8,8 @@ import { matchSegment } from '../match-segments'
 export function createOptimisticTree(
   segments: string[],
   flightRouterState: FlightRouterState | null,
-  parentRefetch: boolean
+  parentRefetch: boolean,
+  isAppRouter: boolean
 ): FlightRouterState {
   const [existingSegment, existingParallelRoutes] = flightRouterState || [
     null,
@@ -31,7 +32,8 @@ export function createOptimisticTree(
     const childItem = createOptimisticTree(
       segments.slice(1),
       parallelRoutes ? parallelRoutes.children : null,
-      parentRefetch || shouldRefetchThisLevel
+      parentRefetch || shouldRefetchThisLevel,
+      isAppRouter
     )
 
     childTree = childItem
@@ -48,6 +50,8 @@ export function createOptimisticTree(
   if (!parentRefetch && shouldRefetchThisLevel) {
     result[3] = 'refetch'
   }
+
+  result[4] = isAppRouter
 
   return result
 }

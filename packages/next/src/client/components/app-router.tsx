@@ -188,7 +188,8 @@ function Router({
     const navigate = (
       href: string,
       navigateType: 'push' | 'replace',
-      forceOptimisticNavigation: boolean
+      forceOptimisticNavigation: boolean,
+      isAppRouter: boolean
     ) => {
       const url = new URL(addBasePath(href), location.origin)
 
@@ -198,6 +199,7 @@ function Router({
         isExternalUrl: isExternalURL(url),
         locationSearch: location.search,
         forceOptimisticNavigation,
+        isAppRouter,
         navigateType,
         cache: {
           status: CacheStates.LAZY_INITIALIZED,
@@ -252,13 +254,23 @@ function Router({
       replace: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'replace', Boolean(options.forceOptimisticNavigation))
+          navigate(
+            href,
+            'replace',
+            Boolean(options.forceOptimisticNavigation),
+            Boolean(options.isAppRouter)
+          )
         })
       },
       push: (href, options = {}) => {
         // @ts-ignore startTransition exists
         React.startTransition(() => {
-          navigate(href, 'push', Boolean(options.forceOptimisticNavigation))
+          navigate(
+            href,
+            'push',
+            Boolean(options.forceOptimisticNavigation),
+            Boolean(options.isAppRouter)
+          )
         })
       },
       refresh: () => {

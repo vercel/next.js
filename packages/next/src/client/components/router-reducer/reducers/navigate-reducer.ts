@@ -120,6 +120,7 @@ export function navigateReducer(
     cache,
     mutable,
     forceOptimisticNavigation,
+    isAppRouter,
   } = action
   const { pathname, search } = url
   const href = createHrefFromUrl(url)
@@ -209,7 +210,12 @@ export function navigateReducer(
 
     // Optimistic tree case.
     // If the optimistic tree is deeper than the current state leave that deeper part out of the fetch
-    const optimisticTree = createOptimisticTree(segments, state.tree, false)
+    const optimisticTree = createOptimisticTree(
+      segments,
+      state.tree,
+      false,
+      isAppRouter
+    )
 
     // Copy subTreeData for the root node of the cache.
     cache.status = CacheStates.READY

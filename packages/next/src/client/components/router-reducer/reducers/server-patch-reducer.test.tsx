@@ -486,6 +486,7 @@ describe('serverPatchReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       forceOptimisticNavigation: false,
+      isAppRouter: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
         data: null,

@@ -24,7 +24,12 @@ describe('createOptimisticTree', () => {
     // TODO-APP: figure out something better for index pages
     segments.push('')
 
-    const result = createOptimisticTree(segments, initialRouterStateTree, false)
+    const result = createOptimisticTree(
+      segments,
+      initialRouterStateTree,
+      false,
+      true
+    )
     expect(result).toMatchObject([
       '',
       {
