@@ -887,14 +887,22 @@ describe('navigateReducer', () => {
           children: [
             'linking',
             {
-              children: ['about', { children: ['', {}] }, undefined, 'refetch'],
+              children: [
+                'about',
+                { children: ['', {}, undefined, undefined, true] },
+                undefined,
+                'refetch',
+                true,
+              ],
             },
+            undefined,
+            undefined,
+            true,
           ],
         },
-        // TODO-APP: optimistic tree is wrong
-        // undefined,
-        // undefined,
-        // true,
+        undefined,
+        undefined,
+        true,
       ],
     }
 

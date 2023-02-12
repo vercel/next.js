@@ -39,8 +39,11 @@ describe('createOptimisticTree', () => {
             children: [
               'settings',
               {
-                children: ['', {}],
+                children: ['', {}, undefined, undefined, true],
               },
+              undefined,
+              undefined,
+              true,
             ],
           },
           undefined,
@@ -48,6 +51,9 @@ describe('createOptimisticTree', () => {
           true,
         ],
       },
+      undefined,
+      undefined,
+      true,
     ])
   })
 })
