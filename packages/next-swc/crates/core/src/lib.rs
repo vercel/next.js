@@ -33,6 +33,7 @@ DEALINGS IN THE SOFTWARE.
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
+use next_binding::swc::core::ecma::transforms::module::common_js;
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -287,7 +288,10 @@ impl TransformOptions {
             };
 
         if should_enable_commonjs {
-            self.swc.config.module = Some(ModuleConfig::CommonJs(Default::default()));
+            self.swc.config.module = Some(ModuleConfig::CommonJs(common_js::Config {
+                ignore_dynamic: true,
+                ..Default::default()
+            }));
         }
 
         self
