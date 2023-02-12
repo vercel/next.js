@@ -82,22 +82,22 @@ createNextDescribe(
       })
     }
 
-    it('should use application/octet-stream for flight', async () => {
+    it('should use text/x-component for flight', async () => {
       const res = await next.fetch('/dashboard/deployments/123', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
-    it('should use application/octet-stream for flight with edge runtime', async () => {
+    it('should use text/x-component for flight with edge runtime', async () => {
       const res = await next.fetch('/dashboard', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
     it('should pass props from getServerSideProps in root layout', async () => {
