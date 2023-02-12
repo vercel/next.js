@@ -1,6 +1,6 @@
-# Next.js + Nightwatch
+# Next.js + Nightwatch.js
 
-This example shows how to configure Nightwatch to work with Next.js.
+This example shows how to configure [Nightwatch.js](https://nightwatchjs.org) to test a Next.js application, both for component and end-to-end testing. 
 
 ## Deploy your own
 
@@ -23,5 +23,31 @@ yarn create next-app --example with-nightwatch with-nightwatch-app
 ```bash
 pnpm create next-app --example with-nightwatch with-nightwatch-app
 ```
+
+## Run end-to-end tests
+
+```bash
+npm run test:e2e
+```
+
+Pass the `--headless` flag to run the tests in headless mode, e.g.:
+
+```bash
+
+npm run test:e2e -- --headless
+
+```
+
+## Run component tests
+
+```bash
+npm test
+```
+
+## Learn More
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Nightwatch.js Guide](https://nightwatchjs.org/guide)
+- [React Component Testing with Nightwatch.js](https://nightwatchjs.org/guide/component-testing/testing-react-components.html)
+
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

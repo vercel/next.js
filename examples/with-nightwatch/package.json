@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -18,6 +19,6 @@
     "@types/node": "^18.0.6",
     "chromedriver": "^109.0.0",
     "geckodriver": "^3.2.0",
-    "nightwatch": "^2.6.13"
+    "nightwatch": "^2.6.14"
   }
 }
