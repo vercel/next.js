@@ -72,7 +72,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   forceOptimisticNavigation: boolean
-  isAppRouter: boolean
+  isRootLayout: boolean
   cache: CacheNode
   mutable: Mutable
 }

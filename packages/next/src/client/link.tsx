@@ -217,7 +217,7 @@ function linkClicked(
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
         forceOptimisticNavigation: !prefetchEnabled,
-        isAppRouter,
+        isRootLayout: isAppRouter,
       })
     }
   }

@@ -120,7 +120,7 @@ export function navigateReducer(
     cache,
     mutable,
     forceOptimisticNavigation,
-    isAppRouter,
+    isRootLayout,
   } = action
   const { pathname, search } = url
   const href = createHrefFromUrl(url)
@@ -214,7 +214,7 @@ export function navigateReducer(
       segments,
       state.tree,
       false,
-      isAppRouter
+      isRootLayout
     )
 
     // Copy subTreeData for the root node of the cache.

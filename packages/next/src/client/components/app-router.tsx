@@ -189,7 +189,7 @@ function Router({
       href: string,
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean,
-      isAppRouter: boolean
+      isRootLayout: boolean
     ) => {
       const url = new URL(addBasePath(href), location.origin)
 
@@ -199,7 +199,7 @@ function Router({
         isExternalUrl: isExternalURL(url),
         locationSearch: location.search,
         forceOptimisticNavigation,
-        isAppRouter,
+        isRootLayout,
         navigateType,
         cache: {
           status: CacheStates.LAZY_INITIALIZED,
@@ -258,7 +258,7 @@ function Router({
             href,
             'replace',
             Boolean(options.forceOptimisticNavigation),
-            Boolean(options.isAppRouter)
+            Boolean(options.isRootLayout)
           )
         })
       },
@@ -269,7 +269,7 @@ function Router({
             href,
             'push',
             Boolean(options.forceOptimisticNavigation),
-            Boolean(options.isAppRouter)
+            Boolean(options.isRootLayout)
           )
         })
       },

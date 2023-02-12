@@ -134,7 +134,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       forceOptimisticNavigation: false,
-      isAppRouter: false,
+      isRootLayout: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
         data: null,
@@ -313,7 +313,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       forceOptimisticNavigation: false,
-      isAppRouter: false,
+      isRootLayout: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
         data: null,
@@ -497,7 +497,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       forceOptimisticNavigation: false,
-      isAppRouter: false,
+      isRootLayout: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
         data: null,
@@ -652,7 +652,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'replace',
       forceOptimisticNavigation: false,
-      isAppRouter: false,
+      isRootLayout: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
         data: null,
@@ -804,7 +804,7 @@ describe('navigateReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       forceOptimisticNavigation: true,
-      isAppRouter: true,
+      isRootLayout: true,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
         data: null,
@@ -980,7 +980,7 @@ describe('navigateReducer', () => {
       navigateType: 'push',
       locationSearch: '',
       forceOptimisticNavigation: false,
-      isAppRouter: false,
+      isRootLayout: false,
       cache: {
         status: CacheStates.LAZY_INITIALIZED,
         data: null,

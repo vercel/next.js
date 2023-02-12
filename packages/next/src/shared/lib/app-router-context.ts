@@ -62,7 +62,7 @@ export type CacheNode =
     }
 interface NavigateOptions {
   forceOptimisticNavigation?: boolean
-  isAppRouter?: boolean
+  isRootLayout?: boolean
 }
 
 export interface AppRouterInstance {
