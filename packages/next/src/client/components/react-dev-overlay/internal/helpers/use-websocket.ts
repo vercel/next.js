@@ -47,6 +47,7 @@ export function useWebsocketPing(
 ) {
   const sendMessage = useSendMessage(websocketRef)
   const { tree } = useContext(GlobalLayoutRouterContext)
+
   useEffect(() => {
     // Taken from on-demand-entries-client.js
     // TODO-APP: check 404 case
