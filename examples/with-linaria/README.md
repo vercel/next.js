@@ -2,7 +2,7 @@
 
 This example features how to use [linaria](https://linaria.dev/) as the styling solution instead of [styled-jsx](https://github.com/vercel/styled-jsx).
 
-We are creating three `div` elements with custom styles being shared across the elements. The styles includes the use of pseudo-selector and CSS animations.
+We are re-creating the Next.js starter template with linaria.
 
 ## Deploy your own
 
