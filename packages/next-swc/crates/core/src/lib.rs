@@ -33,14 +33,13 @@ DEALINGS IN THE SOFTWARE.
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
-use next_binding::swc::core::ecma::transforms::module::common_js;
+
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 
 use next_binding::swc::core::{
-    base::config::ModuleConfig,
     common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
     ecma::ast::EsVersion,
     ecma::parser::parse_file_as_module,
@@ -288,10 +287,8 @@ impl TransformOptions {
             };
 
         if should_enable_commonjs {
-            self.swc.config.module = Some(ModuleConfig::CommonJs(common_js::Config {
-                ignore_dynamic: true,
-                ..Default::default()
-            }));
+            self.swc.config.module =
+                Some(serde_json::from_str(r##"{ "ignoreDynamic": true, }"##).unwrap());
         }
 
         self
