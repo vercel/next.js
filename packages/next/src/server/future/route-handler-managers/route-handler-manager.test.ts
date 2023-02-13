@@ -12,7 +12,7 @@ describe('RouteHandlerManager', () => {
     expect(
       await handlers.handle(
         {
-          route: {
+          definition: {
             kind: RouteKind.PAGES,
             filename: '<root>/index.js',
             pathname: '/',
@@ -34,7 +34,7 @@ describe('RouteHandlerManager', () => {
     expect(
       await handlers.handle(
         {
-          route: {
+          definition: {
             kind: RouteKind.PAGES,
             filename: '<root>/index.js',
             pathname: '/',
@@ -55,7 +55,7 @@ describe('RouteHandlerManager', () => {
     handlers.set(RouteKind.APP_PAGE, handler)
 
     const route: RouteMatch = {
-      route: {
+      definition: {
         kind: RouteKind.APP_PAGE,
         filename: '<root>/index.js',
         pathname: '/',
@@ -85,7 +85,7 @@ describe('RouteHandlerManager', () => {
     handlers.set(RouteKind.APP_ROUTE, badHandler)
 
     const route: RouteMatch = {
-      route: {
+      definition: {
         kind: RouteKind.APP_PAGE,
         filename: '<root>/index.js',
         pathname: '/',

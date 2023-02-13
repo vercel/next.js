@@ -99,7 +99,7 @@ describe('AppPageRouteMatcherProvider', () => {
 
         expect(loader.load).toHaveBeenCalled()
         expect(matchers).toHaveLength(1)
-        expect(matchers[0].route).toEqual(route)
+        expect(matchers[0].definition).toEqual(route)
       }
     )
   })

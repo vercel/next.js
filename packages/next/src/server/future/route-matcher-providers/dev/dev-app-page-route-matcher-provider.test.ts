@@ -82,7 +82,7 @@ describe('DevAppPageRouteMatcher', () => {
         const matchers = await provider.matchers()
         expect(matchers).toHaveLength(1)
         expect(reader.read).toBeCalledWith(dir)
-        expect(matchers[0].route).toEqual(route)
+        expect(matchers[0].definition).toEqual(route)
       }
     )
   })

@@ -27,7 +27,7 @@ export class RouteHandlerManager {
     req: BaseNextRequest,
     res: BaseNextResponse
   ): Promise<boolean> {
-    const handler = this.handlers[match.route.kind]
+    const handler = this.handlers[match.definition.kind]
     if (!handler) return false
 
     await handler.handle(match, req, res)

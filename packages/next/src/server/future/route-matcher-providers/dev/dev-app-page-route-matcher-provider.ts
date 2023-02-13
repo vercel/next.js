@@ -81,8 +81,6 @@ export class DevAppPageRouteMatcherProvider
       }
       const { pathname, page, bundlePath } = cached
 
-      // TODO: what do we do if this route is a duplicate?
-
       matchers.push(
         new AppPageRouteMatcher({
           kind: RouteKind.APP_PAGE,

@@ -5,9 +5,10 @@ import {
   RouteMatchFn,
 } from '../../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import { RouteDefinition } from '../route-definitions/route-definition'
 import { RouteMatch } from '../route-matches/route-match'
 
-export abstract class RouteMatcher<M extends RouteMatch = RouteMatch> {
+export class RouteMatcher<D extends RouteDefinition = RouteDefinition> {
   private readonly dynamic?: RouteMatchFn
 
   /**
@@ -17,19 +18,33 @@ export abstract class RouteMatcher<M extends RouteMatch = RouteMatch> {
    */
   public duplicated?: Array<RouteMatcher>
 
-  constructor(public readonly route: M['route']) {
-    if (isDynamicRoute(route.pathname)) {
-      this.dynamic = getRouteMatcher(getRouteRegex(route.pathname))
+  constructor(public readonly definition: D) {
+    if (isDynamicRoute(definition.pathname)) {
+      this.dynamic = getRouteMatcher(getRouteRegex(definition.pathname))
     }
+  }
+
+  /**
+   * Identity returns the identity part of the matcher. This is used to compare
+   * a unique matcher to another. This is also used when sorting dynamic routes,
+   * so it must contain the pathname part.
+   */
+  public get identity(): string {
+    return this.definition.pathname
   }
 
   public get isDynamic() {
     return this.dynamic !== undefined
   }
 
-  public abstract match(pathname: string): M | null
+  public match(pathname: string): RouteMatch<D> | null {
+    const result = this.test(pathname)
+    if (!result) return null
 
-  protected test(pathname: string): { params?: Params } | null {
+    return { definition: this.definition, params: result.params }
+  }
+
+  public test(pathname: string): { params?: Params } | null {
     if (this.dynamic) {
       const params = this.dynamic(pathname)
       if (!params) return null
@@ -37,7 +52,7 @@ export abstract class RouteMatcher<M extends RouteMatch = RouteMatch> {
       return { params }
     }
 
-    if (pathname === this.route.pathname) {
+    if (pathname === this.definition.pathname) {
       return {}
     }
 

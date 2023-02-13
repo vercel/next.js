@@ -80,7 +80,10 @@ import {
   FLIGHT_PARAMETERS,
   FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
-import { RouteMatcherManager } from './future/route-matcher-managers/route-matcher-manager'
+import {
+  MatchOptions,
+  RouteMatcherManager,
+} from './future/route-matcher-managers/route-matcher-manager'
 import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
 import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
 import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
@@ -320,6 +323,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected readonly matchers: RouteMatcherManager
   protected readonly handlers: RouteHandlerManager
+  protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   public constructor(options: ServerOptions) {
     const {
@@ -351,6 +355,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         : require('path').join(this.dir, this.nextConfig.distDir)
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
+
+    // Configure the locale normalizer, it's used for routes inside `pages/`.
+    this.localeNormalizer =
+      this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
+        ? new LocaleRouteNormalizer(
+            this.nextConfig.i18n.locales,
+            this.nextConfig.i18n.defaultLocale
+          )
+        : undefined
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -455,15 +468,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     })
 
-    // Configure the locale normalizer, it's used for routes inside `pages/`.
-    const localeNormalizer =
-      this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
-        ? new LocaleRouteNormalizer(
-            this.nextConfig.i18n.locales,
-            this.nextConfig.i18n.defaultLocale
-          )
-        : undefined
-
     // Configure the matchers and handlers.
     const matchers: RouteMatcherManager = new DefaultRouteMatcherManager()
     const handlers = new RouteHandlerManager()
@@ -473,7 +477,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       new PagesRouteMatcherProvider(
         this.distDir,
         manifestLoader,
-        localeNormalizer
+        this.localeNormalizer
       )
     )
 
@@ -482,7 +486,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       new PagesAPIRouteMatcherProvider(
         this.distDir,
         manifestLoader,
-        localeNormalizer
+        this.localeNormalizer
       )
     )
 
@@ -635,23 +639,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           matchedPath = this.stripNextDataPath(matchedPath, false)
 
           // Perform locale detection and normalization.
-          if (this.nextConfig.i18n) {
-            const localeResult = normalizeLocalePath(
-              matchedPath,
-              this.nextConfig.i18n.locales
-            )
-            matchedPath = localeResult.pathname
-
-            if (localeResult.detectedLocale) {
-              parsedUrl.query.__nextLocale = localeResult.detectedLocale
-            }
+          const options: MatchOptions = {
+            i18n: this.localeNormalizer?.match(matchedPath),
           }
+          if (options.i18n?.detectedLocale) {
+            parsedUrl.query.__nextLocale = options.i18n.detectedLocale
+          }
+
+          // TODO: check if this is needed any more?
           matchedPath = denormalizePagePath(matchedPath)
 
           let srcPathname = matchedPath
-          const match = await this.matchers.match(matchedPath)
+          const match = await this.matchers.match(matchedPath, options)
           if (match) {
-            srcPathname = match.route.pathname
+            srcPathname = match.definition.pathname
           }
           const pageIsDynamic = typeof match?.params !== 'undefined'
 
@@ -1761,12 +1762,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
+    const options: MatchOptions = {
+      i18n: this.localeNormalizer?.match(pathname),
+    }
+
     try {
-      for await (const match of this.matchers.matchAll(pathname)) {
+      for await (const match of this.matchers.matchAll(pathname, options)) {
         const result = await this.renderPageComponent(
           {
             ...ctx,
-            pathname: match.route.pathname,
+            pathname: match.definition.pathname,
             renderOpts: {
               ...ctx.renderOpts,
               params: match.params,

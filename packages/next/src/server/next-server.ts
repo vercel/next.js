@@ -100,6 +100,7 @@ import { RouteKind } from './future/route-kind'
 
 import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-handler'
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
+import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
 
 export * from './base-server'
 
@@ -1185,20 +1186,16 @@ export default class NextNodeServer extends BaseServer {
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
 
-        if (this.nextConfig.i18n) {
-          const localePathResult = normalizeLocalePath(
-            pathname,
-            this.nextConfig.i18n?.locales
-          )
-
-          if (localePathResult.detectedLocale) {
-            pathname = localePathResult.pathname
-            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
-          }
+        const options: MatchOptions = {
+          i18n: this.localeNormalizer?.match(pathname),
         }
+        if (options.i18n?.detectedLocale) {
+          parsedUrl.query.__nextLocale = options.i18n.detectedLocale
+        }
+
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
-        const match = await this.matchers.match(pathname)
+        const match = await this.matchers.match(pathname, options)
 
         // Try to handle the given route with the configured handlers.
         if (match) {
@@ -1208,7 +1205,7 @@ export default class NextNodeServer extends BaseServer {
           // If the route was detected as being a Pages API route, then handle
           // it.
           // TODO: move this behavior into a route handler.
-          if (match.route.kind === RouteKind.PAGES_API) {
+          if (match.definition.kind === RouteKind.PAGES_API) {
             delete query._nextBubbleNoFallback
 
             handled = await this.handleApiRequest(
@@ -1255,6 +1252,7 @@ export default class NextNodeServer extends BaseServer {
       useFileSystemPublicRoutes,
       matchers: this.matchers,
       nextConfig: this.nextConfig,
+      localeNormalizer: this.localeNormalizer,
     }
   }
 
@@ -1271,7 +1269,7 @@ export default class NextNodeServer extends BaseServer {
     match: PagesAPIRouteMatch
   ): Promise<boolean> {
     const {
-      route: { pathname, filename },
+      definition: { pathname, filename },
       params,
     } = match
 
@@ -1697,6 +1695,9 @@ export default class NextNodeServer extends BaseServer {
 
     let url: string
 
+    const options: MatchOptions = {
+      i18n: this.localeNormalizer?.match(normalizedPathname),
+    }
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
     } else {
@@ -1719,10 +1720,10 @@ export default class NextNodeServer extends BaseServer {
 
     const page: { name?: string; params?: { [key: string]: string } } = {}
 
-    const match = await this.matchers.match(normalizedPathname)
+    const match = await this.matchers.match(normalizedPathname, options)
     if (match) {
       page.name = match.params
-        ? match.route.pathname
+        ? match.definition.pathname
         : params.parsedUrl.pathname
       page.params = match.params
     }

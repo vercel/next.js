@@ -1,13 +1,7 @@
+import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
+import { LocaleRouteMatcher } from './locale-route-matcher'
 import { RouteMatcher } from './route-matcher'
-import { PagesRouteMatch } from '../route-matches/pages-route-match'
 
-export class PagesRouteMatcher extends RouteMatcher<PagesRouteMatch> {
-  public match(pathname: string): PagesRouteMatch | null {
-    const result = this.test(pathname)
-    if (!result) return null
+export class PagesRouteMatcher extends RouteMatcher<PagesRouteDefinition> {}
 
-    // TODO: could use this area to add locale information to the match
-
-    return { route: this.route, params: result.params }
-  }
-}
+export class PagesLocaleRouteMatcher extends LocaleRouteMatcher<PagesRouteDefinition> {}

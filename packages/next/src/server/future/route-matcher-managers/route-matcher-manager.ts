@@ -1,7 +1,8 @@
 import { RouteMatch } from '../route-matches/route-match'
 import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
+import { LocaleMatcherMatchOptions } from '../route-matchers/locale-route-matcher'
 
-export type MatchOptions = { skipDynamic?: boolean }
+export type MatchOptions = { skipDynamic?: boolean } & LocaleMatcherMatchOptions
 
 export interface RouteMatcherManager {
   /**
@@ -31,7 +32,7 @@ export interface RouteMatcherManager {
    * @param pathname the pathname to test for matches
    * @param options the options for the testing
    */
-  test(pathname: string, options?: MatchOptions): Promise<boolean>
+  test(pathname: string, options: MatchOptions): Promise<boolean>
 
   /**
    * Returns the first match for a given request.
@@ -39,7 +40,7 @@ export interface RouteMatcherManager {
    * @param pathname the pathname to match against
    * @param options the options for the matching
    */
-  match(pathname: string, options?: MatchOptions): Promise<RouteMatch | null>
+  match(pathname: string, options: MatchOptions): Promise<RouteMatch | null>
 
   /**
    * Returns a generator for each match for a given request. This should be
@@ -51,6 +52,6 @@ export interface RouteMatcherManager {
    */
   matchAll(
     pathname: string,
-    options?: MatchOptions
+    options: MatchOptions
   ): AsyncGenerator<RouteMatch, null, undefined>
 }

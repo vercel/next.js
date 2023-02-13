@@ -59,8 +59,6 @@ export class DevAppRouteRouteMatcherProvider
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
-      // TODO: what do we do if this route is a duplicate?
-
       matchers.push(
         new AppRouteRouteMatcher({
           kind: RouteKind.APP_ROUTE,

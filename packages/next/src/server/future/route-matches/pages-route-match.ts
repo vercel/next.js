@@ -1,4 +1,5 @@
-import { RouteMatch } from './route-match'
 import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
+import { LocaleRouteMatch } from './locale-route-match'
 
-export interface PagesRouteMatch extends RouteMatch<PagesRouteDefinition> {}
+export interface PagesRouteMatch
+  extends LocaleRouteMatch<PagesRouteDefinition> {}

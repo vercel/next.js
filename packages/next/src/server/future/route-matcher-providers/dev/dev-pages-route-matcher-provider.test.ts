@@ -77,7 +77,7 @@ describe('DevPagesRouteMatcherProvider', () => {
         const matchers = await matcher.matchers()
         expect(matchers).toHaveLength(1)
         expect(reader.read).toBeCalledWith(dir)
-        expect(matchers[0].route).toEqual(route)
+        expect(matchers[0].definition).toEqual(route)
       }
     )
   })

@@ -21,10 +21,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     super()
   }
 
-  public async test(
-    pathname: string,
-    options?: MatchOptions
-  ): Promise<boolean> {
+  public async test(pathname: string, options: MatchOptions): Promise<boolean> {
     // Try to find a match within the developer routes.
     const match = await super.match(pathname, options)
 
@@ -36,9 +33,10 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 
   protected validate(
     pathname: string,
-    matcher: RouteMatcher
+    matcher: RouteMatcher,
+    options: MatchOptions
   ): RouteMatch | null {
-    const match = matcher.match(pathname)
+    const match = super.validate(pathname, matcher, options)
 
     // If a match was found, check to see if there were any conflicting app or
     // pages files.
@@ -48,23 +46,25 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
       matcher.duplicated &&
       matcher.duplicated.some(
         (duplicate) =>
-          duplicate.route.kind === RouteKind.APP_PAGE ||
-          duplicate.route.kind === RouteKind.APP_ROUTE
+          duplicate.definition.kind === RouteKind.APP_PAGE ||
+          duplicate.definition.kind === RouteKind.APP_ROUTE
       ) &&
       matcher.duplicated.some(
         (duplicate) =>
-          duplicate.route.kind === RouteKind.PAGES ||
-          duplicate.route.kind === RouteKind.PAGES_API
+          duplicate.definition.kind === RouteKind.PAGES ||
+          duplicate.definition.kind === RouteKind.PAGES_API
       )
     ) {
       throw new Error(
         `Conflicting app and page file found: ${matcher.duplicated
           // Sort the error output so that the app pages (starting with "app")
           // are first.
-          .sort((a, b) => a.route.filename.localeCompare(b.route.filename))
+          .sort((a, b) =>
+            a.definition.filename.localeCompare(b.definition.filename)
+          )
           .map(
             (duplicate) =>
-              `"${path.relative(this.dir, duplicate.route.filename)}"`
+              `"${path.relative(this.dir, duplicate.definition.filename)}"`
           )
           .join(' and ')}. Please remove one to continue.`
       )
@@ -75,7 +75,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 
   public async *matchAll(
     pathname: string,
-    options?: MatchOptions
+    options: MatchOptions
   ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, null, undefined> {
     // Keep track of all the matches we've made.
     const matches = new Set<string>()
@@ -85,7 +85,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     for await (const development of super.matchAll(pathname, options)) {
       // There was a development match! Let's check to see if we've already
       // matched this one already (verified by comparing the bundlePath).
-      if (matches.has(development.route.bundlePath)) continue
+      if (matches.has(development.definition.bundlePath)) continue
 
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
@@ -101,14 +101,14 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
       )) {
         // We found a matching production match! It may have already been seen
         // though, so let's skip if we have.
-        if (matches.has(production.route.bundlePath)) continue
+        if (matches.has(production.definition.bundlePath)) continue
 
         // Mark that we've matched in production.
         matchedProduction = true
 
         // We found a matching production match! Add the match to the set of
         // matches and yield this match to be used.
-        matches.add(production.route.bundlePath)
+        matches.add(production.definition.bundlePath)
         yield production
       }
 
@@ -132,13 +132,13 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     await super.reload()
 
     // Check for and warn of any duplicates.
-    for (const [pathname, matchers] of Object.entries(
-      this.matchers.duplicates
-    )) {
+    for (const matchers of Object.values(this.matchers.duplicates)) {
+      // Pull the pathname off the first one.
+      const pathname = matchers[0].definition.pathname
       warn(
         `Duplicate page detected. ${matchers
           .map((matcher) =>
-            chalk.cyan(path.relative(this.dir, matcher.route.filename))
+            chalk.cyan(path.relative(this.dir, matcher.definition.filename))
           )
           .join(' and ')} resolve to ${chalk.cyan(pathname)}.`
       )

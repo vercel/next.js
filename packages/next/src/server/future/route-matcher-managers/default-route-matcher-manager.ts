@@ -8,6 +8,7 @@ import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-p
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
+import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 
 interface RouteMatchers {
   static: ReadonlyArray<RouteMatcher>
@@ -22,7 +23,6 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     dynamic: [],
     duplicates: {},
   }
-  private cache: ReadonlyArray<RouteMatcher> = []
   private lastCompilationID = this.compilationID
 
   /**
@@ -38,6 +38,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     return this.waitTillReadyPromise ?? Promise.resolve()
   }
 
+  private previousMatchers: ReadonlyArray<RouteMatcher> = []
   public async reload() {
     let callbacks: { resolve: Function; reject: Function }
     this.waitTillReadyPromise = new Promise((resolve, reject) => {
@@ -63,7 +64,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       for (const providerMatchers of providersMatchers) {
         for (const matcher of providerMatchers) {
           // Test to see if the matcher being added is a duplicate.
-          const duplicate = all.get(matcher.route.pathname)
+          const duplicate = all.get(matcher.identity)
           if (duplicate) {
             // This looks a little weird, but essentially if the pathname
             // already exists in the duplicates map, then we got that array
@@ -77,9 +78,9 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
             // the retrieval of the `other` will actually return the array
             // reference used by all other duplicates. This is why ReadonlyArray
             // is so important! Array's are always references!
-            const others = duplicates[matcher.route.pathname] ?? [duplicate]
+            const others = duplicates[matcher.identity] ?? [duplicate]
             others.push(matcher)
-            duplicates[matcher.route.pathname] = others
+            duplicates[matcher.identity] = others
 
             // Add duplicated details to each route.
             duplicate.duplicated = others
@@ -94,7 +95,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
           matchers.push(matcher)
 
           // Add the matcher's pathname to the set.
-          all.set(matcher.route.pathname, matcher)
+          all.set(matcher.definition.pathname, matcher)
         }
       }
 
@@ -106,14 +107,14 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       // can tell by using the `===` which compares object identity, which for
       // the manifest matchers, will return the same matcher each time.
       if (
-        this.cache.length === matchers.length &&
-        this.cache.every(
+        this.previousMatchers.length === matchers.length &&
+        this.previousMatchers.every(
           (cachedMatcher, index) => cachedMatcher === matchers[index]
         )
       ) {
         return
       }
-      this.cache = matchers
+      this.previousMatchers = matchers
 
       // For matchers that are for static routes, filter them now.
       this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic)
@@ -130,26 +131,28 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
       // Generate a filename to index map, this will be used to re-sort the array.
       const indexes = new Map<string, number>()
-      const pathnames = new Array<string>(dynamic.length)
+      const identities = new Array<string>(dynamic.length)
       for (let index = 0; index < dynamic.length; index++) {
-        const pathname = dynamic[index].route.pathname
-        if (indexes.has(pathname)) {
+        // Because locale aware definitions do not have the locale parts
+        // connected to the pathnames, we have to use the identity.
+        const identity = dynamic[index].identity
+        if (indexes.has(identity)) {
           throw new Error('Invariant: duplicate dynamic route detected')
         }
 
-        indexes.set(pathname, index)
-        pathnames[index] = pathname
+        indexes.set(identity, index)
+        identities[index] = identity
       }
 
       // Sort the array of pathnames.
-      const sorted = getSortedRoutes(pathnames)
+      const sorted = getSortedRoutes(identities)
       const sortedDynamicMatchers = new Array<RouteMatcher>(sorted.length)
       for (let i = 0; i < sorted.length; i++) {
-        const pathname = sorted[i]
+        const identity = sorted[i]
 
-        const index = indexes.get(pathname)
+        const index = indexes.get(identity)
         if (typeof index !== 'number') {
-          throw new Error('Invariant: expected to find pathname in indexes map')
+          throw new Error('Invariant: expected to find identity in indexes map')
         }
 
         sortedDynamicMatchers[i] = dynamic[index]
@@ -176,10 +179,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     this.providers.push(provider)
   }
 
-  public async test(
-    pathname: string,
-    options?: MatchOptions | undefined
-  ): Promise<boolean> {
+  public async test(pathname: string, options: MatchOptions): Promise<boolean> {
     // See if there's a match for the pathname...
     const match = await this.match(pathname, options)
 
@@ -191,7 +191,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
   public async match(
     pathname: string,
-    options?: MatchOptions
+    options: MatchOptions
   ): Promise<RouteMatch<RouteDefinition<RouteKind>> | null> {
     // "Iterate" over the match options. Once we found a single match, exit with
     // it, otherwise return null below. If no match is found, the inner block
@@ -213,14 +213,19 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
    */
   protected validate(
     pathname: string,
-    matcher: RouteMatcher
+    matcher: RouteMatcher,
+    options: MatchOptions
   ): RouteMatch | null {
+    if (matcher instanceof LocaleRouteMatcher) {
+      return matcher.match(pathname, options)
+    }
+
     return matcher.match(pathname)
   }
 
   public async *matchAll(
     pathname: string,
-    options?: MatchOptions | undefined
+    options: MatchOptions
   ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, null, undefined> {
     // Guard against the matcher manager from being run before it needs to be
     // recompiled. This was preferred to re-running the compilation here because
@@ -240,7 +245,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // with the list of normalized routes.
     if (!isDynamicRoute(pathname)) {
       for (const matcher of this.matchers.static) {
-        const match = this.validate(pathname, matcher)
+        const match = this.validate(pathname, matcher, options)
         if (!match) continue
 
         yield match
@@ -252,7 +257,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
     // Loop over the dynamic matchers, yielding each match.
     for (const matcher of this.matchers.dynamic) {
-      const match = this.validate(pathname, matcher)
+      const match = this.validate(pathname, matcher, options)
       if (!match) continue
 
       yield match

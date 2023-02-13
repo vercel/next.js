@@ -8,7 +8,10 @@ import {
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { LocaleRouteNormalizer } from '../normalizers/locale-route-normalizer'
 import { RouteKind } from '../route-kind'
-import { PagesRouteMatcher } from '../route-matchers/pages-route-matcher'
+import {
+  PagesLocaleRouteMatcher,
+  PagesRouteMatcher,
+} from '../route-matchers/pages-route-matcher'
 import {
   Manifest,
   ManifestLoader,
@@ -45,30 +48,27 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
 
     const matchers: Array<PagesRouteMatcher> = []
     for (const page of pathnames) {
-      matchers.push(
-        new PagesRouteMatcher({
-          kind: RouteKind.PAGES,
-          pathname: page,
-          page,
-          bundlePath: path.join('pages', normalizePagePath(page)),
-          filename: path.join(this.distDir, SERVER_DIRECTORY, manifest[page]),
-        })
-      )
-    }
+      if (this.localeNormalizer) {
+        // Match the locale on the page name, or default to the default locale.
+        const { detectedLocale, pathname } = this.localeNormalizer.match(page)
 
-    /**
-     * We need to include the default locale normalized pathname in the matcher
-     * as well.
-     */
-    if (this.localeNormalizer) {
-      for (const page of pathnames) {
-        const { pathname, detectedLocale } = this.localeNormalizer.match(page)
-        if (detectedLocale !== this.localeNormalizer.defaultLocale) continue
-
+        matchers.push(
+          new PagesLocaleRouteMatcher({
+            kind: RouteKind.PAGES,
+            pathname,
+            page,
+            bundlePath: path.join('pages', normalizePagePath(page)),
+            filename: path.join(this.distDir, SERVER_DIRECTORY, manifest[page]),
+            i18n: {
+              locale: detectedLocale,
+            },
+          })
+        )
+      } else {
         matchers.push(
           new PagesRouteMatcher({
             kind: RouteKind.PAGES,
-            pathname,
+            pathname: page,
             page,
             bundlePath: path.join('pages', normalizePagePath(page)),
             filename: path.join(this.distDir, SERVER_DIRECTORY, manifest[page]),

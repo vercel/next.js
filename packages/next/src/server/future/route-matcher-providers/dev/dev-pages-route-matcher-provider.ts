@@ -1,6 +1,9 @@
 import { Normalizer } from '../../normalizers/normalizer'
 import { FileReader } from './helpers/file-reader/file-reader'
-import { PagesRouteMatcher } from '../../route-matchers/pages-route-matcher'
+import {
+  PagesRouteMatcher,
+  PagesLocaleRouteMatcher,
+} from '../../route-matchers/pages-route-matcher'
 import { RouteMatcherProvider } from '../route-matcher-provider'
 import { AbsoluteFilenameNormalizer } from '../../normalizers/absolute-filename-normalizer'
 import { Normalizers } from '../../normalizers/normalizers'
@@ -9,6 +12,7 @@ import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-pa
 import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import path from 'path'
+import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
 
 export class DevPagesRouteMatcherProvider
   implements RouteMatcherProvider<PagesRouteMatcher>
@@ -23,7 +27,8 @@ export class DevPagesRouteMatcherProvider
   constructor(
     private readonly pagesDir: string,
     private readonly extensions: ReadonlyArray<string>,
-    private readonly reader: FileReader
+    private readonly reader: FileReader,
+    private readonly localeNormalizer?: LocaleRouteNormalizer
   ) {
     // Match any route file that ends with `/${filename}.${extension}` under the
     // pages directory.
@@ -79,15 +84,28 @@ export class DevPagesRouteMatcherProvider
       const page = this.normalizers.page.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
 
-      matchers.push(
-        new PagesRouteMatcher({
-          kind: RouteKind.PAGES,
-          pathname,
-          page,
-          bundlePath,
-          filename,
-        })
-      )
+      if (this.localeNormalizer) {
+        matchers.push(
+          new PagesLocaleRouteMatcher({
+            kind: RouteKind.PAGES,
+            pathname,
+            page,
+            bundlePath,
+            filename,
+            i18n: {},
+          })
+        )
+      } else {
+        matchers.push(
+          new PagesRouteMatcher({
+            kind: RouteKind.PAGES,
+            pathname,
+            page,
+            bundlePath,
+            filename,
+          })
+        )
+      }
     }
 
     return matchers

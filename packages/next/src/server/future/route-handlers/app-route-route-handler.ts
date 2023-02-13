@@ -298,7 +298,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     try {
       // Load the module using the module loader.
       const module: AppRouteModule = await this.moduleLoader.load(
-        match.route.filename
+        match.definition.filename
       )
 
       // TODO: patch fetch

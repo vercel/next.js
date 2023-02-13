@@ -90,7 +90,6 @@ import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-provider
 import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { LocaleRouteNormalizer } from '../future/normalizers/locale-route-normalizer'
 import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 
@@ -234,7 +233,7 @@ export default class DevServer extends Server {
       ensure: async (match) => {
         await this.hotReloader!.ensurePage({
           match,
-          page: match.route.page,
+          page: match.definition.page,
           clientOnly: false,
         })
       },
@@ -254,23 +253,20 @@ export default class DevServer extends Server {
 
     // If the pages directory is available, then configure those matchers.
     if (pagesDir) {
-      const localeNoramlizer =
-        this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
-          ? new LocaleRouteNormalizer(
-              this.nextConfig.i18n.locales,
-              this.nextConfig.i18n.defaultLocale
-            )
-          : undefined
-
       matchers.push(
-        new DevPagesRouteMatcherProvider(pagesDir, extensions, fileReader)
+        new DevPagesRouteMatcherProvider(
+          pagesDir,
+          extensions,
+          fileReader,
+          this.localeNormalizer
+        )
       )
       matchers.push(
         new DevPagesAPIRouteMatcherProvider(
           pagesDir,
           extensions,
           fileReader,
-          localeNoramlizer
+          this.localeNormalizer
         )
       )
     }

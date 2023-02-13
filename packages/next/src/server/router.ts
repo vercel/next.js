@@ -19,8 +19,12 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { getRequestMeta } from './request-meta'
 import { formatNextPathnameInfo } from '../shared/lib/router/utils/format-next-pathname-info'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { RouteMatcherManager } from './future/route-matcher-managers/route-matcher-manager'
+import {
+  MatchOptions,
+  RouteMatcherManager,
+} from './future/route-matcher-managers/route-matcher-manager'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
 
 type RouteResult = {
   finished: boolean
@@ -64,6 +68,7 @@ export type RouterOptions = {
   matchers: RouteMatcherManager
   useFileSystemPublicRoutes: boolean
   nextConfig: NextConfig
+  localeNormalizer?: LocaleRouteNormalizer
 }
 
 export type PageChecker = (pathname: string) => Promise<boolean>
@@ -83,6 +88,7 @@ export default class Router {
   private readonly matchers: Pick<RouteMatcherManager, 'test'>
   private readonly useFileSystemPublicRoutes: boolean
   private readonly nextConfig: NextConfig
+  private readonly localeNormalizer?: LocaleRouteNormalizer
   private compiledRoutes: ReadonlyArray<Route>
   private needsRecompilation: boolean
 
@@ -100,6 +106,7 @@ export default class Router {
     matchers,
     useFileSystemPublicRoutes,
     nextConfig,
+    localeNormalizer,
   }: RouterOptions) {
     this.nextConfig = nextConfig
     this.headers = headers
@@ -110,6 +117,7 @@ export default class Router {
     this.catchAllMiddleware = catchAllMiddleware
     this.matchers = matchers
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
+    this.localeNormalizer = localeNormalizer
 
     // Perform the initial route compilation.
     this.compiledRoutes = this.compileRoutes()
@@ -172,12 +180,19 @@ export default class Router {
                 // Next.js performs all route matching without the trailing slash.
                 const pathname = removeTrailingSlash(parsedUrl.pathname || '/')
 
-                const match = await this.matchers.test(pathname, {
+                // Normalize and detect the locale on the pathname.
+                const options: MatchOptions = {
                   // We need to skip dynamic route matching because the next
                   // step we're processing the afterFiles rewrites which must
                   // not include dynamic matches.
                   skipDynamic: true,
-                })
+                  i18n: this.localeNormalizer?.match(pathname, {
+                    // TODO: verify changing the default locale
+                    inferDefaultLocale: true,
+                  }),
+                }
+
+                const match = await this.matchers.test(pathname, options)
                 if (!match) return { finished: false }
 
                 return this.catchAllRoute.fn(
@@ -240,7 +255,15 @@ export default class Router {
       }
     }
 
-    const match = await this.matchers.test(fsPathname)
+    // Normalize and detect the locale on the pathname.
+    const options: MatchOptions = {
+      i18n: this.localeNormalizer?.match(fsPathname, {
+        // TODO: verify changing the default locale
+        inferDefaultLocale: true,
+      }),
+    }
+
+    const match = await this.matchers.test(fsPathname, options)
     if (!match) return false
 
     // Matched a page or dynamic route so render it using catchAllRoute

@@ -62,7 +62,7 @@ describe('PagesAPIRouteMatcherProvider', () => {
 
         expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
         expect(matchers).toHaveLength(1)
-        expect(matchers[0].route).toEqual(route)
+        expect(matchers[0].definition).toEqual(route)
       }
     )
   })

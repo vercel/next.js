@@ -386,9 +386,9 @@ async function findRoutePathData(
     // If the match is available, we don't have to discover the data from the
     // filesystem.
     return {
-      absolutePagePath: match.route.filename,
-      page: match.route.page,
-      bundlePath: match.route.bundlePath,
+      absolutePagePath: match.definition.filename,
+      page: match.definition.page,
+      bundlePath: match.definition.bundlePath,
     }
   }
 
@@ -598,8 +598,8 @@ export function onDemandEntryHandler({
 
       // If the route is actually an app page route, then we should have access
       // to the app route match, and therefore, the appPaths from it.
-      if (match?.route.kind === RouteKind.APP_PAGE) {
-        const { route } = match as AppPageRouteMatch
+      if (match?.definition.kind === RouteKind.APP_PAGE) {
+        const { definition: route } = match as AppPageRouteMatch
         appPaths = route.appPaths
       }
 

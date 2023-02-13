@@ -284,7 +284,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
           )
 
           if (localePathResult.detectedLocale) {
-            pathname = localePathResult.pathname
             parsedUrl.query.__nextLocale = localePathResult.detectedLocale
           }
         }

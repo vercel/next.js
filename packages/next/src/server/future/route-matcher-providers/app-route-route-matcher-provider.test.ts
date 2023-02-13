@@ -62,7 +62,7 @@ describe('AppRouteRouteMatcherProvider', () => {
         const matchers = await provider.matchers()
 
         expect(matchers).toHaveLength(1)
-        expect(matchers[0].route).toEqual(route)
+        expect(matchers[0].definition).toEqual(route)
       }
     )
   })
