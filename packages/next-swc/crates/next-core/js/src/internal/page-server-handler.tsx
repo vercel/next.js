@@ -160,6 +160,7 @@ export default function startHandler({
         previewModeEncryptionKey: "",
         previewModeSigningKey: "",
       },
+      params: renderData.params,
       basePath: "",
       // TODO(WEB-583) this isn't correct, instead it should set `dev: true`
       nextExport: true,
