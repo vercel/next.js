@@ -122,40 +122,48 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       // For matchers that are for dynamic routes, filter them and sort them now.
       const dynamic = matchers.filter((matcher) => matcher.isDynamic)
 
-      // Because `getSortedRoutes` only accepts an array of strings, we need to
-      // build a reference between the pathnames used for dynamic routing and
-      // the underlying matchers used to perform the match for each route. We
-      // take the fact that the pathnames are unique to build a reference of
-      // their original index in the array so that when we call
-      // `getSortedRoutes`, we can lookup the associated matcher.
+      // As `getSortedRoutes` only takes an array of strings, we need to create
+      // a map of the pathnames (used for sorting) and the matchers. When we
+      // have locales, there may be multiple matches for the same pathname. To
+      // handle this, we keep a map of all the indexes (in `reference`) and
+      // merge them in later.
 
-      // Generate a filename to index map, this will be used to re-sort the array.
-      const indexes = new Map<string, number>()
-      const identities = new Array<string>(dynamic.length)
+      const reference = new Map<string, number[]>()
+      const pathnames = new Array<string>()
       for (let index = 0; index < dynamic.length; index++) {
-        // Because locale aware definitions do not have the locale parts
-        // connected to the pathnames, we have to use the identity.
-        const identity = dynamic[index].identity
-        if (indexes.has(identity)) {
-          throw new Error('Invariant: duplicate dynamic route detected')
-        }
+        // Grab the pathname from the definition.
+        const pathname = dynamic[index].definition.pathname
 
-        indexes.set(identity, index)
-        identities[index] = identity
+        // Grab the index in the dynamic array, push it into the reference.
+        const indexes = reference.get(pathname) ?? []
+        indexes.push(index)
+
+        // If this is the first one set it. If it isn't, we don't need to
+        // because pushing above on the array will mutate the array already
+        // stored there because array's are always a reference!
+        if (indexes.length === 1) reference.set(pathname, indexes)
+        // Otherwise, continue, we've already added this pathname before.
+        else continue
+
+        pathnames.push(pathname)
       }
 
       // Sort the array of pathnames.
-      const sorted = getSortedRoutes(identities)
-      const sortedDynamicMatchers = new Array<RouteMatcher>(sorted.length)
-      for (let i = 0; i < sorted.length; i++) {
-        const identity = sorted[i]
+      const sorted = getSortedRoutes(pathnames)
 
-        const index = indexes.get(identity)
-        if (typeof index !== 'number') {
+      // For each of the sorted pathnames, iterate over them, grabbing the list
+      // of indexes and merging them back into the new `sortedDynamicMatchers`
+      // array. The order of the same matching pathname doesn't matter because
+      // they will have other matching characteristics (like the locale) that
+      // is considered.
+      const sortedDynamicMatchers: Array<RouteMatcher> = []
+      for (const pathname of sorted) {
+        const indexes = reference.get(pathname)
+        if (!Array.isArray(indexes)) {
           throw new Error('Invariant: expected to find identity in indexes map')
         }
 
-        sortedDynamicMatchers[i] = dynamic[index]
+        for (const index of indexes) sortedDynamicMatchers.push(dynamic[index])
       }
 
       this.matchers.dynamic = sortedDynamicMatchers

@@ -656,6 +656,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           }
           const pageIsDynamic = typeof match?.params !== 'undefined'
 
+          // The rest of this function can't handle i18n properly, so ensure we
+          // restore the pathname with the locale information stripped from it
+          // now that we're done matching.
+          matchedPath = options.i18n?.pathname ?? matchedPath
+
           const utils = getUtils({
             pageIsDynamic,
             page: srcPathname,
