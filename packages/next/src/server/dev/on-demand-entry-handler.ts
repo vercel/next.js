@@ -15,7 +15,12 @@ import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
-import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
+import {
+  isInstrumentationHookFile,
+  isInstrumentationHookFilename,
+  isMiddlewareFile,
+  isMiddlewareFilename,
+} from '../../build/utils'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import {
   CompilerNameValues,
@@ -296,7 +301,10 @@ async function findPagePathData(
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
-  if (isMiddlewareFile(normalizedPagePath)) {
+  if (
+    isMiddlewareFile(normalizedPagePath) ||
+    isInstrumentationHookFile(normalizedPagePath)
+  ) {
     pagePath = await findPageFile(
       rootDir,
       normalizedPagePath,
@@ -434,7 +442,8 @@ export function onDemandEntryHandler({
         pagePaths.push(`${type}${page}`)
       } else if (
         (root && entrypoint.name === 'root') ||
-        isMiddlewareFilename(entrypoint.name)
+        isMiddlewareFilename(entrypoint.name) ||
+        isInstrumentationHookFilename(entrypoint.name)
       ) {
         pagePaths.push(`${type}/${entrypoint.name}`)
       }
@@ -685,7 +694,10 @@ export function onDemandEntryHandler({
           onServer: () => {
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
             const edgeServerEntry = `${COMPILER_NAMES.edgeServer}${pagePathData.page}`
-            if (entries[edgeServerEntry]) {
+            if (
+              entries[edgeServerEntry] &&
+              !isInstrumentationHookFile(pagePathData.page)
+            ) {
               // Runtime switched from edge to server
               delete entries[edgeServerEntry]
             }
@@ -696,7 +708,10 @@ export function onDemandEntryHandler({
               addEntry(COMPILER_NAMES.edgeServer)
             )
             const serverEntry = `${COMPILER_NAMES.server}${pagePathData.page}`
-            if (entries[serverEntry]) {
+            if (
+              entries[serverEntry] &&
+              !isInstrumentationHookFile(pagePathData.page)
+            ) {
               // Runtime switched from server to edge
               delete entries[serverEntry]
             }

@@ -4,9 +4,9 @@ import type { ServerRuntime } from '../../types'
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
 
-// Pattern to detect server hooks file
-export const SERVER_HOOKS_FILENAME = 'server-hooks'
-export const SERVER_HOOKS_LOCATION_REGEXP = `(?:src/)?${SERVER_HOOKS_FILENAME}`
+// Pattern to detect instrumentation hooks file
+export const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
+export const INSTRUMENTATION_HOOKS_LOCATION_REGEXP = `(?:src/)?${INSTRUMENTATION_HOOK_FILENAME}`
 
 // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
 // we have to use a private alias

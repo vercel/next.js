@@ -114,7 +114,7 @@ export interface Options {
   /**
    * Object containing the configuration next.config.js
    */
-  conf: NextConfig
+  conf: NextConfigComplete
   /**
    * Set to false when the server was created by Next.js
    */

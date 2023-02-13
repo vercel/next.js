@@ -5,8 +5,8 @@ import './node-polyfill-fetch'
 import { default as Server } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import { join, resolve } from 'path'
-import { NON_STANDARD_NODE_ENV, SERVER_HOOKS_FILENAME } from '../lib/constants'
+import { resolve } from 'path'
+import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -154,24 +154,6 @@ export class NextServer {
           process.env.NEXT_PREBUNDLED_REACT = '1'
           overrideBuiltInReactPackages()
         }
-        try {
-          const serverHooks = require(join(
-            this.options.dir || '.',
-            conf.distDir,
-            'server',
-            SERVER_HOOKS_FILENAME
-          ))
-
-          if (serverHooks.beforeNextInit) {
-            await serverHooks.beforeNextInit()
-          }
-        } catch (err: any) {
-          console.error('Error loading server hooks', err)
-          if (err.code !== 'MODULE_NOT_FOUND') {
-            throw err
-          }
-        }
-
         this.server = await this.createServer({
           ...this.options,
           conf,

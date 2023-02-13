@@ -21,6 +21,7 @@ import { fileExists } from '../lib/file-exists'
 import Watchpack from 'next/dist/compiled/watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { warn } from '../build/output/log'
+import { getPossibleInstrumentationHookFilenames } from '../build/utils'
 
 let isTurboSession = false
 let sessionStopHandled = false
@@ -594,19 +595,49 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       const watchedEntryLength = parentDir.split('/').length + 1
       const previousItems = new Set()
 
+      const files = getPossibleInstrumentationHookFilenames(
+        dir,
+        config.pageExtensions
+      )
+
       const wp = new Watchpack({
         ignored: (entry: string) => {
-          // watch only one level
-          return !(entry.split('/').length <= watchedEntryLength)
+          return (
+            !(entry.split('/').length <= watchedEntryLength) &&
+            !files.includes(entry)
+          )
         },
       })
 
       wp.watch({ directories: [parentDir], startTime: 0 })
-
+      let instrumentationFileTimeCache: number | undefined = undefined
       wp.on('aggregated', () => {
         const knownFiles = wp.getTimeInfoEntries()
         const newFiles: string[] = []
         let hasPagesApp = false
+
+        // check if the `instrumentation.js` has changed
+        // if it has we need to restart the server
+        const instrumentationFile = [...knownFiles.keys()].find((key) =>
+          files.includes(key)
+        )
+        if (instrumentationFile) {
+          const instrumentationFileTime =
+            knownFiles.get(instrumentationFile)?.timestamp
+          if (
+            instrumentationFileTimeCache !== undefined &&
+            instrumentationFileTime !== instrumentationFileTimeCache
+          ) {
+            warn(
+              `The instrumentation file has changed, restarting the server to apply changes.`
+            )
+            childProcessExitUnsub()
+            childProcess?.kill()
+            childProcessExitUnsub = setupFork()
+          } else {
+            instrumentationFileTimeCache = instrumentationFileTime
+          }
+        }
 
         // if the dir still exists nothing to check
         try {

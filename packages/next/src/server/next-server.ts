@@ -101,6 +101,7 @@ import { RouteKind } from './future/route-kind'
 import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-handler'
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
 
 export * from './base-server'
 
@@ -235,6 +236,25 @@ export default class NextNodeServer extends BaseServer {
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
+    }
+
+    if (!options.dev) {
+      try {
+        const instrumentationHook = require(join(
+          options.dir || '.',
+          options.conf.distDir!,
+          'server',
+          INSTRUMENTATION_HOOK_FILENAME
+        ))
+
+        instrumentationHook.register?.()
+      } catch (err: any) {
+        console.error(err)
+        if (err.code !== 'MODULE_NOT_FOUND') {
+          console.error('Error loading instrumentation.js hook', err)
+          throw err
+        }
+      }
     }
 
     if (!options.dev) {

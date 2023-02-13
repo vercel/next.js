@@ -72,7 +72,9 @@ import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
+  getPossibleInstrumentationHookFilenames,
   getPossibleMiddlewareFilenames,
+  isInstrumentationHookFile,
   isMiddlewareFile,
   NestedMiddlewareError,
 } from '../../build/utils'
@@ -121,6 +123,7 @@ export default class DevServer extends Server {
   private pagesDir?: string
   private appDir?: string
   private actualMiddlewareFile?: string
+  private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private edgeFunctions?: RoutingItem[]
   private verifyingTypeScript?: boolean
@@ -364,10 +367,16 @@ export default class DevServer extends Server {
       const directories = [...pages, ...app]
 
       const rootDir = this.pagesDir || this.appDir
-      const files = getPossibleMiddlewareFilenames(
-        pathJoin(rootDir!, '..'),
-        this.nextConfig.pageExtensions
-      )
+      const files = [
+        ...getPossibleMiddlewareFilenames(
+          pathJoin(rootDir!, '..'),
+          this.nextConfig.pageExtensions
+        ),
+        ...getPossibleInstrumentationHookFilenames(
+          pathJoin(rootDir!, '..'),
+          this.nextConfig.pageExtensions
+        ),
+      ]
       let nestedMiddleware: string[] = []
 
       const envFiles = [
@@ -480,6 +489,10 @@ export default class DevServer extends Server {
             middlewareMatchers = staticInfo.middleware?.matchers || [
               { regexp: '.*' },
             ]
+            continue
+          }
+          if (isInstrumentationHookFile(rootFile)) {
+            this.actualInstrumentationHookFile = rootFile
             continue
           }
 
@@ -803,6 +816,7 @@ export default class DevServer extends Server {
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
     await this.startWatcher()
+    await this.ensureInstrumentation()
     await this.matchers.reload()
     this.setDevReady!()
 
@@ -1328,6 +1342,21 @@ export default class DevServer extends Server {
       page: this.actualMiddlewareFile!,
       clientOnly: false,
     })
+  }
+
+  private async ensureInstrumentation() {
+    if (this.actualInstrumentationHookFile) {
+      await this.hotReloader!.ensurePage({
+        page: this.actualInstrumentationHookFile!,
+        clientOnly: false,
+      })
+      try {
+        require(pathJoin(this.distDir, 'server', 'instrumentation')).register()
+      } catch (err: any) {
+        err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+        throw err
+      }
+    }
   }
 
   protected async ensureEdgeFunction({

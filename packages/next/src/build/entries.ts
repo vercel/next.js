@@ -16,7 +16,7 @@ import {
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
-  SERVER_HOOKS_FILENAME,
+  INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -36,7 +36,7 @@ import { warn } from './output/log'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
-  isServerHooksFile,
+  isInstrumentationHookFile,
   NestedMiddlewareError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
@@ -163,6 +163,7 @@ export function getEdgeServerEntry(opts: {
   middleware?: Partial<MiddlewareConfig>
   pagesType: 'app' | 'pages' | 'root'
   appDirLoader?: string
+  hasInstrumentationHook?: boolean
 }) {
   if (isMiddlewareFile(opts.page)) {
     const loaderParams: MiddlewareLoaderOptions = {
@@ -187,10 +188,10 @@ export function getEdgeServerEntry(opts: {
     return `next-edge-function-loader?${stringify(loaderParams)}!`
   }
 
-  if (isServerHooksFile(opts.page)) {
+  if (isInstrumentationHookFile(opts.page)) {
     return {
       import: opts.page,
-      filename: `edge-${SERVER_HOOKS_FILENAME}.js`,
+      filename: `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`,
     }
   }
 
@@ -262,7 +263,7 @@ export async function runDependingOnPageType<T>(params: {
   page: string
   pageRuntime: ServerRuntime
 }): Promise<void> {
-  if (isServerHooksFile(params.page)) {
+  if (isInstrumentationHookFile(params.page)) {
     await Promise.all([params.onServer(), params.onEdgeServer()])
     return
   }
