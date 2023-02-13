@@ -9,12 +9,10 @@ import {
   findPort,
   nextBuild,
   nextStart,
-  File,
   fetchViaHTTP,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const nextConfig = new File(join(appDir, 'next.config.js'))
 let server
 let externalPort
 let appPort
