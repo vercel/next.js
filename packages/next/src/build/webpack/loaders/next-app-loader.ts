@@ -137,21 +137,17 @@ async function createTreeCodeFromPath(
         })
       )
 
-      const layoutPath = filePaths.find(
-        ([type, filePath]) => type === 'layout' && !!filePath
-      )?.[1]
       if (!rootLayout) {
+        const layoutPath = filePaths.find(
+          ([type, filePath]) => type === 'layout' && !!filePath
+        )?.[1]
         rootLayout = layoutPath
-      }
 
-      if (!rootLayout) {
-        rootLayout = layoutPath
-      }
-
-      if (!globalError) {
-        globalError = await resolver(
-          `${appDirPrefix}${parallelSegmentPath}${GLOBAL_ERROR_FILE_TYPE}`
-        )
+        if (layoutPath) {
+          globalError = await resolver(
+            `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
+          )
+        }
       }
 
       const definedFilePaths = filePaths.filter(
