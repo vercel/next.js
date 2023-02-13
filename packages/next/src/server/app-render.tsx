@@ -30,7 +30,6 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-// import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
@@ -2019,6 +2018,9 @@ export async function renderToHTMLOrFlight(
         const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
         if (err.digest === NOT_FOUND_ERROR_CODE) {
           res.statusCode = 404
+        }
+        if (err.digest?.startsWith(REDIRECT_ERROR_CODE)) {
+          res.statusCode = 307
         }
 
         const renderStream = await renderToInitialStream({
