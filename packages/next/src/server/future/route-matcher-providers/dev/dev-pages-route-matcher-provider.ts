@@ -4,7 +4,6 @@ import {
   PagesRouteMatcher,
   PagesLocaleRouteMatcher,
 } from '../../route-matchers/pages-route-matcher'
-import { RouteMatcherProvider } from '../route-matcher-provider'
 import { AbsoluteFilenameNormalizer } from '../../normalizers/absolute-filename-normalizer'
 import { Normalizers } from '../../normalizers/normalizers'
 import { wrapNormalizerFn } from '../../normalizers/wrap-normalizer-fn'
@@ -13,10 +12,9 @@ import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import path from 'path'
 import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
+import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 
-export class DevPagesRouteMatcherProvider
-  implements RouteMatcherProvider<PagesRouteMatcher>
-{
+export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<PagesRouteMatcher> {
   private readonly expression: RegExp
   private readonly normalizers: {
     page: Normalizer
@@ -27,9 +25,11 @@ export class DevPagesRouteMatcherProvider
   constructor(
     private readonly pagesDir: string,
     private readonly extensions: ReadonlyArray<string>,
-    private readonly reader: FileReader,
+    reader: FileReader,
     private readonly localeNormalizer?: LocaleRouteNormalizer
   ) {
+    super(pagesDir, reader)
+
     // Match any route file that ends with `/${filename}.${extension}` under the
     // pages directory.
     this.expression = new RegExp(`\\.(?:${extensions.join('|')})$`)
@@ -71,10 +71,9 @@ export class DevPagesRouteMatcherProvider
     return true
   }
 
-  public async matchers(): Promise<ReadonlyArray<PagesRouteMatcher>> {
-    // Read the files in the pages directory...
-    const files = await this.reader.read(this.pagesDir)
-
+  protected async transform(
+    files: ReadonlyArray<string>
+  ): Promise<ReadonlyArray<PagesRouteMatcher>> {
     const matchers: Array<PagesRouteMatcher> = []
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.

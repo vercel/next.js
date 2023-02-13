@@ -1,6 +1,5 @@
 import { FileReader } from './helpers/file-reader/file-reader'
 import { AppRouteRouteMatcher } from '../../route-matchers/app-route-route-matcher'
-import { RouteMatcherProvider } from '../route-matcher-provider'
 import { Normalizer } from '../../normalizers/normalizer'
 import { Normalizers } from '../../normalizers/normalizers'
 import { AbsoluteFilenameNormalizer } from '../../normalizers/absolute-filename-normalizer'
@@ -8,10 +7,9 @@ import { wrapNormalizerFn } from '../../normalizers/wrap-normalizer-fn'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
+import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 
-export class DevAppRouteRouteMatcherProvider
-  implements RouteMatcherProvider<AppRouteRouteMatcher>
-{
+export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly expression: RegExp
   private readonly normalizers: {
     page: Normalizer
@@ -20,10 +18,12 @@ export class DevAppRouteRouteMatcherProvider
   }
 
   constructor(
-    private readonly appDir: string,
+    appDir: string,
     extensions: ReadonlyArray<string>,
-    private readonly reader: FileReader
+    reader: FileReader
   ) {
+    super(appDir, reader)
+
     // Match any route file that ends with `/route.${extension}` under the app
     // directory.
     this.expression = new RegExp(`\\/route\\.(?:${extensions.join('|')})$`)
@@ -46,10 +46,9 @@ export class DevAppRouteRouteMatcherProvider
     }
   }
 
-  public async matchers(): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
-    // Read the files in the pages directory...
-    const files = await this.reader.read(this.appDir)
-
+  protected async transform(
+    files: ReadonlyArray<string>
+  ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.

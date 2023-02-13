@@ -4,7 +4,6 @@ import {
   PagesAPILocaleRouteMatcher,
   PagesAPIRouteMatcher,
 } from '../../route-matchers/pages-api-route-matcher'
-import { RouteMatcherProvider } from '../route-matcher-provider'
 import { AbsoluteFilenameNormalizer } from '../../normalizers/absolute-filename-normalizer'
 import { Normalizers } from '../../normalizers/normalizers'
 import { wrapNormalizerFn } from '../../normalizers/wrap-normalizer-fn'
@@ -13,10 +12,9 @@ import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
 import path from 'path'
 import { LocaleRouteNormalizer } from '../../normalizers/locale-route-normalizer'
+import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 
-export class DevPagesAPIRouteMatcherProvider
-  implements RouteMatcherProvider<PagesAPIRouteMatcher>
-{
+export class DevPagesAPIRouteMatcherProvider extends FileCacheRouteMatcherProvider<PagesAPIRouteMatcher> {
   private readonly expression: RegExp
   private readonly normalizers: {
     page: Normalizer
@@ -27,9 +25,11 @@ export class DevPagesAPIRouteMatcherProvider
   constructor(
     private readonly pagesDir: string,
     private readonly extensions: ReadonlyArray<string>,
-    private readonly reader: FileReader,
+    reader: FileReader,
     private readonly localeNormalizer?: LocaleRouteNormalizer
   ) {
+    super(pagesDir, reader)
+
     // Match any route file that ends with `/${filename}.${extension}` under the
     // pages directory.
     this.expression = new RegExp(`\\.(?:${extensions.join('|')})$`)
@@ -73,10 +73,9 @@ export class DevPagesAPIRouteMatcherProvider
     return false
   }
 
-  public async matchers(): Promise<ReadonlyArray<PagesAPIRouteMatcher>> {
-    // Read the files in the pages directory...
-    const files = await this.reader.read(this.pagesDir)
-
+  protected async transform(
+    files: ReadonlyArray<string>
+  ): Promise<ReadonlyArray<PagesAPIRouteMatcher>> {
     const matchers: Array<PagesAPIRouteMatcher> = []
     for (const filename of files) {
       // If the file isn't a match for this matcher, then skip it.

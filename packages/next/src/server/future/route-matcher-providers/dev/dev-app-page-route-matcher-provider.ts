@@ -1,6 +1,5 @@
 import { FileReader } from './helpers/file-reader/file-reader'
 import { AppPageRouteMatcher } from '../../route-matchers/app-page-route-matcher'
-import { RouteMatcherProvider } from '../route-matcher-provider'
 import { Normalizer } from '../../normalizers/normalizer'
 import { AbsoluteFilenameNormalizer } from '../../normalizers/absolute-filename-normalizer'
 import { Normalizers } from '../../normalizers/normalizers'
@@ -8,10 +7,9 @@ import { wrapNormalizerFn } from '../../normalizers/wrap-normalizer-fn'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { PrefixingNormalizer } from '../../normalizers/prefixing-normalizer'
 import { RouteKind } from '../../route-kind'
+import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
 
-export class DevAppPageRouteMatcherProvider
-  implements RouteMatcherProvider<AppPageRouteMatcher>
-{
+export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
   private readonly normalizers: {
     page: Normalizer
@@ -20,10 +18,12 @@ export class DevAppPageRouteMatcherProvider
   }
 
   constructor(
-    private readonly appDir: string,
+    appDir: string,
     extensions: ReadonlyArray<string>,
-    private readonly reader: FileReader
+    reader: FileReader
   ) {
+    super(appDir, reader)
+
     // Match any page file that ends with `/page.${extension}` under the app
     // directory.
     this.expression = new RegExp(`\\/page\\.(?:${extensions.join('|')})$`)
@@ -46,10 +46,9 @@ export class DevAppPageRouteMatcherProvider
     }
   }
 
-  public async matchers(): Promise<ReadonlyArray<AppPageRouteMatcher>> {
-    // Read the files in the pages directory...
-    const files = await this.reader.read(this.appDir)
-
+  protected async transform(
+    files: ReadonlyArray<string>
+  ): Promise<ReadonlyArray<AppPageRouteMatcher>> {
     // Collect all the app paths for each page. This could include any parallel
     // routes.
     const cache = new Map<

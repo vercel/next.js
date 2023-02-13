@@ -710,10 +710,6 @@ export default class DevServer extends Server {
           }
           this.sortedRoutes = sortedRoutes
 
-          // Reload the matchers. The filesystem would have been written to,
-          // and the matchers need to re-scan it to update the router.
-          await this.matchers.reload()
-
           this.router.setCatchallMiddleware(
             this.generateCatchAllMiddlewareRoute(true)
           )
@@ -729,6 +725,10 @@ export default class DevServer extends Server {
           } else {
             Log.warn('Failed to reload dynamic routes:', e)
           }
+        } finally {
+          // Reload the matchers. The filesystem would have been written to,
+          // and the matchers need to re-scan it to update the router.
+          await this.matchers.reload()
         }
       })
     })
