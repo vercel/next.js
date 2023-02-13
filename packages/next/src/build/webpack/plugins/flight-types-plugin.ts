@@ -131,8 +131,6 @@ type OptionalCatchAllSlug<S extends string> =
   S extends \`\${string}\${SearchOrHash}\`
     ? never
     : S
-  
-import { UrlObject } from 'url'
 
 type Route<T extends string = string> = ${fallback}
 ${
@@ -141,7 +139,9 @@ ${
 }
 
 declare module 'next/link' {
-  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
+  import React from 'react'
+  import { UrlObject } from 'url'
+  import { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
 
   type LinkRestProps = Omit<OriginalLinkProps, 'href'> & {
     children: React.ReactNode
