@@ -39,9 +39,10 @@ tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-futures = "0.2.5"
 tracing-subscriber = "0.3.9"
 tracing-chrome = "0.5.0"
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230213.2" }
-turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230213.2" }
-next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230213.2", features = [
+turbo-malloc = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230214.1" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230214.1" }
+turbo-tasks-memory = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230214.1" }
+next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230214.1", features = [
   "__swc_core_binding_napi",
   "__turbo_next_dev_server",
   "__turbo_node_file_trace",
