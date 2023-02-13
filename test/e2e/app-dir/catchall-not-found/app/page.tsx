@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 
 export default function Page() {
-  notFound()
+  //  notFound()
   return <p id="page">Page: /</p>
 }
