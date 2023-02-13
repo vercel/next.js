@@ -26,6 +26,7 @@ coverage
 test/**/out*
 test/**/next-env.d.ts
 test/**/tsconfig.json
+!test/production/supports-module-resolution-nodenext/tsconfig.json
 .DS_Store
 /e2e-tests
 test/tmp/**
