@@ -28,7 +28,7 @@ use self::{optimize::CssChunkOptimizerVc, source_map::CssChunkSourceMapAssetRefe
 use crate::{
     embed::{CssEmbed, CssEmbeddable, CssEmbeddableVc},
     parse::ParseResultSourceMapVc,
-    util::stringify_str,
+    util::stringify_js,
     ImportAssetReferenceVc,
 };
 
@@ -134,7 +134,7 @@ impl CssChunkContentVc {
         let mut code = CodeBuilder::default();
         writeln!(code, "/* chunk {} */", chunk_name.await?)?;
         for external_import in external_imports {
-            writeln!(code, "@import {};", stringify_str(&external_import))?;
+            writeln!(code, "@import {};", stringify_js(&external_import))?;
         }
 
         code.push_code(&body.build());

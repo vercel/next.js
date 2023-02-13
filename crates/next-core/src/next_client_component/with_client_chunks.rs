@@ -8,7 +8,7 @@ use turbopack::ecmascript::{
         EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
         EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
     },
-    utils::stringify_module_id,
+    utils::stringify_js,
 };
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
@@ -130,7 +130,7 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
                 }
             }
         }
-        let module_id = stringify_module_id(&*inner.asset.as_chunk_item(self.context).id().await?);
+        let module_id = stringify_js(&*inner.asset.as_chunk_item(self.context).id().await?);
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
                 "__turbopack_esm__({{

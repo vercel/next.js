@@ -13,7 +13,7 @@ use turbopack_core::{
     environment::EnvironmentVc,
     virtual_asset::VirtualAssetVc,
 };
-use turbopack_ecmascript::{chunk_group_files_asset::ChunkGroupFilesAsset, utils::stringify_str};
+use turbopack_ecmascript::{chunk_group_files_asset::ChunkGroupFilesAsset, utils::stringify_js};
 
 use crate::embed_js::next_js_file;
 
@@ -36,7 +36,7 @@ impl Transition for NextEdgeTransition {
         let mut new_content = RopeBuilder::from(
             format!(
                 "const PAGE = {};\n",
-                stringify_str(
+                stringify_js(
                     self.base_path
                         .await?
                         .get_path_to(&*asset.path().await?)

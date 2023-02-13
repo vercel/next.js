@@ -1,4 +1,4 @@
-pub fn stringify_str(str: &str) -> String {
+pub fn stringify_js(str: &str) -> String {
     let mut escaped = String::with_capacity(str.len());
     for char in str.chars() {
         match char {
@@ -22,32 +22,32 @@ pub fn stringify_str(str: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::stringify_str;
+    use crate::util::stringify_js;
 
     #[test]
     fn surrounds_with_double_quotes() {
-        assert_eq!(stringify_str("foo"), r#""foo""#);
+        assert_eq!(stringify_js("foo"), r#""foo""#);
     }
 
     #[test]
     fn escapes_double_quotes() {
-        assert_eq!(stringify_str(r#""""#), r#""\"\"""#);
+        assert_eq!(stringify_js(r#""""#), r#""\"\"""#);
     }
 
     #[test]
     fn escapes_backslash() {
-        assert_eq!(stringify_str(r#"\"#), r#""\\""#);
-        assert_eq!(stringify_str(r#"\\"#), r#""\\\\""#);
-        assert_eq!(stringify_str(r#"\n"#), r#""\\n""#);
+        assert_eq!(stringify_js(r#"\"#), r#""\\""#);
+        assert_eq!(stringify_js(r#"\\"#), r#""\\\\""#);
+        assert_eq!(stringify_js(r#"\n"#), r#""\\n""#);
     }
 
     #[test]
     fn escapes_newlines() {
-        assert_eq!(stringify_str("\n"), r#""\n""#);
+        assert_eq!(stringify_js("\n"), r#""\n""#);
     }
 
     #[test]
     fn escapes_mixed() {
-        assert_eq!(stringify_str("\n\r\u{0c}"), r#""\n\r\f""#);
+        assert_eq!(stringify_js("\n\r\u{0c}"), r#""\n\r\f""#);
     }
 }
