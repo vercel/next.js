@@ -688,7 +688,12 @@ function assignDefaults(
       if (!result.experimental) {
         result.experimental = {}
       }
+      if (!defaultConfig.experimental) {
+        defaultConfig.experimental = {}
+      }
       result.experimental.outputFileTracingRoot = dirname(foundLockfile)
+      defaultConfig.experimental.outputFileTracingRoot =
+        result.experimental.outputFileTracingRoot
     }
   }
 
