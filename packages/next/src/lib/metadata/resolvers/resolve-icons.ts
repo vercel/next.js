@@ -17,7 +17,10 @@ export const resolveIcons: FieldResolver<'icons'> = (icons) => {
     return null
   }
 
-  const resolved: ResolvedMetadata['icons'] = {}
+  const resolved: ResolvedMetadata['icons'] = {
+    icon: [],
+    apple: [],
+  }
   if (Array.isArray(icons)) {
     resolved.icon = icons.map(resolveIcon).filter(Boolean)
   } else if (isStringOrURL(icons)) {

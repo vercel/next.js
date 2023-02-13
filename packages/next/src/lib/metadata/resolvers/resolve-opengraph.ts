@@ -100,11 +100,11 @@ export const resolveTwitter: FieldResolverWithMetadataBase<'twitter'> = (
   resolved.images = resolveAsArrayOrUndefined(twitter.images)?.map((item) => {
     if (isStringOrURL(item))
       return {
-        url: resolveUrl(item, metadataBase),
+        url: metadataBase ? resolveUrl(item, metadataBase) : item,
       }
     else {
       return {
-        url: resolveUrl(item.url, metadataBase),
+        url: metadataBase ? resolveUrl(item.url, metadataBase) : item.url,
         alt: item.alt,
       }
     }

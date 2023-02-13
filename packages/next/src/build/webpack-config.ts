@@ -61,7 +61,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
-import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/app-dir/metadata'
+import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
 const EXTERNAL_PACKAGES = require('../lib/server-external-packages.json')
 
