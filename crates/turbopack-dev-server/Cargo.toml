@@ -17,6 +17,7 @@ hyper-tungstenite = "0.8.1"
 indexmap = { workspace = true, features = ["serde"] }
 mime = "0.3.16"
 mime_guess = "2.0.4"
+once_cell = "1.13.0"
 parking_lot = "0.12.1"
 pin-project-lite = "0.2.9"
 serde = "1.0.136"
