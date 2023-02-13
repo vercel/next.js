@@ -9,6 +9,16 @@ autobenches = false
 # don't publish this crate
 publish = false
 
+[features]
+tokio_console = [
+  "dep:console-subscriber",
+  "tokio/tracing",
+  "turbo-tasks/tokio_tracing",
+]
+
+[dependencies]
+console-subscriber = { version = "0.1.8", optional = true }
+
 [dev-dependencies]
 anyhow = "1.0.47"
 chromiumoxide = { version = "0.4.0", features = [

@@ -1,5 +1,6 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
+#![feature(lint_reasons)]
 
 use std::{
     collections::{HashMap, HashSet},
