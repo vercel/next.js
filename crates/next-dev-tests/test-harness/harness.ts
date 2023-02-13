@@ -27,9 +27,12 @@ function autoReady<T extends (...a: any[]) => unknown>(
   return (...args) => {
     if (!isReady) {
       isReady = true;
-      setImmediate(() => {
-        READY("");
-      });
+      requestIdleCallback(
+        () => {
+          READY("");
+        },
+        { timeout: 20000 }
+      );
     }
     return fn(...args);
   };

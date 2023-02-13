@@ -4,7 +4,9 @@ extern crate test_generator;
 use std::{
     env,
     fmt::Write,
+    future::Future,
     net::SocketAddr,
+    panic::{catch_unwind, resume_unwind, AssertUnwindSafe},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -27,7 +29,7 @@ use next_dev::{register, EntryRequest, NextDevServerBuilder};
 use owo_colors::OwoColorize;
 use serde::Deserialize;
 use test_generator::test_resources;
-use tokio::{net::TcpSocket, task::JoinHandle};
+use tokio::{net::TcpSocket, task::JoinSet};
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
 use turbo_tasks::TurboTasks;
 use turbo_tasks_fs::util::sys_to_unix;
@@ -53,9 +55,30 @@ lazy_static! {
     static ref DEBUG_BROWSER: bool = env::var("TURBOPACK_DEBUG_BROWSER").is_ok();
 }
 
+fn run_async_test<'a, T>(future: impl Future<Output = T> + Send + 'a) -> T {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        runtime.block_on(async move {
+            #[cfg(feature = "tokio_console")]
+            console_subscriber::init();
+            future.await
+        })
+    }));
+    println!("Stutting down runtime...");
+    runtime.shutdown_timeout(Duration::from_secs(5));
+    println!("Stut down runtime");
+    match result {
+        Ok(result) => result,
+        Err(err) => resume_unwind(err),
+    }
+}
+
 #[test_resources("crates/next-dev-tests/tests/integration/*/*/*")]
-#[tokio::main(flavor = "current_thread")]
-async fn test(resource: &str) {
+fn test(resource: &str) {
     if resource.ends_with("__skipped__") || resource.ends_with("__flakey__") {
         // "Skip" directories named `__skipped__`, which include test directories to
         // skip. These tests are not considered truly skipped by `cargo test`, but they
@@ -69,7 +92,7 @@ async fn test(resource: &str) {
         return;
     }
 
-    let run_result = run_test(resource).await;
+    let run_result = run_async_test(run_test(resource));
 
     assert!(
         !run_result.test_results.is_empty(),
@@ -100,9 +123,8 @@ async fn test(resource: &str) {
 
 #[test_resources("crates/next-dev-tests/tests/integration/*/*/__skipped__/*")]
 #[should_panic]
-#[tokio::main]
-async fn test_skipped_fails(resource: &str) {
-    let run_result = run_test(resource).await;
+fn test_skipped_fails(resource: &str) {
+    let run_result = run_async_test(run_test(resource));
 
     // Assert that this skipped test itself has at least one browser test which
     // fails.
@@ -140,8 +162,9 @@ async fn run_test(resource: &str) -> JestRunResult {
     let mock_dir = path.join("__httpmock__");
     let mock_server_future = get_mock_server_future(&mock_dir);
 
+    let turbo_tasks = TurboTasks::new(MemoryBackend::default());
     let server = NextDevServerBuilder::new(
-        TurboTasks::new(MemoryBackend::default()),
+        turbo_tasks,
         sys_to_unix(&project_dir.to_string_lossy()).to_string(),
         sys_to_unix(&workspace_root.to_string_lossy()).to_string(),
     )
@@ -178,7 +201,7 @@ async fn run_test(resource: &str) -> JestRunResult {
     result
 }
 
-async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinHandle<()>)> {
+async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinSet<()>)> {
     let mut config_builder = BrowserConfig::builder();
     if is_debugging {
         config_builder = config_builder
@@ -197,8 +220,14 @@ async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinHandle<()>)>
     )
     .await
     .context("Launching browser failed")?;
+
+    // For windows it's important that the browser is dropped so that the test can
+    // complete. To do that we need to cancel the spawned task below (which will
+    // drop the browser). For this we are using a JoinSet which cancels all tasks
+    // when dropped.
+    let mut set = JoinSet::new();
     // See https://crates.io/crates/chromiumoxide
-    let thread_handle = tokio::task::spawn(async move {
+    set.spawn(async move {
         loop {
             if let Err(Ws(Protocol(ResetWithoutClosingHandshake))) = handler.next().await.unwrap() {
                 // The user has most likely closed the browser. End gracefully.
@@ -207,14 +236,11 @@ async fn create_browser(is_debugging: bool) -> Result<(Browser, JoinHandle<()>)>
         }
     });
 
-    Ok((browser, thread_handle))
+    Ok((browser, set))
 }
 
 async fn run_browser(addr: SocketAddr) -> Result<JestRunResult> {
-    run_test_browser(addr, *DEBUG_BROWSER).await
-}
-
-async fn run_test_browser(addr: SocketAddr, is_debugging: bool) -> Result<JestRunResult> {
+    let is_debugging = *DEBUG_BROWSER;
     let (browser, mut handle) = create_browser(is_debugging).await?;
 
     // `browser.new_page()` opens a tab, navigates to the destination, and waits for
@@ -346,9 +372,12 @@ async fn run_test_browser(addr: SocketAddr, is_debugging: bool) -> Result<JestRu
                 }
                 network_next = network_response_events.next();
             }
-            result = &mut handle => {
-                result?;
-                return Err(anyhow!("Browser closed"));
+            result = handle.join_next() => {
+                if let Some(result) = result {
+                    result?;
+                } else {
+                    return Err(anyhow!("Browser closed"));
+                }
             }
             () = tokio::time::sleep(Duration::from_secs(60)) => {
                 if !is_debugging {
