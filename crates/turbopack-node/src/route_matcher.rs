@@ -2,7 +2,16 @@ use indexmap::IndexMap;
 use turbo_tasks::primitives::BoolVc;
 
 #[turbo_tasks::value(transparent)]
-pub struct Params(Option<IndexMap<String, String>>);
+#[derive(Debug, Clone)]
+#[serde(untagged)]
+pub enum Param {
+    Single(String),
+    Multi(Vec<String>),
+}
+
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct Params(Option<IndexMap<String, Param>>);
 
 /// Extracts parameters from a URL path.
 #[turbo_tasks::value_trait]
