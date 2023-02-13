@@ -500,6 +500,7 @@ describe('serverPatchReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
