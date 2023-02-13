@@ -16,7 +16,7 @@ export async function getServerSideProps(context) {
 
 > Note that irrespective of rendering type, any `props` will be passed to the page component and can be viewed on the client-side in the initial HTML. This is to allow the page to be [hydrated](https://reactjs.org/docs/react-dom.html#hydrate) correctly. Make sure that you don't pass any sensitive information that shouldn't be available on the client in `props`.
 
-## When does getServerSideProps run
+## When does `getServerSideProps` run
 
 `getServerSideProps` only runs on server-side and never runs on the browser. If a page uses `getServerSideProps`, then:
 
@@ -33,19 +33,19 @@ Note that you must export `getServerSideProps` as a standalone function — it w
 
 The [`getServerSideProps` API reference](/docs/api-reference/data-fetching/get-server-side-props.md) covers all parameters and props that can be used with `getServerSideProps`.
 
-## When should I use getServerSideProps
+## When should I use `getServerSideProps`
 
 You should use `getServerSideProps` only if you need to render a page whose data must be fetched at request time. This could be due to the nature of the data or properties of the request (such as `authorization` headers or geo location). Pages using `getServerSideProps` will be server side rendered at request time and only be cached if [cache-control headers are configured](/docs/going-to-production#caching).
 
 If you do not need to render the data during the request, then you should consider fetching data on the [client side](#fetching-data-on-the-client-side) or [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props).
 
-### getServerSideProps or API Routes
+### `getServerSideProps` or API Routes
 
 It can be tempting to reach for an [API Route](/docs/api-routes/introduction.md) when you want to fetch data from the server, then call that API route from `getServerSideProps`. This is an unnecessary and inefficient approach, as it will cause an extra request to be made due to both `getServerSideProps` and API Routes running on the server.
 
 Take the following example. An API route is used to fetch some data from a CMS. That API route is then called directly from `getServerSideProps`. This produces an additional call, reducing performance. Instead, directly import the logic used inside your API Route into `getServerSideProps`. This could mean calling a CMS, database, or other API directly from inside `getServerSideProps`.
 
-### getServerSideProps with Edge API Routes
+### `getServerSideProps` with Edge API Routes
 
 `getServerSideProps` can be used with both Serverless and Edge Runtimes, and you can set props in both. However, currently in Edge Runtime, you do not have access to the response object. This means that you cannot — for example — add cookies in `getServerSideProps`. To have access to the response object, you should **continue to use the Node.js runtime**, which is the default runtime.
 
@@ -66,7 +66,7 @@ If your page contains frequently updating data, and you don’t need to pre-rend
 
 This approach works well for user dashboard pages, for example. Because a dashboard is a private, user-specific page, SEO is not relevant and the page doesn’t need to be pre-rendered. The data is frequently updated, which requires request-time data fetching.
 
-## Using getServerSideProps to fetch data at request time
+## Using `getServerSideProps` to fetch data at request time
 
 The following example shows how to fetch data at request time and pre-render the result.
 
@@ -114,7 +114,7 @@ export async function getServerSideProps({ req, res }) {
 
 Learn more about [caching](/docs/going-to-production.md).
 
-## Does getServerSideProps render an error page
+## Does `getServerSideProps` render an error page
 
 If an error is thrown inside `getServerSideProps`, it will show the `pages/500.js` file. Check out the documentation for [500 page](/docs/advanced-features/custom-error-page#500-page) to learn more on how to create it. During development this file will not be used and the dev overlay will be shown instead.
 
