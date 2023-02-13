@@ -110,7 +110,7 @@ const API_DOCS: Record<
   },
   metadata: {
     description: 'Next.js Metadata configurations',
-    link: 'https://beta.nextjs.org/docs/',
+    link: 'https://beta.nextjs.org/docs/api-reference/metadata',
   },
 }
 

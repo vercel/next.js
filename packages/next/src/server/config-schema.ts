@@ -278,6 +278,9 @@ const configSchema = {
         externalDir: {
           type: 'boolean',
         },
+        externalMiddlewareRewritesResolve: {
+          type: 'boolean',
+        },
         fallbackNodePolyfills: {
           type: 'boolean',
         },
@@ -436,6 +439,9 @@ const configSchema = {
           } as any,
         },
         mdxRs: {
+          type: 'boolean',
+        },
+        typedRoutes: {
           type: 'boolean',
         },
         webpackBuildWorker: {

@@ -3,6 +3,8 @@ import { promises as fs } from 'fs'
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
 const PLUGIN_NAME = 'FlightTypesPlugin'
 
@@ -12,6 +14,7 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
+  typedRoutes: boolean
 }
 
 function createTypeGuardFile(
@@ -95,12 +98,89 @@ async function collectNamedSlots(layoutPath: string) {
   return slots
 }
 
+const nodeRouteTypes: string[] = []
+const edgeRouteTypes: string[] = []
+
+export const pageFiles = new Set<string>()
+
+function createRouteDefinitions() {
+  const fallback =
+    !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
+
+  return `
+type SearchOrHash = \`?\${string}\` | \`#\${string}\`
+type Suffix = '' | SearchOrHash
+
+type SafeSlug<S extends string> = 
+  S extends \`\${string}/\${string}\`
+    ? never
+    : S extends \`\${string}\${SearchOrHash}\`
+    ? never
+    : S extends ''
+    ? never
+    : S
+
+type CatchAllSlug<S extends string> = 
+  S extends \`\${string}\${SearchOrHash}\`
+    ? never
+    : S extends ''
+    ? never
+    : S
+
+type OptionalCatchAllSlug<S extends string> = 
+  S extends \`\${string}\${SearchOrHash}\`
+    ? never
+    : S
+
+type Route<T extends string = string> = ${fallback}
+${
+  edgeRouteTypes.map((route) => `  | ${route}`).join('\n') +
+  nodeRouteTypes.map((route) => `  | ${route}`).join('\n')
+}
+
+declare module 'next/link' {
+  import React from 'react'
+  import { UrlObject } from 'url'
+  import { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
+
+  type LinkRestProps = Omit<OriginalLinkProps, 'href'> & {
+    children: React.ReactNode
+  }
+
+  // If the href prop can be a Route type with an infer-able S, it's valid.
+  type HrefProp<T> = T extends (Route<infer S> | UrlObject) ? {
+    /**
+     * The path or URL to navigate to. This is the only required prop. It can also be an object.
+     *
+     * https://nextjs.org/docs/api-reference/next/link
+     */
+    href: T
+  } : {
+    /**
+     * The path or URL to navigate to. This is the only required prop. It can also be an object.
+     *
+     * https://nextjs.org/docs/api-reference/next/link
+     */
+    href: never
+  }
+
+  export type LinkProps<T> = LinkRestProps & HrefProp<T>
+  export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
+}
+
+declare module 'next' {
+  export { Route }
+}`
+}
+
 export class FlightTypesPlugin {
   dir: string
   distDir: string
   appDir: string
+  pagesDir: string
   dev: boolean
   isEdgeServer: boolean
+  typedRoutes: boolean
 
   constructor(options: Options) {
     this.dir = options.dir
@@ -108,6 +188,53 @@ export class FlightTypesPlugin {
     this.appDir = options.appDir
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
+    this.pagesDir = path.join(this.appDir, '..', 'pages')
+    this.typedRoutes = options.typedRoutes
+  }
+
+  collectPage(filePath: string) {
+    if (!this.typedRoutes) return
+
+    const isApp = filePath.startsWith(this.appDir + path.sep)
+
+    // Filter out non-page files in app dir
+    if (isApp && !/[/\\]page\.[^.]+$/.test(filePath)) {
+      return
+    }
+
+    const page = isApp
+      ? normalizeAppPath(path.relative(this.appDir, filePath))
+      : '/' + path.relative(this.pagesDir, filePath)
+
+    let route =
+      (isApp
+        ? page.replace(/\/page\.[^./]+$/, '')
+        : page.replace(/\.[^./]+$/, '')
+      ).replace(/\/index$/, '') || '/'
+
+    if (isDynamicRoute(route)) {
+      route = route
+        .split('/')
+        .map((part) => {
+          if (part.startsWith('[') && part.endsWith(']')) {
+            if (part.startsWith('[...')) {
+              // /[...slug]
+              return `\${CatchAllSlug<T>}`
+            } else if (part.startsWith('[[...') && part.endsWith(']]')) {
+              // /[[...slug]]
+              return `\${OptionalCatchAllSlug<T>}`
+            }
+            // /[slug]
+            return `\${SafeSlug<T>}`
+          }
+          return part
+        })
+        .join('/')
+    }
+
+    ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).push(
+      `\`${route}\${Suffix}\``
+    )
   }
 
   apply(compiler: webpack.Compiler) {
@@ -122,17 +249,33 @@ export class FlightTypesPlugin {
       : '../..'
 
     const handleModule = async (_mod: webpack.Module, assets: any) => {
-      if (_mod.layer !== WEBPACK_LAYERS.server) return
       const mod: webpack.NormalModule = _mod as any
 
       if (!mod.resource) return
-      if (!mod.resource.startsWith(this.appDir + path.sep)) return
+
       if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
+
+      if (!mod.resource.startsWith(this.appDir + path.sep)) {
+        if (!this.dev) {
+          if (mod.resource.startsWith(this.pagesDir + path.sep)) {
+            this.collectPage(mod.resource)
+          }
+        }
+        return
+      }
+
+      if (_mod.layer !== WEBPACK_LAYERS.server) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
       const relativePathToApp = path.relative(this.appDir, mod.resource)
       const relativePathToRoot = path.relative(this.dir, mod.resource)
+
+      if (!this.dev) {
+        if (IS_PAGE) {
+          this.collectPage(mod.resource)
+        }
+      }
 
       const typePath = path.join(
         'types',
@@ -173,14 +316,58 @@ export class FlightTypesPlugin {
         },
         async (assets, callback) => {
           const promises: Promise<any>[] = []
-          for (const entrypoint of compilation.entrypoints.values()) {
-            for (const chunk of entrypoint.chunks) {
-              compilation.chunkGraph.getChunkModules(chunk).forEach((mod) => {
-                promises.push(handleModule(mod, assets))
-              })
-            }
+
+          // Clear routes
+          if (this.isEdgeServer) {
+            edgeRouteTypes.length = 0
+          } else {
+            nodeRouteTypes.length = 0
           }
+
+          compilation.chunkGroups.forEach((chunkGroup: any) => {
+            chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+              if (!chunk.name) return
+
+              // Here we only track page chunks.
+              if (
+                !chunk.name.startsWith('pages/') &&
+                !(chunk.name.startsWith('app/') && chunk.name.endsWith('/page'))
+              ) {
+                return
+              }
+
+              const chunkModules =
+                compilation.chunkGraph.getChunkModulesIterable(
+                  chunk
+                ) as Iterable<webpack.NormalModule>
+              for (const mod of chunkModules) {
+                promises.push(handleModule(mod, assets))
+
+                // If this is a concatenation, register each child to the parent ID.
+                const anyModule = mod as any
+                if (anyModule.modules) {
+                  anyModule.modules.forEach((concatenatedMod: any) => {
+                    promises.push(handleModule(concatenatedMod, assets))
+                  })
+                }
+              }
+            })
+          })
+
           await Promise.all(promises)
+
+          if (this.typedRoutes) {
+            pageFiles.forEach((file) => {
+              this.collectPage(file)
+            })
+
+            const linkTypePath = path.join('types', 'link.d.ts')
+            const assetPath =
+              assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
+            assets[assetPath] = new sources.RawSource(
+              createRouteDefinitions()
+            ) as unknown as webpack.sources.RawSource
+          }
 
           callback()
         }

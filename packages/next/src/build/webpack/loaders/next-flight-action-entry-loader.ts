@@ -1,28 +1,38 @@
+import { generateActionId } from './utils'
+
 export type NextFlightActionEntryLoaderOptions = {
-  actionPath: string
-  actionName: string
+  actions: string
 }
 
 function nextFlightActionEntryLoader(this: any) {
-  const { actionPath, actionName }: NextFlightActionEntryLoaderOptions =
-    this.getOptions()
+  const { actions }: NextFlightActionEntryLoaderOptions = this.getOptions()
+
+  const actionList = JSON.parse(actions) as [string, string[]][]
 
   return `
-import { ${actionName} } from ${JSON.stringify(actionPath)}
-export default async function endpoint(req, res) {
-  try {
-    const result = await ${actionName}()
-    const serializedResult = JSON.stringify(result)
-    res.statusCode = 200
-    res.setHeader('Content-Type', 'text/plain')
-    res.body(serializedResult)
-  } catch (err) {
-    res.statusCode = 500
-    res.setHeader('Content-Type', 'text/plain')
-    res.body(err.message)
-  }
-  res.send()
-}`
+const actions = {
+${actionList
+  .map(([path, names]) => {
+    return names
+      .map(
+        (name) =>
+          `  '${generateActionId(
+            path,
+            name
+          )}': () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+            path
+          )}).then(mod => mod[${JSON.stringify(name)}]),`
+      )
+      .join('\n')
+  })
+  .join('\n')}
+}
+
+export default async function endpoint(id, bound) {
+  const action = await actions[id]()
+  return action.apply(null, bound)
+}
+`
 }
 
 export default nextFlightActionEntryLoader
