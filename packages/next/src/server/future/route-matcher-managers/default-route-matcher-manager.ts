@@ -65,7 +65,7 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       for (const providerMatchers of providersMatchers) {
         for (const matcher of providerMatchers) {
           // Test to see if the matcher being added is a duplicate.
-          const duplicate = all.get(matcher.identity)
+          const duplicate = all.get(matcher.definition.pathname)
           if (duplicate) {
             // This looks a little weird, but essentially if the pathname
             // already exists in the duplicates map, then we got that array
@@ -79,18 +79,17 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
             // the retrieval of the `other` will actually return the array
             // reference used by all other duplicates. This is why ReadonlyArray
             // is so important! Array's are always references!
-            const others = duplicates[matcher.identity] ?? [duplicate]
+            const others = duplicates[matcher.definition.pathname] ?? [
+              duplicate,
+            ]
             others.push(matcher)
-            duplicates[matcher.identity] = others
+            duplicates[matcher.definition.pathname] = others
 
             // Add duplicated details to each route.
             duplicate.duplicated = others
             matcher.duplicated = others
 
-            // Currently, this is a bit delicate, as the order for which we'll
-            // receive the matchers is not deterministic.
             // TODO: see if we should error for duplicates in production?
-            continue
           }
 
           matchers.push(matcher)

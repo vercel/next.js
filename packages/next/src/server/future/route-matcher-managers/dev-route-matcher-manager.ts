@@ -4,7 +4,7 @@ import { RouteDefinition } from '../route-definitions/route-definition'
 import { DefaultRouteMatcherManager } from './default-route-matcher-manager'
 import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import path from '../../../shared/lib/isomorphic/path'
-import { warn } from '../../../build/output/log'
+import * as Log from '../../../build/output/log'
 import chalk from 'next/dist/compiled/chalk'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 
@@ -112,15 +112,22 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     await super.reload()
 
     // Check for and warn of any duplicates.
-    for (const matchers of Object.values(this.matchers.duplicates)) {
-      // Pull the pathname off the first one.
-      const pathname = matchers[0].definition.pathname
-      warn(
+    for (const [pathname, matchers] of Object.entries(
+      this.matchers.duplicates
+    )) {
+      // We only want to warn about matchers resolving to the same path if their
+      // identities are different.
+      const identity = matchers[0].identity
+      if (matchers.slice(1).some((matcher) => matcher.identity !== identity)) {
+        continue
+      }
+
+      Log.warn(
         `Duplicate page detected. ${matchers
           .map((matcher) =>
             chalk.cyan(path.relative(this.dir, matcher.definition.filename))
           )
-          .join(' and ')} resolve to ${chalk.cyan(pathname)}.`
+          .join(' and ')} resolve to ${chalk.cyan(pathname)}`
       )
     }
   }
