@@ -2,6 +2,8 @@ pub(crate) mod optimize;
 pub mod source_map;
 pub(crate) mod writer;
 
+use std::fmt::Write;
+
 use anyhow::{anyhow, Result};
 use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, TryJoinIterExt, ValueToString, ValueToStringVc};
@@ -17,6 +19,10 @@ use turbopack_core::{
         FromChunkableAsset, ModuleId, ModuleIdVc,
     },
     code_builder::{CodeBuilder, CodeVc},
+    introspect::{
+        asset::{children_from_asset_references, content_to_details, IntrospectableAssetVc},
+        Introspectable, IntrospectableChildrenVc, IntrospectableVc,
+    },
     reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
     resolve::PrimaryResolveResult,
     source_map::{GenerateSourceMap, GenerateSourceMapVc, SourceMapVc},
@@ -414,5 +420,54 @@ impl FromChunkableAsset for CssChunkItemVc {
         _asset: ChunkableAssetVc,
     ) -> Result<Option<(Self, ChunkableAssetVc)>> {
         Ok(None)
+    }
+}
+
+#[turbo_tasks::function]
+fn introspectable_type() -> StringVc {
+    StringVc::cell("css chunk".to_string())
+}
+
+#[turbo_tasks::function]
+fn entry_module_key() -> StringVc {
+    StringVc::cell("entry module".to_string())
+}
+
+#[turbo_tasks::value_impl]
+impl Introspectable for CssChunk {
+    #[turbo_tasks::function]
+    fn ty(&self) -> StringVc {
+        introspectable_type()
+    }
+
+    #[turbo_tasks::function]
+    fn title(self_vc: CssChunkVc) -> StringVc {
+        self_vc.path().to_string()
+    }
+
+    #[turbo_tasks::function]
+    async fn details(self_vc: CssChunkVc) -> Result<StringVc> {
+        let content = content_to_details(self_vc.content());
+        let mut details = String::new();
+        let this = self_vc.await?;
+        let chunk_content = css_chunk_content(this.context, this.main_entries).await?;
+        details += "Chunk items:\n\n";
+        for item in chunk_content.chunk_items.iter() {
+            writeln!(details, "- {}", item.to_string().await?)?;
+        }
+        details += "\nContent:\n\n";
+        write!(details, "{}", content.await?)?;
+        Ok(StringVc::cell(details))
+    }
+
+    #[turbo_tasks::function]
+    async fn children(self_vc: CssChunkVc) -> Result<IntrospectableChildrenVc> {
+        let mut children = children_from_asset_references(self_vc.references())
+            .await?
+            .clone_value();
+        for &entry in &*self_vc.await?.main_entries.await? {
+            children.insert((entry_module_key(), IntrospectableAssetVc::new(entry.into())));
+        }
+        Ok(IntrospectableChildrenVc::cell(children))
     }
 }

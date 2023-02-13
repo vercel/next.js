@@ -1,3 +1,4 @@
+pub mod chunk_in_group;
 pub mod dev;
 pub mod optimize;
 
@@ -18,7 +19,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPathVc;
 use turbo_tasks_hash::DeterministicHash;
 
-use self::optimize::optimize;
+use self::{chunk_in_group::ChunkInGroupVc, optimize::optimize};
 use crate::{
     asset::{Asset, AssetVc, AssetsVc},
     environment::EnvironmentVc,
@@ -149,9 +150,6 @@ impl ChunkGroupVc {
             Ok(result.into_iter().flatten())
         }
 
-        // async fn get_chunk_children(
-        //     chunk: ChunkVc,
-        // ) -> Result<Flatten<IntoIter<Flatten<IntoIter<Option<ChunkVc>>>>>> {
         async fn get_chunk_children(
             chunk: ChunkVc,
         ) -> Result<impl Iterator<Item = ChunkVc> + Send> {
@@ -174,6 +172,13 @@ impl ChunkGroupVc {
 
         let chunks = ChunksVc::cell(chunks.into_iter().collect());
         let chunks = optimize(chunks, self);
+        let chunks = ChunksVc::cell(
+            chunks
+                .await?
+                .iter()
+                .map(|&chunk| ChunkInGroupVc::new(chunk).as_chunk())
+                .collect(),
+        );
 
         Ok(chunks)
     }
