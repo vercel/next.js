@@ -210,8 +210,8 @@ describe('refreshReducer', () => {
             },
           ],
         },
-        null,
-        null,
+        undefined,
+        undefined,
         true,
       ],
     }
@@ -364,8 +364,8 @@ describe('refreshReducer', () => {
             },
           ],
         },
-        null,
-        null,
+        undefined,
+        undefined,
         true,
       ],
     }
