@@ -240,6 +240,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
   protected abstract getFilesystemPaths(): Set<string>
   protected abstract findPageComponents(params: {
+    /** it should include page type suffix in app/, like `/page` or `/layout` */
     pathname: string
     query: NextParsedUrlQuery
     params: Params
