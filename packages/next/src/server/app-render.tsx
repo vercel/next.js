@@ -2020,6 +2020,9 @@ export async function renderToHTMLOrFlight(
         if (err.digest === NOT_FOUND_ERROR_CODE) {
           res.statusCode = 404
         }
+        if (err.digest?.startsWith(REDIRECT_ERROR_CODE)) {
+          res.statusCode = 307
+        }
 
         const renderStream = await renderToInitialStream({
           ReactDOMServer,
