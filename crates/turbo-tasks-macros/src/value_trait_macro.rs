@@ -162,6 +162,12 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     self.value_debug_format(depth).try_to_value_debug_string().await
                 }
             }
+
+            impl turbo_tasks::FromSubTrait<#ref_ident> for turbo_tasks::debug::ValueDebugVc {
+                fn from_sub_trait(node_ref: #ref_ident) -> Self {
+                    node_ref.node.into()
+                }
+            }
         }
     } else {
         quote! {}
