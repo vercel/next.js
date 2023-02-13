@@ -41,7 +41,7 @@ type Handler = (data: {
   request: IncomingMessage;
   response: ServerResponse<IncomingMessage>;
   query: string;
-  params: Record<string, string>;
+  params: Record<string, string | string[]>;
   path: string;
 }) => Promise<void>;
 

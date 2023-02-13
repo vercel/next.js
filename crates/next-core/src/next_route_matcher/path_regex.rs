@@ -1,14 +1,26 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::primitives::{BoolVc, Regex};
-use turbopack_node::route_matcher::{ParamsVc, RouteMatcher};
+use turbopack_node::route_matcher::{Param, ParamsVc, RouteMatcher};
 
 /// A regular expression that matches a path, with named capture groups for the
 /// dynamic parts of the path.
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct PathRegex {
     regex: Regex,
-    named_params: Vec<String>,
+    named_params: Vec<NamedParam>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+struct NamedParam {
+    name: String,
+    kind: NamedParamKind,
+}
+
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+enum NamedParamKind {
+    Single,
+    Multi,
 }
 
 impl std::fmt::Display for PathRegex {
@@ -27,12 +39,24 @@ impl RouteMatcher for PathRegex {
             self.named_params
                 .iter()
                 .enumerate()
-                .filter_map(|(idx, name)| {
-                    if name.is_empty() {
+                .filter_map(|(idx, param)| {
+                    if param.name.is_empty() {
                         return None;
                     }
                     let value = capture.get(idx + 1)?;
-                    Some((name.to_string(), value.as_str().to_string()))
+                    Some((
+                        param.name.to_string(),
+                        match param.kind {
+                            NamedParamKind::Single => Param::Single(value.as_str().to_string()),
+                            NamedParamKind::Multi => Param::Multi(
+                                value
+                                    .as_str()
+                                    .split("/")
+                                    .map(|segment| segment.to_string())
+                                    .collect(),
+                            ),
+                        },
+                    ))
                 })
                 .collect()
         }))
@@ -42,7 +66,7 @@ impl RouteMatcher for PathRegex {
 /// Builder for [PathRegex].
 pub struct PathRegexBuilder {
     regex_str: String,
-    named_params: Vec<String>,
+    named_params: Vec<NamedParam>,
 }
 
 impl PathRegexBuilder {
@@ -74,7 +98,10 @@ impl PathRegexBuilder {
             "([^?]+)?"
         });
         self.push_str(&regex::escape(rem.as_ref()));
-        self.named_params.push(name.into());
+        self.named_params.push(NamedParam {
+            name: name.into(),
+            kind: NamedParamKind::Multi,
+        });
     }
 
     /// Pushes a catch all segment to the regex.
@@ -88,7 +115,10 @@ impl PathRegexBuilder {
         }
         self.push_str("([^?]+)");
         self.push_str(&regex::escape(rem.as_ref()));
-        self.named_params.push(name.into());
+        self.named_params.push(NamedParam {
+            name: name.into(),
+            kind: NamedParamKind::Multi,
+        });
     }
 
     /// Pushes a dynamic segment to the regex.
@@ -102,7 +132,10 @@ impl PathRegexBuilder {
         }
         self.push_str("([^?/]+)");
         self.push_str(&regex::escape(rem.as_ref()));
-        self.named_params.push(name.into());
+        self.named_params.push(NamedParam {
+            name: name.into(),
+            kind: NamedParamKind::Single,
+        });
     }
 
     /// Pushes a static segment to the regex.
