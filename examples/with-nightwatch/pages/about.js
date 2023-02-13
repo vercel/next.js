@@ -1,16 +1,16 @@
-import { useState } from "react";
-import Link from "next/link";
+import React, { useState } from 'react'
+import Link from 'next/link'
 
-import styles from "../styles/About.module.css";
+import styles from '../styles/About.module.css'
 
 export default function About() {
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log(`Email: ${email}, Message: ${message}`);
-  };
+    e.preventDefault()
+    console.log(`Email: ${email}, Message: ${message}`)
+  }
 
   return (
     <div className={styles.container}>
@@ -49,5 +49,5 @@ export default function About() {
         </form>
       </main>
     </div>
-  );
+  )
 }

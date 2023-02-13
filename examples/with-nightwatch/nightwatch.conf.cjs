@@ -30,13 +30,13 @@ module.exports = {
   plugins: ['@nightwatch/react'],
 
   // See https://nightwatchjs.org/guide/concepts/test-globals.html#external-test-globals
-  globals_path : 'nightwatch/globals.js',
+  globals_path: 'nightwatch/globals.js',
 
   webdriver: {},
 
   test_workers: {
     enabled: false,
-    workers: 'auto'
+    workers: 'auto',
   },
 
   test_settings: {
@@ -47,35 +47,35 @@ module.exports = {
       screenshots: {
         enabled: false,
         path: 'screens',
-        on_failure: true
+        on_failure: true,
       },
 
       desiredCapabilities: {
         browserName: 'chrome',
         'goog:chromeOptions': {
           w3c: true,
-          args: []
-        }
+          args: [],
+        },
       },
 
       webdriver: {
         start_process: true,
         log_path: false,
-        server_path: ''
-      }
+        server_path: '',
+      },
     },
 
     safari: {
       desiredCapabilities: {
         browserName: 'safari',
         alwaysMatch: {
-          acceptInsecureCerts: false
-        }
+          acceptInsecureCerts: false,
+        },
       },
       webdriver: {
         start_process: true,
-        server_path: ''
-      }
+        server_path: '',
+      },
     },
 
     firefox: {
@@ -84,15 +84,15 @@ module.exports = {
         alwaysMatch: {
           acceptInsecureCerts: true,
           'moz:firefoxOptions': {
-            args: []
-          }
-        }
+            args: [],
+          },
+        },
       },
       webdriver: {
         start_process: true,
         server_path: require('geckodriver').path,
-        cli_args: []
-      }
+        cli_args: [],
+      },
     },
 
     chrome: {},
@@ -102,8 +102,8 @@ module.exports = {
         browserName: 'MicrosoftEdge',
         'ms:edgeOptions': {
           w3c: true,
-          args: []
-        }
+          args: [],
+        },
       },
 
       webdriver: {
@@ -111,10 +111,9 @@ module.exports = {
         // Download msedgedriver from https://docs.microsoft.com/en-us/microsoft-edge/webdriver-chromium/
         // and set the location below:
         server_path: '',
-        cli_args: []
-      }
+        cli_args: [],
+      },
     },
-
 
     //////////////////////////////////////////////////////////////////////////////////
     // Configuration for when using the browserstack.com cloud service               |
@@ -127,79 +126,79 @@ module.exports = {
     browserstack: {
       selenium: {
         host: 'hub.browserstack.com',
-        port: 443
+        port: 443,
       },
       // More info on configuring capabilities can be found on:
       // https://www.browserstack.com/automate/capabilities?tag=selenium-4
       desiredCapabilities: {
-        'bstack:options' : {
+        'bstack:options': {
           userName: '${BROWSERSTACK_USERNAME}',
           accessKey: '${BROWSERSTACK_ACCESS_KEY}',
-        }
+        },
       },
 
       disable_error_log: true,
       webdriver: {
         timeout_options: {
           timeout: 15000,
-          retry_attempts: 3
+          retry_attempts: 3,
         },
         keep_alive: true,
-        start_process: false
-      }
+        start_process: false,
+      },
     },
 
     'browserstack.local': {
       extends: 'browserstack',
       desiredCapabilities: {
-        'browserstack.local': true
-      }
+        'browserstack.local': true,
+      },
     },
 
     'browserstack.chrome': {
       extends: 'browserstack',
       desiredCapabilities: {
         browserName: 'chrome',
-        chromeOptions : {
-          w3c: true
-        }
-      }
+        chromeOptions: {
+          w3c: true,
+        },
+      },
     },
 
     'browserstack.firefox': {
       extends: 'browserstack',
       desiredCapabilities: {
-        browserName: 'firefox'
-      }
+        browserName: 'firefox',
+      },
     },
 
     'browserstack.ie': {
       extends: 'browserstack',
       desiredCapabilities: {
         browserName: 'internet explorer',
-        browserVersion: '11.0'
-      }
+        browserVersion: '11.0',
+      },
     },
 
     'browserstack.safari': {
       extends: 'browserstack',
       desiredCapabilities: {
-        browserName: 'safari'
-      }
+        browserName: 'safari',
+      },
     },
 
     'browserstack.local_chrome': {
       extends: 'browserstack.local',
       desiredCapabilities: {
-        browserName: 'chrome'
-      }
+        browserName: 'chrome',
+      },
     },
 
     'browserstack.local_firefox': {
       extends: 'browserstack.local',
       desiredCapabilities: {
-        browserName: 'firefox'
-      }
+        browserName: 'firefox',
+      },
     },
     //////////////////////////////////////////////////////////////////////////////////
     // Configuration for when using the SauceLabs cloud service                      |
@@ -211,26 +210,26 @@ module.exports = {
     saucelabs: {
       selenium: {
         host: 'ondemand.saucelabs.com',
-        port: 443
+        port: 443,
       },
       // More info on configuring capabilities can be found on:
       // https://docs.saucelabs.com/dev/test-configuration-options/
       desiredCapabilities: {
-        'sauce:options' : {
+        'sauce:options': {
           username: '${SAUCE_USERNAME}',
           accessKey: '${SAUCE_ACCESS_KEY}',
-          screenResolution: '1280x1024'
+          screenResolution: '1280x1024',
           // https://docs.saucelabs.com/dev/cli/sauce-connect-proxy/#--region
           // region: 'us-west-1'
           // https://docs.saucelabs.com/dev/test-configuration-options/#tunnelidentifier
           // parentTunnel: '',
           // tunnelIdentifier: '',
-        }
+        },
       },
       disable_error_log: false,
       webdriver: {
-        start_process: false
-      }
+        start_process: false,
+      },
     },
     'saucelabs.chrome': {
       extends: 'saucelabs',
@@ -240,10 +239,10 @@ module.exports = {
         javascriptEnabled: true,
         acceptSslCerts: true,
         timeZone: 'London',
-        chromeOptions : {
-          w3c: true
-        }
-      }
+        chromeOptions: {
+          w3c: true,
+        },
+      },
     },
     'saucelabs.firefox': {
       extends: 'saucelabs',
@@ -252,8 +251,8 @@ module.exports = {
         browserVersion: 'latest',
         javascriptEnabled: true,
         acceptSslCerts: true,
-        timeZone: 'London'
-      }
+        timeZone: 'London',
+      },
     },
     //////////////////////////////////////////////////////////////////////////////////
     // Configuration for when using the Selenium service, either locally or remote,  |
@@ -270,22 +269,22 @@ module.exports = {
         cli_args: {
           //'webdriver.gecko.driver': '',
           //'webdriver.chrome.driver': ''
-        }
+        },
       },
       webdriver: {
         start_process: false,
-        default_path_prefix: '/wd/hub'
-      }
+        default_path_prefix: '/wd/hub',
+      },
     },
 
     'selenium.chrome': {
       extends: 'selenium_server',
       desiredCapabilities: {
         browserName: 'chrome',
-        chromeOptions : {
-          w3c: true
-        }
-      }
+        chromeOptions: {
+          w3c: true,
+        },
+      },
     },
 
     'selenium.firefox': {
@@ -296,9 +295,9 @@ module.exports = {
           args: [
             // '-headless',
             // '-verbose'
-          ]
-        }
-      }
-    }
-  }
-};
+          ],
+        },
+      },
+    },
+  },
+}

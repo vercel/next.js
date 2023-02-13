@@ -1,23 +1,23 @@
 export default class FormCommand {
   setEmail() {
-    this.section.contactForm.setValue('@email', 'test@example.com');
+    this.section.contactForm.setValue('@email', 'test@example.com')
 
-    return this;
+    return this
   }
 
   setMessage() {
-    this.section.contactForm.setValue('@message', 'This is a test message.');
+    this.section.contactForm.setValue('@message', 'This is a test message.')
 
-    return this;
+    return this
   }
 
   submit() {
-    this.section.contactForm.click('@submitButton');
+    this.section.contactForm.click('@submitButton')
 
-    return this;
+    return this
   }
 
   fillAndSubmitForm() {
-    return this.setEmail().setMessage().submit();
+    return this.setEmail().setMessage().submit()
   }
 }

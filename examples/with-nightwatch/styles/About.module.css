@@ -51,7 +51,7 @@
   border-radius: 5px;
 }
 
-.formInput[type="email"] {
+.formInput[type='email'] {
   border: 1px solid #ccc;
 }
 

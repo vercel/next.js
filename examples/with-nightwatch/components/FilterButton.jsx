@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 
 function FilterButton(props) {
   return (
@@ -12,7 +12,7 @@ function FilterButton(props) {
       <span>{props.name}</span>
       <span className="visually-hidden"> posts</span>
     </button>
-  );
+  )
 }
 
-export default FilterButton;
+export default FilterButton

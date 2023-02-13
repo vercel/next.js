@@ -1,10 +1,9 @@
 export default {
-  url: '/'
-};
+  url: '/',
+}
 
 export const elements = {
   aboutLink: {
-    selector: 'main a[href="/about"]'
-  }
-};
-
+    selector: 'main a[href="/about"]',
+  },
+}

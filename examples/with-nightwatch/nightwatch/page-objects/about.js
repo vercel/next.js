@@ -1,29 +1,29 @@
-import FormCommand from '../commands/FormCommand.js';
+import FormCommand from '../commands/FormCommand.js'
 
 export default {
   url: '/about',
-  commands: FormCommand
-};
+  commands: FormCommand,
+}
 
 export const sections = {
   contactForm: {
     selector: 'form[class^=About_form]',
     elements: {
       email: {
-        selector: '#email'
+        selector: '#email',
       },
       message: {
-        selector: '#message'
+        selector: '#message',
       },
       submitButton: {
-        selector: 'button[type=submit]'
-      }
-    }
-  }
-};
+        selector: 'button[type=submit]',
+      },
+    },
+  },
+}
 
 export const elements = {
   aboutHeading: {
-    selector: 'h1'
-  }
-};
+    selector: 'h1',
+  },
+}
