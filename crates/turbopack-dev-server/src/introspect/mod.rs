@@ -1,7 +1,7 @@
 use std::{collections::HashSet, fmt::Display};
 
 use anyhow::Result;
-use turbo_tasks::{primitives::StringVc, TryJoinIterExt};
+use turbo_tasks::{primitives::StringVc, registry, CellId, RawVc, TryJoinIterExt};
 use turbo_tasks_fs::{json::parse_json_with_source_context, File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
@@ -88,6 +88,15 @@ impl ContentSource for IntrospectionSource {
             }
         } else {
             parse_json_with_source_context(path)?
+        }
+        .resolve()
+        .await?;
+        let raw_vc: RawVc = introspectable.into();
+        let internal_ty = if let RawVc::TaskCell(_, CellId { type_id, index }) = raw_vc {
+            let value_ty = registry::get_value_type(type_id);
+            format!("{}#{}", value_ty.name, index)
+        } else {
+            unreachable!()
         };
         let ty = introspectable.ty().await?;
         let title = introspectable.title().await?;
@@ -130,6 +139,7 @@ impl ContentSource for IntrospectionSource {
             "<!DOCTYPE html>
 <html><head><title>{title}</title></head>
 <body>
+  <h3>{internal_ty}</h3>
   <h2>{ty}</h2>
   <h1>{title}</h1>
   {details}

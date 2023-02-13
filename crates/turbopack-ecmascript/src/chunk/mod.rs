@@ -21,6 +21,7 @@ use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         chunk_content, chunk_content_split,
+        chunk_in_group::ChunkInGroupVc,
         optimize::{ChunkOptimizerVc, OptimizableChunk, OptimizableChunkVc},
         Chunk, ChunkContentResult, ChunkGroupReferenceVc, ChunkGroupVc, ChunkItem, ChunkItemVc,
         ChunkReferenceVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContext,
@@ -213,11 +214,15 @@ impl EcmascriptChunkEvaluateVc {
         let mut chunks_server_paths = Vec::new();
         let output_root = context.output_root().await?;
         for chunk in evaluate_chunks.iter() {
-            if let Some(ecma_chunk) = EcmascriptChunkVc::resolve_from(chunk).await? {
-                if ecma_chunk != origin_chunk {
-                    let chunk_path = &*chunk.path().await?;
-                    if let Some(chunk_server_path) = output_root.get_path_to(chunk_path) {
-                        chunks_server_paths.push(chunk_server_path.to_string());
+            if let Some(chunk_in_group) = ChunkInGroupVc::resolve_from(chunk).await? {
+                if let Some(ecma_chunk) =
+                    EcmascriptChunkVc::resolve_from(chunk_in_group.inner()).await?
+                {
+                    if ecma_chunk != origin_chunk {
+                        let chunk_path = &*chunk.path().await?;
+                        if let Some(chunk_server_path) = output_root.get_path_to(chunk_path) {
+                            chunks_server_paths.push(chunk_server_path.to_string());
+                        }
                     }
                 }
             }
