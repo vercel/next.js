@@ -1891,6 +1891,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const { res, query } = ctx
     try {
       let result: null | FindComponentsResult = null
+      let statusPage = `/${res.statusCode}`
 
       const is404 = res.statusCode === 404
       let using404Page = false
@@ -1899,6 +1900,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (is404) {
         if (this.nextConfig.experimental.appDir) {
           // find not-found.tsx in the app directory
+          result = await this.findPageComponents({
+            pathname: '/not-found',
+            query,
+            params: {},
+            isAppPath: true,
+          })
+          using404Page = result !== null
         } else if (await this.hasPage('/404')) {
           result = await this.findPageComponents({
             pathname: '/404',
@@ -1909,7 +1917,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           using404Page = result !== null
         }
       }
-      let statusPage = `/${res.statusCode}`
 
       if (
         !ctx.query.__nextCustomErrorRender &&
