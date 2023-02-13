@@ -141,19 +141,29 @@ ${
 }
 
 declare module 'next/link' {
-  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
-
-  export type LinkProps<T extends string> = Omit<OriginalLinkProps, 'href'> & {
-    /**
-     * The path or URL to navigate to. This is the only required prop. It can also be an object.
-     * 
-     * https://nextjs.org/docs/api-reference/next/link
-     */
-    href: Route<T> | UrlObject
+  type LinkRestProps = Omit<OriginalLinkProps, 'href'> & {
     children: React.ReactNode
   }
 
-  export default function Link<T extends string>(props: LinkProps<T>): JSX.Element
+  // If the href prop can be a Route type with an infer-able S, it's valid.
+  type HrefProp<T> = T extends (Route<infer S> | UrlObject) ? {
+    /**
+     * The path or URL to navigate to. This is the only required prop. It can also be an object.
+     *
+     * https://nextjs.org/docs/api-reference/next/link
+     */
+    href: T
+  } : {
+    /**
+     * The path or URL to navigate to. This is the only required prop. It can also be an object.
+     *
+     * https://nextjs.org/docs/api-reference/next/link
+     */
+    href: never
+  }
+
+  export type LinkProps<T> = LinkRestProps & HrefProp<T>
+  export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
 }
 
 declare module 'next' {
