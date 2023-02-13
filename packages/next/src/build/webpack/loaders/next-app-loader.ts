@@ -132,7 +132,14 @@ async function createTreeCodeFromPath(
         Object.values(FILE_TYPES).map(async (file) => {
           return [
             file,
-            await resolver(`${appDirPrefix}${parallelSegmentPath}/${file}`),
+            await resolver(
+              `${appDirPrefix}${
+                // TODO-APP: parallelSegmentPath sometimes ends in `/` but sometimes it doesn't. This should be consistent.
+                parallelSegmentPath.endsWith('/')
+                  ? parallelSegmentPath
+                  : parallelSegmentPath + '/'
+              }${file}`
+            ),
           ] as const
         })
       )
