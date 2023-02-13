@@ -7,7 +7,7 @@ use turbopack_core::{
     chunk::{ChunkGroupVc, ChunkReferenceVc},
     reference::AssetReferencesVc,
 };
-use turbopack_ecmascript::utils::stringify_str;
+use turbopack_ecmascript::utils::stringify_js;
 
 #[turbo_tasks::value(shared)]
 pub(super) struct NodeJsBootstrapAsset {
@@ -34,7 +34,7 @@ impl Asset for NodeJsBootstrapAsset {
             let path = &*chunk.path().await?;
             if let Some(p) = context_path.get_relative_path_to(path) {
                 if p.ends_with(".js") {
-                    writeln!(&mut output, "require({});", stringify_str(&p))?;
+                    writeln!(&mut output, "require({});", stringify_js(&p))?;
                 }
             }
         }

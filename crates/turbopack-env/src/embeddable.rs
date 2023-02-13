@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::primitives::OptionStringVc;
 use turbo_tasks_env::{EnvMapVc, ProcessEnv, ProcessEnvVc};
-use turbopack_ecmascript::utils::stringify_str;
+use turbopack_ecmascript::utils::stringify_js;
 
 /// Encodes values as JS strings so that they can be safely injected into a JS
 /// output.
@@ -26,7 +26,7 @@ impl ProcessEnv for EmbeddableProcessEnv {
 
         let encoded = prior
             .iter()
-            .map(|(k, v)| (k.clone(), stringify_str(v)))
+            .map(|(k, v)| (k.clone(), stringify_js(v)))
             .collect();
 
         Ok(EnvMapVc::cell(encoded))
@@ -35,7 +35,7 @@ impl ProcessEnv for EmbeddableProcessEnv {
     #[turbo_tasks::function]
     async fn read(&self, name: &str) -> Result<OptionStringVc> {
         let prior = self.prior.read(name).await?;
-        let encoded = prior.as_deref().map(stringify_str);
+        let encoded = prior.as_deref().map(stringify_js);
         Ok(OptionStringVc::cell(encoded))
     }
 }

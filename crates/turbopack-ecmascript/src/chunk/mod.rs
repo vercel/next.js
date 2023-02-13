@@ -49,7 +49,7 @@ use self::{
 use crate::{
     parse::ParseResultSourceMapVc,
     references::esm::EsmExportsVc,
-    utils::{stringify_module_id, stringify_str, FormatIter},
+    utils::{stringify_js, FormatIter},
 };
 
 #[turbo_tasks::value]
@@ -613,9 +613,9 @@ impl EcmascriptChunkContentVc {
         let mut code = CodeBuilder::default();
         code += "(self.TURBOPACK = self.TURBOPACK || []).push([";
 
-        writeln!(code, "{}, {{", stringify_str(chunk_server_path))?;
+        writeln!(code, "{}, {{", stringify_js(chunk_server_path))?;
         for entry in &this.module_factories {
-            write!(code, "\n{}: ", &stringify_module_id(entry.id()))?;
+            write!(code, "\n{}: ", &stringify_js(entry.id()))?;
             code.push_code(entry.code());
             code += ",";
         }
@@ -627,7 +627,7 @@ impl EcmascriptChunkContentVc {
                 .chunks_server_paths
                 .await?
                 .iter()
-                .map(|path| format!(" && loadedChunks.has({})", stringify_str(path)))
+                .map(|path| format!(" && loadedChunks.has({})", stringify_js(path)))
                 .collect::<Vec<_>>()
                 .join("");
             let entries_ids = &*evaluate.entry_modules_ids.await?;
@@ -635,7 +635,7 @@ impl EcmascriptChunkContentVc {
                 .iter()
                 .map(|id| async move {
                     let id = id.await?;
-                    let id = stringify_module_id(&id);
+                    let id = stringify_js(&id);
                     Ok(format!(r#"instantiateRuntimeModule({id});"#)) as Result<_>
                 })
                 .try_join()

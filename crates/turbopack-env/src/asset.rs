@@ -15,7 +15,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItemVc, EcmascriptChunkPlaceable, EcmascriptChunkPlaceableVc,
         EcmascriptChunkVc, EcmascriptExports, EcmascriptExportsVc,
     },
-    utils::stringify_str,
+    utils::stringify_js,
 };
 
 /// The `process.env` asset, responsible for initializing the env (shared by all
@@ -134,7 +134,7 @@ impl EcmascriptChunkItem for ProcessEnvChunkItem {
             // env can be used to inject live code into the output.
             // TODO this is not completely correct as env vars need to ignore casing
             // So `process.env.path === process.env.PATH === process.env.PaTh`
-            writeln!(code, "env[{}] = {};", stringify_str(name), val)?;
+            writeln!(code, "env[{}] = {};", stringify_js(name), val)?;
         }
 
         Ok(EcmascriptChunkItemContent {

@@ -5,6 +5,7 @@ use std::{
 };
 
 use pin_project_lite::pin_project;
+use serde::Serialize;
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Expr, Lit, Str},
@@ -64,19 +65,12 @@ pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
     })
 }
 
-pub fn stringify_module_id(id: &ModuleId) -> String {
-    match id {
-        ModuleId::Number(n) => stringify_number(*n),
-        ModuleId::String(s) => stringify_str(s),
-    }
-}
-
-pub fn stringify_str(s: &str) -> String {
+/// Converts a serializable value into a valid JavaScript expression.
+pub fn stringify_js<T>(s: &T) -> String
+where
+    T: Serialize + ?Sized,
+{
     serde_json::to_string(s).unwrap()
-}
-
-pub fn stringify_number(s: u32) -> String {
-    s.to_string()
 }
 
 pub struct FormatIter<T: Iterator, F: Fn() -> T>(pub F);
