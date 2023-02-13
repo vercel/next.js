@@ -108,28 +108,29 @@ function createRouteDefinitions() {
     !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
 
   return `
+type SearchOrHash = \`?\${string}\` | \`#\${string}\`
+type Suffix = '' | SearchOrHash
+
 type SafeSlug<S extends string> = 
   S extends \`\${string}/\${string}\`
     ? never
-    : S extends \`\${string}?\${string}\`
+    : S extends \`\${string}\${SearchOrHash}\`
     ? never
     : S extends ''
     ? never
     : S
 
 type CatchAllSlug<S extends string> = 
-  S extends \`\${string}?\${string}\`
+  S extends \`\${string}\${SearchOrHash}\`
     ? never
     : S extends ''
     ? never
     : S
 
 type OptionalCatchAllSlug<S extends string> = 
-  S extends \`\${string}?\${string}\`
+  S extends \`\${string}\${SearchOrHash}\`
     ? never
     : S
-  
-import { UrlObject } from 'url'
 
 type Route<T extends string = string> = ${fallback}
 ${
@@ -138,15 +139,33 @@ ${
 }
 
 declare module 'next/link' {
-  export default function Link<T extends string>(props: {
-    [key: string]: any
+  import React from 'react'
+  import { UrlObject } from 'url'
+  import { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
+
+  type LinkRestProps = Omit<OriginalLinkProps, 'href'> & {
+    children: React.ReactNode
+  }
+
+  // If the href prop can be a Route type with an infer-able S, it's valid.
+  type HrefProp<T> = T extends (Route<infer S> | UrlObject) ? {
     /**
      * The path or URL to navigate to. This is the only required prop. It can also be an object.
-     * 
+     *
      * https://nextjs.org/docs/api-reference/next/link
      */
-    href: Route<T> | UrlObject
-  }): JSX.Element
+    href: T
+  } : {
+    /**
+     * The path or URL to navigate to. This is the only required prop. It can also be an object.
+     *
+     * https://nextjs.org/docs/api-reference/next/link
+     */
+    href: never
+  }
+
+  export type LinkProps<T> = LinkRestProps & HrefProp<T>
+  export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
 }
 
 declare module 'next' {
@@ -214,7 +233,7 @@ export class FlightTypesPlugin {
     }
 
     ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).push(
-      `\`${route}\${'' | \`?\${string}\`}\``
+      `\`${route}\${Suffix}\``
     )
   }
 
