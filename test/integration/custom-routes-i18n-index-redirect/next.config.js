@@ -1,5 +1,3 @@
-const destination = 'http://localhost:__EXTERNAL_PORT__'
-
 module.exports = {
   i18n: {
     locales: ['fr', 'en'],

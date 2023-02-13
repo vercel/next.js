@@ -58,11 +58,9 @@ describe('Custom routes i18n with index redirect', () => {
     await new Promise((res, rej) => {
       server.listen(externalPort, (err) => (err ? rej(err) : res()))
     })
-    nextConfig.replace(/__EXTERNAL_PORT__/g, '' + externalPort)
   })
   afterAll(async () => {
     server.close()
-    nextConfig.restore()
   })
 
   describe('dev mode', () => {
