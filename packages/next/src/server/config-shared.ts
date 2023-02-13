@@ -210,6 +210,11 @@ export interface ExperimentalConfig {
     memoryLimit?: number
   }
   mdxRs?: boolean
+
+  // Generate Route types and enable type checking for Link and Router.push, etc.
+  // This option requires `appDir` to be enabled first.
+  typedRoutes?: boolean
+
   /**
    * This option is to enable running the Webpack build in a worker thread.
    */
@@ -658,6 +663,7 @@ export const defaultConfig: NextConfig = {
     adjustFontFallbacksWithSizeAdjust: false,
     turbo: undefined,
     turbotrace: undefined,
+    typedRoutes: false,
   },
 }
 

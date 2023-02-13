@@ -646,6 +646,7 @@ export default async function getBaseWebpackConfig(
   const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
+  const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
 
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
@@ -656,6 +657,11 @@ export default async function getBaseWebpackConfig(
     if (config.experimental.runtime === 'nodejs') {
       Log.warn(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
+      )
+    }
+    if (config.experimental.typedRoutes && !hasAppDir) {
+      Log.warn(
+        '`experimental.typedRoutes` requires `experimental.appDir` to be enabled.'
       )
     }
   }
@@ -2145,13 +2151,13 @@ export default async function getBaseWebpackConfig(
             })),
       hasAppDir &&
         !isClient &&
-        !dev &&
         new FlightTypesPlugin({
           dir,
           distDir: config.distDir,
           appDir,
           dev,
           isEdgeServer,
+          typedRoutes: enableTypedRoutes,
         }),
       !dev &&
         isClient &&

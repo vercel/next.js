@@ -438,6 +438,9 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        typedRoutes: {
+          type: 'boolean',
+        },
         webpackBuildWorker: {
           type: 'boolean',
         },
