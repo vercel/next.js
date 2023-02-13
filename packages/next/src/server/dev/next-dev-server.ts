@@ -77,6 +77,7 @@ import {
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
+import { pageFiles } from '../../build/webpack/plugins/flight-types-plugin'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -340,6 +341,8 @@ export default class DevServer extends Server {
         let envChange = false
         let tsconfigChange = false
 
+        pageFiles.clear()
+
         for (const [fileName, meta] of knownFiles) {
           if (
             !files.includes(fileName) &&
@@ -382,6 +385,8 @@ export default class DevServer extends Server {
                 normalizePathSep(this.appDir)
               )
           )
+
+          pageFiles.add(fileName)
 
           const rootFile = absolutePathToPage(fileName, {
             pagesDir: this.dir,

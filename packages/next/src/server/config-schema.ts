@@ -438,6 +438,9 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        typedRoutes: {
+          type: 'boolean',
+        },
         webpackBuildWorker: {
           type: 'boolean',
         },
@@ -481,14 +484,8 @@ const configSchema = {
             processCwd: {
               type: 'string',
             },
-            maxFiles: {
-              type: 'integer',
-            },
             memoryLimit: {
               type: 'integer',
-            },
-            skipEntries: {
-              type: 'boolean',
             },
           },
         },
