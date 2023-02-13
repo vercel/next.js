@@ -5,7 +5,7 @@ on:
 name: Generate Pull Request Stats
 
 env:
-  NAPI_CLI_VERSION: 2.13.3
+  NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.6.3
   RUST_TOOLCHAIN: nightly-2022-11-04
   PNPM_VERSION: 7.24.3

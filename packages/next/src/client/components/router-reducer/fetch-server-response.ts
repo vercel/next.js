@@ -5,6 +5,7 @@ import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../app-router-headers'
 import { urlToUrlWithoutFlightMarker } from '../app-router'
 
@@ -42,7 +43,7 @@ export async function fetchServerResponse(
     : undefined
 
   const isFlightResponse =
-    res.headers.get('content-type') === 'application/octet-stream'
+    res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
 
   // If fetch returns something different than flight response handle it like a mpa navigation
   if (!isFlightResponse) {
