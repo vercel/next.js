@@ -77,45 +77,21 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     pathname: string,
     options: MatchOptions
   ): AsyncGenerator<RouteMatch<RouteDefinition<RouteKind>>, null, undefined> {
-    // Keep track of all the matches we've made.
-    const matches = new Set<string>()
-
     // Iterate over the development matches to see if one of them match the
     // request path.
     for await (const development of super.matchAll(pathname, options)) {
-      // There was a development match! Let's check to see if we've already
-      // matched this one already (verified by comparing the bundlePath).
-      if (matches.has(development.definition.bundlePath)) continue
-
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
       await this.ensurer.ensure(development)
       await this.production.reload()
 
       // Iterate over the production matches again, this time we should be able
-      // to match it against the production matcher.
-      let matchedProduction = false
+      // to match it against the production matcher unless there's an error.
       for await (const production of this.production.matchAll(
         pathname,
         options
       )) {
-        // We found a matching production match! It may have already been seen
-        // though, so let's skip if we have.
-        if (matches.has(production.definition.bundlePath)) continue
-
-        // Mark that we've matched in production.
-        matchedProduction = true
-
-        // We found a matching production match! Add the match to the set of
-        // matches and yield this match to be used.
-        matches.add(production.definition.bundlePath)
         yield production
-      }
-
-      if (!matchedProduction) {
-        throw new Error(
-          'Invariant: development match was found, but not found after ensuring'
-        )
       }
     }
 

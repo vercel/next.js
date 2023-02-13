@@ -9,6 +9,7 @@ import {
   nextStart,
   killApp,
   launchApp,
+  waitFor,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -38,6 +39,9 @@ describe('Custom _error', () => {
         },
       })
     })
+    beforeEach(async () => {
+      await waitFor(1000)
+    })
     afterAll(() => killApp(app))
 
     it('should not warn with /_error and /404 when rendering error first', async () => {
@@ -45,6 +49,7 @@ describe('Custom _error', () => {
       await fs.writeFile(page404, 'export default <h1>')
       const html = await renderViaHTTP(appPort, '/404')
       await fs.remove(page404)
+      console.log('WYATT REMOVED FILE')
       expect(html).toContain('Unexpected eof')
       expect(stderr).not.toMatch(customErrNo404Match)
     })
@@ -61,6 +66,9 @@ describe('Custom _error', () => {
         },
       })
     })
+    beforeEach(async () => {
+      await waitFor(1000)
+    })
     afterAll(() => killApp(app))
 
     it('should not warn with /_error and /404', async () => {
@@ -75,8 +83,8 @@ describe('Custom _error', () => {
     it('should warn on custom /_error without custom /404', async () => {
       stderr = ''
       const html = await renderViaHTTP(appPort, '/404')
-      expect(html).toContain('An error 404 occurred on server')
       expect(stderr).toMatch(customErrNo404Match)
+      expect(html).toContain('An error 404 occurred on server')
     })
   })
 
