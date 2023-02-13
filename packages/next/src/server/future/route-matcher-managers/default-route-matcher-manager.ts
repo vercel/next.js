@@ -9,6 +9,7 @@ import { RouteMatcher } from '../route-matchers/route-matcher'
 import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
+import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 
 interface RouteMatchers {
   static: ReadonlyArray<RouteMatcher>
@@ -246,6 +247,9 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
         'Invariant: expected routes to have been loaded before match'
       )
     }
+
+    // Ensure that path matching is done with a leading slash.
+    pathname = ensureLeadingSlash(pathname)
 
     // If this pathname doesn't look like a dynamic route, and this pathname is
     // listed in the normalized list of routes, then return it. This ensures

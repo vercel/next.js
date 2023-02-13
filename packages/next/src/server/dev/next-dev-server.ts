@@ -1509,7 +1509,7 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      if (shouldEnsure) {
+      if (shouldEnsure || this.renderOpts.customServer) {
         await this.hotReloader!.ensurePage({
           page: pathname,
           appPaths,
