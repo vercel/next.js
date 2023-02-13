@@ -312,12 +312,12 @@ createNextDescribe(
       })
 
       it('should support generateMetadata export', async () => {
-        const browser = await next.browser('/params/slug')
+        const browser = await next.browser('/async/slug')
         expect(await getTitle(browser)).toBe('params - slug')
 
         await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
-        await browser.loadPage(next.url + '/params/blog?q=xxx')
+        await browser.loadPage(next.url + '/async/blog?q=xxx')
         await check(
           () => browser.elementByCss('p').text(),
           /params - blog query - xxx/
