@@ -1454,7 +1454,7 @@ function runTests({ dev }) {
         ],
         rsc: {
           header: 'RSC',
-          contentTypeHeader: 'text/plain',
+          contentTypeHeader: 'text/x-component',
           varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
         },
       })

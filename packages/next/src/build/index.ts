@@ -1,3 +1,9 @@
+import type { RemotePattern } from '../shared/lib/image-config'
+import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
+import type { NextConfigComplete } from '../server/config-shared'
+import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+
 import '../lib/setup-exception-listeners'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
@@ -99,13 +105,10 @@ import {
   isReservedPage,
   AppConfig,
 } from './utils'
-import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
-import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
@@ -116,10 +119,8 @@ import {
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
-import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
-import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import {
   RSC,
   RSC_CONTENT_TYPE_HEADER,

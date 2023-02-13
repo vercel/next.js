@@ -1,6 +1,6 @@
 import type webpack from 'webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
-import type { ModuleReference, CollectedMetadata } from './app-dir/types'
+import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
 import chalk from 'next/dist/compiled/chalk'
@@ -9,7 +9,7 @@ import { getModuleBuildInfo } from './get-module-build-info'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
-import { buildMetadata, discoverStaticMetadataFiles } from './app-dir/metadata'
+import { buildMetadata, discoverStaticMetadataFiles } from './metadata/discover'
 
 const isNotResolvedError = (err: any) => err.message.includes("Can't resolve")
 
