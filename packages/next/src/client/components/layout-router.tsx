@@ -1,7 +1,7 @@
 'use client'
+
 import type {
   AppRouterInstance,
-  CacheNode,
   ChildSegmentMap,
 } from '../../shared/lib/app-router-context'
 import type {
