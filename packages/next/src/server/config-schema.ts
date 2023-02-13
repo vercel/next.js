@@ -278,6 +278,9 @@ const configSchema = {
         externalDir: {
           type: 'boolean',
         },
+        externalMiddlewareRewritesResolve: {
+          type: 'boolean',
+        },
         fallbackNodePolyfills: {
           type: 'boolean',
         },
