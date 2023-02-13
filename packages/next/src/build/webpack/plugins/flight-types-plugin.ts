@@ -141,6 +141,8 @@ ${
 }
 
 declare module 'next/link' {
+  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
+
   type LinkRestProps = Omit<OriginalLinkProps, 'href'> & {
     children: React.ReactNode
   }
