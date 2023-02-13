@@ -287,8 +287,9 @@ impl TransformOptions {
             };
 
         if should_enable_commonjs {
-            self.swc.config.module =
-                Some(serde_json::from_str(r##"{ "type": "commonjs", "ignoreDynamic": true }"##).unwrap());
+            self.swc.config.module = Some(
+                serde_json::from_str(r##"{ "type": "commonjs", "ignoreDynamic": true }"##).unwrap(),
+            );
         }
 
         self
