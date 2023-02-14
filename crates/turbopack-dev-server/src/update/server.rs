@@ -12,7 +12,8 @@ use tokio::select;
 use tokio_stream::StreamMap;
 use turbo_tasks::{TransientInstance, TurboTasksApi};
 use turbo_tasks_fs::json::parse_json_with_source_context;
-use turbopack_core::{issue::IssueReporterVc, version::Update};
+use turbopack_cli_utils::issue::ConsoleUiVc;
+use turbopack_core::version::Update;
 
 use super::{
     protocol::{ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier},
@@ -27,15 +28,15 @@ use crate::{
 /// A server that listens for updates and sends them to connected clients.
 pub(crate) struct UpdateServer<P: SourceProvider> {
     source_provider: P,
-    issue_reporter: IssueReporterVc,
+    console_ui: ConsoleUiVc,
 }
 
 impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
     /// Create a new update server with the given websocket and content source.
-    pub fn new(source_provider: P, issue_reporter: IssueReporterVc) -> Self {
+    pub fn new(source_provider: P, console_ui: ConsoleUiVc) -> Self {
         Self {
             source_provider,
-            issue_reporter,
+            console_ui,
         }
     }
 
@@ -68,7 +69,7 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                                     resolve_source_request(
                                         source,
                                         TransientInstance::new(request),
-                                        self.issue_reporter
+                                        self.console_ui
                                     )
                                 }
                             };
