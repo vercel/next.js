@@ -6,15 +6,13 @@ use turbo_tasks::TurboTasks;
 use turbo_tasks_memory::MemoryBackend;
 
 #[napi]
-pub fn create_turbo_tasks(memory_limit: Option<u32>) -> External<Arc<TurboTasks<MemoryBackend>>> {
+pub fn create_turbo_tasks(memory_limit: Option<i64>) -> External<Arc<TurboTasks<MemoryBackend>>> {
     let turbo_tasks = TurboTasks::new(MemoryBackend::new(
         memory_limit.map(|m| m as usize).unwrap_or(usize::MAX),
     ));
     External::new_with_size_hint(
         turbo_tasks,
-        memory_limit
-            .map(|m| (m as usize) * 1024 * 1024)
-            .unwrap_or(usize::MAX),
+        memory_limit.map(|u| u as usize).unwrap_or(usize::MAX),
     )
 }
 
