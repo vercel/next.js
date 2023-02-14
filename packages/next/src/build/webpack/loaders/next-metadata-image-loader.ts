@@ -1,22 +1,25 @@
+import type { MetadataImageModule } from './metadata/types'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 
 interface Options {
-  isServer: boolean
   isDev: boolean
   assetPrefix: string
-  basePath: string
+  numericSizes: boolean
+}
+
+const mimeTypeMap = {
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  ico: 'image/x-icon',
+  svg: 'image/svg+xml',
+  avif: 'image/avif',
+  webp: 'image/webp',
 }
 
 async function nextMetadataImageLoader(this: any, content: Buffer) {
   const options: Options = this.getOptions()
-  const {
-    // TODO-APP: support assetPrefix
-    assetPrefix = '',
-    // isServer,
-    isDev,
-    // basePath
-  } = options
+  const { assetPrefix, isDev, numericSizes } = options
   const context = this.rootContext
 
   const opts = { context, content }
@@ -41,10 +44,22 @@ async function nextMetadataImageLoader(this: any, content: Buffer) {
     throw err
   }
 
-  const stringifiedData = JSON.stringify({
+  const imageData: MetadataImageModule = {
     url: outputPath,
-    sizes: `${imageSize.width}x${imageSize.height}`,
-  })
+    ...(extension in mimeTypeMap && {
+      type: mimeTypeMap[extension as keyof typeof mimeTypeMap],
+    }),
+    ...(numericSizes
+      ? { width: imageSize.width as number, height: imageSize.height as number }
+      : {
+          sizes:
+            extension === 'ico'
+              ? 'any'
+              : `${imageSize.width}x${imageSize.height}`,
+        }),
+  }
+
+  const stringifiedData = JSON.stringify(imageData)
 
   this.emitFile(`../${isDev ? '' : '../'}${interpolatedName}`, content, null)
 

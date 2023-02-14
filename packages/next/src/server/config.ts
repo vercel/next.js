@@ -1,5 +1,13 @@
 import { existsSync } from 'fs'
-import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
+import {
+  basename,
+  extname,
+  join,
+  relative,
+  isAbsolute,
+  resolve,
+  dirname,
+} from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -630,6 +638,28 @@ function assignDefaults(
       Log.warn(
         `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
       )
+    }
+  }
+
+  // use the closest lockfile as tracing root
+  if (!result.experimental?.outputFileTracingRoot) {
+    const lockFiles: string[] = [
+      'package-lock.json',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+    ]
+    const foundLockfile = findUp.sync(lockFiles, { cwd: dir })
+
+    if (foundLockfile) {
+      if (!result.experimental) {
+        result.experimental = {}
+      }
+      if (!defaultConfig.experimental) {
+        defaultConfig.experimental = {}
+      }
+      result.experimental.outputFileTracingRoot = dirname(foundLockfile)
+      defaultConfig.experimental.outputFileTracingRoot =
+        result.experimental.outputFileTracingRoot
     }
   }
 

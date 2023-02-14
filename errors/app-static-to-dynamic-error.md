@@ -4,7 +4,7 @@
 
 Inside of one of your `app/` pages, the page was initially generated statically at build time and then during runtime either a fallback path or path being revalidated attempted to leverage dynamic server values e.g. `cookies()` or `headers()`.
 
-This is a hard error by default as a path generated statically can switch between types during runtime currently.
+This is a hard error by default as a path generated statically can't switch between types during runtime currently.
 
 #### Possible Ways to Fix It
 
