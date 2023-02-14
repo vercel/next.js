@@ -61,6 +61,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
+import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
 const EXTERNAL_PACKAGES = require('../lib/server-external-packages.json')
 
@@ -304,6 +305,9 @@ export function getDefineEnv({
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.skipMiddlewareUrlNormalize
+    ),
+    'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE': JSON.stringify(
+      config.experimental.externalMiddlewareRewritesResolve
     ),
     'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
       config.skipTrailingSlashRedirect
@@ -645,6 +649,7 @@ export default async function getBaseWebpackConfig(
   const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
+  const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
 
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
@@ -655,6 +660,11 @@ export default async function getBaseWebpackConfig(
     if (config.experimental.runtime === 'nodejs') {
       Log.warn(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
+      )
+    }
+    if (config.experimental.typedRoutes && !hasAppDir) {
+      Log.warn(
+        '`experimental.typedRoutes` requires `experimental.appDir` to be enabled.'
       )
     }
   }
@@ -1187,7 +1197,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) return
 
       const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|head[^-]))/.test(
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|lazy-dynamic|head[^-]))/.test(
           localRes
         )
 
@@ -1636,6 +1646,7 @@ export default async function getBaseWebpackConfig(
         'next-swc-loader',
         'next-client-pages-loader',
         'next-image-loader',
+        'next-metadata-image-loader',
         'next-serverless-loader',
         'next-style-loader',
         'next-flight-loader',
@@ -1649,6 +1660,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-wasm-loader',
         'next-app-loader',
         'next-font-loader',
+        'next-invalid-import-error-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1875,6 +1887,8 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
+                resourceQuery: (queryString: string) =>
+                  queryString !== METADATA_IMAGE_RESOURCE_QUERY,
                 options: {
                   isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
@@ -1987,6 +2001,15 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        {
+          test: /node_modules\/client-only\/error.js/,
+          loader: 'next-invalid-import-error-loader',
+          issuerLayer: WEBPACK_LAYERS.server,
+          options: {
+            message:
+              "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
+          },
+        },
       ].filter(Boolean),
     },
     plugins: [
@@ -2131,13 +2154,13 @@ export default async function getBaseWebpackConfig(
             })),
       hasAppDir &&
         !isClient &&
-        !dev &&
         new FlightTypesPlugin({
           dir,
           distDir: config.distDir,
           appDir,
           dev,
           isEdgeServer,
+          typedRoutes: enableTypedRoutes,
         }),
       !dev &&
         isClient &&

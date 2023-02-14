@@ -30,18 +30,19 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/app-dynamic/no-ssr-error'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
@@ -51,6 +52,9 @@ import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
 import type { MetadataItems } from '../lib/metadata/resolve-metadata'
+import { isClientReference } from '../build/is-client-reference'
+import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
+import { warnOnce } from '../shared/lib/utils/warn-once'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -91,13 +95,6 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
-}
-
-async function getLayoutOrPageModule(loaderTree: LoaderTree) {
-  const { layout, page } = loaderTree[2]
-  const isLayout = typeof layout !== 'undefined'
-  const isPage = typeof page !== 'undefined'
-  return isLayout ? await layout[0]() : isPage ? await page[0]() : undefined
 }
 
 export class ReadonlyHeaders {
@@ -199,11 +196,20 @@ export type RenderOptsPartial = {
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 /**
- * Flight Response is always set to application/octet-stream to ensure it does not get interpreted as HTML.
+ * Flight Response is always set to RSC_CONTENT_TYPE_HEADER to ensure it does not get interpreted as HTML.
  */
 class FlightRenderResult extends RenderResult {
   constructor(response: string | ReadableStream<Uint8Array>) {
-    super(response, { contentType: 'application/octet-stream' })
+    super(response, { contentType: RSC_CONTENT_TYPE_HEADER })
+  }
+}
+
+/**
+ * Action Response is set to application/json for now, but could be changed in the future.
+ */
+class ActionRenderResult extends RenderResult {
+  constructor(response: string) {
+    super(response, { contentType: 'application/json' })
   }
 }
 
@@ -631,15 +637,6 @@ export type Segment =
   | [param: string, value: string, type: DynamicParamTypesShort]
 
 /**
- * LoaderTree is generated in next-app-loader.
- */
-type LoaderTree = [
-  segment: string,
-  parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: ComponentsType
-]
-
-/**
  * Router state
  */
 export type FlightRouterState = [
@@ -908,6 +905,11 @@ export async function renderToHTMLOrFlight(
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+  const actionId = req.headers[ACTION.toLowerCase()]
+  const isAction =
+    actionId !== undefined &&
+    typeof actionId === 'string' &&
+    req.method === 'POST'
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -934,6 +936,7 @@ export async function renderToHTMLOrFlight(
     buildManifest,
     subresourceIntegrityManifest,
     serverComponentManifest,
+    serverActionsManifest,
     serverCSSManifest = {},
     ComponentMod,
     dev,
@@ -1103,8 +1106,7 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      const mod = await getLayoutOrPageModule(tree)
-      await collectMetadata(mod, layerProps, metadataItems)
+      await collectMetadata(tree, layerProps, metadataItems)
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
@@ -1119,6 +1121,12 @@ export async function renderToHTMLOrFlight(
       }
 
       if (head) {
+        if (process.env.NODE_ENV !== 'production') {
+          warnOnce(
+            `\`head.js\` is being used in route /${segment}. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
+          )
+        }
+
         const Head = await interopDefault(await head[0]())
         return [<Head params={currentParams} />, metadataItems]
       }
@@ -1204,7 +1212,8 @@ export async function renderToHTMLOrFlight(
             />
           ))
         : null
-      const Comp = await interopDefault(await getComponent())
+
+      const Comp = interopDefault(await getComponent())
 
       return [Comp, styles]
     }
@@ -1377,7 +1386,10 @@ export async function renderToHTMLOrFlight(
           )
         }
 
-        if (layoutOrPageMod?.config?.amp) {
+        if (
+          !isClientReference(layoutOrPageMod) &&
+          layoutOrPageMod?.config?.amp
+        ) {
           throw new Error(
             'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
           )
@@ -1520,9 +1532,11 @@ export async function renderToHTMLOrFlight(
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
-      Component = await Promise.resolve().then(() => {
-        return preloadComponent(Component, props)
-      })
+      if (!isClientReference(layoutOrPageMod)) {
+        Component = await Promise.resolve().then(() =>
+          preloadComponent(Component, props)
+        )
+      }
 
       return {
         Component: () => {
@@ -1795,6 +1809,23 @@ export async function renderToHTMLOrFlight(
       return generateFlight()
     }
 
+    // For action requests, we handle them differently with a sepcial render result.
+    if (isAction && process.env.NEXT_RUNTIME !== 'edge') {
+      const workerName = 'app' + renderOpts.pathname
+      const actionModId = serverActionsManifest[actionId].workers[workerName]
+
+      const { parseBody } =
+        require('./api-utils/node') as typeof import('./api-utils/node')
+      const actionData = (await parseBody(req, '1mb')) || {}
+
+      const actionHandler =
+        ComponentMod.__next_app_webpack_require__(actionModId).default
+
+      return new ActionRenderResult(
+        JSON.stringify(await actionHandler(actionId, actionData.bound || []))
+      )
+    }
+
     // Below this line is handling for rendering to HTML.
 
     // AppRouter is provided by next-app-loader
@@ -1987,6 +2018,9 @@ export async function renderToHTMLOrFlight(
         const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
         if (err.digest === NOT_FOUND_ERROR_CODE) {
           res.statusCode = 404
+        }
+        if (err.digest?.startsWith(REDIRECT_ERROR_CODE)) {
+          res.statusCode = 307
         }
 
         const renderStream = await renderToInitialStream({

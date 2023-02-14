@@ -3,238 +3,86 @@ import type {
   ResolvedMetadata,
   ResolvingMetadata,
 } from './types/metadata-interface'
-import type { Viewport } from './types/extra-types'
-import type { ResolvedTwitterMetadata } from './types/twitter-types'
-import type {
-  AbsoluteTemplateString,
-  Icon,
-  IconDescriptor,
-  Icons,
-  ResolvedVerification,
-} from './types/metadata-types'
+import type { AbsoluteTemplateString } from './types/metadata-types'
+import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import { createDefaultMetadata } from './default-metadata'
-import { resolveOpenGraph } from './resolve-opengraph'
-import { mergeTitle } from './resolve-title'
+import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
+import { mergeTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
+import { isClientReference } from '../../build/is-client-reference'
+import {
+  getLayoutOrPageModule,
+  LoaderTree,
+} from '../../server/lib/app-dir-module'
+import { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import { interopDefault } from '../interop-default'
+import {
+  resolveAlternates,
+  resolveAppleWebApp,
+  resolveAppLinks,
+  resolveRobots,
+  resolveVerification,
+  resolveViewport,
+} from './resolvers/resolve-basics'
+import { resolveIcons } from './resolvers/resolve-icons'
 
-type FieldResolver<Key extends keyof Metadata> = (
-  T: Metadata[Key]
-) => ResolvedMetadata[Key]
+type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 
-const viewPortKeys = {
-  width: 'width',
-  height: 'height',
-  initialScale: 'initial-scale',
-  minimumScale: 'minimum-scale',
-  maximumScale: 'maximum-scale',
-  viewportFit: 'viewport-fit',
-} as const
+type MetadataResolver = (
+  _parent: ResolvingMetadata
+) => Metadata | Promise<Metadata>
+export type MetadataItems = [
+  Metadata | MetadataResolver | null,
+  StaticMetadata
+][]
 
-const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
-  let resolved: ResolvedMetadata['viewport'] = null
-
-  if (typeof viewport === 'string') {
-    resolved = viewport
-  } else if (viewport) {
-    resolved = ''
-    for (const viewportKey_ in viewPortKeys) {
-      const viewportKey = viewportKey_ as keyof Viewport
-      if (viewport[viewportKey]) {
-        if (resolved) resolved += ', '
-        resolved += `${viewPortKeys[viewportKey]}=${viewport[viewportKey]}`
-      }
-    }
+function mergeStaticMetadata(
+  metadata: ResolvedMetadata,
+  staticFilesMetadata: StaticMetadata
+) {
+  if (!staticFilesMetadata) return
+  const { icon, apple, opengraph, twitter } = staticFilesMetadata
+  if (icon || apple) {
+    if (!metadata.icons) metadata.icons = { icon: [], apple: [] }
+    if (icon) metadata.icons.icon.push(...icon)
+    if (apple) metadata.icons.apple.push(...apple)
   }
-  return resolved
-}
-
-const VerificationKeys = ['google', 'yahoo', 'yandex', 'me', 'other'] as const
-const resolveVerification: FieldResolver<'verification'> = (verification) => {
-  if (!verification) return null
-  const res = {} as ResolvedVerification
-
-  for (const key of VerificationKeys) {
-    const value = verification[key]
-    if (value) {
-      if (key === 'other') {
-        res.other = {}
-        for (const otherKey in verification.other) {
-          const otherValue = resolveAsArrayOrUndefined(
-            verification.other[otherKey]
-          )
-          if (otherValue) res.other[otherKey] = otherValue
-        }
-      } else res[key] = resolveAsArrayOrUndefined(value) as (string | number)[]
-    }
-  }
-  return res
-}
-
-function isStringOrURL(icon: any): icon is string | URL {
-  return typeof icon === 'string' || icon instanceof URL
-}
-
-function resolveIcon(icon: Icon): IconDescriptor {
-  if (isStringOrURL(icon)) return { url: icon }
-  else if (Array.isArray(icon)) return icon
-  return icon
-}
-
-const IconKeys = ['icon', 'shortcut', 'apple', 'other'] as (keyof Icons)[]
-const TwitterBasicInfoKeys = [
-  'site',
-  'siteId',
-  'creator',
-  'creatorId',
-  'description',
-] as const
-
-const resolveIcons: FieldResolver<'icons'> = (icons) => {
-  if (!icons) {
-    return null
+  if (twitter) {
+    const resolvedTwitter = resolveTwitter(
+      {
+        card: 'summary_large_image',
+        images: twitter,
+      },
+      null
+    )
+    metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
   }
 
-  const resolved: ResolvedMetadata['icons'] = {}
-  if (Array.isArray(icons)) {
-    resolved.icon = icons.map(resolveIcon).filter(Boolean)
-  } else if (isStringOrURL(icons)) {
-    resolved.icon = [resolveIcon(icons)]
-  } else {
-    for (const key of IconKeys) {
-      const values = resolveAsArrayOrUndefined(icons[key])
-      if (values) resolved[key] = values.map(resolveIcon)
-    }
-  }
-  return resolved
-}
-
-const resolveAppleWebApp: FieldResolver<'appleWebApp'> = (appWebApp) => {
-  if (!appWebApp) return null
-  if (appWebApp === true) {
-    return {
-      capable: true,
-    }
+  if (opengraph) {
+    const resolvedOg = resolveOpenGraph(
+      {
+        images: opengraph,
+      },
+      null
+    )
+    metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
   }
 
-  const startupImages = resolveAsArrayOrUndefined(appWebApp.startupImage)?.map(
-    (item) => (typeof item === 'string' ? { url: item } : item)
-  )
-
-  return {
-    capable: 'capable' in appWebApp ? !!appWebApp.capable : true,
-    title: appWebApp.title || null,
-    startupImage: startupImages || null,
-    statusBarStyle: appWebApp.statusBarStyle || 'default',
-  }
-}
-
-const resolveTwitter: FieldResolver<'twitter'> = (twitter) => {
-  if (!twitter) return null
-  const resolved = {
-    title: twitter.title,
-  } as ResolvedTwitterMetadata
-  for (const infoKey of TwitterBasicInfoKeys) {
-    resolved[infoKey] = twitter[infoKey] || null
-  }
-  resolved.images = resolveAsArrayOrUndefined(twitter.images)?.map((item) => {
-    if (isStringOrURL(item))
-      return {
-        url: item.toString(),
-      }
-    else {
-      return {
-        url: item.url.toString(),
-        alt: item.alt,
-      }
-    }
-  })
-  if ('card' in twitter) {
-    resolved.card = twitter.card
-    switch (twitter.card) {
-      case 'player': {
-        // @ts-ignore
-        resolved.players = resolveAsArrayOrUndefined(twitter.players) || []
-        break
-      }
-      case 'app': {
-        // @ts-ignore
-        resolved.app = twitter.app || {}
-        break
-      }
-      default:
-        break
-    }
-  } else {
-    resolved.card = 'summary'
-  }
-  return resolved
-}
-
-const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
-  if (!appLinks) return null
-  for (const key in appLinks) {
-    // @ts-ignore // TODO: type infer
-    appLinks[key] = resolveAsArrayOrUndefined(appLinks[key])
-  }
-  return appLinks as ResolvedMetadata['appLinks']
-}
-
-const robotsKeys = [
-  'noarchive',
-  'nosnippet',
-  'noimageindex',
-  'nocache',
-  'notranslate',
-  'indexifembedded',
-  'nositelinkssearchbox',
-  'unavailable_after',
-  'max-video-preview',
-  'max-image-preview',
-  'max-snippet',
-] as const
-const resolveRobotsValue: (robots: Metadata['robots']) => string | null = (
-  robots
-) => {
-  if (!robots) return null
-  if (typeof robots === 'string') return robots
-
-  const values: string[] = []
-
-  if (robots.index) values.push('index')
-  else if (typeof robots.index === 'boolean') values.push('noindex')
-
-  if (robots.follow) values.push('follow')
-  else if (typeof robots.follow === 'boolean') values.push('nofollow')
-
-  for (const key of robotsKeys) {
-    const value = robots[key]
-    if (typeof value !== 'undefined' && value !== false) {
-      values.push(typeof value === 'boolean' ? key : `${key}:${value}`)
-    }
-  }
-
-  return values.join(', ')
-}
-
-const resolveRobots: FieldResolver<'robots'> = (robots) => {
-  if (!robots) return null
-  return {
-    basic: resolveRobotsValue(robots),
-    googleBot:
-      typeof robots !== 'string' ? resolveRobotsValue(robots.googleBot) : null,
-  }
+  return metadata
 }
 
 // Merge the source metadata into the resolved target metadata.
 function merge(
   target: ResolvedMetadata,
-  source: Metadata,
+  source: Metadata | null,
+  staticFilesMetadata: StaticMetadata,
   templateStrings: {
     title: string | null
     openGraph: string | null
     twitter: string | null
   }
 ) {
+  const metadataBase = source?.metadataBase || null
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
@@ -246,19 +94,19 @@ function merge(
         }
         break
       }
+      case 'alternates': {
+        target.alternates = resolveAlternates(source.alternates, metadataBase)
+        break
+      }
       case 'openGraph': {
-        if (typeof source.openGraph !== 'undefined') {
-          target.openGraph = resolveOpenGraph(source.openGraph)
-          if (source.openGraph) {
-            mergeTitle(target.openGraph, templateStrings.openGraph)
-          }
-        } else {
-          target.openGraph = null
+        target.openGraph = resolveOpenGraph(source.openGraph, metadataBase)
+        if (target.openGraph) {
+          mergeTitle(target.openGraph, templateStrings.openGraph)
         }
         break
       }
       case 'twitter': {
-        target.twitter = resolveTwitter(source.twitter)
+        target.twitter = resolveTwitter(source.twitter, metadataBase)
         if (target.twitter) {
           mergeTitle(target.twitter, templateStrings.twitter)
         }
@@ -307,7 +155,6 @@ function merge(
       case 'referrer':
       case 'colorScheme':
       case 'itunes':
-      case 'alternates':
       case 'formatDetection':
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
@@ -315,14 +162,15 @@ function merge(
       case 'other':
         target.other = Object.assign({}, target.other, source.other)
         break
+      case 'metadataBase':
+        target.metadataBase = metadataBase
+        break
       default:
         break
     }
   }
+  mergeStaticMetadata(target, staticFilesMetadata)
 }
-
-type MetadataResolver = (_parent: ResolvingMetadata) => Promise<Metadata>
-export type MetadataItems = (Metadata | MetadataResolver)[]
 
 async function getDefinedMetadata(
   mod: any,
@@ -331,10 +179,7 @@ async function getDefinedMetadata(
   // Layer is a client component, we just skip it. It can't have metadata
   // exported. Note that during our SWC transpilation, it should check if
   // the exports are valid and give specific error messages.
-  if (
-    '$$typeof' in mod &&
-    (mod as any).$$typeof === Symbol.for('react.module.reference')
-  ) {
+  if (isClientReference(mod)) {
     return null
   }
 
@@ -344,22 +189,59 @@ async function getDefinedMetadata(
     )
   }
 
-  return mod.generateMetadata
-    ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
-    : mod.metadata
+  return (
+    (mod.generateMetadata
+      ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
+      : mod.metadata) || null
+  )
 }
 
-// layout.metadata -> layout.metadata -> page.metadata
+async function collectStaticImagesFiles(
+  metadata: ComponentsType['metadata'],
+  type: keyof NonNullable<ComponentsType['metadata']>
+) {
+  if (!metadata?.[type]) return undefined
+
+  const iconPromises = metadata[type as 'icon' | 'apple'].map(
+    // TODO-APP: share the typing between next-metadata-image-loader and here
+    async (iconResolver: any) =>
+      interopDefault(await iconResolver()) as MetadataImageModule
+  )
+  return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
+}
+
+async function resolveStaticMetadata(components: ComponentsType) {
+  const { metadata } = components
+  if (!metadata) return null
+
+  const [icon, apple, opengraph, twitter] = await Promise.all([
+    collectStaticImagesFiles(metadata, 'icon'),
+    collectStaticImagesFiles(metadata, 'apple'),
+    collectStaticImagesFiles(metadata, 'opengraph'),
+    collectStaticImagesFiles(metadata, 'twitter'),
+  ])
+
+  const staticMetadata = {
+    icon,
+    apple,
+    opengraph,
+    twitter,
+  }
+
+  return staticMetadata
+}
+
+// [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
 export async function collectMetadata(
-  mod: any,
+  loaderTree: LoaderTree,
   props: any,
   array: MetadataItems
 ) {
-  if (!mod) return
-  const metadata = await getDefinedMetadata(mod, props)
-  if (metadata) {
-    array.push(metadata)
-  }
+  const mod = await getLayoutOrPageModule(loaderTree)
+  const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
+  const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
+
+  array.push([metadataExport, staticFilesMetadata])
 }
 
 export async function accumulateMetadata(
@@ -369,49 +251,28 @@ export async function accumulateMetadata(
   let parentPromise = Promise.resolve(resolvedMetadata)
 
   for (const item of metadataItems) {
+    const [metadataExport, staticFilesMetadata] = item
+    const currentMetadata =
+      typeof metadataExport === 'function'
+        ? metadataExport(parentPromise)
+        : metadataExport
     const layerMetadataPromise =
-      typeof item === 'function' ? item(parentPromise) : Promise.resolve(item)
+      currentMetadata instanceof Promise
+        ? currentMetadata
+        : Promise.resolve(currentMetadata)
+
     parentPromise = parentPromise.then((resolved) => {
       return layerMetadataPromise.then((metadata) => {
-        merge(resolved, metadata, {
+        merge(resolved, metadata, staticFilesMetadata, {
           title: resolved.title?.template || null,
           openGraph: resolved.openGraph?.title?.template || null,
           twitter: resolved.twitter?.title?.template || null,
         })
+
         return resolved
       })
     })
   }
+
   return await parentPromise
-}
-
-// TODO: Implement this function.
-export async function resolveFileBasedMetadataForLoader(
-  _layer: number,
-  _dir: string
-) {
-  let metadataCode = ''
-
-  // const files = await fs.readdir(path.normalize(dir))
-  // for (const file of files) {
-  //   // TODO: Get a full list and filter out directories.
-  //   if (file === 'icon.svg') {
-  //     metadataCode += `{
-  //       type: 'icon',
-  //       layer: ${layer},
-  //       path: ${JSON.stringify(path.join(dir, file))},
-  //     },`
-  //   } else if (file === 'icon.jsx') {
-  //     metadataCode += `{
-  //       type: 'icon',
-  //       layer: ${layer},
-  //       mod: () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-  //         path.join(dir, file)
-  //       )}),
-  //       path: ${JSON.stringify(path.join(dir, file))},
-  //     },`
-  //   }
-  // }
-
-  return metadataCode
 }

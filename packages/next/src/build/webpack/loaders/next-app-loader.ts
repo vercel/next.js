@@ -1,12 +1,17 @@
 import type webpack from 'webpack'
-import chalk from 'next/dist/compiled/chalk'
 import type { ValueOf } from '../../../shared/lib/constants'
+import type { ModuleReference, CollectedMetadata } from './metadata/types'
+
+import path from 'path'
+import chalk from 'next/dist/compiled/chalk'
 import { NODE_RESOLVE_OPTIONS } from '../../webpack-config'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { relative, sep } from 'path'
 import { verifyRootLayout } from '../../../lib/verifyRootLayout'
 import * as Log from '../../../build/output/log'
 import { APP_DIR_ALIAS } from '../../../lib/constants'
+import { buildMetadata, discoverStaticMetadataFiles } from './metadata/discover'
+
+const isNotResolvedError = (err: any) => err.message.includes("Can't resolve")
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -18,32 +23,37 @@ const FILE_TYPES = {
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
-
 const PAGE_SEGMENT = 'page$'
 
-// TODO-APP: check if this can be narrowed.
-type ComponentModule = () => any
-type ModuleReference = [componentModule: ComponentModule, filePath: string]
 export type ComponentsType = {
   readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
   readonly page?: ModuleReference
+} & {
+  readonly metadata?: CollectedMetadata
 }
 
-async function createTreeCodeFromPath({
-  pagePath,
-  resolve,
-  resolveParallelSegments,
-}: {
-  pagePath: string
-  resolve: (
-    pathname: string,
-    resolveDir?: boolean
-  ) => Promise<string | undefined>
-  resolveParallelSegments: (
-    pathname: string
-  ) => [key: string, segment: string][]
-}) {
+async function createTreeCodeFromPath(
+  pagePath: string,
+  {
+    resolver,
+    resolvePath,
+    resolveParallelSegments,
+    loaderContext,
+    loaderOptions,
+  }: {
+    resolver: (
+      pathname: string,
+      resolveDir?: boolean
+    ) => Promise<string | undefined>
+    resolvePath: (pathname: string) => Promise<string>
+    resolveParallelSegments: (
+      pathname: string
+    ) => [key: string, segment: string | string[]][]
+    loaderContext: webpack.LoaderContext<AppLoaderOptions>
+    loaderOptions: AppLoaderOptions
+  }
+) {
   const splittedPath = pagePath.split(/[\\/]/)
   const appDirPrefix = splittedPath[0]
   const pages: string[] = []
@@ -60,32 +70,61 @@ async function createTreeCodeFromPath({
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
+    const isRootLayer = segments.length === 0
 
     // We need to resolve all parallel routes in this level.
-    const parallelSegments: [key: string, segment: string][] = []
-    if (segments.length === 0) {
+    const parallelSegments: [key: string, segment: string | string[]][] = []
+    if (isRootLayer) {
       parallelSegments.push(['children', ''])
     } else {
       parallelSegments.push(...resolveParallelSegments(segmentPath))
     }
 
+    let metadata: Awaited<ReturnType<typeof discoverStaticMetadataFiles>> = null
+    try {
+      const routerDirPath = `${appDirPrefix}${segmentPath}`
+      const resolvedRouteDir = await resolver(routerDirPath, true)
+
+      if (resolvedRouteDir) {
+        metadata = await discoverStaticMetadataFiles(resolvedRouteDir, {
+          resolvePath,
+          isRootLayer,
+          loaderContext,
+          loaderOptions,
+        })
+      }
+    } catch (err: any) {
+      if (isNotResolvedError(err)) {
+        throw err
+      }
+    }
+
     for (const [parallelKey, parallelSegment] of parallelSegments) {
       if (parallelSegment === PAGE_SEGMENT) {
-        const matchedPagePath = `${appDirPrefix}${segmentPath}/page`
-        const resolvedPagePath = await resolve(matchedPagePath)
+        const matchedPagePath = `${appDirPrefix}${segmentPath}${
+          parallelKey === 'children' ? '' : `/@${parallelKey}`
+        }/page`
+
+        const resolvedPagePath = await resolver(matchedPagePath)
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[parallelKey] = `['', {}, {
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
-          )}), ${JSON.stringify(resolvedPagePath)}]}]`
+          )}), ${JSON.stringify(resolvedPagePath)}],
+          ${buildMetadata(metadata)}
+        }]`
         continue
       }
 
       const parallelSegmentPath = segmentPath + '/' + parallelSegment
       const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
-        [...segments, parallelSegment]
+        [
+          ...segments,
+          ...(parallelKey === 'children' ? [] : [`@${parallelKey}`]),
+          Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment,
+        ]
       )
 
       // `page` is not included here as it's added above.
@@ -93,44 +132,48 @@ async function createTreeCodeFromPath({
         Object.values(FILE_TYPES).map(async (file) => {
           return [
             file,
-            await resolve(`${appDirPrefix}${parallelSegmentPath}/${file}`),
+            await resolver(
+              `${appDirPrefix}${
+                // TODO-APP: parallelSegmentPath sometimes ends in `/` but sometimes it doesn't. This should be consistent.
+                parallelSegmentPath.endsWith('/')
+                  ? parallelSegmentPath
+                  : parallelSegmentPath + '/'
+              }${file}`
+            ),
           ] as const
         })
       )
 
-      const layoutPath = filePaths.find(
-        ([type, path]) => type === 'layout' && !!path
-      )?.[1]
       if (!rootLayout) {
+        const layoutPath = filePaths.find(
+          ([type, filePath]) => type === 'layout' && !!filePath
+        )?.[1]
         rootLayout = layoutPath
+
+        if (layoutPath) {
+          globalError = await resolver(
+            `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
+          )
+        }
       }
 
-      if (!rootLayout) {
-        rootLayout = layoutPath
-      }
-
-      if (!globalError) {
-        globalError = await resolve(
-          `${appDirPrefix}${parallelSegmentPath}/${GLOBAL_ERROR_FILE_TYPE}`
-        )
-      }
-
+      const definedFilePaths = filePaths.filter(
+        ([, filePath]) => filePath !== undefined
+      )
       props[parallelKey] = `[
-        '${parallelSegment}',
+        '${
+          Array.isArray(parallelSegment) ? parallelSegment[0] : parallelSegment
+        }',
         ${subtreeCode},
         {
-          ${filePaths
-            .filter(([, filePath]) => filePath !== undefined)
+          ${definedFilePaths
             .map(([file, filePath]) => {
-              if (filePath === undefined) {
-                return ''
-              }
-
               return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
                 filePath
               )}), ${JSON.stringify(filePath)}],`
             })
             .join('\n')}
+          ${definedFilePaths.length ? buildMetadata(metadata) : ''}
         }
       ]`
     }
@@ -158,21 +201,27 @@ function createAbsolutePath(appDir: string, pathToTurnAbsolute: string) {
   return (
     pathToTurnAbsolute
       // Replace all POSIX path separators with the current OS path separator
-      .replace(/\//g, sep)
+      .replace(/\//g, path.sep)
       .replace(/^private-next-app-dir/, appDir)
   )
 }
 
-const nextAppLoader: webpack.LoaderDefinitionFunction<{
+export type AppLoaderOptions = {
   name: string
   pagePath: string
   appDir: string
   appPaths: string[] | null
   pageExtensions: string[]
+  basePath: string
+  assetPrefix: string
   rootDir?: string
   tsconfigPath?: string
   isDev?: boolean
-}> = async function nextAppLoader() {
+}
+type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
+
+const nextAppLoader: AppLoader = async function nextAppLoader() {
+  const loaderOptions = this.getOptions() || {}
   const {
     name,
     appDir,
@@ -182,7 +231,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     rootDir,
     tsconfigPath,
     isDev,
-  } = this.getOptions() || {}
+  } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   buildInfo.route = {
@@ -199,25 +248,35 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
-  const resolveParallelSegments = (pathname: string) => {
-    const matched: Record<string, string> = {}
-    for (const path of normalizedAppPaths) {
-      if (path.startsWith(pathname + '/')) {
-        const rest = path.slice(pathname.length + 1).split('/')
+  const resolveParallelSegments = (
+    pathname: string
+  ): [string, string | string[]][] => {
+    const matched: Record<string, string | string[]> = {}
+    for (const appPath of normalizedAppPaths) {
+      if (appPath.startsWith(pathname + '/')) {
+        const rest = appPath.slice(pathname.length + 1).split('/')
 
-        let matchedSegment = rest[0]
         // It is the actual page, mark it specially.
-        if (rest.length === 1 && matchedSegment === 'page') {
-          matchedSegment = PAGE_SEGMENT
+        if (rest.length === 1 && rest[0] === 'page') {
+          matched.children = PAGE_SEGMENT
+          continue
         }
 
-        const matchedKey = matchedSegment.startsWith('@')
-          ? matchedSegment.slice(1)
-          : 'children'
+        const isParallelRoute = rest[0].startsWith('@')
+        if (isParallelRoute && rest.length === 2 && rest[1] === 'page') {
+          matched[rest[0].slice(1)] = PAGE_SEGMENT
+          continue
+        }
 
-        matched[matchedKey] = matchedSegment
+        if (isParallelRoute) {
+          matched[rest[0].slice(1)] = rest.slice(1)
+          continue
+        }
+
+        matched.children = rest[0]
       }
     }
+
     return Object.entries(matched)
   }
 
@@ -236,7 +295,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
         const absolutePathWithExtension = `${absolutePath}${ext}`
         this.addMissingDependency(absolutePathWithExtension)
       }
-      if (err.message.includes("Can't resolve")) {
+      if (isNotResolvedError(err)) {
         return undefined
       }
       throw err
@@ -248,10 +307,12 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
     pages: pageListCode,
     rootLayout,
     globalError,
-  } = await createTreeCodeFromPath({
-    pagePath,
-    resolve: resolver,
+  } = await createTreeCodeFromPath(pagePath, {
+    resolver,
+    resolvePath: (pathname: string) => resolve(this.rootContext, pathname),
     resolveParallelSegments,
+    loaderContext: this,
+    loaderOptions: loaderOptions,
   })
 
   if (!rootLayout) {
@@ -279,7 +340,7 @@ const nextAppLoader: webpack.LoaderDefinitionFunction<{
 
         if (rootLayoutPath) {
           message += `We tried to create ${chalk.bold(
-            relative(this._compiler?.context ?? '', rootLayoutPath)
+            path.relative(this._compiler?.context ?? '', rootLayoutPath)
           )} for you but something went wrong.`
         } else {
           message +=
