@@ -191,6 +191,7 @@ export function createTSPlugin(modules: {
 
       ts.forEachChild(source!, (node) => {
         if (ts.isImportDeclaration(node)) {
+          // import ...
           if (isAppEntry) {
             if (!isClientEntry) {
               // Check if it has valid imports in the server layer
@@ -257,6 +258,7 @@ export function createTSPlugin(modules: {
           ts.isFunctionDeclaration(node) &&
           node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
+          // export function ...
           if (isAppEntry) {
             const metadataDiagnostics = isClientEntry
               ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
@@ -270,7 +272,6 @@ export function createTSPlugin(modules: {
             prior.push(...metadataDiagnostics)
           }
 
-          // export function ...
           if (isClientEntry) {
             prior.push(
               ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
@@ -278,6 +279,20 @@ export function createTSPlugin(modules: {
                 node
               )
             )
+          }
+        } else if (ts.isExportDeclaration(node)) {
+          // export { ... }
+          if (isAppEntry) {
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportDeclarationInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportDeclaration(
+                  fileName,
+                  node
+                )
+            prior.push(...metadataDiagnostics)
           }
         }
       })
