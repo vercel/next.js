@@ -32,7 +32,6 @@ __swc_core_next_core = [
 
 __swc_core_binding_napi = [
   "__swc_core",
-  "swc_core/allocator_node",
   "swc_core/base_concurrent",
   "swc_core/base_node",
   "swc_core/common_concurrent",
@@ -53,6 +52,7 @@ __swc_core_binding_napi = [
   "swc_core/ecma_visit",
 ]
 __swc_core_binding_napi_plugin = ["swc_core/plugin_transform_host_native"]
+__swc_core_binding_napi_allocator = ["swc_core/allocator_node"]
 
 __swc_core_binding_wasm = [
   "__swc_core",
