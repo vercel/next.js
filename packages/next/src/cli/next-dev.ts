@@ -81,6 +81,11 @@ const handleSessionStop = async () => {
     // errors here aren't actionable so don't add
     // noise to the output
   }
+
+  // ensure we re-enable the terminal cursor before exiting
+  // the program, or the cursor could remain hidden
+  process.stdout.write('\x1B[?25h')
+  process.stdout.write('\n')
   process.exit(0)
 }
 
