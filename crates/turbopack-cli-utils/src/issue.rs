@@ -10,17 +10,15 @@ use std::{
 use anyhow::{anyhow, Result};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
-use turbo_tasks::{
-    RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt, ValueToString,
-};
+use turbo_tasks::{RawVc, TransientValue, TryJoinIterExt, ValueToString};
 use turbo_tasks_fs::{
     attach::AttachedFileSystemVc,
     source_context::{get_source_context, SourceContextLine},
     to_sys_path, FileLinesContent, FileSystemPathVc,
 };
 use turbopack_core::issue::{
-    CapturedIssues, Issue, IssueProcessingPathItem, IssueReporter, IssueReporterVc, IssueSeverity,
-    OptionIssueProcessingPathItemsVc, PlainIssue, PlainIssueSource,
+    Issue, IssueProcessingPathItem, IssueSeverity, IssueVc, OptionIssueProcessingPathItemsVc,
+    PlainIssue, PlainIssueSource,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -414,34 +412,41 @@ impl PartialEq for ConsoleUi {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ConsoleUiVc {
-    #[turbo_tasks::function]
-    pub fn new(options: TransientInstance<LogOptions>) -> Self {
+impl ConsoleUi {
+    pub fn new(options: LogOptions) -> Self {
         ConsoleUi {
-            options: (*options).clone(),
+            options,
             seen: Arc::new(Mutex::new(SeenIssues::new())),
         }
-        .cell()
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct DisplayIssueState {
+    pub has_fatal: bool,
+    pub has_issues: bool,
+    pub has_new_issues: bool,
+}
+
 #[turbo_tasks::value_impl]
-impl IssueReporter for ConsoleUi {
+impl ConsoleUiVc {
     #[turbo_tasks::function]
-    async fn report_issues(
-        &self,
-        issues: TransientInstance<ReadRef<CapturedIssues>>,
+    pub async fn group_and_display_issues(
+        self,
         source: TransientValue<RawVc>,
-    ) -> Result<()> {
-        let issues = &*issues;
-        let LogOptions {
+    ) -> Result<DisplayIssueStateVc> {
+        let source = source.into_value();
+        let this = self.await?;
+
+        let issues = IssueVc::peek_issues_with_path(source).await?;
+        let issues = issues.await?;
+        let &LogOptions {
             ref current_dir,
             show_all,
             log_detail,
             log_level,
             ..
-        } = self.options;
+        } = &this.options;
         let mut grouped_issues: GroupedIssues = HashMap::new();
 
         let issues = issues
@@ -459,11 +464,11 @@ impl IssueReporter for ConsoleUi {
             .iter()
             .map(|(_, _, _, id)| *id)
             .collect::<HashSet<_>>();
-        let mut new_ids = self
-            .seen
-            .lock()
-            .unwrap()
-            .new_ids(source.into_value(), issue_ids);
+        let mut new_ids = this.seen.lock().unwrap().new_ids(source, issue_ids);
+
+        let mut has_fatal = false;
+        let has_issues = !issues.is_empty();
+        let has_new_issues = !new_ids.is_empty();
 
         for (plain_issue, path, context, id) in issues {
             if !new_ids.remove(&id) {
@@ -474,6 +479,7 @@ impl IssueReporter for ConsoleUi {
             let context_path = make_relative_to_cwd(context, current_dir).await?;
             let category = &plain_issue.category;
             let title = &plain_issue.title;
+            has_fatal = severity == IssueSeverity::Fatal;
             let severity_map = grouped_issues
                 .entry(severity)
                 .or_insert_with(Default::default);
@@ -606,7 +612,12 @@ impl IssueReporter for ConsoleUi {
             }
         }
 
-        Ok(())
+        Ok(DisplayIssueState {
+            has_fatal,
+            has_issues,
+            has_new_issues,
+        }
+        .cell())
     }
 }
 
