@@ -4,8 +4,7 @@ use hyper::{header::HeaderName, Request, Response};
 use mime_guess::mime;
 use turbo_tasks::TransientInstance;
 use turbo_tasks_fs::{FileContent, FileContentReadRef};
-use turbopack_cli_utils::issue::ConsoleUiVc;
-use turbopack_core::{asset::AssetContent, version::VersionedContent};
+use turbopack_core::{asset::AssetContent, issue::IssueReporterVc, version::VersionedContent};
 
 use crate::source::{
     request::SourceRequest,
@@ -30,10 +29,10 @@ enum GetFromSourceResult {
 async fn get_from_source(
     source: ContentSourceVc,
     request: TransientInstance<SourceRequest>,
-    console_ui: ConsoleUiVc,
+    issue_repoter: IssueReporterVc,
 ) -> Result<GetFromSourceResultVc> {
     Ok(
-        match &*resolve_source_request(source, request, console_ui).await? {
+        match &*resolve_source_request(source, request, issue_repoter).await? {
             ResolveSourceRequestResult::Static(static_content_vc) => {
                 let static_content = static_content_vc.await?;
                 if let AssetContent::File(file) = &*static_content.content.content().await? {
@@ -60,11 +59,11 @@ async fn get_from_source(
 pub async fn process_request_with_content_source(
     source: ContentSourceVc,
     request: Request<hyper::Body>,
-    console_ui: ConsoleUiVc,
+    issue_reporter: IssueReporterVc,
 ) -> Result<Response<hyper::Body>> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
-    let result = get_from_source(source, TransientInstance::new(request), console_ui);
+    let result = get_from_source(source, TransientInstance::new(request), issue_reporter);
     match &*result.strongly_consistent().await? {
         GetFromSourceResult::Static {
             content,
