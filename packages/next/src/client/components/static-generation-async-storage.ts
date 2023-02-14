@@ -10,6 +10,7 @@ export interface StaticGenerationStore {
   forceDynamic?: boolean
   revalidate?: boolean | number
   forceStatic?: boolean
+  dynamicShouldError?: boolean
   pendingRevalidates?: Promise<any>[]
 
   dynamicUsageDescription?: string

@@ -8,7 +8,10 @@ export function staticGenerationBailout(reason: string): boolean | never {
     return true
   }
 
-  if (staticGenerationStore?.isStaticGeneration) {
+  if (
+    staticGenerationStore?.isStaticGeneration ||
+    staticGenerationStore?.dynamicShouldError
+  ) {
     staticGenerationStore.revalidate = 0
     const err = new DynamicServerError(reason)
 
