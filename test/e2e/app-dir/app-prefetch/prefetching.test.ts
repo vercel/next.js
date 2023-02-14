@@ -98,5 +98,17 @@ createNextDescribe(
         ).toBe(0)
       }
     })
+
+    it('should navigate when prefetch is false', async () => {
+      const browser = await next.browser('/prefetch-false/initial')
+      await browser
+        .elementByCss('#to-prefetch-false-result')
+        .click()
+        .waitForElementByCss('#prefetch-false-page-result')
+
+      expect(
+        await browser.elementByCss('#prefetch-false-page-result').text()
+      ).toBe('Result page')
+    })
   }
 )

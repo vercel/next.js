@@ -17,7 +17,14 @@ const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
+// Check env to see if test should continue even if some of test fails
 const shouldContinueTestsOnError = !!process.env.NEXT_TEST_CONTINUE_ON_ERROR
+// Check env to load a list of test paths to skip retry. This is to be used in conjuction with NEXT_TEST_CONTINUE_ON_ERROR,
+// When try to run all of the tests regardless of pass / fail and want to skip retrying `known` failed tests.
+// manifest should be a json file with an array of test paths.
+const skipRetryTestManifest = process.env.NEXT_TEST_SKIP_RETRY_MANIFEST
+  ? require(process.env.NEXT_TEST_SKIP_RETRY_MANIFEST)
+  : []
 const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
 const TIMINGS_API_HEADERS = {
   Accept: 'application/vnd.github.v3+json',
@@ -383,6 +390,12 @@ async function main() {
           break
         } catch (err) {
           if (i < numRetries) {
+            if (skipRetryTestManifest.find((t) => t.includes(test))) {
+              console.log(
+                `Skipping retry for ${test} due to skipRetryTestManifest`
+              )
+              break
+            }
             try {
               let testDir = path.dirname(path.join(__dirname, test))
 

@@ -1999,14 +1999,6 @@ export default class NextNodeServer extends BaseServer {
                   ? `${parsedDestination.hostname}:${parsedDestination.port}`
                   : parsedDestination.hostname) !== req.headers.host
               ) {
-                // when we are handling a middleware prefetch and it doesn't
-                // resolve to a static data route we bail early to avoid
-                // unexpected SSR invocations
-                if (req.headers['x-middleware-prefetch']) {
-                  res.setHeader('x-middleware-skip', '1')
-                  res.body('{}').send()
-                  return { finished: true }
-                }
                 return this.proxyRequest(
                   req as NodeNextRequest,
                   res as NodeNextResponse,
