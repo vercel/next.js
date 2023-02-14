@@ -28,7 +28,7 @@ module.exports = {
     },
     turbotrace: {
       contextDirectory: path.join(__dirname, '..', '..', '..', '..'),
-      memoryLimit: 4096,
+      memoryLimit: 2048,
     },
     webpackBuildWorker: true,
   },
