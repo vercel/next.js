@@ -8,7 +8,13 @@ export const RootStyleRegistry = ({ children }: PropsWithChildren) => {
   const [cache] = useState(() => createCache())
 
   useServerInsertedHTML(() => {
-    return <style dangerouslySetInnerHTML={{ __html: extractStyle(cache) }} />
+    return (
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `</script>${extractStyle(cache)}<script>`,
+        }}
+      />
+    )
   })
 
   return <StyleProvider cache={cache}>{children}</StyleProvider>
