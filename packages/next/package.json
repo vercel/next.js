@@ -198,7 +198,7 @@
     "content-disposition": "0.5.3",
     "content-type": "1.0.4",
     "cookie": "0.4.1",
-    "cross-spawn": "6.0.5",
+    "cross-spawn": "7.0.3",
     "crypto-browserify": "3.12.0",
     "css.escape": "1.5.1",
     "cssnano-simple": "3.0.1",
