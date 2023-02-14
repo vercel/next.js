@@ -90,6 +90,9 @@ impl ContentSource for NextRouterContentSource {
                 this.inner
                     .get(path, Value::new(ContentSourceData::default()))
             }
+            RouterResult::None => this
+                .inner
+                .get(path, Value::new(ContentSourceData::default())),
             RouterResult::Rewrite(data) => {
                 // TODO: We can't set response headers on the returned content.
                 ContentSourceResultVc::exact(
