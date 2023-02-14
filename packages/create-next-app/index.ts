@@ -350,7 +350,7 @@ async function run(): Promise<void> {
           message: `What ${styledImportAlias} would you like configured?`,
           initial: getPrefOrDefault('importAlias'),
           validate: (value) =>
-            /.+\/\*/.test(value)
+            /^[^/]+\/\*$/.test(value)
               ? true
               : 'Import alias must follow the pattern <prefix>/*',
         })
