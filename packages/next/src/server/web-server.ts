@@ -27,6 +27,8 @@ import {
   normalizeVercelUrl,
 } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { ServerResponse } from 'http'
+import { GetServerSidePropsContext } from '../types'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -369,13 +371,21 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     const curRenderToHTML = pagesRenderToHTML || appRenderToHTML
 
     if (curRenderToHTML) {
+      const patchedRes: Partial<ServerResponse> = {
+        setHeader: _res.setHeader.bind(_res),
+        getHeader: _res.getHeader.bind(_res),
+        statusMessage: _res.statusMessage!,
+        statusCode: _res.statusCode!,
+      }
+      const patchedReq: Partial<GetServerSidePropsContext['req']> = {
+        url: req.url,
+        cookies: req.cookies,
+        headers: req.headers,
+        method: req.method,
+      }
       return await curRenderToHTML(
-        {
-          url: req.url,
-          cookies: req.cookies,
-          headers: req.headers,
-        } as any,
-        {} as any,
+        patchedReq as any,
+        patchedRes as any,
         pathname,
         query,
         Object.assign(renderOpts, {
