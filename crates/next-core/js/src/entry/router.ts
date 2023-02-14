@@ -16,10 +16,15 @@ type RouterRequest = {
   rawQuery: string;
 };
 
-type RouteResult = {
-  url: string;
-  headers: Record<string, string>;
-};
+type RouteResult =
+  | {
+      type: "rewrite";
+      url: string;
+      headers: Record<string, string>;
+    }
+  | {
+      type: "none";
+    };
 
 type IpcOutgoingMessage = {
   type: "jsonValue";
@@ -36,7 +41,8 @@ type MessageData =
   | {
       type: "rewrite";
       data: RewriteResponse;
-    };
+    }
+  | { type: "none" };
 
 type RewriteResponse = {
   url: string;
@@ -136,13 +142,21 @@ async function handleClientResponse(
     }
 
     const data = JSON.parse(buffer) as RouteResult;
-    return {
-      type: "rewrite",
-      data: {
-        url: data.url,
-        headers: Object.entries(data.headers).flat(),
-      },
-    };
+
+    switch (data.type) {
+      case "rewrite":
+        return {
+          type: "rewrite",
+          data: {
+            url: data.url,
+            headers: Object.entries(data.headers).flat(),
+          },
+        };
+      case "none":
+        return {
+          type: "none",
+        };
+    }
   }
 
   const responseHeaders: MiddlewareHeadersResponse = {
