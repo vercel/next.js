@@ -117,7 +117,11 @@ async function runOperation(renderData: RenderData) {
   const layoutInfoChunks: Record<string, string[]> = {};
   const pageItem = LAYOUT_INFO[LAYOUT_INFO.length - 1];
   const pageModule = pageItem.page!.module;
-  let tree: LoaderTree = ["", {}, { page: [() => pageModule, "page.js"] }];
+  let tree: LoaderTree = [
+    "",
+    {},
+    { page: [() => pageModule.module, "page.js"] },
+  ];
   layoutInfoChunks["page"] = pageItem.page!.chunks;
   for (let i = LAYOUT_INFO.length - 2; i >= 0; i--) {
     const info = LAYOUT_INFO[i];
@@ -127,7 +131,7 @@ async function runOperation(renderData: RenderData) {
         continue;
       }
       const k = key as FileType;
-      components[k] = [() => info[k]!.module, `${k}${i}.js`];
+      components[k] = [() => info[k]!.module.module, `${k}${i}.js`];
       layoutInfoChunks[`${k}${i}`] = info[k]!.chunks;
     }
     tree = [info.segment, { children: tree }, components];

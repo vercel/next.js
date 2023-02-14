@@ -12,7 +12,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$
 
 __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$script$2f$input$2f$exported$2e$cjs__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/exported.cjs (ecmascript)");
-__turbopack__cjs__(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$script$2f$input$2f$exported$2e$cjs__);
+__turbopack_cjs__(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$script$2f$input$2f$exported$2e$cjs__);
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 console.log('Hoist test');
