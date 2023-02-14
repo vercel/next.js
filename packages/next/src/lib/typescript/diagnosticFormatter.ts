@@ -43,16 +43,14 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
 
   if (sourceFilepath && typeof message !== 'string') {
     const relativeSourceFile = path.relative(baseDir, sourceFilepath)
-    const type = /'typeof import\(".+page"\)'/.test(message.messageText)
-      ? 'Page'
-      : 'Layout'
+    const type = /page\.[^.]+$/.test(relativeSourceFile) ? 'Page' : 'Layout'
 
     // Reference of error codes:
     // https://github.com/Microsoft/TypeScript/blob/main/src/compiler/diagnosticMessages.json
     switch (message.code) {
       case 2344:
         const filepathAndType = message.messageText.match(
-          /'typeof import\("(.+)"\)'.+'(.+)'/
+          /typeof import\("(.+)"\)/
         )
         if (filepathAndType) {
           let main = `${type} "${chalk.bold(
@@ -100,9 +98,25 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
                   }
                   break
                 case 2326:
+                  const invalidConfig = item.messageText.match(
+                    /Types of property '(.+)' are incompatible\./
+                  )
                   main += '\n' + ' '.repeat(indent * 2)
-                  main += `Invalid configuration:`
+                  main += `Invalid configuration${
+                    invalidConfig ? ` "${chalk.bold(invalidConfig[1])}"` : ''
+                  }:`
                   break
+                case 2530:
+                  const invalidField = item.messageText.match(
+                    /Property '(.+)' is incompatible with index signature/
+                  )
+                  if (invalidField) {
+                    main += '\n' + ' '.repeat(indent * 2)
+                    main += `"${chalk.bold(
+                      invalidField[1]
+                    )}" is not a valid ${type} export field.`
+                  }
+                  return
                 case 2739:
                   const invalidProp = item.messageText.match(
                     /Type '(.+)' is missing the following properties from type '(.+)'/
@@ -155,6 +169,60 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
           processNext(1, message.next)
           return main
         }
+
+        const invalidExportFnArg = message.messageText.match(
+          /Type 'OmitWithTag<(.+), .+, "(.+)">' does not satisfy the constraint/
+        )
+        if (invalidExportFnArg) {
+          const main = `${type} "${chalk.bold(
+            relativeSourceFile
+          )}" has an invalid "${chalk.bold(
+            invalidExportFnArg[2]
+          )}" export:\n  Type "${chalk.bold(
+            invalidExportFnArg[1]
+          )}" is not valid.`
+          return main
+        }
+
+        const invalidExportFnReturn = message.messageText.match(
+          /Type '{ __tag__: "(.+)"; __return_type__: (.+); }' does not satisfy/
+        )
+        if (invalidExportFnReturn) {
+          let main = `${type} "${chalk.bold(
+            relativeSourceFile
+          )}" has an invalid export:\n  "${chalk.bold(
+            invalidExportFnReturn[2]
+          )}" is not a valid ${invalidExportFnReturn[1]} return type:`
+          function processNext(
+            indent: number,
+            next?: import('typescript').DiagnosticMessageChain[]
+          ) {
+            if (!next) return
+
+            for (const item of next) {
+              switch (item.code) {
+                case 2322:
+                  const types = item.messageText.match(
+                    /Type '(.+)' is not assignable to type '(.+)'./
+                  )
+                  if (types) {
+                    main += '\n' + ' '.repeat(indent * 2)
+                    main += `Expected "${chalk.bold(
+                      types[2]
+                    )}", got "${chalk.bold(types[1])}".`
+                  }
+                  break
+                default:
+              }
+
+              processNext(indent + 1, item.next)
+            }
+          }
+
+          processNext(1, message.next)
+          return main
+        }
+
         break
       case 2345:
         const filepathAndInvalidExport = message.messageText.match(
