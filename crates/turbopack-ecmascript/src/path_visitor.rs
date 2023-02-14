@@ -29,15 +29,29 @@ fn find_range<'a, 'b>(
     index: usize,
 ) -> Option<&'b [(&'a AstPath, &'a dyn VisitorFactory)]> {
     // Precondition: visitors is never empty
-    let start = if visitors.first().unwrap().0[index] >= *kind {
-        // Fast path: It's likely that the whole range is selected
+    if visitors.first().unwrap().0[index] > *kind || visitors.last().unwrap().0[index] < *kind {
+        // Fast path: If ast path of the first visitor is already out of range, then we
+        // can skip the whole visit.
+        return None;
+    }
+
+    let start = if visitors.first().unwrap().0[index] == *kind {
+        // Fast path: It looks like the whole range is selected
         0
     } else {
         visitors.partition_point(|(path, _)| path[index] < *kind)
     };
+
     if start >= visitors.len() {
         return None;
     }
+
+    if visitors[start].0[index] > *kind {
+        // Fast path: If the starting point is greater than the given kind, it's
+        // meaningless to visit later.
+        return None;
+    }
+
     let end = if visitors.last().unwrap().0[index] == *kind {
         // Fast path: It's likely that the whole range is selected
         visitors.len()
