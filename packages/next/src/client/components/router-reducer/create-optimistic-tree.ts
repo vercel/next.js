@@ -10,10 +10,8 @@ export function createOptimisticTree(
   flightRouterState: FlightRouterState | null,
   parentRefetch: boolean
 ): FlightRouterState {
-  const [existingSegment, existingParallelRoutes] = flightRouterState || [
-    null,
-    {},
-  ]
+  const [existingSegment, existingParallelRoutes, url, refresh, isRootLayout] =
+    flightRouterState || [null, {}]
   const segment = segments[0]
   const isLastSegment = segments.length === 1
 
@@ -45,8 +43,18 @@ export function createOptimisticTree(
     },
   ]
 
+  if (url) {
+    result[2] = url
+  }
+
   if (!parentRefetch && shouldRefetchThisLevel) {
     result[3] = 'refetch'
+  } else if (refresh) {
+    result[3] = refresh
+  }
+
+  if (isRootLayout) {
+    result[4] = isRootLayout
   }
 
   return result
