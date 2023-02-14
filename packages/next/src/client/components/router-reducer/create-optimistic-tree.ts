@@ -49,11 +49,11 @@ export function createOptimisticTree(
 
   if (!parentRefetch && shouldRefetchThisLevel) {
     result[3] = 'refetch'
-  } else if (refresh) {
+  } else if (segmentMatches && refresh) {
     result[3] = refresh
   }
 
-  if (isRootLayout) {
+  if (segmentMatches && isRootLayout) {
     result[4] = isRootLayout
   }
 
