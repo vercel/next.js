@@ -952,8 +952,10 @@ export default async function build(
           let turbotraceOutputPath: string | undefined
           let turbotraceFiles: string[] | undefined
           turboTasks = binding.turbo.createTurboTasks(
-            config.experimental.turbotrace?.memoryLimit ??
-              TURBO_TRACE_DEFAULT_MEMORY_LIMIT
+            (config.experimental.turbotrace?.memoryLimit ??
+              TURBO_TRACE_DEFAULT_MEMORY_LIMIT) *
+              1024 *
+              1024
           )
 
           const { entriesTrace, chunksTrace } = turbotraceContext
