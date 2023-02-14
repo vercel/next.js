@@ -18,27 +18,38 @@ export default function Page() {
 type Harness = typeof import("@turbo/pack-test-harness");
 
 function runTests(harness: Harness, iframe: HTMLIFrameElement) {
-  it("returns a 404 status code", async () => {
-    const res = await fetch("/not-found");
-    expect(res.status).toBe(404);
-  });
+  // These tests requires a longer timeout because we're rendering the 404 page as well.
+  const TIMEOUT = 20000;
 
-  it("navigates to the 404 page", async () => {
-    await harness.waitForHydration(iframe, "/link");
+  it(
+    "returns a 404 status code",
+    async () => {
+      const res = await fetch("/not-found");
+      expect(res.status).toBe(404);
+    },
+    TIMEOUT
+  );
 
-    const link = iframe.contentDocument!.querySelector("a[data-test-link]");
-    expect(link).not.toBeNull();
-    expect(link!).toBeInstanceOf(
-      (iframe.contentWindow as any).HTMLAnchorElement
-    );
-    expect(link!.textContent).toBe("Not found");
+  it(
+    "navigates to the 404 page",
+    async () => {
+      await harness.waitForHydration(iframe, "/link");
 
-    (link as HTMLAnchorElement).click();
+      const link = iframe.contentDocument!.querySelector("a[data-test-link]");
+      expect(link).not.toBeNull();
+      expect(link!).toBeInstanceOf(
+        (iframe.contentWindow as any).HTMLAnchorElement
+      );
+      expect(link!.textContent).toBe("Not found");
 
-    await harness.waitForHydration(iframe, "/not-found");
+      (link as HTMLAnchorElement).click();
 
-    const error = iframe.contentDocument!.querySelector("[data-test-error]");
-    expect(error).not.toBeNull();
-    expect(error!.textContent).toBe("static");
-  });
+      await harness.waitForHydration(iframe, "/not-found");
+
+      const error = iframe.contentDocument!.querySelector("[data-test-error]");
+      expect(error).not.toBeNull();
+      expect(error!.textContent).toBe("static");
+    },
+    TIMEOUT
+  );
 }
