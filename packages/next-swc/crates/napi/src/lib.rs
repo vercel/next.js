@@ -50,6 +50,9 @@ pub mod turbopack;
 pub mod turbotrace;
 pub mod util;
 
+// don't use turbo malloc (`mimalloc`) on linux-musl-aarch64 because of the
+// compile error
+#[cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))]
 #[global_allocator]
 static ALLOC: turbo_malloc::TurboMalloc = turbo_malloc::TurboMalloc;
 
