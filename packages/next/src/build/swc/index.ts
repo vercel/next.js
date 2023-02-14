@@ -212,9 +212,6 @@ async function loadWasm(importPath = '') {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
-      checkVersionMismatch(
-        await import(pkgPath.replace('wasm.js', 'package.json'))
-      )
       Log.info('Using wasm build of next-swc')
 
       // Note wasm binary does not support async intefaces yet, all async
