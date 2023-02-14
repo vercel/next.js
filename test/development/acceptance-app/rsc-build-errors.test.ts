@@ -237,6 +237,7 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
@@ -252,17 +253,21 @@ createNextDescribe(
         app/server-with-errors/error-file/error.js"
       `)
 
-      // Add "use client"
-      await session.patch(
-        'app/server-with-errors/error-file/error.js',
-        '"use client"'
+      await cleanup()
+    })
+
+    it('should throw an error when error file is a server component with empty error file', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/server-with-errors/error-file'
       )
-      expect(await session.hasRedbox(false)).toBe(false)
 
       // Empty file
       await session.patch('app/server-with-errors/error-file/error.js', '')
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
