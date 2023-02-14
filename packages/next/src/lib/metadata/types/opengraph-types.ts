@@ -34,7 +34,7 @@ type Locale = string
 
 type OpenGraphMetadata = {
   determiner?: 'a' | 'an' | 'the' | 'auto' | ''
-  title?: TemplateString
+  title?: string | TemplateString
   description?: string
   emails?: string | Array<string>
   phoneNumbers?: string | Array<string>
@@ -174,7 +174,7 @@ type ResolvedOpenGraphMetadata = {
   images?: Array<OGImage>
   audio?: Array<OGAudio>
   videos?: Array<OGVideo>
-  url: null | URL
+  url: null | URL | string
   countryName?: string
   ttl?: number
 }

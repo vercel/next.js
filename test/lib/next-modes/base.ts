@@ -7,9 +7,10 @@ import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
-import webdriver from 'next-webdriver'
+import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { BrowserInterface } from '../browsers/base'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -404,7 +405,7 @@ export class NextInstance {
    */
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
-  ) {
+  ): Promise<BrowserInterface> {
     return webdriver(this.url, ...args)
   }
 

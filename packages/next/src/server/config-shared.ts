@@ -113,6 +113,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  externalMiddlewareRewritesResolve?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCache?: boolean
