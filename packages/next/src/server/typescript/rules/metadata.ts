@@ -1,7 +1,15 @@
-import { getInfo, getSource, getTs, isPositionInsideNode } from '../utils'
+import { NEXT_TS_ERRORS } from '../constant'
+import {
+  getInfo,
+  getSource,
+  getTs,
+  getTypeChecker,
+  isPositionInsideNode,
+} from '../utils'
 
 const TYPE_ANOTATION = ': Metadata'
-const TYPE_IMPORT = `import type { Metadata } from 'next'`
+const TYPE_ANOTATION_ASYNC = ': Promise<Metadata> | Metadata'
+const TYPE_IMPORT = `\n\nimport type { Metadata } from 'next'`
 
 // Find the `export const metadata = ...` node.
 function getMetadataExport(fileName: string, position: number) {
@@ -135,27 +143,74 @@ function getProxiedLanguageService() {
 
 function updateVirtualFileWithType(
   fileName: string,
-  node: ts.VariableDeclaration
+  node: ts.VariableDeclaration | ts.FunctionDeclaration,
+  isGenerateMetadata?: boolean
 ) {
   const source = getSource(fileName)
   if (!source) return
 
   // We annotate with the type in a vritual language service
   const sourceText = source.getFullText()
-  const nodeEnd = node.name.getFullStart() + node.name.getFullWidth()
+  let nodeEnd: number
+  let annotation: string
+
+  const ts = getTs()
+  if (ts.isFunctionDeclaration(node)) {
+    if (isGenerateMetadata) {
+      nodeEnd = node.body!.getFullStart()
+      annotation = TYPE_ANOTATION_ASYNC
+    } else {
+      return
+    }
+  } else {
+    nodeEnd = node.name.getFullStart() + node.name.getFullWidth()
+    annotation = TYPE_ANOTATION
+  }
+
   const newSource =
     sourceText.slice(0, nodeEnd) +
-    TYPE_ANOTATION +
+    annotation +
     sourceText.slice(nodeEnd) +
     TYPE_IMPORT
   const { languageServiceHost } = getProxiedLanguageService()
   languageServiceHost.addFile(fileName, newSource)
 
-  return nodeEnd
+  return [nodeEnd, annotation.length]
 }
 
-function isTyped(node: ts.VariableDeclaration) {
+function isTyped(node: ts.VariableDeclaration | ts.FunctionDeclaration) {
   return node.type !== undefined
+}
+
+function proxyDiagnostics(
+  fileName: string,
+  pos: number[],
+  n: ts.VariableDeclaration | ts.FunctionDeclaration
+) {
+  // Get diagnostics
+  const { languageService } = getProxiedLanguageService()
+  const diagnostics = languageService.getSemanticDiagnostics(fileName)
+  const source = getSource(fileName)
+
+  // Filter and map the results
+  return diagnostics
+    .filter((d) => {
+      if (d.start === undefined || d.length === undefined) return false
+      if (d.start < n.getFullStart()) return false
+      if (d.start + d.length >= n.getFullStart() + n.getFullWidth() + pos[1])
+        return false
+      return true
+    })
+    .map((d) => {
+      return {
+        file: source,
+        category: d.category,
+        code: d.code,
+        messageText: d.messageText,
+        start: d.start! < pos[0] ? d.start : d.start! - pos[1],
+        length: d.length,
+      }
+    })
 }
 
 const metadata = {
@@ -172,13 +227,12 @@ const metadata = {
     const ts = getTs()
 
     // We annotate with the type in a vritual language service
-    const nodeEnd = updateVirtualFileWithType(fileName, node)
-    if (nodeEnd === undefined) return prior
+    const pos = updateVirtualFileWithType(fileName, node)
+    if (pos === undefined) return prior
 
     // Get completions
     const { languageService } = getProxiedLanguageService()
-    const newPos =
-      position <= nodeEnd ? position : position + TYPE_ANOTATION.length
+    const newPos = position <= pos[0] ? position : position + pos[1]
     const completions = languageService.getCompletionsAtPosition(
       fileName,
       newPos,
@@ -222,53 +276,167 @@ const metadata = {
     return prior
   },
 
-  getSemanticDiagnosticsForExportVariableStatement(
+  getSemanticDiagnosticsForExportVariableStatementInClientEntry(
     fileName: string,
-    node: ts.VariableStatement
+    node: ts.VariableStatement | ts.FunctionDeclaration
   ) {
     const source = getSource(fileName)
+    const ts = getTs()
 
-    for (const declaration of node.declarationList.declarations) {
-      if (declaration.name.getText() === 'metadata') {
-        if (isTyped(declaration)) break
-
-        // We annotate with the type in a vritual language service
-        const nodeEnd = updateVirtualFileWithType(fileName, declaration)
-        if (!nodeEnd) break
-
-        // Get diagnostics
-        const { languageService } = getProxiedLanguageService()
-        const diagnostics = languageService.getSemanticDiagnostics(fileName)
-
-        // Filter and map the results
-        return diagnostics
-          .filter((d) => {
-            if (d.start === undefined || d.length === undefined) return false
-            if (d.start < declaration.getFullStart()) return false
-            if (
-              d.start + d.length >
-              declaration.getFullStart() +
-                declaration.getFullWidth() +
-                TYPE_ANOTATION.length
-            )
-              return false
-            return true
-          })
-          .map((d) => {
-            return {
+    // It is not allowed to export `metadata` or `generateMetadata` in client entry
+    if (ts.isFunctionDeclaration(node)) {
+      if (node.name?.getText() === 'generateMetadata') {
+        return [
+          {
+            file: source,
+            category: ts.DiagnosticCategory.Error,
+            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+            messageText: `The Next.js 'generateMetadata' API is not allowed in a client component.`,
+            start: node.name.getStart(),
+            length: node.name.getWidth(),
+          },
+        ]
+      }
+    } else {
+      for (const declaration of node.declarationList.declarations) {
+        const name = declaration.name.getText()
+        if (name === 'metadata') {
+          return [
+            {
               file: source,
-              category: d.category,
-              code: d.code,
-              messageText: d.messageText,
-              start:
-                d.start! <= nodeEnd
-                  ? d.start
-                  : d.start! - TYPE_ANOTATION.length,
-              length: d.length,
-            }
-          })
+              category: ts.DiagnosticCategory.Error,
+              code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+              messageText: `The Next.js 'metadata' API is not allowed in a client component.`,
+              start: declaration.name.getStart(),
+              length: declaration.name.getWidth(),
+            },
+          ]
+        }
       }
     }
+    return []
+  },
+
+  getSemanticDiagnosticsForExportVariableStatement(
+    fileName: string,
+    node: ts.VariableStatement | ts.FunctionDeclaration
+  ) {
+    const ts = getTs()
+
+    if (ts.isFunctionDeclaration(node)) {
+      if (node.name?.getText() === 'generateMetadata') {
+        if (isTyped(node)) return []
+
+        // We annotate with the type in a vritual language service
+        const pos = updateVirtualFileWithType(fileName, node, true)
+        if (!pos) return []
+
+        return proxyDiagnostics(fileName, pos, node)
+      }
+    } else {
+      for (const declaration of node.declarationList.declarations) {
+        if (declaration.name.getText() === 'metadata') {
+          if (isTyped(declaration)) break
+
+          // We annotate with the type in a vritual language service
+          const pos = updateVirtualFileWithType(fileName, declaration)
+          if (!pos) break
+
+          return proxyDiagnostics(fileName, pos, declaration)
+        }
+      }
+    }
+    return []
+  },
+
+  getSemanticDiagnosticsForExportDeclarationInClientEntry(
+    fileName: string,
+    node: ts.ExportDeclaration
+  ) {
+    const ts = getTs()
+    const source = getSource(fileName)
+    const diagnostics: ts.Diagnostic[] = []
+
+    const exportClause = node.exportClause
+    if (exportClause && ts.isNamedExports(exportClause)) {
+      for (const e of exportClause.elements) {
+        if (['generateMetadata', 'metadata'].includes(e.name.getText())) {
+          diagnostics.push({
+            file: source,
+            category: ts.DiagnosticCategory.Error,
+            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+            messageText: `The Next.js '${e.name.getText()}' API is not allowed in a client component.`,
+            start: e.name.getStart(),
+            length: e.name.getWidth(),
+          })
+        }
+      }
+    }
+
+    return diagnostics
+  },
+
+  getSemanticDiagnosticsForExportDeclaration(
+    fileName: string,
+    node: ts.ExportDeclaration
+  ) {
+    const ts = getTs()
+
+    const exportClause = node.exportClause
+    if (exportClause && ts.isNamedExports(exportClause)) {
+      for (const e of exportClause.elements) {
+        if (e.name.getText() === 'metadata') {
+          // Get the original declaration node of element
+          const typeChecker = getTypeChecker()
+          if (typeChecker) {
+            const symbol = typeChecker.getSymbolAtLocation(e.name)
+            if (symbol) {
+              const metadataSymbol = typeChecker.getAliasedSymbol(symbol)
+              if (metadataSymbol && metadataSymbol.declarations) {
+                const declaration = metadataSymbol.declarations[0]
+                if (declaration && ts.isVariableDeclaration(declaration)) {
+                  if (isTyped(declaration)) break
+
+                  const declarationFileName =
+                    declaration.getSourceFile().fileName
+                  const isSameFile = declarationFileName === fileName
+
+                  // We annotate with the type in a vritual language service
+                  const pos = updateVirtualFileWithType(
+                    declarationFileName,
+                    declaration
+                  )
+                  if (!pos) break
+
+                  const diagnostics = proxyDiagnostics(
+                    declarationFileName,
+                    pos,
+                    declaration
+                  )
+                  if (diagnostics.length) {
+                    if (isSameFile) {
+                      return diagnostics
+                    } else {
+                      return [
+                        {
+                          file: getSource(fileName),
+                          category: ts.DiagnosticCategory.Error,
+                          code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+                          messageText: `The 'metadata' export value is not typed correctly, please make sure it is typed as 'Metadata':\nhttps://beta.nextjs.org/docs/guides/seo#static-metadata`,
+                          start: e.name.getStart(),
+                          length: e.name.getWidth(),
+                        },
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     return []
   },
 
@@ -286,12 +454,11 @@ const metadata = {
     if (isTyped(node)) return
 
     // We annotate with the type in a vritual language service
-    const nodeEnd = updateVirtualFileWithType(fileName, node)
-    if (nodeEnd === undefined) return
+    const pos = updateVirtualFileWithType(fileName, node)
+    if (pos === undefined) return
 
     const { languageService } = getProxiedLanguageService()
-    const newPos =
-      position <= nodeEnd ? position : position + TYPE_ANOTATION.length
+    const newPos = position <= pos[0] ? position : position + pos[1]
 
     const details = languageService.getCompletionEntryDetails(
       fileName,
@@ -311,14 +478,36 @@ const metadata = {
     if (isTyped(node)) return
 
     // We annotate with the type in a vritual language service
-    const nodeEnd = updateVirtualFileWithType(fileName, node)
-    if (nodeEnd === undefined) return
+    const pos = updateVirtualFileWithType(fileName, node)
+    if (pos === undefined) return
 
     const { languageService } = getProxiedLanguageService()
-    const newPos =
-      position <= nodeEnd ? position : position + TYPE_ANOTATION.length
+    const newPos = position <= pos[0] ? position : position + pos[1]
     const insight = languageService.getQuickInfoAtPosition(fileName, newPos)
     return insight
+  },
+
+  getDefinitionAndBoundSpan(fileName: string, position: number) {
+    const node = getMetadataExport(fileName, position)
+    if (!node) return
+    if (isTyped(node)) return
+    if (!isPositionInsideNode(position, node)) return
+    // We annotate with the type in a vritual language service
+    const pos = updateVirtualFileWithType(fileName, node)
+    if (pos === undefined) return
+    const { languageService } = getProxiedLanguageService()
+    const newPos = position <= pos[0] ? position : position + pos[1]
+
+    const definitionInfoAndBoundSpan =
+      languageService.getDefinitionAndBoundSpan(fileName, newPos)
+
+    if (definitionInfoAndBoundSpan) {
+      // Adjust the start position of the text span
+      if (definitionInfoAndBoundSpan.textSpan.start > pos[0]) {
+        definitionInfoAndBoundSpan.textSpan.start -= pos[1]
+      }
+    }
+    return definitionInfoAndBoundSpan
   },
 }
 

@@ -67,6 +67,8 @@ export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 export const FLIGHT_MANIFEST = 'flight-manifest'
 // server/flight-server-css-manifest.json
 export const FLIGHT_SERVER_CSS_MANIFEST = 'flight-server-css-manifest'
+// server/actions-manifest.json
+export const ACTIONS_MANIFEST = 'actions-manifest'
 // server/middleware-build-manifest.js
 export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js

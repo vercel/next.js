@@ -39,7 +39,8 @@ export default function (context, { env, runtime }) {
           }
         })
 
-        expect(gotFallback).toBe(true)
+        // Streaming is disabled for pages, no fallback should be rendered.
+        expect(gotFallback).toBe(false)
         expect(gotData).toBe(true)
       }
     )

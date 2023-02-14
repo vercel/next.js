@@ -191,6 +191,7 @@ export function createTSPlugin(modules: {
 
       ts.forEachChild(source!, (node) => {
         if (ts.isImportDeclaration(node)) {
+          // import ...
           if (isAppEntry) {
             if (!isClientEntry) {
               // Check if it has valid imports in the server layer
@@ -214,11 +215,15 @@ export function createTSPlugin(modules: {
                 source,
                 node
               )
-            const metadataDiagnostics =
-              metadata.getSemanticDiagnosticsForExportVariableStatement(
-                fileName,
-                node
-              )
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
             prior.push(...diagnostics, ...metadataDiagnostics)
           }
 
@@ -254,6 +259,19 @@ export function createTSPlugin(modules: {
           node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
           // export function ...
+          if (isAppEntry) {
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportVariableStatementInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportVariableStatement(
+                  fileName,
+                  node
+                )
+            prior.push(...metadataDiagnostics)
+          }
+
           if (isClientEntry) {
             prior.push(
               ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
@@ -262,10 +280,37 @@ export function createTSPlugin(modules: {
               )
             )
           }
+        } else if (ts.isExportDeclaration(node)) {
+          // export { ... }
+          if (isAppEntry) {
+            const metadataDiagnostics = isClientEntry
+              ? metadata.getSemanticDiagnosticsForExportDeclarationInClientEntry(
+                  fileName,
+                  node
+                )
+              : metadata.getSemanticDiagnosticsForExportDeclaration(
+                  fileName,
+                  node
+                )
+            prior.push(...metadataDiagnostics)
+          }
         }
       })
 
       return prior
+    }
+
+    // Get definition and link for specific node
+    proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
+      if (isAppEntryFile(fileName) && !getIsClientEntry(fileName)) {
+        const metadataDefinition = metadata.getDefinitionAndBoundSpan(
+          fileName,
+          position
+        )
+        if (metadataDefinition) return metadataDefinition
+      }
+
+      return info.languageService.getDefinitionAndBoundSpan(fileName, position)
     }
 
     return proxy

@@ -61,6 +61,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
+import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
 const EXTERNAL_PACKAGES = require('../lib/server-external-packages.json')
 
@@ -304,6 +305,9 @@ export function getDefineEnv({
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.skipMiddlewareUrlNormalize
+    ),
+    'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE': JSON.stringify(
+      config.experimental.externalMiddlewareRewritesResolve
     ),
     'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
       config.skipTrailingSlashRedirect
@@ -575,6 +579,24 @@ export async function resolveExternal(
   return { res, isEsm }
 }
 
+export async function loadProjectInfo({
+  dir,
+  config,
+  dev,
+}: {
+  dir: string
+  config: NextConfigComplete
+  dev: boolean
+}) {
+  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
+  const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
+  return {
+    jsConfig,
+    resolvedBaseUrl,
+    supportedBrowsers,
+  }
+}
+
 export default async function getBaseWebpackConfig(
   dir: string,
   {
@@ -592,6 +614,9 @@ export default async function getBaseWebpackConfig(
     appDir,
     middlewareMatchers,
     noMangling = false,
+    jsConfig,
+    resolvedBaseUrl,
+    supportedBrowsers,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -607,14 +632,14 @@ export default async function getBaseWebpackConfig(
     appDir?: string
     middlewareMatchers?: MiddlewareMatcher[]
     noMangling?: boolean
+    jsConfig: any
+    resolvedBaseUrl: string | undefined
+    supportedBrowsers: string[] | undefined
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
-
-  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
-  const supportedBrowsers = await getSupportedBrowsers(dir, dev, config)
 
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
@@ -624,6 +649,7 @@ export default async function getBaseWebpackConfig(
   const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
+  const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
 
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
@@ -634,6 +660,11 @@ export default async function getBaseWebpackConfig(
     if (config.experimental.runtime === 'nodejs') {
       Log.warn(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
+      )
+    }
+    if (config.experimental.typedRoutes && !hasAppDir) {
+      Log.warn(
+        '`experimental.typedRoutes` requires `experimental.appDir` to be enabled.'
       )
     }
   }
@@ -1166,7 +1197,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) return
 
       const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|head[^-]))/.test(
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|lazy-dynamic|head[^-]))/.test(
           localRes
         )
 
@@ -1615,10 +1646,12 @@ export default async function getBaseWebpackConfig(
         'next-swc-loader',
         'next-client-pages-loader',
         'next-image-loader',
+        'next-metadata-image-loader',
         'next-serverless-loader',
         'next-style-loader',
         'next-flight-loader',
         'next-flight-client-entry-loader',
+        'next-flight-action-entry-loader',
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1627,6 +1660,7 @@ export default async function getBaseWebpackConfig(
         'next-middleware-wasm-loader',
         'next-app-loader',
         'next-font-loader',
+        'next-invalid-import-error-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
         alias[loader] = path.join(__dirname, 'webpack', 'loaders', loader)
@@ -1853,6 +1887,8 @@ export default async function getBaseWebpackConfig(
                 loader: 'next-image-loader',
                 issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
+                resourceQuery: (queryString: string) =>
+                  queryString !== METADATA_IMAGE_RESOURCE_QUERY,
                 options: {
                   isServer: isNodeServer || isEdgeServer,
                   isDev: dev,
@@ -1862,117 +1898,118 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(isEdgeServer || isClient
+        ...(isEdgeServer
           ? [
               {
-                oneOf: [
-                  {
-                    issuerLayer: WEBPACK_LAYERS.middleware,
-                    resolve: {
-                      fallback: {
-                        process: require.resolve('./polyfills/process'),
-                      },
-                    },
+                resolve: {
+                  fallback: {
+                    process: require.resolve('./polyfills/process'),
                   },
-                  {
-                    resolve: {
-                      fallback:
-                        config.experimental.fallbackNodePolyfills === false
-                          ? {
-                              assert: false,
-                              buffer: false,
-                              constants: false,
-                              crypto: false,
-                              domain: false,
-                              http: false,
-                              https: false,
-                              os: false,
-                              path: false,
-                              punycode: false,
-                              process: false,
-                              querystring: false,
-                              stream: false,
-                              string_decoder: false,
-                              sys: false,
-                              timers: false,
-                              tty: false,
-                              util: false,
-                              vm: false,
-                              zlib: false,
-                              events: false,
-                              setImmediate: false,
-                            }
-                          : {
-                              assert: require.resolve(
-                                'next/dist/compiled/assert'
-                              ),
-                              buffer: require.resolve(
-                                'next/dist/compiled/buffer/'
-                              ),
-                              constants: require.resolve(
-                                'next/dist/compiled/constants-browserify'
-                              ),
-                              crypto: require.resolve(
-                                'next/dist/compiled/crypto-browserify'
-                              ),
-                              domain: require.resolve(
-                                'next/dist/compiled/domain-browser'
-                              ),
-                              http: require.resolve(
-                                'next/dist/compiled/stream-http'
-                              ),
-                              https: require.resolve(
-                                'next/dist/compiled/https-browserify'
-                              ),
-                              os: require.resolve(
-                                'next/dist/compiled/os-browserify'
-                              ),
-                              path: require.resolve(
-                                'next/dist/compiled/path-browserify'
-                              ),
-                              punycode: require.resolve(
-                                'next/dist/compiled/punycode'
-                              ),
-                              process: require.resolve('./polyfills/process'),
-                              // Handled in separate alias
-                              querystring: require.resolve(
-                                'next/dist/compiled/querystring-es3'
-                              ),
-                              stream: require.resolve(
-                                'next/dist/compiled/stream-browserify'
-                              ),
-                              string_decoder: require.resolve(
-                                'next/dist/compiled/string_decoder'
-                              ),
-                              sys: require.resolve('next/dist/compiled/util/'),
-                              timers: require.resolve(
-                                'next/dist/compiled/timers-browserify'
-                              ),
-                              tty: require.resolve(
-                                'next/dist/compiled/tty-browserify'
-                              ),
-                              // Handled in separate alias
-                              // url: require.resolve('url/'),
-                              util: require.resolve('next/dist/compiled/util/'),
-                              vm: require.resolve(
-                                'next/dist/compiled/vm-browserify'
-                              ),
-                              zlib: require.resolve(
-                                'next/dist/compiled/browserify-zlib'
-                              ),
-                              events: require.resolve(
-                                'next/dist/compiled/events/'
-                              ),
-                              setImmediate: require.resolve(
-                                'next/dist/compiled/setimmediate'
-                              ),
-                            },
-                    },
-                  },
-                ],
+                },
+              },
+            ]
+          : isClient
+          ? [
+              {
+                resolve: {
+                  fallback:
+                    config.experimental.fallbackNodePolyfills === false
+                      ? {
+                          assert: false,
+                          buffer: false,
+                          constants: false,
+                          crypto: false,
+                          domain: false,
+                          http: false,
+                          https: false,
+                          os: false,
+                          path: false,
+                          punycode: false,
+                          process: false,
+                          querystring: false,
+                          stream: false,
+                          string_decoder: false,
+                          sys: false,
+                          timers: false,
+                          tty: false,
+                          util: false,
+                          vm: false,
+                          zlib: false,
+                          events: false,
+                          setImmediate: false,
+                        }
+                      : {
+                          assert: require.resolve('next/dist/compiled/assert'),
+                          buffer: require.resolve('next/dist/compiled/buffer/'),
+                          constants: require.resolve(
+                            'next/dist/compiled/constants-browserify'
+                          ),
+                          crypto: require.resolve(
+                            'next/dist/compiled/crypto-browserify'
+                          ),
+                          domain: require.resolve(
+                            'next/dist/compiled/domain-browser'
+                          ),
+                          http: require.resolve(
+                            'next/dist/compiled/stream-http'
+                          ),
+                          https: require.resolve(
+                            'next/dist/compiled/https-browserify'
+                          ),
+                          os: require.resolve(
+                            'next/dist/compiled/os-browserify'
+                          ),
+                          path: require.resolve(
+                            'next/dist/compiled/path-browserify'
+                          ),
+                          punycode: require.resolve(
+                            'next/dist/compiled/punycode'
+                          ),
+                          process: require.resolve('./polyfills/process'),
+                          // Handled in separate alias
+                          querystring: require.resolve(
+                            'next/dist/compiled/querystring-es3'
+                          ),
+                          stream: require.resolve(
+                            'next/dist/compiled/stream-browserify'
+                          ),
+                          string_decoder: require.resolve(
+                            'next/dist/compiled/string_decoder'
+                          ),
+                          sys: require.resolve('next/dist/compiled/util/'),
+                          timers: require.resolve(
+                            'next/dist/compiled/timers-browserify'
+                          ),
+                          tty: require.resolve(
+                            'next/dist/compiled/tty-browserify'
+                          ),
+                          // Handled in separate alias
+                          // url: require.resolve('url/'),
+                          util: require.resolve('next/dist/compiled/util/'),
+                          vm: require.resolve(
+                            'next/dist/compiled/vm-browserify'
+                          ),
+                          zlib: require.resolve(
+                            'next/dist/compiled/browserify-zlib'
+                          ),
+                          events: require.resolve('next/dist/compiled/events/'),
+                          setImmediate: require.resolve(
+                            'next/dist/compiled/setimmediate'
+                          ),
+                        },
+                },
               },
             ]
           : []),
+        {
+          test: /node_modules\/client-only\/error.js/,
+          loader: 'next-invalid-import-error-loader',
+          issuerLayer: WEBPACK_LAYERS.server,
+          options: {
+            message:
+              "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
+          },
+        },
       ].filter(Boolean),
     },
     plugins: [
@@ -2117,13 +2154,13 @@ export default async function getBaseWebpackConfig(
             })),
       hasAppDir &&
         !isClient &&
-        !dev &&
         new FlightTypesPlugin({
           dir,
           distDir: config.distDir,
           appDir,
           dev,
           isEdgeServer,
+          typedRoutes: enableTypedRoutes,
         }),
       !dev &&
         isClient &&

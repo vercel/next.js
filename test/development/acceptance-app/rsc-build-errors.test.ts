@@ -1,4 +1,5 @@
 import { createNextDescribe, FileRef } from 'e2e-utils'
+import { check } from 'next-test-utils'
 import path from 'path'
 import { sandbox } from './helpers'
 
@@ -67,10 +68,23 @@ createNextDescribe(
         '/server-with-errors/styled-jsx'
       )
 
+      const pageFile = 'app/server-with-errors/styled-jsx/page.js'
+      const content = await next.readFile(pageFile)
+      const withoutUseClient = content.replace("'use client'", '')
+      await session.patch(pageFile, withoutUseClient)
+
       expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxDescription()).toInclude(
-        'This module cannot be imported from a Server Component module. It should only be used from a Client Component.'
-      )
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "app/server-with-errors/styled-jsx/comp2.js
+        'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
+
+        The error was caused by importing 'styled-jsx/style.js' in 'app/server-with-errors/styled-jsx/comp2.js'.
+
+        Import trace for requested module:
+        app/server-with-errors/styled-jsx/comp2.js
+        app/server-with-errors/styled-jsx/comp1.js
+        app/server-with-errors/styled-jsx/page.js"
+      `)
 
       await cleanup()
     })
@@ -223,6 +237,7 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
@@ -238,17 +253,21 @@ createNextDescribe(
         app/server-with-errors/error-file/error.js"
       `)
 
-      // Add "use client"
-      await session.patch(
-        'app/server-with-errors/error-file/error.js',
-        '"use client"'
+      await cleanup()
+    })
+
+    it('should throw an error when error file is a server component with empty error file', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/server-with-errors/error-file'
       )
-      expect(await session.hasRedbox(false)).toBe(false)
 
       // Empty file
       await session.patch('app/server-with-errors/error-file/error.js', '')
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
@@ -263,6 +282,66 @@ createNextDescribe(
         Import path:
         app/server-with-errors/error-file/error.js"
       `)
+
+      await cleanup()
+    })
+
+    it('should be possible to open the import trace files in your editor', async () => {
+      let editorRequestsCount = 0
+      const { session, browser, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/editor-links',
+        {
+          beforePageLoad(page) {
+            page.route('**/__nextjs_launch-editor**', (route) => {
+              editorRequestsCount += 1
+              route.fulfill()
+            })
+          },
+        }
+      )
+
+      const componentFile = 'app/editor-links/component.js'
+      const fileContent = await next.readFile(componentFile)
+
+      await session.patch(
+        componentFile,
+        fileContent.replace(
+          "// import { useState } from 'react'",
+          "import { useState } from 'react'"
+        )
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app/editor-links/component.js
+        ReactServerComponentsError:
+
+        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
+
+           ,-[1:1]
+         1 | import { useState } from 'react'
+           :          ^^^^^^^^
+         2 | export default function Component() {
+         3 |   return <div>Component</div>
+         4 | }
+           \`----
+
+        Maybe one of these should be marked as a client entry with \\"use client\\":
+        app/editor-links/component.js
+        app/editor-links/page.js"
+      `)
+
+      await browser.waitForElementByCss('[data-with-open-in-editor-link]')
+      const collapsedFrameworkGroups = await browser.elementsByCss(
+        '[data-with-open-in-editor-link]'
+      )
+      for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
+        await collapsedFrameworkButton.click()
+      }
+
+      await check(() => editorRequestsCount, /2/)
 
       await cleanup()
     })

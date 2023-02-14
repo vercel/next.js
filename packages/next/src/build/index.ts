@@ -1,3 +1,9 @@
+import type { RemotePattern } from '../shared/lib/image-config'
+import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
+import type { NextConfigComplete } from '../server/config-shared'
+import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
+
 import '../lib/setup-exception-listeners'
 import { loadEnvConfig } from '@next/env'
 import chalk from 'next/dist/compiled/chalk'
@@ -60,6 +66,7 @@ import {
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
+  TRACE_OUTPUT_VERSION,
 } from '../shared/lib/constants'
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { __ApiPreviewProps } from '../server/api-utils'
@@ -98,13 +105,10 @@ import {
   isReservedPage,
   AppConfig,
 } from './utils'
-import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { NextConfigComplete } from '../server/config-shared'
 import isError, { NextError } from '../lib/is-error'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
-import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
@@ -115,11 +119,13 @@ import {
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
-import { RemotePattern } from '../shared/lib/image-config'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
-import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
-import { RSC, RSC_VARY_HEADER } from '../client/components/app-router-headers'
+import {
+  RSC,
+  RSC_CONTENT_TYPE_HEADER,
+  RSC_VARY_HEADER,
+} from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 
@@ -160,14 +166,13 @@ function verifyTypeScriptSetup(
   tsconfigPath: string,
   disableStaticImages: boolean,
   cacheDir: string | undefined,
-  numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined,
   isAppDirEnabled: boolean
 ) {
   const typeCheckWorker = new JestWorker(
     require.resolve('../lib/verifyTypeScriptSetup'),
     {
-      numWorkers,
+      numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }
@@ -409,7 +414,6 @@ export default async function build(
                   config.typescript.tsconfigPath,
                   config.images.disableStaticImages,
                   cacheDir,
-                  config.experimental.cpus,
                   config.experimental.workerThreads,
                   isAppDirEnabled
                 ).then((resolved) => {
@@ -425,7 +429,6 @@ export default async function build(
                     dir,
                     eslintCacheDir,
                     config.eslint?.dirs,
-                    config.experimental.cpus,
                     config.experimental.workerThreads,
                     telemetry,
                     isAppDirEnabled && !!appDir
@@ -779,6 +782,7 @@ export default async function build(
           rsc: {
             header: RSC,
             varyHeader: RSC_VARY_HEADER,
+            contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
           },
           skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
         }
@@ -927,7 +931,8 @@ export default async function build(
           ignore: [] as string[],
         }))
 
-      const webpackBuildDuration = await webpackBuild()
+      const { duration: webpackBuildDuration, turbotraceContext } =
+        await webpackBuild()
 
       telemetry.record(
         eventBuildCompleted(pagesPaths, {
@@ -935,6 +940,91 @@ export default async function build(
           totalAppPagesCount,
         })
       )
+
+      let turboTasks: unknown
+
+      if (turbotraceContext) {
+        let binding = (await loadBindings()) as any
+        if (
+          !binding?.isWasm &&
+          typeof binding.turbo.startTrace === 'function'
+        ) {
+          let turbotraceOutputPath: string | undefined
+          let turbotraceFiles: string[] | undefined
+          turboTasks = binding.turbo.createTurboTasks(
+            (config.experimental.turbotrace?.memoryLimit ??
+              TURBO_TRACE_DEFAULT_MEMORY_LIMIT) *
+              1024 *
+              1024
+          )
+
+          const { entriesTrace, chunksTrace } = turbotraceContext
+          if (entriesTrace) {
+            const {
+              appDir: turbotraceContextAppDir,
+              depModArray,
+              entryNameMap,
+              outputPath,
+              action,
+            } = entriesTrace
+            const depModSet = new Set(depModArray)
+            const filesTracedInEntries: string[] =
+              await binding.turbo.startTrace(action, turboTasks)
+
+            const { contextDirectory, input: entriesToTrace } = action
+
+            // only trace the assets under the appDir
+            // exclude files from node_modules, entries and processed by webpack
+            const filesTracedFromEntries = filesTracedInEntries
+              .map((f) => path.join(contextDirectory, f))
+              .filter(
+                (f) =>
+                  !f.includes('/node_modules/') &&
+                  f.startsWith(turbotraceContextAppDir) &&
+                  !entriesToTrace.includes(f) &&
+                  !depModSet.has(f)
+              )
+            if (filesTracedFromEntries.length) {
+              // The turbo trace doesn't provide the traced file type and reason at present
+              // let's write the traced files into the first [entry].nft.json
+              const [[, entryName]] = Array.from(entryNameMap.entries()).filter(
+                ([k]) => k.startsWith(turbotraceContextAppDir)
+              )
+              const traceOutputPath = path.join(
+                outputPath,
+                `../${entryName}.js.nft.json`
+              )
+              const traceOutputDir = path.dirname(traceOutputPath)
+
+              turbotraceOutputPath = traceOutputPath
+              turbotraceFiles = filesTracedFromEntries.map((file) =>
+                path.relative(traceOutputDir, file)
+              )
+            }
+          }
+          if (chunksTrace) {
+            const { action } = chunksTrace
+            await binding.turbo.startTrace(action, turboTasks)
+            if (turbotraceOutputPath && turbotraceFiles) {
+              const existedNftFile = await promises
+                .readFile(turbotraceOutputPath, 'utf8')
+                .then((existedContent) => JSON.parse(existedContent))
+                .catch(() => ({
+                  version: TRACE_OUTPUT_VERSION,
+                  files: [],
+                }))
+              existedNftFile.files.push(...turbotraceFiles)
+              const filesSet = new Set(existedNftFile.files)
+              existedNftFile.files = [...filesSet]
+              await promises.writeFile(
+                turbotraceOutputPath,
+                JSON.stringify(existedNftFile),
+                'utf8'
+              )
+            }
+          }
+        }
+      }
 
       // For app directory, we run type checking after build.
       if (appDir) {
@@ -966,8 +1056,6 @@ export default async function build(
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
       const appDefaultConfigs = new Map<string, AppConfig>()
-      const pageTraceIncludes = new Map<string, Array<string>>()
-      const pageTraceExcludes = new Map<string, Array<string>>()
       const pageInfos = new Map<string, PageInfo>()
       const pagesManifest = JSON.parse(
         await promises.readFile(manifestPath, 'utf8')
@@ -1320,17 +1408,6 @@ export default async function build(
                         workerResult.hasStaticProps = false
                       }
 
-                      if (config.outputFileTracing) {
-                        pageTraceIncludes.set(
-                          page,
-                          workerResult.traceIncludes || []
-                        )
-                        pageTraceExcludes.set(
-                          page,
-                          workerResult.traceExcludes || []
-                        )
-                      }
-
                       if (
                         workerResult.isStatic === false &&
                         (workerResult.isHybridAmp || workerResult.isAmpOnly)
@@ -1577,7 +1654,7 @@ export default async function build(
         if (config.experimental.turbotrace) {
           let binding = (await loadBindings()) as any
           if (!binding?.isWasm) {
-            nodeFileTrace = binding.turbo?.startTrace
+            nodeFileTrace = binding.turbo.startTrace
           }
         }
 
@@ -1589,6 +1666,14 @@ export default async function build(
         const includeExcludeSpan = nextBuildSpan.traceChild(
           'apply-include-excludes'
         )
+        const resolvedTraceIncludes = new Map<string, string[]>()
+        const {
+          outputFileTracingIncludes = {},
+          outputFileTracingExcludes = {},
+        } = config.experimental
+
+        const includeGlobKeys = Object.keys(outputFileTracingIncludes)
+        const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
 
         await includeExcludeSpan.traceAsyncFn(async () => {
           const globOrig =
@@ -1604,65 +1689,84 @@ export default async function build(
             })
           }
 
-          for (let page of pageKeys.pages) {
-            await includeExcludeSpan
-              .traceChild('include-exclude', { page })
-              .traceAsyncFn(async () => {
-                const includeGlobs = pageTraceIncludes.get(page)
-                const excludeGlobs = pageTraceExcludes.get(page)
-                page = normalizePagePath(page)
+          if (config.outputFileTracing) {
+            for (let page of pageKeys.pages) {
+              const combinedIncludes = new Set<string>()
+              const combinedExcludes = new Set<string>()
 
-                if (!includeGlobs?.length && !excludeGlobs?.length) {
-                  return
+              page = normalizePagePath(page)
+
+              for (const curGlob of includeGlobKeys) {
+                if (isMatch(page, [curGlob])) {
+                  outputFileTracingIncludes[curGlob].forEach((include) => {
+                    combinedIncludes.add(include)
+                  })
                 }
+              }
 
-                const traceFile = path.join(
-                  distDir,
-                  'server/pages',
-                  `${page}.js.nft.json`
-                )
-                const pageDir = path.dirname(traceFile)
-                const traceContent = JSON.parse(
-                  await promises.readFile(traceFile, 'utf8')
-                )
-                let includes: string[] = []
+              for (const curGlob of excludeGlobKeys) {
+                if (isMatch(page, [curGlob])) {
+                  outputFileTracingExcludes[curGlob].forEach((exclude) => {
+                    combinedExcludes.add(exclude)
+                  })
+                }
+              }
 
-                if (includeGlobs?.length) {
-                  for (const includeGlob of includeGlobs) {
+              if (!combinedIncludes?.size && !combinedExcludes?.size) {
+                continue
+              }
+
+              const traceFile = path.join(
+                distDir,
+                'server/pages',
+                `${page}.js.nft.json`
+              )
+              const pageDir = path.dirname(traceFile)
+              const traceContent = JSON.parse(
+                await promises.readFile(traceFile, 'utf8')
+              )
+              let includes: string[] = []
+
+              if (combinedIncludes?.size) {
+                await Promise.all(
+                  [...combinedIncludes].map(async (includeGlob) => {
                     const results = await glob(includeGlob)
-                    includes.push(
+                    const resolvedInclude = resolvedTraceIncludes.get(
+                      includeGlob
+                    ) || [
                       ...results.map((file) => {
                         return path.relative(pageDir, path.join(dir, file))
-                      })
-                    )
-                  }
-                }
-                const combined = new Set([...traceContent.files, ...includes])
-
-                if (excludeGlobs?.length) {
-                  const resolvedGlobs = excludeGlobs.map((exclude) =>
-                    path.join(dir, exclude)
-                  )
-                  combined.forEach((file) => {
-                    if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
-                      combined.delete(file)
-                    }
-                  })
-                }
-
-                await promises.writeFile(
-                  traceFile,
-                  JSON.stringify({
-                    version: traceContent.version,
-                    files: [...combined],
+                      }),
+                    ]
+                    includes.push(...resolvedInclude)
+                    resolvedTraceIncludes.set(includeGlob, resolvedInclude)
                   })
                 )
-              })
+              }
+              const combined = new Set([...traceContent.files, ...includes])
+
+              if (combinedExcludes?.size) {
+                const resolvedGlobs = [...combinedExcludes].map((exclude) =>
+                  path.join(dir, exclude)
+                )
+                combined.forEach((file) => {
+                  if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+                    combined.delete(file)
+                  }
+                })
+              }
+
+              await promises.writeFile(
+                traceFile,
+                JSON.stringify({
+                  version: traceContent.version,
+                  files: [...combined],
+                })
+              )
+            }
           }
         })
 
-        // TODO: move this inside of webpack so it can be cached
-        // between builds. Should only need to be re-run on lockfile change
         await nextBuildSpan
           .traceChild('trace-next-server')
           .traceAsyncFn(async () => {
@@ -1717,7 +1821,10 @@ export default async function build(
               config.experimental?.turbotrace?.contextDirectory ??
               config.experimental?.outputFileTracingRoot ??
               dir
-            const toTrace = [require.resolve('next/dist/server/next-server')]
+            const nextServerEntry = require.resolve(
+              'next/dist/server/next-server'
+            )
+            const toTrace = [nextServerEntry]
 
             // ensure we trace any dependencies needed for custom
             // incremental cache handler
@@ -1728,49 +1835,70 @@ export default async function build(
             }
 
             let serverResult: import('next/dist/compiled/@vercel/nft').NodeFileTraceResult
-            if (config.experimental.turbotrace) {
-              // handle the cache in the turbo-tracing side in the future
-              await nodeFileTrace({
-                action: 'annotate',
-                input: toTrace,
-                contextDirectory: root,
-                logLevel: config.experimental.turbotrace.logLevel,
-                processCwd: config.experimental.turbotrace.processCwd,
-                logDetail: config.experimental.turbotrace.logDetail,
-                showAll: config.experimental.turbotrace.logAll,
-                memoryLimit:
-                  config.experimental.turbotrace.memoryLimit ??
-                  TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
-              })
-            } else {
-              const ignores = [
-                '**/next/dist/pages/**/*',
-                '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
-                '**/node_modules/webpack5/**/*',
-                '**/next/dist/server/lib/squoosh/**/*.wasm',
-                '**/next/dist/server/lib/route-resolver*',
-                ...(ciEnvironment.hasNextSupport
-                  ? [
-                      // only ignore image-optimizer code when
-                      // this is being handled outside of next-server
-                      '**/next/dist/server/image-optimizer.js',
-                      '**/node_modules/sharp/**/*',
-                    ]
-                  : []),
-                ...(!hasSsrAmpPages
-                  ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
-                  : []),
-                ...(config.experimental.outputFileTracingIgnores || []),
-              ]
-              const ignoreFn = (pathname: string) => {
-                return isMatch(pathname, ignores, { contains: true, dot: true })
+
+            const additionalIgnores = new Set<string>()
+
+            for (const glob of excludeGlobKeys) {
+              if (isMatch('next-server', glob)) {
+                outputFileTracingExcludes[glob].forEach((exclude) => {
+                  additionalIgnores.add(exclude)
+                })
               }
+            }
+            const ignores = [
+              '**/*.d.ts',
+              '**/*.map',
+              '**/next/dist/pages/**/*',
+              '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+              '**/node_modules/webpack5/**/*',
+              '**/next/dist/server/lib/squoosh/**/*.wasm',
+              '**/next/dist/server/lib/route-resolver*',
+              ...(ciEnvironment.hasNextSupport
+                ? [
+                    // only ignore image-optimizer code when
+                    // this is being handled outside of next-server
+                    '**/next/dist/server/image-optimizer.js',
+                    '**/node_modules/sharp/**/*',
+                  ]
+                : []),
+              ...(!hasSsrAmpPages
+                ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
+                : []),
+              ...additionalIgnores,
+            ]
+            const ignoreFn = (pathname: string) => {
+              return isMatch(pathname, ignores, { contains: true, dot: true })
+            }
+            const traceContext = path.join(nextServerEntry, '..', '..')
+            const tracedFiles = new Set<string>()
+            if (config.experimental.turbotrace) {
+              const files: string[] = await nodeFileTrace(
+                {
+                  action: 'print',
+                  input: toTrace,
+                  contextDirectory: traceContext,
+                  logLevel: config.experimental.turbotrace.logLevel,
+                  processCwd: config.experimental.turbotrace.processCwd,
+                  logDetail: config.experimental.turbotrace.logDetail,
+                  showAll: config.experimental.turbotrace.logAll,
+                },
+                turboTasks
+              )
+              for (const file of files) {
+                if (!ignoreFn(path.join(traceContext, file))) {
+                  tracedFiles.add(
+                    path
+                      .relative(distDir, path.join(traceContext, file))
+                      .replace(/\\/g, '/')
+                  )
+                }
+              }
+            } else {
               serverResult = await nodeFileTrace(toTrace, {
                 base: root,
                 processCwd: dir,
                 ignore: ignoreFn,
               })
-              const tracedFiles = new Set()
 
               serverResult.fileList.forEach((file) => {
                 tracedFiles.add(
@@ -1779,23 +1907,22 @@ export default async function build(
                     .replace(/\\/g, '/')
                 )
               })
-
-              await promises.writeFile(
-                nextServerTraceOutput,
-                JSON.stringify({
-                  version: 1,
-                  cacheKey,
-                  files: [...tracedFiles],
-                } as {
-                  version: number
-                  files: string[]
-                })
-              )
-              await promises.unlink(cachedTracePath).catch(() => {})
-              await promises
-                .copyFile(nextServerTraceOutput, cachedTracePath)
-                .catch(() => {})
             }
+            await promises.writeFile(
+              nextServerTraceOutput,
+              JSON.stringify({
+                version: 1,
+                cacheKey,
+                files: Array.from(tracedFiles),
+              } as {
+                version: number
+                files: string[]
+              })
+            )
+            await promises.unlink(cachedTracePath).catch(() => {})
+            await promises
+              .copyFile(nextServerTraceOutput, cachedTracePath)
+              .catch(() => {})
           })
       }
 
