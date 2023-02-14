@@ -7,9 +7,10 @@ import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
-import webdriver from 'next-webdriver'
+import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { BrowserInterface } from '../browsers/base'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -24,7 +25,6 @@ export interface NextInstanceOpts {
   files: FileRef | string | { [filename: string]: string | FileRef }
   dependencies?: { [name: string]: string }
   packageJson?: PackageJson
-  packageLockPath?: string
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
@@ -59,7 +59,6 @@ export class NextInstance {
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
-  protected packageLockPath?: string
   protected basePath?: string
   protected env?: Record<string, string>
   public forcedPort?: string
@@ -67,6 +66,19 @@ export class NextInstance {
 
   constructor(opts: NextInstanceOpts) {
     Object.assign(this, opts)
+
+    if (!(global as any).isNextDeploy) {
+      this.env = {
+        ...this.env,
+        // remove node_modules/.bin repo path from env
+        // to match CI $PATH value and isolate further
+        PATH: process.env.PATH.split(path.delimiter)
+          .filter((part) => {
+            return !part.includes(path.join('node_modules', '.bin'))
+          })
+          .join(path.delimiter),
+      }
+    }
   }
 
   protected async writeInitialFiles() {
@@ -179,7 +191,6 @@ export class NextInstance {
               dependencies: finalDependencies,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
-              packageLockPath: this.packageLockPath,
               dirSuffix: this.dirSuffix,
             })
           }
@@ -266,7 +277,6 @@ export class NextInstance {
         `
           )
         }
-        require('console').log(`Test directory created at ${this.testDir}`)
       })
   }
 
@@ -284,8 +294,13 @@ export class NextInstance {
     await this.writeInitialFiles()
   }
 
-  public async export(): Promise<{ exitCode?: number; cliOutput?: string }> {
-    return {}
+  public async build(): Promise<{ exitCode?: number; cliOutput?: string }> {
+    throw new Error('Not implemented')
+  }
+  public async export(args?: {
+    outdir?: string
+  }): Promise<{ exitCode?: number; cliOutput?: string }> {
+    throw new Error('Not implemented')
   }
   public async setup(parentSpan: Span): Promise<void> {}
   public async start(useDirArg: boolean = false): Promise<void> {}
@@ -390,7 +405,7 @@ export class NextInstance {
    */
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
-  ) {
+  ): Promise<BrowserInterface> {
     return webdriver(this.url, ...args)
   }
 

@@ -12,7 +12,7 @@ import {
   PathnameContext,
   // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
-import { bailoutToClientRendering } from './bailout-to-client-rendering'
+import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -70,15 +70,21 @@ class ReadonlyURLSearchParams {
  * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
  */
 export function useSearchParams() {
+  clientHookInServerComponentError('useSearchParams')
   const searchParams = useContext(SearchParamsContext)
 
   const readonlySearchParams = useMemo(() => {
     return new ReadonlyURLSearchParams(searchParams || new URLSearchParams())
   }, [searchParams])
 
-  if (bailoutToClientRendering()) {
-    // TODO-APP: handle dynamic = 'force-static' here and on the client
-    return readonlySearchParams
+  if (typeof window === 'undefined') {
+    // AsyncLocalStorage should not be included in the client bundle.
+    const { bailoutToClientRendering } =
+      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
+    if (bailoutToClientRendering()) {
+      // TODO-APP: handle dynamic = 'force-static' here and on the client
+      return readonlySearchParams
+    }
   }
 
   if (!searchParams) {
@@ -92,17 +98,14 @@ export function useSearchParams() {
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
  */
 export function usePathname(): string | null {
+  clientHookInServerComponentError('usePathname')
   return useContext(PathnameContext)
 }
 
 // TODO-APP: getting all params when client-side navigating is non-trivial as it does not have route matchers so this might have to be a server context instead.
 // export function useParams() {
+//   clientHookInServerComponentError('useParams')
 //   return useContext(ParamsContext)
-// }
-
-// TODO-APP: define what should be provided through context.
-// export function useLayoutSegments() {
-//   return useContext(LayoutSegmentsContext)
 // }
 
 export {
@@ -114,6 +117,7 @@ export {
  * Get the router methods. For example router.push('/dashboard')
  */
 export function useRouter(): import('../../shared/lib/app-router-context').AppRouterInstance {
+  clientHookInServerComponentError('useRouter')
   const router = useContext(AppRouterContext)
   if (router === null) {
     throw new Error('invariant expected app router to be mounted')
@@ -161,6 +165,7 @@ function getSelectedLayoutSegmentPath(
 export function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
 ): string[] {
+  clientHookInServerComponentError('useSelectedLayoutSegments')
   const { tree } = useContext(LayoutRouterContext)
   return getSelectedLayoutSegmentPath(tree, parallelRouteKey)
 }
@@ -172,6 +177,7 @@ export function useSelectedLayoutSegments(
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string | null {
+  clientHookInServerComponentError('useSelectedLayoutSegment')
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
   if (selectedLayoutSegments.length === 0) {
     return null

@@ -30,24 +30,31 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
-  FLIGHT_PARAMETERS,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
-import type { StaticGenerationStore } from '../client/components/static-generation-async-storage'
-import { DefaultHead } from '../client/components/head'
+import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
+import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { formatServerError } from '../lib/format-server-error'
+import { MetadataTree } from '../lib/metadata/metadata'
+import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
+import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
+import { collectMetadata } from '../lib/metadata/resolve-metadata'
+import type { MetadataItems } from '../lib/metadata/resolve-metadata'
+import { isClientReference } from '../build/is-client-reference'
+import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
+import { warnOnce } from '../shared/lib/utils/warn-once'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -89,6 +96,7 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
 }
+
 export class ReadonlyHeaders {
   [INTERNAL_HEADERS_INSTANCE]: Headers
 
@@ -182,16 +190,26 @@ export type RenderOptsPartial = {
   isBot?: boolean
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
+  nextExport?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 /**
- * Flight Response is always set to application/octet-stream to ensure it does not get interpreted as HTML.
+ * Flight Response is always set to RSC_CONTENT_TYPE_HEADER to ensure it does not get interpreted as HTML.
  */
 class FlightRenderResult extends RenderResult {
   constructor(response: string | ReadableStream<Uint8Array>) {
-    super(response, { contentType: 'application/octet-stream' })
+    super(response, { contentType: RSC_CONTENT_TYPE_HEADER })
+  }
+}
+
+/**
+ * Action Response is set to application/json for now, but could be changed in the future.
+ */
+class ActionRenderResult extends RenderResult {
+  constructor(response: string) {
+    super(response, { contentType: 'application/json' })
   }
 }
 
@@ -212,6 +230,7 @@ function createErrorHandler(
    * Used for debugging
    */
   _source: string,
+  isNextExport: boolean,
   capturedErrors: Error[],
   allCapturedErrors?: Error[]
 ) {
@@ -234,56 +253,63 @@ function createErrorHandler(
     }
     // Used for debugging error source
     // console.error(_source, err)
-    console.error(err)
+
+    // Don't log the suppressed error during export
+    if (
+      !(
+        isNextExport &&
+        err?.message?.includes(
+          'The specific message is omitted in production builds to avoid leaking sensitive details.'
+        )
+      )
+    ) {
+      console.error(err)
+    }
+
     capturedErrors.push(err)
     // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
     return stringHash(err.message + err.stack + (err.digest || '')).toString()
   }
 }
 
-let isFetchPatched = false
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 function patchFetch(ComponentMod: any) {
-  if (isFetchPatched) return
-  isFetchPatched = true
+  if ((globalThis.fetch as any).patched) return
 
   const { DynamicServerError } =
     ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
-  const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
+  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
+    ComponentMod.staticGenerationAsyncStorage
 
   const originFetch = globalThis.fetch
   globalThis.fetch = async (input, init) => {
-    const staticGenerationStore =
-      ('getStore' in staticGenerationAsyncStorage
-        ? staticGenerationAsyncStorage.getStore()
-        : staticGenerationAsyncStorage) || {}
+    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
-    const {
-      isStaticGeneration,
-      fetchRevalidate,
-      pathname,
-      incrementalCache,
-      isRevalidate,
-    } = (staticGenerationStore || {}) as StaticGenerationStore
+    // If the staticGenerationStore is not available, we can't do any special
+    // treatment of fetch, therefore fallback to the original fetch
+    // implementation.
+    if (!staticGenerationStore) {
+      return originFetch(input, init)
+    }
 
     let revalidate: number | undefined | boolean
 
     if (typeof init?.next?.revalidate === 'number') {
       revalidate = init.next.revalidate
     }
+
     if (init?.next?.revalidate === false) {
       revalidate = CACHE_ONE_YEAR
     }
 
     if (
-      !staticGenerationStore.fetchRevalidate ||
+      !staticGenerationStore.revalidate ||
       (typeof revalidate === 'number' &&
-        revalidate < staticGenerationStore.fetchRevalidate)
+        revalidate < staticGenerationStore.revalidate)
     ) {
-      staticGenerationStore.fetchRevalidate = revalidate
+      staticGenerationStore.revalidate = revalidate
     }
 
     let cacheKey: string | undefined
@@ -291,7 +317,7 @@ function patchFetch(ComponentMod: any) {
     const doOriginalFetch = async () => {
       return originFetch(input, init).then(async (res) => {
         if (
-          incrementalCache &&
+          staticGenerationStore.incrementalCache &&
           cacheKey &&
           typeof revalidate === 'number' &&
           revalidate > 0
@@ -312,7 +338,7 @@ function patchFetch(ComponentMod: any) {
             )
           }
 
-          await incrementalCache.set(
+          await staticGenerationStore.incrementalCache.set(
             cacheKey,
             {
               kind: 'FETCH',
@@ -332,14 +358,24 @@ function patchFetch(ComponentMod: any) {
       })
     }
 
-    if (incrementalCache && typeof revalidate === 'number' && revalidate > 0) {
-      cacheKey = await incrementalCache?.fetchCacheKey(input.toString(), init)
-      const entry = await incrementalCache.get(cacheKey, true)
+    if (
+      staticGenerationStore.incrementalCache &&
+      typeof revalidate === 'number' &&
+      revalidate > 0
+    ) {
+      cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
+        input.toString(),
+        init
+      )
+      const entry = await staticGenerationStore.incrementalCache.get(
+        cacheKey,
+        true
+      )
 
       if (entry?.value && entry.value.kind === 'FETCH') {
         // when stale and is revalidating we wait for fresh data
         // so the revalidated entry has the updated data
-        if (!isRevalidate || !entry.isStale) {
+        if (!staticGenerationStore.isRevalidate || !entry.isStale) {
           if (entry.isStale) {
             if (!staticGenerationStore.pendingRevalidates) {
               staticGenerationStore.pendingRevalidates = []
@@ -367,7 +403,7 @@ function patchFetch(ComponentMod: any) {
       }
     }
 
-    if (staticGenerationStore && isStaticGeneration) {
+    if (staticGenerationStore.isStaticGeneration) {
       if (init && typeof init === 'object') {
         const cache = init.cache
         // Delete `cache` property as Cloudflare Workers will throw an error
@@ -375,40 +411,56 @@ function patchFetch(ComponentMod: any) {
           delete init.cache
         }
         if (cache === 'no-store') {
-          staticGenerationStore.fetchRevalidate = 0
+          staticGenerationStore.revalidate = 0
           // TODO: ensure this error isn't logged to the user
           // seems it's slipping through currently
-          throw new DynamicServerError(
-            `no-store fetch ${input}${pathname ? ` ${pathname}` : ''}`
-          )
+          const dynamicUsageReason = `no-store fetch ${input}${
+            staticGenerationStore.pathname
+              ? ` ${staticGenerationStore.pathname}`
+              : ''
+          }`
+          const err = new DynamicServerError(dynamicUsageReason)
+          staticGenerationStore.dynamicUsageStack = err.stack
+          staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+
+          throw err
         }
 
         const hasNextConfig = 'next' in init
         const next = init.next || {}
         if (
           typeof next.revalidate === 'number' &&
-          (typeof fetchRevalidate === 'undefined' ||
-            next.revalidate < fetchRevalidate)
+          (typeof staticGenerationStore.revalidate === 'undefined' ||
+            next.revalidate < staticGenerationStore.revalidate)
         ) {
           const forceDynamic = staticGenerationStore.forceDynamic
 
           if (!forceDynamic || next.revalidate !== 0) {
-            staticGenerationStore.fetchRevalidate = next.revalidate
+            staticGenerationStore.revalidate = next.revalidate
           }
 
           if (!forceDynamic && next.revalidate === 0) {
-            throw new DynamicServerError(
-              `revalidate: ${next.revalidate} fetch ${input}${
-                pathname ? ` ${pathname}` : ''
-              }`
-            )
+            const dynamicUsageReason = `revalidate: ${
+              next.revalidate
+            } fetch ${input}${
+              staticGenerationStore.pathname
+                ? ` ${staticGenerationStore.pathname}`
+                : ''
+            }`
+            const err = new DynamicServerError(dynamicUsageReason)
+            staticGenerationStore.dynamicUsageStack = err.stack
+            staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+
+            throw err
           }
         }
         if (hasNextConfig) delete init.next
       }
     }
+
     return doOriginalFetch()
   }
+  ;(globalThis.fetch as any).patched = true
 }
 
 interface FlightResponseRef {
@@ -585,22 +637,13 @@ export type Segment =
   | [param: string, value: string, type: DynamicParamTypesShort]
 
 /**
- * LoaderTree is generated in next-app-loader.
- */
-type LoaderTree = [
-  segment: string,
-  parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: ComponentsType
-]
-
-/**
  * Router state
  */
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string,
-  refresh?: 'refetch',
+  url?: string | null,
+  refresh?: 'refetch' | null,
   isRootLayout?: boolean
 ]
 
@@ -687,7 +730,9 @@ function getCssInlinedLinkTags(
   serverComponentManifest: FlightManifest,
   serverCSSManifest: FlightCSSManifest,
   filePath: string,
-  serverCSSForEntries: string[]
+  serverCSSForEntries: string[],
+  injectedCSS: Set<string>,
+  collectNewCSSImports?: boolean
 ): string[] {
   const layoutOrPageCssModules = serverCSSManifest[filePath]
 
@@ -704,12 +749,26 @@ function getCssInlinedLinkTags(
   for (const mod of layoutOrPageCssModules) {
     // We only include the CSS if it's a global CSS, or it is used by this
     // entrypoint.
-    if (serverCSSForEntries.includes(mod) || !/\.module\.css/.test(mod)) {
-      const modData = serverComponentManifest[mod]
-      if (modData) {
-        for (const chunk of modData.default.chunks) {
-          if (cssFilesForEntry.has(chunk)) {
-            chunks.add(chunk)
+    if (
+      serverCSSForEntries.includes(mod) ||
+      !/\.module\.(css|sass|scss)$/.test(mod)
+    ) {
+      // If the CSS is already injected by a parent layer, we don't need
+      // to inject it again.
+      if (!injectedCSS.has(mod)) {
+        const modData = serverComponentManifest[mod]
+        if (modData) {
+          for (const chunk of modData.default.chunks) {
+            // If the current entry in the final tree-shaked bundle has that CSS
+            // chunk, it means that it's actually used. We should include it.
+            if (cssFilesForEntry.has(chunk)) {
+              chunks.add(chunk)
+              // This might be a new layout, and to make it more efficient and
+              // not introducing another loop, we mutate the set directly.
+              if (collectNewCSSImports) {
+                injectedCSS.add(mod)
+              }
+            }
           }
         }
       }
@@ -745,25 +804,28 @@ function getPreloadedFontFilesInlineLinkTags(
   fontLoaderManifest: FontLoaderManifest | undefined,
   serverCSSForEntries: string[],
   filePath?: string
-): string[] {
+): string[] | null {
   if (!fontLoaderManifest || !filePath) {
-    return []
+    return null
   }
   const layoutOrPageCss =
     serverCSSManifest[filePath] ||
     serverComponentManifest.__client_css_manifest__?.[filePath]
 
   if (!layoutOrPageCss) {
-    return []
+    return null
   }
 
   const fontFiles = new Set<string>()
+  // If we find an entry in the manifest but it's empty, add a preconnect tag
+  let foundFontUsage = false
 
   for (const css of layoutOrPageCss) {
     // We only include the CSS if it is used by this entrypoint.
     if (serverCSSForEntries.includes(css)) {
       const preloadedFontFiles = fontLoaderManifest.app[css]
       if (preloadedFontFiles) {
+        foundFontUsage = true
         for (const fontFile of preloadedFontFiles) {
           fontFiles.add(fontFile)
         }
@@ -771,7 +833,12 @@ function getPreloadedFontFilesInlineLinkTags(
     }
   }
 
-  return [...fontFiles]
+  if (!foundFontUsage) {
+    return null
+  }
+
+  // Sorting to make order deterministic
+  return [...fontFiles].sort()
 }
 
 function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
@@ -824,14 +891,6 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
   return nonce
 }
 
-function headersWithoutFlight(headers: IncomingHttpHeaders) {
-  const newHeaders = { ...headers }
-  for (const param of FLIGHT_PARAMETERS) {
-    delete newHeaders[param.toString().toLowerCase()]
-  }
-  return newHeaders
-}
-
 async function renderToString(element: React.ReactElement) {
   const renderStream = await ReactDOMServer.renderToReadableStream(element)
   await renderStream.allReady
@@ -845,6 +904,47 @@ export async function renderToHTMLOrFlight(
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
+  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+  const actionId = req.headers[ACTION.toLowerCase()]
+  const isAction =
+    actionId !== undefined &&
+    typeof actionId === 'string' &&
+    req.method === 'POST'
+
+  const capturedErrors: Error[] = []
+  const allCapturedErrors: Error[] = []
+
+  const isNextExport = !!renderOpts.nextExport
+  const serverComponentsErrorHandler = createErrorHandler(
+    'serverComponentsRenderer',
+    isNextExport,
+    capturedErrors
+  )
+  const flightDataRendererErrorHandler = createErrorHandler(
+    'flightDataRenderer',
+    isNextExport,
+    capturedErrors
+  )
+  const htmlRendererErrorHandler = createErrorHandler(
+    'htmlRenderer',
+    isNextExport,
+    capturedErrors,
+    allCapturedErrors
+  )
+
+  const {
+    buildManifest,
+    subresourceIntegrityManifest,
+    serverComponentManifest,
+    serverActionsManifest,
+    serverCSSManifest = {},
+    ComponentMod,
+    dev,
+    fontLoaderManifest,
+    supportsDynamicHTML,
+  } = renderOpts
+
+  patchFetch(ComponentMod)
   /**
    * Rules of Static & Dynamic HTML:
    *
@@ -858,60 +958,21 @@ export async function renderToHTMLOrFlight(
    * These rules help ensure that other existing features like request caching,
    * coalescing, and ISR continue working as intended.
    */
-  const isStaticGeneration =
-    renderOpts.supportsDynamicHTML !== true && !renderOpts.isBot
-  const isFlight = req.headers[RSC.toLowerCase()] !== undefined
-
-  const capturedErrors: Error[] = []
-  const allCapturedErrors: Error[] = []
-
-  const serverComponentsErrorHandler = createErrorHandler(
-    'serverComponentsRenderer',
-    capturedErrors
-  )
-  const flightDataRendererErrorHandler = createErrorHandler(
-    'flightDataRenderer',
-    capturedErrors
-  )
-  const htmlRendererErrorHandler = createErrorHandler(
-    'htmlRenderer',
-    capturedErrors,
-    allCapturedErrors
-  )
-
-  const {
-    buildManifest,
-    subresourceIntegrityManifest,
-    serverComponentManifest,
-    serverCSSManifest = {},
-    ComponentMod,
-    dev,
-    fontLoaderManifest,
-    supportsDynamicHTML,
-  } = renderOpts
-
-  patchFetch(ComponentMod)
   const generateStaticHTML = supportsDynamicHTML !== true
 
-  const staticGenerationAsyncStorage = ComponentMod.staticGenerationAsyncStorage
-  const requestAsyncStorage = ComponentMod.requestAsyncStorage
-
-  if (
-    staticGenerationAsyncStorage &&
-    !('getStore' in staticGenerationAsyncStorage) &&
-    staticGenerationAsyncStorage.inUse
-  ) {
-    throw new Error(
-      `Invariant: A separate worker must be used for each render when AsyncLocalStorage is not available`
-    )
-  }
+  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
+    ComponentMod.staticGenerationAsyncStorage
+  const requestAsyncStorage: RequestAsyncStorage =
+    ComponentMod.requestAsyncStorage
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
-    const staticGenerationStore: StaticGenerationStore =
-      'getStore' in staticGenerationAsyncStorage
-        ? staticGenerationAsyncStorage.getStore()
-        : staticGenerationAsyncStorage
+    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+    if (!staticGenerationStore) {
+      throw new Error(
+        `Invariant: Render expects to have staticGenerationAsyncStorage, none found`
+      )
+    }
 
     // don't modify original query object
     query = Object.assign({}, query)
@@ -937,6 +998,18 @@ export async function renderToHTMLOrFlight(
      * The tree created in next-app-loader that holds component segments and modules
      */
     const loaderTree: LoaderTree = ComponentMod.tree
+
+    /**
+     * The metadata items array created in next-app-loader with all relevant information
+     * that we need to resolve the final metadata.
+     */
+
+    const requestId =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? crypto.randomUUID()
+        : require('next/dist/compiled/nanoid').nanoid()
+
+    const searchParamsProps = { searchParams: query }
 
     stripInternalQueries(query)
 
@@ -1020,10 +1093,12 @@ export async function renderToHTMLOrFlight(
     }
 
     async function resolveHead(
-      [segment, parallelRoutes, { head }]: LoaderTree,
+      tree: LoaderTree,
       parentParams: { [key: string]: any },
-      isRootHead: boolean
-    ): Promise<React.ReactNode> {
+      metadataItems: MetadataItems
+    ): Promise<[React.ReactNode, MetadataItems]> {
+      const [segment, parallelRoutes, { head, page }] = tree
+      const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
       /**
@@ -1038,22 +1113,38 @@ export async function renderToHTMLOrFlight(
             }
           : // Pass through parent params to children
             parentParams
+
+      const layerProps = {
+        params: currentParams,
+        ...(isPage && searchParamsProps),
+      }
+
+      await collectMetadata(tree, layerProps, metadataItems)
+
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const returnedHead = await resolveHead(childTree, currentParams, false)
+        const [returnedHead] = await resolveHead(
+          childTree,
+          currentParams,
+          metadataItems
+        )
         if (returnedHead) {
-          return returnedHead
+          return [returnedHead, metadataItems]
         }
       }
 
       if (head) {
+        if (process.env.NODE_ENV !== 'production') {
+          warnOnce(
+            `\`head.js\` is being used in route /${segment}. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
+          )
+        }
+
         const Head = await interopDefault(await head[0]())
-        return <Head params={currentParams} />
-      } else if (isRootHead) {
-        return <DefaultHead />
+        return [<Head params={currentParams} />, metadataItems]
       }
 
-      return null
+      return [null, metadataItems]
     }
 
     const createFlightRouterStateFromLoaderTree = (
@@ -1103,16 +1194,19 @@ export async function renderToHTMLOrFlight(
       filePath,
       getComponent,
       shouldPreload,
+      injectedCSS,
     }: {
       filePath: string
       getComponent: () => any
       shouldPreload?: boolean
+      injectedCSS: Set<string>
     }): Promise<any> => {
       const cssHrefs = getCssInlinedLinkTags(
         serverComponentManifest,
         serverCSSManifest,
         filePath,
-        serverCSSForEntries
+        serverCSSForEntries,
+        injectedCSS
       )
 
       const styles = cssHrefs
@@ -1131,7 +1225,8 @@ export async function renderToHTMLOrFlight(
             />
           ))
         : null
-      const Comp = await interopDefault(await getComponent())
+
+      const Comp = interopDefault(await getComponent())
 
       return [Comp, styles]
     }
@@ -1141,28 +1236,39 @@ export async function renderToHTMLOrFlight(
      */
     const createComponentTree = async ({
       createSegmentPath,
-      loaderTree: [
-        segment,
-        parallelRoutes,
-        { layout, template, error, loading, page, 'not-found': notFound },
-      ],
+      loaderTree: tree,
       parentParams,
       firstItem,
       rootLayoutIncluded,
+      injectedCSS,
     }: {
       createSegmentPath: CreateSegmentPath
       loaderTree: LoaderTree
       parentParams: { [key: string]: any }
-      rootLayoutIncluded?: boolean
+      rootLayoutIncluded: boolean
       firstItem?: boolean
+      injectedCSS: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
+      const [segment, parallelRoutes, components] = tree
+      const {
+        layout,
+        template,
+        error,
+        loading,
+        page,
+        'not-found': notFound,
+      } = components
       const layoutOrPagePath = layout?.[1] || page?.[1]
+
+      const injectedCSSWithCurrentLayout = new Set(injectedCSS)
       const stylesheets: string[] = layoutOrPagePath
         ? getCssInlinedLinkTags(
             serverComponentManifest,
             serverCSSManifest!,
             layoutOrPagePath,
-            serverCSSForEntries
+            serverCSSForEntries,
+            injectedCSSWithCurrentLayout,
+            true
           )
         : []
 
@@ -1181,6 +1287,7 @@ export async function renderToHTMLOrFlight(
             filePath: template[1],
             getComponent: template[0],
             shouldPreload: true,
+            injectedCSS: injectedCSSWithCurrentLayout,
           })
         : [React.Fragment]
 
@@ -1188,6 +1295,7 @@ export async function renderToHTMLOrFlight(
         ? await createComponentAndStyles({
             filePath: error[1],
             getComponent: error[0],
+            injectedCSS: injectedCSSWithCurrentLayout,
           })
         : []
 
@@ -1195,16 +1303,13 @@ export async function renderToHTMLOrFlight(
         ? await createComponentAndStyles({
             filePath: loading[1],
             getComponent: loading[0],
+            injectedCSS: injectedCSSWithCurrentLayout,
           })
         : []
 
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
-      const layoutOrPageMod = isLayout
-        ? await layout[0]()
-        : isPage
-        ? await page[0]()
-        : undefined
+      const layoutOrPageMod = await getLayoutOrPageModule(tree)
 
       /**
        * Checks if the current segment is a root layout.
@@ -1220,6 +1325,7 @@ export async function renderToHTMLOrFlight(
         ? await createComponentAndStyles({
             filePath: notFound[1],
             getComponent: notFound[0],
+            injectedCSS: injectedCSSWithCurrentLayout,
           })
         : rootLayoutAtThisLevel
         ? [DefaultNotFound]
@@ -1239,11 +1345,18 @@ export async function renderToHTMLOrFlight(
       if (typeof layoutOrPageMod?.revalidate === 'number') {
         defaultRevalidate = layoutOrPageMod.revalidate
 
-        if (isStaticGeneration && defaultRevalidate === 0) {
+        if (
+          staticGenerationStore.isStaticGeneration &&
+          defaultRevalidate === 0
+        ) {
           const { DynamicServerError } =
             ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
 
-          throw new DynamicServerError(`revalidate: 0 configured ${segment}`)
+          const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
+          staticGenerationStore.dynamicUsageDescription =
+            dynamicUsageDescription
+
+          throw new DynamicServerError(dynamicUsageDescription)
         }
       }
 
@@ -1285,6 +1398,15 @@ export async function renderToHTMLOrFlight(
             `The default export of notFound is not a React Component in ${segment}`
           )
         }
+
+        if (
+          !isClientReference(layoutOrPageMod) &&
+          layoutOrPageMod?.config?.amp
+        ) {
+          throw new Error(
+            'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
+          )
+        }
       }
 
       // Handle dynamic segment params.
@@ -1312,7 +1434,8 @@ export async function renderToHTMLOrFlight(
               ? [parallelRouteKey]
               : [actualSegment, parallelRouteKey]
 
-            const childSegment = parallelRoutes[parallelRouteKey][0]
+            const parallelRoute = parallelRoutes[parallelRouteKey]
+            const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
             if (isPrefetch && Loading) {
@@ -1344,7 +1467,6 @@ export async function renderToHTMLOrFlight(
                   notFound={NotFound ? <NotFound /> : undefined}
                   notFoundStyles={notFoundStyles}
                   childProp={childProp}
-                  rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
                 />,
               ]
             }
@@ -1354,9 +1476,10 @@ export async function renderToHTMLOrFlight(
               createSegmentPath: (child) => {
                 return createSegmentPath([...currentSegmentPath, ...child])
               },
-              loaderTree: parallelRoutes[parallelRouteKey],
+              loaderTree: parallelRoute,
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+              injectedCSS: injectedCSSWithCurrentLayout,
             })
 
             const childProp: ChildProp = {
@@ -1389,7 +1512,6 @@ export async function renderToHTMLOrFlight(
                 notFound={NotFound ? <NotFound /> : undefined}
                 notFoundStyles={notFoundStyles}
                 childProp={childProp}
-                rootLayoutIncluded={rootLayoutIncludedAtThisLevelOrAbove}
               />,
             ]
           }
@@ -1419,31 +1541,50 @@ export async function renderToHTMLOrFlight(
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
         params: currentParams,
         // Query is only provided to page
-        ...(isPage ? { searchParams: query } : {}),
+        ...(isPage ? searchParamsProps : {}),
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
-      Component = await Promise.resolve().then(() => {
-        return preloadComponent(Component, props)
-      })
+      if (!isClientReference(layoutOrPageMod)) {
+        Component = await Promise.resolve().then(() =>
+          preloadComponent(Component, props)
+        )
+      }
 
       return {
         Component: () => {
           return (
             <>
-              {preloadedFontFiles.map((fontFile) => {
-                const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
-                return (
-                  <link
-                    key={fontFile}
-                    rel="preload"
-                    href={`${assetPrefix}/_next/${fontFile}`}
-                    as="font"
-                    type={`font/${ext}`}
-                    crossOrigin="anonymous"
-                  />
-                )
-              })}
+              {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
+              <Component {...props} />
+              {preloadedFontFiles?.length === 0 ? (
+                <link
+                  data-next-font={
+                    fontLoaderManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+                  }
+                  rel="preconnect"
+                  href="/"
+                  crossOrigin="anonymous"
+                />
+              ) : null}
+              {preloadedFontFiles
+                ? preloadedFontFiles.map((fontFile) => {
+                    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+                    return (
+                      <link
+                        key={fontFile}
+                        rel="preload"
+                        href={`${assetPrefix}/_next/${fontFile}`}
+                        as="font"
+                        type={`font/${ext}`}
+                        crossOrigin="anonymous"
+                        data-next-font={
+                          fontFile.includes('-s') ? 'size-adjust' : ''
+                        }
+                      />
+                    )
+                  })
+                : null}
               {stylesheets
                 ? stylesheets.map((href, index) => (
                     <link
@@ -1458,12 +1599,11 @@ export async function renderToHTMLOrFlight(
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
                       // @ts-ignore
-                      precedence="high"
+                      precedence="next.js"
                       key={index}
                     />
                   ))
                 : null}
-              <Component {...props} />
             </>
           )
         },
@@ -1473,17 +1613,18 @@ export async function renderToHTMLOrFlight(
     const streamToBufferedResult = async (
       renderResult: RenderResult
     ): Promise<string> => {
-      const renderChunks: Buffer[] = []
-      const writable = new Writable({
-        write(chunk, _encoding, callback) {
-          renderChunks.push(chunk)
-          callback()
-        },
-      })
-      await renderResult.pipe(writable)
-      return Buffer.concat(renderChunks).toString()
-    }
+      const renderChunks: string[] = []
 
+      const writable = {
+        write(chunk: any) {
+          renderChunks.push(decodeText(chunk))
+        },
+        end() {},
+        destroy() {},
+      }
+      await renderResult.pipe(writable as any)
+      return renderChunks.join('')
+    }
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
     const generateFlight = async (): Promise<RenderResult> => {
       // TODO-APP: throw on invalid flightRouterState
@@ -1499,6 +1640,8 @@ export async function renderToHTMLOrFlight(
         flightRouterState,
         parentRendered,
         rscPayloadHead,
+        injectedCSS,
+        rootLayoutIncluded,
       }: {
         createSegmentPath: CreateSegmentPath
         loaderTreeToFilter: LoaderTree
@@ -1507,9 +1650,23 @@ export async function renderToHTMLOrFlight(
         flightRouterState?: FlightRouterState
         parentRendered?: boolean
         rscPayloadHead: React.ReactNode
+        injectedCSS: Set<string>
+        rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
-        const [segment, parallelRoutes] = loaderTreeToFilter
+        const [segment, parallelRoutes, components] = loaderTreeToFilter
         const parallelRoutesKeys = Object.keys(parallelRoutes)
+        const { layout } = components
+        const isLayout = typeof layout !== 'undefined'
+
+        /**
+         * Checks if the current segment is a root layout.
+         */
+        const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+        /**
+         * Checks if the current segment or any level above it has a root layout.
+         */
+        const rootLayoutIncludedAtThisLevelOrAbove =
+          rootLayoutIncluded || rootLayoutAtThisLevel
 
         // Because this function walks to a deeper point in the tree to start rendering we have to track the dynamic parameters up to the point where rendering starts
         const segmentParam = getDynamicParamFromSegment(segment)
@@ -1544,7 +1701,7 @@ export async function renderToHTMLOrFlight(
             // Create router state using the slice of the loaderTree
             createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
             // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-            isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
+            isPrefetch && !Boolean(components.loading)
               ? null
               : // Create component tree using the slice of the loaderTree
                 // @ts-expect-error TODO-APP: fix async component type
@@ -1558,14 +1715,32 @@ export async function renderToHTMLOrFlight(
                       loaderTree: loaderTreeToFilter,
                       parentParams: currentParams,
                       firstItem: isFirst,
+                      injectedCSS,
+                      // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
+                      rootLayoutIncluded: rootLayoutIncluded,
                     }
                   )
+
                   return <Component />
                 }),
-            isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
-              <>{rscPayloadHead}</>
-            ),
+            isPrefetch && !Boolean(components.loading) ? null : rscPayloadHead,
           ]
+        }
+
+        // If we are not rendering on this level we need to check if the current
+        // segment has a layout. If so, we need to track all the used CSS to make
+        // the result consistent.
+        const layoutPath = layout?.[1]
+        const injectedCSSWithCurrentLayout = new Set(injectedCSS)
+        if (layoutPath) {
+          getCssInlinedLinkTags(
+            serverComponentManifest,
+            serverCSSManifest!,
+            layoutPath,
+            serverCSSForEntries,
+            injectedCSSWithCurrentLayout,
+            true
+          )
         }
 
         // Walk through all parallel routes.
@@ -1587,6 +1762,8 @@ export async function renderToHTMLOrFlight(
             parentRendered: parentRendered || renderComponentsOnThisLevel,
             isFirst: false,
             rscPayloadHead,
+            injectedCSS: injectedCSSWithCurrentLayout,
+            rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           })
 
           if (typeof path[path.length - 1] !== 'string') {
@@ -1597,7 +1774,11 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const rscPayloadHead = await resolveHead(loaderTree, {}, true)
+      const [resolvedHead, metadataItems] = await resolveHead(
+        loaderTree,
+        {},
+        []
+      )
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1608,7 +1789,17 @@ export async function renderToHTMLOrFlight(
             parentParams: {},
             flightRouterState: providedFlightRouterState,
             isFirst: true,
-            rscPayloadHead,
+            // For flight, render metadata inside leaf page
+            rscPayloadHead: (
+              <>
+                {/* Adding key={requestId} to make metadata remount for each render */}
+                {/* @ts-expect-error allow to use async server component */}
+                <MetadataTree key={requestId} metadata={metadataItems} />
+                {resolvedHead}
+              </>
+            ),
+            injectedCSS: new Set(),
+            rootLayoutIncluded: false,
           })
         ).slice(1),
       ]
@@ -1627,8 +1818,25 @@ export async function renderToHTMLOrFlight(
       return new FlightRenderResult(readable)
     }
 
-    if (isFlight && !isStaticGeneration) {
+    if (isFlight && !staticGenerationStore.isStaticGeneration) {
       return generateFlight()
+    }
+
+    // For action requests, we handle them differently with a sepcial render result.
+    if (isAction && process.env.NEXT_RUNTIME !== 'edge') {
+      const workerName = 'app' + renderOpts.pathname
+      const actionModId = serverActionsManifest[actionId].workers[workerName]
+
+      const { parseBody } =
+        require('./api-utils/node') as typeof import('./api-utils/node')
+      const actionData = (await parseBody(req, '1mb')) || {}
+
+      const actionHandler =
+        ComponentMod.__next_app_webpack_require__(actionModId).default
+
+      return new ActionRenderResult(
+        JSON.stringify(await actionHandler(actionId, actionData.bound || []))
+      )
     }
 
     // Below this line is handling for rendering to HTML.
@@ -1673,7 +1881,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const initialHead = await resolveHead(loaderTree, {}, true)
+    const [initialHead, metadataItems] = await resolveHead(loaderTree, {}, [])
 
     /**
      * A new React Component that renders the provided React Component
@@ -1687,19 +1895,31 @@ export async function renderToHTMLOrFlight(
           loaderTree: loaderTree,
           parentParams: {},
           firstItem: true,
+          injectedCSS: new Set(),
+          rootLayoutIncluded: false,
         })
+
         const initialTree = createFlightRouterStateFromLoaderTree(loaderTree)
 
         return (
-          <AppRouter
-            assetPrefix={assetPrefix}
-            initialCanonicalUrl={initialCanonicalUrl}
-            initialTree={initialTree}
-            initialHead={initialHead}
-            globalErrorComponent={GlobalError}
-          >
-            <ComponentTree />
-          </AppRouter>
+          <>
+            <AppRouter
+              assetPrefix={assetPrefix}
+              initialCanonicalUrl={initialCanonicalUrl}
+              initialTree={initialTree}
+              initialHead={
+                <>
+                  {/* Adding key={requestId} to make metadata remount for each render */}
+                  {/* @ts-expect-error allow to use async server component */}
+                  <MetadataTree key={requestId} metadata={metadataItems} />
+                  {initialHead}
+                </>
+              }
+              globalErrorComponent={GlobalError}
+            >
+              <ComponentTree />
+            </AppRouter>
+          </>
         )
       },
       ComponentMod,
@@ -1799,7 +2019,8 @@ export async function renderToHTMLOrFlight(
 
         const result = await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: isStaticGeneration || generateStaticHTML,
+          generateStaticHTML:
+            staticGenerationStore.isStaticGeneration || generateStaticHTML,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           ...validateRootLayout,
@@ -1810,6 +2031,9 @@ export async function renderToHTMLOrFlight(
         const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
         if (err.digest === NOT_FOUND_ERROR_CODE) {
           res.statusCode = 404
+        }
+        if (err.digest?.startsWith(REDIRECT_ERROR_CODE)) {
+          res.statusCode = 307
         }
 
         const renderStream = await renderToInitialStream({
@@ -1840,7 +2064,7 @@ export async function renderToHTMLOrFlight(
 
         return await continueFromInitialStream(renderStream, {
           dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: isStaticGeneration,
+          generateStaticHTML: staticGenerationStore.isStaticGeneration,
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
           ...validateRootLayout,
@@ -1853,7 +2077,7 @@ export async function renderToHTMLOrFlight(
       await Promise.all(staticGenerationStore.pendingRevalidates)
     }
 
-    if (isStaticGeneration) {
+    if (staticGenerationStore.isStaticGeneration) {
       const htmlResult = await streamToBufferedResult(renderResult)
 
       // if we encountered any unexpected errors during build
@@ -1861,9 +2085,6 @@ export async function renderToHTMLOrFlight(
       if (capturedErrors.length > 0) {
         throw capturedErrors[0]
       }
-      // const before = Buffer.concat(
-      //   serverComponentsRenderOpts.rscChunks
-      // ).toString()
 
       // TODO-APP: derive this from same pass to prevent additional
       // render during static generation
@@ -1871,14 +2092,24 @@ export async function renderToHTMLOrFlight(
         await generateFlight()
       )
 
-      if (staticGenerationStore?.forceStatic === false) {
-        staticGenerationStore.fetchRevalidate = 0
+      if (staticGenerationStore.forceStatic === false) {
+        staticGenerationStore.revalidate = 0
       }
+
+      // TODO: investigate why `pageData` is not in RenderOpts
       ;(renderOpts as any).pageData = filteredFlightData
+
+      // TODO: investigate why `revalidate` is not in RenderOpts
       ;(renderOpts as any).revalidate =
-        typeof staticGenerationStore?.fetchRevalidate === 'undefined'
-          ? defaultRevalidate
-          : staticGenerationStore?.fetchRevalidate
+        staticGenerationStore.revalidate ?? defaultRevalidate
+
+      // provide bailout info for debugging
+      if ((renderOpts as any).revalidate === 0) {
+        ;(renderOpts as any).staticBailoutInfo = {
+          description: staticGenerationStore.dynamicUsageDescription,
+          stack: staticGenerationStore.dynamicUsageStack,
+        }
+      }
 
       return new RenderResult(htmlResult)
     }
@@ -1886,87 +2117,14 @@ export async function renderToHTMLOrFlight(
     return renderResult
   }
 
-  const initialStaticGenerationStore = {
-    isStaticGeneration,
-    inUse: true,
-    pathname,
-    incrementalCache: renderOpts.incrementalCache,
-    isRevalidate: renderOpts.isRevalidate,
-  }
-
-  const tryGetPreviewData =
-    process.env.NEXT_RUNTIME === 'edge'
-      ? () => false
-      : require('./api-utils/node').tryGetPreviewData
-
-  // Reads of this are cached on the `req` object, so this should resolve
-  // instantly. There's no need to pass this data down from a previous
-  // invoke, where we'd have to consider server & serverless.
-  const previewData = tryGetPreviewData(
-    req,
-    res,
-    (renderOpts as any).previewProps
-  )
-
-  let cachedHeadersInstance: ReadonlyHeaders | undefined
-  let cachedCookiesInstance: ReadonlyRequestCookies | undefined
-
-  const requestStore = {
-    get headers() {
-      if (!cachedHeadersInstance) {
-        cachedHeadersInstance = new ReadonlyHeaders(
-          headersWithoutFlight(req.headers)
-        )
-      }
-      return cachedHeadersInstance
-    },
-    get cookies() {
-      if (!cachedCookiesInstance) {
-        cachedCookiesInstance = new ReadonlyRequestCookies({
-          headers: {
-            get: (key) => {
-              if (key !== 'cookie') {
-                throw new Error('Only cookie header is supported')
-              }
-              return req.headers.cookie
-            },
-          },
-        })
-      }
-      return cachedCookiesInstance
-    },
-    previewData,
-  }
-
-  function handleRequestStoreRun<T>(fn: () => T): Promise<T> {
-    if ('getStore' in requestAsyncStorage) {
-      return new Promise((resolve, reject) => {
-        requestAsyncStorage.run(requestStore, () => {
-          return Promise.resolve(fn()).then(resolve).catch(reject)
-        })
-      })
-    } else {
-      Object.assign(requestAsyncStorage, requestStore)
-      return Promise.resolve(fn())
-    }
-  }
-
-  function handleStaticGenerationStoreRun<T>(fn: () => T): Promise<T> {
-    if ('getStore' in staticGenerationAsyncStorage) {
-      return new Promise((resolve, reject) => {
-        staticGenerationAsyncStorage.run(initialStaticGenerationStore, () => {
-          return Promise.resolve(fn()).then(resolve).catch(reject)
-        })
-      })
-    } else {
-      Object.assign(staticGenerationAsyncStorage, initialStaticGenerationStore)
-      return Promise.resolve(fn()).finally(() => {
-        staticGenerationAsyncStorage.inUse = false
-      })
-    }
-  }
-
-  return handleRequestStoreRun(() =>
-    handleStaticGenerationStoreRun(() => wrappedRender())
+  return runWithRequestAsyncStorage(
+    requestAsyncStorage,
+    { req, res, renderOpts },
+    () =>
+      runWithStaticGenerationAsyncStorage(
+        staticGenerationAsyncStorage,
+        { pathname, renderOpts },
+        () => wrappedRender()
+      )
   )
 }

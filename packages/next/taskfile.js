@@ -88,6 +88,79 @@ export async function ncc_node_html_parser(task, opts) {
     .target('src/compiled/node-html-parser')
 }
 
+export async function ncc_next_server(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('next/dist/server/next-server'))
+    )
+    .ncc({
+      bundleName: 'next-server',
+      // minify: false,
+      externals: {
+        ...externals,
+
+        '/(.*)route-resolver/': '$1route-resolver',
+
+        sharp: 'sharp',
+        react: 'react',
+        'react-dom': 'react-dom',
+
+        'next/dist/compiled/compression': 'next/dist/compiled/compression',
+
+        critters: 'critters',
+
+        'next/dist/compiled/jest-worker': 'next/dist/compiled/jest-worker',
+
+        'next/dist/compiled/react': 'next/dist/compiled/react',
+        '/next/dist/compiled/react(/.+)/': 'next/dist/compiled/react$1',
+        'next/dist/compiled/react-dom': 'next/dist/compiled/react-dom',
+        '/next/dist/compiled/react-dom(/.+)/': 'next/dist/compiled/react-dom$1',
+
+        // react contexts must be external
+        '/(.*)server-inserted-html/':
+          'next/dist/shared/lib/server-inserted-html.js',
+
+        '/(.+/)router-context/': 'next/dist/shared/lib/router-context.js',
+
+        '/(.*)loadable-context/': 'next/dist/shared/lib/loadable-context.js',
+
+        '/(.*)image-config-context/':
+          'next/dist/shared/lib/image-config-context.js',
+
+        '/(.*)head-manager-context/':
+          'next/dist/shared/lib/head-manager-context.js',
+
+        '/(.*)app-router-context/':
+          'next/dist/shared/lib/app-router-context.js',
+
+        '/(.*)amp-context/': 'next/dist/shared/lib/amp-context.js',
+
+        '/(.*)hooks-client-context/':
+          'next/dist/shared/lib/hooks-client-context.js',
+
+        '/(.*)html-context/': 'next/dist/shared/lib/html-context.js',
+
+        // 'next/dist/compiled/undici': 'next/dist/compiled/undici',
+        // 'next/dist/compiled/node-fetch': 'next/dist/compiled/node-fetch',
+
+        // '/(.*)google-font-metrics.json/': '$1google-font-metrics.json',
+        '/(.*)next-config-validate.js/': '$1/next-config-validate.js',
+
+        '/(.*)server/web(.*)/': '$1server/web$2',
+        './web/sandbox': './web/sandbox',
+        'next/dist/compiled/edge-runtime': 'next/dist/compiled/edge-runtime',
+        '(.*)@edge-runtime/primitives': '$1@edge-runtime/primitives',
+
+        '/(.*)compiled/webpack(/.*)/': '$1webpack$2',
+        './image-optimizer': './image-optimizer',
+        '/(.*)@ampproject/toolbox-optimizer/':
+          '$1@ampproject/toolbox-optimizer',
+      },
+    })
+    .target('dist/compiled/next-server')
+}
+
 // eslint-disable-next-line camelcase
 externals['@babel/runtime'] = 'next/dist/compiled/@babel/runtime'
 export async function copy_babel_runtime(task, opts) {
@@ -1007,7 +1080,7 @@ export async function ncc_babel_bundle(task, opts) {
     delete bundleExternals[pkg]
   }
   await task
-    .source('bundles/babel/bundle.js')
+    .source('src/bundles/babel/bundle.js')
     .ncc({
       packageName: '@babel/core',
       bundleName: 'babel',
@@ -1033,7 +1106,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
   await fs.writeFile(eslintParseFile, replacedContent)
 
   await task
-    .source('bundles/babel/packages-bundle.js')
+    .source('src/bundles/babel/packages-bundle.js')
     .ncc({
       externals: externals,
     })
@@ -1044,7 +1117,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
     JSON.stringify({ name: 'babel-packages', main: './packages-bundle.js' })
   )
 
-  await task.source('bundles/babel/packages/*').target('src/compiled/babel')
+  await task.source('src/bundles/babel/packages/*').target('src/compiled/babel')
 }
 
 // eslint-disable-next-line camelcase
@@ -1285,7 +1358,14 @@ externals['native-url'] = 'next/dist/compiled/native-url'
 export async function ncc_native_url(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('native-url')))
-    .ncc({ packageName: 'native-url', externals, target: 'es5' })
+    .ncc({
+      packageName: 'native-url',
+      externals: {
+        ...externals,
+        querystring: 'next/dist/compiled/querystring-es3',
+      },
+      target: 'es5',
+    })
     .target('src/compiled/native-url')
 }
 // eslint-disable-next-line camelcase
@@ -1500,6 +1580,16 @@ export async function ncc_react(task, opts) {
   await fs.remove(
     join(reactDomCompiledDir, 'unstable_server-external-runtime.js')
   )
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_rsc_poison_packages(task, opts) {
+  await task
+    .source(join(dirname(require.resolve('server-only')), '*'))
+    .target('src/compiled/server-only')
+  await task
+    .source(join(dirname(require.resolve('client-only')), '*'))
+    .target('src/compiled/client-only')
 }
 
 // eslint-disable-next-line camelcase
@@ -1829,7 +1919,7 @@ export async function ncc_webpack_bundle5(task, opts) {
     delete bundleExternals[pkg]
   }
   await task
-    .source('bundles/webpack/bundle5.js')
+    .source('src/bundles/webpack/bundle5.js')
     .ncc({
       packageName: 'webpack',
       bundleName: 'webpack',
@@ -1853,7 +1943,7 @@ Object.assign(externals, webpackBundlePackages)
 
 export async function ncc_webpack_bundle_packages(task, opts) {
   await task
-    .source('bundles/webpack/packages/*')
+    .source('src/bundles/webpack/packages/*')
     .target('src/compiled/webpack/')
 }
 
@@ -2058,7 +2148,11 @@ export async function compile(task, opts) {
     ],
     opts
   )
-  await task.serial(['ncc_react_refresh_utils', 'ncc_next__react_dev_overlay'])
+  await task.serial([
+    'ncc_react_refresh_utils',
+    'ncc_next__react_dev_overlay',
+    'ncc_next_server',
+  ])
 }
 
 export async function bin(task, opts) {
@@ -2077,14 +2171,14 @@ export async function cli(task, opts) {
 
 export async function lib(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx)')
+    .source('src/lib/**/*.+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx)')
+    .source('src/lib/**/*.+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }
@@ -2271,7 +2365,7 @@ export default async function (task) {
 export async function shared(task, opts) {
   await task
     .source(
-      'src/shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)'
+      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head|runtime-config).+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev })
     .target('dist/shared')
@@ -2279,7 +2373,9 @@ export async function shared(task, opts) {
 
 export async function shared_esm(task, opts) {
   await task
-    .source('src/shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)')
+    .source(
+      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head).+(js|ts|tsx)'
+    )
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/shared')
 }
@@ -2287,7 +2383,7 @@ export async function shared_esm(task, opts) {
 export async function shared_re_exported(task, opts) {
   await task
     .source(
-      'src/shared/**/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)'
+      'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
@@ -2295,7 +2391,9 @@ export async function shared_re_exported(task, opts) {
 
 export async function shared_re_exported_esm(task, opts) {
   await task
-    .source('src/shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)')
+    .source(
+      'src/shared/**/{amp,config,constants,app-dynamic,dynamic,head}.+(js|ts|tsx)'
+    )
     .swc('client', {
       dev: opts.dev,
       esm: true,

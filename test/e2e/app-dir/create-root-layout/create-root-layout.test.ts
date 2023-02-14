@@ -2,6 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 describe('app-dir create root layout', () => {
   const isDev = (global as any).isNextDev
@@ -41,10 +42,10 @@ describe('app-dir create root layout', () => {
           )
 
           await check(
-            () => next.cliOutput.slice(outputIndex),
+            () => stripAnsi(next.cliOutput.slice(outputIndex)),
             /did not have a root layout/
           )
-          expect(next.cliOutput.slice(outputIndex)).toMatch(
+          expect(stripAnsi(next.cliOutput.slice(outputIndex))).toMatch(
             'Your page app/route/page.js did not have a root layout. We created app/layout.js and app/head.js for you.'
           )
 
@@ -101,10 +102,10 @@ describe('app-dir create root layout', () => {
           )
 
           await check(
-            () => next.cliOutput.slice(outputIndex),
+            () => stripAnsi(next.cliOutput.slice(outputIndex)),
             /did not have a root layout/
           )
-          expect(next.cliOutput.slice(outputIndex)).toInclude(
+          expect(stripAnsi(next.cliOutput.slice(outputIndex))).toInclude(
             'Your page app/(group)/page.js did not have a root layout. We created app/(group)/layout.js and app/(group)/head.js for you.'
           )
 
@@ -163,10 +164,10 @@ describe('app-dir create root layout', () => {
           )
 
           await check(
-            () => next.cliOutput.slice(outputIndex),
+            () => stripAnsi(next.cliOutput.slice(outputIndex)),
             /did not have a root layout/
           )
-          expect(next.cliOutput.slice(outputIndex)).toInclude(
+          expect(stripAnsi(next.cliOutput.slice(outputIndex))).toInclude(
             'Your page app/(group)/route/second/inner/page.js did not have a root layout. We created app/(group)/route/second/layout.js and app/(group)/route/second/head.js for you.'
           )
 
@@ -224,10 +225,10 @@ describe('app-dir create root layout', () => {
         )
 
         await check(
-          () => next.cliOutput.slice(outputIndex),
+          () => stripAnsi(next.cliOutput.slice(outputIndex)),
           /did not have a root layout/
         )
-        expect(next.cliOutput.slice(outputIndex)).toInclude(
+        expect(stripAnsi(next.cliOutput.slice(outputIndex))).toInclude(
           'Your page app/page.tsx did not have a root layout. We created app/layout.tsx and app/head.tsx for you.'
         )
 
@@ -281,7 +282,7 @@ describe('app-dir create root layout', () => {
         })
 
         await expect(next.start()).rejects.toThrow('next build failed')
-        expect(next.cliOutput).toInclude(
+        expect(stripAnsi(next.cliOutput)).toInclude(
           "page.js doesn't have a root layout. To fix this error, make sure every page has a root layout."
         )
         await next.destroy()

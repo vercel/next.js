@@ -186,7 +186,6 @@ export function runNextCommand(argv, options = {}) {
     ...process.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
-    NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
     ...options.env,
   }
 
@@ -283,7 +282,7 @@ export function runNextCommand(argv, options = {}) {
 
 export function runNextCommandDev(argv, stdOut, opts = {}) {
   const nextDir = path.dirname(require.resolve('next/package'))
-  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const nextBin = opts.nextBin || path.join(nextDir, 'dist/bin/next')
   const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
@@ -769,22 +768,13 @@ export function readNextBuildClientPageFile(appDir, page) {
 export function getPagesManifest(dir) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return readJson(serverFile)
-  }
-  return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+  return readJson(serverFile)
 }
 
 export function updatePagesManifest(dir, content) {
   const serverFile = path.join(dir, '.next/server/pages-manifest.json')
 
-  if (existsSync(serverFile)) {
-    return writeFile(serverFile, content)
-  }
-  return writeFile(
-    path.join(dir, '.next/serverless/pages-manifest.json'),
-    content
-  )
+  return writeFile(serverFile, content)
 }
 
 export function getPageFileFromPagesManifest(dir, page) {
@@ -939,4 +929,21 @@ export function shouldRunTurboDevTest() {
 
   // If the test path matches the glob pattern, add additional case to run the test with `--turbo` flag.
   return isMatch
+}
+
+// WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
+// test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
+// to avoid force-snapshot update per each runs until turbopack update includes all the changes.
+export function getSnapshotTestDescribe(variant) {
+  const runningEnv = variant ?? 'default'
+  if (runningEnv !== 'default' && runningEnv !== 'turbo') {
+    throw new Error(`Check if test env passed correctly ${variant}`)
+  }
+
+  const shouldRunTurboDev = shouldRunTurboDevTest()
+  const shouldSkip =
+    (runningEnv === 'turbo' && !shouldRunTurboDev) ||
+    (runningEnv === 'default' && shouldRunTurboDev)
+
+  return shouldSkip ? describe.skip : describe
 }

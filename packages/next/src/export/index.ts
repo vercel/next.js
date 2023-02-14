@@ -25,6 +25,7 @@ import {
   FLIGHT_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   FONT_LOADER_MANIFEST,
+  MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -48,6 +49,7 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from '../build/webpack/require-hook'
+import { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -140,6 +142,7 @@ interface ExportOptions {
   outdir: string
   silent?: boolean
   threads?: number
+  debugOutput?: boolean
   pages?: string[]
   buildExport?: boolean
   statusMessage?: string
@@ -507,29 +510,42 @@ export default async function exportApp(
         )
       }
     }
+    let hasMiddleware = false
 
-    // Warn if the user defines a path for an API page
-    if (hasApiRoutes) {
-      if (!options.silent) {
-        Log.warn(
-          chalk.yellow(
-            `Statically exporting a Next.js application via \`next export\` disables API routes.`
-          ) +
-            `\n` +
+    if (!options.buildExport) {
+      try {
+        const middlewareManifest = require(join(
+          distDir,
+          SERVER_DIRECTORY,
+          MIDDLEWARE_MANIFEST
+        )) as MiddlewareManifest
+
+        hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
+      } catch (_) {}
+
+      // Warn if the user defines a path for an API page
+      if (hasApiRoutes || hasMiddleware) {
+        if (!options.silent) {
+          Log.warn(
             chalk.yellow(
-              `This command is meant for static-only hosts, and is` +
-                ' ' +
-                chalk.bold(`not necessary to make your application static.`)
+              `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
             ) +
-            `\n` +
-            chalk.yellow(
-              `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
-            ) +
-            `\n` +
-            chalk.yellow(
-              `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
-            )
-        )
+              `\n` +
+              chalk.yellow(
+                `This command is meant for static-only hosts, and is` +
+                  ' ' +
+                  chalk.bold(`not necessary to make your application static.`)
+              ) +
+              `\n` +
+              chalk.yellow(
+                `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
+              ) +
+              `\n` +
+              chalk.yellow(
+                `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
+              )
+          )
+        }
       }
     }
 
@@ -630,6 +646,7 @@ export default async function exportApp(
             serverComponents: hasAppDir,
             appPaths: options.appPaths || [],
             enableUndici: nextConfig.experimental.enableUndici,
+            debugOutput: options.debugOutput,
           })
 
           for (const validation of result.ampValidations || []) {

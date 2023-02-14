@@ -74,11 +74,10 @@ export default class FetchCache implements CacheHandler {
         }
 
         const items = await res.json()
-        const item = items[key]
+        const item = items?.[key]
 
         if (!item || !item.value) {
-          console.log({ item })
-          throw new Error(`invalid item returned`)
+          throw new Error(`invalid item returned ${JSON.stringify({ item })}`)
         }
 
         const cached = JSON.parse(item.value)
@@ -94,9 +93,9 @@ export default class FetchCache implements CacheHandler {
         }
         if (this.debug) {
           console.log(
-            'got fetch cache entry duration:',
-            Date.now() - start,
-            data
+            `got fetch cache entry for ${key}, duration: ${
+              Date.now() - start
+            }ms, size: ${item.value.length}`
           )
         }
 
@@ -148,9 +147,9 @@ export default class FetchCache implements CacheHandler {
 
       if (this.debug) {
         console.log(
-          'successfully set to fetch-cache duration:',
-          Date.now() - start,
-          body
+          `successfully set to fetch-cache for ${key}, duration: ${
+            Date.now() - start
+          }ms, size: ${body.length}`
         )
       }
     } catch (err) {

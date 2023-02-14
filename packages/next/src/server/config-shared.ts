@@ -46,6 +46,40 @@ export interface TypeScriptConfig {
   tsconfigPath?: string
 }
 
+type JSONValue =
+  | string
+  | number
+  | boolean
+  | JSONValue[]
+  | { [k: string]: JSONValue }
+
+type TurboLoaderItem =
+  | string
+  | {
+      loader: string
+      // At the moment, Turbopack options must be JSON-serializable, so restrict values.
+      options: Record<string, JSONValue>
+    }
+
+interface ExperimentalTurboOptions {
+  /**
+   * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
+   *
+   * @see [Resolve Alias](https://nextjs.org/docs/api-reference/next.config.js/resolve-alias)
+   */
+  resolveAlias?: Record<
+    string,
+    string | string[] | Record<string, string | string[]>
+  >
+
+  /**
+   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   *
+   * @see [Turbopack Loaders](https://nextjs.org/docs/api-reference/next.config.js/turbopack-loaders)
+   */
+  loaders?: Record<string, TurboLoaderItem[]>
+}
+
 export interface WebpackConfigContext {
   /** Next.js root directory */
   dir: string
@@ -79,9 +113,13 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  externalMiddlewareRewritesResolve?: boolean
+  extensionAlias?: Record<string, any>
+  allowedRevalidateHeaderKeys?: string[]
   fetchCache?: boolean
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
+  preCompiledNextServer?: boolean
   legacyBrowsers?: boolean
   manualClientBasePath?: boolean
   newNextLinkBehavior?: boolean
@@ -155,6 +193,8 @@ export interface ExperimentalConfig {
   fontLoaders?: Array<{ loader: string; options?: any }>
 
   webVitalsAttribution?: Array<typeof WEB_VITALS[number]>
+
+  turbo?: ExperimentalTurboOptions
   turbotrace?: {
     logLevel?:
       | 'bug'
@@ -169,9 +209,19 @@ export interface ExperimentalConfig {
     logAll?: boolean
     contextDirectory?: string
     processCwd?: string
-    maxFiles?: number
+    /** in `MB` */
+    memoryLimit?: number
   }
   mdxRs?: boolean
+
+  // Generate Route types and enable type checking for Link and Router.push, etc.
+  // This option requires `appDir` to be enabled first.
+  typedRoutes?: boolean
+
+  /**
+   * This option is to enable running the Webpack build in a worker thread.
+   */
+  webpackBuildWorker?: boolean
 }
 
 export type ExportPathMap = {
@@ -570,6 +620,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    preCompiledNextServer: false,
     fetchCache: false,
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
@@ -613,9 +664,47 @@ export const defaultConfig: NextConfig = {
     enableUndici: false,
     adjustFontFallbacks: false,
     adjustFontFallbacksWithSizeAdjust: false,
+    turbo: undefined,
     turbotrace: undefined,
+    typedRoutes: false,
   },
 }
+
+export function setFontLoaderDefaults(config: NextConfig) {
+  try {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    require('@next/font/package.json')
+
+    const googleFontLoader = {
+      loader: '@next/font/google',
+    }
+    const localFontLoader = {
+      loader: '@next/font/local',
+    }
+    if (!config.experimental) {
+      config.experimental = {}
+    }
+    if (!config.experimental.fontLoaders) {
+      config.experimental.fontLoaders = []
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === googleFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(googleFontLoader)
+    }
+    if (
+      !config.experimental.fontLoaders.find(
+        ({ loader }: any) => loader === localFontLoader.loader
+      )
+    ) {
+      config.experimental.fontLoaders.push(localFontLoader)
+    }
+  } catch {}
+}
+
+setFontLoaderDefaults(defaultConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {

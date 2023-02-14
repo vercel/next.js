@@ -229,6 +229,9 @@ const configSchema = {
         adjustFontFallbacksWithSizeAdjust: {
           type: 'boolean',
         },
+        allowedRevalidateHeaderKeys: {
+          type: 'array',
+        },
         amp: {
           additionalProperties: false,
           properties: {
@@ -269,7 +272,13 @@ const configSchema = {
         appDir: {
           type: 'boolean',
         },
+        extensionAlias: {
+          type: 'object',
+        },
         externalDir: {
+          type: 'boolean',
+        },
+        externalMiddlewareRewritesResolve: {
           type: 'boolean',
         },
         fallbackNodePolyfills: {
@@ -343,6 +352,9 @@ const configSchema = {
           type: 'object',
         },
         pageEnv: {
+          type: 'boolean',
+        },
+        preCompiledNextServer: {
           type: 'boolean',
         },
         proxyTimeout: {
@@ -435,6 +447,24 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        typedRoutes: {
+          type: 'boolean',
+        },
+        webpackBuildWorker: {
+          type: 'boolean',
+        },
+        turbo: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            loaders: {
+              type: 'object',
+            },
+            resolveAlias: {
+              type: 'object',
+            },
+          },
+        },
         turbotrace: {
           type: 'object',
           properties: {
@@ -463,7 +493,7 @@ const configSchema = {
             processCwd: {
               type: 'string',
             },
-            maxFiles: {
+            memoryLimit: {
               type: 'integer',
             },
           },

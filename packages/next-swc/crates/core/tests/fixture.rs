@@ -2,6 +2,7 @@ use next_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark},
         ecma::parser::{EsConfig, Syntax},
+        ecma::transforms::base::resolver,
         ecma::transforms::react::jsx,
         ecma::transforms::testing::{test, test_fixture},
     },
@@ -17,6 +18,7 @@ use next_swc::{
     react_server_components::server_components,
     relay::{relay, Config as RelayConfig, RelayLanguageConfig},
     remove_console::remove_console,
+    server_actions::{self, server_actions},
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
 };
 use std::path::PathBuf;
@@ -251,6 +253,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: true },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,
@@ -271,6 +274,7 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
                     next_swc::react_server_components::Options { is_server: false },
                 ),
                 tr.comments.as_ref().clone(),
+                None,
             )
         },
         &input,
@@ -289,6 +293,27 @@ fn next_font_loaders_fixture(input: PathBuf) {
                 relative_file_path_from_root: "pages/test.tsx".into(),
                 font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
             })
+        },
+        &input,
+        &output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/server-actions/**/input.js")]
+fn server_actions_fixture(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            chain!(
+                resolver(Mark::new(), Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config { is_server: true },
+                    _tr.comments.as_ref().clone(),
+                )
+            )
         },
         &input,
         &output,

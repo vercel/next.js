@@ -1,4 +1,16 @@
 import type { NextConfigComplete } from '../server/config-shared'
+import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import type { AssetBinding } from './webpack/loaders/get-module-build-info'
+import type { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
+import type { BuildManifest } from '../server/get-page-files'
+import type {
+  Redirect,
+  Rewrite,
+  Header,
+  CustomRoutes,
+} from '../lib/load-custom-routes'
+import type { UnwrapPromise } from '../lib/coalesced-function'
+import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
@@ -9,12 +21,6 @@ import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import browserslist from 'next/dist/compiled/browserslist'
-import {
-  Redirect,
-  Rewrite,
-  Header,
-  CustomRoutes,
-} from '../lib/load-custom-routes'
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
@@ -28,10 +34,7 @@ import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
-import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
-import { BuildManifest } from '../server/get-page-files'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { UnwrapPromise } from '../lib/coalesced-function'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
@@ -43,16 +46,14 @@ import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
-import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { getRuntimeContext } from '../server/web/sandbox'
 import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
-import { AssetBinding } from './webpack/loaders/get-module-build-info'
+import { isClientReference } from './is-client-reference'
 
 loadRequireHook()
 if (process.env.NEXT_PREBUNDLED_REACT) {
@@ -1048,7 +1049,7 @@ export async function buildStaticPaths({
 export type AppConfig = {
   revalidate?: number | false
   dynamicParams?: true | false
-  dynamic?: 'auto' | 'error' | 'force-static'
+  dynamic?: 'auto' | 'error' | 'force-static' | 'force-dynamic'
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
@@ -1100,14 +1101,18 @@ export const collectGenerateParams = async (
     : segment[2]?.page?.[0]?.())
   const config = collectAppConfig(mod)
 
+  const isClientComponent = isClientReference(mod)
+
   const result = {
     isLayout,
     segmentPath: `/${parentSegments.join('/')}${
       segment[0] && parentSegments.length > 0 ? '/' : ''
     }${segment[0]}`,
     config,
-    getStaticPaths: mod?.getStaticPaths,
-    generateStaticParams: mod?.generateStaticParams,
+    getStaticPaths: isClientComponent ? undefined : mod?.getStaticPaths,
+    generateStaticParams: isClientComponent
+      ? undefined
+      : mod?.generateStaticParams,
   }
 
   if (segment[0]) {
@@ -1191,7 +1196,10 @@ export async function buildAppStaticPaths({
     if (!hadGenerateParams) {
       return {
         paths: undefined,
-        fallback: undefined,
+        fallback:
+          process.env.NODE_ENV === 'production' && isDynamicRoute(page)
+            ? true
+            : undefined,
         encodedPaths: undefined,
       }
     }
@@ -1266,6 +1274,7 @@ export async function isPageStatic({
       let encodedPrerenderRoutes: Array<string> | undefined
       let prerenderFallback: boolean | 'blocking' | undefined
       let appConfig: AppConfig = {}
+      let isClientComponent: boolean = false
 
       if (isEdgeRuntime(pageRuntime)) {
         const runtime = await getRuntimeContext({
@@ -1285,6 +1294,7 @@ export async function isPageStatic({
         const mod =
           runtime.context._ENTRIES[`middleware_${edgeInfo.name}`].ComponentMod
 
+        isClientComponent = isClientReference(mod)
         componentsResult = {
           Component: mod.default,
           ComponentMod: mod,
@@ -1310,6 +1320,7 @@ export async function isPageStatic({
         | undefined
 
       if (pageType === 'app') {
+        isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
         const generateParams = await collectGenerateParams(tree)
 
@@ -1350,6 +1361,10 @@ export async function isPageStatic({
           },
           {}
         )
+
+        if (appConfig.dynamic === 'force-dynamic') {
+          appConfig.revalidate = 0
+        }
 
         if (isDynamicRoute(page)) {
           ;({
@@ -1451,7 +1466,9 @@ export async function isPageStatic({
       }
 
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
-      const config: PageConfig = componentsResult.pageConfig
+      const config: PageConfig = isClientComponent
+        ? {}
+        : componentsResult.pageConfig
 
       if (config.unstable_includeFiles || config.unstable_excludeFiles) {
         Log.warn(
@@ -1730,6 +1747,7 @@ export async function copyTracedFiles(
     path.relative(tracingRoot, dir),
     'server.js'
   )
+  await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
   await fs.writeFile(
     serverOutputPath,
     `${
@@ -1767,6 +1785,7 @@ const server = http.createServer(async (req, res) => {
   }
 })
 const currentPort = parseInt(process.env.PORT, 10) || 3000
+const hostname = process.env.HOSTNAME || 'localhost'
 
 server.listen(currentPort, (err) => {
   if (err) {
@@ -1774,7 +1793,7 @@ server.listen(currentPort, (err) => {
     process.exit(1)
   }
   const nextServer = new NextServer({
-    hostname: 'localhost',
+    hostname,
     port: currentPort,
     dir: path.join(__dirname),
     dev: false,
@@ -1789,7 +1808,7 @@ server.listen(currentPort, (err) => {
   console.log(
     'Listening on port',
     currentPort,
-    'url: http://localhost:' + currentPort
+    'url: http://' + hostname + ':' + currentPort
   )
 })`
   )

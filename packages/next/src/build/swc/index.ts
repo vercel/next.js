@@ -20,7 +20,7 @@ const triples = platformArchTriples[PlatformName][ArchName] || []
 // binary instead. This will not affect existing swc's transform, or other interfaces. This is thin,
 // naive interface - `loadBindings` will not validate neither path nor the binary.
 //
-// Note these are internal flag: there's no stability, feature gaurentee.
+// Note these are internal flag: there's no stability, feature guarantee.
 const __INTERNAL_CUSTOM_TURBOPACK_BINARY =
   process.env.__INTERNAL_CUSTOM_TURBOPACK_BINARY
 const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
@@ -441,8 +441,13 @@ function loadNative(isCustomTurbopack = false) {
             require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startDev(devOptions)
           }
         },
-        startTrace: (options = {}) =>
-          bindings.runTurboTracing(toBuffer({ exact: true, ...options })),
+        startTrace: (options = {}, turboTasks: unknown) =>
+          bindings.runTurboTracing(
+            toBuffer({ exact: true, ...options }),
+            turboTasks
+          ),
+        createTurboTasks: (memoryLimit?: number): unknown =>
+          bindings.createTurboTasks(memoryLimit),
       },
       mdx: {
         compile: (src: string, options: any) =>

@@ -913,6 +913,101 @@ const runTests = (isDev = false) => {
     )
   })
 
+  it('should match missing header headers correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-headers-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-headers-1', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-new-header')).toBe('new-value')
+  })
+
+  it('should match missing query headers correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-headers-2', {
+      'my-query': 'hellooo',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-headers-2', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-new-header')).toBe('new-value')
+  })
+
+  it('should match missing cookie headers correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-headers-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-headers-3', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-new-header')).toBe('new-value')
+  })
+
+  it('should match missing header redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-rewrite-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-redirect-1', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(307)
+    const url = new URL(res2.headers.get('location'), 'http://n')
+    expect(url.pathname).toBe('/with-params')
+  })
+
+  it('should match missing query redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-redirect-2', {
+      'my-query': 'hellooo',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-redirect-2', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(307)
+    const url = new URL(res2.headers.get('location'), 'http://n')
+    expect(url.pathname).toBe('/with-params')
+  })
+
+  it('should match missing cookie redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/missing-redirect-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(404)
+
+    const res2 = await fetchViaHTTP(appPort, '/missing-redirect-3', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(307)
+    const url = new URL(res2.headers.get('location'), 'http://n')
+    expect(url.pathname).toBe('/with-params')
+    expect(url.search).toBe('?authorized=1')
+  })
+
   it('should match missing header rewrite correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/missing-rewrite-1', undefined, {
       headers: {
@@ -1380,6 +1475,50 @@ const runTests = (isDev = false) => {
             internal: true,
           },
           {
+            destination: '/with-params',
+            missing: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/missing-redirect-1(?:\\/)?$'
+            ),
+            source: '/missing-redirect-1',
+            statusCode: 307,
+          },
+          {
+            destination: '/with-params',
+            missing: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/missing-redirect-2(?:\\/)?$'
+            ),
+            source: '/missing-redirect-2',
+            statusCode: 307,
+          },
+          {
+            destination: '/with-params?authorized=1',
+            missing: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: '(?<loggedIn>true)',
+              },
+            ],
+            regex: normalizeRegEx(
+              '^(?!\\/_next)\\/missing-redirect-3(?:\\/)?$'
+            ),
+            source: '/missing-redirect-3',
+            statusCode: 307,
+          },
+          {
             destination: '/:lang/about',
             regex: normalizeRegEx(
               '^(?!\\/_next)\\/redirect\\/me\\/to-about(?:\\/([^\\/]+?))(?:\\/)?$'
@@ -1620,6 +1759,56 @@ const runTests = (isDev = false) => {
           },
         ],
         headers: [
+          {
+            headers: [
+              {
+                key: 'x-new-header',
+                value: 'new-value',
+              },
+            ],
+            missing: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            regex: normalizeRegEx('^\\/missing-headers-1(?:\\/)?$'),
+            source: '/missing-headers-1',
+          },
+          {
+            headers: [
+              {
+                key: 'x-new-header',
+                value: 'new-value',
+              },
+            ],
+            missing: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            regex: normalizeRegEx('^\\/missing-headers-2(?:\\/)?$'),
+            source: '/missing-headers-2',
+          },
+          {
+            headers: [
+              {
+                key: 'x-new-header',
+                value: 'new-value',
+              },
+            ],
+            missing: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: '(?<loggedIn>true)',
+              },
+            ],
+            regex: normalizeRegEx('^\\/missing-headers-3(?:\\/)?$'),
+            source: '/missing-headers-3',
+          },
           {
             headers: [
               {
@@ -2298,6 +2487,7 @@ const runTests = (isDev = false) => {
         ],
         rsc: {
           header: 'RSC',
+          contentTypeHeader: 'text/x-component',
           varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
         },
       })

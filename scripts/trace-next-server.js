@@ -38,7 +38,7 @@ async function main() {
   console.log('using repodir', repoDir)
   await fs.ensureDir(workDir)
 
-  const pkgPaths = await linkPackages({ repoDir })
+  const pkgPaths = await linkPackages({ repoDir: origRepoDir })
 
   await fs.writeFile(
     path.join(workDir, 'package.json'),

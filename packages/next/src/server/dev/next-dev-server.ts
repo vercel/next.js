@@ -77,6 +77,7 @@ import {
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
+import { pageFiles } from '../../build/webpack/plugins/flight-types-plugin'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -126,7 +127,9 @@ export default class DevServer extends Server {
       require.resolve('./static-paths-worker'),
       {
         maxRetries: 1,
-        numWorkers: this.nextConfig.experimental.cpus,
+        // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
+        // This helps reusing the memory a lot.
+        numWorkers: Math.min(this.nextConfig.experimental.cpus || 2, 2),
         enableWorkerThreads: this.nextConfig.experimental.workerThreads,
         forkOptions: {
           env: {
@@ -336,6 +339,8 @@ export default class DevServer extends Server {
         let envChange = false
         let tsconfigChange = false
 
+        pageFiles.clear()
+
         for (const [fileName, meta] of knownFiles) {
           if (
             !files.includes(fileName) &&
@@ -378,6 +383,8 @@ export default class DevServer extends Server {
                 normalizePathSep(this.appDir)
               )
           )
+
+          pageFiles.add(fileName)
 
           const rootFile = absolutePathToPage(fileName, {
             pagesDir: this.dir,
@@ -1443,7 +1450,12 @@ export default class DevServer extends Server {
       // patched global in memory, creating a memory leak.
       this.restorePatchedGlobals()
 
-      return super.findPageComponents({ pathname, query, params, isAppPath })
+      return await super.findPageComponents({
+        pathname,
+        query,
+        params,
+        isAppPath,
+      })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
         throw err

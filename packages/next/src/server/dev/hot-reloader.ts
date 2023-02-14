@@ -17,7 +17,9 @@ import {
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
-import getBaseWebpackConfig from '../../build/webpack-config'
+import getBaseWebpackConfig, {
+  loadProjectInfo,
+} from '../../build/webpack-config'
 import { APP_DIR_ALIAS, WEBPACK_LAYERS } from '../../lib/constants'
 import { recursiveDelete } from '../../lib/recursive-delete'
 import {
@@ -58,7 +60,7 @@ export async function renderScriptError(
   res: ServerResponse,
   error: Error,
   { verbose = true } = {}
-) {
+): Promise<{ finished: true | undefined }> {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader(
     'Cache-Control',
@@ -66,9 +68,7 @@ export async function renderScriptError(
   )
 
   if ((error as any).code === 'ENOENT') {
-    res.statusCode = 404
-    res.end('404 - Not Found')
-    return
+    return { finished: undefined }
   }
 
   if (verbose) {
@@ -76,6 +76,7 @@ export async function renderScriptError(
   }
   res.statusCode = 500
   res.end('500 - Internal Error')
+  return { finished: true }
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
@@ -111,17 +112,16 @@ const matchNextPageBundleRequest = getPathMatch(
   '/_next/static/chunks/pages/:path*.js(\\.map|)'
 )
 
-// Recursively look up the issuer till it ends up at the root
+// Iteratively look up the issuer till it ends up at the root
 function findEntryModule(
-  compilation: webpack.Compilation,
-  issuerModule: any
+  module: webpack.Module,
+  compilation: webpack.Compilation
 ): any {
-  const issuer = compilation.moduleGraph.getIssuer(issuerModule)
-  if (issuer) {
-    return findEntryModule(compilation, issuer)
+  for (;;) {
+    const issuer = compilation.moduleGraph.getIssuer(module)
+    if (!issuer) return module
+    module = issuer
   }
-
-  return issuerModule
 }
 
 function erroredPages(compilation: webpack.Compilation) {
@@ -131,7 +131,7 @@ function erroredPages(compilation: webpack.Compilation) {
       continue
     }
 
-    const entryModule = findEntryModule(compilation, error.module)
+    const entryModule = findEntryModule(error.module, compilation)
     const { name } = entryModule
     if (!name) {
       continue
@@ -270,14 +270,14 @@ export default class HotReloader {
         try {
           await this.ensurePage({ page, clientOnly: true })
         } catch (error) {
-          await renderScriptError(pageBundleRes, getProperError(error))
-          return { finished: true }
+          return await renderScriptError(pageBundleRes, getProperError(error))
         }
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(pageBundleRes, errors[0], { verbose: false })
-          return { finished: true }
+          return await renderScriptError(pageBundleRes, errors[0], {
+            verbose: false,
+          })
         }
       }
 
@@ -479,32 +479,45 @@ export default class HotReloader {
 
       return webpackConfigSpan
         .traceChild('generate-webpack-config')
-        .traceAsyncFn(() =>
-          Promise.all([
+        .traceAsyncFn(async () => {
+          const info = await loadProjectInfo({
+            dir: this.dir,
+            config: commonWebpackOptions.config,
+            dev: true,
+          })
+          return Promise.all([
             // order is important here
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
               compilerType: COMPILER_NAMES.client,
               entrypoints: entrypoints.client,
+              ...info,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
               compilerType: COMPILER_NAMES.server,
               entrypoints: entrypoints.server,
+              ...info,
             }),
             getBaseWebpackConfig(this.dir, {
               ...commonWebpackOptions,
               compilerType: COMPILER_NAMES.edgeServer,
               entrypoints: entrypoints.edgeServer,
+              ...info,
             }),
           ])
-        )
+        })
     })
   }
 
   public async buildFallbackError(): Promise<void> {
     if (this.fallbackWatcher) return
 
+    const info = await loadProjectInfo({
+      dir: this.dir,
+      config: this.config,
+      dev: true,
+    })
     const fallbackConfig = await getBaseWebpackConfig(this.dir, {
       runWebpackSpan: this.hotReloaderSpan,
       dev: true,
@@ -535,6 +548,7 @@ export default class HotReloader {
           pageExtensions: this.config.pageExtensions,
         })
       ).client,
+      ...info,
     })
     const fallbackCompiler = webpack(fallbackConfig)
 
@@ -640,6 +654,7 @@ export default class HotReloader {
                       rootDir: this.dir,
                       isDev: true,
                       tsconfigPath: this.config.typescript.tsconfigPath,
+                      assetPrefix: this.config.assetPrefix,
                     }).import
                   : undefined
 
@@ -721,6 +736,7 @@ export default class HotReloader {
                         rootDir: this.dir,
                         isDev: true,
                         tsconfigPath: this.config.typescript.tsconfigPath,
+                        assetPrefix: this.config.assetPrefix,
                       })
                     : relativeRequest,
                   hasAppDir,

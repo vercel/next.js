@@ -32,7 +32,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
 import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 
 loadRequireHook()
@@ -74,6 +74,7 @@ interface ExportPageInput {
   serverComponents?: boolean
   appPaths: string[]
   enableUndici: NextConfigComplete['experimental']['enableUndici']
+  debugOutput?: boolean
 }
 
 interface ExportPageResults {
@@ -124,6 +125,7 @@ export default async function exportPage({
   httpAgentOptions,
   serverComponents,
   enableUndici,
+  debugOutput,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -364,8 +366,27 @@ export default async function exportPage({
             )
           } else if (isDynamicError) {
             throw new Error(
-              `Page with dynamic = "error" encountered dynamic data method ${path}.`
+              `Page with dynamic = "error" encountered dynamic data method on ${path}.`
             )
+          }
+
+          const { staticBailoutInfo = {} } = curRenderOpts as any
+
+          if (
+            revalidate === 0 &&
+            debugOutput &&
+            staticBailoutInfo?.description
+          ) {
+            const bailErr = new Error(
+              `Static generation failed due to dynamic usage on ${path}, reason: ${staticBailoutInfo.description}`
+            )
+            const stack = staticBailoutInfo.stack
+
+            if (stack) {
+              bailErr.stack =
+                bailErr.message + stack.substring(stack.indexOf('\n'))
+            }
+            console.warn(bailErr)
           }
         } catch (err: any) {
           if (

@@ -116,10 +116,9 @@ module.exports = {
       contextDirectory?: string
       // if there is `process.cwd()` expression in your code, you can set this option to tell `turbotrace` the value of `process.cwd()` while tracing.
       // for example the require(process.cwd() + '/package.json') will be traced as require('/path/to/cwd/package.json')
-      processCwd?: string,
-      // control the maximum number of files that are passed to the `turbotrace`
-      // default is 128
-      maxFiles?: number;
+      processCwd?: string
+      // control the maximum memory usage of the `turbotrace`, in `MB`, default is `6000`.
+      memoryLimit?: number
     },
   },
 }

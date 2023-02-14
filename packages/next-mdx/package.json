@@ -1,15 +1,26 @@
 {
   "name": "@next/mdx",
-  "version": "13.1.2-canary.0",
+  "version": "13.1.7-canary.13",
   "main": "index.js",
   "license": "MIT",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-mdx"
   },
+  "scripts": {
+    "test-pack": "cd ../../ && pnpm test-pack next-mdx"
+  },
   "peerDependencies": {
     "@mdx-js/loader": ">=0.15.0",
-    "@mdx-js/react": "*"
+    "@mdx-js/react": ">=0.15.0"
+  },
+  "peerDependenciesMeta": {
+    "@mdx-js/loader": {
+      "optional": true
+    },
+    "@mdx-js/react": {
+      "optional": true
+    }
   },
   "dependencies": {
     "source-map": "^0.7.0"

@@ -33,7 +33,7 @@ To begin using Middleware, follow the steps below:
 npm install next@latest
 ```
 
-2. Create a `middleware.ts` (or `.js`) file at the root or in the `src` directory (same level as your `pages`)
+2. Create a `middleware.ts` (or `.js`) file at the same level as your `pages` (in the root or `src` directory)
 3. Export a middleware function from the `middleware.ts` file:
 
 ```typescript
@@ -97,9 +97,10 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - api (API routes)
      * - _next/static (static files)
+     * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 }
 ```
@@ -163,7 +164,7 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
-  const cookie = request.cookies.get('nextjs')?.value
+  let cookie = request.cookies.get('nextjs')?.value
   console.log(cookie) // => 'fast'
   const allCookies = request.cookies.getAll()
   console.log(allCookies) // => [{ name: 'nextjs', value: 'fast' }]
@@ -180,7 +181,7 @@ export function middleware(request: NextRequest) {
     value: 'fast',
     path: '/test',
   })
-  const cookie = response.cookies.get('vercel')
+  cookie = response.cookies.get('vercel')
   console.log(cookie) // => { name: 'vercel', value: 'fast', Path: '/test' }
   // The outgoing response will have a `Set-Cookie:vercel=fast;path=/test` header.
 

@@ -2,12 +2,16 @@ import type { NextServerOptions, NextServer, RequestHandler } from '../next'
 import { warn } from '../../build/output/log'
 import http from 'http'
 import next from '../next'
-import cluster from 'cluster'
+import { isIPv6 } from 'net'
 import v8 from 'v8'
+const isChildProcess = !!process.env.__NEXT_DEV_CHILD_PROCESS
+
 interface StartServerOptions extends NextServerOptions {
   allowRetry?: boolean
   keepAliveTimeout?: number
 }
+
+export const WORKER_SELF_EXIT_CODE = 77
 
 const MAXIMUM_HEAP_SIZE_ALLOWED =
   (v8.getHeapStatistics().heap_size_limit / 1024 / 1024) * 0.9
@@ -18,10 +22,14 @@ export function startServer(opts: StartServerOptions) {
   const server = http.createServer((req, res) => {
     return requestHandler(req, res).finally(() => {
       if (
-        cluster.worker &&
+        isChildProcess &&
         process.memoryUsage().heapUsed / 1024 / 1024 > MAXIMUM_HEAP_SIZE_ALLOWED
       ) {
-        cluster.worker.kill()
+        warn(
+          'The server is running out of memory, restarting to free up memory.'
+        )
+        server.close()
+        process.exit(WORKER_SELF_EXIT_CODE)
       }
     })
   })
@@ -60,10 +68,13 @@ export function startServer(opts: StartServerOptions) {
 
     server.on('listening', () => {
       const addr = server.address()
-      const hostname =
+      let hostname =
         !opts.hostname || opts.hostname === '0.0.0.0'
           ? 'localhost'
           : opts.hostname
+      if (isIPv6(hostname)) {
+        hostname = hostname === '::' ? '[::1]' : `[${hostname}]`
+      }
 
       const app = next({
         ...opts,

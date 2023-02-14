@@ -9,7 +9,7 @@ import type {
   ChildProp,
 } from '../../server/app-render'
 import type { ErrorComponent } from './error-boundary'
-import type { FocusAndScrollRef } from './reducer'
+import { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, { useContext, useEffect, use } from 'react'
 import ReactDOM from 'react-dom'
@@ -19,11 +19,12 @@ import {
   GlobalLayoutRouterContext,
   TemplateContext,
 } from '../../shared/lib/app-router-context'
-import { fetchServerResponse } from './app-router'
+import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { createInfinitePromise } from './infinite-promise'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { useRouter } from './navigation'
+import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -103,11 +104,11 @@ function findDOMNode(
 }
 
 /**
- * Check if the top of the HTMLElement is in the viewport.
+ * Check if the top corner of the HTMLElement is in the viewport.
  */
-function topOfElementInViewport(element: HTMLElement) {
+function topOfElementInViewport(element: HTMLElement, viewportHeight: number) {
   const rect = element.getBoundingClientRect()
-  return rect.top >= 0
+  return rect.top >= 0 && rect.top <= viewportHeight
 }
 
 class ScrollAndFocusHandler extends React.Component<{
@@ -117,25 +118,47 @@ class ScrollAndFocusHandler extends React.Component<{
   componentDidMount() {
     // Handle scroll and focus, it's only applied once in the first useEffect that triggers that changed.
     const { focusAndScrollRef } = this.props
+
+    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
+    // This already caused a bug where the first child was a <link/> in head.
     const domNode = findDOMNode(this)
 
     if (focusAndScrollRef.apply && domNode instanceof HTMLElement) {
       // State is mutated to ensure that the focus and scroll is applied only once.
       focusAndScrollRef.apply = false
+
+      handleSmoothScroll(
+        () => {
+          // Store the current viewport height because reading `clientHeight` causes a reflow,
+          // and it won't change during this function.
+          const htmlElement = document.documentElement
+          const viewportHeight = htmlElement.clientHeight
+
+          // If the element's top edge is already in the viewport, exit early.
+          if (topOfElementInViewport(domNode, viewportHeight)) {
+            return
+          }
+
+          // Otherwise, try scrolling go the top of the document to be backward compatible with pages
+          // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
+          // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
+          // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
+          htmlElement.scrollTop = 0
+
+          // Scroll to domNode if domNode is not in viewport when scrolled to top of document
+          if (!topOfElementInViewport(domNode, viewportHeight)) {
+            // Scroll into view doesn't scroll horizontally by default when not needed
+            domNode.scrollIntoView()
+          }
+        },
+        {
+          // We will force layout by querying domNode position
+          dontForceLayout: true,
+        }
+      )
+
       // Set focus on the element
       domNode.focus()
-      // Only scroll into viewport when the layout is not visible currently.
-      if (!topOfElementInViewport(domNode)) {
-        const htmlElement = document.documentElement
-        const existing = htmlElement.style.scrollBehavior
-        htmlElement.style.scrollBehavior = 'auto'
-        // In Chrome-based browsers we need to force reflow before calling `scrollTo`.
-        // Otherwise it will not pickup the change in scrollBehavior
-        // More info here: https://github.com/vercel/next.js/issues/40719#issuecomment-1336248042
-        htmlElement.getClientRects()
-        domNode.scrollIntoView()
-        htmlElement.style.scrollBehavior = existing
-      }
     }
   }
 
@@ -157,7 +180,6 @@ export function InnerLayoutRouter({
   // TODO-APP: implement `<Offscreen>` when available.
   // isActive,
   path,
-  rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   url: string
@@ -167,7 +189,6 @@ export function InnerLayoutRouter({
   tree: FlightRouterState
   isActive: boolean
   path: string
-  rootLayoutIncluded: boolean
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
@@ -295,12 +316,10 @@ export function InnerLayoutRouter({
   )
 
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
-  return rootLayoutIncluded ? (
+  return (
     <ScrollAndFocusHandler focusAndScrollRef={focusAndScrollRef}>
       {subtree}
     </ScrollAndFocusHandler>
-  ) : (
-    subtree
   )
 }
 
@@ -455,7 +474,6 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
-  rootLayoutIncluded,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -469,7 +487,6 @@ export default function OuterLayoutRouter({
   hasLoading: boolean
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
-  rootLayoutIncluded: boolean
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -546,7 +563,6 @@ export default function OuterLayoutRouter({
                         segmentPath={segmentPath}
                         path={preservedSegment}
                         isActive={currentChildSegment === preservedSegment}
-                        rootLayoutIncluded={rootLayoutIncluded}
                       />
                     </RedirectBoundary>
                   </NotFoundBoundary>

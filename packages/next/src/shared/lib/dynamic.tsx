@@ -1,16 +1,13 @@
-import React, { lazy, Suspense } from 'react'
+import React from 'react'
 import Loadable from './loadable'
-import NoSSR from './dynamic-no-ssr'
+
+const isServerSide = typeof window === 'undefined'
 
 type ComponentModule<P = {}> = { default: React.ComponentType<P> }
 
 export declare type LoaderComponent<P = {}> = Promise<
   React.ComponentType<P> | ComponentModule<P>
 >
-
-type NormalizedLoader<P = {}> = () => Promise<{
-  default: React.ComponentType<P>
-}>
 
 export declare type Loader<P = {}> =
   | (() => LoaderComponent<P>)
@@ -35,7 +32,7 @@ export type DynamicOptionsLoadingProps = {
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
 // Client component reference proxy need to be converted to a module.
 function convertModule<P>(mod: React.ComponentType<P> | ComponentModule<P>) {
-  return { default: (mod as ComponentModule<P>).default || mod }
+  return { default: (mod as ComponentModule<P>)?.default || mod }
 }
 
 export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
@@ -58,26 +55,22 @@ export type LoadableFn<P = {}> = (
 export type LoadableComponent<P = {}> = React.ComponentType<P>
 
 export function noSSR<P = {}>(
-  LoadableInitializer: NormalizedLoader<P>,
+  LoadableInitializer: LoadableFn<P>,
   loadableOptions: DynamicOptions<P>
 ): React.ComponentType<P> {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
   delete loadableOptions.modules
 
-  const NoSSRComponent = lazy(LoadableInitializer)
+  // This check is necessary to prevent react-loadable from initializing on the server
+  if (!isServerSide) {
+    return LoadableInitializer(loadableOptions)
+  }
 
   const Loading = loadableOptions.loading!
-  const fallback = (
+  // This will only be rendered on the server side
+  return () => (
     <Loading error={null} isLoading pastDelay={false} timedOut={false} />
-  )
-
-  return (props: any) => (
-    <Suspense fallback={fallback}>
-      <NoSSR>
-        <NoSSRComponent {...props} />
-      </NoSSR>
-    </Suspense>
   )
 }
 
@@ -127,26 +120,27 @@ export default function dynamic<P = {}>(
   loadableOptions = { ...loadableOptions, ...options }
 
   const loaderFn = loadableOptions.loader as () => LoaderComponent<P>
-  const loader = () => loaderFn().then(convertModule)
+  const loader = () =>
+    loaderFn != null
+      ? loaderFn().then(convertModule)
+      : Promise.resolve(convertModule(() => null))
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {
     loadableOptions = {
       ...loadableOptions,
       ...loadableOptions.loadableGenerated,
-      loader,
     }
     delete loadableOptions.loadableGenerated
   }
 
   // support for disabling server side rendering, eg: dynamic(() => import('../hello-world'), {ssr: false}).
-  if (typeof loadableOptions.ssr === 'boolean') {
-    if (!loadableOptions.ssr) {
-      delete loadableOptions.ssr
-      return noSSR(loader, loadableOptions)
-    }
-    delete loadableOptions.ssr
+  if (typeof loadableOptions.ssr === 'boolean' && !loadableOptions.ssr) {
+    delete loadableOptions.webpack
+    delete loadableOptions.modules
+
+    return noSSR(loadableFn, loadableOptions)
   }
 
-  return loadableFn(loadableOptions)
+  return loadableFn({ ...loadableOptions, loader: loader as Loader<P> })
 }

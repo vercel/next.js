@@ -656,9 +656,9 @@ function expectModuleNotFoundProdError(
   output = context.logs.output
 ) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
-  expect(output).not.toContain(moduleNotSupportedMessage)
+  expect(stripAnsi(output)).not.toContain(moduleNotSupportedMessage)
   const moduleNotFoundMessage = getModuleNotFound(moduleName)
-  expect(output).toContain(moduleNotFoundMessage)
+  expect(stripAnsi(output)).toContain(moduleNotFoundMessage)
 }
 
 function expectModuleNotFoundDevError(

@@ -13,6 +13,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   FLIGHT_MANIFEST,
+  ACTIONS_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -33,6 +34,7 @@ export type LoadComponentsReturnType = {
   subresourceIntegrityManifest?: Record<string, string>
   reactLoadableManifest: ReactLoadableManifest
   serverComponentManifest?: any
+  serverActionsManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
@@ -62,6 +64,18 @@ export async function loadDefaultErrorComponents(distDir: string) {
   }
 }
 
+async function loadManifest<T>(manifestPath: string, attempts = 1): Promise<T> {
+  try {
+    return require(manifestPath)
+  } catch (err) {
+    if (attempts >= 3) {
+      throw err
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    return loadManifest(manifestPath, attempts + 1)
+  }
+}
+
 export async function loadComponents({
   distDir,
   pathname,
@@ -85,14 +99,23 @@ export async function loadComponents({
     requirePage(pathname, distDir, isAppPath)
   )
 
-  const [buildManifest, reactLoadableManifest, serverComponentManifest] =
-    await Promise.all([
-      require(join(distDir, BUILD_MANIFEST)),
-      require(join(distDir, REACT_LOADABLE_MANIFEST)),
-      hasServerComponents
-        ? require(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
-        : null,
-    ])
+  const [
+    buildManifest,
+    reactLoadableManifest,
+    serverComponentManifest,
+    serverActionsManifest,
+  ] = await Promise.all([
+    loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
+    loadManifest<ReactLoadableManifest>(join(distDir, REACT_LOADABLE_MANIFEST)),
+    hasServerComponents
+      ? loadManifest(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
+      : null,
+    hasServerComponents
+      ? loadManifest(join(distDir, 'server', ACTIONS_MANIFEST + '.json')).catch(
+          () => null
+        )
+      : null,
+  ])
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)
@@ -112,6 +135,7 @@ export async function loadComponents({
     getStaticProps,
     getStaticPaths,
     serverComponentManifest,
+    serverActionsManifest,
     isAppPath,
     pathname,
   }

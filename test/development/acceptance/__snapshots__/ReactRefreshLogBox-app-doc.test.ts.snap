@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ReactRefreshLogBox _app syntax error shows logbox 1`] = `
+exports[`ReactRefreshLogBox default _app syntax error shows logbox 1`] = `
 "./pages/_app.js
 Error: 
   x Expression expected
@@ -26,11 +26,10 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error"
+    Syntax Error"
 `;
 
-exports[`ReactRefreshLogBox _document syntax error shows logbox 1`] = `
+exports[`ReactRefreshLogBox default _document syntax error shows logbox 1`] = `
 "./pages/_document.js
 Error: 
   x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
@@ -46,6 +45,5 @@ Error:
    \`----
 
 Caused by:
-    0: failed to process input file
-    1: Syntax Error"
+    Syntax Error"
 `;

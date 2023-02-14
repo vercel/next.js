@@ -22,7 +22,7 @@ module.exports = function (task) {
       } = {}
     ) {
       // Don't compile .d.ts
-      if (file.base.endsWith('.d.ts')) return
+      if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
 
       const isClient = serverOrClient === 'client'
 
@@ -99,7 +99,11 @@ module.exports = function (task) {
 
       const filePath = path.join(file.dir, file.base)
       const fullFilePath = path.join(__dirname, filePath)
-      const distFilePath = path.dirname(path.join(__dirname, 'dist', filePath))
+      const distFilePath = path.dirname(
+        // we must strip src from filePath as it isn't carried into
+        // the dist file path
+        path.join(__dirname, 'dist', filePath.replace(/^src[/\\]/, ''))
+      )
 
       const options = {
         filename: path.join(file.dir, file.base),

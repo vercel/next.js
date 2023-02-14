@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import arg from 'next/dist/compiled/arg/index.js'
-import { existsSync, watchFile } from 'fs'
-import { startServer } from '../server/lib/start-server'
+import { startServer, WORKER_SELF_EXIT_CODE } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
@@ -13,15 +12,23 @@ import path from 'path'
 import type { NextConfig } from '../../types'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
-import cluster from 'cluster'
+import { isIPv6 } from 'net'
+import { ChildProcess, fork } from 'child_process'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
+import { fileExists } from '../lib/file-exists'
+import Watchpack from 'next/dist/compiled/watchpack'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { warn } from '../build/output/log'
 
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 let dir: string
+let unwatchConfigFiles: () => void
+
+const isChildProcess = !!process.env.__NEXT_DEV_CHILD_PROCESS
 
 const handleSessionStop = async () => {
   if (sessionStopHandled) return
@@ -31,7 +38,13 @@ const handleSessionStop = async () => {
     const { eventCliSession } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+    const config = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      dir,
+      undefined,
+      undefined,
+      true
+    )
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
@@ -41,14 +54,14 @@ const handleSessionStop = async () => {
         distDir: path.join(dir, config.distDir),
       })
 
-    let appDir: boolean = !!traceGlobals.get('pagesDir')
-    let pagesDir: boolean = !!traceGlobals.get('appDir')
+    let pagesDir: boolean = !!traceGlobals.get('pagesDir')
+    let appDir: boolean = !!traceGlobals.get('appDir')
 
     if (
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
-      const pagesResult = await findPagesDir(dir, !!config.experimental.appDir)
+      const pagesResult = findPagesDir(dir, !!config.experimental.appDir)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
@@ -60,17 +73,41 @@ const handleSessionStop = async () => {
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
-      })
+      }),
+      true
     )
-    await telemetry.flush()
-  } catch (err) {
-    console.error(err)
+    telemetry.flushDetached('dev', dir)
+  } catch (_) {
+    // errors here aren't actionable so don't add
+    // noise to the output
   }
   process.exit(0)
 }
 
-process.on('SIGINT', handleSessionStop)
-process.on('SIGTERM', handleSessionStop)
+if (!isChildProcess) {
+  process.on('SIGINT', handleSessionStop)
+  process.on('SIGTERM', handleSessionStop)
+} else {
+  process.on('SIGINT', () => process.exit(0))
+  process.on('SIGTERM', () => process.exit(0))
+}
+
+function watchConfigFiles(dirToWatch: string) {
+  if (unwatchConfigFiles) {
+    unwatchConfigFiles()
+  }
+
+  const wp = new Watchpack()
+  wp.watch({ files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)) })
+  wp.on('change', (filename) => {
+    console.log(
+      `\n> Found a change in ${path.basename(
+        filename
+      )}. Restart the server to see the changes in effect.`
+    )
+  })
+  return () => wp.close()
+}
 
 const nextDev: CliCommand = async (argv) => {
   const validArgs: arg.Spec = {
@@ -119,10 +156,11 @@ const nextDev: CliCommand = async (argv) => {
     process.exit(0)
   }
 
-  dir = getProjectDir(args._[0])
+  dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || args._[0])
+  unwatchConfigFiles = watchConfigFiles(dir)
 
   // Check if pages dir exists and warn if not
-  if (!existsSync(dir)) {
+  if (!(await fileExists(dir, 'directory'))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
@@ -160,6 +198,23 @@ const nextDev: CliCommand = async (argv) => {
     isNextDevCommand: true,
     port,
   }
+
+  const supportedTurbopackNextConfigOptions = [
+    'configFileName',
+    'env',
+    'experimental.appDir',
+    'experimental.serverComponentsExternalPackages',
+    'experimental.turbo',
+    'images',
+    'pageExtensions',
+    'onDemandEntries',
+    'rewrites',
+    'redirects',
+    'headers',
+    'reactStrictMode',
+    'swcMinify',
+    'transpilePackages',
+  ]
 
   // check for babelrc, swc plugins
   async function validateNextConfig(isCustomTurbopack: boolean) {
@@ -211,12 +266,10 @@ const nextDev: CliCommand = async (argv) => {
         try {
           // these should not error
           if (
-            configKey === 'serverComponentsExternalPackages' ||
-            configKey === 'appDir' ||
-            configKey === 'images' ||
-            configKey === 'reactStrictMode' ||
-            configKey === 'swcMinify' ||
-            configKey === 'configFileName'
+            // we only want the key after the dot for experimental options
+            supportedTurbopackNextConfigOptions
+              .map((key) => key.split('.').splice(-1)[0])
+              .includes(configKey)
           ) {
             return false
           }
@@ -272,14 +325,7 @@ const nextDev: CliCommand = async (argv) => {
       unsupportedParts += `\n\n- Unsupported Next.js configuration option(s) (${chalk.cyan(
         'next.config.js'
       )})\n  ${chalk.dim(
-        `The only configurations options supported are:\n${[
-          'reactStrictMode',
-          'experimental.appDir',
-          'experimental.serverComponentsExternalPackages',
-          'images',
-          'swcMinify',
-          'configFileName',
-        ]
+        `The only configurations options supported are:\n${supportedTurbopackNextConfigOptions
           .map((name) => `    - ${chalk.cyan(name)}\n`)
           .join('')}  To use Turbopack, remove other configuration options.`
       )}   `
@@ -389,20 +435,232 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
     // this is a temporary solution until we can fix the memory leaks.
     // the logic for the worker killing itself is in `packages/next/server/lib/start-server.ts`
-    if (!process.env.__NEXT_DISABLE_MEMORY_WATCHER && cluster.isMaster) {
-      cluster.fork()
-      cluster.on('exit', (worker) => {
-        if (worker.exitedAfterDisconnect) {
-          cluster.fork()
+    if (!process.env.__NEXT_DISABLE_MEMORY_WATCHER && !isChildProcess) {
+      let config: NextConfig
+      let childProcess: ChildProcess | null = null
+
+      const isDebugging = process.execArgv.some((localArg) =>
+        localArg.startsWith('--inspect')
+      )
+
+      const isDebuggingWithBrk = process.execArgv.some((localArg) =>
+        localArg.startsWith('--inspect-brk')
+      )
+
+      const debugPort = (() => {
+        const debugPortStr = process.execArgv
+          .find(
+            (localArg) =>
+              localArg.startsWith('--inspect') ||
+              localArg.startsWith('--inspect-brk')
+          )
+          ?.split('=')[1]
+        return debugPortStr ? parseInt(debugPortStr, 10) : 9229
+      })()
+
+      if (isDebugging || isDebuggingWithBrk) {
+        warn(
+          `the --inspect${
+            isDebuggingWithBrk ? '-brk' : ''
+          } option was detected, the Next.js server should be inspected at port ${
+            debugPort + 1
+          }.`
+        )
+      }
+
+      const genExecArgv = () => {
+        const execArgv = process.execArgv.filter((localArg) => {
+          return (
+            !localArg.startsWith('--inspect') &&
+            !localArg.startsWith('--inspect-brk')
+          )
+        })
+
+        if (isDebugging || isDebuggingWithBrk) {
+          execArgv.push(
+            `--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort + 1}`
+          )
+        }
+
+        return execArgv
+      }
+
+      const setupFork = (env?: NodeJS.ProcessEnv, newDir?: string) => {
+        const startDir = dir
+        const [, script, ...nodeArgs] = process.argv
+        let shouldFilter = false
+        childProcess = fork(
+          newDir ? script.replace(startDir, newDir) : script,
+          nodeArgs,
+          {
+            env: {
+              ...(env ? env : process.env),
+              FORCE_COLOR: '1',
+              __NEXT_DEV_CHILD_PROCESS: '1',
+            },
+            // @ts-ignore TODO: remove ignore when types are updated
+            windowsHide: true,
+            stdio: ['ipc', 'pipe', 'pipe'],
+            execArgv: genExecArgv(),
+          }
+        )
+
+        // since errors can start being logged from the fork
+        // before we detect the project directory rename
+        // attempt suppressing them long enough to check
+        const filterForkErrors = (chunk: Buffer, fd: 'stdout' | 'stderr') => {
+          const cleanChunk = stripAnsi(chunk + '')
+          if (
+            cleanChunk.match(
+              /(ENOENT|Module build failed|Module not found|Cannot find module)/
+            )
+          ) {
+            if (startDir === dir) {
+              try {
+                // check if start directory is still valid
+                const result = findPagesDir(
+                  startDir,
+                  !!config.experimental?.appDir
+                )
+                shouldFilter = !Boolean(result.pagesDir || result.appDir)
+              } catch (_) {
+                shouldFilter = true
+              }
+            }
+            if (shouldFilter || startDir !== dir) {
+              shouldFilter = true
+              return
+            }
+          }
+          process[fd].write(chunk)
+        }
+
+        childProcess?.stdout?.on('data', (chunk) => {
+          filterForkErrors(chunk, 'stdout')
+        })
+        childProcess?.stderr?.on('data', (chunk) => {
+          filterForkErrors(chunk, 'stderr')
+        })
+
+        const callback = async (code: number | null) => {
+          if (code === WORKER_SELF_EXIT_CODE) {
+            setupFork()
+          } else if (!sessionStopHandled) {
+            await handleSessionStop()
+            process.exit(1)
+          }
+        }
+        childProcess?.addListener('exit', callback)
+        return () => childProcess?.removeListener('exit', callback)
+      }
+
+      let childProcessExitUnsub = setupFork()
+
+      config = await loadConfig(
+        PHASE_DEVELOPMENT_SERVER,
+        dir,
+        undefined,
+        undefined,
+        true
+      )
+
+      const handleProjectDirRename = (newDir: string) => {
+        childProcessExitUnsub()
+        childProcess?.kill()
+        process.chdir(newDir)
+        childProcessExitUnsub = setupFork(
+          {
+            ...Object.keys(process.env).reduce((newEnv, key) => {
+              newEnv[key] = process.env[key]?.replace(dir, newDir)
+              return newEnv
+            }, {} as typeof process.env),
+            NEXT_PRIVATE_DEV_DIR: newDir,
+          },
+          newDir
+        )
+      }
+      const parentDir = path.join('/', dir, '..')
+      const watchedEntryLength = parentDir.split('/').length + 1
+      const previousItems = new Set()
+
+      const wp = new Watchpack({
+        ignored: (entry: string) => {
+          // watch only one level
+          return !(entry.split('/').length <= watchedEntryLength)
+        },
+      })
+
+      wp.watch({ directories: [parentDir], startTime: 0 })
+
+      wp.on('aggregated', () => {
+        const knownFiles = wp.getTimeInfoEntries()
+        const newFiles: string[] = []
+        let hasPagesApp = false
+
+        // if the dir still exists nothing to check
+        try {
+          const result = findPagesDir(dir, !!config.experimental?.appDir)
+          hasPagesApp = Boolean(result.pagesDir || result.appDir)
+        } catch (err) {
+          // if findPagesDir throws validation error let this be
+          // handled in the dev-server itself in the fork
+          if ((err as any).message?.includes('experimental')) {
+            return
+          }
+        }
+
+        // try to find new dir introduced
+        if (previousItems.size) {
+          for (const key of knownFiles.keys()) {
+            if (!previousItems.has(key)) {
+              newFiles.push(key)
+            }
+          }
+          previousItems.clear()
+        }
+
+        for (const key of knownFiles.keys()) {
+          previousItems.add(key)
+        }
+
+        if (hasPagesApp) {
+          return
+        }
+
+        // if we failed to find the new dir it may have been moved
+        // to a new parent directory which we can't track as easily
+        // so exit gracefully
+        try {
+          const result = findPagesDir(
+            newFiles[0],
+            !!config.experimental?.appDir
+          )
+          hasPagesApp = Boolean(result.pagesDir || result.appDir)
+        } catch (_) {}
+
+        if (hasPagesApp && newFiles.length === 1) {
+          Log.info(
+            `Detected project directory rename, restarting in new location`
+          )
+          handleProjectDirRename(newFiles[0])
+          watchConfigFiles(newFiles[0])
+          dir = newFiles[0]
         } else {
-          process.exit(1)
+          Log.error(
+            `Project directory could not be found, restart Next.js in your new directory`
+          )
+          process.exit(0)
         }
       })
     } else {
       startServer(devServerOptions)
         .then(async (app) => {
           const appUrl = `http://${app.hostname}:${app.port}`
-          startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${app.port}`)
+          const hostname = host || '0.0.0.0'
+          startedDevelopmentServer(
+            appUrl,
+            `${isIPv6(hostname) ? `[${hostname}]` : hostname}:${app.port}`
+          )
           // Start preflight after server is listening and ignore errors:
           preflight().catch(() => {})
           // Finalize server bootup:
@@ -433,16 +691,6 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           process.nextTick(() => process.exit(1))
         })
     }
-  }
-
-  for (const CONFIG_FILE of CONFIG_FILES) {
-    watchFile(path.join(dir, CONFIG_FILE), (cur: any, prev: any) => {
-      if (cur.size > 0 || prev.size > 0) {
-        console.log(
-          `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
-        )
-      }
-    })
   }
 }
 

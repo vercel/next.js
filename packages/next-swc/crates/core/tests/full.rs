@@ -36,7 +36,9 @@ fn test(input: &Path, minify: bool) {
                     output_path: Some(output.clone()),
 
                     config: next_binding::swc::core::base::config::Config {
-                        is_module: next_binding::swc::core::base::config::IsModule::Bool(true),
+                        is_module: Some(next_binding::swc::core::base::config::IsModule::Bool(
+                            true,
+                        )),
 
                         jsc: next_binding::swc::core::base::config::JscConfig {
                             minify: if minify {
@@ -70,6 +72,8 @@ fn test(input: &Path, minify: bool) {
                 emotion: Some(assert_json("{}")),
                 modularize_imports: None,
                 font_loaders: None,
+                app_dir: None,
+                server_actions: None,
             };
 
             let options = options.patch(&fm);
