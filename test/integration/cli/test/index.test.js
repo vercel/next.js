@@ -11,6 +11,7 @@ import {
 import { join } from 'path'
 import pkg from 'next/package'
 import http from 'http'
+import stripAnsi from 'strip-ansi'
 
 const dir = join(__dirname, '..')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
@@ -254,7 +255,7 @@ describe('CLI Usage', () => {
       expect(stdout).not.toMatch('ready')
       expect(stdout).not.toMatch('started')
       expect(stdout).not.toMatch(`${port}`)
-      expect(stdout).toBeFalsy()
+      expect(stripAnsi(stdout).trim()).toBeFalsy()
     })
 
     test('--hostname', async () => {

@@ -64,7 +64,23 @@ module.exports = {
 }
 ```
 
-- There are some cases in which Next.js might fail to include required files, or might incorrectly include unused files. In those cases, you can export page configs props `unstable_includeFiles` and `unstable_excludeFiles` respectively. Each prop accepts an array of [minimatch globs](https://www.npmjs.com/package/minimatch) relative to the project's root to either include or exclude in the trace.
+- There are some cases in which Next.js might fail to include required files, or might incorrectly include unused files. In those cases, you can leverage `experimental.outputFileTracingExcludes` and `experimental.outputFileTracingIncludes` respectively in `next.config.js`. Each config accepts an object with [minimatch globs](https://www.npmjs.com/package/minimatch) for the key to match specific pages and a value of an array with globs relative to the project's root to either include or exclude in the trace.
+
+```js
+// next.config.js
+
+module.exports = {
+  experimental: {
+    outputFileTracingExcludes: {
+      '/api/hello': ['./un-necessary-folder/**/*'],
+    },
+    outputFileTracingIncludes: {
+      '/api/another': ['./necessary-folder/**/*'],
+    },
+  },
+}
+```
+
 - Currently, Next.js does not do anything with the emitted `.nft.json` files. The files must be read by your deployment platform, for example [Vercel](https://vercel.com), to create a minimal deployment. In a future release, a new command is planned to utilize these `.nft.json` files.
 
 ## Experimental `turbotrace`

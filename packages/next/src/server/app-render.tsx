@@ -945,6 +945,19 @@ export async function renderToHTMLOrFlight(
   } = renderOpts
 
   patchFetch(ComponentMod)
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
