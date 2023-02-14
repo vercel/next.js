@@ -16,16 +16,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use hyper::{
     server::{conn::AddrIncoming, Builder},
     service::{make_service_fn, service_fn},
     Request, Response, Server,
 };
 use turbo_tasks::{
-    run_once, trace::TraceRawVcs, util::FormatDuration, RawVc, TransientValue, TurboTasksApi,
+    run_once, trace::TraceRawVcs, util::FormatDuration, CollectiblesSource, RawVc,
+    TransientInstance, TransientValue, TurboTasksApi,
 };
-use turbopack_cli_utils::issue::{ConsoleUi, ConsoleUiVc};
+use turbopack_core::issue::{IssueReporter, IssueReporterVc, IssueVc};
 
 use self::{
     source::{ContentSourceResultVc, ContentSourceVc},
@@ -66,21 +67,27 @@ pub struct DevServer {
     pub future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
 }
 
-// Just print issues to console for now...
-async fn handle_issues<T: Into<RawVc>>(
+async fn handle_issues<T: Into<RawVc> + CollectiblesSource + Copy>(
     source: T,
     path: &str,
     operation: &str,
-    console_ui: ConsoleUiVc,
+    issue_reporter: IssueReporterVc,
 ) -> Result<()> {
-    let state = console_ui
-        .group_and_display_issues(TransientValue::new(source.into()))
+    let issues = IssueVc::peek_issues_with_path(source)
+        .await?
+        .strongly_consistent()
         .await?;
-    if state.has_fatal {
-        bail!("Fatal issue(s) occurred in {path} ({operation}")
-    }
 
-    Ok(())
+    issue_reporter.report_issues(
+        TransientInstance::new(issues.clone()),
+        TransientValue::new(source.into()),
+    );
+
+    if issues.has_fatal().await? {
+        Err(anyhow!("Fatal issue(s) occurred in {path} ({operation})"))
+    } else {
+        Ok(())
+    }
 }
 
 impl DevServer {
@@ -106,21 +113,21 @@ impl DevServerBuilder {
         self,
         turbo_tasks: Arc<dyn TurboTasksApi>,
         source_provider: impl SourceProvider + Clone + Send + Sync,
-        console_ui: Arc<ConsoleUi>,
+        get_issue_reporter: Arc<dyn Fn() -> IssueReporterVc + Send + Sync>,
     ) -> DevServer {
         let make_svc = make_service_fn(move |_| {
             let tt = turbo_tasks.clone();
             let source_provider = source_provider.clone();
-            let console_ui = console_ui.clone();
+            let get_issue_reporter = get_issue_reporter.clone();
             async move {
                 let handler = move |request: Request<hyper::Body>| {
-                    let console_ui = console_ui.clone();
                     let start = Instant::now();
                     let tt = tt.clone();
+                    let get_issue_reporter = get_issue_reporter.clone();
                     let source_provider = source_provider.clone();
                     let future = async move {
                         run_once(tt.clone(), async move {
-                            let console_ui = (*console_ui).clone().cell();
+                            let issue_reporter = get_issue_reporter();
 
                             if hyper_tungstenite::is_upgrade_request(&request) {
                                 let uri = request.uri();
@@ -130,7 +137,7 @@ impl DevServerBuilder {
                                     let (response, websocket) =
                                         hyper_tungstenite::upgrade(request, None)?;
                                     let update_server =
-                                        UpdateServer::new(source_provider, console_ui);
+                                        UpdateServer::new(source_provider, issue_reporter);
                                     update_server.run(&*tt, websocket);
                                     return Ok(response);
                                 }
@@ -158,12 +165,12 @@ impl DevServerBuilder {
                             let uri = request.uri();
                             let path = uri.path().to_string();
                             let source = source_provider.get_source();
-                            handle_issues(source, &path, "get source", console_ui).await?;
+                            handle_issues(source, &path, "get source", issue_reporter).await?;
                             let resolved_source = source.resolve_strongly_consistent().await?;
                             let response = http::process_request_with_content_source(
                                 resolved_source,
                                 request,
-                                console_ui,
+                                issue_reporter,
                             )
                             .await?;
                             let status = response.status().as_u16();

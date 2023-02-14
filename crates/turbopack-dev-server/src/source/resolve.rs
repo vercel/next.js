@@ -6,7 +6,7 @@ use std::{
 use anyhow::{bail, Result};
 use hyper::Uri;
 use turbo_tasks::{TransientInstance, Value};
-use turbopack_cli_utils::issue::ConsoleUiVc;
+use turbopack_core::issue::IssueReporterVc;
 
 use super::{
     headers::{HeaderValue, Headers},
@@ -36,7 +36,7 @@ pub enum ResolveSourceRequestResult {
 pub async fn resolve_source_request(
     source: ContentSourceVc,
     request: TransientInstance<SourceRequest>,
-    console_ui: ConsoleUiVc,
+    issue_reporter: IssueReporterVc,
 ) -> Result<ResolveSourceRequestResultVc> {
     let mut data = ContentSourceData::default();
     let mut current_source = source;
@@ -50,7 +50,7 @@ pub async fn resolve_source_request(
             result,
             &original_path,
             "get content from source",
-            console_ui,
+            issue_reporter,
         )
         .await?;
 
