@@ -186,7 +186,6 @@ export function runNextCommand(argv, options = {}) {
     ...process.env,
     NODE_ENV: '',
     __NEXT_TEST_MODE: 'true',
-    NEXT_PRIVATE_OUTPUT_TRACE_ROOT: path.join(__dirname, '../../'),
     ...options.env,
   }
 

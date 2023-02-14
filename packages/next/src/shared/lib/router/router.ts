@@ -194,7 +194,10 @@ function getMiddlewareData<T extends FetchDataOutput>(
   }
 
   if (rewriteTarget) {
-    if (rewriteTarget.startsWith('/')) {
+    if (
+      rewriteTarget.startsWith('/') ||
+      process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE
+    ) {
       const parsedRewriteTarget = parseRelativeUrl(rewriteTarget)
       const pathnameInfo = getNextPathnameInfo(parsedRewriteTarget.pathname, {
         nextConfig,
@@ -270,7 +273,6 @@ function getMiddlewareData<T extends FetchDataOutput>(
         }
       })
     }
-
     const src = parsePath(source)
     const pathname = formatNextPathnameInfo({
       ...getNextPathnameInfo(src.pathname, { nextConfig, parseData: true }),

@@ -278,6 +278,9 @@ const configSchema = {
         externalDir: {
           type: 'boolean',
         },
+        externalMiddlewareRewritesResolve: {
+          type: 'boolean',
+        },
         fallbackNodePolyfills: {
           type: 'boolean',
         },
@@ -438,6 +441,9 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        typedRoutes: {
+          type: 'boolean',
+        },
         webpackBuildWorker: {
           type: 'boolean',
         },
@@ -481,14 +487,8 @@ const configSchema = {
             processCwd: {
               type: 'string',
             },
-            maxFiles: {
-              type: 'integer',
-            },
             memoryLimit: {
               type: 'integer',
-            },
-            skipEntries: {
-              type: 'boolean',
             },
           },
         },

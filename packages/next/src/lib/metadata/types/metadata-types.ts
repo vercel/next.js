@@ -119,8 +119,8 @@ export type ResolvedVerification = {
 }
 
 export type ResolvedIcons = {
-  icon?: IconDescriptor[]
+  icon: IconDescriptor[]
+  apple: IconDescriptor[]
   shortcut?: IconDescriptor[]
-  apple?: IconDescriptor[]
   other?: IconDescriptor[]
 }

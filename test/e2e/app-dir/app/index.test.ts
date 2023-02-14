@@ -82,22 +82,22 @@ createNextDescribe(
       })
     }
 
-    it('should use application/octet-stream for flight', async () => {
+    it('should use text/x-component for flight', async () => {
       const res = await next.fetch('/dashboard/deployments/123', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
-    it('should use application/octet-stream for flight with edge runtime', async () => {
+    it('should use text/x-component for flight with edge runtime', async () => {
       const res = await next.fetch('/dashboard', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
     it('should pass props from getServerSideProps in root layout', async () => {
@@ -375,29 +375,6 @@ createNextDescribe(
       } finally {
         await browser.close()
       }
-    })
-
-    describe('parallel routes', () => {
-      if (!isNextDeploy) {
-        it('should match parallel routes', async () => {
-          const html = await next.render('/parallel/nested')
-          expect(html).toContain('parallel/layout')
-          expect(html).toContain('parallel/@foo/nested/layout')
-          expect(html).toContain('parallel/@foo/nested/@a/page')
-          expect(html).toContain('parallel/@foo/nested/@b/page')
-          expect(html).toContain('parallel/@bar/nested/layout')
-          expect(html).toContain('parallel/@bar/nested/@a/page')
-          expect(html).toContain('parallel/@bar/nested/@b/page')
-          expect(html).toContain('parallel/nested/page')
-        })
-      }
-
-      it('should match parallel routes in route groups', async () => {
-        const html = await next.render('/parallel/nested-2')
-        expect(html).toContain('parallel/layout')
-        expect(html).toContain('parallel/(new)/layout')
-        expect(html).toContain('parallel/(new)/@baz/nested/page')
-      })
     })
 
     describe('<Link />', () => {

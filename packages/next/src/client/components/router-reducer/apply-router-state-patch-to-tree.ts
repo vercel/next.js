@@ -5,6 +5,57 @@ import {
 import { matchSegment } from '../match-segments'
 
 /**
+ * Deep merge of the two router states. Parallel route keys are preserved if the patch doesn't have them.
+ */
+function applyPatch(
+  initialTree: FlightRouterState,
+  patchTree: FlightRouterState
+): FlightRouterState {
+  const [segment, parallelRoutes] = initialTree
+
+  if (matchSegment(segment, patchTree[0])) {
+    const newParallelRoutes: FlightRouterState[1] = {}
+    for (const key in parallelRoutes) {
+      const isInPatchTreeParallelRoutes =
+        typeof patchTree[1][key] !== 'undefined'
+      if (isInPatchTreeParallelRoutes) {
+        newParallelRoutes[key] = applyPatch(
+          parallelRoutes[key],
+          patchTree[1][key]
+        )
+      } else {
+        newParallelRoutes[key] = parallelRoutes[key]
+      }
+    }
+
+    for (const key in patchTree[1]) {
+      if (newParallelRoutes[key]) {
+        continue
+      }
+
+      newParallelRoutes[key] = patchTree[1][key]
+    }
+
+    const tree: FlightRouterState = [segment, newParallelRoutes]
+
+    if (initialTree[2]) {
+      tree[2] = initialTree[2]
+    }
+
+    if (initialTree[3]) {
+      tree[3] = initialTree[3]
+    }
+
+    if (initialTree[4]) {
+      tree[4] = initialTree[4]
+    }
+
+    return tree
+  }
+
+  return patchTree
+}
+/**
  * Apply the router state from the Flight response. Creates a new router state tree.
  */
 export function applyRouterStatePatchToTree(
@@ -16,7 +67,7 @@ export function applyRouterStatePatchToTree(
 
   // Root refresh
   if (flightSegmentPath.length === 1) {
-    const tree: FlightRouterState = [...treePatch]
+    const tree: FlightRouterState = applyPatch(flightRouterState, treePatch)
 
     return tree
   }

@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "13.1.7-canary.8",
+  "version": "13.1.7-canary.12",
   "private": true,
   "scripts": {
     "clean": "rm -rf ./native/*",
@@ -31,6 +31,6 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.13.3"
+    "@napi-rs/cli": "2.14.7"
   }
 }
