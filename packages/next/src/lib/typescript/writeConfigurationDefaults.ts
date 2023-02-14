@@ -226,6 +226,19 @@ export async function writeConfigurationDefaults(
           )
         }
       }
+
+      // If `strict` is set to `false` or `strictNullChecks` is set to `false`,
+      // then set `strictNullChecks` to `true`.
+      if (
+        isAppDirEnabled &&
+        !userTsConfig.compilerOptions.strict &&
+        !('strictNullChecks' in userTsConfig.compilerOptions)
+      ) {
+        userTsConfig.compilerOptions.strictNullChecks = true
+        suggestedActions.push(
+          chalk.cyan('strictNullChecks') + ' was set to ' + chalk.bold(`true`)
+        )
+      }
     }
   }
 
