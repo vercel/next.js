@@ -109,7 +109,8 @@ export async function writeConfigurationDefaults(
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
   isAppDirEnabled: boolean,
-  distDir: string
+  distDir: string,
+  hasPagesDir: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
@@ -230,6 +231,7 @@ export async function writeConfigurationDefaults(
       // If `strict` is set to `false` or `strictNullChecks` is set to `false`,
       // then set `strictNullChecks` to `true`.
       if (
+        hasPagesDir &&
         isAppDirEnabled &&
         !userTsConfig.compilerOptions.strict &&
         !('strictNullChecks' in userTsConfig.compilerOptions)
