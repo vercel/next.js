@@ -39,6 +39,16 @@ export const __isCustomTurbopackBinary = async (): Promise<boolean> => {
   )
 }
 
+function checkVersionMismatch(pkgData: any) {
+  const version = pkgData.version
+
+  if (version && version !== nextVersion) {
+    Log.warn(
+      `Mismatching @next/swc version, detected: ${version} while Next.js is on ${nextVersion}. Please ensure these match`
+    )
+  }
+}
+
 // These are the platforms we'll try to load wasm bindings first,
 // only try to load native bindings if loading wasm binding somehow fails.
 // Fallback to native binding is for migration period only,
@@ -202,6 +212,9 @@ async function loadWasm(importPath = '') {
       if (pkg === '@next/swc-wasm-web') {
         bindings = await bindings.default()
       }
+      checkVersionMismatch(
+        await import(pkgPath.replace('wasm.js', 'package.json'))
+      )
       Log.info('Using wasm build of next-swc')
 
       // Note wasm binary does not support async intefaces yet, all async
@@ -291,6 +304,7 @@ function loadNative(isCustomTurbopack = false) {
       let pkg = `@next/swc-${triple.platformArchABI}`
       try {
         bindings = require(pkg)
+        checkVersionMismatch(require(`${pkg}/package.json`))
         break
       } catch (e: any) {
         if (e?.code === 'MODULE_NOT_FOUND') {
