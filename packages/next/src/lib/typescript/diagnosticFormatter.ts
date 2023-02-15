@@ -29,6 +29,13 @@ function getFormattedLinkDiagnosticMessageText(
       return `"${chalk.bold(
         href
       )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
+    } else if (message === "Type 'string' is not assignable to type 'never'.") {
+      if (
+        diagnostic.relatedInformation?.[0]?.messageText ===
+        `The expected type comes from property 'href' which is declared here on type 'IntrinsicAttributes & Omit<InternalLinkProps, "href"> & { children: ReactNode; } & { href: never; }'`
+      ) {
+        return `Invalid \`href\` property of \`Link\`: the route does not exist. If it is intentional, please type it explicitly with \`as Route\`.`
+      }
     }
   }
 }
@@ -44,6 +51,8 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
   if (sourceFilepath && typeof message !== 'string') {
     const relativeSourceFile = path.relative(baseDir, sourceFilepath)
     const type = /page\.[^.]+$/.test(relativeSourceFile) ? 'Page' : 'Layout'
+
+    console.log(message)
 
     // Reference of error codes:
     // https://github.com/Microsoft/TypeScript/blob/main/src/compiler/diagnosticMessages.json
@@ -242,13 +251,13 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
   }
 }
 
-export async function getFormattedDiagnostic(
+export function getFormattedDiagnostic(
   ts: typeof import('typescript'),
   baseDir: string,
   distDir: string,
   diagnostic: import('typescript').Diagnostic,
   isAppDirEnabled?: boolean
-): Promise<string> {
+): string {
   // If the error comes from .next/types/, we handle it specially.
   const isLayoutOrPageError =
     isAppDirEnabled &&
