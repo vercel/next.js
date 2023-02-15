@@ -757,6 +757,7 @@ export default class DevServer extends Server {
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,
         disableStaticImages: this.nextConfig.images.disableStaticImages,
         isAppDirEnabled: !!this.appDir,
+        hasPagesDir: !!this.pagesDir,
       })
 
       if (verifyResult.version) {
