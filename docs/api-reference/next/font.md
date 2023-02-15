@@ -83,7 +83,7 @@ Examples:
 
 ### `subsets`
 
-The font [`subsets`](https://fonts.google.com/knowledge/glossary/subsetting) defined by an array of string values with the names of each subset you would like to be [preloaded](/docs/basic-features/font-optimization#specifying-a-subset). Fonts specified via `subsets` will have a link preload tag injected into the head when the [`preload`](/docs/api-reference/components/font.md#preload) option is true, which is the default.
+The font [`subsets`](https://fonts.google.com/knowledge/glossary/subsetting) defined by an array of string values with the names of each subset you would like to be [preloaded](/docs/basic-features/font-optimization#specifying-a-subset). Fonts specified via `subsets` will have a link preload tag injected into the head when the [`preload`](/docs/api-reference/next/font#preload) option is true, which is the default.
 
 Used in `@next/font/google`
 
