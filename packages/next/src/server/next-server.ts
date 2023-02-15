@@ -3,7 +3,7 @@ import './node-polyfill-fetch'
 import './node-polyfill-web-streams'
 
 import type { TLSSocket } from 'tls'
-import type { Route } from './router'
+import type { Route, RouterOptions } from './router'
 import {
   CacheFs,
   DecodeError,
@@ -21,18 +21,14 @@ import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type {
   Params,
-  RouteMatch,
+  RouteMatchFn,
 } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { NextConfig } from './config-shared'
-import type { DynamicRoutes, PageChecker } from './router'
 
 import fs from 'fs'
 import { join, relative, resolve, sep } from 'path'
 import { IncomingMessage, ServerResponse } from 'http'
 import { addRequestMeta, getRequestMeta } from './request-meta'
-import { isAPIRoute } from '../lib/is-api-route'
-import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
@@ -41,7 +37,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
-  FLIGHT_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
@@ -92,7 +88,7 @@ import { getCustomRoute, stringifyQuery } from './server-route-utils'
 import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { getClonableBody } from './body-streams'
+import { getCloneableBody } from './body-streams'
 import { checkIsManualRevalidate } from './api-utils'
 import ResponseCache from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
@@ -100,6 +96,11 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { renderToHTMLOrFlight as appRenderToHTMLOrFlight } from './app-render'
 import { setHttpClientAndAgentOptions } from './config'
+import { RouteKind } from './future/route-kind'
+
+import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-handler'
+import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
+import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
 
 export * from './base-server'
 
@@ -124,7 +125,7 @@ const MiddlewareMatcherCache = new WeakMap<
 
 const EdgeMatcherCache = new WeakMap<
   MiddlewareManifest['functions'][string],
-  RouteMatch
+  RouteMatchFn
 >()
 
 function getMiddlewareMatcher(
@@ -183,7 +184,7 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
 
 function getEdgeMatcher(
   info: MiddlewareManifest['functions'][string]
-): RouteMatch {
+): RouteMatchFn {
   const stored = EdgeMatcherCache.get(info)
   if (stored) {
     return stored
@@ -261,6 +262,16 @@ export default class NextNodeServer extends BaseServer {
     setHttpClientAndAgentOptions(this.nextConfig)
   }
 
+  protected getRoutes() {
+    const routes = super.getRoutes()
+
+    if (this.hasAppDir) {
+      routes.handlers.set(RouteKind.APP_ROUTE, new AppRouteRouteHandler())
+    }
+
+    return routes
+  }
+
   protected loadEnvConfig({
     dev,
     forceReload,
@@ -326,10 +337,10 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
-    if (this.hasAppDir) {
-      const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
-      return require(appPathsManifestPath)
-    }
+    if (!this.hasAppDir) return undefined
+
+    const appPathsManifestPath = join(this.serverDistDir, APP_PATHS_MANIFEST)
+    return require(appPathsManifestPath)
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
@@ -1004,7 +1015,11 @@ export default class NextNodeServer extends BaseServer {
 
   protected getServerComponentManifest() {
     if (!this.hasAppDir) return undefined
-    return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
+    return require(join(
+      this.distDir,
+      'server',
+      CLIENT_REFERENCE_MANIFEST + '.json'
+    ))
   }
 
   protected getServerCSSManifest() {
@@ -1027,22 +1042,7 @@ export default class NextNodeServer extends BaseServer {
     return cacheFs.readFile(join(this.serverDistDir, 'pages', `${page}.html`))
   }
 
-  protected generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  } {
+  protected generateRoutes(): RouterOptions {
     const publicRoutes = this.generatePublicRoutes()
     const imageRoutes = this.generateImageRoutes()
     const staticFilesRoutes = this.generateStaticRoutes()
@@ -1190,25 +1190,36 @@ export default class NextNodeServer extends BaseServer {
         // next.js core assumes page path without trailing slash
         pathname = removeTrailingSlash(pathname)
 
-        if (this.nextConfig.i18n) {
-          const localePathResult = normalizeLocalePath(
-            pathname,
-            this.nextConfig.i18n?.locales
-          )
-
-          if (localePathResult.detectedLocale) {
-            pathname = localePathResult.pathname
-            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
-          }
+        const options: MatchOptions = {
+          i18n: this.localeNormalizer?.match(pathname),
         }
+        if (options.i18n?.detectedLocale) {
+          parsedUrl.query.__nextLocale = options.i18n.detectedLocale
+        }
+
         const bubbleNoFallback = !!query._nextBubbleNoFallback
 
-        if (isAPIRoute(pathname)) {
-          delete query._nextBubbleNoFallback
+        const match = await this.matchers.match(pathname, options)
 
-          const handled = await this.handleApiRequest(req, res, pathname, query)
-          if (handled) {
-            return { finished: true }
+        // Try to handle the given route with the configured handlers.
+        if (match) {
+          let handled = await this.handlers.handle(match, req, res)
+          if (handled) return { finished: true }
+
+          // If the route was detected as being a Pages API route, then handle
+          // it.
+          // TODO: move this behavior into a route handler.
+          if (match.definition.kind === RouteKind.PAGES_API) {
+            delete query._nextBubbleNoFallback
+
+            handled = await this.handleApiRequest(
+              req,
+              res,
+              query,
+              // TODO: see if we can add a runtime check for this
+              match as PagesAPIRouteMatch
+            )
+            if (handled) return { finished: true }
           }
         }
 
@@ -1233,7 +1244,6 @@ export default class NextNodeServer extends BaseServer {
 
     if (useFileSystemPublicRoutes) {
       this.appPathRoutes = this.getAppPathRoutes()
-      this.dynamicRoutes = this.getDynamicRoutes()
     }
 
     return {
@@ -1244,14 +1254,11 @@ export default class NextNodeServer extends BaseServer {
       catchAllRoute,
       catchAllMiddleware,
       useFileSystemPublicRoutes,
-      dynamicRoutes: this.dynamicRoutes,
-      pageChecker: this.hasPage.bind(this),
+      matchers: this.matchers,
       nextConfig: this.nextConfig,
+      localeNormalizer: this.localeNormalizer,
     }
   }
-
-  // Used to build API page in development
-  protected async ensureApiPage(_pathname: string): Promise<void> {}
 
   /**
    * Resolves `API` request, in development builds on demand
@@ -1262,42 +1269,15 @@ export default class NextNodeServer extends BaseServer {
   protected async handleApiRequest(
     req: BaseNextRequest,
     res: BaseNextResponse,
-    pathname: string,
-    query: ParsedUrlQuery
+    query: ParsedUrlQuery,
+    match: PagesAPIRouteMatch
   ): Promise<boolean> {
-    let page = pathname
-    let params: Params | undefined = undefined
-    let pageFound = !isDynamicRoute(page) && (await this.hasPage(page))
+    const {
+      definition: { pathname, filename },
+      params,
+    } = match
 
-    if (!pageFound && this.dynamicRoutes) {
-      for (const dynamicRoute of this.dynamicRoutes) {
-        params = dynamicRoute.match(pathname) || undefined
-        if (isAPIRoute(dynamicRoute.page) && params) {
-          page = dynamicRoute.page
-          pageFound = true
-          break
-        }
-      }
-    }
-
-    if (!pageFound) {
-      return false
-    }
-    // Make sure the page is built before getting the path
-    // or else it won't be in the manifest yet
-    await this.ensureApiPage(page)
-
-    let builtPagePath
-    try {
-      builtPagePath = this.getPagePath(page)
-    } catch (err) {
-      if (isError(err) && err.code === 'ENOENT') {
-        return false
-      }
-      throw err
-    }
-
-    return this.runApi(req, res, query, params, page, builtPagePath)
+    return this.runApi(req, res, query, params, pathname, filename)
   }
 
   protected getCacheFilesystem(): CacheFs {
@@ -1415,7 +1395,7 @@ export default class NextNodeServer extends BaseServer {
     path: string,
     parsedUrl?: UrlWithParsedQuery
   ): Promise<void> {
-    if (!this.isServeableUrl(path)) {
+    if (!this.isServableUrl(path)) {
       return this.render404(req, res, parsedUrl)
     }
 
@@ -1470,7 +1450,7 @@ export default class NextNodeServer extends BaseServer {
       : []
   }
 
-  protected isServeableUrl(untrustedFileUrl: string): boolean {
+  protected isServableUrl(untrustedFileUrl: string): boolean {
     // This method mimics what the version of `send` we use does:
     // 1. decodeURIComponent:
     //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
@@ -1719,6 +1699,9 @@ export default class NextNodeServer extends BaseServer {
 
     let url: string
 
+    const options: MatchOptions = {
+      i18n: this.localeNormalizer?.match(normalizedPathname),
+    }
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
       url = getRequestMeta(params.request, '__NEXT_INIT_URL')!
     } else {
@@ -1740,17 +1723,13 @@ export default class NextNodeServer extends BaseServer {
     }
 
     const page: { name?: string; params?: { [key: string]: string } } = {}
-    if (await this.hasPage(normalizedPathname)) {
-      page.name = params.parsedUrl.pathname
-    } else if (this.dynamicRoutes) {
-      for (const dynamicRoute of this.dynamicRoutes) {
-        const matchParams = dynamicRoute.match(normalizedPathname)
-        if (matchParams) {
-          page.name = dynamicRoute.page
-          page.params = matchParams
-          break
-        }
-      }
+
+    const match = await this.matchers.match(normalizedPathname, options)
+    if (match) {
+      page.name = match.params
+        ? match.definition.pathname
+        : params.parsedUrl.pathname
+      page.params = match.params
     }
 
     const middleware = this.getMiddleware()
@@ -1993,14 +1972,6 @@ export default class NextNodeServer extends BaseServer {
                   ? `${parsedDestination.hostname}:${parsedDestination.port}`
                   : parsedDestination.hostname) !== req.headers.host
               ) {
-                // when we are handling a middleware prefetch and it doesn't
-                // resolve to a static data route we bail early to avoid
-                // unexpected SSR invocations
-                if (req.headers['x-middleware-prefetch']) {
-                  res.setHeader('x-middleware-skip', '1')
-                  res.body('{}').send()
-                  return { finished: true }
-                }
                 return this.proxyRequest(
                   req as NodeNextRequest,
                   res as NodeNextResponse,
@@ -2085,7 +2056,7 @@ export default class NextNodeServer extends BaseServer {
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
     addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
     addRequestMeta(req, '_protocol', protocol)
-    addRequestMeta(req, '__NEXT_CLONABLE_BODY', getClonableBody(req.body))
+    addRequestMeta(req, '__NEXT_CLONABLE_BODY', getCloneableBody(req.body))
   }
 
   protected async runEdgeFunction(params: {

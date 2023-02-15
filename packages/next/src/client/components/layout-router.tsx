@@ -25,6 +25,7 @@ import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { useRouter } from './navigation'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
+import { getURLFromRedirectError, isRedirectError } from './redirect'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -380,8 +381,8 @@ class RedirectErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: any) {
-    if (error?.digest?.startsWith('NEXT_REDIRECT')) {
-      const url = error.digest.split(';')[1]
+    if (isRedirectError(error)) {
+      const url = getURLFromRedirectError(error)
       return { redirect: url }
     }
     // Re-throw if error is not for redirect

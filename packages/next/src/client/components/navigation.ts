@@ -22,7 +22,7 @@ function readonlyURLSearchParamsError() {
   return new Error('ReadonlyURLSearchParams cannot be modified')
 }
 
-class ReadonlyURLSearchParams {
+export class ReadonlyURLSearchParams {
   [INTERNAL_URLSEARCHPARAMS_INSTANCE]: URLSearchParams
 
   entries: URLSearchParams['entries']
@@ -68,13 +68,21 @@ class ReadonlyURLSearchParams {
 /**
  * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
  * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
+ *
+ * @internal - re-exported in `next-env.d.ts`.
  */
-export function useSearchParams() {
+export function useSearchParams(): ReadonlyURLSearchParams | null {
   clientHookInServerComponentError('useSearchParams')
   const searchParams = useContext(SearchParamsContext)
 
   const readonlySearchParams = useMemo(() => {
-    return new ReadonlyURLSearchParams(searchParams || new URLSearchParams())
+    if (!searchParams) {
+      // When the router is not ready in pages, we won't have the search params
+      // available.
+      return null
+    }
+
+    return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams])
 
   if (typeof window === 'undefined') {
@@ -87,15 +95,13 @@ export function useSearchParams() {
     }
   }
 
-  if (!searchParams) {
-    throw new Error('invariant expected search params to be mounted')
-  }
-
   return readonlySearchParams
 }
 
 /**
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
+ *
+ * @internal - re-exported in `next-env.d.ts`.
  */
 export function usePathname(): string | null {
   clientHookInServerComponentError('usePathname')

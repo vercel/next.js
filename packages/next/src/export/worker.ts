@@ -29,11 +29,11 @@ import RenderResult from '../server/render-result'
 import isError from '../lib/is-error'
 import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
-import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
-import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/app-dynamic/no-ssr-error'
 import { IncrementalCache } from '../server/lib/incremental-cache'
+import { isNotFoundError } from '../client/components/not-found'
+import { isRedirectError } from '../client/components/redirect'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 
 loadRequireHook()
 
@@ -391,9 +391,9 @@ export default async function exportPage({
         } catch (err: any) {
           if (
             err.digest !== DYNAMIC_ERROR_CODE &&
-            err.digest !== NOT_FOUND_ERROR_CODE &&
+            !isNotFoundError(err) &&
             err.digest !== NEXT_DYNAMIC_NO_SSR_CODE &&
-            !err.digest?.startsWith(REDIRECT_ERROR_CODE)
+            !isRedirectError(err)
           ) {
             throw err
           }

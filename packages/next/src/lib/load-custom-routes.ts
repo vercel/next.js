@@ -525,7 +525,9 @@ function processRoutes<T>(
           newRoutes.push({
             ...r,
             destination,
-            source: `${srcBasePath}/${item.locale}${r.source}`,
+            source: `${srcBasePath}/${item.locale}${
+              r.source === '/' && !config.trailingSlash ? '' : r.source
+            }`,
           })
         })
       }

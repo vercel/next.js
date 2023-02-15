@@ -39,6 +39,16 @@ export const __isCustomTurbopackBinary = async (): Promise<boolean> => {
   )
 }
 
+function checkVersionMismatch(pkgData: any) {
+  const version = pkgData.version
+
+  if (version && version !== nextVersion) {
+    Log.warn(
+      `Mismatching @next/swc version, detected: ${version} while Next.js is on ${nextVersion}. Please ensure these match`
+    )
+  }
+}
+
 // These are the platforms we'll try to load wasm bindings first,
 // only try to load native bindings if loading wasm binding somehow fails.
 // Fallback to native binding is for migration period only,
@@ -291,6 +301,7 @@ function loadNative(isCustomTurbopack = false) {
       let pkg = `@next/swc-${triple.platformArchABI}`
       try {
         bindings = require(pkg)
+        checkVersionMismatch(require(`${pkg}/package.json`))
         break
       } catch (e: any) {
         if (e?.code === 'MODULE_NOT_FOUND') {
@@ -441,8 +452,13 @@ function loadNative(isCustomTurbopack = false) {
             require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS).startDev(devOptions)
           }
         },
-        startTrace: (options = {}) =>
-          bindings.runTurboTracing(toBuffer({ exact: true, ...options })),
+        startTrace: (options = {}, turboTasks: unknown) =>
+          bindings.runTurboTracing(
+            toBuffer({ exact: true, ...options }),
+            turboTasks
+          ),
+        createTurboTasks: (memoryLimit?: number): unknown =>
+          bindings.createTurboTasks(memoryLimit),
       },
       mdx: {
         compile: (src: string, options: any) =>
