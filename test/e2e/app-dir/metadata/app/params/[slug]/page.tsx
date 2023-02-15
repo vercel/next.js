@@ -10,7 +10,7 @@ export default function page(props) {
 
 export async function generateMetadata(props, parent) {
   const parentMetadata = await parent
-
+  /* mutating */
   return {
     ...parentMetadata,
     title: format(props),
