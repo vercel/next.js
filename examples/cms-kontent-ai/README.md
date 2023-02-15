@@ -38,15 +38,15 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-npx create-next-app --example cms-kontent cms-kontent-app
+npx create-next-app --example cms-kontent-ai cms-kontent-app
 ```
 
 ```bash
-yarn create next-app --example cms-kontent cms-kontent-app
+yarn create next-app --example cms-kontent-ai cms-kontent-app
 ```
 
 ```bash
-pnpm create next-app --example cms-kontent cms-kontent-app
+pnpm create next-app --example cms-kontent-ai cms-kontent-app
 ```
 
 ## Configuration

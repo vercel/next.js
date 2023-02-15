@@ -337,22 +337,32 @@ export const css = curry(async function css(
     )
   } else {
     // External CSS files are allowed to be loaded when any of the following is true:
-    // - hasAppDir: If the issuerLayer is RSC
+    // - hasAppDir: all CSS files are allowed
     // - If the CSS file is located in `node_modules`
     // - If the CSS file is located in another package in a monorepo (outside of the current rootDir)
     // - If the issuer is pages/_app (matched later)
-    const allowedExternalCSSImports = {
-      and: [
-        {
-          or: [
-            /node_modules/,
+    const allowedPagesGlobalCSSPath = ctx.hasAppDir
+      ? undefined
+      : {
+          and: [
             {
-              not: [ctx.rootDirectory],
+              or: [
+                /node_modules/,
+                {
+                  not: [ctx.rootDirectory],
+                },
+              ],
             },
           ],
-        },
-      ],
-    }
+        }
+    const allowedPagesGlobalCSSIssuer = ctx.hasAppDir
+      ? undefined
+      : shouldIncludeExternalCSSImports
+      ? undefined
+      : {
+          and: [ctx.rootDirectory],
+          not: [/node_modules/],
+        }
 
     fns.push(
       loader({
@@ -387,26 +397,16 @@ export const css = curry(async function css(
           markRemovable({
             sideEffects: true,
             test: regexCssGlobal,
-            include: allowedExternalCSSImports,
-            issuer: shouldIncludeExternalCSSImports
-              ? undefined
-              : {
-                  and: [ctx.rootDirectory],
-                  not: [/node_modules/],
-                },
+            include: allowedPagesGlobalCSSPath,
+            issuer: allowedPagesGlobalCSSIssuer,
             issuerLayer: PAGES_LAYER_RULE,
             use: getGlobalCssLoader(ctx, false, lazyPostCSSInitializer),
           }),
           markRemovable({
             sideEffects: true,
             test: regexSassGlobal,
-            include: allowedExternalCSSImports,
-            issuer: shouldIncludeExternalCSSImports
-              ? undefined
-              : {
-                  and: [ctx.rootDirectory],
-                  not: [/node_modules/],
-                },
+            include: allowedPagesGlobalCSSPath,
+            issuer: allowedPagesGlobalCSSIssuer,
             issuerLayer: PAGES_LAYER_RULE,
             use: getGlobalCssLoader(
               ctx,

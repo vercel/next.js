@@ -30,18 +30,16 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-// import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
-import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
-import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/app-dynamic/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
@@ -54,6 +52,9 @@ import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 import { warnOnce } from '../shared/lib/utils/warn-once'
+import { isNotFoundError } from '../client/components/not-found'
+import { isRedirectError } from '../client/components/redirect'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -195,11 +196,20 @@ export type RenderOptsPartial = {
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 /**
- * Flight Response is always set to application/octet-stream to ensure it does not get interpreted as HTML.
+ * Flight Response is always set to RSC_CONTENT_TYPE_HEADER to ensure it does not get interpreted as HTML.
  */
 class FlightRenderResult extends RenderResult {
   constructor(response: string | ReadableStream<Uint8Array>) {
-    super(response, { contentType: 'application/octet-stream' })
+    super(response, { contentType: RSC_CONTENT_TYPE_HEADER })
+  }
+}
+
+/**
+ * Action Response is set to application/json for now, but could be changed in the future.
+ */
+class ActionRenderResult extends RenderResult {
+  constructor(response: string) {
+    super(response, { contentType: 'application/json' })
   }
 }
 
@@ -230,9 +240,9 @@ function createErrorHandler(
     if (
       err &&
       (err.digest === DYNAMIC_ERROR_CODE ||
-        err.digest === NOT_FOUND_ERROR_CODE ||
+        isNotFoundError(err) ||
         err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-        err.digest?.startsWith(REDIRECT_ERROR_CODE))
+        isRedirectError(err))
     ) {
       return err.digest
     }
@@ -895,6 +905,11 @@ export async function renderToHTMLOrFlight(
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
+  const actionId = req.headers[ACTION.toLowerCase()]
+  const isAction =
+    actionId !== undefined &&
+    typeof actionId === 'string' &&
+    req.method === 'POST'
 
   const capturedErrors: Error[] = []
   const allCapturedErrors: Error[] = []
@@ -921,6 +936,7 @@ export async function renderToHTMLOrFlight(
     buildManifest,
     subresourceIntegrityManifest,
     serverComponentManifest,
+    serverActionsManifest,
     serverCSSManifest = {},
     ComponentMod,
     dev,
@@ -929,6 +945,19 @@ export async function renderToHTMLOrFlight(
   } = renderOpts
 
   patchFetch(ComponentMod)
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
@@ -1793,6 +1822,23 @@ export async function renderToHTMLOrFlight(
       return generateFlight()
     }
 
+    // For action requests, we handle them differently with a sepcial render result.
+    if (isAction && process.env.NEXT_RUNTIME !== 'edge') {
+      const workerName = 'app' + renderOpts.pathname
+      const actionModId = serverActionsManifest[actionId].workers[workerName]
+
+      const { parseBody } =
+        require('./api-utils/node') as typeof import('./api-utils/node')
+      const actionData = (await parseBody(req, '1mb')) || {}
+
+      const actionHandler =
+        ComponentMod.__next_app_webpack_require__(actionModId).default
+
+      return new ActionRenderResult(
+        JSON.stringify(await actionHandler(actionId, actionData.bound || []))
+      )
+    }
+
     // Below this line is handling for rendering to HTML.
 
     // AppRouter is provided by next-app-loader
@@ -1982,9 +2028,12 @@ export async function renderToHTMLOrFlight(
 
         return result
       } catch (err: any) {
-        const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
-        if (err.digest === NOT_FOUND_ERROR_CODE) {
+        const shouldNotIndex = isNotFoundError(err)
+        if (isNotFoundError(err)) {
           res.statusCode = 404
+        }
+        if (isRedirectError(err)) {
+          res.statusCode = 307
         }
 
         const renderStream = await renderToInitialStream({

@@ -190,7 +190,7 @@ createNextDescribe(
 
       it('should support alternate tags', async () => {
         const browser = await next.browser('/alternate')
-        await checkLink(browser, 'canonical', 'https://example.com')
+        await checkLink(browser, 'canonical', 'https://example.com/')
         await checkMeta(
           browser,
           'en-US',
@@ -321,6 +321,22 @@ createNextDescribe(
         const browser = await next.browser('/basic/sync-generate-metadata')
         expect(await getTitle(browser)).toBe('synchronous generateMetadata')
       })
+
+      it('should handle metadataBase for urls resolved as only URL type', async () => {
+        // including few urls in opengraph and alternates
+        const url$ = await next.render$('/metadata-base/url')
+
+        // compose with metadataBase
+        expect(url$('link[rel="canonical"]').attr('href')).toBe(
+          'https://bar.example/url/subpath'
+        )
+
+        // override metadataBase
+        const urlInstance$ = await next.render$('/metadata-base/url-instance')
+        expect(urlInstance$('meta[property="og:url"]').attr('content')).toBe(
+          'http://https//outerspace.com/huozhi.png'
+        )
+      })
     })
 
     describe('opengraph', () => {
@@ -391,6 +407,31 @@ createNextDescribe(
           'author3',
         ])
       })
+
+      it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
+        const $ = await next.render$('/opengraph/static')
+        expect($('[property="og:image:url"]').attr('content')).toMatch(
+          /_next\/static\/media\/metadata\/opengraph-image.\w+.png/
+        )
+        expect($('[property="og:image:type"]').attr('content')).toBe(
+          'image/png'
+        )
+        expect($('[property="og:image:width"]').attr('content')).toBe('114')
+        expect($('[property="og:image:height"]').attr('content')).toBe('114')
+
+        expect($('[name="twitter:image"]').attr('content')).toMatch(
+          /_next\/static\/media\/metadata\/twitter-image.\w+.png/
+        )
+        expect($('[name="twitter:card"]').attr('content')).toBe(
+          'summary_large_image'
+        )
+
+        // favicon shouldn't be overridden
+        const $icon = $('link[rel="icon"]')
+        expect($icon.attr('href')).toMatch(
+          /_next\/static\/media\/metadata\/favicon.\w+.ico/
+        )
+      })
     })
 
     describe('icons', () => {
@@ -438,29 +479,48 @@ createNextDescribe(
           ])
         ).toEqual({ sizes: '180x180', type: 'image/png' })
       })
+
+      it('should support root level of favicon.ico', async () => {
+        let $ = await next.render$('/')
+        let $icon = $('link[rel="icon"]')
+        expect($icon.attr('href')).toMatch(
+          /_next\/static\/media\/metadata\/favicon.\w+.ico/
+        )
+        expect($icon.attr('type')).toBe('image/x-icon')
+        expect($icon.attr('sizes')).toBe('any')
+
+        $ = await next.render$('/basic')
+        $icon = $('link[rel="icon"]')
+        expect($icon.attr('href')).toMatch(
+          /_next\/static\/media\/metadata\/favicon.\w+.ico/
+        )
+        expect($icon.attr('sizes')).toBe('any')
+      })
     })
 
     describe('file based icons', () => {
       it('should render icon and apple touch icon meta if their images are specified', async () => {
         const $ = await next.render$('/icons/static/nested')
 
-        const $icon = $('head > link[rel="icon"]')
+        const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
           /\/_next\/static\/media\/metadata\/icon1\.\w+\.png/
         )
         expect($icon.attr('sizes')).toBe('32x32')
+        expect($icon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('href')).toMatch(
           /\/_next\/static\/media\/metadata\/apple-icon\.\w+\.png/
         )
+        expect($appleIcon.attr('type')).toBe('image/png')
         expect($appleIcon.attr('sizes')).toMatch('114x114')
       })
 
       it('should not render if image file is not specified', async () => {
         const $ = await next.render$('/icons/static')
 
-        const $icon = $('head > link[rel="icon"]')
+        const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
         const $appleIcon = $('head > link[rel="apple-touch-icon"]')
 
         expect($icon.attr('href')).toMatch(
@@ -480,7 +540,7 @@ createNextDescribe(
 
           await check(async () => {
             const $ = await next.render$('/icons/static')
-            const $icon = $('head > link[rel="icon"]')
+            const $icon = $('head > link[rel="icon"][type!="image/x-icon"]')
             return $icon.attr('href')
           }, /\/_next\/static\/media\/metadata\/icon2\.\w+\.png/)
 

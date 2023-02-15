@@ -2395,7 +2395,7 @@ export default async function (task) {
 export async function shared(task, opts) {
   await task
     .source(
-      'src/shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)'
+      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head|runtime-config).+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev })
     .target('dist/shared')
@@ -2403,7 +2403,9 @@ export async function shared(task, opts) {
 
 export async function shared_esm(task, opts) {
   await task
-    .source('src/shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)')
+    .source(
+      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head).+(js|ts|tsx)'
+    )
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/shared')
 }
@@ -2411,7 +2413,7 @@ export async function shared_esm(task, opts) {
 export async function shared_re_exported(task, opts) {
   await task
     .source(
-      'src/shared/**/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)'
+      'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
@@ -2419,7 +2421,9 @@ export async function shared_re_exported(task, opts) {
 
 export async function shared_re_exported_esm(task, opts) {
   await task
-    .source('src/shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)')
+    .source(
+      'src/shared/**/{amp,config,constants,app-dynamic,dynamic,head}.+(js|ts|tsx)'
+    )
     .swc('client', {
       dev: opts.dev,
       esm: true,

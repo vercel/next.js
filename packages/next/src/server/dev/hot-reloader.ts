@@ -49,6 +49,7 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
+import { RouteMatch } from '../future/route-matches/route-match'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -60,7 +61,7 @@ export async function renderScriptError(
   res: ServerResponse,
   error: Error,
   { verbose = true } = {}
-) {
+): Promise<{ finished: true | undefined }> {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader(
     'Cache-Control',
@@ -68,9 +69,7 @@ export async function renderScriptError(
   )
 
   if ((error as any).code === 'ENOENT') {
-    res.statusCode = 404
-    res.end('404 - Not Found')
-    return
+    return { finished: undefined }
   }
 
   if (verbose) {
@@ -78,6 +77,7 @@ export async function renderScriptError(
   }
   res.statusCode = 500
   res.end('500 - Internal Error')
+  return { finished: true }
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
@@ -271,14 +271,14 @@ export default class HotReloader {
         try {
           await this.ensurePage({ page, clientOnly: true })
         } catch (error) {
-          await renderScriptError(pageBundleRes, getProperError(error))
-          return { finished: true }
+          return await renderScriptError(pageBundleRes, getProperError(error))
         }
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(pageBundleRes, errors[0], { verbose: false })
-          return { finished: true }
+          return await renderScriptError(pageBundleRes, errors[0], {
+            verbose: false,
+          })
         }
       }
 
@@ -655,6 +655,7 @@ export default class HotReloader {
                       rootDir: this.dir,
                       isDev: true,
                       tsconfigPath: this.config.typescript.tsconfigPath,
+                      assetPrefix: this.config.assetPrefix,
                     }).import
                   : undefined
 
@@ -736,6 +737,7 @@ export default class HotReloader {
                         rootDir: this.dir,
                         isDev: true,
                         tsconfigPath: this.config.typescript.tsconfigPath,
+                        assetPrefix: this.config.assetPrefix,
                       })
                     : relativeRequest,
                   hasAppDir,
@@ -1147,10 +1149,12 @@ export default class HotReloader {
     page,
     clientOnly,
     appPaths,
+    match,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: string[] | null
+    match?: RouteMatch
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
@@ -1166,6 +1170,7 @@ export default class HotReloader {
       page,
       clientOnly,
       appPaths,
+      match,
     }) as any
   }
 }
