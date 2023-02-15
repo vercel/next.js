@@ -1245,6 +1245,25 @@ export default async function getBaseWebpackConfig(
     // If the request cannot be resolved we need to have
     // webpack "bundle" it so it surfaces the not found error.
     if (!res) {
+      // We tried to bundle this request in the server layer but it failed.
+      // In this case we need to display a helpful error message for people to
+      // add the package to the `serverComponentsExternalPackages` config.
+      if (layer === WEBPACK_LAYERS.server) {
+        if (/[/\\]node_modules[/\\]/.test(context)) {
+          // Try to match the package name from the context path.
+          const packageName =
+            context.match(/[/\\]node_modules[/\\]([^/\\@]+)/)?.[1] ||
+            context.match(
+              /[/\\]node_modules[/\\](@[^/\\]+[/\\][^/\\]+)[/\\]/
+            )?.[1]
+
+          throw new Error(
+            `Failed to bundle ${
+              packageName ? `package "${packageName}"` : context
+            } in Server Components. Please try adding it to the \`serverComponentsExternalPackages\` config: https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages`
+          )
+        }
+      }
       return
     }
 
