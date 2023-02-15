@@ -32,8 +32,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetVc},
+    compile_time_info::CompileTimeInfoVc,
     context::{AssetContext, AssetContextVc},
-    environment::EnvironmentVc,
     issue::{unsupported_module::UnsupportedModuleIssue, Issue, IssueVc},
     reference::all_referenced_assets,
     reference_type::ReferenceType,
@@ -116,7 +116,7 @@ async fn apply_module_type(
             context.into(),
             Value::new(EcmascriptModuleAssetType::Ecmascript),
             *transforms,
-            context.environment(),
+            context.compile_time_info(),
         )
         .into(),
         ModuleType::Typescript(transforms) => EcmascriptModuleAssetVc::new(
@@ -124,7 +124,7 @@ async fn apply_module_type(
             context.into(),
             Value::new(EcmascriptModuleAssetType::Typescript),
             *transforms,
-            context.environment(),
+            context.compile_time_info(),
         )
         .into(),
         ModuleType::TypescriptWithTypes(transforms) => EcmascriptModuleAssetVc::new(
@@ -132,7 +132,7 @@ async fn apply_module_type(
             context.with_types_resolving_enabled().into(),
             Value::new(EcmascriptModuleAssetType::TypescriptWithTypes),
             *transforms,
-            context.environment(),
+            context.compile_time_info(),
         )
         .into(),
         ModuleType::TypescriptDeclaration(transforms) => EcmascriptModuleAssetVc::new(
@@ -140,7 +140,7 @@ async fn apply_module_type(
             context.with_types_resolving_enabled().into(),
             Value::new(EcmascriptModuleAssetType::TypescriptDeclaration),
             *transforms,
-            context.environment(),
+            context.compile_time_info(),
         )
         .into(),
         ModuleType::Json => JsonModuleAssetVc::new(source).into(),
@@ -246,7 +246,7 @@ async fn module(
 #[turbo_tasks::value]
 pub struct ModuleAssetContext {
     transitions: TransitionsByNameVc,
-    environment: EnvironmentVc,
+    compile_time_info: CompileTimeInfoVc,
     module_options_context: ModuleOptionsContextVc,
     resolve_options_context: ResolveOptionsContextVc,
     transition: Option<TransitionVc>,
@@ -257,13 +257,13 @@ impl ModuleAssetContextVc {
     #[turbo_tasks::function]
     pub fn new(
         transitions: TransitionsByNameVc,
-        environment: EnvironmentVc,
+        compile_time_info: CompileTimeInfoVc,
         module_options_context: ModuleOptionsContextVc,
         resolve_options_context: ResolveOptionsContextVc,
     ) -> Self {
         Self::cell(ModuleAssetContext {
             transitions,
-            environment,
+            compile_time_info,
             module_options_context,
             resolve_options_context,
             transition: None,
@@ -273,14 +273,14 @@ impl ModuleAssetContextVc {
     #[turbo_tasks::function]
     pub fn new_transition(
         transitions: TransitionsByNameVc,
-        environment: EnvironmentVc,
+        compile_time_info: CompileTimeInfoVc,
         module_options_context: ModuleOptionsContextVc,
         resolve_options_context: ResolveOptionsContextVc,
         transition: TransitionVc,
     ) -> Self {
         Self::cell(ModuleAssetContext {
             transitions,
-            environment,
+            compile_time_info,
             module_options_context,
             resolve_options_context,
             transition: Some(transition),
@@ -313,7 +313,7 @@ impl ModuleAssetContextVc {
             .await?;
         Ok(ModuleAssetContextVc::new(
             this.transitions,
-            this.environment,
+            this.compile_time_info,
             this.module_options_context,
             resolve_options_context,
         ))
@@ -323,8 +323,8 @@ impl ModuleAssetContextVc {
 #[turbo_tasks::value_impl]
 impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
-    fn environment(&self) -> EnvironmentVc {
-        self.environment
+    fn compile_time_info(&self) -> CompileTimeInfoVc {
+        self.compile_time_info
     }
 
     #[turbo_tasks::function]
@@ -392,14 +392,14 @@ impl AssetContext for ModuleAssetContext {
         let this = self_vc.await?;
         if let Some(transition) = this.transition {
             let asset = transition.process_source(asset);
-            let environment = transition.process_environment(this.environment);
+            let compile_time_info = transition.process_compile_time_info(this.compile_time_info);
             let module_options_context =
                 transition.process_module_options_context(this.module_options_context);
             let resolve_options_context =
                 transition.process_resolve_options_context(this.resolve_options_context);
             let context = ModuleAssetContextVc::new(
                 this.transitions,
-                environment,
+                compile_time_info,
                 module_options_context,
                 resolve_options_context,
             );
@@ -408,7 +408,7 @@ impl AssetContext for ModuleAssetContext {
         } else {
             let context = ModuleAssetContextVc::new(
                 this.transitions,
-                this.environment,
+                this.compile_time_info,
                 this.module_options_context,
                 this.resolve_options_context,
             );
@@ -422,7 +422,7 @@ impl AssetContext for ModuleAssetContext {
             if let Some(transition) = self.transitions.await?.get(transition) {
                 ModuleAssetContextVc::new_transition(
                     self.transitions,
-                    self.environment,
+                    self.compile_time_info,
                     self.module_options_context,
                     self.resolve_options_context,
                     *transition,
@@ -432,7 +432,7 @@ impl AssetContext for ModuleAssetContext {
                 // TODO report issue
                 ModuleAssetContextVc::new(
                     self.transitions,
-                    self.environment,
+                    self.compile_time_info,
                     self.module_options_context,
                     self.resolve_options_context,
                 )

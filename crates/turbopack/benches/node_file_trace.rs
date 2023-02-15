@@ -11,12 +11,14 @@ use turbopack::{
     ModuleAssetContextVc,
 };
 use turbopack_core::{
+    compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     reference_type::ReferenceType,
     source_asset::SourceAssetVc,
 };
 
+// TODO this should move to the `node-file-trace` crate
 pub fn benchmark(c: &mut Criterion) {
     register();
 
@@ -78,22 +80,25 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let output_dir = output_fs.root();
 
                 let source = SourceAssetVc::new(input);
-                let environment = EnvironmentVc::new(
-                    Value::new(ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment::default().into(),
-                    )),
-                    Value::new(EnvironmentIntention::ServerRendering),
-                );
+                let compile_time_info = CompileTimeInfo {
+                    environment: EnvironmentVc::new(
+                        Value::new(ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment::default().into(),
+                        )),
+                        Value::new(EnvironmentIntention::ServerRendering),
+                    ),
+                }
+                .cell();
                 let context = ModuleAssetContextVc::new(
                     TransitionsByNameVc::cell(HashMap::new()),
-                    environment,
+                    compile_time_info,
                     ModuleOptionsContext {
                         enable_types: true,
                         ..Default::default()
                     }
                     .cell(),
                     ResolveOptionsContext {
-                        emulate_environment: Some(environment),
+                        emulate_environment: Some(compile_time_info.environment().resolve().await?),
                         ..Default::default()
                     }
                     .cell(),

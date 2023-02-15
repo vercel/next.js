@@ -4,7 +4,7 @@ use turbo_tasks_fs::FileSystemPathVc;
 
 use crate::{
     asset::AssetVc,
-    environment::EnvironmentVc,
+    compile_time_info::CompileTimeInfoVc,
     reference_type::ReferenceType,
     resolve::{options::ResolveOptionsVc, parse::RequestVc, ResolveResultVc},
 };
@@ -14,7 +14,7 @@ use crate::{
 /// type (e. g. from SourceAsset to ModuleAsset).
 #[turbo_tasks::value_trait]
 pub trait AssetContext {
-    fn environment(&self) -> EnvironmentVc;
+    fn compile_time_info(&self) -> CompileTimeInfoVc;
     fn resolve_options(
         &self,
         origin_path: FileSystemPathVc,

@@ -17,7 +17,7 @@ use turbopack_node::execution_context::ExecutionContextVc;
 use crate::{
     embed_js::wrap_with_next_js_fs,
     next_client::context::{
-        get_client_asset_context, get_client_chunking_context, get_client_environment,
+        get_client_asset_context, get_client_chunking_context, get_client_compile_time_info,
         get_client_runtime_entries, ClientContextType,
     },
     next_config::NextConfigVc,
@@ -37,15 +37,20 @@ pub async fn create_web_entry_source(
     let project_root = wrap_with_next_js_fs(project_root);
 
     let ty = Value::new(ClientContextType::Other);
-    let environment = get_client_environment(browserslist_query);
+    let compile_time_info = get_client_compile_time_info(browserslist_query);
     let context = get_client_asset_context(
         project_root,
         execution_context,
-        environment,
+        compile_time_info,
         ty,
         next_config,
     );
-    let chunking_context = get_client_chunking_context(project_root, server_root, environment, ty);
+    let chunking_context = get_client_chunking_context(
+        project_root,
+        server_root,
+        compile_time_info.environment(),
+        ty,
+    );
     let entries = get_client_runtime_entries(project_root, env, ty, next_config);
 
     let runtime_entries = entries.resolve_entries(context);

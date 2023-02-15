@@ -16,6 +16,7 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
+    compile_time_info::{CompileTimeInfo, CompileTimeInfoVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     resolve::{parse::RequestVc, pattern::Pattern},
@@ -39,19 +40,22 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-pub fn get_client_environment(browserslist_query: &str) -> EnvironmentVc {
-    EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::Browser(
-            BrowserEnvironment {
-                dom: true,
-                web_worker: false,
-                service_worker: false,
-                browserslist_query: browserslist_query.to_owned(),
-            }
-            .into(),
-        )),
-        Value::new(EnvironmentIntention::Client),
-    )
+pub fn get_client_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
+    CompileTimeInfo {
+        environment: EnvironmentVc::new(
+            Value::new(ExecutionEnvironment::Browser(
+                BrowserEnvironment {
+                    dom: true,
+                    web_worker: false,
+                    service_worker: false,
+                    browserslist_query: browserslist_query.to_owned(),
+                }
+                .into(),
+            )),
+            Value::new(EnvironmentIntention::Client),
+        ),
+    }
+    .cell()
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -145,7 +149,7 @@ pub async fn get_client_module_options_context(
 pub fn get_client_asset_context(
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
-    environment: EnvironmentVc,
+    compile_time_info: CompileTimeInfoVc,
     ty: Value<ClientContextType>,
     next_config: NextConfigVc,
 ) -> AssetContextVc {
@@ -153,14 +157,14 @@ pub fn get_client_asset_context(
     let module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
-        environment,
+        compile_time_info.environment(),
         ty,
         next_config,
     );
 
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
-        environment,
+        compile_time_info,
         module_options_context,
         resolve_options_context,
     )

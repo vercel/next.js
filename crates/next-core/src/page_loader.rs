@@ -84,7 +84,7 @@ impl PageLoaderAssetVc {
             this.client_context,
             turbo_tasks::Value::new(EcmascriptModuleAssetType::Typescript),
             EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
-            this.client_context.environment(),
+            this.client_context.compile_time_info(),
         );
 
         let chunk_group =

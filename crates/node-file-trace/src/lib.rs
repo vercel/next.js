@@ -40,6 +40,7 @@ use turbopack::{
 use turbopack_cli_utils::issue::{ConsoleUiVc, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsVc},
+    compile_time_info::CompileTimeInfo,
     context::{AssetContext, AssetContextVc},
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     issue::{IssueReporter, IssueSeverity, IssueVc},
@@ -255,6 +256,7 @@ async fn input_to_modules<'a>(
         )),
         Value::new(EnvironmentIntention::Api),
     );
+    let compile_time_info = CompileTimeInfo { environment: env }.cell();
     let glob_mappings = vec![
         (
             root,
@@ -269,7 +271,7 @@ async fn input_to_modules<'a>(
     ];
     let context: AssetContextVc = ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(HashMap::new()),
-        env,
+        compile_time_info,
         ModuleOptionsContext {
             enable_types: true,
             enable_mdx,

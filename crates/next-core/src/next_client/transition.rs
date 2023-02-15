@@ -11,7 +11,7 @@ use turbopack::{
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkableAssetVc, ChunkingContextVc},
-    environment::EnvironmentVc,
+    compile_time_info::CompileTimeInfoVc,
     virtual_asset::VirtualAssetVc,
 };
 
@@ -26,7 +26,7 @@ use crate::embed_js::next_js_file;
 #[turbo_tasks::value(shared)]
 pub struct NextClientTransition {
     pub is_app: bool,
-    pub client_environment: EnvironmentVc,
+    pub client_compile_time_info: CompileTimeInfoVc,
     pub client_module_options_context: ModuleOptionsContextVc,
     pub client_resolve_options_context: ResolveOptionsContextVc,
     pub client_chunking_context: ChunkingContextVc,
@@ -54,8 +54,11 @@ impl Transition for NextClientTransition {
     }
 
     #[turbo_tasks::function]
-    fn process_environment(&self, _environment: EnvironmentVc) -> EnvironmentVc {
-        self.client_environment
+    fn process_compile_time_info(
+        &self,
+        _compile_time_info: CompileTimeInfoVc,
+    ) -> CompileTimeInfoVc {
+        self.client_compile_time_info
     }
 
     #[turbo_tasks::function]

@@ -8,6 +8,7 @@
 pub mod asset;
 pub mod chunk;
 pub mod code_builder;
+pub mod compile_time_info;
 pub mod context;
 pub mod environment;
 pub mod introspect;

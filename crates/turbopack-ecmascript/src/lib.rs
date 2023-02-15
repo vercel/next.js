@@ -49,8 +49,8 @@ use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetOptionVc, AssetVc},
     chunk::{ChunkItem, ChunkItemVc, ChunkVc, ChunkableAsset, ChunkableAssetVc, ChunkingContextVc},
+    compile_time_info::CompileTimeInfoVc,
     context::AssetContextVc,
-    environment::EnvironmentVc,
     reference::AssetReferencesVc,
     resolve::{
         origin::{ResolveOrigin, ResolveOriginVc},
@@ -95,7 +95,7 @@ pub struct EcmascriptModuleAsset {
     pub context: AssetContextVc,
     pub ty: EcmascriptModuleAssetType,
     pub transforms: EcmascriptInputTransformsVc,
-    pub environment: EnvironmentVc,
+    pub compile_time_info: CompileTimeInfoVc,
     pub inner_assets: Option<InnerAssetsVc>,
 }
 
@@ -107,14 +107,14 @@ impl EcmascriptModuleAssetVc {
         context: AssetContextVc,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: EcmascriptInputTransformsVc,
-        environment: EnvironmentVc,
+        compile_time_info: CompileTimeInfoVc,
     ) -> Self {
         Self::cell(EcmascriptModuleAsset {
             source,
             context,
             ty: ty.into_value(),
             transforms,
-            environment,
+            compile_time_info,
             inner_assets: None,
         })
     }
@@ -125,7 +125,7 @@ impl EcmascriptModuleAssetVc {
         context: AssetContextVc,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: EcmascriptInputTransformsVc,
-        environment: EnvironmentVc,
+        compile_time_info: CompileTimeInfoVc,
         inner_assets: InnerAssetsVc,
     ) -> Self {
         Self::cell(EcmascriptModuleAsset {
@@ -133,7 +133,7 @@ impl EcmascriptModuleAssetVc {
             context,
             ty: ty.into_value(),
             transforms,
-            environment,
+            compile_time_info,
             inner_assets: Some(inner_assets),
         })
     }
@@ -155,7 +155,7 @@ impl EcmascriptModuleAssetVc {
             self.as_resolve_origin(),
             Value::new(this.ty),
             this.transforms,
-            this.environment,
+            this.compile_time_info,
         ))
     }
 

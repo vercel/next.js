@@ -125,7 +125,7 @@ fn webpack_loaders_executor(project_root: FileSystemPathVc, context: AssetContex
         context,
         Value::new(EcmascriptModuleAssetType::Typescript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
-        context.environment(),
+        context.compile_time_info(),
     )
     .into()
 }
