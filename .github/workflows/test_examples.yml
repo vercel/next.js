@@ -21,6 +21,7 @@ env:
 
 jobs:
   testExamples:
+    # Don't execute using cron on forks
     if: github.repository == 'vercel/next.js' || inputs.logLevel === true
     name: Test Examples
     runs-on: ubuntu-latest
