@@ -166,8 +166,8 @@ function prefetch(
 }
 
 function isModifiedEvent(event: React.MouseEvent): boolean {
-  const eventTarget = event.currentTarget as (HTMLAnchorElement | SVGAElement);
-  const target = eventTarget.getAttribute("target");
+  const eventTarget = event.currentTarget as HTMLAnchorElement | SVGAElement
+  const target = eventTarget.getAttribute('target')
   return (
     (target && target !== '_self') ||
     event.metaKey ||
