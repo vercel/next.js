@@ -36,5 +36,7 @@ jobs:
       - run: pwd
       - run: ls -la
       - run: ls -la ..
+      - run: ls -la ../..
+      - run: ls -la ../../..
       - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start xvfb-run node run-tests.js --type examples >> /proc/1/fd/1"
         name: Run test/examples
