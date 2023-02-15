@@ -498,7 +498,9 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveReadDir(
               appDir,
-              new RegExp(`^page\\.(?:${config.pageExtensions.join('|')})$`)
+              new RegExp(
+                `^(page|route)\\.(?:${config.pageExtensions.join('|')})$`
+              )
             )
           )
       }
@@ -575,7 +577,7 @@ export default async function build(
       if (mappedAppPages) {
         denormalizedAppPages = Object.keys(mappedAppPages)
         for (const appKey of denormalizedAppPages) {
-          const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
+          const normalizedAppPageKey = normalizeAppPath(appKey)
           const pagePath = mappedPages[normalizedAppPageKey]
           if (pagePath) {
             const appPath = mappedAppPages[appKey]
@@ -1088,7 +1090,7 @@ export default async function build(
         )
 
         Object.keys(appPathsManifest).forEach((entry) => {
-          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+          appPathRoutes[entry] = normalizeAppPath(entry)
         })
         await promises.writeFile(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
@@ -1379,7 +1381,9 @@ export default async function build(
                         if (
                           (!isDynamicRoute(page) ||
                             !workerResult.prerenderRoutes?.length) &&
-                          workerResult.appConfig?.revalidate !== 0
+                          workerResult.appConfig?.revalidate !== 0 &&
+                          // TODO-APP: (wyattjoh) this may be where we can enable prerendering for app handlers
+                          originalAppPath.endsWith('/page')
                         ) {
                           appStaticPaths.set(originalAppPath, [page])
                           appStaticPathsEncoded.set(originalAppPath, [page])
