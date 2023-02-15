@@ -71,7 +71,6 @@ import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
 import RenderResult from './render-result'
 import isError from '../lib/is-error'
 import {
-  readableStreamTee,
   streamFromArray,
   streamToString,
   chainStreams,
@@ -397,7 +396,6 @@ export async function renderToHTML(
     previewProps,
     basePath,
     devOnlyCacheBusterQueryString,
-    supportsDynamicHTML,
     images,
     runtime: globalRuntime,
     App,
@@ -1100,20 +1098,8 @@ export async function renderToHTML(
     return inAmpMode ? children : <div id="__next">{children}</div>
   }
 
-  /**
-   * Rules of Static & Dynamic HTML:
-   *
-   *    1.) We must generate static HTML unless the caller explicitly opts
-   *        in to dynamic HTML support.
-   *
-   *    2.) If dynamic HTML support is requested, we must honor that request
-   *        or throw an error. It is the sole responsibility of the caller to
-   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
-   *
-   * These rules help ensure that other existing features like request caching,
-   * coalescing, and ISR continue working as intended.
-   */
-  const generateStaticHTML = supportsDynamicHTML !== true
+  // Always disable streaming for pages rendering
+  const generateStaticHTML = true
   const renderDocument = async () => {
     // For `Document`, there are two cases that we don't support:
     // 1. Using `Document.getInitialProps` in the Edge runtime.
@@ -1178,8 +1164,8 @@ export async function renderToHTML(
         if (renderShell) {
           return renderShell(EnhancedApp, EnhancedComponent).then(
             async (stream) => {
-              const forwardStream = readableStreamTee(stream)[1]
-              const html = await streamToString(forwardStream)
+              await stream.allReady
+              const html = await streamToString(stream)
               return { html, head }
             }
           )

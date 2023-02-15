@@ -163,9 +163,7 @@ declare module 'next/link' {
   import { UrlObject } from 'url'
   import { LinkProps as OriginalLinkProps } from 'next/dist/client/link'
 
-  type LinkRestProps = Omit<OriginalLinkProps, 'href'> & {
-    children: React.ReactNode
-  }
+  type LinkRestProps = Omit<Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> & OriginalLinkProps, 'href'>;
 
   // If the href prop can be a Route type with an infer-able S, it's valid.
   type HrefProp<T> = T extends (Route<infer S> | UrlObject) ? {

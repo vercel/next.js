@@ -30,11 +30,8 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
-import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
@@ -55,6 +52,9 @@ import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 import { warnOnce } from '../shared/lib/utils/warn-once'
+import { isNotFoundError } from '../client/components/not-found'
+import { isRedirectError } from '../client/components/redirect'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -191,6 +191,7 @@ export type RenderOptsPartial = {
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
   nextExport?: boolean
+  appDirDevErrorLogger?: (err: any) => Promise<void>
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -225,30 +226,39 @@ function interopDefault(mod: any) {
 /**
  * Create error handler for renderers.
  */
-function createErrorHandler(
+function createErrorHandler({
   /**
    * Used for debugging
    */
-  _source: string,
-  isNextExport: boolean,
-  capturedErrors: Error[],
+  _source,
+  dev,
+  isNextExport,
+  errorLogger,
+  capturedErrors,
+  allCapturedErrors,
+}: {
+  _source: string
+  dev?: boolean
+  isNextExport?: boolean
+  errorLogger?: (err: any) => Promise<void>
+  capturedErrors: Error[]
   allCapturedErrors?: Error[]
-) {
+}) {
   return (err: any): string => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
       err &&
       (err.digest === DYNAMIC_ERROR_CODE ||
-        err.digest === NOT_FOUND_ERROR_CODE ||
+        isNotFoundError(err) ||
         err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-        err.digest?.startsWith(REDIRECT_ERROR_CODE))
+        isRedirectError(err))
     ) {
       return err.digest
     }
 
     // Format server errors in development to add more helpful error messages
-    if (process.env.NODE_ENV !== 'production') {
+    if (dev) {
       formatServerError(err)
     }
     // Used for debugging error source
@@ -263,7 +273,11 @@ function createErrorHandler(
         )
       )
     ) {
-      console.error(err)
+      if (errorLogger) {
+        errorLogger(err).catch(() => {})
+      } else {
+        console.error(err)
+      }
     }
 
     capturedErrors.push(err)
@@ -911,27 +925,6 @@ export async function renderToHTMLOrFlight(
     typeof actionId === 'string' &&
     req.method === 'POST'
 
-  const capturedErrors: Error[] = []
-  const allCapturedErrors: Error[] = []
-
-  const isNextExport = !!renderOpts.nextExport
-  const serverComponentsErrorHandler = createErrorHandler(
-    'serverComponentsRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const flightDataRendererErrorHandler = createErrorHandler(
-    'flightDataRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const htmlRendererErrorHandler = createErrorHandler(
-    'htmlRenderer',
-    isNextExport,
-    capturedErrors,
-    allCapturedErrors
-  )
-
   const {
     buildManifest,
     subresourceIntegrityManifest,
@@ -944,7 +937,46 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
+  const capturedErrors: Error[] = []
+  const allCapturedErrors: Error[] = []
+  const isNextExport = !!renderOpts.nextExport
+  const serverComponentsErrorHandler = createErrorHandler({
+    _source: 'serverComponentsRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+  })
+  const flightDataRendererErrorHandler = createErrorHandler({
+    _source: 'flightDataRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+  })
+  const htmlRendererErrorHandler = createErrorHandler({
+    _source: 'htmlRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+    allCapturedErrors,
+  })
+
   patchFetch(ComponentMod)
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
@@ -2015,11 +2047,11 @@ export async function renderToHTMLOrFlight(
 
         return result
       } catch (err: any) {
-        const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
-        if (err.digest === NOT_FOUND_ERROR_CODE) {
+        const shouldNotIndex = isNotFoundError(err)
+        if (isNotFoundError(err)) {
           res.statusCode = 404
         }
-        if (err.digest?.startsWith(REDIRECT_ERROR_CODE)) {
+        if (isRedirectError(err)) {
           res.statusCode = 307
         }
 
