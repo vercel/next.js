@@ -250,17 +250,19 @@ export async function accumulateMetadata(
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
 
-  let chainPromise = Promise.resolve(resolvedMetadata)
-
+  const promises: Promise<ResolvedMetadata>[] = [
+    Promise.resolve(resolvedMetadata),
+  ]
   for (const item of metadataItems) {
     const [metadataExport, staticFilesMetadata] = item
 
     // Freeze the parent metadata to avoid accidental mutation to it
-    let resolvingMetadata = chainPromise
+    const lastPromise = promises[promises.length - 1]
+    let resolvingMetadata = lastPromise
     if (process.env.NODE_ENV === 'development') {
       const deepClone =
         require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone
-      resolvingMetadata = chainPromise.then((resolved) =>
+      resolvingMetadata = lastPromise.then((resolved) =>
         Object.freeze(deepClone(resolved))
       )
     }
@@ -274,17 +276,17 @@ export async function accumulateMetadata(
         ? currentMetadata
         : Promise.resolve(currentMetadata)
 
-    chainPromise = chainPromise.then((resolved) => {
-      return layerMetadataPromise.then((metadata) => {
-        merge(resolved, metadata, staticFilesMetadata, {
-          title: resolved.title?.template || null,
-          openGraph: resolved.openGraph?.title?.template || null,
-          twitter: resolved.twitter?.title?.template || null,
-        })
-        return resolved
+    const promise = layerMetadataPromise.then((metadata) => {
+      merge(resolvedMetadata, metadata, staticFilesMetadata, {
+        title: resolvedMetadata.title?.template || null,
+        openGraph: resolvedMetadata.openGraph?.title?.template || null,
+        twitter: resolvedMetadata.twitter?.title?.template || null,
       })
+      return resolvedMetadata
     })
+    promises.push(promise)
   }
 
-  return await chainPromise
+  await Promise.all(promises)
+  return resolvedMetadata
 }
