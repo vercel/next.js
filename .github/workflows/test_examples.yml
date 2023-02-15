@@ -30,6 +30,9 @@ jobs:
       matrix:
         node: [16, 18]
     steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 25
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
