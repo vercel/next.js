@@ -37,7 +37,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
-  FLIGHT_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
   APP_PATHS_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
@@ -1015,7 +1015,11 @@ export default class NextNodeServer extends BaseServer {
 
   protected getServerComponentManifest() {
     if (!this.hasAppDir) return undefined
-    return require(join(this.distDir, 'server', FLIGHT_MANIFEST + '.json'))
+    return require(join(
+      this.distDir,
+      'server',
+      CLIENT_REFERENCE_MANIFEST + '.json'
+    ))
   }
 
   protected getServerCSSManifest() {
@@ -2047,6 +2051,8 @@ export default class NextNodeServer extends BaseServer {
     const initUrl =
       this.hostname && this.port
         ? `${protocol}://${this.hostname}:${this.port}${req.url}`
+        : (this.nextConfig.experimental as any).trustHostHeader
+        ? `https://${req.headers.host || 'localhost'}${req.url}`
         : req.url
 
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
