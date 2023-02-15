@@ -5,6 +5,7 @@ import {
   cookieWithRequestMeta,
 } from './helpers'
 import { Readable } from 'stream'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'app-custom-routes',
@@ -282,7 +283,10 @@ createNextDescribe(
           // Precondition. We shouldn't have seen this before. This ensures we're
           // testing that the specific route throws this error in the console.
           expect(next.cliOutput).not.toContain(error)
-          expect(next.cliOutput).toContain(error)
+          await check(() => {
+            expect(next.cliOutput).toContain(error)
+            return 'yes'
+          }, 'yes')
         }
       })
     })
