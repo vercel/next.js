@@ -254,12 +254,11 @@ export async function accumulateMetadata(
       : (v) => v
   const resolvedMetadata = createDefaultMetadata()
 
-  let parentPromise: Promise<ResolvedMetadata>
-  if (process.env.NODE_ENV === 'development') {
-    parentPromise = Promise.resolve(resolvedMetadata)
-  } else {
-    parentPromise = Promise.resolve(Object.freeze(deepClone(resolvedMetadata)))
-  }
+  let parentPromise: Promise<ResolvedMetadata> = Promise.resolve(
+    process.env.NODE_ENV === 'development'
+      ? Object.freeze(deepClone(resolvedMetadata))
+      : resolvedMetadata
+  )
 
   for (const item of metadataItems) {
     const [metadataExport, staticFilesMetadata] = item
@@ -274,11 +273,8 @@ export async function accumulateMetadata(
         : Promise.resolve(currentMetadata)
 
     parentPromise = parentPromise.then((resolved) => {
-      if (process.env.NODE_ENV === 'development') {
-        resolved = deepClone(resolved)
-      }
-
       return layerMetadataPromise.then((metadata) => {
+        resolved = deepClone(resolved)
         merge(resolved, metadata, staticFilesMetadata, {
           title: resolved.title?.template || null,
           openGraph: resolved.openGraph?.title?.template || null,
