@@ -10,6 +10,8 @@ createNextDescribe(
   'app-custom-routes',
   {
     files: __dirname,
+    // TODO-APP: enable after deploy support is added
+    skipDeployment: true,
   },
   ({ next }) => {
     describe('basic fetch request with a response', () => {
