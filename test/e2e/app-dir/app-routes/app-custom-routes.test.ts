@@ -5,11 +5,14 @@ import {
   cookieWithRequestMeta,
 } from './helpers'
 import { Readable } from 'stream'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'app-custom-routes',
   {
     files: __dirname,
+    // TODO-APP: enable after deploy support is added
+    skipDeployment: true,
   },
   ({ next }) => {
     describe('basic fetch request with a response', () => {
@@ -90,26 +93,29 @@ createNextDescribe(
     })
 
     describe('body', () => {
-      it('can handle handle a streaming request and streaming response', async () => {
-        const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
-        let index = 0
-        const stream = new Readable({
-          read() {
-            if (index >= body.length) return this.push(null)
+      // we can't stream a body to a function currently only stream response
+      if (!(global as any).isNextDeploy) {
+        it('can handle handle a streaming request and streaming response', async () => {
+          const body = new Array(10).fill(JSON.stringify({ ping: 'pong' }))
+          let index = 0
+          const stream = new Readable({
+            read() {
+              if (index >= body.length) return this.push(null)
 
-            this.push(body[index] + '\n')
-            index++
-          },
+              this.push(body[index] + '\n')
+              index++
+            },
+          })
+
+          const res = await next.fetch('/advanced/body/streaming', {
+            method: 'POST',
+            body: stream,
+          })
+
+          expect(res.status).toEqual(200)
+          expect(await res.text()).toEqual(body.join('\n') + '\n')
         })
-
-        const res = await next.fetch('/advanced/body/streaming', {
-          method: 'POST',
-          body: stream,
-        })
-
-        expect(res.status).toEqual(200)
-        expect(await res.text()).toEqual(body.join('\n') + '\n')
-      })
+      }
 
       it('can read a JSON encoded body', async () => {
         const body = { ping: 'pong' }
@@ -123,27 +129,30 @@ createNextDescribe(
         expect(meta.body).toEqual(body)
       })
 
-      it('can read a streamed JSON encoded body', async () => {
-        const body = { ping: 'pong' }
-        const encoded = JSON.stringify(body)
-        let index = 0
-        const stream = new Readable({
-          async read() {
-            if (index >= encoded.length) return this.push(null)
+      // we can't stream a body to a function currently only stream response
+      if (!(global as any).isNextDeploy) {
+        it('can read a streamed JSON encoded body', async () => {
+          const body = { ping: 'pong' }
+          const encoded = JSON.stringify(body)
+          let index = 0
+          const stream = new Readable({
+            async read() {
+              if (index >= encoded.length) return this.push(null)
 
-            this.push(encoded[index])
-            index++
-          },
-        })
-        const res = await next.fetch('/advanced/body/json', {
-          method: 'POST',
-          body: stream,
-        })
+              this.push(encoded[index])
+              index++
+            },
+          })
+          const res = await next.fetch('/advanced/body/json', {
+            method: 'POST',
+            body: stream,
+          })
 
-        expect(res.status).toEqual(200)
-        const meta = getRequestMeta(res.headers)
-        expect(meta.body).toEqual(body)
-      })
+          expect(res.status).toEqual(200)
+          const meta = getRequestMeta(res.headers)
+          expect(meta.body).toEqual(body)
+        })
+      }
 
       it('can read the text body', async () => {
         const body = 'hello, world'
@@ -273,7 +282,13 @@ createNextDescribe(
 
         expect(res.status).toEqual(500)
         expect(await res.text()).toBeEmpty()
-        expect(next.cliOutput).toContain(error)
+
+        if (!(global as any).isNextDeploy) {
+          await check(() => {
+            expect(next.cliOutput).toContain(error)
+            return 'yes'
+          }, 'yes')
+        }
       })
     })
 

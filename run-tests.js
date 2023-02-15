@@ -365,6 +365,7 @@ async function main() {
 
   const directorySemas = new Map()
 
+  const originalRetries = numRetries
   await Promise.all(
     testNames.map(async (test) => {
       const dirName = path.dirname(test)
@@ -375,10 +376,22 @@ async function main() {
       await sema.acquire()
       let passed = false
 
+      const shouldSkipRetries = skipRetryTestManifest.find((t) =>
+        t.includes(test)
+      )
+      const numRetries = shouldSkipRetries ? 0 : originalRetries
+      if (shouldSkipRetries) {
+        console.log(`Skipping retry for ${test} due to skipRetryTestManifest`)
+      }
+
       for (let i = 0; i < numRetries + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, i === numRetries, i > 0)
+          const time = await runTest(
+            test,
+            shouldSkipRetries || i === numRetries,
+            shouldSkipRetries || i > 0
+          )
           timings.push({
             file: test,
             time,
@@ -390,12 +403,6 @@ async function main() {
           break
         } catch (err) {
           if (i < numRetries) {
-            if (skipRetryTestManifest.find((t) => t.includes(test))) {
-              console.log(
-                `Skipping retry for ${test} due to skipRetryTestManifest`
-              )
-              break
-            }
             try {
               let testDir = path.dirname(path.join(__dirname, test))
 
