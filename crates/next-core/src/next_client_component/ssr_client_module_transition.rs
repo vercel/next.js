@@ -6,13 +6,13 @@ use turbopack::{
     transition::{Transition, TransitionVc},
     ModuleAssetContextVc,
 };
-use turbopack_core::{asset::AssetVc, environment::EnvironmentVc};
+use turbopack_core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc};
 
 use super::with_chunking_context_scope_asset::WithChunkingContextScopeAsset;
 
 #[turbo_tasks::value(shared)]
 pub struct NextSSRClientModuleTransition {
-    pub ssr_environment: EnvironmentVc,
+    pub ssr_environment: CompileTimeInfoVc,
     pub ssr_module_options_context: ModuleOptionsContextVc,
     pub ssr_resolve_options_context: ResolveOptionsContextVc,
 }
@@ -20,7 +20,10 @@ pub struct NextSSRClientModuleTransition {
 #[turbo_tasks::value_impl]
 impl Transition for NextSSRClientModuleTransition {
     #[turbo_tasks::function]
-    fn process_environment(&self, _environment: EnvironmentVc) -> EnvironmentVc {
+    fn process_compile_time_info(
+        &self,
+        _compile_time_info: CompileTimeInfoVc,
+    ) -> CompileTimeInfoVc {
         self.ssr_environment
     }
 

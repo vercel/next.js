@@ -23,6 +23,7 @@ use turbopack::{
     resolve_options_context::ResolveOptionsContext, transition::TransitionsByNameVc,
 };
 use turbopack_core::{
+    compile_time_info::CompileTimeInfoVc,
     context::AssetContext,
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     source_asset::SourceAssetVc,
@@ -50,12 +51,12 @@ async fn main() -> Result<()> {
             let source = SourceAssetVc::new(entry);
             let context = turbopack::ModuleAssetContextVc::new(
                 TransitionsByNameVc::cell(HashMap::new()),
-                EnvironmentVc::new(
+                CompileTimeInfoVc::new(EnvironmentVc::new(
                     Value::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment::default().into(),
                     )),
                     Value::new(EnvironmentIntention::ServerRendering),
-                ),
+                )),
                 Default::default(),
                 ResolveOptionsContext {
                     enable_typescript: true,

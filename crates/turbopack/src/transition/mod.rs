@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use turbopack_core::{asset::AssetVc, environment::EnvironmentVc};
+use turbopack_core::{asset::AssetVc, compile_time_info::CompileTimeInfoVc};
 
 use crate::{
     module_options::ModuleOptionsContextVc, resolve_options_context::ResolveOptionsContextVc,
@@ -16,9 +16,9 @@ pub trait Transition {
     fn process_source(&self, asset: AssetVc) -> AssetVc {
         asset
     }
-    /// Apply modifications to the environment
-    fn process_environment(&self, environment: EnvironmentVc) -> EnvironmentVc {
-        environment
+    /// Apply modifications to the compile-time information
+    fn process_compile_time_info(&self, compile_time_info: CompileTimeInfoVc) -> CompileTimeInfoVc {
+        compile_time_info
     }
     /// Apply modifications/wrapping to the module options context
     fn process_module_options_context(

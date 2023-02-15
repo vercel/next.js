@@ -2497,7 +2497,7 @@ pub mod test_utils {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use turbopack_core::environment::EnvironmentVc;
+    use turbopack_core::compile_time_info::CompileTimeInfoVc;
 
     use super::{
         builtin::early_replace_builtin, well_known::replace_well_known, FreeVarKind, JsValue,
@@ -2510,7 +2510,10 @@ pub mod test_utils {
         Ok((v, m))
     }
 
-    pub async fn visitor(v: JsValue, environment: EnvironmentVc) -> Result<(JsValue, bool)> {
+    pub async fn visitor(
+        v: JsValue,
+        compile_time_info: CompileTimeInfoVc,
+    ) -> Result<(JsValue, bool)> {
         let mut new_value = match v {
             JsValue::Call(
                 _,
@@ -2545,7 +2548,7 @@ pub mod test_utils {
                 _ => return Ok((v, false)),
             },
             _ => {
-                let (mut v, m1) = replace_well_known(v, environment).await?;
+                let (mut v, m1) = replace_well_known(v, compile_time_info).await?;
                 let m2 = replace_builtin(&mut v);
                 let m = m1 || m2 || v.make_nested_operations_unknown();
                 return Ok((v, m));
@@ -2570,6 +2573,7 @@ mod tests {
     };
     use turbo_tasks::{util::FormatDuration, Value};
     use turbopack_core::{
+        compile_time_info::CompileTimeInfo,
         environment::{
             EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment,
         },
@@ -2831,33 +2835,35 @@ mod tests {
     }
 
     async fn resolve(var_graph: &VarGraph, val: JsValue) -> JsValue {
-        turbo_tasks_testing::VcStorage::with(link(
-            var_graph,
-            val,
-            &super::test_utils::early_visitor,
-            &(|val| {
-                Box::pin(super::test_utils::visitor(
-                    val,
-                    EnvironmentVc::new(
-                        Value::new(ExecutionEnvironment::NodeJsLambda(
-                            NodeJsEnvironment {
-                                compile_target: CompileTarget {
-                                    arch: Arch::X64,
-                                    platform: Platform::Linux,
-                                    endianness: Endianness::Little,
-                                    libc: Libc::Glibc,
-                                }
-                                .into(),
-                                ..Default::default()
+        turbo_tasks_testing::VcStorage::with(async {
+            let compile_time_info = CompileTimeInfo {
+                environment: EnvironmentVc::new(
+                    Value::new(ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment {
+                            compile_target: CompileTarget {
+                                arch: Arch::X64,
+                                platform: Platform::Linux,
+                                endianness: Endianness::Little,
+                                libc: Libc::Glibc,
                             }
                             .into(),
-                        )),
-                        Value::new(EnvironmentIntention::ServerRendering),
-                    ),
-                ))
-            }),
-            Default::default(),
-        ))
+                            ..Default::default()
+                        }
+                        .into(),
+                    )),
+                    Value::new(EnvironmentIntention::ServerRendering),
+                ),
+            }
+            .cell();
+            link(
+                var_graph,
+                val,
+                &super::test_utils::early_visitor,
+                &(|val| Box::pin(super::test_utils::visitor(val, compile_time_info))),
+                Default::default(),
+            )
+            .await
+        })
         .await
         .unwrap()
     }

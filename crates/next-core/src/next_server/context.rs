@@ -6,8 +6,12 @@ use turbopack::{
     module_options::{ModuleOptionsContext, ModuleOptionsContextVc, PostCssTransformOptions},
     resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc},
 };
-use turbopack_core::environment::{
-    EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc, ServerAddrVc,
+use turbopack_core::{
+    compile_time_info::{CompileTimeInfo, CompileTimeInfoVc},
+    environment::{
+        EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironmentVc,
+        ServerAddrVc,
+    },
 };
 use turbopack_ecmascript::EcmascriptInputTransform;
 use turbopack_node::execution_context::ExecutionContextVc;
@@ -112,23 +116,28 @@ pub async fn get_server_resolve_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_server_environment(
+pub fn get_server_compile_time_info(
     ty: Value<ServerContextType>,
     process_env: ProcessEnvVc,
     server_addr: ServerAddrVc,
-) -> EnvironmentVc {
-    EnvironmentVc::new(
-        Value::new(ExecutionEnvironment::NodeJsLambda(
-            NodeJsEnvironmentVc::current(process_env, server_addr),
-        )),
-        match ty.into_value() {
-            ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
-                Value::new(EnvironmentIntention::ServerRendering)
-            }
-            ServerContextType::AppSSR { .. } => Value::new(EnvironmentIntention::Prerendering),
-            ServerContextType::AppRSC { .. } => Value::new(EnvironmentIntention::ServerRendering),
-        },
-    )
+) -> CompileTimeInfoVc {
+    CompileTimeInfo {
+        environment: EnvironmentVc::new(
+            Value::new(ExecutionEnvironment::NodeJsLambda(
+                NodeJsEnvironmentVc::current(process_env, server_addr),
+            )),
+            match ty.into_value() {
+                ServerContextType::Pages { .. } | ServerContextType::PagesData { .. } => {
+                    Value::new(EnvironmentIntention::ServerRendering)
+                }
+                ServerContextType::AppSSR { .. } => Value::new(EnvironmentIntention::Prerendering),
+                ServerContextType::AppRSC { .. } => {
+                    Value::new(EnvironmentIntention::ServerRendering)
+                }
+            },
+        ),
+    }
+    .cell()
 }
 
 #[turbo_tasks::function]

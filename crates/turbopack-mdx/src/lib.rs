@@ -62,7 +62,7 @@ async fn into_ecmascript_module_asset(
         this.context,
         Value::new(EcmascriptModuleAssetType::Typescript),
         this.transforms,
-        this.context.environment(),
+        this.context.compile_time_info(),
     ))
 }
 

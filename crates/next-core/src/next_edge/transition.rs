@@ -10,7 +10,7 @@ use turbopack::{
 use turbopack_core::{
     asset::{Asset, AssetVc},
     chunk::{ChunkableAssetVc, ChunkingContextVc},
-    environment::EnvironmentVc,
+    compile_time_info::CompileTimeInfoVc,
     virtual_asset::VirtualAssetVc,
 };
 use turbopack_ecmascript::{chunk_group_files_asset::ChunkGroupFilesAsset, utils::stringify_js};
@@ -19,7 +19,7 @@ use crate::embed_js::next_js_file;
 
 #[turbo_tasks::value(shared)]
 pub struct NextEdgeTransition {
-    pub edge_environment: EnvironmentVc,
+    pub edge_compile_time_info: CompileTimeInfoVc,
     pub edge_chunking_context: ChunkingContextVc,
     pub edge_resolve_options_context: ResolveOptionsContextVc,
     pub output_path: FileSystemPathVc,
@@ -55,8 +55,11 @@ impl Transition for NextEdgeTransition {
     }
 
     #[turbo_tasks::function]
-    fn process_environment(&self, _environment: EnvironmentVc) -> EnvironmentVc {
-        self.edge_environment
+    fn process_compile_time_info(
+        &self,
+        _compile_time_info: CompileTimeInfoVc,
+    ) -> CompileTimeInfoVc {
+        self.edge_compile_time_info
     }
 
     #[turbo_tasks::function]

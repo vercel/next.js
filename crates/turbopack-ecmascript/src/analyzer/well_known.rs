@@ -1,7 +1,7 @@
 use std::{mem::take, sync::Arc};
 
 use anyhow::Result;
-use turbopack_core::environment::EnvironmentVc;
+use turbopack_core::compile_time_info::CompileTimeInfoVc;
 use url::Url;
 
 use super::{
@@ -11,7 +11,7 @@ use super::{
 
 pub async fn replace_well_known(
     value: JsValue,
-    environment: EnvironmentVc,
+    compile_time_info: CompileTimeInfoVc,
 ) -> Result<(JsValue, bool)> {
     Ok(match value {
         JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
@@ -19,7 +19,7 @@ pub async fn replace_well_known(
                 kind,
                 JsValue::Unknown(None, "this is not analyzed yet"),
                 args,
-                environment,
+                compile_time_info,
             )
             .await?,
             true,
@@ -35,7 +35,7 @@ pub async fn replace_well_known(
             (JsValue::Call(usize, callee, args), false)
         }
         JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => (
-            well_known_object_member(kind, prop, environment).await?,
+            well_known_object_member(kind, prop, compile_time_info).await?,
             true,
         ),
         JsValue::Member(_, box JsValue::WellKnownFunction(kind), box prop) => {
@@ -49,7 +49,7 @@ pub async fn well_known_function_call(
     kind: WellKnownFunctionKind,
     _this: JsValue,
     args: Vec<JsValue>,
-    environment: EnvironmentVc,
+    compile_time_info: CompileTimeInfoVc,
 ) -> Result<JsValue> {
     Ok(match kind {
         WellKnownFunctionKind::ObjectAssign => object_assign(args),
@@ -65,12 +65,22 @@ pub async fn well_known_function_call(
         ),
         WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
-        WellKnownFunctionKind::OsArch => environment.compile_target().await?.arch.as_str().into(),
-        WellKnownFunctionKind::OsPlatform => {
-            environment.compile_target().await?.platform.as_str().into()
-        }
+        WellKnownFunctionKind::OsArch => compile_time_info
+            .environment()
+            .compile_target()
+            .await?
+            .arch
+            .as_str()
+            .into(),
+        WellKnownFunctionKind::OsPlatform => compile_time_info
+            .environment()
+            .compile_target()
+            .await?
+            .platform
+            .as_str()
+            .into(),
         WellKnownFunctionKind::ProcessCwd => {
-            if let Some(cwd) = &*environment.cwd().await? {
+            if let Some(cwd) = &*compile_time_info.environment().cwd().await? {
                 cwd.clone().into()
             } else {
                 JsValue::Unknown(
@@ -82,7 +92,8 @@ pub async fn well_known_function_call(
                 )
             }
         }
-        WellKnownFunctionKind::OsEndianness => environment
+        WellKnownFunctionKind::OsEndianness => compile_time_info
+            .environment()
             .compile_target()
             .await?
             .endianness
@@ -384,7 +395,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
 pub async fn well_known_object_member(
     kind: WellKnownObjectKind,
     prop: JsValue,
-    environment: EnvironmentVc,
+    compile_time_info: CompileTimeInfoVc,
 ) -> Result<JsValue> {
     Ok(match kind {
         WellKnownObjectKind::GlobalObject => global_object(prop),
@@ -403,7 +414,7 @@ pub async fn well_known_object_member(
         WellKnownObjectKind::OsModule | WellKnownObjectKind::OsModuleDefault => {
             os_module_member(kind, prop)
         }
-        WellKnownObjectKind::NodeProcess => node_process_member(prop, environment).await?,
+        WellKnownObjectKind::NodeProcess => node_process_member(prop, compile_time_info).await?,
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
@@ -540,10 +551,25 @@ fn os_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
     }
 }
 
-async fn node_process_member(prop: JsValue, environment: EnvironmentVc) -> Result<JsValue> {
+async fn node_process_member(
+    prop: JsValue,
+    compile_time_info: CompileTimeInfoVc,
+) -> Result<JsValue> {
     Ok(match prop.as_str() {
-        Some("arch") => environment.compile_target().await?.arch.as_str().into(),
-        Some("platform") => environment.compile_target().await?.platform.as_str().into(),
+        Some("arch") => compile_time_info
+            .environment()
+            .compile_target()
+            .await?
+            .arch
+            .as_str()
+            .into(),
+        Some("platform") => compile_time_info
+            .environment()
+            .compile_target()
+            .await?
+            .platform
+            .as_str()
+            .into(),
         Some("cwd") => JsValue::WellKnownFunction(WellKnownFunctionKind::ProcessCwd),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(

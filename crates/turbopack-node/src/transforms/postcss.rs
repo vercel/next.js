@@ -143,7 +143,7 @@ async fn extra_configs(
                         context,
                         Value::new(EcmascriptModuleAssetType::Ecmascript),
                         EcmascriptInputTransformsVc::cell(vec![]),
-                        context.environment(),
+                        context.compile_time_info(),
                     )
                     .as_ecmascript_chunk_placeable()
                 }),
@@ -174,7 +174,7 @@ fn postcss_executor(context: AssetContextVc, postcss_config_path: FileSystemPath
         context,
         Value::new(EcmascriptModuleAssetType::Typescript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
-        context.environment(),
+        context.compile_time_info(),
         InnerAssetsVc::cell(HashMap::from([("CONFIG".to_string(), config_asset)])),
     )
     .into()
