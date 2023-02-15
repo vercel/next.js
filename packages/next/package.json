@@ -227,6 +227,7 @@
     "jest-worker": "27.0.0-next.5",
     "json5": "2.2.3",
     "jsonwebtoken": "9.0.0",
+    "loader-runner": "4.3.0",
     "loader-utils2": "npm:loader-utils@2.0.0",
     "loader-utils3": "npm:loader-utils@3.1.3",
     "lodash.curry": "4.1.1",
