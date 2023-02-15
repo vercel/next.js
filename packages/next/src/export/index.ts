@@ -22,7 +22,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  FLIGHT_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
   FONT_LOADER_MANIFEST,
   MIDDLEWARE_MANIFEST,
@@ -441,7 +441,7 @@ export default async function exportApp(
       renderOpts.serverComponentManifest = require(join(
         distDir,
         SERVER_DIRECTORY,
-        `${FLIGHT_MANIFEST}.json`
+        `${CLIENT_REFERENCE_MANIFEST}.json`
       )) as PagesManifest
       // @ts-expect-error untyped
       renderOpts.serverCSSManifest = require(join(
