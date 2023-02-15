@@ -13,11 +13,11 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
       <Meta name="description" content={metadata.description} />
       <Meta name="application-name" content={metadata.applicationName} />
       {metadata.authors &&
-        metadata.authors.map((author) => (
-          <>
+        metadata.authors.map((author, index) => (
+          <React.Fragment key={index}>
             {author.url && <link rel="author" href={author.url.toString()} />}
             <Meta name="author" content={author.name} />
-          </>
+          </React.Fragment>
         ))}
       <Meta name="manifest" content={metadata.manifest?.toString()} />
       <Meta name="generator" content={metadata.generator} />
