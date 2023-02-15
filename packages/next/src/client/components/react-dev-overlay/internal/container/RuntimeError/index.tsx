@@ -178,14 +178,6 @@ export const styles = css`
     display: unset;
   }
 
-  [data-nextjs-call-stack-framework-button] {
-    border: none;
-    background: none;
-    display: flex;
-    align-items: center;
-    padding: 0;
-    margin: var(--size-gap-double) 0;
-  }
   [data-nextjs-call-stack-framework-icon] {
     margin-right: var(--size-gap);
   }
@@ -195,9 +187,25 @@ export const styles = css`
   [data-nextjs-call-stack-framework-icon='react'] {
     color: rgb(20, 158, 202);
   }
-  [data-nextjs-call-stack-framework-button][data-state='open']
-    > [data-nextjs-call-stack-chevron-icon] {
+  [data-nextjs-collapsed-call-stack-details][open]
+    [data-nextjs-call-stack-chevron-icon] {
     transform: rotate(90deg);
+  }
+  [data-nextjs-collapsed-call-stack-details] summary {
+    display: flex;
+    align-items: center;
+    margin: var(--size-gap-double) 0;
+    list-style: none;
+  }
+  [data-nextjs-collapsed-call-stack-details] summary::-webkit-details-marker {
+    display: none;
+  }
+
+  [data-nextjs-collapsed-call-stack-details] h6 {
+    color: #666;
+  }
+  [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
+    margin-bottom: var(--size-gap-double);
   }
 `
 
