@@ -20,8 +20,9 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::dev::DevChunkingContextVc,
+    compile_time_info::CompileTimeInfoVc,
     context::{AssetContext, AssetContextVc},
-    environment::{EnvironmentVc, ServerAddrVc},
+    environment::ServerAddrVc,
     issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     virtual_asset::VirtualAssetVc,
 };
@@ -52,8 +53,9 @@ use crate::{
     fallback::get_fallback_page,
     next_client::{
         context::{
-            get_client_chunking_context, get_client_environment, get_client_module_options_context,
-            get_client_resolve_options_context, get_client_runtime_entries, ClientContextType,
+            get_client_chunking_context, get_client_compile_time_info,
+            get_client_module_options_context, get_client_resolve_options_context,
+            get_client_runtime_entries, ClientContextType,
         },
         transition::NextClientTransition,
     },
@@ -65,7 +67,7 @@ use crate::{
     next_config::NextConfigVc,
     next_route_matcher::NextParamsMatcherVc,
     next_server::context::{
-        get_server_environment, get_server_module_options_context,
+        get_server_compile_time_info, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
     util::pathname_for_path,
@@ -78,16 +80,20 @@ async fn next_client_transition(
     server_root: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
-    client_environment: EnvironmentVc,
+    client_compile_time_info: CompileTimeInfoVc,
     next_config: NextConfigVc,
 ) -> Result<TransitionVc> {
     let ty = Value::new(ClientContextType::App { app_dir });
-    let client_chunking_context =
-        get_client_chunking_context(project_path, server_root, client_environment, ty);
+    let client_chunking_context = get_client_chunking_context(
+        project_path,
+        server_root,
+        client_compile_time_info.environment(),
+        ty,
+    );
     let client_module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
-        client_environment,
+        client_compile_time_info.environment(),
         ty,
         next_config,
     );
@@ -101,7 +107,7 @@ async fn next_client_transition(
         client_chunking_context,
         client_module_options_context,
         client_resolve_options_context,
-        client_environment,
+        client_compile_time_info,
         runtime_entries: client_runtime_entries,
     }
     .cell()
@@ -130,7 +136,7 @@ fn next_ssr_client_module_transition(
             ty,
             next_config,
         ),
-        ssr_environment: get_server_environment(ty, process_env, server_addr),
+        ssr_environment: get_server_compile_time_info(ty, process_env, server_addr),
     }
     .cell()
     .into()
@@ -147,14 +153,14 @@ fn next_layout_entry_transition(
     server_addr: ServerAddrVc,
 ) -> TransitionVc {
     let ty = Value::new(ServerContextType::AppRSC { app_dir });
-    let rsc_environment = get_server_environment(ty, process_env, server_addr);
+    let rsc_compile_time_info = get_server_compile_time_info(ty, process_env, server_addr);
     let rsc_resolve_options_context =
         get_server_resolve_options_context(project_path, ty, next_config);
     let rsc_module_options_context =
         get_server_module_options_context(project_path, execution_context, ty, next_config);
 
     NextLayoutEntryTransition {
-        rsc_environment,
+        rsc_compile_time_info,
         rsc_module_options_context,
         rsc_resolve_options_context,
         server_root,
@@ -171,7 +177,7 @@ fn app_context(
     server_root: FileSystemPathVc,
     app_dir: FileSystemPathVc,
     env: ProcessEnvVc,
-    client_environment: EnvironmentVc,
+    client_compile_time_info: CompileTimeInfoVc,
     ssr: bool,
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
@@ -203,7 +209,7 @@ fn app_context(
             server_root,
             app_dir,
             env,
-            client_environment,
+            client_compile_time_info,
             next_config,
         ),
     );
@@ -215,7 +221,7 @@ fn app_context(
             execution_context,
             client_ty,
             server_root,
-            client_environment,
+            client_compile_time_info,
             next_config,
         )
         .into(),
@@ -235,7 +241,7 @@ fn app_context(
     let ssr_ty = Value::new(ServerContextType::AppSSR { app_dir });
     ModuleAssetContextVc::new(
         TransitionsByNameVc::cell(transitions),
-        get_server_environment(ssr_ty, env, server_addr),
+        get_server_compile_time_info(ssr_ty, env, server_addr),
         get_server_module_options_context(project_path, execution_context, ssr_ty, next_config),
         get_server_resolve_options_context(project_path, ssr_ty, next_config),
     )
@@ -272,7 +278,7 @@ pub async fn create_app_source(
     }
     .resolve()
     .await?;
-    let client_environment = get_client_environment(browserslist_query);
+    let client_compile_time_info = get_client_compile_time_info(browserslist_query);
 
     let context_ssr = app_context(
         project_path,
@@ -280,7 +286,7 @@ pub async fn create_app_source(
         server_root,
         app_dir,
         env,
-        client_environment,
+        client_compile_time_info,
         true,
         next_config,
         server_addr,
@@ -291,7 +297,7 @@ pub async fn create_app_source(
         server_root,
         app_dir,
         env,
-        client_environment,
+        client_compile_time_info,
         false,
         next_config,
         server_addr,
@@ -308,7 +314,7 @@ pub async fn create_app_source(
         execution_context,
         server_root,
         env,
-        client_environment,
+        client_compile_time_info,
         next_config,
     );
 
@@ -643,7 +649,7 @@ import BOOTSTRAP from {};
             intermediate_output_path,
             intermediate_output_path.join("chunks"),
             this.server_root.join("_next/static/assets"),
-            context.environment(),
+            context.compile_time_info().environment(),
         )
         .layer("ssr")
         .css_chunk_root_path(this.server_root.join("_next/static/chunks"))
@@ -658,7 +664,7 @@ import BOOTSTRAP from {};
                     EcmascriptInputTransform::React { refresh: false },
                     EcmascriptInputTransform::TypeScript,
                 ]),
-                context.environment(),
+                context.compile_time_info(),
             ),
             chunking_context,
             intermediate_output_path,

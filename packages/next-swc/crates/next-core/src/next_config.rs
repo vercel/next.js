@@ -563,7 +563,7 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
             context,
             Value::new(EcmascriptModuleAssetType::Ecmascript),
             EcmascriptInputTransformsVc::cell(vec![]),
-            context.environment(),
+            context.compile_time_info(),
         )
         .as_ecmascript_chunk_placeable();
         EcmascriptChunkPlaceablesVc::cell(vec![config_chunk])

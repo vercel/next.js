@@ -8,7 +8,9 @@ use turbopack::{
     transition::{Transition, TransitionVc},
     ModuleAssetContextVc,
 };
-use turbopack_core::{asset::AssetVc, chunk::ChunkingContextVc, environment::EnvironmentVc};
+use turbopack_core::{
+    asset::AssetVc, chunk::ChunkingContextVc, compile_time_info::CompileTimeInfoVc,
+};
 use turbopack_node::execution_context::ExecutionContextVc;
 
 use super::with_chunks::WithChunksAsset;
@@ -22,7 +24,7 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct NextClientChunksTransition {
-    pub client_environment: EnvironmentVc,
+    pub client_compile_time_info: CompileTimeInfoVc,
     pub client_module_options_context: ModuleOptionsContextVc,
     pub client_resolve_options_context: ResolveOptionsContextVc,
     pub client_chunking_context: ChunkingContextVc,
@@ -37,16 +39,20 @@ impl NextClientChunksTransitionVc {
         execution_context: ExecutionContextVc,
         ty: Value<ClientContextType>,
         server_root: FileSystemPathVc,
-        client_environment: EnvironmentVc,
+        client_compile_time_info: CompileTimeInfoVc,
         next_config: NextConfigVc,
     ) -> NextClientChunksTransitionVc {
-        let client_chunking_context =
-            get_client_chunking_context(project_path, server_root, client_environment, ty);
+        let client_chunking_context = get_client_chunking_context(
+            project_path,
+            server_root,
+            client_compile_time_info.environment(),
+            ty,
+        );
 
         let client_module_options_context = get_client_module_options_context(
             project_path,
             execution_context,
-            client_environment,
+            client_compile_time_info.environment(),
             ty,
             next_config,
         );
@@ -58,7 +64,7 @@ impl NextClientChunksTransitionVc {
                 ty,
                 next_config,
             ),
-            client_environment,
+            client_compile_time_info,
             server_root,
         }
         .cell()
@@ -68,8 +74,11 @@ impl NextClientChunksTransitionVc {
 #[turbo_tasks::value_impl]
 impl Transition for NextClientChunksTransition {
     #[turbo_tasks::function]
-    fn process_environment(&self, _environment: EnvironmentVc) -> EnvironmentVc {
-        self.client_environment
+    fn process_compile_time_info(
+        &self,
+        _compile_time_info: CompileTimeInfoVc,
+    ) -> CompileTimeInfoVc {
+        self.client_compile_time_info
     }
 
     #[turbo_tasks::function]

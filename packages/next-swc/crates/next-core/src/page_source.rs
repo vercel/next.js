@@ -48,7 +48,7 @@ use crate::{
     fallback::get_fallback_page,
     next_client::{
         context::{
-            get_client_assets_path, get_client_chunking_context, get_client_environment,
+            get_client_assets_path, get_client_chunking_context, get_client_compile_time_info,
             get_client_module_options_context, get_client_resolve_options_context,
             get_client_runtime_entries, ClientContextType,
         },
@@ -57,7 +57,7 @@ use crate::{
     next_client_chunks::client_chunks_transition::NextClientChunksTransitionVc,
     next_config::NextConfigVc,
     next_edge::{
-        context::{get_edge_environment, get_edge_resolve_options_context},
+        context::{get_edge_compile_time_info, get_edge_resolve_options_context},
         transition::NextEdgeTransition,
     },
     next_route_matcher::{
@@ -65,7 +65,7 @@ use crate::{
         NextPrefixSuffixParamsMatcherVc,
     },
     next_server::context::{
-        get_server_environment, get_server_module_options_context,
+        get_server_compile_time_info, get_server_module_options_context,
         get_server_resolve_options_context, ServerContextType,
     },
     page_loader::create_page_loader,
@@ -103,19 +103,23 @@ pub async fn create_page_source(
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
     let server_data_ty = Value::new(ServerContextType::PagesData { pages_dir });
 
-    let client_environment = get_client_environment(browserslist_query);
+    let client_compile_time_info = get_client_compile_time_info(browserslist_query);
     let client_module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
-        client_environment,
+        client_compile_time_info.environment(),
         client_ty,
         next_config,
     );
     let client_resolve_options_context =
         get_client_resolve_options_context(project_path, client_ty, next_config);
 
-    let client_chunking_context =
-        get_client_chunking_context(project_path, server_root, client_environment, client_ty);
+    let client_chunking_context = get_client_chunking_context(
+        project_path,
+        server_root,
+        client_compile_time_info.environment(),
+        client_ty,
+    );
 
     let client_runtime_entries =
         get_client_runtime_entries(project_path, env, client_ty, next_config);
@@ -125,14 +129,14 @@ pub async fn create_page_source(
         client_chunking_context,
         client_module_options_context,
         client_resolve_options_context,
-        client_environment,
+        client_compile_time_info,
         server_root,
         runtime_entries: client_runtime_entries,
     }
     .cell()
     .into();
 
-    let edge_environment = get_edge_environment(server_addr);
+    let edge_compile_time_info = get_edge_compile_time_info(server_addr);
 
     let edge_chunking_context = DevChunkingContextVc::builder(
         project_path,
@@ -142,14 +146,14 @@ pub async fn create_page_source(
             server_root,
             Value::new(ClientContextType::Pages { pages_dir }),
         ),
-        edge_environment,
+        edge_compile_time_info.environment(),
     )
     .build();
     let edge_resolve_options_context =
         get_edge_resolve_options_context(project_path, server_ty, next_config);
 
     let next_edge_transition = NextEdgeTransition {
-        edge_environment,
+        edge_compile_time_info,
         edge_chunking_context,
         edge_resolve_options_context,
         output_path,
@@ -158,7 +162,7 @@ pub async fn create_page_source(
     .cell()
     .into();
 
-    let server_environment = get_server_environment(server_ty, env, server_addr);
+    let server_compile_time_info = get_server_compile_time_info(server_ty, env, server_addr);
     let server_resolve_options_context =
         get_server_resolve_options_context(project_path, server_ty, next_config);
 
@@ -183,7 +187,7 @@ pub async fn create_page_source(
                     execution_context,
                     client_ty,
                     server_root,
-                    client_environment,
+                    client_compile_time_info,
                     next_config,
                 )
                 .into(),
@@ -195,21 +199,21 @@ pub async fn create_page_source(
 
     let client_context: AssetContextVc = ModuleAssetContextVc::new(
         transitions,
-        client_environment,
+        client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
     )
     .into();
     let server_context: AssetContextVc = ModuleAssetContextVc::new(
         transitions,
-        server_environment,
+        server_compile_time_info,
         server_module_options_context,
         server_resolve_options_context,
     )
     .into();
     let server_data_context: AssetContextVc = ModuleAssetContextVc::new(
         transitions,
-        server_environment,
+        server_compile_time_info,
         server_data_module_options_context,
         server_resolve_options_context,
     )
@@ -226,7 +230,7 @@ pub async fn create_page_source(
         execution_context,
         server_root,
         env,
-        client_environment,
+        client_compile_time_info,
         next_config,
     );
 
@@ -327,7 +331,7 @@ async fn create_page_source_for_file(
             server_root,
             Value::new(ClientContextType::Pages { pages_dir }),
         ),
-        server_context.environment(),
+        server_context.compile_time_info().environment(),
     )
     .build();
 
@@ -341,14 +345,14 @@ async fn create_page_source_for_file(
             server_root,
             Value::new(ClientContextType::Pages { pages_dir }),
         ),
-        server_context.environment(),
+        server_context.compile_time_info().environment(),
     )
     .build();
 
     let client_chunking_context = get_client_chunking_context(
         context_path,
         server_root,
-        client_context.environment(),
+        client_context.compile_time_info().environment(),
         Value::new(ClientContextType::Pages { pages_dir }),
     );
 
@@ -474,14 +478,14 @@ async fn create_not_found_page_source(
             server_root,
             Value::new(ClientContextType::Pages { pages_dir }),
         ),
-        server_context.environment(),
+        server_context.compile_time_info().environment(),
     )
     .build();
 
     let client_chunking_context = get_client_chunking_context(
         context_path,
         server_root,
-        client_context.environment(),
+        client_context.compile_time_info().environment(),
         Value::new(ClientContextType::Pages { pages_dir }),
     );
 
@@ -706,7 +710,7 @@ impl SsrEntryVc {
                     EcmascriptInputTransform::TypeScript,
                     EcmascriptInputTransform::React { refresh: false },
                 ]),
-                this.context.environment(),
+                this.context.compile_time_info(),
             ),
             chunking_context: this.chunking_context,
             intermediate_output_path: this.intermediate_output_path,
