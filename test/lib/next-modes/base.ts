@@ -7,9 +7,10 @@ import { FileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
-import webdriver from 'next-webdriver'
+import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { BrowserInterface } from '../browsers/base'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -165,7 +166,7 @@ export class NextInstance {
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
-                    ' && yarn post-build',
+                    ' && pnpm post-build',
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
                   'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
@@ -284,7 +285,12 @@ export class NextInstance {
       throw new Error(`stop() must be called before cleaning`)
     }
 
-    const keptFiles = ['node_modules', 'package.json', 'yarn.lock']
+    const keptFiles = [
+      'node_modules',
+      'package.json',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+    ]
     for (const file of await fs.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
         await fs.remove(path.join(this.testDir, file))
@@ -404,7 +410,7 @@ export class NextInstance {
    */
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
-  ) {
+  ): Promise<BrowserInterface> {
     return webdriver(this.url, ...args)
   }
 
