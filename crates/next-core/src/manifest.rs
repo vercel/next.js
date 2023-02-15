@@ -3,8 +3,9 @@ use indexmap::IndexMap;
 use mime::{APPLICATION_JAVASCRIPT_UTF_8, APPLICATION_JSON};
 use serde::Serialize;
 use turbo_tasks::{
+    graph::{GraphTraversal, NonDeterministic},
     primitives::{StringVc, StringsVc},
-    TryFlatMapRecursiveJoinIterExt, TryJoinIterExt,
+    TryJoinIterExt,
 };
 use turbo_tasks_fs::File;
 use turbopack_core::asset::AssetContentVc;
@@ -60,19 +61,18 @@ impl DevManifestContentSourceVc {
             Ok(content_source.get_children().await?.clone_value())
         }
 
-        let mut routes = this
-            .page_roots
-            .iter()
-            .copied()
-            .try_flat_map_recursive_join(get_content_source_children)
-            .await?
-            .into_iter()
-            .map(content_source_to_pathname)
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
+        let mut routes = GraphTraversal::<NonDeterministic<_>>::visit(
+            this.page_roots.iter().copied(),
+            get_content_source_children,
+        )
+        .await?
+        .into_iter()
+        .map(content_source_to_pathname)
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
 
         routes.sort_by_cached_key(|s| s.split('/').map(PageSortKey::from).collect::<Vec<_>>());
 

@@ -1,5 +1,5 @@
 /* chunk [workspace]/crates/turbopack-tests/tests/snapshot/css/css/output/8697f_foo_style.module.css */
-@layer s\[project\]\/crates\/turbopack-tests\/tests\/snapshot\/css\/css\/input\/node_modules\/foo\/style\.module\.css\ \(css\) {
+@layer s\[project\]\/crates\/turbopack-tests\/tests\/snapshot\/css\/css\/input\/node_modules\/foo\/style\.module\.css\ \(css\ module\) {
 .foo-module-style__style__abf9e738 {
   color: blue;
 }

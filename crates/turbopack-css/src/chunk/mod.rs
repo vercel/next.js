@@ -388,6 +388,7 @@ pub struct CssChunkPlaceables(Vec<CssChunkPlaceableVc>);
 pub enum CssImport {
     External(StringVc),
     Internal(ImportAssetReferenceVc, CssChunkItemVc),
+    Composes(CssChunkItemVc),
 }
 
 #[turbo_tasks::value(shared)]

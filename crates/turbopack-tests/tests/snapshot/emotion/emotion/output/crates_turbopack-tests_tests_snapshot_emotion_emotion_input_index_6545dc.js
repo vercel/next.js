@@ -1,20 +1,36 @@
-(self.TURBOPACK = self.TURBOPACK || []).push(["output/79fb1_turbopack-tests_tests_snapshot_swc_transforms_preset_env_input_index_3894a9.js", {
+(self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_6545dc.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+"[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
-var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/node_modules/@swc/helpers/src/_class_call_check.mjs (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f40$emotion$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/node_modules/@emotion/react/jsx-dev-runtime.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f40$emotion$2f$react$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/node_modules/@emotion/react/index.js (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/node_modules/@emotion/styled/index.js (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
-var Foo = function Foo() {
-    "use strict";
-    __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f40$swc$2f$helpers$2f$src$2f$_class_call_check$2e$mjs__["default"](this, Foo);
-};
-console.log(Foo, [].includes("foo"));
+;
+;
+const StyledButton = __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__["default"]("button", {
+    target: "e1r1p2t30",
+    label: "StyledButton"
+})("background:blue;", "/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VzIjpbImluZGV4LmpzIl0sInNvdXJjZXNDb250ZW50IjpbIi8qKiBAanN4SW1wb3J0U291cmNlIEBlbW90aW9uL3JlYWN0ICovXG5cbmltcG9ydCB7IGpzeCB9IGZyb20gXCJAZW1vdGlvbi9yZWFjdFwiO1xuaW1wb3J0IHN0eWxlZCBmcm9tIFwiQGVtb3Rpb24vc3R5bGVkXCI7XG5cbmNvbnN0IFN0eWxlZEJ1dHRvbiA9IHN0eWxlZC5idXR0b25gXG4gIGJhY2tncm91bmQ6IGJsdWU7XG5gO1xuXG5mdW5jdGlvbiBDbGFzc05hbWVCdXR0b24oeyBjaGlsZHJlbiB9KSB7XG4gIHJldHVybiAoXG4gICAgPGJ1dHRvblxuICAgICAgY2xhc3NOYW1lPXtjc3NgXG4gICAgICAgIGJhY2tncm91bmQ6IGJsdWU7XG4gICAgICBgfVxuICAgID5cbiAgICAgIHtjaGlsZHJlbn1cbiAgICA8L2J1dHRvbj5cbiAgKTtcbn1cblxuY29uc29sZS5sb2coU3R5bGVkQnV0dG9uLCBDbGFzc05hbWVCdXR0b24pO1xuIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUtxQiJ9 */");
+function ClassNameButton({ children  }) {
+    return __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$node_modules$2f40$emotion$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__["jsxDEV"]("button", {
+        className: css`
+        background: blue;
+      `,
+        children: children
+    }, void 0, false, {
+        fileName: "<crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js>",
+        lineNumber: 12,
+        columnNumber: 5
+    }, this);
+}
+console.log(StyledButton, ClassNameButton);
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
-    if(!(true && loadedChunks.has("output/79fb1_turbopack-tests_tests_snapshot_swc_transforms_preset_env_input_index_eede4f.js") && loadedChunks.has("output/63a02_@swc_helpers_src__class_call_check.mjs._.js"))) return true;
-    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js (ecmascript)");
+    if(!(true && loadedChunks.has("output/63a02_@emotion_styled_index.js") && loadedChunks.has("output/63a02_@emotion_react_index.js") && loadedChunks.has("output/63a02_@emotion_react_jsx-dev-runtime.js") && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_8c70a7.js"))) return true;
+    instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js (ecmascript)");
 }]);
 (() => {
 if (!Array.isArray(globalThis.TURBOPACK)) {
@@ -1063,4 +1079,4 @@ globalThis.TURBOPACK = {
 })();
 
 
-//# sourceMappingURL=79fb1_turbopack-tests_tests_snapshot_swc_transforms_preset_env_input_index_3894a9.js.map
+//# sourceMappingURL=crates_turbopack-tests_tests_snapshot_emotion_emotion_input_index_6545dc.js.map

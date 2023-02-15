@@ -1,11 +1,8 @@
-use std::mem::take;
-
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use turbo_tasks::TryJoinIterExt;
-use turbo_tasks_fs::FileSystemPathOptionVc;
 use turbopack_core::chunk::{
-    optimize::{optimize_by_common_parent, ChunkOptimizer, ChunkOptimizerVc},
+    optimize::{ChunkOptimizer, ChunkOptimizerVc},
     ChunkGroupVc, ChunkVc, ChunkingContextVc, ChunksVc,
 };
 
@@ -26,7 +23,19 @@ impl CssChunkOptimizerVc {
 impl ChunkOptimizer for CssChunkOptimizer {
     #[turbo_tasks::function]
     async fn optimize(&self, chunks: ChunksVc, _chunk_group: ChunkGroupVc) -> Result<ChunksVc> {
-        optimize_by_common_parent(chunks, get_common_parent, optimize_css).await
+        // The CSS optimizer works under the constraint that the order in which
+        // CSS chunks are loaded must be preserved, as CSS rules
+        // precedence is determined by the order in which they are
+        // loaded. This means that we may not merge chunks that are not
+        // adjacent to each other in a valid reverse topological order.
+
+        // TODO(alexkirsz) It might be more interesting to only merge adjacent
+        // chunks when they are part of the same chunk subgraph.
+        // However, the optimizer currently does not have access to this
+        // information, as chunks are already fully flattened by the
+        // time they reach the optimizer.
+
+        merge_adjacent_chunks(chunks).await
     }
 }
 
@@ -38,13 +47,11 @@ async fn css(chunk: ChunkVc) -> Result<CssChunkVc> {
     }
 }
 
-#[turbo_tasks::function]
-async fn get_common_parent(chunk: ChunkVc) -> Result<FileSystemPathOptionVc> {
-    Ok(css(chunk).await?.common_parent())
-}
-
-async fn merge_chunks(first: CssChunkVc, chunks: &[CssChunkVc]) -> Result<CssChunkVc> {
-    let chunks = chunks.iter().copied().try_join().await?;
+async fn merge_chunks(
+    first: CssChunkVc,
+    chunks: impl IntoIterator<Item = &CssChunkVc>,
+) -> Result<CssChunkVc> {
+    let chunks = chunks.into_iter().copied().try_join().await?;
     let main_entries = chunks
         .iter()
         .map(|c| c.main_entries)
@@ -59,49 +66,62 @@ async fn merge_chunks(first: CssChunkVc, chunks: &[CssChunkVc]) -> Result<CssChu
     ))
 }
 
-/// Max number of local chunks. Will be merged into a single chunk when over the
-/// threshold.
-const LOCAL_CHUNK_MERGE_THRESHOLD: usize = 10;
-/// Max number of total chunks. Will be merged randomly to stay within the
-/// limit.
-const TOTAL_CHUNK_MERGE_THRESHOLD: usize = 10;
+/// The maximum number of chunks to exist in a single chunk group. The optimizer
+/// will merge chunks into groups until it has at most this number of chunks.
+const MAX_CHUNK_COUNT: usize = 20;
 
-#[turbo_tasks::function]
-async fn optimize_css(local: Option<ChunksVc>, children: Vec<ChunksVc>) -> Result<ChunksVc> {
-    let mut chunks = Vec::new();
-    // TODO optimize
-    if let Some(local) = local {
-        // Local chunks have the same common_parent and could be merged into fewer
-        // chunks. (We use a pretty large threshold for that.)
-        let mut local = local.await?.iter().copied().map(css).try_join().await?;
-        // Merge all local chunks when they are too many
-        if local.len() > LOCAL_CHUNK_MERGE_THRESHOLD {
-            let merged = take(&mut local);
-            if let Some(first) = merged.first().copied() {
-                local.push(merge_chunks(first, &merged).await?);
-            }
-        }
-        chunks.append(&mut local);
-    }
-    for children in children {
-        let mut children = children.await?.iter().copied().map(css).try_join().await?;
-        chunks.append(&mut children);
-    }
-    // Multiple very small chunks could be merged to avoid requests. (We use a small
-    // threshold for that.)
-    // TODO implement that
+/// Groups adjacent chunks into at most `MAX_CHUNK_COUNT` groups.
+fn aggregate_adjacent_chunks(chunks: &[ChunkVc]) -> Vec<Vec<ChunkVc>> {
+    // Each of the resulting merged chunks will have `chunks_per_merged_chunk`
+    // chunks in them, except for the first `chunks_mod` chunks, which will have
+    // one more chunk.
+    let chunks_per_merged_chunk = chunks.len() / MAX_CHUNK_COUNT;
+    let mut chunks_mod = chunks.len() % MAX_CHUNK_COUNT;
 
-    // When there are too many chunks, try hard to reduce the number of chunks to
-    // limit the request count.
-    if chunks.len() > TOTAL_CHUNK_MERGE_THRESHOLD {
-        let size = chunks.len().div_ceil(TOTAL_CHUNK_MERGE_THRESHOLD);
-        // TODO be smarter in selecting the chunks to merge
-        // see ecmascript implementation
-        for merged in take(&mut chunks).chunks(size) {
-            chunks.push(merge_chunks(*merged.first().unwrap(), merged).await?);
+    let mut chunks_vecs = vec![];
+    let mut current_chunks = vec![];
+
+    for chunk in chunks.iter().copied() {
+        if current_chunks.len() < chunks_per_merged_chunk {
+            current_chunks.push(chunk);
+        } else if current_chunks.len() == chunks_per_merged_chunk && chunks_mod > 0 {
+            current_chunks.push(chunk);
+            chunks_mod -= 1;
+            chunks_vecs.push(std::mem::take(&mut current_chunks));
+        } else {
+            chunks_vecs.push(std::mem::take(&mut current_chunks));
+            current_chunks.push(chunk);
         }
     }
-    Ok(ChunksVc::cell(
-        chunks.into_iter().map(|c| c.as_chunk()).collect(),
-    ))
+
+    if !current_chunks.is_empty() {
+        chunks_vecs.push(current_chunks);
+    }
+
+    chunks_vecs
+}
+
+/// Merges adjacent chunks into at most `MAX_CHUNK_COUNT` chunks.
+async fn merge_adjacent_chunks(chunks_vc: ChunksVc) -> Result<ChunksVc> {
+    let chunks = chunks_vc.await?;
+
+    if chunks.len() <= MAX_CHUNK_COUNT {
+        return Ok(chunks_vc);
+    }
+
+    let chunks = aggregate_adjacent_chunks(&chunks);
+
+    let chunks = chunks
+        .into_iter()
+        .map(|chunks| async move {
+            let chunks = chunks.iter().copied().map(css).try_join().await?;
+            merge_chunks(*chunks.first().unwrap(), &chunks).await
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .map(|chunk| chunk.as_chunk())
+        .collect();
+
+    Ok(ChunksVc::cell(chunks))
 }

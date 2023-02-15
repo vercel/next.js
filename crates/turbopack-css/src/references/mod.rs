@@ -27,6 +27,7 @@ use crate::{
     CssInputTransformsVc, CssModuleAssetType,
 };
 
+pub(crate) mod compose;
 pub(crate) mod import;
 pub(crate) mod url;
 
