@@ -1252,10 +1252,12 @@ export default async function getBaseWebpackConfig(
         if (/[/\\]node_modules[/\\]/.test(context)) {
           // Try to match the package name from the context path.
           const packageName =
-            context.match(/[/\\]node_modules[/\\]([^/\\@]+)/)?.[1] ||
             context.match(
-              /[/\\]node_modules[/\\](@[^/\\]+[/\\][^/\\]+)[/\\]/
-            )?.[1]
+              /[/\\]node_modules[/\\](\.pnpm[/\\])?([^/\\@]+)/
+            )?.[2] ||
+            context.match(
+              /[/\\]node_modules[/\\](\.pnpm[/\\])?(@[^/\\]+[/\\][^/\\]+)[/\\]/
+            )?.[2]
 
           throw new Error(
             `Failed to bundle ${
