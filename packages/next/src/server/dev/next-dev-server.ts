@@ -816,7 +816,7 @@ export default class DevServer extends Server {
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
     await this.startWatcher()
-    await this.ensureInstrumentation()
+    await this.runInstrumentationHookIfAvailable()
     await this.matchers.reload()
     this.setDevReady!()
 
@@ -1344,7 +1344,7 @@ export default class DevServer extends Server {
     })
   }
 
-  private async ensureInstrumentation() {
+  private async runInstrumentationHookIfAvailable() {
     if (this.actualInstrumentationHookFile) {
       await this.hotReloader!.ensurePage({
         page: this.actualInstrumentationHookFile!,
