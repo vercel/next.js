@@ -11,7 +11,7 @@ createNextDescribe(
   {
     files: __dirname,
     // TODO-APP: enable after deploy support is added
-    // skipDeployment: true,
+    skipDeployment: true,
   },
   ({ next }) => {
     describe('basic fetch request with a response', () => {
