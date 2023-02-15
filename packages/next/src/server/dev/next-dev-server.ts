@@ -32,6 +32,8 @@ import {
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_MIDDLEWARE_MANIFEST,
   COMPILER_NAMES,
+  PAGES_MANIFEST,
+  APP_PATHS_MANIFEST,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
@@ -63,7 +65,7 @@ import {
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
+import { getSortedRoutes } from '../../shared/lib/router/utils'
 import { runDependingOnPageType } from '../../build/entries'
 import { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
@@ -78,6 +80,18 @@ import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
 import { pageFiles } from '../../build/webpack/plugins/flight-types-plugin'
+import {
+  DevRouteMatcherManager,
+  RouteEnsurer,
+} from '../future/route-matcher-managers/dev-route-matcher-manager'
+import { DevPagesRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-route-matcher-provider'
+import { DevPagesAPIRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
+import { DevAppPageRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-page-route-matcher-provider'
+import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-providers/dev/dev-app-route-route-matcher-provider'
+import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
+import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
+import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -207,6 +221,66 @@ export default class DevServer extends Server {
     )
     this.pagesDir = pagesDir
     this.appDir = appDir
+  }
+
+  protected getRoutes() {
+    const { pagesDir, appDir } = findPagesDir(
+      this.dir,
+      !!this.nextConfig.experimental.appDir
+    )
+
+    const ensurer: RouteEnsurer = {
+      ensure: async (match) => {
+        await this.hotReloader!.ensurePage({
+          match,
+          page: match.definition.page,
+          clientOnly: false,
+        })
+      },
+    }
+
+    const routes = super.getRoutes()
+    const matchers = new DevRouteMatcherManager(
+      routes.matchers,
+      ensurer,
+      this.dir
+    )
+    const handlers = routes.handlers
+
+    const extensions = this.nextConfig.pageExtensions
+
+    const fileReader = new CachedFileReader(new DefaultFileReader())
+
+    // If the pages directory is available, then configure those matchers.
+    if (pagesDir) {
+      matchers.push(
+        new DevPagesRouteMatcherProvider(
+          pagesDir,
+          extensions,
+          fileReader,
+          this.localeNormalizer
+        )
+      )
+      matchers.push(
+        new DevPagesAPIRouteMatcherProvider(
+          pagesDir,
+          extensions,
+          fileReader,
+          this.localeNormalizer
+        )
+      )
+    }
+
+    if (appDir) {
+      matchers.push(
+        new DevAppPageRouteMatcherProvider(appDir, extensions, fileReader)
+      )
+      matchers.push(
+        new DevAppRouteRouteMatcherProvider(appDir, extensions, fileReader)
+      )
+    }
+
+    return { matchers, handlers }
   }
 
   protected getBuildId(): string {
@@ -423,7 +497,7 @@ export default class DevServer extends Server {
             }
 
             const originalPageName = pageName
-            pageName = normalizeAppPath(pageName) || '/'
+            pageName = normalizeAppPath(pageName)
             if (!appPaths[pageName]) {
               appPaths[pageName] = []
             }
@@ -636,14 +710,6 @@ export default class DevServer extends Server {
           }
           this.sortedRoutes = sortedRoutes
 
-          this.dynamicRoutes = this.sortedRoutes
-            .filter(isDynamicRoute)
-            .map((page) => ({
-              page,
-              match: getRouteMatcher(getRouteRegex(page)),
-            }))
-
-          this.router.setDynamicRoutes(this.dynamicRoutes)
           this.router.setCatchallMiddleware(
             this.generateCatchAllMiddlewareRoute(true)
           )
@@ -659,6 +725,10 @@ export default class DevServer extends Server {
           } else {
             Log.warn('Failed to reload dynamic routes:', e)
           }
+        } finally {
+          // Reload the matchers. The filesystem would have been written to,
+          // and the matchers need to re-scan it to update the router.
+          await this.matchers.reload()
         }
       })
     })
@@ -730,6 +800,7 @@ export default class DevServer extends Server {
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
     await this.startWatcher()
+    await this.matchers.reload()
     this.setDevReady!()
 
     if (this.nextConfig.experimental.nextScriptWorkers) {
@@ -851,7 +922,8 @@ export default class DevServer extends Server {
     }
 
     if (await this.hasPublicFile(decodedPath)) {
-      if (await this.hasPage(pathname!)) {
+      const match = await this.matchers.match(pathname!, { skipDynamic: true })
+      if (match) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://nextjs.org/docs/messages/conflicting-public-file-page`
         )
@@ -1177,12 +1249,22 @@ export default class DevServer extends Server {
     })
   }
 
-  protected getPagesManifest(): undefined {
-    return undefined
+  protected getPagesManifest(): PagesManifest | undefined {
+    return (
+      NodeManifestLoader.require(
+        pathJoin(this.serverDistDir, PAGES_MANIFEST)
+      ) ?? undefined
+    )
   }
 
-  protected getAppPathsManifest(): undefined {
-    return undefined
+  protected getAppPathsManifest(): PagesManifest | undefined {
+    if (!this.hasAppDir) return undefined
+
+    return (
+      NodeManifestLoader.require(
+        pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)
+      ) ?? undefined
+    )
   }
 
   protected getMiddleware() {
@@ -1229,9 +1311,12 @@ export default class DevServer extends Server {
   generateRoutes() {
     const { fsRoutes, ...otherRoutes } = super.generateRoutes()
 
+    // Create a shallow copy so we can mutate it.
+    const routes = [...fsRoutes]
+
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
-    fsRoutes.unshift({
+    routes.unshift({
       match: getPathMatch('/_next/development/:path*'),
       type: 'route',
       name: '_next/development catchall',
@@ -1244,7 +1329,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.unshift({
+    routes.unshift({
       match: getPathMatch(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
       ),
@@ -1268,7 +1353,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.unshift({
+    routes.unshift({
       match: getPathMatch(
         `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
       ),
@@ -1284,7 +1369,7 @@ export default class DevServer extends Server {
       },
     })
 
-    fsRoutes.push({
+    routes.push({
       match: getPathMatch('/:path*'),
       type: 'route',
       name: 'catchall public directory route',
@@ -1307,16 +1392,11 @@ export default class DevServer extends Server {
       },
     })
 
-    return { fsRoutes, ...otherRoutes }
+    return { fsRoutes: routes, ...otherRoutes }
   }
 
   // In development public files are not added to the router but handled as a fallback instead
   protected generatePublicRoutes(): never[] {
-    return []
-  }
-
-  // In development dynamic routes cannot be known ahead of time
-  protected getDynamicRoutes(): never[] {
     return []
   }
 
@@ -1399,10 +1479,6 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async ensureApiPage(pathname: string): Promise<void> {
-    return this.hotReloader!.ensurePage({ page: pathname, clientOnly: false })
-  }
-
   private persistPatchedGlobals(): void {
     this.originalFetch = global.fetch
   }
@@ -1416,13 +1492,15 @@ export default class DevServer extends Server {
     query,
     params,
     isAppPath,
-    appPaths,
+    appPaths = null,
+    shouldEnsure,
   }: {
     pathname: string
     query: ParsedUrlQuery
     params: Params
     isAppPath: boolean
     appPaths?: string[] | null
+    shouldEnsure: boolean
   }): Promise<FindComponentsResult | null> {
     await this.devReady
     const compilationErr = await this.getCompilationError(pathname)
@@ -1431,11 +1509,13 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      await this.hotReloader!.ensurePage({
-        page: pathname,
-        appPaths,
-        clientOnly: false,
-      })
+      if (shouldEnsure || this.renderOpts.customServer) {
+        await this.hotReloader!.ensurePage({
+          page: pathname,
+          appPaths,
+          clientOnly: false,
+        })
+      }
 
       // When the new page is compiled, we need to reload the server component
       // manifest.
@@ -1502,7 +1582,7 @@ export default class DevServer extends Server {
     return errors[0]
   }
 
-  protected isServeableUrl(untrustedFileUrl: string): boolean {
+  protected isServableUrl(untrustedFileUrl: string): boolean {
     // This method mimics what the version of `send` we use does:
     // 1. decodeURIComponent:
     //    https://github.com/pillarjs/send/blob/0.17.1/index.js#L989
