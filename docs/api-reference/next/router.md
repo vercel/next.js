@@ -140,7 +140,7 @@ export default function Page() {
 
 #### Resetting state after navigation
 
-When navigating to the same page in Next.js, the page's state **will not** be reset by default as react does not unmount unless the parent component has changed.
+When navigating to the same page in Next.js, the page's state **will not** be reset by default as React does not unmount unless the parent component has changed.
 
 ```jsx
 // pages/[slug].js

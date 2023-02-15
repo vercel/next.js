@@ -62,6 +62,7 @@ async function createAppRouteCode({
     import 'next/dist/server/node-polyfill-headers'
     
     export * as handlers from ${JSON.stringify(resolvedPagePath)}
+    export const resolvedPagePath = ${JSON.stringify(resolvedPagePath)}
 
     export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
   `
