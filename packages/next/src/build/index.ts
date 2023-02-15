@@ -128,6 +128,7 @@ import {
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -1325,7 +1326,17 @@ export default async function build(
                   pageType === 'app' &&
                   staticInfo?.rsc !== RSC_MODULE_TYPES.client
 
-                if (!isReservedPage(page)) {
+                if (
+                  !isReservedPage(page) &&
+                  // TODO-APP: static generation of route
+                  !(
+                    pageType === 'app' &&
+                    isEdgeRuntime(pageRuntime) &&
+                    pagePath
+                      .replace(/\\/g, '/')
+                      .match(`/route\\.(?:${config.pageExtensions.join('|')})$`)
+                  )
+                ) {
                   try {
                     let edgeInfo: any
 
