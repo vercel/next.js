@@ -19,7 +19,7 @@ import {
   APP_CLIENT_INTERNALS,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
-  ACTIONS_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
@@ -756,9 +756,8 @@ export class FlightClientEntryPlugin {
       }
     }
 
-    const file = ACTIONS_MANIFEST
     const json = JSON.stringify(serverActions, null, this.dev ? 2 : undefined)
-    assets[file + '.json'] = new sources.RawSource(
+    assets[SERVER_REFERENCE_MANIFEST + '.json'] = new sources.RawSource(
       json
     ) as unknown as webpack.sources.RawSource
   }

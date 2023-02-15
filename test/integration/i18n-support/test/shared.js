@@ -1355,8 +1355,9 @@ export function runTests(ctx) {
     })
   })
 
-  it('should rewrite to API route correctly', async () => {
-    for (const locale of locales) {
+  it.each(locales)(
+    'should rewrite to API route correctly for %s locale',
+    async (locale) => {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath || ''}${
@@ -1368,13 +1369,14 @@ export function runTests(ctx) {
         }
       )
 
+      expect(res.headers.get('content-type')).toContain('application/json')
       const data = await res.json()
       expect(data).toEqual({
         hello: true,
         query: {},
       })
     }
-  })
+  )
 
   it('should apply rewrites correctly', async () => {
     let res = await fetchViaHTTP(
