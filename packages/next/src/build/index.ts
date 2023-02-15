@@ -1286,11 +1286,13 @@ export default async function build(
 
                 if (pageType === 'pages') {
                   pagePath =
-                    pagesPaths.find(
-                      (p) =>
+                    pagesPaths.find((p) => {
+                      p = p.replace(/[\\/]/, '/')
+                      return (
                         p.startsWith(actualPage + '.') ||
                         p.startsWith(actualPage + '/index.')
-                    ) || ''
+                      )
+                    }) || ''
                 }
                 let originalAppPath: string | undefined
 
