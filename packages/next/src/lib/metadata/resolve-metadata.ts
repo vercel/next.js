@@ -248,40 +248,43 @@ export async function collectMetadata(
 export async function accumulateMetadata(
   metadataItems: MetadataItems
 ): Promise<ResolvedMetadata> {
-  const deepClone: <T>(v: T) => T =
-    process.env.NODE_ENV === 'development'
-      ? require('next/dist/compiled/@edge-runtime/primitives/structured-clone')
-          .structuredClone
-      : (v) => v
   const resolvedMetadata = createDefaultMetadata()
 
-  let parentPromise = Promise.resolve(resolvedMetadata)
+  let chainPromise = Promise.resolve(resolvedMetadata)
 
   for (const item of metadataItems) {
     const [metadataExport, staticFilesMetadata] = item
+
+    // Freeze the parent metadata to avoid accidental mutation to it
+    let resolvingMetadata = chainPromise
+    if (process.env.NODE_ENV === 'development') {
+      const deepClone =
+        require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone
+      resolvingMetadata = chainPromise.then((resolved) =>
+        Object.freeze(deepClone(resolved))
+      )
+    }
+
     const currentMetadata =
       typeof metadataExport === 'function'
-        ? metadataExport(parentPromise)
+        ? metadataExport(resolvingMetadata)
         : metadataExport
     const layerMetadataPromise =
       currentMetadata instanceof Promise
         ? currentMetadata
         : Promise.resolve(currentMetadata)
 
-    parentPromise = parentPromise.then((resolved) => {
+    chainPromise = chainPromise.then((resolved) => {
       return layerMetadataPromise.then((metadata) => {
-        resolved = deepClone(resolved)
         merge(resolved, metadata, staticFilesMetadata, {
           title: resolved.title?.template || null,
           openGraph: resolved.openGraph?.title?.template || null,
           twitter: resolved.twitter?.title?.template || null,
         })
-        return process.env.NODE_ENV === 'development'
-          ? Object.freeze(resolved)
-          : resolved
+        return resolved
       })
     })
   }
 
-  return await parentPromise
+  return await chainPromise
 }
