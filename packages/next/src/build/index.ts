@@ -128,6 +128,7 @@ import {
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
+import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -1287,7 +1288,7 @@ export default async function build(
                 if (pageType === 'pages') {
                   pagePath =
                     pagesPaths.find((p) => {
-                      p = p.replace(/[\\/]/, '/')
+                      p = normalizePathSep(p)
                       return (
                         p.startsWith(actualPage + '.') ||
                         p.startsWith(actualPage + '/index.')
