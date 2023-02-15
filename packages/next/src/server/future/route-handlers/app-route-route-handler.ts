@@ -169,12 +169,9 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     private readonly moduleLoader: ModuleLoader = new NodeModuleLoader()
   ) {}
 
-  private resolve(
-    req: BaseNextRequest,
-    mod: AppRouteModule
-  ): AppRouteHandlerFn {
+  private resolve(method: string, mod: AppRouteModule): AppRouteHandlerFn {
     // Ensure that the requested method is a valid method (to prevent RCE's).
-    if (!isHTTPMethod(req.method)) return handleBadRequestResponse
+    if (!isHTTPMethod(method)) return handleBadRequestResponse
 
     // Pull out the handlers from the app route module.
     const { handlers, resolvedPagePath } = mod
@@ -199,7 +196,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     }
 
     // Check to see if the requested method is available.
-    const handler: AppRouteHandlerFn | undefined = handlers[req.method]
+    const handler: AppRouteHandlerFn | undefined = handlers[method]
     if (handler) return handler
 
     /**
@@ -210,17 +207,17 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
 
     // If HEAD is not provided, but GET is, then we respond to HEAD using the
     // GET handler without the body.
-    if (req.method === 'HEAD' && 'GET' in handlers) {
+    if (method === 'HEAD' && 'GET' in handlers) {
       return handlers['GET']
     }
 
     // If OPTIONS is not provided then implement it.
-    if (req.method === 'OPTIONS') {
+    if (method === 'OPTIONS') {
       // TODO: check if HEAD is implemented, if so, use it to add more headers
 
       // Get all the handler methods from the list of handlers.
-      const methods = Object.keys(handlers).filter((method) =>
-        isHTTPMethod(method)
+      const methods = Object.keys(handlers).filter((handlerMethod) =>
+        isHTTPMethod(handlerMethod)
       ) as HTTP_METHOD[]
 
       // If the list of methods doesn't include OPTIONS, add it, as it's
@@ -248,7 +245,8 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     return handleMethodNotAllowedResponse
   }
 
-  private async execute(
+  // TODO-APP: this is temporarily used for edge.
+  public async execute(
     { params }: AppRouteRouteMatch,
     module: AppRouteModule,
     req: BaseNextRequest,
@@ -258,7 +256,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     const { requestAsyncStorage } = module
 
     // Get the handler function for the given method.
-    const handle = this.resolve(req, module)
+    const handle = this.resolve(req.method, module)
 
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support.
