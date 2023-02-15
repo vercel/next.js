@@ -307,7 +307,9 @@ const nextDev: CliCommand = async (argv) => {
     if (!hasWarningOrError) {
       thankYouMsg = chalk.dim(thankYouMsg)
     }
-    console.log(turbopackGradient + thankYouMsg)
+    if (!isCustomTurbopack) {
+      console.log(turbopackGradient + thankYouMsg)
+    }
 
     let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
       'https://nextjs.link/with-turbopack'
@@ -336,7 +338,7 @@ const nextDev: CliCommand = async (argv) => {
       )}   `
     }
 
-    if (unsupportedParts) {
+    if (unsupportedParts && !isCustomTurbopack) {
       const pkgManager = getPkgManager(dir)
 
       console.error(
@@ -354,9 +356,10 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
   )}\n  cd with-turbopack-app\n  ${pkgManager} run dev
         `
       )
-      console.warn(feedbackMessage)
 
       if (!isCustomTurbopack) {
+        console.warn(feedbackMessage)
+
         process.exit(1)
       } else {
         console.warn(
@@ -366,7 +369,10 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         )
       }
     }
-    console.log(feedbackMessage)
+
+    if (!isCustomTurbopack) {
+      console.log(feedbackMessage)
+    }
 
     return rawNextConfig
   }

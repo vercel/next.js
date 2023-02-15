@@ -376,8 +376,10 @@ async function main() {
       await sema.acquire()
       let passed = false
 
-      const shouldSkipRetries = skipRetryTestManifest.find((t) => t.includes(test))
-      const numRetries = shouldSkipRetries ? 0 :originalRetries
+      const shouldSkipRetries = skipRetryTestManifest.find((t) =>
+        t.includes(test)
+      )
+      const numRetries = shouldSkipRetries ? 0 : originalRetries
       if (shouldSkipRetries) {
         console.log(`Skipping retry for ${test} due to skipRetryTestManifest`)
       }
@@ -385,7 +387,11 @@ async function main() {
       for (let i = 0; i < numRetries + 1; i++) {
         try {
           console.log(`Starting ${test} retry ${i}/${numRetries}`)
-          const time = await runTest(test, shouldSkipRetries || i === numRetries, shouldSkipRetries || i > 0)
+          const time = await runTest(
+            test,
+            shouldSkipRetries || i === numRetries,
+            shouldSkipRetries || i > 0
+          )
           timings.push({
             file: test,
             time,
