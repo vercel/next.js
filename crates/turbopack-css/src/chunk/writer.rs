@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, io::Write};
+use std::{
+    collections::{HashSet, VecDeque},
+    io::Write,
+};
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, ValueToString};
@@ -18,11 +21,21 @@ pub async fn expand_imports(
         "".to_string(),
     )];
     let mut external_imports = vec![];
+    let mut imported_chunk_items: HashSet<(String, String, CssChunkItemVc)> = HashSet::default();
+    let mut composed_chunk_items: HashSet<CssChunkItemVc> = HashSet::default();
 
     while let Some((chunk_item, imports, close)) = stack.last_mut() {
         match imports.pop_front() {
             Some(CssImport::Internal(import, imported_chunk_item)) => {
                 let (open, close) = import.await?.attributes.await?.print_block()?;
+
+                if !imported_chunk_items.insert((
+                    open.clone(),
+                    close.clone(),
+                    imported_chunk_item.resolve().await?,
+                )) {
+                    continue;
+                }
 
                 let id = &*imported_chunk_item.to_string().await?;
                 writeln!(code, "/* import({}) */", id)?;
@@ -34,6 +47,22 @@ pub async fn expand_imports(
                     imported_chunk_item,
                     imported_content.imports.iter().cloned().collect(),
                     close,
+                ));
+            }
+            Some(CssImport::Composes(composed_chunk_item)) => {
+                if !composed_chunk_items.insert(composed_chunk_item.resolve().await?) {
+                    continue;
+                }
+
+                let id = &*composed_chunk_item.to_string().await?;
+                writeln!(code, "/* composes({}) */", id)?;
+
+                let composed_content_vc = composed_chunk_item.content();
+                let composed_content = &*composed_content_vc.await?;
+                stack.push((
+                    composed_chunk_item,
+                    composed_content.imports.iter().cloned().collect(),
+                    "".to_string(),
                 ));
             }
             Some(CssImport::External(url_vc)) => {

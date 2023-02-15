@@ -28,7 +28,10 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGenerateableVc},
     parse::{parse, ParseResult, ParseResultSourceMap, ParseResultVc},
     path_visitor::ApplyVisitors,
-    references::{analyze_css_stylesheet, import::ImportAssetReferenceVc},
+    references::{
+        analyze_css_stylesheet, compose::CssModuleComposeReferenceVc,
+        import::ImportAssetReferenceVc,
+    },
     transform::CssInputTransformsVc,
     CssModuleAssetType,
 };
@@ -170,14 +173,24 @@ impl CssChunkItem for ModuleChunkItem {
         let context = self.context;
 
         for reference in references.iter() {
-            if let Some(import) = ImportAssetReferenceVc::resolve_from(reference).await? {
-                for result in import.resolve_reference().await?.primary.iter() {
+            if let Some(import_ref) = ImportAssetReferenceVc::resolve_from(reference).await? {
+                for result in import_ref.resolve_reference().await?.primary.iter() {
                     if let PrimaryResolveResult::Asset(asset) = result {
                         if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
                             imports.push(CssImport::Internal(
-                                import,
+                                import_ref,
                                 placeable.as_chunk_item(context),
                             ));
+                        }
+                    }
+                }
+            } else if let Some(compose_ref) =
+                CssModuleComposeReferenceVc::resolve_from(reference).await?
+            {
+                for result in compose_ref.resolve_reference().await?.primary.iter() {
+                    if let PrimaryResolveResult::Asset(asset) = result {
+                        if let Some(placeable) = CssChunkPlaceableVc::resolve_from(asset).await? {
+                            imports.push(CssImport::Composes(placeable.as_chunk_item(context)));
                         }
                     }
                 }

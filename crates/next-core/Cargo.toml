@@ -12,7 +12,7 @@ bench = false
 anyhow = "1.0.47"
 auto-hash-map = { path = "../auto-hash-map" }
 indexmap = { workspace = true, features = ["serde"] }
-indoc = "1.0"
+indoc = { workspace = true }
 mime = "0.3.16"
 once_cell = "1.13.0"
 qstring = "0.7.2"

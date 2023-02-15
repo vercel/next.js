@@ -15,7 +15,7 @@ async-trait = "0.1.56"
 easy-error = "1.0.0"
 fxhash = "0.2.1"
 indexmap = { workspace = true }
-indoc = "1.0"
+indoc = { workspace = true }
 lazy_static = "1.4.0"
 next-font = { path = "../next-font" }
 next-transform-dynamic = { path = "../next-transform-dynamic" }

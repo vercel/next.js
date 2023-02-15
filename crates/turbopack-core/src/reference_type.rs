@@ -24,6 +24,7 @@ pub enum EcmaScriptModulesReferenceSubType {
 #[derive(Debug, Clone, PartialOrd, Ord, Hash)]
 pub enum CssReferenceSubType {
     AtImport,
+    Compose,
     Custom(u8),
     Undefined,
 }
