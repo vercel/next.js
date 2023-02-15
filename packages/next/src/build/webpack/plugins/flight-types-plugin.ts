@@ -88,7 +88,7 @@ ${
 // Utility types
 type RevalidateRange<T> = T extends { revalidate: any } ? NonNegative<T['revalidate']> : never
 
-// If T is unknow or any, it will be an empty {} type. Otherwise, it will be the same as Omit<T, keyof Base>.
+// If T is unknown or any, it will be an empty {} type. Otherwise, it will be the same as Omit<T, keyof Base>.
 type OmitWithTag<T, K extends keyof any, _M> = Omit<T, K>
 type Diff<Base, T extends Base, Message extends string = ''> = 0 extends (1 & T) ? {} : OmitWithTag<T, keyof Base, Message>
 
