@@ -254,15 +254,10 @@ export async function accumulateMetadata(
       : (v) => v
   const resolvedMetadata = createDefaultMetadata()
 
-  let parentPromise: Promise<ResolvedMetadata> = Promise.resolve(
-    process.env.NODE_ENV === 'development'
-      ? Object.freeze(deepClone(resolvedMetadata))
-      : resolvedMetadata
-  )
+  let parentPromise = Promise.resolve(resolvedMetadata)
 
   for (const item of metadataItems) {
     const [metadataExport, staticFilesMetadata] = item
-
     const currentMetadata =
       typeof metadataExport === 'function'
         ? metadataExport(parentPromise)
@@ -280,7 +275,6 @@ export async function accumulateMetadata(
           openGraph: resolved.openGraph?.title?.template || null,
           twitter: resolved.twitter?.title?.template || null,
         })
-
         return process.env.NODE_ENV === 'development'
           ? Object.freeze(resolved)
           : resolved

@@ -317,6 +317,37 @@ createNextDescribe(
         )
       })
 
+      if (isNextDev) {
+        it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
+          const pagePath = 'app/mutate/page.tsx'
+          const content = `export default function page(props) {
+            return <p>mutate</p>
+          }
+
+          export async function generateMetadata(props, parent) {
+            const parentMetadata = await parent
+            parentMetadata.x = 1
+            return {
+              ...parentMetadata,
+            }
+          }`
+          await next.patchFile(pagePath, content)
+
+          const browser = await next.browser('/mutate')
+          await check(
+            async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
+            /success/
+          )
+          const error = await getRedboxDescription(browser)
+
+          await next.deleteFile(pagePath)
+
+          expect(error).toContain(
+            'Cannot add property x, object is not extensible'
+          )
+        })
+      }
+
       it('should support synchronous generateMetadata export', async () => {
         const browser = await next.browser('/basic/sync-generate-metadata')
         expect(await getTitle(browser)).toBe('synchronous generateMetadata')
@@ -698,56 +729,6 @@ createNextDescribe(
           expect(obj.val2.toString()).toBe(value2)
         }
       })
-    })
-  }
-)
-
-createNextDescribe(
-  'app dir - metadata errors',
-  {
-    files: __dirname,
-  },
-  ({ next, isNextDev, isNextDeploy }) => {
-    if (isNextDeploy) {
-      it('should skip for deploy currently', () => {})
-      return
-    }
-
-    describe('errors', () => {
-      if (isNextDev) {
-        it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
-          const pagePath = '/app/params/[slug]/page.tsx'
-          const originalContent = `export default function page(props) {
-            return <p>mutate</p>
-          }
-
-          export async function generateMetadata(props, parent) {
-            const parentMetadata = await parent
-            /* mutating */
-            return {
-              ...parentMetadata,
-            }
-          }`
-          await next.patchFile(
-            pagePath,
-            originalContent.replace('/* mutating */', 'parentMetadata.x = 1')
-          )
-
-          const browser = await next.browser('/params/mutate')
-          await check(
-            async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
-            /success/
-          )
-          const error = await getRedboxDescription(browser)
-
-          await next.patchFile(pagePath, originalContent)
-          browser.loadPage(`${next.url}/params/mutate`)
-
-          expect(error).toContain(
-            'Cannot add property x, object is not extensible'
-          )
-        })
-      }
     })
   }
 )
