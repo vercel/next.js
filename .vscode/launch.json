@@ -17,6 +17,18 @@
       }
     },
     {
+      "name": "Launch app-dir build",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["debug", "build", "test/e2e/app-dir/app"],
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "NEXT_PRIVATE_LOCAL_WEBPACK": "1"
+      }
+    },
+    {
       "name": "Launch app development",
       "type": "node",
       "request": "launch",

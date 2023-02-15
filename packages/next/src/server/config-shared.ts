@@ -113,6 +113,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  externalMiddlewareRewritesResolve?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCache?: boolean
@@ -155,7 +156,9 @@ export interface ExperimentalConfig {
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
+  outputFileTracingExcludes?: Record<string, string[]>
   outputFileTracingIgnores?: string[]
+  outputFileTracingIncludes?: Record<string, string[]>
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 
@@ -206,11 +209,15 @@ export interface ExperimentalConfig {
     logAll?: boolean
     contextDirectory?: string
     processCwd?: string
-    maxFiles?: number
+    /** in `MB` */
     memoryLimit?: number
-    skipEntries?: boolean
   }
   mdxRs?: boolean
+
+  // Generate Route types and enable type checking for Link and Router.push, etc.
+  // This option requires `appDir` to be enabled first.
+  typedRoutes?: boolean
+
   /**
    * This option is to enable running the Webpack build in a worker thread.
    */
@@ -659,6 +666,7 @@ export const defaultConfig: NextConfig = {
     adjustFontFallbacksWithSizeAdjust: false,
     turbo: undefined,
     turbotrace: undefined,
+    typedRoutes: false,
   },
 }
 

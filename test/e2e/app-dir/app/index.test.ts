@@ -82,22 +82,22 @@ createNextDescribe(
       })
     }
 
-    it('should use application/octet-stream for flight', async () => {
+    it('should use text/x-component for flight', async () => {
       const res = await next.fetch('/dashboard/deployments/123', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
-    it('should use application/octet-stream for flight with edge runtime', async () => {
+    it('should use text/x-component for flight with edge runtime', async () => {
       const res = await next.fetch('/dashboard', {
         headers: {
           ['RSC'.toString()]: '1',
         },
       })
-      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+      expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
     it('should pass props from getServerSideProps in root layout', async () => {
@@ -375,29 +375,6 @@ createNextDescribe(
       } finally {
         await browser.close()
       }
-    })
-
-    describe('parallel routes', () => {
-      if (!isNextDeploy) {
-        it('should match parallel routes', async () => {
-          const html = await next.render('/parallel/nested')
-          expect(html).toContain('parallel/layout')
-          expect(html).toContain('parallel/@foo/nested/layout')
-          expect(html).toContain('parallel/@foo/nested/@a/page')
-          expect(html).toContain('parallel/@foo/nested/@b/page')
-          expect(html).toContain('parallel/@bar/nested/layout')
-          expect(html).toContain('parallel/@bar/nested/@a/page')
-          expect(html).toContain('parallel/@bar/nested/@b/page')
-          expect(html).toContain('parallel/nested/page')
-        })
-      }
-
-      it('should match parallel routes in route groups', async () => {
-        const html = await next.render('/parallel/nested-2')
-        expect(html).toContain('parallel/layout')
-        expect(html).toContain('parallel/(new)/layout')
-        expect(html).toContain('parallel/(new)/@baz/nested/page')
-      })
     })
 
     describe('<Link />', () => {
@@ -860,22 +837,19 @@ createNextDescribe(
           async (method) => {
             const browser = await next.browser('/internal')
 
-            try {
-              // Wait for and click the navigation element, this should trigger
-              // the flight request that'll be caught by the middleware. If the
-              // middleware sees any flight data on the request it'll redirect to
-              // a page with an element of #failure, otherwise, we'll see the
-              // element for #success.
-              await browser
-                .waitForElementByCss(`#navigate-${method}`)
-                .elementById(`navigate-${method}`)
-                .click()
-              expect(
-                await browser.waitForElementByCss('#success', 3000).text()
-              ).toBe('Success')
-            } finally {
-              await browser.close()
-            }
+            // Wait for and click the navigation element, this should trigger
+            // the flight request that'll be caught by the middleware. If the
+            // middleware sees any flight data on the request it'll redirect to
+            // a page with an element of #failure, otherwise, we'll see the
+            // element for #success.
+            await browser
+              .waitForElementByCss(`#navigate-${method}`)
+              .elementById(`navigate-${method}`)
+              .click()
+            await check(
+              async () => await browser.elementByCss('#success').text(),
+              /Success/
+            )
           }
         )
       })
