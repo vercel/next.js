@@ -70,9 +70,7 @@ const testedExamples = [
   'with-tailwindcss',
   'with-turbopack',
   'with-vercel-fetch',
-  // TODO: remove slice()
-  // This will make iterations faster
-].slice(0, 5)
+]
 
 const testExample = (example) => {
   const exampleFiles = path.join(__dirname, '..', '..', 'examples', example)
