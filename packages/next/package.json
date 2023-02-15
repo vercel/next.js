@@ -54,7 +54,8 @@
     "navigation.js",
     "navigation.d.ts",
     "headers.js",
-    "headers.d.ts"
+    "headers.d.ts",
+    "navigation-types"
   ],
   "bin": {
     "next": "./dist/bin/next"
