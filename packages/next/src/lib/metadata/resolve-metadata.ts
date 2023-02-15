@@ -156,6 +156,7 @@ function merge(
       case 'colorScheme':
       case 'itunes':
       case 'formatDetection':
+      case 'manifest':
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
         break
