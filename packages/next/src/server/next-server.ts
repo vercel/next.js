@@ -2051,6 +2051,8 @@ export default class NextNodeServer extends BaseServer {
     const initUrl =
       this.hostname && this.port
         ? `${protocol}://${this.hostname}:${this.port}${req.url}`
+        : (this.nextConfig.experimental as any).trustHostHeader
+        ? `https://${req.headers.host || 'localhost'}${req.url}`
         : req.url
 
     addRequestMeta(req, '__NEXT_INIT_URL', initUrl)
