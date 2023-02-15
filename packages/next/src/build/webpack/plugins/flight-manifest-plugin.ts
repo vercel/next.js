@@ -6,7 +6,7 @@
  */
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { FLIGHT_MANIFEST } from '../../../shared/lib/constants'
+import { CLIENT_REFERENCE_MANIFEST } from '../../../shared/lib/constants'
 import { relative, sep } from 'path'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
 
@@ -369,7 +369,7 @@ export class FlightManifestPlugin {
       manifest.__entry_css_files__ = entryCSSFiles
     })
 
-    const file = 'server/' + FLIGHT_MANIFEST
+    const file = 'server/' + CLIENT_REFERENCE_MANIFEST
     const json = JSON.stringify(manifest, null, this.dev ? 2 : undefined)
 
     ASYNC_CLIENT_MODULES.clear()

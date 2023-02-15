@@ -174,6 +174,8 @@ export default class DevServer extends Server {
     super({ ...options, dev: true })
     this.persistPatchedGlobals()
     this.renderOpts.dev = true
+    this.renderOpts.appDirDevErrorLogger = (err: any) =>
+      this.logErrorWithOriginalStack(err, 'app-dir')
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
     this.devReady = new Promise((resolve) => {
       this.setDevReady = resolve
@@ -757,6 +759,7 @@ export default class DevServer extends Server {
         tsconfigPath: this.nextConfig.typescript.tsconfigPath,
         disableStaticImages: this.nextConfig.images.disableStaticImages,
         isAppDirEnabled: !!this.appDir,
+        hasPagesDir: !!this.pagesDir,
       })
 
       if (verifyResult.version) {
@@ -1130,9 +1133,34 @@ export default class DevServer extends Server {
     }
   }
 
+  private logAppDirError(err: any) {
+    if (isError(err) && err?.stack) {
+      const filteredStack = err.stack
+        .split('\n')
+        .map((line: string) =>
+          // Remove 'webpack-internal:' noise from the path
+          line.replace(/(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/, '')
+        )
+        // Only display stack frames from the user's code
+        .filter(
+          (line: string) =>
+            !/next[\\/]dist[\\/]compiled/.test(line) &&
+            !/node_modules[\\/]/.test(line) &&
+            !/node:internal[\\/]/.test(line)
+        )
+        .join('\n')
+      Log.error(filteredStack)
+      if (typeof (err as any).digest !== 'undefined') {
+        console.error(`digest: ${JSON.stringify((err as any).digest)}`)
+      }
+    } else {
+      Log.error(err)
+    }
+  }
+
   private async logErrorWithOriginalStack(
     err?: unknown,
-    type?: 'unhandledRejection' | 'uncaughtException' | 'warning'
+    type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
     let usedOriginalStack = false
 
@@ -1200,6 +1228,8 @@ export default class DevServer extends Server {
             }
             if (type === 'warning') {
               Log.warn(err)
+            } else if (type === 'app-dir') {
+              this.logAppDirError(err)
             } else if (type) {
               Log.error(`${type}:`, err)
             } else {
@@ -1219,6 +1249,8 @@ export default class DevServer extends Server {
     if (!usedOriginalStack) {
       if (type === 'warning') {
         Log.warn(err)
+      } else if (type === 'app-dir') {
+        this.logAppDirError(err)
       } else if (type) {
         Log.error(`${type}:`, err)
       } else {

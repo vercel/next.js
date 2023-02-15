@@ -230,6 +230,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
+    appDirDevErrorLogger?: (err: any) => Promise<void>
   }
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase

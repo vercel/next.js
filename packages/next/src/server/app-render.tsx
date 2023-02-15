@@ -191,6 +191,7 @@ export type RenderOptsPartial = {
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
   nextExport?: boolean
+  appDirDevErrorLogger?: (err: any) => Promise<void>
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -225,15 +226,24 @@ function interopDefault(mod: any) {
 /**
  * Create error handler for renderers.
  */
-function createErrorHandler(
+function createErrorHandler({
   /**
    * Used for debugging
    */
-  _source: string,
-  isNextExport: boolean,
-  capturedErrors: Error[],
+  _source,
+  dev,
+  isNextExport,
+  errorLogger,
+  capturedErrors,
+  allCapturedErrors,
+}: {
+  _source: string
+  dev?: boolean
+  isNextExport?: boolean
+  errorLogger?: (err: any) => Promise<void>
+  capturedErrors: Error[]
   allCapturedErrors?: Error[]
-) {
+}) {
   return (err: any): string => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
@@ -248,7 +258,7 @@ function createErrorHandler(
     }
 
     // Format server errors in development to add more helpful error messages
-    if (process.env.NODE_ENV !== 'production') {
+    if (dev) {
       formatServerError(err)
     }
     // Used for debugging error source
@@ -263,7 +273,11 @@ function createErrorHandler(
         )
       )
     ) {
-      console.error(err)
+      if (errorLogger) {
+        errorLogger(err).catch(() => {})
+      } else {
+        console.error(err)
+      }
     }
 
     capturedErrors.push(err)
@@ -911,27 +925,6 @@ export async function renderToHTMLOrFlight(
     typeof actionId === 'string' &&
     req.method === 'POST'
 
-  const capturedErrors: Error[] = []
-  const allCapturedErrors: Error[] = []
-
-  const isNextExport = !!renderOpts.nextExport
-  const serverComponentsErrorHandler = createErrorHandler(
-    'serverComponentsRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const flightDataRendererErrorHandler = createErrorHandler(
-    'flightDataRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const htmlRendererErrorHandler = createErrorHandler(
-    'htmlRenderer',
-    isNextExport,
-    capturedErrors,
-    allCapturedErrors
-  )
-
   const {
     buildManifest,
     subresourceIntegrityManifest,
@@ -943,6 +936,32 @@ export async function renderToHTMLOrFlight(
     fontLoaderManifest,
     supportsDynamicHTML,
   } = renderOpts
+
+  const capturedErrors: Error[] = []
+  const allCapturedErrors: Error[] = []
+  const isNextExport = !!renderOpts.nextExport
+  const serverComponentsErrorHandler = createErrorHandler({
+    _source: 'serverComponentsRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+  })
+  const flightDataRendererErrorHandler = createErrorHandler({
+    _source: 'flightDataRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+  })
+  const htmlRendererErrorHandler = createErrorHandler({
+    _source: 'htmlRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+    allCapturedErrors,
+  })
 
   patchFetch(ComponentMod)
   /**
