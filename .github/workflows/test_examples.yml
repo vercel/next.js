@@ -39,7 +39,6 @@ jobs:
 
       - name: Setup node
         uses: actions/setup-node@v3
-        if: ${{ steps.docs-change.outputs.docsChange == 'nope' }}
         with:
           node-version: 16
           check-latest: true
