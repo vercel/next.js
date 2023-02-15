@@ -247,11 +247,23 @@ export async function collectMetadata(
 export async function accumulateMetadata(
   metadataItems: MetadataItems
 ): Promise<ResolvedMetadata> {
+  const deepClone: <T>(v: T) => T =
+    process.env.NODE_ENV === 'development'
+      ? require('next/dist/compiled/@edge-runtime/primitives/structured-clone')
+          .structuredClone
+      : (v) => v
   const resolvedMetadata = createDefaultMetadata()
-  let parentPromise = Promise.resolve(resolvedMetadata)
+
+  let parentPromise: Promise<ResolvedMetadata>
+  if (process.env.NODE_ENV === 'development') {
+    parentPromise = Promise.resolve(resolvedMetadata)
+  } else {
+    parentPromise = Promise.resolve(Object.freeze(deepClone(resolvedMetadata)))
+  }
 
   for (const item of metadataItems) {
     const [metadataExport, staticFilesMetadata] = item
+
     const currentMetadata =
       typeof metadataExport === 'function'
         ? metadataExport(parentPromise)
@@ -262,6 +274,10 @@ export async function accumulateMetadata(
         : Promise.resolve(currentMetadata)
 
     parentPromise = parentPromise.then((resolved) => {
+      if (process.env.NODE_ENV === 'development') {
+        resolved = deepClone(resolved)
+      }
+
       return layerMetadataPromise.then((metadata) => {
         merge(resolved, metadata, staticFilesMetadata, {
           title: resolved.title?.template || null,
@@ -269,7 +285,9 @@ export async function accumulateMetadata(
           twitter: resolved.twitter?.title?.template || null,
         })
 
-        return resolved
+        return process.env.NODE_ENV === 'development'
+          ? Object.freeze(resolved)
+          : resolved
       })
     })
   }
