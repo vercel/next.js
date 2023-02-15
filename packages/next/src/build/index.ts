@@ -498,7 +498,9 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveReadDir(
               appDir,
-              new RegExp(`^page\\.(?:${config.pageExtensions.join('|')})$`)
+              new RegExp(
+                `^(page|route)\\.(?:${config.pageExtensions.join('|')})$`
+              )
             )
           )
       }
@@ -575,7 +577,7 @@ export default async function build(
       if (mappedAppPages) {
         denormalizedAppPages = Object.keys(mappedAppPages)
         for (const appKey of denormalizedAppPages) {
-          const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
+          const normalizedAppPageKey = normalizeAppPath(appKey)
           const pagePath = mappedPages[normalizedAppPageKey]
           if (pagePath) {
             const appPath = mappedAppPages[appKey]
@@ -952,8 +954,10 @@ export default async function build(
           let turbotraceOutputPath: string | undefined
           let turbotraceFiles: string[] | undefined
           turboTasks = binding.turbo.createTurboTasks(
-            config.experimental.turbotrace?.memoryLimit ??
-              TURBO_TRACE_DEFAULT_MEMORY_LIMIT
+            (config.experimental.turbotrace?.memoryLimit ??
+              TURBO_TRACE_DEFAULT_MEMORY_LIMIT) *
+              1024 *
+              1024
           )
 
           const { entriesTrace, chunksTrace } = turbotraceContext
@@ -1054,8 +1058,6 @@ export default async function build(
       const appNormalizedPaths = new Map<string, string>()
       const appDynamicParamPaths = new Set<string>()
       const appDefaultConfigs = new Map<string, AppConfig>()
-      const pageTraceIncludes = new Map<string, Array<string>>()
-      const pageTraceExcludes = new Map<string, Array<string>>()
       const pageInfos = new Map<string, PageInfo>()
       const pagesManifest = JSON.parse(
         await promises.readFile(manifestPath, 'utf8')
@@ -1088,7 +1090,7 @@ export default async function build(
         )
 
         Object.keys(appPathsManifest).forEach((entry) => {
-          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+          appPathRoutes[entry] = normalizeAppPath(entry)
         })
         await promises.writeFile(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
@@ -1379,7 +1381,9 @@ export default async function build(
                         if (
                           (!isDynamicRoute(page) ||
                             !workerResult.prerenderRoutes?.length) &&
-                          workerResult.appConfig?.revalidate !== 0
+                          workerResult.appConfig?.revalidate !== 0 &&
+                          // TODO-APP: (wyattjoh) this may be where we can enable prerendering for app handlers
+                          originalAppPath.endsWith('/page')
                         ) {
                           appStaticPaths.set(originalAppPath, [page])
                           appStaticPathsEncoded.set(originalAppPath, [page])
@@ -1406,17 +1410,6 @@ export default async function build(
                         // pages and allow edge with Prerender outputs
                         workerResult.isStatic = false
                         workerResult.hasStaticProps = false
-                      }
-
-                      if (config.outputFileTracing) {
-                        pageTraceIncludes.set(
-                          page,
-                          workerResult.traceIncludes || []
-                        )
-                        pageTraceExcludes.set(
-                          page,
-                          workerResult.traceExcludes || []
-                        )
                       }
 
                       if (
@@ -1677,6 +1670,14 @@ export default async function build(
         const includeExcludeSpan = nextBuildSpan.traceChild(
           'apply-include-excludes'
         )
+        const resolvedTraceIncludes = new Map<string, string[]>()
+        const {
+          outputFileTracingIncludes = {},
+          outputFileTracingExcludes = {},
+        } = config.experimental
+
+        const includeGlobKeys = Object.keys(outputFileTracingIncludes)
+        const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
 
         await includeExcludeSpan.traceAsyncFn(async () => {
           const globOrig =
@@ -1692,65 +1693,84 @@ export default async function build(
             })
           }
 
-          for (let page of pageKeys.pages) {
-            await includeExcludeSpan
-              .traceChild('include-exclude', { page })
-              .traceAsyncFn(async () => {
-                const includeGlobs = pageTraceIncludes.get(page)
-                const excludeGlobs = pageTraceExcludes.get(page)
-                page = normalizePagePath(page)
+          if (config.outputFileTracing) {
+            for (let page of pageKeys.pages) {
+              const combinedIncludes = new Set<string>()
+              const combinedExcludes = new Set<string>()
 
-                if (!includeGlobs?.length && !excludeGlobs?.length) {
-                  return
+              page = normalizePagePath(page)
+
+              for (const curGlob of includeGlobKeys) {
+                if (isMatch(page, [curGlob])) {
+                  outputFileTracingIncludes[curGlob].forEach((include) => {
+                    combinedIncludes.add(include)
+                  })
                 }
+              }
 
-                const traceFile = path.join(
-                  distDir,
-                  'server/pages',
-                  `${page}.js.nft.json`
-                )
-                const pageDir = path.dirname(traceFile)
-                const traceContent = JSON.parse(
-                  await promises.readFile(traceFile, 'utf8')
-                )
-                let includes: string[] = []
+              for (const curGlob of excludeGlobKeys) {
+                if (isMatch(page, [curGlob])) {
+                  outputFileTracingExcludes[curGlob].forEach((exclude) => {
+                    combinedExcludes.add(exclude)
+                  })
+                }
+              }
 
-                if (includeGlobs?.length) {
-                  for (const includeGlob of includeGlobs) {
+              if (!combinedIncludes?.size && !combinedExcludes?.size) {
+                continue
+              }
+
+              const traceFile = path.join(
+                distDir,
+                'server/pages',
+                `${page}.js.nft.json`
+              )
+              const pageDir = path.dirname(traceFile)
+              const traceContent = JSON.parse(
+                await promises.readFile(traceFile, 'utf8')
+              )
+              let includes: string[] = []
+
+              if (combinedIncludes?.size) {
+                await Promise.all(
+                  [...combinedIncludes].map(async (includeGlob) => {
                     const results = await glob(includeGlob)
-                    includes.push(
+                    const resolvedInclude = resolvedTraceIncludes.get(
+                      includeGlob
+                    ) || [
                       ...results.map((file) => {
                         return path.relative(pageDir, path.join(dir, file))
-                      })
-                    )
-                  }
-                }
-                const combined = new Set([...traceContent.files, ...includes])
-
-                if (excludeGlobs?.length) {
-                  const resolvedGlobs = excludeGlobs.map((exclude) =>
-                    path.join(dir, exclude)
-                  )
-                  combined.forEach((file) => {
-                    if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
-                      combined.delete(file)
-                    }
-                  })
-                }
-
-                await promises.writeFile(
-                  traceFile,
-                  JSON.stringify({
-                    version: traceContent.version,
-                    files: [...combined],
+                      }),
+                    ]
+                    includes.push(...resolvedInclude)
+                    resolvedTraceIncludes.set(includeGlob, resolvedInclude)
                   })
                 )
-              })
+              }
+              const combined = new Set([...traceContent.files, ...includes])
+
+              if (combinedExcludes?.size) {
+                const resolvedGlobs = [...combinedExcludes].map((exclude) =>
+                  path.join(dir, exclude)
+                )
+                combined.forEach((file) => {
+                  if (isMatch(path.join(pageDir, file), resolvedGlobs)) {
+                    combined.delete(file)
+                  }
+                })
+              }
+
+              await promises.writeFile(
+                traceFile,
+                JSON.stringify({
+                  version: traceContent.version,
+                  files: [...combined],
+                })
+              )
+            }
           }
         })
 
-        // TODO: move this inside of webpack so it can be cached
-        // between builds. Should only need to be re-run on lockfile change
         await nextBuildSpan
           .traceChild('trace-next-server')
           .traceAsyncFn(async () => {
@@ -1819,6 +1839,16 @@ export default async function build(
             }
 
             let serverResult: import('next/dist/compiled/@vercel/nft').NodeFileTraceResult
+
+            const additionalIgnores = new Set<string>()
+
+            for (const glob of excludeGlobKeys) {
+              if (isMatch('next-server', glob)) {
+                outputFileTracingExcludes[glob].forEach((exclude) => {
+                  additionalIgnores.add(exclude)
+                })
+              }
+            }
             const ignores = [
               '**/*.d.ts',
               '**/*.map',
@@ -1838,7 +1868,7 @@ export default async function build(
               ...(!hasSsrAmpPages
                 ? ['**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*']
                 : []),
-              ...(config.experimental.outputFileTracingIgnores || []),
+              ...additionalIgnores,
             ]
             const ignoreFn = (pathname: string) => {
               return isMatch(pathname, ignores, { contains: true, dot: true })
