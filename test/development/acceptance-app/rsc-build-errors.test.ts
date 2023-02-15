@@ -61,34 +61,6 @@ createNextDescribe(
       await cleanup()
     })
 
-    it('should error for styled-jsx imports on server side', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/server-with-errors/styled-jsx'
-      )
-
-      const pageFile = 'app/server-with-errors/styled-jsx/page.js'
-      const content = await next.readFile(pageFile)
-      const withoutUseClient = content.replace("'use client'", '')
-      await session.patch(pageFile, withoutUseClient)
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "app/server-with-errors/styled-jsx/comp2.js
-        'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
-
-        The error was caused by importing 'styled-jsx/style.js' in 'app/server-with-errors/styled-jsx/comp2.js'.
-
-        Import trace for requested module:
-        app/server-with-errors/styled-jsx/comp2.js
-        app/server-with-errors/styled-jsx/comp1.js
-        app/server-with-errors/styled-jsx/page.js"
-      `)
-
-      await cleanup()
-    })
-
     it('should error when page component export is not valid', async () => {
       const { session, cleanup } = await sandbox(
         next,

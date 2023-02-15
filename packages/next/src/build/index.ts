@@ -49,7 +49,7 @@ import {
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
-  FLIGHT_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
@@ -167,7 +167,8 @@ function verifyTypeScriptSetup(
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,
-  isAppDirEnabled: boolean
+  isAppDirEnabled: boolean,
+  hasPagesDir: boolean
 ) {
   const typeCheckWorker = new JestWorker(
     require.resolve('../lib/verifyTypeScriptSetup'),
@@ -193,6 +194,7 @@ function verifyTypeScriptSetup(
       disableStaticImages,
       cacheDir,
       isAppDirEnabled,
+      hasPagesDir,
     })
     .then((result) => {
       typeCheckWorker.end()
@@ -415,7 +417,8 @@ export default async function build(
                   config.images.disableStaticImages,
                   cacheDir,
                   config.experimental.workerThreads,
-                  isAppDirEnabled
+                  isAppDirEnabled,
+                  !!pagesDir
                 ).then((resolved) => {
                   const checkEnd = process.hrtime(typeCheckStart)
                   return [resolved, checkEnd] as const
@@ -498,7 +501,9 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveReadDir(
               appDir,
-              new RegExp(`^page\\.(?:${config.pageExtensions.join('|')})$`)
+              new RegExp(
+                `^(page|route)\\.(?:${config.pageExtensions.join('|')})$`
+              )
             )
           )
       }
@@ -575,7 +580,7 @@ export default async function build(
       if (mappedAppPages) {
         denormalizedAppPages = Object.keys(mappedAppPages)
         for (const appKey of denormalizedAppPages) {
-          const normalizedAppPageKey = normalizeAppPath(appKey) || '/'
+          const normalizedAppPageKey = normalizeAppPath(appKey)
           const pagePath = mappedPages[normalizedAppPageKey]
           if (pagePath) {
             const appPath = mappedAppPages[appKey]
@@ -901,8 +906,14 @@ export default async function build(
                     : []),
                   path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST),
                   APP_BUILD_MANIFEST,
-                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.js'),
-                  path.join(SERVER_DIRECTORY, FLIGHT_MANIFEST + '.json'),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    CLIENT_REFERENCE_MANIFEST + '.js'
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    CLIENT_REFERENCE_MANIFEST + '.json'
+                  ),
                   path.join(
                     SERVER_DIRECTORY,
                     FLIGHT_SERVER_CSS_MANIFEST + '.js'
@@ -1088,7 +1099,7 @@ export default async function build(
         )
 
         Object.keys(appPathsManifest).forEach((entry) => {
-          appPathRoutes[entry] = normalizeAppPath(entry) || '/'
+          appPathRoutes[entry] = normalizeAppPath(entry)
         })
         await promises.writeFile(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
@@ -1379,7 +1390,9 @@ export default async function build(
                         if (
                           (!isDynamicRoute(page) ||
                             !workerResult.prerenderRoutes?.length) &&
-                          workerResult.appConfig?.revalidate !== 0
+                          workerResult.appConfig?.revalidate !== 0 &&
+                          // TODO-APP: (wyattjoh) this may be where we can enable prerendering for app handlers
+                          originalAppPath.endsWith('/page')
                         ) {
                           appStaticPaths.set(originalAppPath, [page])
                           appStaticPathsEncoded.set(originalAppPath, [page])
