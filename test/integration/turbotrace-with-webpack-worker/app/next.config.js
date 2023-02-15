@@ -20,9 +20,15 @@ module.exports = {
     return cfg
   },
   experimental: {
+    outputFileTracingIncludes: {
+      '/index': ['include-me/*'],
+    },
+    outputFileTracingExcludes: {
+      '/index': ['public/exclude-me/**/*'],
+    },
     turbotrace: {
       contextDirectory: path.join(__dirname, '..', '..', '..', '..'),
-      memoryLimit: 4096,
+      memoryLimit: 2048,
     },
     webpackBuildWorker: true,
   },
