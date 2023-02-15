@@ -1,3 +1,7 @@
+import { createNextDescribe } from 'e2e-utils'
+import path from 'path'
+import fs from 'fs-extra'
+
 const testedExamples = [
   // Internal features
   'active-class-name',
@@ -67,16 +71,41 @@ const testedExamples = [
   'with-turbopack',
   'with-vercel-fetch',
   // TODO: remove slice()
-  // We can't add all of them at once because the CI will timeout (because it will add all examples into one action)
-].slice(0, 20)
+  // This will make iterations faster
+].slice(0, 5)
 
-const batches = 5
-const batchSize = Math.floor((testedExamples.length + batches - 1) / batches)
-/**
- * We need to split examples into multiple files because otherwise our --timings magic won't be able to splid our tests into mulpitle actions
- */
-export const getExamplesBatch = (n: number) =>
-  testedExamples.slice(
-    n * batchSize,
-    Math.min(testedExamples.length, (n + 1) * batchSize)
-  )
+const testExample = (example) => {
+  const exampleFiles = path.join(__dirname, '..', '..', 'examples', example)
+
+  const packageJson = fs.readJsonSync(path.join(exampleFiles, 'package.json'))
+  describe(`example '${example}'`, () => {
+    // If there is an issue during a build, jest won't tell us which example caused it
+    // we need to log it ourselfs
+    beforeAll(() => {
+      require('console').log(`Running example '${example}'`)
+    })
+    createNextDescribe(
+      `example '${example}'`,
+      {
+        files: exampleFiles,
+        dependencies: {
+          // We need to make sure that these default dependencies are not installed by default
+          // for our examples to ensure that they have all their dependencies in package.json
+          '@types/node': undefined,
+          '@types/react': undefined,
+          next: undefined,
+          react: undefined,
+          'react-dom': undefined,
+          typescript: undefined,
+          ...packageJson.dependencies,
+          ...packageJson.devDependencies,
+        },
+      },
+      () => {
+        it('builds', () => {})
+      }
+    )
+  })
+}
+
+testedExamples.forEach(testExample)

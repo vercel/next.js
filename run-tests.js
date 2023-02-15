@@ -33,6 +33,7 @@ const testFilters = {
   e2e: 'e2e/',
   production: 'production/',
   development: 'development/',
+  examples: 'examples/',
 }
 
 const mockTrace = () => ({
@@ -112,6 +113,10 @@ async function main() {
     }
     case 'e2e': {
       filterTestsBy = testFilters.e2e
+      break
+    }
+    case 'examples': {
+      filterTestsBy = testFilters.examples
       break
     }
     case 'all':

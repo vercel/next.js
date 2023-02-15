@@ -1,6 +1,7 @@
 # This file duplicates bunch of things from build_test_deploy
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 */4 * * *'
 
@@ -13,188 +14,20 @@ env:
   PNPM_VERSION: 7.24.3
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    env:
-      NEXT_TELEMETRY_DISABLED: 1
-      # we build a dev binary for use in CI so skip downloading
-      # canary next-swc binaries in the monorepo
-      NEXT_SKIP_NATIVE_POSTINSTALL: 1
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-    steps:
-      - name: Setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          check-latest: true
-
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 25
-
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
-      - run: echo "${{steps.docs-change.outputs.DOCS_CHANGE}}"
-
-      - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
-        id: swc-change
-
-      - run: echo "TURBO_TOKEN=$(echo ${TURBO_TOKEN:-empty})" >> $GITHUB_OUTPUT
-        id: turbo-token
-
-      - run: echo "${{steps.swc-change.outputs.SWC_CHANGE}}"
-
-      - run: npm i -g pnpm@${PNPM_VERSION}
-
-      - id: get-store-path
-        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: cache-pnpm-store
-        with:
-          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-
-            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - run: pnpm install
-
-      - run: TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} node run-tests.js --timings --write-timings -g 1/1
-
-      - run: pnpm run build
-
-      # We use week in the turbo cache key to keep the cache from infinitely growing
-      - id: get-week
-        run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: cache-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
-
-  build-native-test:
-    name: Build native binary for tests and metrics
-    runs-on: ubuntu-latest
-    steps:
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 25
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ~/.cargo/registry
-          key: stable-ubuntu-latest-cargo-registry
-
-      - name: Cache cargo index
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ~/.cargo/git
-          key: stable-ubuntu-latest-cargo-index
-
-      # We use week in the turbo cache key to keep the cache from infinitely growing
-      - id: get-week
-        run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
-
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
-            turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
-
-      - name: normalize versions
-        run: node scripts/normalize-version-bump.js
-
-      # We use restore-key to pick latest cache.
-      # We will not get exact match, but doc says
-      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
-      # So we get latest cache
-      - name: Cache built files
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            next-swc-cargo-cache-dev-ubuntu-latest
-
-      - name: Build in docker
-        uses: addnab/docker-run-action@v3
-        with:
-          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
-          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
-          # turn on some optimization while building Rust codes to prevent tests timeout
-          run: |
-            set -e &&
-            export CARGO_PROFILE_DEV_OPT_LEVEL=1 &&
-            rustup toolchain install "${RUST_TOOLCHAIN}" &&
-            rustup default "${RUST_TOOLCHAIN}" &&
-            rustup target add x86_64-unknown-linux-gnu &&
-            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && if [ ! -f $(dirname $(which yarn))/pnpm ]; then ln -s $(which yarn) $(dirname $(which yarn))/pnpm;fi &&
-            unset CC_x86_64_unknown_linux_gnu && unset CC &&
-            turbo run build-native --cache-dir=".turbo" -- --target x86_64-unknown-linux-gnu &&
-            strip packages/next-swc/native/next-swc.*.node
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: next-swc-test-binary
-          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
-
-      - name: Clear the cargo caches
-        run: |
-          cargo install cargo-cache --no-default-features --features ci-autoclean
-          cargo-cache
-
   testExamples:
     name: Test Examples
     runs-on: ubuntu-latest
-    needs: [build, build-native-test]
     timeout-minutes: 60
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
         node: [16, 18]
-        group: [1, 2, 3, 4, 5]
     steps:
-      - run: echo "${{needs.build.outputs.docsChange}}"
-
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
-
-      - uses: actions/download-artifact@v3
-        with:
-          name: next-swc-test-binary
-          path: packages/next-swc/native
-
-      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type production --timings -g ${{ matrix.group }}/5 >> /proc/1/fd/1"
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start xvfb-run node run-tests.js --type examples >> /proc/1/fd/1"
         name: Run test/examples
