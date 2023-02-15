@@ -274,15 +274,16 @@ createNextDescribe(
         const error =
           'https://nextjs.org/docs/messages/next-response-next-in-app-route-handler'
 
+        // Precondition. We shouldn't have seen this before. This ensures we're
+        // testing that the specific route throws this error in the console.
+        expect(next.cliOutput).not.toContain(error)
+
         const res = await next.fetch('/status/500/next')
 
         expect(res.status).toEqual(500)
         expect(await res.text()).toBeEmpty()
 
         if (!(global as any).isNextDeploy) {
-          // Precondition. We shouldn't have seen this before. This ensures we're
-          // testing that the specific route throws this error in the console.
-          expect(next.cliOutput).not.toContain(error)
           await check(() => {
             expect(next.cliOutput).toContain(error)
             return 'yes'
