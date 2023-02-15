@@ -128,7 +128,6 @@ import {
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
-import { isAppRouteRoute } from '../lib/is-app-route-route'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
