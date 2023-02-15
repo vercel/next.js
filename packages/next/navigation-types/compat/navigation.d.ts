@@ -1,3 +1,5 @@
+import type { ReadonlyURLSearchParams } from 'next/navigation'
+
 declare module 'next/navigation' {
   /**
    * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar

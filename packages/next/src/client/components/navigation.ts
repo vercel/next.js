@@ -22,7 +22,7 @@ function readonlyURLSearchParamsError() {
   return new Error('ReadonlyURLSearchParams cannot be modified')
 }
 
-class ReadonlyURLSearchParams {
+export class ReadonlyURLSearchParams {
   [INTERNAL_URLSEARCHPARAMS_INSTANCE]: URLSearchParams
 
   entries: URLSearchParams['entries']
