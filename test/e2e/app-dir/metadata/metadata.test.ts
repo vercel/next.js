@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, hasRedbox, getRedboxDescription } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
 
 createNextDescribe(
@@ -323,6 +323,37 @@ createNextDescribe(
           /params - blog query - xxx/
         )
       })
+
+      if (isNextDev) {
+        it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
+          const pagePath = 'app/mutate/page.tsx'
+          const content = `export default function page(props) {
+            return <p>mutate</p>
+          }
+
+          export async function generateMetadata(props, parent) {
+            const parentMetadata = await parent
+            parentMetadata.x = 1
+            return {
+              ...parentMetadata,
+            }
+          }`
+          await next.patchFile(pagePath, content)
+
+          const browser = await next.browser('/mutate')
+          await check(
+            async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
+            /success/
+          )
+          const error = await getRedboxDescription(browser)
+
+          await next.deleteFile(pagePath)
+
+          expect(error).toContain(
+            'Cannot add property x, object is not extensible'
+          )
+        })
+      }
 
       it('should support synchronous generateMetadata export', async () => {
         const browser = await next.browser('/basic/sync-generate-metadata')
