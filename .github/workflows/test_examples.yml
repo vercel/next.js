@@ -2,6 +2,12 @@
 
 on:
   workflow_dispatch:
+    inputs:
+      is_dispatched:
+        description: 'Leave this option enabled'
+        required: true
+        default: true
+        type: boolean
   schedule:
     - cron: '0 */4 * * *'
 
@@ -15,6 +21,7 @@ env:
 
 jobs:
   testExamples:
+    if: github.repository == 'vercel/next.js' || inputs.logLevel === true
     name: Test Examples
     runs-on: ubuntu-latest
     timeout-minutes: 60
