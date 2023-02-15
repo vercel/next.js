@@ -955,7 +955,10 @@ export default async function build(
 
       let turboTasks: unknown
 
-      if (turbotraceContext) {
+      async function runTurbotrace(staticPages: Set<string>) {
+        if (!turbotraceContext) {
+          return
+        }
         let binding = (await loadBindings()) as any
         if (
           !binding?.isWasm &&
@@ -1015,7 +1018,17 @@ export default async function build(
             }
           }
           if (chunksTrace) {
-            const { action } = chunksTrace
+            const { action, outputPath } = chunksTrace
+            action.input = action.input.filter((f) => {
+              const outputPagesPath = path.join(outputPath, '..', 'pages')
+              return (
+                !f.startsWith(outputPagesPath) ||
+                !staticPages.has(
+                  // strip `outputPagesPath` and file ext from absolute
+                  f.substring(outputPagesPath.length, f.length - 3)
+                )
+              )
+            })
             await binding.turbo.startTrace(action, turboTasks)
             if (turbotraceOutputPath && turbotraceFiles) {
               const existedNftFile = await promises
@@ -1559,6 +1572,8 @@ export default async function build(
         if (!sharedPool) staticWorkers.end()
         return returnValue
       })
+
+      await runTurbotrace(staticPages)
 
       if (customAppGetInitialProps) {
         console.warn(
