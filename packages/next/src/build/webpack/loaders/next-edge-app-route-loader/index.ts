@@ -7,7 +7,7 @@ export type EdgeAppRouteLoaderQuery = {
   appDirLoader: string
 }
 
-export default async function edgeSSRLoader(this: any) {
+export default async function edgeAppRouteLoader(this: any) {
   const {
     page,
     absolutePagePath,
