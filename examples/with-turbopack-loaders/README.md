@@ -6,10 +6,10 @@ Install the dependencies and start the development server.
 
 ```bash
 npm install
-npm run dev
+npm run dev --turbo
 # or
 yarn
-yarn dev
+yarn dev --turbo
 ```
 
 ## Deploy your own
