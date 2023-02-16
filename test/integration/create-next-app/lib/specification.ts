@@ -70,7 +70,7 @@ export const projectSpecification: ProjectSpecification = {
       files: [
         'app/page.js',
         'app/layout.js',
-        'pages/api/hello.js',
+        'app/api/hello/route.js',
         'jsconfig.json',
       ],
     },
@@ -81,7 +81,7 @@ export const projectSpecification: ProjectSpecification = {
         'app/page.tsx',
         'app/head.tsx',
         'app/layout.tsx',
-        'pages/api/hello.ts',
+        'app/api/hello/route.ts',
         'tsconfig.json',
         'next-env.d.ts',
       ],
