@@ -1175,6 +1175,8 @@ export default class NextNodeServer extends BaseServer {
           const edgeFunctionsPages = this.getEdgeFunctionsPages()
           for (const edgeFunctionsPage of edgeFunctionsPages) {
             if (edgeFunctionsPage === match.definition.page) {
+              delete query._nextBubbleNoFallback
+
               const handledAsEdgeFunction = await this.runEdgeFunction({
                 req,
                 res,
