@@ -39,6 +39,17 @@ describe('build trace with extra entries', () => {
       indexTrace.files.some((file) => file.endsWith('hello.json'))
     ).toBeFalsy()
     expect(
+      indexTrace.files.some((file) => file.endsWith('some-dir'))
+    ).toBeFalsy()
+    expect(
+      indexTrace.files.some((file) =>
+        file.endsWith('.dot-folder/another-file.txt')
+      )
+    ).toBe(true)
+    expect(
+      indexTrace.files.some((file) => file.endsWith('some-dir/file.txt'))
+    ).toBe(true)
+    expect(
       indexTrace.files.some((file) => file.includes('some-cms/index.js'))
     ).toBe(true)
     expect(
