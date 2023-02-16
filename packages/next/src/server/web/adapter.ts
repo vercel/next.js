@@ -247,6 +247,11 @@ export function enhanceGlobals() {
     _ENTRIES.middleware_instrumentation &&
     _ENTRIES.middleware_instrumentation.register
   ) {
-    _ENTRIES.middleware_instrumentation.register()
+    try {
+      _ENTRIES.middleware_instrumentation.register()
+    } catch (err) {
+      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+      throw err
+    }
   }
 }
