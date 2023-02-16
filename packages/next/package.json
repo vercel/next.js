@@ -81,7 +81,6 @@
   },
   "dependencies": {
     "@next/env": "13.1.7-canary.15",
-    "@next/font": "13.1.7-canary.15",
     "@swc/helpers": "0.4.14",
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
