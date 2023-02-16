@@ -24,7 +24,8 @@ import { getPkgPaths } from '../../../test/lib/create-next-install'
 
 const startsWithoutError = async (
   appDir: string,
-  modes = ['default', 'turbo']
+  modes = ['default', 'turbo'],
+  usingAppDirectory: boolean = false
 ) => {
   for (const mode of modes) {
     appDir = await fs.realpath(appDir)
@@ -42,7 +43,11 @@ const startsWithoutError = async (
 
       const apiRes = await fetchViaHTTP(appPort, '/api/hello')
       expect(apiRes.status).toBe(200)
-      expect(await apiRes.json()).toEqual({ name: 'John Doe' })
+      if (usingAppDirectory) {
+        expect(await apiRes.text()).toEqual('Hello, Next.js!')
+      } else {
+        expect(await apiRes.json()).toEqual({ name: 'John Doe' })
+      }
     } finally {
       await killApp(app)
     }
@@ -291,7 +296,11 @@ describe('create-next-app --experimental-app-dir', () => {
       const exitCode = await spawnExitPromise(childProcess)
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'ts' })
-      await startsWithoutError(path.join(cwd, projectName))
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
     })
   })
 
@@ -317,10 +326,11 @@ describe('create-next-app --experimental-app-dir', () => {
       expect(exitCode).toBe(0)
       shouldBeTemplateProject({ cwd, projectName, template: 'app', mode: 'js' })
       // is landed
-      await startsWithoutError(path.join(cwd, projectName), [
-        'default',
-        'turbo',
-      ])
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
     })
   })
 
