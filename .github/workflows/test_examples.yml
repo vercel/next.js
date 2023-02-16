@@ -22,7 +22,7 @@ jobs:
     if: (github.repository == 'vercel/next.js') || (inputs.is_dispatched == true)
     name: Test Examples
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     env:
       NEXT_TELEMETRY_DISABLED: 1
     strategy:
