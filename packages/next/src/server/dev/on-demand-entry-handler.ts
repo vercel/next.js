@@ -164,8 +164,7 @@ interface ChildEntry extends EntryType {
   parentEntries: Set<string>
 }
 
-type EntryKey = `${'app' | 'pages'}/${CompilerNameValues}/${string}`
-
+export type EntryKey = `${'app' | 'pages'}/${CompilerNameValues}/${string}`
 export const entries: {
   /**
    * The key composed of the compiler name and the page. For example:
@@ -173,6 +172,7 @@ export const entries: {
    */
   [entryKey: EntryKey]: Entry | ChildEntry
 } = {}
+
 export const getEntryKey = ({
   isAppDir,
   compilerName,
@@ -181,14 +181,14 @@ export const getEntryKey = ({
   isAppDir: boolean
   compilerName: CompilerNameValues
   page: string
-}) => `${isAppDir ? 'app' : 'pages'}/${compilerName}${page}` as EntryKey
+}) => `${isAppDir || true ? 'app' : 'pages'}/${compilerName}${page}` as EntryKey
 
 let invalidator: Invalidator
 export const getInvalidator = () => invalidator
 
 const doneCallbacks: EventEmitter | null = new EventEmitter()
-const lastClientAccessPages = ['']
-const lastServerAccessPagesForAppDir = ['']
+const lastClientAccessPages = ['' as EntryKey]
+const lastServerAccessPagesForAppDir = ['' as EntryKey]
 
 type BuildingTracker = Set<CompilerNameValues>
 type RebuildTracker = Set<CompilerNameValues>
@@ -445,7 +445,7 @@ export function onDemandEntryHandler({
       if (page) {
         pagePaths.push(
           getEntryKey({
-            isAppDir: false,
+            isAppDir: true,
             compilerName: type,
             page,
           })
@@ -457,7 +457,7 @@ export function onDemandEntryHandler({
       ) {
         pagePaths.push(
           getEntryKey({
-            isAppDir: false,
+            isAppDir: true,
             compilerName: type,
             page: entrypoint.name,
           })
@@ -573,8 +573,12 @@ export function onDemandEntryHandler({
       COMPILER_NAMES.server,
       COMPILER_NAMES.edgeServer,
     ]) {
-      const pageKey = `${compilerType}${page}`
-      const entryInfo = entries[pageKey]
+      const entryKey = getEntryKey({
+        isAppDir: false,
+        compilerName: compilerType,
+        page,
+      })
+      const entryInfo = entries[entryKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.
       if (!entryInfo) {
@@ -592,8 +596,8 @@ export function onDemandEntryHandler({
       if (entryInfo.status !== BUILT) continue
 
       // If there's an entryInfo
-      if (!lastClientAccessPages.includes(pageKey)) {
-        lastClientAccessPages.unshift(pageKey)
+      if (!lastClientAccessPages.includes(entryKey)) {
+        lastClientAccessPages.unshift(entryKey)
 
         // Maintain the buffer max length
         if (lastClientAccessPages.length > pagesBufferLength) {

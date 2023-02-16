@@ -37,6 +37,7 @@ import {
   getInvalidator,
   onDemandEntryHandler,
 } from './on-demand-entry-handler'
+import type { EntryKey } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
@@ -595,7 +596,7 @@ export default class HotReloader {
           config.name === COMPILER_NAMES.edgeServer
 
         await Promise.all(
-          Object.keys(entries).map(async (entryKey) => {
+          (Object.keys(entries) as EntryKey[]).map(async (entryKey) => {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
 

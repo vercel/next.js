@@ -13,6 +13,7 @@ import {
   getInvalidator,
   entries,
   EntryTypes,
+  getEntryKey,
 } from '../../../server/dev/on-demand-entry-handler'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import {
@@ -601,9 +602,13 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
-      const pageKey = COMPILER_NAMES.client + bundlePath
-      if (!entries[pageKey]) {
-        entries[pageKey] = {
+      const entryKey = getEntryKey({
+        isAppDir: true,
+        compilerName: COMPILER_NAMES.client,
+        page: bundlePath,
+      })
+      if (!entries[entryKey]) {
+        entries[entryKey] = {
           type: EntryTypes.CHILD_ENTRY,
           parentEntries: new Set([entryName]),
           bundlePath,
@@ -613,7 +618,7 @@ export class FlightClientEntryPlugin {
         }
         shouldInvalidate = true
       } else {
-        const entryData = entries[pageKey]
+        const entryData = entries[entryKey]
         // New version of the client loader
         if (entryData.request !== clientLoader) {
           entryData.request = clientLoader
