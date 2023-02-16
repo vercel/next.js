@@ -381,7 +381,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     isTurboSession = true
 
     const { loadBindings, __isCustomTurbopackBinary } =
-      require('../build/swc') as typeof import('../build/swc')
+      require('../build/swc') as typeof import('../build/next.rs')
     const { eventCliSession } =
       require('../telemetry/events/version') as typeof import('../telemetry/events/version')
     const { setGlobal } = require('../trace') as typeof import('../trace')

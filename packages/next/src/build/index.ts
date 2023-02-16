@@ -116,7 +116,7 @@ import {
   teardownTraceSubscriber,
   teardownCrashReporter,
   loadBindings,
-} from './swc'
+} from './next.rs'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { flatReaddir } from '../lib/flat-readdir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'

@@ -1,7 +1,7 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { flushAllTraces } from '../../trace'
-import { teardownCrashReporter, teardownTraceSubscriber } from '../swc'
+import { teardownCrashReporter, teardownTraceSubscriber } from '../next.rs'
 import * as Log from './log'
 
 export type OutputState =

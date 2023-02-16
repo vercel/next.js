@@ -14,7 +14,7 @@ import {
   resolveExternal,
 } from '../../webpack-config'
 import { NextConfigComplete } from '../../../server/config-shared'
-import { loadBindings } from '../../swc'
+import { loadBindings } from '../../next.rs'
 import { isMatch } from 'next/dist/compiled/micromatch'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'

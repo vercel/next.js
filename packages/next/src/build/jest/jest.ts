@@ -6,7 +6,7 @@ import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
 import { findPagesDir } from '../../lib/find-pages-dir'
-import { loadBindings, lockfilePatchPromise } from '../swc'
+import { loadBindings, lockfilePatchPromise } from '../next.rs'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)

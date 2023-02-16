@@ -1,7 +1,7 @@
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { withPromiseCache } from '../../lib/with-promise-cache'
 import { createHash } from 'crypto'
-import { parse } from '../swc'
+import { parse } from '../next.rs'
 
 /**
  * Parses a module with SWC using an LRU cache where the parsed module will
