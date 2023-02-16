@@ -128,6 +128,7 @@ import {
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
+import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -950,7 +951,10 @@ export default async function build(
 
       let turboTasks: unknown
 
-      if (turbotraceContext) {
+      async function runTurbotrace(staticPages: Set<string>) {
+        if (!turbotraceContext) {
+          return
+        }
         let binding = (await loadBindings()) as any
         if (
           !binding?.isWasm &&
@@ -1010,7 +1014,17 @@ export default async function build(
             }
           }
           if (chunksTrace) {
-            const { action } = chunksTrace
+            const { action, outputPath } = chunksTrace
+            action.input = action.input.filter((f) => {
+              const outputPagesPath = path.join(outputPath, '..', 'pages')
+              return (
+                !f.startsWith(outputPagesPath) ||
+                !staticPages.has(
+                  // strip `outputPagesPath` and file ext from absolute
+                  f.substring(outputPagesPath.length, f.length - 3)
+                )
+              )
+            })
             await binding.turbo.startTrace(action, turboTasks)
             if (turbotraceOutputPath && turbotraceFiles) {
               const existedNftFile = await promises
@@ -1282,11 +1296,13 @@ export default async function build(
 
                 if (pageType === 'pages') {
                   pagePath =
-                    pagesPaths.find(
-                      (p) =>
+                    pagesPaths.find((p) => {
+                      p = normalizePathSep(p)
+                      return (
                         p.startsWith(actualPage + '.') ||
                         p.startsWith(actualPage + '/index.')
-                    ) || ''
+                      )
+                    }) || ''
                 }
                 let originalAppPath: string | undefined
 
@@ -1552,6 +1568,8 @@ export default async function build(
         if (!sharedPool) staticWorkers.end()
         return returnValue
       })
+
+      await runTurbotrace(staticPages)
 
       if (customAppGetInitialProps) {
         console.warn(

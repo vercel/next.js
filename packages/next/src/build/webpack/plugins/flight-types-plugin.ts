@@ -28,36 +28,14 @@ function createTypeGuardFile(
   return `// File: ${fullPath}
 import * as entry from '${relativePath}'
 import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface'
+
 type TEntry = typeof entry
 
-check<IEntry, TEntry>(entry)
-
-type PageParams = any
-interface PageProps {
-  params: any
-  searchParams?: any
-}
-interface LayoutProps {
-  children: React.ReactNode
-${
-  options.slots
-    ? options.slots.map((slot) => `  ${slot}: React.ReactNode`).join('\n')
-    : ''
-}
-  params: any
-}
-
-export type PageComponent = (props: PageProps) => React.ReactNode | Promise<React.ReactNode>
-export type LayoutComponent = (props: LayoutProps) => React.ReactNode | Promise<React.ReactNode>
-
-interface IEntry {
-  ${
-    options.type === 'layout'
-      ? `default: LayoutComponent`
-      : `default: PageComponent`
-  }
+// Check that the entry is a valid entry
+checkFields<Diff<{
+  default: Function
   config?: {}
-  generateStaticParams?: (args: { params: PageParams }) => any[] | Promise<any[]>
+  generateStaticParams?: Function
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
@@ -69,14 +47,56 @@ interface IEntry {
       : ''
   }
   metadata?: any
-  generateMetadata?: (props: PageProps, parent: ResolvingMetadata) => any | Promise<any>
+  generateMetadata?: Function
+}, TEntry, ''>>()
+
+// Check the prop type of the entry function
+checkFields<Diff<${
+    options.type === 'page' ? 'PageProps' : 'LayoutProps'
+  }, FirstArg<TEntry['default']>, 'default'>>()
+
+// Check the arguments and return type of the generateMetadata function
+if ('generateMetadata' in entry) {
+  checkFields<Diff<${
+    options.type === 'page' ? 'PageProps' : 'LayoutProps'
+  }, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
+  checkFields<Diff<ResolvingMetadata, SecondArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
+}
+
+// Check the arguments and return type of the generateStaticParams function
+if ('generateStaticParams' in entry) {
+  checkFields<Diff<{ params: PageParams }, FirstArg<MaybeField<TEntry, 'generateStaticParams'>>, 'generateStaticParams'>>()
+  checkFields<Diff<{ __tag__: 'generateStaticParams', __return_type__: any[] | Promise<any[]> }, { __tag__: 'generateStaticParams', __return_type__: ReturnType<MaybeField<TEntry, 'generateStaticParams'>> }>>()
+}
+  
+type PageParams = any
+export interface PageProps {
+  params?: any
+  searchParams?: any
+}
+export interface LayoutProps {
+  children: React.ReactNode
+${
+  options.slots
+    ? options.slots.map((slot) => `  ${slot}: React.ReactNode`).join('\n')
+    : ''
+}
+  params?: any
 }
 
 // =============
 // Utility types
 type RevalidateRange<T> = T extends { revalidate: any } ? NonNegative<T['revalidate']> : never
-type Impossible<K extends keyof any> = { [P in K]: never }
-function check<Base, T extends Base>(_mod: T & Impossible<Exclude<keyof T, keyof Base>>): void {}
+
+// If T is unknown or any, it will be an empty {} type. Otherwise, it will be the same as Omit<T, keyof Base>.
+type OmitWithTag<T, K extends keyof any, _M> = Omit<T, K>
+type Diff<Base, T extends Base, Message extends string = ''> = 0 extends (1 & T) ? {} : OmitWithTag<T, keyof Base, Message>
+
+type FirstArg<T extends Function> = T extends (...args: [infer T, any]) => any ? unknown extends T ? any : T : never
+type SecondArg<T extends Function> = T extends (...args: [any, infer T]) => any ? unknown extends T ? any : T : never
+type MaybeField<T, K extends string> = T extends { [k in K]: infer G } ? G extends Function ? G : never : never
+
+function checkFields<_ extends { [k in keyof any]: never }>() {}
 
 // https://github.com/sindresorhus/type-fest
 type Numeric = number | bigint
