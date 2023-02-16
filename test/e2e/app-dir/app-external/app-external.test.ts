@@ -19,7 +19,6 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      '@next/font': 'canary',
       react: 'latest',
       'react-dom': 'latest',
       swr: '2.0.0-rc.0',
@@ -143,7 +142,7 @@ createNextDescribe(
       ).toBe('rgb(255, 0, 0)')
     })
 
-    it('should handle external @next/font', async () => {
+    it('should handle external next/font', async () => {
       const browser = await next.browser('/font')
 
       expect(

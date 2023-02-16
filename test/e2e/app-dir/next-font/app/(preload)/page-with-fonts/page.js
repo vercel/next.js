@@ -1,4 +1,4 @@
-import localFont from '@next/font/local'
+import localFont from 'next/font/local'
 
 const pageFont = localFont({ src: './page-font.woff2' })
 
