@@ -1227,8 +1227,7 @@ export default async function getBaseWebpackConfig(
       isEsmRequested,
       hasAppDir,
       getResolve,
-      isLocal ? isLocalCallback : undefined,
-      undefined
+      isLocal ? isLocalCallback : undefined
     )
 
     if ('localRes' in resolveResult) {
