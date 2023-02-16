@@ -12,9 +12,12 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-pub fn node_evaluate_asset_context(import_map: Option<ImportMapVc>) -> AssetContextVc {
+pub fn node_evaluate_asset_context(
+    import_map: Option<ImportMapVc>,
+    transitions: Option<TransitionsByNameVc>,
+) -> AssetContextVc {
     ModuleAssetContextVc::new(
-        TransitionsByNameVc::cell(Default::default()),
+        transitions.unwrap_or_else(|| TransitionsByNameVc::cell(Default::default())),
         CompileTimeInfoVc::new(EnvironmentVc::new(
             Value::new(ExecutionEnvironment::NodeJsBuildTime(
                 NodeJsEnvironment::default().cell(),

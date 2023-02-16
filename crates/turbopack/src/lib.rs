@@ -243,6 +243,7 @@ async fn module(
     Ok(apply_module_type(current_source, context, module_type))
 }
 
+#[derive(Debug)]
 #[turbo_tasks::value]
 pub struct ModuleAssetContext {
     transitions: TransitionsByNameVc,

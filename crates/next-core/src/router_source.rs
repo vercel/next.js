@@ -2,20 +2,28 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
-use turbopack_core::introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc};
+use turbopack_core::{
+    environment::ServerAddrVc,
+    introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
+};
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
     ContentSourceResultVc, ContentSourceVc, NeededData, ProxyResult, RewriteVc,
 };
 use turbopack_node::execution_context::ExecutionContextVc;
 
-use crate::router::{route, RouterRequest, RouterResult};
+use crate::{
+    next_config::NextConfigVc,
+    router::{route, RouterRequest, RouterResult},
+};
 
 #[turbo_tasks::value(shared)]
 pub struct NextRouterContentSource {
     /// A wrapped content source from which we will fetch assets.
     inner: ContentSourceVc,
     execution_context: ExecutionContextVc,
+    next_config: NextConfigVc,
+    server_addr: ServerAddrVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -24,10 +32,14 @@ impl NextRouterContentSourceVc {
     pub fn new(
         inner: ContentSourceVc,
         execution_context: ExecutionContextVc,
+        next_config: NextConfigVc,
+        server_addr: ServerAddrVc,
     ) -> NextRouterContentSourceVc {
         NextRouterContentSource {
             inner,
             execution_context,
+            next_config,
+            server_addr,
         }
         .cell()
     }
@@ -77,7 +89,12 @@ impl ContentSource for NextRouterContentSource {
         }
         .cell();
 
-        let res = route(this.execution_context, request);
+        let res = route(
+            this.execution_context,
+            request,
+            this.next_config,
+            this.server_addr,
+        );
         let Ok(res) = res.await else {
             return Ok(this
                 .inner
