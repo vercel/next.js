@@ -261,6 +261,17 @@ impl EcmascriptInputTransform {
     }
 }
 
+pub fn remove_shebang(program: &mut Program) {
+    match program {
+        Program::Module(m) => {
+            m.shebang = None;
+        }
+        Program::Script(s) => {
+            s.shebang = None;
+        }
+    }
+}
+
 fn unwrap_module_program(program: &mut Program) -> Program {
     match program {
         Program::Module(module) => Program::Module(module.take()),
