@@ -136,6 +136,13 @@ interface Metadata {
   icons?: null | IconURL | Array<Icon> | Icons
 
   /**
+   * The manifest.json file is the only file that every extension using WebExtension APIs must contain
+   *
+   * @type {null | string | URL}
+   */
+  manifest?: null | string | URL
+
+  /**
    * @example
    * Example of Open Graph field:
    * ```
@@ -292,6 +299,8 @@ interface ResolvedMetadata {
   icons: null | ResolvedIcons
 
   openGraph: null | ResolvedOpenGraph
+
+  manifest: null | string | URL
 
   twitter: null | ResolvedTwitterMetadata
 

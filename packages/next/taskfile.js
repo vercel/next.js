@@ -489,6 +489,33 @@ export async function ncc_next__react_dev_overlay(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_next_font(task, opts) {
+  // `@next/font` can be copied as is, its only dependency is already NCCed
+  const destDir = join(__dirname, 'dist/compiled/@next/font')
+  const pkgPath = require.resolve('@next/font/package.json')
+  const pkg = await fs.readJson(pkgPath)
+  const srcDir = dirname(pkgPath)
+  await fs.remove(destDir)
+  await fs.ensureDir(destDir)
+
+  const files = glob.sync('{dist,google,local}/**/*.{js,json,d.ts}', {
+    cwd: srcDir,
+  })
+
+  for (const file of files) {
+    const outputFile = join(destDir, file)
+    await fs.ensureDir(dirname(outputFile))
+    await fs.copyFile(join(srcDir, file), outputFile)
+  }
+
+  await fs.outputJson(join(destDir, 'package.json'), {
+    name: '@next/font',
+    license: pkg.license,
+    types: pkg.types,
+  })
+}
+
+// eslint-disable-next-line camelcase
 externals['watchpack'] = 'next/dist/compiled/watchpack'
 export async function ncc_watchpack(task, opts) {
   await task
@@ -2151,6 +2178,7 @@ export async function compile(task, opts) {
   await task.serial([
     'ncc_react_refresh_utils',
     'ncc_next__react_dev_overlay',
+    'ncc_next_font',
     'ncc_next_server',
   ])
 }
@@ -2365,7 +2393,7 @@ export default async function (task) {
 export async function shared(task, opts) {
   await task
     .source(
-      'src/shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)'
+      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head|runtime-config).+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev })
     .target('dist/shared')
@@ -2373,7 +2401,9 @@ export async function shared(task, opts) {
 
 export async function shared_esm(task, opts) {
   await task
-    .source('src/shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)')
+    .source(
+      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head).+(js|ts|tsx)'
+    )
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/shared')
 }
@@ -2381,7 +2411,7 @@ export async function shared_esm(task, opts) {
 export async function shared_re_exported(task, opts) {
   await task
     .source(
-      'src/shared/**/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)'
+      'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
@@ -2389,7 +2419,9 @@ export async function shared_re_exported(task, opts) {
 
 export async function shared_re_exported_esm(task, opts) {
   await task
-    .source('src/shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)')
+    .source(
+      'src/shared/**/{amp,config,constants,app-dynamic,dynamic,head}.+(js|ts|tsx)'
+    )
     .swc('client', {
       dev: opts.dev,
       esm: true,
