@@ -17,6 +17,8 @@ import {
   RSC,
 } from '../../client/components/app-router-headers'
 
+declare const _ENTRIES: any
+
 class NextRequestHint extends NextRequest {
   sourcePage: string
 
@@ -240,4 +242,11 @@ export function enhanceGlobals() {
     enumerable: false,
     configurable: false,
   })
+
+  if (
+    _ENTRIES.middleware_instrumentation &&
+    _ENTRIES.middleware_instrumentation.register
+  ) {
+    _ENTRIES.middleware_instrumentation.register()
+  }
 }

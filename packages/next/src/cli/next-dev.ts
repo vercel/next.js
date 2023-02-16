@@ -597,7 +597,7 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
 
       const files = getPossibleInstrumentationHookFilenames(
         dir,
-        config.pageExtensions
+        config.pageExtensions!
       )
 
       const wp = new Watchpack({

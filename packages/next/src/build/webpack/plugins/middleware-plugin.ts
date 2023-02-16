@@ -29,6 +29,7 @@ import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -90,7 +91,10 @@ function isUsingIndirectEvalAndUsedByExports(args: {
 function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
-  opts: { sriEnabled: boolean }
+  opts: {
+    sriEnabled: boolean
+    hasInstrumentationHook: boolean
+  }
 ) {
   const files: string[] = []
   if (meta.edgeSSR) {
@@ -120,8 +124,9 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    files.push(`server/${FONT_LOADER_MANIFEST}.js`)
-  }
+    if (opts.hasInstrumentationHook) {
+      files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
+    }
 
   files.push(
     ...entryFiles
@@ -134,7 +139,10 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: { sriEnabled: boolean }
+  opts: {
+    sriEnabled: boolean
+    hasInstrumentationHook: boolean
+  }
 }) {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
@@ -785,8 +793,15 @@ function getExtractMetadata(params: {
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
+  private readonly hasInstrumentationHook: boolean
 
-  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
+  constructor({
+    dev,
+    sriEnabled,
+  }: {
+    dev: boolean
+    sriEnabled: boolean
+  }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
   }
@@ -833,6 +848,7 @@ export default class MiddlewarePlugin {
           metadataByEntry,
           opts: {
             sriEnabled: this.sriEnabled,
+            hasInstrumentationHook: this.hasInstrumentationHook,
           },
         })
       )

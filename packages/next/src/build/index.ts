@@ -527,6 +527,12 @@ export default async function build(
           instrumentationHookDetectionRegExp,
         ])
       ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+
+      const hasInstrumentationHook = rootPaths.some((p) =>
+        p.includes(INSTRUMENTATION_HOOK_FILENAME)
+      )
+      NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
+
       // needed for static exporting since we want to replace with HTML
       // files
 

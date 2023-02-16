@@ -60,6 +60,7 @@ async function webpackBuildImpl(): Promise<{
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   const buildSpinner = NextBuildContext.buildSpinner
   const dir = NextBuildContext.dir!
+  const config = NextBuildContext.config!
 
   const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
   const entrypoints = await nextBuildSpan
@@ -67,30 +68,32 @@ async function webpackBuildImpl(): Promise<{
     .traceAsyncFn(() =>
       createEntrypoints({
         buildId: NextBuildContext.buildId!,
-        config: NextBuildContext.config!,
+        config: config,
         envFiles: NextBuildContext.loadedEnvFiles!,
         isDev: false,
         rootDir: dir,
-        pageExtensions: NextBuildContext.config!.pageExtensions!,
+        pageExtensions: config.pageExtensions!,
         pagesDir: NextBuildContext.pagesDir!,
         appDir: NextBuildContext.appDir!,
         pages: NextBuildContext.mappedPages!,
         appPaths: NextBuildContext.mappedAppPages!,
         previewMode: NextBuildContext.previewProps!,
         rootPaths: NextBuildContext.mappedRootPaths!,
+        hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
       })
     )
 
   const commonWebpackOptions = {
     isServer: false,
     buildId: NextBuildContext.buildId!,
-    config: NextBuildContext.config!,
-    target: NextBuildContext.config!.target!,
+    config: config,
+    target: config.target!,
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
     rewrites: NextBuildContext.rewrites!,
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
+    hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
   }
 
   const configs = await runWebpackSpan

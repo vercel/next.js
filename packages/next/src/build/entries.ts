@@ -148,6 +148,7 @@ export interface CreateEntrypointsParams {
   appDir?: string
   appPaths?: Record<string, string>
   pageExtensions: string[]
+  hasInstrumentationHook?: boolean
 }
 
 export function getEdgeServerEntry(opts: {

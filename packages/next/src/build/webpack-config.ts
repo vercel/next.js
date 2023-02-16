@@ -617,6 +617,7 @@ export default async function getBaseWebpackConfig(
     jsConfig,
     resolvedBaseUrl,
     supportedBrowsers,
+    hasInstrumentationHook = false,
   }: {
     buildId: string
     config: NextConfigComplete
@@ -635,6 +636,7 @@ export default async function getBaseWebpackConfig(
     jsConfig: any
     resolvedBaseUrl: string | undefined
     supportedBrowsers: string[] | undefined
+    hasInstrumentationHook?: boolean
   }
 ): Promise<webpack.Configuration> {
   const isClient = compilerType === COMPILER_NAMES.client
@@ -2104,6 +2106,7 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
+          hasInstrumentationHook: hasInstrumentationHook,
         }),
       isClient &&
         new BuildManifestPlugin({
