@@ -556,6 +556,15 @@ export const css = curry(async function css(
           chunkFilename: ctx.isProduction
             ? 'static/css/[contenthash].css'
             : 'static/css/[name].css',
+          insert: function (link) {
+            for (var i = 0; i < document.head.children.length; i++) {
+              var current = document.head.children.item(i)
+              if (current.href == link.href) {
+                current.insertAdjacentElement(link)
+                break
+              }
+            }
+          },
           // Next.js guarantees that CSS order "doesn't matter", due to imposed
           // restrictions:
           // 1. Global CSS can only be defined in a single entrypoint (_app)
