@@ -30,26 +30,31 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
-import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
-import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { Writable } from 'stream'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
-import { formatServerError } from '../lib/format-server-error'
-import { Metadata } from '../lib/metadata/metadata'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
+import { formatServerError } from '../lib/format-server-error'
+import { MetadataTree } from '../lib/metadata/metadata'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
+import { collectMetadata } from '../lib/metadata/resolve-metadata'
+import type { MetadataItems } from '../lib/metadata/resolve-metadata'
+import { isClientReference } from '../build/is-client-reference'
+import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
+import { warnOnce } from '../shared/lib/utils/warn-once'
+import { isNotFoundError } from '../client/components/not-found'
+import { isRedirectError } from '../client/components/redirect'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -91,6 +96,7 @@ const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 function readonlyHeadersError() {
   return new Error('ReadonlyHeaders cannot be modified')
 }
+
 export class ReadonlyHeaders {
   [INTERNAL_HEADERS_INSTANCE]: Headers
 
@@ -185,16 +191,26 @@ export type RenderOptsPartial = {
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
   nextExport?: boolean
+  appDirDevErrorLogger?: (err: any) => Promise<void>
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 /**
- * Flight Response is always set to application/octet-stream to ensure it does not get interpreted as HTML.
+ * Flight Response is always set to RSC_CONTENT_TYPE_HEADER to ensure it does not get interpreted as HTML.
  */
 class FlightRenderResult extends RenderResult {
   constructor(response: string | ReadableStream<Uint8Array>) {
-    super(response, { contentType: 'application/octet-stream' })
+    super(response, { contentType: RSC_CONTENT_TYPE_HEADER })
+  }
+}
+
+/**
+ * Action Response is set to application/json for now, but could be changed in the future.
+ */
+class ActionRenderResult extends RenderResult {
+  constructor(response: string) {
+    super(response, { contentType: 'application/json' })
   }
 }
 
@@ -210,30 +226,39 @@ function interopDefault(mod: any) {
 /**
  * Create error handler for renderers.
  */
-function createErrorHandler(
+function createErrorHandler({
   /**
    * Used for debugging
    */
-  _source: string,
-  isNextExport: boolean,
-  capturedErrors: Error[],
+  _source,
+  dev,
+  isNextExport,
+  errorLogger,
+  capturedErrors,
+  allCapturedErrors,
+}: {
+  _source: string
+  dev?: boolean
+  isNextExport?: boolean
+  errorLogger?: (err: any) => Promise<void>
+  capturedErrors: Error[]
   allCapturedErrors?: Error[]
-) {
+}) {
   return (err: any): string => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
       err &&
       (err.digest === DYNAMIC_ERROR_CODE ||
-        err.digest === NOT_FOUND_ERROR_CODE ||
+        isNotFoundError(err) ||
         err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-        err.digest?.startsWith(REDIRECT_ERROR_CODE))
+        isRedirectError(err))
     ) {
       return err.digest
     }
 
     // Format server errors in development to add more helpful error messages
-    if (process.env.NODE_ENV !== 'production') {
+    if (dev) {
       formatServerError(err)
     }
     // Used for debugging error source
@@ -248,7 +273,11 @@ function createErrorHandler(
         )
       )
     ) {
-      console.error(err)
+      if (errorLogger) {
+        errorLogger(err).catch(() => {})
+      } else {
+        console.error(err)
+      }
     }
 
     capturedErrors.push(err)
@@ -257,13 +286,10 @@ function createErrorHandler(
   }
 }
 
-let isFetchPatched = false
-
 // we patch fetch to collect cache information used for
 // determining if a page is static or not
 function patchFetch(ComponentMod: any) {
-  if (isFetchPatched) return
-  isFetchPatched = true
+  if ((globalThis.fetch as any).patched) return
 
   const { DynamicServerError } =
     ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
@@ -448,6 +474,7 @@ function patchFetch(ComponentMod: any) {
 
     return doOriginalFetch()
   }
+  ;(globalThis.fetch as any).patched = true
 }
 
 interface FlightResponseRef {
@@ -624,22 +651,13 @@ export type Segment =
   | [param: string, value: string, type: DynamicParamTypesShort]
 
 /**
- * LoaderTree is generated in next-app-loader.
- */
-type LoaderTree = [
-  segment: string,
-  parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: ComponentsType
-]
-
-/**
  * Router state
  */
 export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
-  url?: string,
-  refresh?: 'refetch',
+  url?: string | null,
+  refresh?: 'refetch' | null,
   isRootLayout?: boolean
 ]
 
@@ -833,7 +851,8 @@ function getPreloadedFontFilesInlineLinkTags(
     return null
   }
 
-  return [...fontFiles]
+  // Sorting to make order deterministic
+  return [...fontFiles].sort()
 }
 
 function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
@@ -900,32 +919,17 @@ export async function renderToHTMLOrFlight(
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
-
-  const capturedErrors: Error[] = []
-  const allCapturedErrors: Error[] = []
-
-  const isNextExport = !!renderOpts.nextExport
-  const serverComponentsErrorHandler = createErrorHandler(
-    'serverComponentsRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const flightDataRendererErrorHandler = createErrorHandler(
-    'flightDataRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const htmlRendererErrorHandler = createErrorHandler(
-    'htmlRenderer',
-    isNextExport,
-    capturedErrors,
-    allCapturedErrors
-  )
+  const actionId = req.headers[ACTION.toLowerCase()]
+  const isAction =
+    actionId !== undefined &&
+    typeof actionId === 'string' &&
+    req.method === 'POST'
 
   const {
     buildManifest,
     subresourceIntegrityManifest,
     serverComponentManifest,
+    serverActionsManifest,
     serverCSSManifest = {},
     ComponentMod,
     dev,
@@ -933,7 +937,46 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
+  const capturedErrors: Error[] = []
+  const allCapturedErrors: Error[] = []
+  const isNextExport = !!renderOpts.nextExport
+  const serverComponentsErrorHandler = createErrorHandler({
+    _source: 'serverComponentsRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+  })
+  const flightDataRendererErrorHandler = createErrorHandler({
+    _source: 'flightDataRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+  })
+  const htmlRendererErrorHandler = createErrorHandler({
+    _source: 'htmlRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+    allCapturedErrors,
+  })
+
   patchFetch(ComponentMod)
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
@@ -979,7 +1022,13 @@ export async function renderToHTMLOrFlight(
      * The metadata items array created in next-app-loader with all relevant information
      * that we need to resolve the final metadata.
      */
-    const metadataItems = ComponentMod.metadata
+
+    const requestId =
+      process.env.NEXT_RUNTIME === 'edge'
+        ? crypto.randomUUID()
+        : require('next/dist/compiled/nanoid').nanoid()
+
+    const searchParamsProps = { searchParams: query }
 
     stripInternalQueries(query)
 
@@ -1063,9 +1112,12 @@ export async function renderToHTMLOrFlight(
     }
 
     async function resolveHead(
-      [segment, parallelRoutes, { head }]: LoaderTree,
-      parentParams: { [key: string]: any }
-    ): Promise<React.ReactNode> {
+      tree: LoaderTree,
+      parentParams: { [key: string]: any },
+      metadataItems: MetadataItems
+    ): Promise<[React.ReactNode, MetadataItems]> {
+      const [segment, parallelRoutes, { head, page }] = tree
+      const isPage = typeof page !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
       /**
@@ -1080,20 +1132,38 @@ export async function renderToHTMLOrFlight(
             }
           : // Pass through parent params to children
             parentParams
+
+      const layerProps = {
+        params: currentParams,
+        ...(isPage && searchParamsProps),
+      }
+
+      await collectMetadata(tree, layerProps, metadataItems)
+
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]
-        const returnedHead = await resolveHead(childTree, currentParams)
+        const [returnedHead] = await resolveHead(
+          childTree,
+          currentParams,
+          metadataItems
+        )
         if (returnedHead) {
-          return returnedHead
+          return [returnedHead, metadataItems]
         }
       }
 
       if (head) {
+        if (process.env.NODE_ENV !== 'production') {
+          warnOnce(
+            `\`head.js\` is being used in route /${segment}. Please migrate to the Metadata API for an improved experience: https://beta.nextjs.org/docs/api-reference/metadata`
+          )
+        }
+
         const Head = await interopDefault(await head[0]())
-        return <Head params={currentParams} />
+        return [<Head params={currentParams} />, metadataItems]
       }
 
-      return null
+      return [null, metadataItems]
     }
 
     const createFlightRouterStateFromLoaderTree = (
@@ -1174,7 +1244,8 @@ export async function renderToHTMLOrFlight(
             />
           ))
         : null
-      const Comp = await interopDefault(await getComponent())
+
+      const Comp = interopDefault(await getComponent())
 
       return [Comp, styles]
     }
@@ -1184,11 +1255,7 @@ export async function renderToHTMLOrFlight(
      */
     const createComponentTree = async ({
       createSegmentPath,
-      loaderTree: [
-        segment,
-        parallelRoutes,
-        { layout, template, error, loading, page, 'not-found': notFound },
-      ],
+      loaderTree: tree,
       parentParams,
       firstItem,
       rootLayoutIncluded,
@@ -1201,6 +1268,15 @@ export async function renderToHTMLOrFlight(
       firstItem?: boolean
       injectedCSS: Set<string>
     }): Promise<{ Component: React.ComponentType }> => {
+      const [segment, parallelRoutes, components] = tree
+      const {
+        layout,
+        template,
+        error,
+        loading,
+        page,
+        'not-found': notFound,
+      } = components
       const layoutOrPagePath = layout?.[1] || page?.[1]
 
       const injectedCSSWithCurrentLayout = new Set(injectedCSS)
@@ -1252,11 +1328,7 @@ export async function renderToHTMLOrFlight(
 
       const isLayout = typeof layout !== 'undefined'
       const isPage = typeof page !== 'undefined'
-      const layoutOrPageMod = isLayout
-        ? await layout[0]()
-        : isPage
-        ? await page[0]()
-        : undefined
+      const layoutOrPageMod = await getLayoutOrPageModule(tree)
 
       /**
        * Checks if the current segment is a root layout.
@@ -1345,6 +1417,15 @@ export async function renderToHTMLOrFlight(
             `The default export of notFound is not a React Component in ${segment}`
           )
         }
+
+        if (
+          !isClientReference(layoutOrPageMod) &&
+          layoutOrPageMod?.config?.amp
+        ) {
+          throw new Error(
+            'AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.'
+          )
+        }
       }
 
       // Handle dynamic segment params.
@@ -1372,7 +1453,8 @@ export async function renderToHTMLOrFlight(
               ? [parallelRouteKey]
               : [actualSegment, parallelRouteKey]
 
-            const childSegment = parallelRoutes[parallelRouteKey][0]
+            const parallelRoute = parallelRoutes[parallelRouteKey]
+            const childSegment = parallelRoute[0]
             const childSegmentParam = getDynamicParamFromSegment(childSegment)
 
             if (isPrefetch && Loading) {
@@ -1413,7 +1495,7 @@ export async function renderToHTMLOrFlight(
               createSegmentPath: (child) => {
                 return createSegmentPath([...currentSegmentPath, ...child])
               },
-              loaderTree: parallelRoutes[parallelRouteKey],
+              loaderTree: parallelRoute,
               parentParams: currentParams,
               rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
               injectedCSS: injectedCSSWithCurrentLayout,
@@ -1478,20 +1560,31 @@ export async function renderToHTMLOrFlight(
         // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
         params: currentParams,
         // Query is only provided to page
-        ...(isPage ? { searchParams: query } : {}),
+        ...(isPage ? searchParamsProps : {}),
       }
 
       // Eagerly execute layout/page component to trigger fetches early.
-      Component = await Promise.resolve().then(() => {
-        return preloadComponent(Component, props)
-      })
+      if (!isClientReference(layoutOrPageMod)) {
+        Component = await Promise.resolve().then(() =>
+          preloadComponent(Component, props)
+        )
+      }
 
       return {
         Component: () => {
           return (
             <>
+              {/* <Component /> needs to be the first element because we use `findDOMONode` in layout router to locate it. */}
+              <Component {...props} />
               {preloadedFontFiles?.length === 0 ? (
-                <link rel="preconnect" href="/" crossOrigin="anonymous" />
+                <link
+                  data-next-font={
+                    fontLoaderManifest?.appUsingSizeAdjust ? 'size-adjust' : ''
+                  }
+                  rel="preconnect"
+                  href="/"
+                  crossOrigin="anonymous"
+                />
               ) : null}
               {preloadedFontFiles
                 ? preloadedFontFiles.map((fontFile) => {
@@ -1504,6 +1597,9 @@ export async function renderToHTMLOrFlight(
                         as="font"
                         type={`font/${ext}`}
                         crossOrigin="anonymous"
+                        data-next-font={
+                          fontFile.includes('-s') ? 'size-adjust' : ''
+                        }
                       />
                     )
                   })
@@ -1522,12 +1618,11 @@ export async function renderToHTMLOrFlight(
                       // resource loading and deduplication, etc:
                       // https://github.com/facebook/react/pull/25060
                       // @ts-ignore
-                      precedence="high"
+                      precedence="next.js"
                       key={index}
                     />
                   ))
                 : null}
-              <Component {...props} />
             </>
           )
         },
@@ -1537,17 +1632,18 @@ export async function renderToHTMLOrFlight(
     const streamToBufferedResult = async (
       renderResult: RenderResult
     ): Promise<string> => {
-      const renderChunks: Buffer[] = []
-      const writable = new Writable({
-        write(chunk, _encoding, callback) {
-          renderChunks.push(chunk)
-          callback()
-        },
-      })
-      await renderResult.pipe(writable)
-      return Buffer.concat(renderChunks).toString()
-    }
+      const renderChunks: string[] = []
 
+      const writable = {
+        write(chunk: any) {
+          renderChunks.push(decodeText(chunk))
+        },
+        end() {},
+        destroy() {},
+      }
+      await renderResult.pipe(writable as any)
+      return renderChunks.join('')
+    }
     // Handle Flight render request. This is only used when client-side navigating. E.g. when you `router.push('/dashboard')` or `router.reload()`.
     const generateFlight = async (): Promise<RenderResult> => {
       // TODO-APP: throw on invalid flightRouterState
@@ -1576,9 +1672,10 @@ export async function renderToHTMLOrFlight(
         injectedCSS: Set<string>
         rootLayoutIncluded: boolean
       }): Promise<FlightDataPath> => {
-        const [segment, parallelRoutes, { layout }] = loaderTreeToFilter
-        const isLayout = typeof layout !== 'undefined'
+        const [segment, parallelRoutes, components] = loaderTreeToFilter
         const parallelRoutesKeys = Object.keys(parallelRoutes)
+        const { layout } = components
+        const isLayout = typeof layout !== 'undefined'
 
         /**
          * Checks if the current segment is a root layout.
@@ -1623,7 +1720,7 @@ export async function renderToHTMLOrFlight(
             // Create router state using the slice of the loaderTree
             createFlightRouterStateFromLoaderTree(loaderTreeToFilter),
             // Check if one level down from the common layout has a loading component. If it doesn't only provide the router state as part of the Flight data.
-            isPrefetch && !Boolean(loaderTreeToFilter[2].loading)
+            isPrefetch && !Boolean(components.loading)
               ? null
               : // Create component tree using the slice of the loaderTree
                 // @ts-expect-error TODO-APP: fix async component type
@@ -1642,11 +1739,10 @@ export async function renderToHTMLOrFlight(
                       rootLayoutIncluded: rootLayoutIncluded,
                     }
                   )
+
                   return <Component />
                 }),
-            isPrefetch && !Boolean(loaderTreeToFilter[2].loading) ? null : (
-              <>{rscPayloadHead}</>
-            ),
+            isPrefetch && !Boolean(components.loading) ? null : rscPayloadHead,
           ]
         }
 
@@ -1697,7 +1793,11 @@ export async function renderToHTMLOrFlight(
         return [actualSegment]
       }
 
-      const rscPayloadHead = await resolveHead(loaderTree, {})
+      const [resolvedHead, metadataItems] = await resolveHead(
+        loaderTree,
+        {},
+        []
+      )
       // Flight data that is going to be passed to the browser.
       // Currently a single item array but in the future multiple patches might be combined in a single request.
       const flightData: FlightData = [
@@ -1708,11 +1808,13 @@ export async function renderToHTMLOrFlight(
             parentParams: {},
             flightRouterState: providedFlightRouterState,
             isFirst: true,
+            // For flight, render metadata inside leaf page
             rscPayloadHead: (
               <>
+                {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
-                <Metadata metadata={metadataItems} />
-                {rscPayloadHead}
+                <MetadataTree key={requestId} metadata={metadataItems} />
+                {resolvedHead}
               </>
             ),
             injectedCSS: new Set(),
@@ -1737,6 +1839,23 @@ export async function renderToHTMLOrFlight(
 
     if (isFlight && !staticGenerationStore.isStaticGeneration) {
       return generateFlight()
+    }
+
+    // For action requests, we handle them differently with a sepcial render result.
+    if (isAction && process.env.NEXT_RUNTIME !== 'edge') {
+      const workerName = 'app' + renderOpts.pathname
+      const actionModId = serverActionsManifest[actionId].workers[workerName]
+
+      const { parseBody } =
+        require('./api-utils/node') as typeof import('./api-utils/node')
+      const actionData = (await parseBody(req, '1mb')) || {}
+
+      const actionHandler =
+        ComponentMod.__next_app_webpack_require__(actionModId).default
+
+      return new ActionRenderResult(
+        JSON.stringify(await actionHandler(actionId, actionData.bound || []))
+      )
     }
 
     // Below this line is handling for rendering to HTML.
@@ -1781,7 +1900,7 @@ export async function renderToHTMLOrFlight(
         }
       : {}
 
-    const initialHead = await resolveHead(loaderTree, {})
+    const [initialHead, metadataItems] = await resolveHead(loaderTree, {}, [])
 
     /**
      * A new React Component that renders the provided React Component
@@ -1809,8 +1928,9 @@ export async function renderToHTMLOrFlight(
               initialTree={initialTree}
               initialHead={
                 <>
+                  {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
-                  <Metadata metadata={metadataItems} />
+                  <MetadataTree key={requestId} metadata={metadataItems} />
                   {initialHead}
                 </>
               }
@@ -1927,9 +2047,12 @@ export async function renderToHTMLOrFlight(
 
         return result
       } catch (err: any) {
-        const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
-        if (err.digest === NOT_FOUND_ERROR_CODE) {
+        const shouldNotIndex = isNotFoundError(err)
+        if (isNotFoundError(err)) {
           res.statusCode = 404
+        }
+        if (isRedirectError(err)) {
+          res.statusCode = 307
         }
 
         const renderStream = await renderToInitialStream({

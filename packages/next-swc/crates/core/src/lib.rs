@@ -33,13 +33,13 @@ DEALINGS IN THE SOFTWARE.
 use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
+
 use serde::Deserialize;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::{path::PathBuf, sync::Arc};
 
 use next_binding::swc::core::{
-    base::config::ModuleConfig,
     common::{chain, comments::Comments, pass::Optional, FileName, SourceFile, SourceMap},
     ecma::ast::EsVersion,
     ecma::parser::parse_file_as_module,
@@ -239,7 +239,7 @@ where
                                 config.clone(),
                                 path,
                                 cm,
-                                comments,
+                                comments.clone(),
                             ),
                         )
                     })
@@ -261,8 +261,11 @@ where
             None => Either::Right(noop()),
         },
         match &opts.server_actions {
-            Some(config) =>
-                Either::Left(server_actions::server_actions(&file.name, config.clone())),
+            Some(config) => Either::Left(server_actions::server_actions(
+                &file.name,
+                config.clone(),
+                comments,
+            )),
             None => Either::Right(noop()),
         },
     )
@@ -284,7 +287,9 @@ impl TransformOptions {
             };
 
         if should_enable_commonjs {
-            self.swc.config.module = Some(ModuleConfig::CommonJs(Default::default()));
+            self.swc.config.module = Some(
+                serde_json::from_str(r##"{ "type": "commonjs", "ignoreDynamic": true }"##).unwrap(),
+            );
         }
 
         self

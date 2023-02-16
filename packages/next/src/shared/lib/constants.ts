@@ -63,10 +63,12 @@ export const MODERN_BROWSERSLIST_TARGET = [
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
 export const NEXT_CLIENT_SSR_ENTRY_SUFFIX = '.__sc_client__'
 
-// server/flight-manifest.js
-export const FLIGHT_MANIFEST = 'flight-manifest'
-// server/flight-server-css-manifest.json
+// server/client-reference-manifest
+export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
+// server/flight-server-css-manifest
 export const FLIGHT_SERVER_CSS_MANIFEST = 'flight-server-css-manifest'
+// server/server-reference-manifest
+export const SERVER_REFERENCE_MANIFEST = 'server-reference-manifest'
 // server/middleware-build-manifest.js
 export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
@@ -113,6 +115,8 @@ export const DEFAULT_SANS_SERIF_FONT = {
 }
 export const STATIC_STATUS_PAGES = ['/500']
 export const TRACE_OUTPUT_VERSION = 1
+// in `MB`
+export const TURBO_TRACE_DEFAULT_MEMORY_LIMIT = 6000
 
 export const RSC_MODULE_TYPES = {
   client: 'client',

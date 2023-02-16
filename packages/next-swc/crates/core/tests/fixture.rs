@@ -2,6 +2,7 @@ use next_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark},
         ecma::parser::{EsConfig, Syntax},
+        ecma::transforms::base::resolver,
         ecma::transforms::react::jsx,
         ecma::transforms::testing::{test, test_fixture},
     },
@@ -305,9 +306,13 @@ fn server_actions_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|_tr| {
-            server_actions(
-                &FileName::Real("/app/item.js".into()),
-                server_actions::Config {},
+            chain!(
+                resolver(Mark::new(), Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config { is_server: true },
+                    _tr.comments.as_ref().clone(),
+                )
             )
         },
         &input,

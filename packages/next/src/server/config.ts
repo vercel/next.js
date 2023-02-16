@@ -1,5 +1,13 @@
 import { existsSync } from 'fs'
-import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
+import {
+  basename,
+  extname,
+  join,
+  relative,
+  isAbsolute,
+  resolve,
+  dirname,
+} from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -292,6 +300,25 @@ function assignDefaults(
   if (typeof result.basePath !== 'string') {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`
+    )
+  }
+
+  // TODO: remove after next minor (current v13.1.1)
+  if (Array.isArray(result.experimental?.outputFileTracingIgnores)) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes) {
+      result.experimental.outputFileTracingExcludes = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes['**/*']) {
+      result.experimental.outputFileTracingExcludes['**/*'] = []
+    }
+    result.experimental.outputFileTracingExcludes['**/*'].push(
+      ...(result.experimental.outputFileTracingIgnores || [])
+    )
+    Log.warn(
+      `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
     )
   }
 
@@ -664,6 +691,28 @@ function assignDefaults(
       Log.warn(
         `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
       )
+    }
+  }
+
+  // use the closest lockfile as tracing root
+  if (!result.experimental?.outputFileTracingRoot) {
+    const lockFiles: string[] = [
+      'package-lock.json',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+    ]
+    const foundLockfile = findUp.sync(lockFiles, { cwd: dir })
+
+    if (foundLockfile) {
+      if (!result.experimental) {
+        result.experimental = {}
+      }
+      if (!defaultConfig.experimental) {
+        defaultConfig.experimental = {}
+      }
+      result.experimental.outputFileTracingRoot = dirname(foundLockfile)
+      defaultConfig.experimental.outputFileTracingRoot =
+        result.experimental.outputFileTracingRoot
     }
   }
 

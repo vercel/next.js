@@ -133,7 +133,7 @@ export function createPagesMapping({
   }
 }
 
-interface CreateEntrypointsParams {
+export interface CreateEntrypointsParams {
   buildId: string
   config: NextConfigComplete
   envFiles: LoadedEnvFiles
@@ -215,8 +215,9 @@ export function getAppEntry(opts: {
   name: string
   pagePath: string
   appDir: string
-  appPaths: string[] | null
+  appPaths: ReadonlyArray<string> | null
   pageExtensions: string[]
+  assetPrefix: string
   isDev?: boolean
   rootDir?: string
   tsconfigPath?: string
@@ -309,7 +310,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
   let appPathsPerRoute: Record<string, string[]> = {}
   if (appDir && appPaths) {
     for (const pathname in appPaths) {
-      const normalizedPath = normalizeAppPath(pathname) || '/'
+      const normalizedPath = normalizeAppPath(pathname)
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
@@ -402,14 +403,14 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         },
         onServer: () => {
           if (pagesType === 'app' && appDir) {
-            const matchedAppPaths =
-              appPathsPerRoute[normalizeAppPath(page) || '/']
+            const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
             server[serverBundlePath] = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
               appDir,
               appPaths: matchedAppPaths,
               pageExtensions,
+              assetPrefix: config.assetPrefix,
             })
           } else {
             server[serverBundlePath] = [mappings[page]]
@@ -418,14 +419,14 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
         onEdgeServer: () => {
           let appDirLoader: string = ''
           if (pagesType === 'app') {
-            const matchedAppPaths =
-              appPathsPerRoute[normalizeAppPath(page) || '/']
+            const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
             appDirLoader = getAppEntry({
               name: serverBundlePath,
               pagePath: mappings[page],
               appDir: appDir!,
               appPaths: matchedAppPaths,
               pageExtensions,
+              assetPrefix: config.assetPrefix,
             }).import
           }
 
