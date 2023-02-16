@@ -1,7 +1,5 @@
-const withPwa = (opts) => {
-  // no-op but image this adds props
-  return opts
-}
+const withPwa = require('next-pwa')()
+
 module.exports = withPwa({
   images: {
     loader: "custom",
