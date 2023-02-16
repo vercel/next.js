@@ -1996,7 +1996,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /node_modules\/client-only\/error.js/,
+          test: /node_modules[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.server,
           options: {
@@ -2005,7 +2005,7 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
-          test: /node_modules\/server-only\/index.js/,
+          test: /node_modules[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.client,
           options: {
