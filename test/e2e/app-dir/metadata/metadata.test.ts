@@ -62,9 +62,9 @@ createNextDescribe(
 
     const checkLink = (
       browser: BrowserInterface,
-      name: string,
+      rel: string,
       content: string | string[]
-    ) => checkMeta(browser, name, content, 'rel', 'link', 'href')
+    ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
     describe('basic', () => {
       it('should support title and description', async () => {
@@ -102,11 +102,7 @@ createNextDescribe(
         const browser = await next.browser('/basic')
         await checkMetaNameContentPair(browser, 'generator', 'next.js')
         await checkMetaNameContentPair(browser, 'application-name', 'test')
-        await checkMetaNameContentPair(
-          browser,
-          'manifest',
-          'https://github.com/manifest.json'
-        )
+        await checkLink(browser, 'manifest', 'https://github.com/manifest.json')
 
         await checkMetaNameContentPair(
           browser,
