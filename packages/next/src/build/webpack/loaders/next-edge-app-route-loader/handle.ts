@@ -17,19 +17,18 @@ export function getHandle({ page, mod }: any) {
     filename: '',
   })
 
-  function requestHandler(
-    pathname: string,
-    req: WebNextRequest,
-    res: WebNextResponse
-  ) {
-    const match = appRouteRouteMatcher.match(pathname)!
-    return appRouteRouteHandler.execute(match, mod, req, res)
-  }
-
   return async function handle(request: Request) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse()
-    requestHandler(new URL(request.url).pathname, extendedReq, extendedRes)
-    return await extendedRes.toResponse()
+    const match = appRouteRouteMatcher.match(new URL(request.url).pathname)!
+    const response = await appRouteRouteHandler.execute(
+      match,
+      mod,
+      extendedReq,
+      extendedRes,
+      request
+    )
+
+    return response
   }
 }
