@@ -1,4 +1,4 @@
-import { Nabla } from '@next/font/google'
+import { Nabla } from 'next/font/google'
 
 const nabla = Nabla()
 

@@ -1032,7 +1032,6 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getFontLoaderManifest() {
-    if (!this.nextConfig.experimental.fontLoaders) return undefined
     return require(join(this.distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
   }
 

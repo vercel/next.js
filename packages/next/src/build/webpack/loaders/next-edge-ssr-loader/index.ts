@@ -15,7 +15,6 @@ export type EdgeSSRLoaderQuery = {
   appDirLoader?: string
   pagesType: 'app' | 'pages' | 'root'
   sriEnabled: boolean
-  hasFontLoaders: boolean
 }
 
 /*
@@ -45,7 +44,6 @@ export default async function edgeSSRLoader(this: any) {
     appDirLoader: appDirLoaderBase64,
     pagesType,
     sriEnabled,
-    hasFontLoaders,
   } = this.getOptions()
 
   const appDirLoader = Buffer.from(
@@ -127,9 +125,7 @@ export default async function edgeSSRLoader(this: any) {
     const subresourceIntegrityManifest = ${
       sriEnabled ? 'self.__SUBRESOURCE_INTEGRITY_MANIFEST' : 'undefined'
     }
-    const fontLoaderManifest = ${
-      hasFontLoaders ? 'self.__FONT_LOADER_MANIFEST' : 'undefined'
-    }
+    const fontLoaderManifest = self.__FONT_LOADER_MANIFEST
 
     const render = getRender({
       pageType,
