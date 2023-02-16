@@ -285,15 +285,17 @@ export default function transformer(
     })
   // Before: const Image = await import("next/legacy/image")
   //  After: const Image = await import("next/image")
-  root
-    .find(j.ImportExpression, {
-      source: { value: 'next/legacy/image' },
-    })
-    .forEach((imageImport) => {
-      j(imageImport).replaceWith(
-        j.importExpression(j.stringLiteral('next/image'))
-      )
-    })
+  root.find(j.AwaitExpression).forEach((awaitExp) => {
+    const arg = awaitExp.value.argument
+    if (arg?.type === 'CallExpression' && arg.callee.type === 'Import') {
+      if (
+        arg.arguments[0].type === 'StringLiteral' &&
+        arg.arguments[0].value === 'next/legacy/image'
+      ) {
+        arg.arguments[0] = j.stringLiteral('next/image')
+      }
+    }
+  })
 
   // Before: const Image = require("next/legacy/image")
   //  After: const Image = require("next/image")
