@@ -2,6 +2,7 @@ import React from 'react'
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
+import { builtinModules } from 'module'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -1250,29 +1251,32 @@ export default async function getBaseWebpackConfig(
       // add the package to the `serverComponentsExternalPackages` config.
       if (layer === WEBPACK_LAYERS.server && !request.startsWith('#')) {
         if (/[/\\]node_modules[/\\]/.test(context)) {
-          // Try to match the package name from the context path:
-          // - /node_modules/package-name/...
-          // - /node_modules/.pnpm/package-name@version/...
-          // - /node_modules/@scope/package-name/...
-          // - /node_modules/.pnpm/scope+package-name@version/...
-          const packageName =
-            context.match(
-              /[/\\]node_modules[/\\](\.pnpm[/\\])?([^/\\@]+)/
-            )?.[2] ||
-            context.match(
-              /[/\\]node_modules[/\\](@[^/\\]+[/\\][^/\\]+)[/\\]/
-            )?.[2] ||
-            context
-              .match(
-                /[/\\]node_modules[/\\]\.pnpm[/\\](@[^/\\@]+\+[^/\\@]+)/
-              )?.[1]
-              ?.replace(/\+/g, '/')
+          // Built-in modules can be safely ignored.
+          if (!builtinModules.includes(request)) {
+            // Try to match the package name from the context path:
+            // - /node_modules/package-name/...
+            // - /node_modules/.pnpm/package-name@version/...
+            // - /node_modules/@scope/package-name/...
+            // - /node_modules/.pnpm/scope+package-name@version/...
+            const packageName =
+              context.match(
+                /[/\\]node_modules[/\\](\.pnpm[/\\])?([^/\\@]+)/
+              )?.[2] ||
+              context.match(
+                /[/\\]node_modules[/\\](@[^/\\]+[/\\][^/\\]+)[/\\]/
+              )?.[2] ||
+              context
+                .match(
+                  /[/\\]node_modules[/\\]\.pnpm[/\\](@[^/\\@]+\+[^/\\@]+)/
+                )?.[1]
+                ?.replace(/\+/g, '/')
 
-          throw new Error(
-            `Failed to bundle ${
-              packageName ? `package "${packageName}"` : context
-            } in Server Components. Please try adding it to the \`serverComponentsExternalPackages\` config: https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages`
-          )
+            throw new Error(
+              `Failed to bundle ${
+                packageName ? `package "${packageName}"` : context
+              } in Server Components because it uses "${request}". Please try adding it to the \`serverComponentsExternalPackages\` config: https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages`
+            )
+          }
         }
       }
       return

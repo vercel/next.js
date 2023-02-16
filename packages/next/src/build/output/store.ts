@@ -73,23 +73,7 @@ store.subscribe((state) => {
   }
 
   if (state.errors) {
-    let reactServerComponentsBundleError = ''
-    let reactServerComponentsError = ''
-
-    state.errors.forEach((error) => {
-      if (error.includes('ReactServerComponentsError')) {
-        reactServerComponentsError = error
-      }
-      if (/Failed to bundle .+ in Server Components/.test(error)) {
-        reactServerComponentsBundleError = error
-      }
-    })
-
-    Log.error(
-      reactServerComponentsBundleError ||
-        reactServerComponentsError ||
-        state.errors[0]
-    )
+    Log.error(state.errors[0])
 
     const cleanError = stripAnsi(state.errors[0])
     if (cleanError.indexOf('SyntaxError') > -1) {
