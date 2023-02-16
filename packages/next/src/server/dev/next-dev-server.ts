@@ -1303,8 +1303,8 @@ export default class DevServer extends Server {
     return this.middleware
   }
 
-  protected getEdgeFunctions() {
-    return this.edgeFunctions ?? []
+  protected getEdgeFunctionsPages() {
+    return this.edgeFunctions ? this.edgeFunctions.map(({ page }) => page) : []
   }
 
   protected getServerComponentManifest() {
