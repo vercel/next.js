@@ -1116,9 +1116,8 @@ export async function renderToHTMLOrFlight(
       parentParams: { [key: string]: any },
       metadataItems: MetadataItems
     ): Promise<[React.ReactNode, MetadataItems]> {
-      const [segment, parallelRoutes, { head, layout, page }] = tree
+      const [segment, parallelRoutes, { head, page }] = tree
       const isPage = typeof page !== 'undefined'
-      const isLayout = typeof layout !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
       /**
