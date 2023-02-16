@@ -783,10 +783,10 @@ export default class NextNodeServer extends BaseServer {
     page: string,
     builtPagePath: string
   ): Promise<boolean> {
-    const edgeFunctions = this.getEdgeFunctions()
+    const edgeFunctionsPages = this.getEdgeFunctionsPages()
 
-    for (const item of edgeFunctions) {
-      if (item.page === page) {
+    for (const edgeFunctionsPage of edgeFunctionsPages) {
+      if (edgeFunctionsPage === page) {
         const handledAsEdgeFunction = await this.runEdgeFunction({
           req,
           res,
@@ -907,8 +907,8 @@ export default class NextNodeServer extends BaseServer {
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const edgeFunctions = this.getEdgeFunctions() || []
-    if (edgeFunctions.length) {
+    const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
+    if (edgeFunctionsPages.length) {
       const appPaths = this.getOriginalAppPaths(ctx.pathname)
       const isAppPath = Array.isArray(appPaths)
 
@@ -918,8 +918,8 @@ export default class NextNodeServer extends BaseServer {
         page = appPaths[0]
       }
 
-      for (const item of edgeFunctions) {
-        if (item.page === page) {
+      for (const edgeFunctionsPage of edgeFunctionsPages) {
+        if (edgeFunctionsPage === page) {
           await this.runEdgeFunction({
             req: ctx.req,
             res: ctx.res,
@@ -1203,6 +1203,24 @@ export default class NextNodeServer extends BaseServer {
 
         // Try to handle the given route with the configured handlers.
         if (match) {
+          // TODO-APP: move this to a route handler
+          const edgeFunctionsPages = this.getEdgeFunctionsPages()
+          for (const edgeFunctionsPage of edgeFunctionsPages) {
+            if (edgeFunctionsPage === match.definition.page) {
+              const handledAsEdgeFunction = await this.runEdgeFunction({
+                req,
+                res,
+                query,
+                params: match.params,
+                page: match.definition.page,
+                appPaths: null,
+              })
+
+              if (handledAsEdgeFunction) {
+                return { finished: true }
+              }
+            }
+          }
           let handled = await this.handlers.handle(match, req, res)
           if (handled) return { finished: true }
 
@@ -1494,7 +1512,7 @@ export default class NextNodeServer extends BaseServer {
     restrictedRedirectPaths,
   }: {
     restrictedRedirectPaths: string[]
-  }) {
+  }): { beforeFiles: Route[]; afterFiles: Route[]; fallback: Route[] } {
     let beforeFiles: Route[] = []
     let afterFiles: Route[] = []
     let fallback: Route[] = []
@@ -1591,16 +1609,13 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
-  protected getEdgeFunctions(): RoutingItem[] {
+  protected getEdgeFunctionsPages(): string[] {
     const manifest = this.getMiddlewareManifest()
     if (!manifest) {
       return []
     }
 
-    return Object.keys(manifest.functions).map((page) => ({
-      match: getEdgeMatcher(manifest.functions[page]),
-      page,
-    }))
+    return Object.keys(manifest.functions)
   }
 
   /**
@@ -1612,11 +1627,17 @@ export default class NextNodeServer extends BaseServer {
     page: string
     /** Whether we should look for a middleware or not */
     middleware: boolean
-  }) {
-    const manifest: MiddlewareManifest = require(join(
-      this.serverDistDir,
-      MIDDLEWARE_MANIFEST
-    ))
+  }): {
+    name: string
+    paths: string[]
+    env: string[]
+    wasm: { filePath: string; name: string }[]
+    assets: { filePath: string; name: string }[]
+  } | null {
+    const manifest = this.getMiddlewareManifest()
+    if (!manifest) {
+      return null
+    }
 
     let foundPage: string
 

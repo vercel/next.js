@@ -27,10 +27,15 @@ import { AppRouteRouteMatch } from '../route-matches/app-route-route-match'
 import { HTTP_METHOD, isHTTPMethod } from '../../web/http'
 import { NextRequest } from '../../web/spec-extension/request'
 import { fromNodeHeaders } from '../../web/utils'
-import { ModuleLoader } from '../helpers/module-loader/module-loader'
-import { NodeModuleLoader } from '../helpers/module-loader/node-module-loader'
+import type { ModuleLoader } from '../helpers/module-loader/module-loader'
 import { RouteHandler } from './route-handler'
 import * as Log from '../../../build/output/log'
+
+// TODO-APP: This module has a dynamic require so when bundling for edge it causes issues.
+const NodeModuleLoader =
+  process.env.NEXT_RUNTIME !== 'edge'
+    ? require('../helpers/module-loader/node-module-loader').NodeModuleLoader
+    : class {}
 
 /**
  * Handler function for app routes.
@@ -120,43 +125,46 @@ async function sendResponse(
   res: BaseNextResponse,
   response: Response
 ): Promise<void> {
-  // Copy over the response status.
-  res.statusCode = response.status
-  res.statusMessage = response.statusText
+  // Don't use in edge runtime
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    // Copy over the response status.
+    res.statusCode = response.status
+    res.statusMessage = response.statusText
 
-  // Copy over the response headers.
-  response.headers.forEach((value, name) => {
-    // The append handling is special cased for `set-cookie`.
-    if (name.toLowerCase() === 'set-cookie') {
-      res.setHeader(name, value)
-    } else {
-      res.appendHeader(name, value)
-    }
-  })
-
-  /**
-   * The response can't be directly piped to the underlying response. The
-   * following is duplicated from the edge runtime handler.
-   *
-   * See packages/next/server/next-server.ts
-   */
-
-  const originalResponse = (res as NodeNextResponse).originalResponse
-
-  // A response body must not be sent for HEAD requests. See https://httpwg.org/specs/rfc9110.html#HEAD
-  if (response.body && req.method !== 'HEAD') {
-    const { consumeUint8ArrayReadableStream } =
-      require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
-    const iterator = consumeUint8ArrayReadableStream(response.body)
-    try {
-      for await (const chunk of iterator) {
-        originalResponse.write(chunk)
+    // Copy over the response headers.
+    response.headers.forEach((value, name) => {
+      // The append handling is special cased for `set-cookie`.
+      if (name.toLowerCase() === 'set-cookie') {
+        res.setHeader(name, value)
+      } else {
+        res.appendHeader(name, value)
       }
-    } finally {
+    })
+
+    /**
+     * The response can't be directly piped to the underlying response. The
+     * following is duplicated from the edge runtime handler.
+     *
+     * See packages/next/server/next-server.ts
+     */
+
+    const originalResponse = (res as NodeNextResponse).originalResponse
+
+    // A response body must not be sent for HEAD requests. See https://httpwg.org/specs/rfc9110.html#HEAD
+    if (response.body && req.method !== 'HEAD') {
+      const { consumeUint8ArrayReadableStream } =
+        require('next/dist/compiled/edge-runtime') as typeof import('next/dist/compiled/edge-runtime')
+      const iterator = consumeUint8ArrayReadableStream(response.body)
+      try {
+        for await (const chunk of iterator) {
+          originalResponse.write(chunk)
+        }
+      } finally {
+        originalResponse.end()
+      }
+    } else {
       originalResponse.end()
     }
-  } else {
-    originalResponse.end()
   }
 }
 
@@ -250,7 +258,9 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     { params }: AppRouteRouteMatch,
     module: AppRouteModule,
     req: BaseNextRequest,
-    res: BaseNextResponse
+    res: BaseNextResponse,
+    // TODO-APP: this is temporarily used for edge.
+    request?: Request
   ): Promise<Response> {
     // This is added by the webpack loader, we load it directly from the module.
     const { requestAsyncStorage } = module
@@ -266,7 +276,7 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
         req: (req as NodeNextRequest).originalRequest,
         res: (res as NodeNextResponse).originalResponse,
       },
-      () => handle(wrapRequest(req), { params })
+      () => handle(request ? request : wrapRequest(req), { params })
     )
 
     // If the handler did't return a valid response, then return the internal
