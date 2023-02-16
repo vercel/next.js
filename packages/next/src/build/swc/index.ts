@@ -7,7 +7,7 @@ import * as Log from '../output/log'
 import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
-import { downloadWasmSwc } from '../../lib/download-wasm-swc'
+import { downloadWasmNextRs } from '../../lib/download-wasm-swc'
 import { loadNative, loadWasm } from '@next/rs'
 
 const nextVersion = process.env.__NEXT_VERSION as string
@@ -137,7 +137,7 @@ async function tryLoadWasmWithFallback(attempts: any) {
       'wasm'
     )
     if (!downloadWasmPromise) {
-      downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
+      downloadWasmPromise = downloadWasmNextRs(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise
     let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)

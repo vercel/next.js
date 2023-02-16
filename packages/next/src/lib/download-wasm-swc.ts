@@ -9,12 +9,12 @@ import { fileExists } from './file-exists'
 
 const MAX_VERSIONS_TO_CACHE = 5
 
-export async function downloadWasmSwc(
+export async function downloadWasmNextRs(
   version: string,
   wasmDirectory: string,
   variant: 'nodejs' | 'web' = 'nodejs'
 ) {
-  const pkgName = `@next/swc-wasm-${variant}`
+  const pkgName = `@next/rs-wasm-${variant}`
   const tarFileName = `${pkgName.substring(6)}-${version}.tgz`
   const outputDirectory = path.join(wasmDirectory, pkgName)
 
@@ -28,7 +28,8 @@ export async function downloadWasmSwc(
   // https://github.com/microsoft/playwright/blob/7d924470d397975a74a19184c136b3573a974e13/packages/playwright-core/src/utils/registry.ts#L141
   const cacheDirectory = await (async () => {
     let result
-    const envDefined = process.env['NEXT_SWC_PATH']
+    // TODO: where is this env var set?
+    const envDefined = process.env['NEXT_RS_PATH']
 
     if (envDefined) {
       result = envDefined
@@ -62,7 +63,7 @@ export async function downloadWasmSwc(
           process.exit(0)
         }
       }
-      result = path.join(systemCacheDirectory, 'next-swc')
+      result = path.join(systemCacheDirectory, 'next-rs')
     }
 
     if (!path.isAbsolute(result)) {
@@ -87,7 +88,7 @@ export async function downloadWasmSwc(
   }
 
   if (!(await fileExists(path.join(cacheDirectory, tarFileName)))) {
-    Log.info('Downloading WASM swc package...')
+    Log.info('Downloading WASM @next/rs package...')
     await fs.promises.mkdir(cacheDirectory, { recursive: true })
     const tempFile = path.join(
       cacheDirectory,
