@@ -33,7 +33,7 @@ const SvgDots = () => {
   )
 }
 
-const SvgRoot = () => {
+export default function Canvas() {
   const [, handleMouseUp] = useAtom(handleMouseUpAtom)
   const [, handleMouseDown] = useAtom(handleMouseDownAtom)
   const [, handleMouseMove] = useAtom(handleMouseMoveAtom)
@@ -53,11 +53,3 @@ const SvgRoot = () => {
     </svg>
   )
 }
-
-const App = () => (
-  <>
-    <SvgRoot />
-  </>
-)
-
-export default App
