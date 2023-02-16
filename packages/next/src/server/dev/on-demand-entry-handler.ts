@@ -23,6 +23,9 @@ import {
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
+import { RouteMatch } from '../future/route-matches/route-match'
+import { RouteKind } from '../future/route-kind'
+import { AppPageRouteMatch } from '../future/route-matches/app-page-route-match'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -150,7 +153,7 @@ interface Entry extends EntryType {
    * All parallel pages that match the same entry, for example:
    * ['/parallel/@bar/nested/@a/page', '/parallel/@bar/nested/@b/page', '/parallel/@foo/nested/@a/page', '/parallel/@foo/nested/@b/page']
    */
-  appPaths: string[] | null
+  appPaths: ReadonlyArray<string> | null
 }
 
 interface ChildEntry extends EntryType {
@@ -331,7 +334,7 @@ async function findPagePathData(
 
       return {
         absolutePagePath: join(appDir, pagePath),
-        bundlePath: posix.join('app', normalizePagePath(pageUrl)),
+        bundlePath: posix.join('app', pageUrl),
         page: posix.normalize(pageUrl),
       }
     }
@@ -369,6 +372,27 @@ async function findPagePathData(
   } else {
     throw new PageNotFoundError(normalizedPagePath)
   }
+}
+
+async function findRoutePathData(
+  rootDir: string,
+  page: string,
+  extensions: string[],
+  pagesDir?: string,
+  appDir?: string,
+  match?: RouteMatch
+): ReturnType<typeof findPagePathData> {
+  if (match) {
+    // If the match is available, we don't have to discover the data from the
+    // filesystem.
+    return {
+      absolutePagePath: match.definition.filename,
+      page: match.definition.page,
+      bundlePath: match.definition.bundlePath,
+    }
+  }
+
+  return findPagePathData(rootDir, page, extensions, pagesDir, appDir)
 }
 
 export function onDemandEntryHandler({
@@ -558,10 +582,12 @@ export function onDemandEntryHandler({
       page,
       clientOnly,
       appPaths = null,
+      match,
     }: {
       page: string
       clientOnly: boolean
-      appPaths?: string[] | null
+      appPaths?: ReadonlyArray<string> | null
+      match?: RouteMatch
     }): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
@@ -570,13 +596,21 @@ export function onDemandEntryHandler({
         )
       }, stalledTime * 1000)
 
+      // If the route is actually an app page route, then we should have access
+      // to the app route match, and therefore, the appPaths from it.
+      if (match?.definition.kind === RouteKind.APP_PAGE) {
+        const { definition: route } = match as AppPageRouteMatch
+        appPaths = route.appPaths
+      }
+
       try {
-        const pagePathData = await findPagePathData(
+        const pagePathData = await findRoutePathData(
           rootDir,
           page,
           nextConfig.pageExtensions,
           pagesDir,
-          appDir
+          appDir,
+          match
         )
 
         const isInsideAppDir =
