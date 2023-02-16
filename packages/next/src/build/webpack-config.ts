@@ -1362,12 +1362,14 @@ export default async function getBaseWebpackConfig(
         return
       }
 
-      // Treat react packages and next internals as external for SSR layer,
-      // also map react to builtin ones with require-hook.
+      // For the client layer, we don't want to bundle externals. Here we need to specially
+      // map `react` and `react-dom` to our precompiled version.
       if (layer === WEBPACK_LAYERS.client) {
         if (reactPackagesRegex.test(request)) {
           return `commonjs next/dist/compiled/${request}`
         }
+        // TODO: Fix this!
+        // return `${externalType} ${request}`
         return
       }
 

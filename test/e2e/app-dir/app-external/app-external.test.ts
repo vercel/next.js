@@ -79,6 +79,16 @@ createNextDescribe(
       expect(clientHtml).toContain('transpilePackages:5')
     })
 
+    it('should not bundle external packages eagerly in the client layer of server', async () => {
+      const html = await next.render('/client-component')
+      expect(html).toContain('This is a CJS module')
+
+      const bundle = await next.readFile(
+        '.next/server/app/client-component/page.js'
+      )
+      expect(bundle).not.toContain('This is a CJS module')
+    })
+
     it('should resolve the subset react in server components based on the react-server condition', async () => {
       await next.fetch('/react-server').then(async (response) => {
         const result = await resolveStreamResponse(response)
