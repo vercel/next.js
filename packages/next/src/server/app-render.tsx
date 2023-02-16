@@ -1138,10 +1138,7 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      // If the layout is located next to the page as leaf layer
-      const isLeafLayout =
-        typeof parallelRoutes.children?.[2].page !== 'undefined'
-      await collectMetadata(tree, layerProps, metadataItems, isLeafLayout)
+      await collectMetadata(tree, layerProps, metadataItems)
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]

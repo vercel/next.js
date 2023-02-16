@@ -7,7 +7,7 @@ import type { AbsoluteTemplateString } from './types/metadata-types'
 import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
-import { mergeTitle } from './resolvers/resolve-title'
+import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 import { isClientReference } from '../../build/is-client-reference'
 import {
@@ -31,11 +31,10 @@ type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 type MetadataResolver = (
   _parent: ResolvingMetadata
 ) => Metadata | Promise<Metadata>
-export type MetadataItems = {
-  metadataExport: Metadata | MetadataResolver | null
-  staticFilesMetadata: StaticMetadata
-  isLeafLayout: boolean
-}[]
+export type MetadataItems = [
+  Metadata | MetadataResolver | null,
+  StaticMetadata
+][]
 
 function mergeStaticMetadata(
   metadata: ResolvedMetadata,
@@ -76,41 +75,23 @@ function mergeStaticMetadata(
 function merge(
   target: ResolvedMetadata,
   source: Metadata | null,
-  staticFilesMetadata: StaticMetadata,
-  templateStrings: {
-    title: string | null
-    openGraph: string | null
-    twitter: string | null
-  }
+  staticFilesMetadata: StaticMetadata
 ) {
   const metadataBase = source?.metadataBase || null
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
     switch (key) {
-      case 'title': {
-        if (source.title) {
-          target.title = source.title as AbsoluteTemplateString
-          mergeTitle(target, templateStrings.title)
-        }
-        break
-      }
       case 'alternates': {
         target.alternates = resolveAlternates(source.alternates, metadataBase)
         break
       }
       case 'openGraph': {
         target.openGraph = resolveOpenGraph(source.openGraph, metadataBase)
-        if (target.openGraph) {
-          mergeTitle(target.openGraph, templateStrings.openGraph)
-        }
         break
       }
       case 'twitter': {
         target.twitter = resolveTwitter(source.twitter, metadataBase)
-        if (target.twitter) {
-          mergeTitle(target.twitter, templateStrings.twitter)
-        }
         break
       }
       case 'verification':
@@ -237,14 +218,13 @@ async function resolveStaticMetadata(components: ComponentsType) {
 export async function collectMetadata(
   loaderTree: LoaderTree,
   props: any,
-  array: MetadataItems,
-  isLeafLayout: boolean
+  array: MetadataItems
 ) {
   const mod = await getLayoutOrPageModule(loaderTree)
   const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
   const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
 
-  array.push({ metadataExport, staticFilesMetadata, isLeafLayout })
+  array.push([metadataExport, staticFilesMetadata])
 }
 
 export async function accumulateMetadata(
@@ -255,10 +235,19 @@ export async function accumulateMetadata(
   const resolvers: ((value: ResolvedMetadata) => void)[] = []
   const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
 
-  // call each `generateMetadata function concurrently and stash their resolver
+  let resolvedTitle: AbsoluteTemplateString | null = null
+  let resolvedTwitterTitle: AbsoluteTemplateString | null = null
+  let resolvedOpenGraphTitle: AbsoluteTemplateString | null = null
+
+  // Loop over all metadata items again, merging synchronously any static object exports,
+  // awaiting any static promise exports, and resolving parent metadata and awaiting any generated metadata
+
+  let resolvingIndex = 0
   for (let i = 0; i < metadataItems.length; i++) {
-    const { metadataExport } = metadataItems[i]
+    const [metadataExport, staticFilesMetadata] = metadataItems[i]
+    let metadata: Metadata | null = null
     if (typeof metadataExport === 'function') {
+      // call each `generateMetadata function concurrently and stash their resolver
       generateMetadataResults.push(
         metadataExport(
           new Promise((resolve) => {
@@ -266,18 +255,7 @@ export async function accumulateMetadata(
           })
         )
       )
-    }
-  }
 
-  // Loop over all metadata items again, merging synchronously any static object exports,
-  // awaiting any static promise exports, and resolving parent metadata and awaiting any generated
-  // metadata
-  let resolvingIndex = 0
-  for (let i = 0; i < metadataItems.length; i++) {
-    const { metadataExport, staticFilesMetadata, isLeafLayout } =
-      metadataItems[i]
-    let metadata: Metadata | null = null
-    if (typeof metadataExport === 'function') {
       const resolveParent = resolvers[resolvingIndex]
       const generatedMetadata = generateMetadataResults[resolvingIndex]
       resolvingIndex++
@@ -294,24 +272,37 @@ export async function accumulateMetadata(
 
       // This resolve should unblock the generateMetadata function if it awaited the parent
       // argument. If it didn't await the parent argument it might already have a value since it was
-      // called concurrently. Regardless we await the return value before continuing on to the next
-      // layer
+      // called concurrently. Regardless we await the return value before continuing on to the next layer
       resolveParent(currentResolvedMetadata)
-      metadata = await generatedMetadata
+      metadata =
+        generatedMetadata instanceof Promise
+          ? await generatedMetadata
+          : generatedMetadata
     } else {
       metadata = metadataExport
     }
 
     // If the layout is the same layer with page, skip the
-    if (isLeafLayout && metadata) {
-      delete metadata.title
+    if ((i === 0 || (i !== 0 && i !== metadataItems.length - 2)) && metadata) {
+      resolvedTitle = resolveTitle(metadata?.title, resolvedTitle?.template)
+      resolvedTwitterTitle = resolveTitle(
+        metadata?.twitter?.title,
+        resolvedTwitterTitle?.template
+      )
+      resolvedOpenGraphTitle = resolveTitle(
+        metadata?.openGraph?.title,
+        resolvedOpenGraphTitle?.template
+      )
     }
 
-    merge(resolvedMetadata, metadata, staticFilesMetadata, {
-      title: resolvedMetadata.title?.template || null,
-      openGraph: resolvedMetadata.openGraph?.title?.template || null,
-      twitter: resolvedMetadata.twitter?.title?.template || null,
-    })
+    merge(resolvedMetadata, metadata, staticFilesMetadata)
   }
+
+  resolvedMetadata.title = resolvedTitle
+  if (resolvedMetadata.twitter && resolvedTwitterTitle)
+    resolvedMetadata.twitter.title = resolvedTwitterTitle
+  if (resolvedMetadata.openGraph && resolvedOpenGraphTitle)
+    resolvedMetadata.openGraph.title = resolvedOpenGraphTitle
+
   return resolvedMetadata
 }
