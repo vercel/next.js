@@ -557,13 +557,16 @@ export const css = curry(async function css(
             ? 'static/css/[contenthash].css'
             : 'static/css/[name].css',
           insert: function (link) {
+            var found = false
             for (var i = 0; i < document.head.children.length; i++) {
               var current = document.head.children.item(i)
               if (current.href == link.href) {
+                found = true
                 current.insertAdjacentElement(link)
                 break
               }
             }
+            if (!found) document.head.appendChild(linkTag)
           },
           // Next.js guarantees that CSS order "doesn't matter", due to imposed
           // restrictions:
