@@ -36,5 +36,14 @@ createNextDescribe(
         edgeLightPackageExports: 'edge-light',
       })
     })
+
+    it('app-dir imports the correct module', async () => {
+      const $ = await next.render$('/app-dir')
+      const text = JSON.parse($('pre#result').text())
+      expect(text).toEqual({
+        edgeLightPackage: 'edge-light',
+        edgeLightPackageExports: 'edge-light',
+      })
+    })
   }
 )
