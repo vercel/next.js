@@ -103,40 +103,6 @@ export function setHttpClientAndAgentOptions(
   )
 }
 
-function setFontLoaderDefaults(config: NextConfigComplete) {
-  try {
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    require('@next/font/package.json')
-
-    const googleFontLoader = {
-      loader: '@next/font/google',
-    }
-    const localFontLoader = {
-      loader: '@next/font/local',
-    }
-    if (!config.experimental) {
-      config.experimental = {}
-    }
-    if (!config.experimental.fontLoaders) {
-      config.experimental.fontLoaders = []
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === googleFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(googleFontLoader)
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === localFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(localFontLoader)
-    }
-  } catch {}
-}
-
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
   oldKey: string,
@@ -300,6 +266,25 @@ function assignDefaults(
   if (typeof result.basePath !== 'string') {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`
+    )
+  }
+
+  // TODO: remove after next minor (current v13.1.1)
+  if (Array.isArray(result.experimental?.outputFileTracingIgnores)) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes) {
+      result.experimental.outputFileTracingExcludes = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes['**/*']) {
+      result.experimental.outputFileTracingExcludes['**/*'] = []
+    }
+    result.experimental.outputFileTracingExcludes['**/*'].push(
+      ...(result.experimental.outputFileTracingIgnores || [])
+    )
+    Log.warn(
+      `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
     )
   }
 
@@ -1003,7 +988,6 @@ export default async function loadConfig(
       },
       silent
     ) as NextConfigComplete
-    setFontLoaderDefaults(completeConfig)
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
@@ -1034,6 +1018,5 @@ export default async function loadConfig(
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig, silent)
-  setFontLoaderDefaults(completeConfig)
   return completeConfig
 }

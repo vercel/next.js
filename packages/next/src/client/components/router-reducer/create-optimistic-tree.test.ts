@@ -42,6 +42,9 @@ describe('createOptimisticTree', () => {
           'refetch',
         ],
       },
+      undefined,
+      undefined,
+      true,
     ])
   })
 })

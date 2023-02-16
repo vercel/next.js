@@ -438,7 +438,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.1.7-canary.12
+      '@next/eslint-plugin-next': 13.1.7-canary.16
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -510,12 +510,12 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.1.7-canary.12
-      '@next/polyfill-module': 13.1.7-canary.12
-      '@next/polyfill-nomodule': 13.1.7-canary.12
-      '@next/react-dev-overlay': 13.1.7-canary.12
-      '@next/react-refresh-utils': 13.1.7-canary.12
-      '@next/swc': 13.1.7-canary.12
+      '@next/env': 13.1.7-canary.16
+      '@next/polyfill-module': 13.1.7-canary.16
+      '@next/polyfill-nomodule': 13.1.7-canary.16
+      '@next/react-dev-overlay': 13.1.7-canary.16
+      '@next/react-refresh-utils': 13.1.7-canary.16
+      '@next/swc': 13.1.7-canary.16
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
@@ -584,7 +584,7 @@ importers:
       content-disposition: 0.5.3
       content-type: 1.0.4
       cookie: 0.4.1
-      cross-spawn: 6.0.5
+      cross-spawn: 7.0.3
       crypto-browserify: 3.12.0
       css.escape: 1.5.1
       cssnano-simple: 3.0.1
@@ -791,7 +791,7 @@ importers:
       content-disposition: 0.5.3
       content-type: 1.0.4
       cookie: 0.4.1
-      cross-spawn: 6.0.5
+      cross-spawn: 7.0.3
       crypto-browserify: 3.12.0
       css.escape: 1.5.1
       cssnano-simple: 3.0.1_postcss@8.4.14
@@ -21646,7 +21646,7 @@ packages:
       shebang-regex: 3.0.0
 
   /shebang-regex/1.0.0:
-    resolution: {integrity: sha1-2kL0l0DAtC2yypcoVxyxkMmO/qM=}
+    resolution: {integrity: sha512-wpoSFAxys6b2a2wHZ1XpDSgD7N9iVjg29Ph9uV/uaP9Ex/KXlkTZTeddxDPSYQpgvzKLGJke2UU0AzoGCjNIvQ==}
     engines: {node: '>=0.10.0'}
     dev: true
 
