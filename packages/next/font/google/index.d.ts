@@ -1,1 +1,1 @@
-export * from '@next/font/dist/google'
+export * from 'next/dist/compiled/@next/font/dist/google'
