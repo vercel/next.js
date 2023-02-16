@@ -1,11 +1,11 @@
-import localFont from '@next/font/local'
+import localFont from 'next/font/local'
 import {
   Open_Sans,
   Source_Code_Pro,
   Abel,
   Inter,
   Roboto,
-} from '@next/font/google'
+} from 'next/font/google'
 
 const openSans = Open_Sans()
 const sourceCodePro = Source_Code_Pro({ display: 'swap', preload: false })

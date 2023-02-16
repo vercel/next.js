@@ -489,6 +489,33 @@ export async function ncc_next__react_dev_overlay(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_next_font(task, opts) {
+  // `@next/font` can be copied as is, its only dependency is already NCCed
+  const destDir = join(__dirname, 'dist/compiled/@next/font')
+  const pkgPath = require.resolve('@next/font/package.json')
+  const pkg = await fs.readJson(pkgPath)
+  const srcDir = dirname(pkgPath)
+  await fs.remove(destDir)
+  await fs.ensureDir(destDir)
+
+  const files = glob.sync('{dist,google,local}/**/*.{js,json,d.ts}', {
+    cwd: srcDir,
+  })
+
+  for (const file of files) {
+    const outputFile = join(destDir, file)
+    await fs.ensureDir(dirname(outputFile))
+    await fs.copyFile(join(srcDir, file), outputFile)
+  }
+
+  await fs.outputJson(join(destDir, 'package.json'), {
+    name: '@next/font',
+    license: pkg.license,
+    types: pkg.types,
+  })
+}
+
+// eslint-disable-next-line camelcase
 externals['watchpack'] = 'next/dist/compiled/watchpack'
 export async function ncc_watchpack(task, opts) {
   await task
@@ -2151,6 +2178,7 @@ export async function compile(task, opts) {
   await task.serial([
     'ncc_react_refresh_utils',
     'ncc_next__react_dev_overlay',
+    'ncc_next_font',
     'ncc_next_server',
   ])
 }
