@@ -61,6 +61,7 @@ use self::{json::UnparseableJson, mutex_map::MutexMap};
 #[cfg(target_family = "windows")]
 use crate::util::is_windows_raw_path;
 use crate::{
+    attach::AttachedFileSystemVc,
     retry::{retry_blocking, retry_future},
     rope::{Rope, RopeReadRef, RopeReader},
 };
@@ -1666,12 +1667,20 @@ impl ValueToString for NullFileSystem {
     }
 }
 
-pub async fn to_sys_path(path: FileSystemPathVc) -> Result<Option<PathBuf>> {
-    if let Some(fs) = DiskFileSystemVc::resolve_from(path.fs()).await? {
-        let sys_path = fs.await?.to_sys_path(path).await?;
-        return Ok(Some(sys_path));
+pub async fn to_sys_path(mut path: FileSystemPathVc) -> Result<Option<PathBuf>> {
+    loop {
+        if let Some(fs) = AttachedFileSystemVc::resolve_from(path.fs()).await? {
+            path = fs.get_inner_fs_path(path);
+            continue;
+        }
+
+        if let Some(fs) = DiskFileSystemVc::resolve_from(path.fs()).await? {
+            let sys_path = fs.await?.to_sys_path(path).await?;
+            return Ok(Some(sys_path));
+        }
+
+        return Ok(None);
     }
-    Ok(None)
 }
 
 pub fn register() {

@@ -438,6 +438,7 @@ async fn create_app_source_for_directory(
         let params_matcher = NextParamsMatcherVc::new(pathname);
 
         sources.push(create_node_rendered_source(
+            project_path,
             specificity,
             server_root,
             params_matcher.into(),

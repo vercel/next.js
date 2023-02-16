@@ -8,7 +8,7 @@ use std::{
     path::PathBuf,
 };
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use futures::{stream::FuturesUnordered, TryStreamExt};
 use indexmap::IndexSet;
 pub use node_entry::{
@@ -16,7 +16,7 @@ pub use node_entry::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{CompletionVc, CompletionsVc, TryJoinIterExt};
+use turbo_tasks::{CompletionVc, CompletionsVc, TryJoinIterExt, ValueToString};
 use turbo_tasks_fs::{to_sys_path, File, FileContent, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsSetVc},
@@ -182,6 +182,7 @@ async fn separate_assets(
 /// Creates a node.js renderer pool for an entrypoint.
 #[turbo_tasks::function]
 pub async fn get_renderer_pool(
+    cwd: FileSystemPathVc,
     intermediate_asset: AssetVc,
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
@@ -205,16 +206,16 @@ pub async fn get_renderer_pool(
 
     emit(intermediate_asset, output_root).await?;
 
-    let cwd = output_root;
     let entrypoint = intermediate_output_path.join("index.js");
 
-    if let (Some(cwd), Some(entrypoint)) = (to_sys_path(cwd).await?, to_sys_path(entrypoint).await?)
-    {
-        let pool = NodeJsPool::new(cwd, entrypoint, HashMap::new(), 4, debug);
-        Ok(pool.cell())
-    } else {
-        Err(anyhow!("can only render from a disk filesystem"))
-    }
+    let Some(cwd) = to_sys_path(cwd).await? else {
+        bail!("can only render from a disk filesystem, but `cwd = {}`", cwd.fs().to_string().await?);
+    };
+    let Some(entrypoint) = to_sys_path(entrypoint).await? else {
+        bail!("can only render from a disk filesystem, but `entrypoint = {}`", entrypoint.fs().to_string().await?);
+    };
+
+    Ok(NodeJsPool::new(cwd, entrypoint, HashMap::new(), 4, debug).cell())
 }
 
 /// Converts a module graph into node.js executable assets
