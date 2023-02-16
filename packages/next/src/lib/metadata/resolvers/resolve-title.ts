@@ -16,7 +16,7 @@ export function resolveTitle(
   const template =
     typeof title !== 'string' && title && 'template' in title
       ? title.template
-      : stashedTemplate || null
+      : null
 
   if (typeof title === 'string') {
     resolved = resolveTitleTemplate(stashedTemplate, title)

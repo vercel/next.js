@@ -93,13 +93,18 @@ createNextDescribe(
 
       it('should use parent layout title when no title is defined in page', async () => {
         const browser = await next.browser('/title-template/use-layout-title')
-        expect(await browser.eval(`document.title`)).toBe('Layout title')
+        expect(await browser.eval(`document.title`)).toBe(
+          'title template layout default'
+        )
       })
 
       it('should support stashed title in two layers of page and layout', async () => {
-        const browser = await next.browser('/title-template/extra/inner')
-        expect(await browser.eval(`document.title`)).toBe(
-          'Inner Page | Extra Layout'
+        const $inner = await next.render$('/title-template/extra/inner')
+        expect(await $inner('title').text()).toBe('Inner Page | Extra Layout')
+
+        const $deep = await next.render$('/title-template/extra/inner/deep')
+        expect(await $deep('title').text()).toBe(
+          'extra layout default | Layout'
         )
       })
 

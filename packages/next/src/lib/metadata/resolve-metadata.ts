@@ -75,23 +75,45 @@ function mergeStaticMetadata(
 function merge(
   target: ResolvedMetadata,
   source: Metadata | null,
-  staticFilesMetadata: StaticMetadata
+  staticFilesMetadata: StaticMetadata,
+  titleTemplates: {
+    title: string | null
+    twitter: string | null
+    openGraph: string | null
+  }
 ) {
   const metadataBase = source?.metadataBase || null
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
     switch (key) {
+      case 'title': {
+        target.title = resolveTitle(source.title, titleTemplates.title)
+        break
+      }
       case 'alternates': {
         target.alternates = resolveAlternates(source.alternates, metadataBase)
         break
       }
       case 'openGraph': {
+        if (target.openGraph) console.log('override')
         target.openGraph = resolveOpenGraph(source.openGraph, metadataBase)
+        if (target.openGraph) {
+          target.openGraph.title = resolveTitle(
+            target.openGraph.title,
+            titleTemplates.openGraph
+          )
+        }
         break
       }
       case 'twitter': {
         target.twitter = resolveTwitter(source.twitter, metadataBase)
+        if (target.twitter) {
+          target.twitter.title = resolveTitle(
+            target.twitter.title,
+            titleTemplates.twitter
+          )
+        }
         break
       }
       case 'verification':
@@ -235,9 +257,15 @@ export async function accumulateMetadata(
   const resolvers: ((value: ResolvedMetadata) => void)[] = []
   const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
 
-  let resolvedTitle: AbsoluteTemplateString | null = null
-  let resolvedTwitterTitle: AbsoluteTemplateString | null = null
-  let resolvedOpenGraphTitle: AbsoluteTemplateString | null = null
+  let titleTemplates: {
+    title: string | null
+    twitter: string | null
+    openGraph: string | null
+  } = {
+    title: null,
+    twitter: null,
+    openGraph: null,
+  }
 
   // Loop over all metadata items again, merging synchronously any static object exports,
   // awaiting any static promise exports, and resolving parent metadata and awaiting any generated metadata
@@ -247,18 +275,25 @@ export async function accumulateMetadata(
     const [metadataExport, staticFilesMetadata] = metadataItems[i]
     let metadata: Metadata | null = null
     if (typeof metadataExport === 'function') {
-      // call each `generateMetadata function concurrently and stash their resolver
-      generateMetadataResults.push(
-        metadataExport(
-          new Promise((resolve) => {
-            resolvers.push(resolve)
-          })
-        )
-      )
+      if (!resolvers.length) {
+        for (let j = i; j < metadataItems.length; j++) {
+          const [preloadMetadataExport] = metadataItems[j]
+          // call each `generateMetadata function concurrently and stash their resolver
+          if (typeof preloadMetadataExport === 'function') {
+            generateMetadataResults.push(
+              preloadMetadataExport(
+                new Promise((resolve) => {
+                  resolvers.push(resolve)
+                })
+              )
+            )
+          }
+        }
+      }
 
       const resolveParent = resolvers[resolvingIndex]
-      const generatedMetadata = generateMetadataResults[resolvingIndex]
-      resolvingIndex++
+      const generatedMetadata = generateMetadataResults[resolvingIndex++]
+
       // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
       // In prod we just pass resolvedMetadata through without any copying.
       const currentResolvedMetadata: ResolvedMetadata =
@@ -278,31 +313,23 @@ export async function accumulateMetadata(
         generatedMetadata instanceof Promise
           ? await generatedMetadata
           : generatedMetadata
-    } else {
+    } else if (metadataExport !== null && typeof metadataExport === 'object') {
+      // This metadataExport is the object form
       metadata = metadataExport
     }
 
-    // If the layout is the same layer with page, skip the
-    if ((i === 0 || (i !== 0 && i !== metadataItems.length - 2)) && metadata) {
-      resolvedTitle = resolveTitle(metadata?.title, resolvedTitle?.template)
-      resolvedTwitterTitle = resolveTitle(
-        metadata?.twitter?.title,
-        resolvedTwitterTitle?.template
-      )
-      resolvedOpenGraphTitle = resolveTitle(
-        metadata?.openGraph?.title,
-        resolvedOpenGraphTitle?.template
-      )
+    merge(resolvedMetadata, metadata, staticFilesMetadata, titleTemplates)
+
+    // If the layout is the same layer with page, skip the leaf layout and leaf page
+    // The leaf layout and page are the last two items
+    if (i < metadataItems.length - 2) {
+      titleTemplates = {
+        title: resolvedMetadata.title?.template || null,
+        openGraph: resolvedMetadata.openGraph?.title?.template || null,
+        twitter: resolvedMetadata.twitter?.title?.template || null,
+      }
     }
-
-    merge(resolvedMetadata, metadata, staticFilesMetadata)
   }
-
-  resolvedMetadata.title = resolvedTitle
-  if (resolvedMetadata.twitter && resolvedTwitterTitle)
-    resolvedMetadata.twitter.title = resolvedTwitterTitle
-  if (resolvedMetadata.openGraph && resolvedOpenGraphTitle)
-    resolvedMetadata.openGraph.title = resolvedOpenGraphTitle
 
   return resolvedMetadata
 }
