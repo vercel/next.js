@@ -35,7 +35,7 @@ function injectAmp(j, o, desiredAmpValue) {
 }
 
 export default function transformer(file, api) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
   const done = () => root.toSource()
 

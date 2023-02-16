@@ -84,7 +84,7 @@ function turnUrlIntoRouter(j, tree) {
 
 export default function transformer(file, api) {
   // j is just a shorthand for the jscodeshift api
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   // this is the AST root on which we can call methods like `.find`
   const root = j(file.source)
 
