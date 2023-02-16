@@ -52,7 +52,9 @@ async function runEdgeFunction({
 }): Promise<FetchEventResult | null> {
   const edgeInfo = {
     name: "edge",
-    paths: chunkGroup.map((chunk: string) => join(process.cwd(), chunk)),
+    paths: chunkGroup.map((chunk: string) =>
+      join(process.cwd(), ".next/server/pages", chunk)
+    ),
     wasm: [],
     env: [],
     assets: [],
@@ -77,7 +79,7 @@ async function runEdgeFunction({
 
   const { run } = require("next/dist/server/web/sandbox");
   const result = (await run({
-    distDir: process.cwd(),
+    distDir: join(process.cwd(), ".next/server/pages"),
     name: edgeInfo.name,
     paths: edgeInfo.paths,
     env: edgeInfo.env,

@@ -44,6 +44,7 @@ use crate::{
 /// to this directory.
 #[turbo_tasks::function]
 pub fn create_node_rendered_source(
+    cwd: FileSystemPathVc,
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     route_match: RouteMatcherVc,
@@ -53,6 +54,7 @@ pub fn create_node_rendered_source(
     fallback_page: DevHtmlAssetVc,
 ) -> ContentSourceVc {
     let source = NodeRenderContentSource {
+        cwd,
         specificity,
         server_root,
         route_match,
@@ -76,6 +78,7 @@ pub fn create_node_rendered_source(
 /// see [create_node_rendered_source]
 #[turbo_tasks::value]
 pub struct NodeRenderContentSource {
+    cwd: FileSystemPathVc,
     specificity: SpecificityVc,
     server_root: FileSystemPathVc,
     route_match: RouteMatcherVc,
@@ -185,8 +188,8 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
 
     #[turbo_tasks::function]
     async fn get(&self, data: Value<ContentSourceData>) -> Result<ContentSourceContentVc> {
-        let this = self.source.await?;
-        let Some(params) = &*this.route_match.params(&self.path).await? else {
+        let source = self.source.await?;
+        let Some(params) = &*source.route_match.params(&self.path).await? else {
             return Err(anyhow!("Non matching path provided"));
         };
         let ContentSourceData {
@@ -198,12 +201,13 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
         } = &*data else {
             return Err(anyhow!("Missing request data"));
         };
-        let entry = this.entry.entry(data.clone()).await?;
+        let entry = source.entry.entry(data.clone()).await?;
         let result = render_static(
-            this.server_root.join(&self.path),
+            source.cwd,
+            source.server_root.join(&self.path),
             entry.module,
-            this.runtime_entries,
-            this.fallback_page,
+            source.runtime_entries,
+            source.fallback_page,
             entry.chunking_context,
             entry.intermediate_output_path,
             entry.output_root,
@@ -213,7 +217,7 @@ impl GetContentSourceContent for NodeRenderGetContentResult {
                 url: url.clone(),
                 raw_query: raw_query.clone(),
                 raw_headers: raw_headers.clone(),
-                path: format!("/{}", this.pathname.await?),
+                path: format!("/{}", source.pathname.await?),
             }
             .cell(),
         );

@@ -14,6 +14,7 @@ use crate::{get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation, tr
 /// Renders a module as static HTML in a node.js process.
 #[turbo_tasks::function]
 pub async fn render_proxy(
+    cwd: FileSystemPathVc,
     path: FileSystemPathVc,
     module: EcmascriptModuleAssetVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
@@ -27,13 +28,16 @@ pub async fn render_proxy(
         module.as_evaluated_chunk(chunking_context, Some(runtime_entries)),
         intermediate_output_path,
     );
-    let renderer_pool = get_renderer_pool(
+
+    let pool = get_renderer_pool(
+        cwd,
         intermediate_asset,
         intermediate_output_path,
         output_root,
         /* debug */ false,
-    );
-    let pool = renderer_pool.await?;
+    )
+    .await?;
+
     let mut operation = match pool.operation().await {
         Ok(operation) => operation,
         Err(err) => {
