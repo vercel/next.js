@@ -83,9 +83,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
 
     // Iterate over the development matches to see if one of them match the
     // request path.
-    console.log('matchAll', pathname, options)
     for await (const development of super.matchAll(pathname, options)) {
-      console.log('matched in development', development)
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
       await this.ensurer.ensure(development)
@@ -97,7 +95,6 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
         pathname,
         options
       )) {
-        console.log('matched in production', production)
         yield production
       }
     }

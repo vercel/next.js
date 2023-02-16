@@ -440,7 +440,6 @@ export function onDemandEntryHandler({
   ) {
     const pagePaths: EntryKey[] = []
     for (const entrypoint of entrypoints.values()) {
-      console.log('entry point', entrypoint)
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
         pagePaths.push(
@@ -646,8 +645,6 @@ export function onDemandEntryHandler({
           match
         )
 
-        console.log('pagePathData', pagePathData)
-
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
@@ -706,7 +703,6 @@ export function onDemandEntryHandler({
           isDev: true,
           pageType: isInsideAppDir ? 'app' : 'pages',
         })
-        console.log('staticInfo', staticInfo)
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
         const isServerComponent =
@@ -754,7 +750,6 @@ export function onDemandEntryHandler({
         })
 
         const addedValues = [...added.values()]
-        console.log('addedValues', addedValues)
         const entriesThatShouldBeInvalidated = addedValues.filter(
           (entry) => entry.shouldInvalidate
         )
