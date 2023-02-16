@@ -99,6 +99,10 @@ pub struct EcmascriptModuleAsset {
     pub inner_assets: Option<InnerAssetsVc>,
 }
 
+/// An optional [EcmascriptModuleAsset]
+#[turbo_tasks::value(transparent)]
+pub struct OptionEcmascriptModuleAsset(Option<EcmascriptModuleAssetVc>);
+
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleAssetVc {
     #[turbo_tasks::function]
