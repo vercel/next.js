@@ -1648,6 +1648,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
+        'next-edge-app-route-loader',
         'next-edge-ssr-loader',
         'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
@@ -1995,7 +1996,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /node_modules\/client-only\/error.js/,
+          test: /node_modules[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.server,
           options: {
@@ -2004,7 +2005,7 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
-          test: /node_modules\/server-only\/index.js/,
+          test: /node_modules[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.client,
           options: {

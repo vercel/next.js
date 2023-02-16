@@ -312,6 +312,15 @@ createNextDescribe(
       })
     })
 
+    describe('edge functions', () => {
+      it('returns response using edge runtime', async () => {
+        const res = await next.fetch('/edge')
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toContain('hello, world')
+      })
+    })
+
     if (isNextDev) {
       describe('lowercase exports', () => {
         it.each([
