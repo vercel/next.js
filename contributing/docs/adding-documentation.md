@@ -29,11 +29,11 @@ After:
          "permanent": false,
          "destination": "/new"
       }
-   }
+   },
    {
       "path": "/docs/new.md",
       "title": "Hello world"
-   },
+   }
 ]
 ```
 
