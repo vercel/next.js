@@ -79,7 +79,6 @@ export const projectSpecification: ProjectSpecification = {
       devDeps: [],
       files: [
         'app/page.tsx',
-        'app/head.tsx',
         'app/layout.tsx',
         'app/api/hello/route.ts',
         'tsconfig.json',
