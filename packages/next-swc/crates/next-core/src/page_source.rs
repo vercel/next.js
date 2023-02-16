@@ -300,7 +300,7 @@ pub async fn create_page_source(
 /// Handles a single page file in the pages directory
 #[turbo_tasks::function]
 async fn create_page_source_for_file(
-    context_path: FileSystemPathVc,
+    project_path: FileSystemPathVc,
     server_context: AssetContextVc,
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
@@ -325,7 +325,7 @@ async fn create_page_source_for_file(
     );
 
     let server_chunking_context = DevChunkingContextVc::builder(
-        context_path,
+        project_path,
         intermediate_output_path,
         intermediate_output_path.join("chunks"),
         get_client_assets_path(
@@ -339,7 +339,7 @@ async fn create_page_source_for_file(
     let data_intermediate_output_path = intermediate_output_path.join("data");
 
     let server_data_chunking_context = DevChunkingContextVc::builder(
-        context_path,
+        project_path,
         data_intermediate_output_path,
         data_intermediate_output_path.join("chunks"),
         get_client_assets_path(
@@ -351,7 +351,7 @@ async fn create_page_source_for_file(
     .build();
 
     let client_chunking_context = get_client_chunking_context(
-        context_path,
+        project_path,
         server_root,
         client_context.compile_time_info().environment(),
         Value::new(ClientContextType::Pages { pages_dir }),
@@ -369,6 +369,7 @@ async fn create_page_source_for_file(
             SsrType::Api
         };
         create_node_api_source(
+            project_path,
             specificity,
             server_root,
             pathname,
@@ -413,6 +414,7 @@ async fn create_page_source_for_file(
 
         CombinedContentSourceVc::new(vec![
             create_node_rendered_source(
+                project_path,
                 specificity,
                 server_root,
                 route_matcher.into(),
@@ -422,6 +424,7 @@ async fn create_page_source_for_file(
                 fallback_page,
             ),
             create_node_rendered_source(
+                project_path,
                 specificity,
                 server_root,
                 data_route_matcher.into(),
@@ -459,7 +462,7 @@ async fn get_not_found_page(
 /// Handles a single page file in the pages directory
 #[turbo_tasks::function]
 async fn create_not_found_page_source(
-    context_path: FileSystemPathVc,
+    project_path: FileSystemPathVc,
     server_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
@@ -472,7 +475,7 @@ async fn create_not_found_page_source(
     route_matcher: RouteMatcherVc,
 ) -> Result<ContentSourceVc> {
     let server_chunking_context = DevChunkingContextVc::builder(
-        context_path,
+        project_path,
         intermediate_output_path,
         intermediate_output_path.join("chunks"),
         get_client_assets_path(
@@ -484,7 +487,7 @@ async fn create_not_found_page_source(
     .build();
 
     let client_chunking_context = get_client_chunking_context(
-        context_path,
+        project_path,
         server_root,
         client_context.compile_time_info().environment(),
         Value::new(ClientContextType::Pages { pages_dir }),
@@ -499,7 +502,7 @@ async fn create_not_found_page_source(
                 // The error page asset must be within the context path so it can depend on the
                 // Next.js module.
                 next_asset(
-                    attached_next_js_package_path(context_path).join("entry/error.tsx"),
+                    attached_next_js_package_path(project_path).join("entry/error.tsx"),
                     "entry/error.tsx",
                 ),
                 // If no 404 page is defined, the pathname should be _error.
@@ -533,6 +536,7 @@ async fn create_not_found_page_source(
 
     Ok(CombinedContentSourceVc::new(vec![
         create_node_rendered_source(
+            project_path,
             specificity,
             server_root,
             route_matcher,
@@ -551,7 +555,7 @@ async fn create_not_found_page_source(
 /// [create_page_source_for_file] method for files.
 #[turbo_tasks::function]
 async fn create_page_source_for_directory(
-    context_path: FileSystemPathVc,
+    project_path: FileSystemPathVc,
     server_context: AssetContextVc,
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
@@ -600,7 +604,7 @@ async fn create_page_source_for_directory(
                             sources.push((
                                 name,
                                 create_page_source_for_file(
-                                    context_path,
+                                    project_path,
                                     server_context,
                                     server_data_context,
                                     client_context,
@@ -623,7 +627,7 @@ async fn create_page_source_for_directory(
                     sources.push((
                         name,
                         create_page_source_for_directory(
-                            context_path,
+                            project_path,
                             server_context,
                             server_data_context,
                             client_context,
