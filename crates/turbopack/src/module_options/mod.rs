@@ -144,7 +144,7 @@ impl ModuleOptionsVc {
                         };
                         Some(ModuleRuleEffect::SourceTransforms(
                             SourceTransformsVc::cell(vec![PostCssTransformVc::new(
-                                node_evaluate_asset_context(Some(import_map)),
+                                node_evaluate_asset_context(Some(import_map), None),
                                 execution_context,
                             )
                             .into()]),
@@ -253,7 +253,7 @@ impl ModuleOptionsVc {
                         ModuleRuleEffect::ModuleType(ModuleType::Ecmascript(app_transforms)),
                         ModuleRuleEffect::SourceTransforms(SourceTransformsVc::cell(vec![
                             WebpackLoadersVc::new(
-                                node_evaluate_asset_context(None),
+                                node_evaluate_asset_context(None, None),
                                 execution_context,
                                 *loaders,
                             )

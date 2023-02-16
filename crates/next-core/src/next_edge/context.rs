@@ -16,13 +16,16 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-pub fn get_edge_compile_time_info(server_addr: ServerAddrVc) -> CompileTimeInfoVc {
+pub fn get_edge_compile_time_info(
+    server_addr: ServerAddrVc,
+    intention: Value<EnvironmentIntention>,
+) -> CompileTimeInfoVc {
     CompileTimeInfo {
         environment: EnvironmentVc::new(
             Value::new(ExecutionEnvironment::EdgeWorker(
                 EdgeWorkerEnvironment { server_addr }.into(),
             )),
-            Value::new(EnvironmentIntention::Api),
+            intention,
         ),
     }
     .cell()

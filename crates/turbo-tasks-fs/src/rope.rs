@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     cmp::min,
-    fmt::Debug,
+    fmt,
     io::{self, BufRead, Read, Result as IoResult, Write},
     mem,
     ops::{AddAssign, Deref},
@@ -54,7 +54,7 @@ enum RopeElem {
 /// RopeBuilder provides a mutable container to append bytes/strings. This can
 /// also append _other_ Rope instances cheaply, allowing efficient sharing of
 /// the contents without a full clone of the bytes.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RopeBuilder {
     /// Total length of all previously committed bytes.
     length: usize,
@@ -302,6 +302,22 @@ impl Uncommitted {
             Self::None => None,
             Self::Static(s) => Some(s.into()),
             Self::Owned(v) => Some(v.into()),
+        }
+    }
+}
+
+impl fmt::Debug for Uncommitted {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Uncommitted::None => f.write_str("None"),
+            Uncommitted::Static(s) => f
+                .debug_tuple("Static")
+                .field(&Bytes::from_static(s))
+                .finish(),
+            Uncommitted::Owned(v) => f
+                .debug_tuple("Owned")
+                .field(&Bytes::from(v.clone()))
+                .finish(),
         }
     }
 }
