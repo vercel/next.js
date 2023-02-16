@@ -908,7 +908,7 @@ export default async function getBaseWebpackConfig(
   const reactDir = path.dirname(require.resolve('react/package.json'))
   const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
 
-  const resolveConfig = {
+  const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
       ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
@@ -1227,7 +1227,8 @@ export default async function getBaseWebpackConfig(
       isEsmRequested,
       hasAppDir,
       getResolve,
-      isLocal ? isLocalCallback : undefined
+      isLocal ? isLocalCallback : undefined,
+      undefined
     )
 
     if ('localRes' in resolveResult) {
@@ -1850,6 +1851,10 @@ export default async function getBaseWebpackConfig(
               ...codeCondition,
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: defaultLoaders.babel,
+              resolve: {
+                conditionNames: ['edge-light', 'import', 'node'],
+                exportsFields: ['exports'],
+              } as webpack.Configuration['resolve'],
             },
             ...(hasServerComponents
               ? [
