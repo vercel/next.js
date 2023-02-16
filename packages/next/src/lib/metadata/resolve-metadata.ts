@@ -3,7 +3,6 @@ import type {
   ResolvedMetadata,
   ResolvingMetadata,
 } from './types/metadata-interface'
-import type { AbsoluteTemplateString } from './types/metadata-types'
 import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
