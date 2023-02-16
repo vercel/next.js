@@ -1021,6 +1021,7 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
+    ...(isEdgeServer && { conditionNames: ['edge-light', 'import', 'node'] }),
     plugins: [],
   }
 
@@ -1850,10 +1851,6 @@ export default async function getBaseWebpackConfig(
               ...codeCondition,
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: defaultLoaders.babel,
-              resolve: {
-                conditionNames: ['edge-light', 'import', 'node'],
-                exportsFields: ['exports'],
-              } as webpack.Configuration['resolve'],
             },
             ...(hasServerComponents
               ? [

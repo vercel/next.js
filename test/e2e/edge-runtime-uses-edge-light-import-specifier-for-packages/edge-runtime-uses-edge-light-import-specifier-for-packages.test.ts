@@ -19,10 +19,19 @@ createNextDescribe(
   },
   ({ next }) => {
     // In case you need to test the response object
-    it('should work with fetch', async () => {
+    it('pages/api endpoints import the correct module', async () => {
       const res = await next.fetch('/api/edge')
       const html = await res.json()
       expect(html).toEqual({
+        edgeLightPackage: 'edge-light',
+        edgeLightPackageExports: 'edge-light',
+      })
+    })
+
+    it('pages import the correct module', async () => {
+      const $ = await next.render$('/')
+      const text = JSON.parse($('pre#result').text())
+      expect(text).toEqual({
         edgeLightPackage: 'edge-light',
         edgeLightPackageExports: 'edge-light',
       })
