@@ -1,3 +1,4 @@
+// TODO: do we need to rename for telemetry?
 import { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin'
 import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin'
 

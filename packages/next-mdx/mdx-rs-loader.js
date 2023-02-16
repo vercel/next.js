@@ -128,7 +128,7 @@ function createFormatAwareProcessors(bindings, compileOptions = {}) {
 
 module.exports = function (code) {
   const callback = this.async()
-  const { loadBindings } = require('next/dist/build/swc')
+  const { loadBindings } = require('next/dist/build/next.rs')
 
   loadBindings().then((bindings) => {
     return loader.call(this, code, bindings, callback)

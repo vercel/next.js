@@ -23,8 +23,6 @@ const CHANGE_ITEM_GROUPS = {
     'packages/eslint-plugin-next/README.md',
     'packages/next-codemod/license.md',
     'packages/next-codemod/README.md',
-    'packages/next-swc/crates/wasm/README.md',
-    'packages/next-swc/README.md',
     'packages/next-bundle-analyzer/readme.md',
     'packages/next-mdx/license.md',
     'packages/next-mdx/readme.md',
@@ -35,8 +33,8 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next-env/README.md',
   ],
   cna: ['packages/create-next-app', 'test/integration/create-next-app'],
+  // TODO: can this be removed?
   'next-swc': [
-    'packages/next-swc',
     'scripts/normalize-version-bump.js',
     'test/integration/create-next-app',
   ],

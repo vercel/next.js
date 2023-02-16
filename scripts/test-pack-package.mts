@@ -43,6 +43,7 @@ const main = async () => {
     delete packageJson.scripts.prepublishOnly
   }
 
+  // TODO: figure out what changes are needed
   // @next/swc is devDependency in next, but we want to include it anyway
   if (currentPkgDirname === 'next') {
     dependencies['@next/swc'] = '*'

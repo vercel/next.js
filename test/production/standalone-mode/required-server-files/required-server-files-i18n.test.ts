@@ -26,8 +26,8 @@ describe('should set-up next', () => {
     let wasmPkgIsAvailable = false
 
     const res = await nodeFetch(
-      `https://registry.npmjs.com/@next/swc-wasm-nodejs/-/swc-wasm-nodejs-${
-        require('next/package.json').version
+      `https://registry.npmjs.com/@next/rs-wasm-nodejs/-/rs-wasm-nodejs-${
+        require('next/package.json').dependencies['@next/rs']
       }.tgz`,
       {
         method: 'HEAD',
@@ -48,7 +48,7 @@ describe('should set-up next', () => {
       packageJson: {
         scripts: {
           build: wasmPkgIsAvailable
-            ? 'rm -rfv node_modules/@next/swc && yarn next build'
+            ? 'rm -rfv node_modules/@next/rs && yarn next build'
             : 'yarn next build',
         },
       },

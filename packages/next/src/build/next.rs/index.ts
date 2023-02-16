@@ -7,6 +7,7 @@ import * as Log from '../output/log'
 import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
+// TODO: rename file
 import { downloadWasmNextRs } from '../../lib/download-wasm-swc'
 import { loadNative, loadWasm } from '@next/rs'
 

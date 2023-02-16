@@ -1,3 +1,4 @@
+// TODO: update this script to use @next/rs
 import path from 'path'
 import { readFile, writeFile } from 'fs/promises'
 import { copy, pathExists } from 'fs-extra'

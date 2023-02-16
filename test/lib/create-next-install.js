@@ -32,6 +32,7 @@ async function createNextInstall({
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
+      // TODO: is this still needed?
       await rootSpan.traceChild('ensure swc binary').traceAsyncFn(async () => {
         // ensure swc binary is present in the native folder if
         // not already built
