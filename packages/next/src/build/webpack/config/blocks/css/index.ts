@@ -180,6 +180,12 @@ export const css = curry(async function css(
 
   const fns: ConfigurationFn[] = []
 
+  const googleLoader = require.resolve(
+    'next/dist/compiled/@next/font/google/loader'
+  )
+  const localLoader = require.resolve(
+    'next/dist/compiled/@next/font/local/loader'
+  )
   const googleLoaderOptions =
     ctx.experimental?.fontLoaders?.find(
       (loaderConfig) => loaderConfig.loader === '@next/font/google'
@@ -187,18 +193,18 @@ export const css = curry(async function css(
   const fontLoaders: Array<[string | RegExp, string, any?]> = [
     [
       require.resolve('next/font/google/target.css'),
-      '@next/font/google/loader',
+      googleLoader,
       googleLoaderOptions,
     ],
-    [require.resolve('next/font/local/target.css'), '@next/font/local/loader'],
+    [require.resolve('next/font/local/target.css'), localLoader],
 
     // TODO: remove this in the next major version
     [
-      /node_modules\/@next\/font\/google\/target.css/,
-      '@next/font/google/loader',
+      /node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/,
+      googleLoader,
       googleLoaderOptions,
     ],
-    [/node_modules\/@next\/font\/local\/target.css/, '@next/font/local/loader'],
+    [/node_modules[\\/]@next[\\/]font[\\/]local[\\/]target.css/, localLoader],
   ]
 
   fontLoaders.forEach(
