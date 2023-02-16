@@ -250,43 +250,59 @@ export async function accumulateMetadata(
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
 
-  const promises: Promise<ResolvedMetadata>[] = [
-    Promise.resolve(resolvedMetadata),
-  ]
-  for (const item of metadataItems) {
-    const [metadataExport, staticFilesMetadata] = item
+  const resolvers: ((value: ResolvedMetadata) => void)[] = []
+  const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
 
-    // Freeze the parent metadata to avoid accidental mutation to it
-    const lastPromise = promises[promises.length - 1]
-    let resolvingMetadata = lastPromise
-    if (process.env.NODE_ENV === 'development') {
-      const deepClone =
-        require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone
-      resolvingMetadata = lastPromise.then((resolved) =>
-        Object.freeze(deepClone(resolved))
+  // call each `generateMetadata function concurrently and stash their resolver
+  for (let i = 0; i < metadataItems.length; i++) {
+    const [metadataExport] = metadataItems[i]
+    if (typeof metadataExport === 'function') {
+      generateMetadataResults.push(
+        metadataExport(
+          new Promise((resolve) => {
+            resolvers.push(resolve)
+          })
+        )
       )
     }
-
-    const currentMetadata =
-      typeof metadataExport === 'function'
-        ? metadataExport(resolvingMetadata)
-        : metadataExport
-    const layerMetadataPromise =
-      currentMetadata instanceof Promise
-        ? currentMetadata
-        : Promise.resolve(currentMetadata)
-
-    const promise = layerMetadataPromise.then((metadata) => {
-      merge(resolvedMetadata, metadata, staticFilesMetadata, {
-        title: resolvedMetadata.title?.template || null,
-        openGraph: resolvedMetadata.openGraph?.title?.template || null,
-        twitter: resolvedMetadata.twitter?.title?.template || null,
-      })
-      return resolvedMetadata
-    })
-    promises.push(promise)
   }
+  Promise.resolve
+  // Loop over all metadata items again, merging synchronously any static object exports,
+  // awaiting any static promise exports, and resolving parent metadata and awaiting any generated
+  // metadata
+  let resolvingIndex = 0
+  for (let i = 0; i < metadataItems.length; i++) {
+    const [metadataExport, staticFilesMetadata] = metadataItems[i]
+    let metadata: Metadata | null = null
+    if (typeof metadataExport === 'function') {
+      const resolveParent = resolvers[resolvingIndex]
+      const generatedMetadata = generateMetadataResults[resolvingIndex]
+      resolvingIndex++
+      // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
+      // In prod we just pass resolvedMetadata through without any copying.
+      const currentResolvedMetadata: ResolvedMetadata =
+        process.env.NODE_ENV === 'development'
+          ? Object.freeze(
+              require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone(
+                resolvedMetadata
+              )
+            )
+          : resolvedMetadata
 
-  await Promise.all(promises)
+      // This resolve should unblock the generateMetadata function if it awaited the parent
+      // argument. If it didn't await the parent argument it might already have a value since it was
+      // called concurrently. Regardless we await the return value before continuing on to the next
+      // layer
+      resolveParent(currentResolvedMetadata)
+      metadata = await generatedMetadata
+    } else {
+      metadata = metadataExport
+    }
+    merge(resolvedMetadata, metadata, staticFilesMetadata, {
+      title: resolvedMetadata.title?.template || null,
+      openGraph: resolvedMetadata.openGraph?.title?.template || null,
+      twitter: resolvedMetadata.twitter?.title?.template || null,
+    })
+  }
   return resolvedMetadata
 }
