@@ -1248,16 +1248,25 @@ export default async function getBaseWebpackConfig(
       // We tried to bundle this request in the server layer but it failed.
       // In this case we need to display a helpful error message for people to
       // add the package to the `serverComponentsExternalPackages` config.
-      if (layer === WEBPACK_LAYERS.server) {
+      if (layer === WEBPACK_LAYERS.server && !request.startsWith('#')) {
         if (/[/\\]node_modules[/\\]/.test(context)) {
-          // Try to match the package name from the context path.
+          // Try to match the package name from the context path:
+          // - /node_modules/package-name/...
+          // - /node_modules/.pnpm/package-name@version/...
+          // - /node_modules/@scope/package-name/...
+          // - /node_modules/.pnpm/scope+package-name@version/...
           const packageName =
             context.match(
               /[/\\]node_modules[/\\](\.pnpm[/\\])?([^/\\@]+)/
             )?.[2] ||
             context.match(
-              /[/\\]node_modules[/\\](\.pnpm[/\\])?(@[^/\\]+[/\\][^/\\]+)[/\\]/
-            )?.[2]
+              /[/\\]node_modules[/\\](@[^/\\]+[/\\][^/\\]+)[/\\]/
+            )?.[2] ||
+            context
+              .match(
+                /[/\\]node_modules[/\\]\.pnpm[/\\](@[^/\\@]+\+[^/\\@]+)/
+              )?.[1]
+              ?.replace(/\+/g, '/')
 
           throw new Error(
             `Failed to bundle ${
