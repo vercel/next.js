@@ -181,7 +181,7 @@ export const getEntryKey = ({
   isAppDir: boolean
   compilerName: CompilerNameValues
   page: string
-}) => `${isAppDir || true ? 'app' : 'pages'}/${compilerName}${page}` as EntryKey
+}) => `${isAppDir ? 'app' : 'pages'}/${compilerName}${page}` as EntryKey
 
 let invalidator: Invalidator
 export const getInvalidator = () => invalidator
