@@ -156,17 +156,18 @@ async function handleClientResponse(
     const data = JSON.parse(buffer) as RouteResult;
 
     switch (data.type) {
+      case "none":
+        return {
+          type: "none",
+        };
       case "rewrite":
+      default:
         return {
           type: "rewrite",
           data: {
             url: data.url,
             headers: Object.entries(data.headers).flat(),
           },
-        };
-      case "none":
-        return {
-          type: "none",
         };
     }
   }

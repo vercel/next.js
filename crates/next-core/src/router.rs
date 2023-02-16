@@ -21,9 +21,9 @@ use turbopack_core::{
     virtual_asset::VirtualAssetVc,
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkPlaceableVc, EcmascriptChunkPlaceablesVc},
-    EcmascriptInputTransform, EcmascriptInputTransformsVc, EcmascriptModuleAssetType,
-    EcmascriptModuleAssetVc, InnerAssetsVc,
+    chunk::EcmascriptChunkPlaceablesVc, EcmascriptInputTransform, EcmascriptInputTransformsVc,
+    EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+    OptionEcmascriptModuleAssetVc,
 };
 use turbopack_node::{
     evaluate::{evaluate, JavaScriptValue},
@@ -147,40 +147,38 @@ async fn get_config(
     context: AssetContextVc,
     project_path: FileSystemPathVc,
     configs: StringsVc,
-) -> Result<EcmascriptChunkPlaceableVc> {
+) -> Result<OptionEcmascriptModuleAssetVc> {
     let find_config_result = find_context_file(project_path, configs);
     let config_asset = match &*find_config_result.await? {
-        FindContextFileResult::Found(config_path, _) => Some(SourceAssetVc::new(*config_path)),
+        FindContextFileResult::Found(config_path, _) => Some(as_es_module_asset(
+            SourceAssetVc::new(*config_path).as_asset(),
+            context,
+        )),
         FindContextFileResult::NotFound(_) => None,
     };
-    let config_asset: AssetVc = match config_asset {
-        Some(c) => c.into(),
-        None => {
-            let configs = configs.await?;
-            let Some(config_path) = configs.first() else {
-                bail!("no config path provided");
-            };
-            VirtualAssetVc::new(project_path.join(config_path), File::from("").into()).into()
-        }
-    };
+    Ok(OptionEcmascriptModuleAssetVc::cell(config_asset))
+}
 
-    Ok(EcmascriptModuleAssetVc::new(
-        config_asset,
+fn as_es_module_asset(asset: AssetVc, context: AssetContextVc) -> EcmascriptModuleAssetVc {
+    EcmascriptModuleAssetVc::new(
+        asset,
         context,
         Value::new(EcmascriptModuleAssetType::Typescript),
         EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
         context.compile_time_info(),
     )
-    .into())
 }
 
 #[turbo_tasks::function]
-fn watch_files_hack(
+async fn watch_files_hack(
     context: AssetContextVc,
     project_path: FileSystemPathVc,
-) -> EcmascriptChunkPlaceablesVc {
-    let next_config = get_config(context, project_path, next_configs());
-    EcmascriptChunkPlaceablesVc::cell(vec![next_config])
+) -> Result<EcmascriptChunkPlaceablesVc> {
+    let next_config = get_config(context, project_path, next_configs()).await?;
+    Ok(match &*next_config {
+        Some(c) => EcmascriptChunkPlaceablesVc::cell(vec![c.as_ecmascript_chunk_placeable()]),
+        None => EcmascriptChunkPlaceablesVc::empty(),
+    })
 }
 
 #[turbo_tasks::function]
@@ -189,19 +187,33 @@ async fn config_assets(
     project_path: FileSystemPathVc,
     page_extensions: StringsVc,
 ) -> Result<InnerAssetsVc> {
-    let mut inner = HashMap::new();
+    let middleware_config =
+        get_config(context, project_path, middleware_files(page_extensions)).await?;
 
-    let middleware_config = get_config(context, project_path, middleware_files(page_extensions));
-    inner.insert(
-        "MIDDLEWARE_CHUNK_GROUP".to_string(),
-        context.with_transition("next-edge").process(
-            middleware_config.into(),
+    // The router.ts file expects a manifest of chunks for the middleware. If there
+    // is no middleware file, then we need to generate a default empty manifest
+    // and we cannot process it with the next-edge transition because it
+    // requires a real file for some reason.
+    let middleware_manifest = match &*middleware_config {
+        Some(c) => context.with_transition("next-edge").process(
+            c.as_asset(),
             Value::new(ReferenceType::EcmaScriptModules(
                 EcmaScriptModulesReferenceSubType::Undefined,
             )),
         ),
-    );
+        None => as_es_module_asset(
+            VirtualAssetVc::new(
+                project_path.join("middleware.js"),
+                File::from("export default [];").into(),
+            )
+            .as_asset(),
+            context,
+        )
+        .as_asset(),
+    };
 
+    let mut inner = HashMap::new();
+    inner.insert("MIDDLEWARE_CHUNK_GROUP".to_string(), middleware_manifest);
     Ok(InnerAssetsVc::cell(inner))
 }
 
