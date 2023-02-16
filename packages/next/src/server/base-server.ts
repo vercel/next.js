@@ -901,6 +901,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       if (matched) {
         return
       }
+      console.log('not matched ', req.url)
     } catch (err) {
       if (err instanceof DecodeError || err instanceof NormalizeError) {
         res.statusCode = 400

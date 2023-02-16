@@ -1,29 +1,36 @@
 import { createNextDescribe } from 'e2e-utils'
 
+// These issues are caused by weird caching of pages so we need to have clean .next in each of these
+
 createNextDescribe(
-  'App special files work in pages',
+  'navigation fron app/page.tsx -> pages/page.tsx',
   {
     files: __dirname,
   },
   ({ next }) => {
-    it('app page works', async () => {
-      const $ = await next.render$('/')
-      expect($('p').text()).toBe('App')
-    })
+    it('should works', async () => {
+      let $ = await next.render$('/')
+      expect($('p').text()).toBe('app/page.tsx')
 
-    it('pages/page.tsx works', async () => {
-      const $ = await next.render$('/page')
-      expect($('p').text()).toBe('pages/page')
+      $ = await next.render$('/page')
+      expect($('p').text()).toBe('pages/page.tsx')
     })
+  }
+)
 
-    it('pages/layout.tsx works', async () => {
-      const $ = await next.render$('/layout')
-      expect($('p').text()).toBe('pages/layout')
-    })
+createNextDescribe(
+  'navigation fron pages/page.tsx -> app/page.tsx',
+  {
+    files: __dirname,
+  },
+  ({ next }) => {
+    // eslint-disable-next-line jest/no-identical-title
+    it('should works', async () => {
+      let $ = await next.render$('/page')
+      expect($('p').text()).toBe('pages/page.tsx')
 
-    it('pages/not-found.tsx works', async () => {
-      const $ = await next.render$('/not-found')
-      expect($('p').text()).toBe('pages/not-found')
+      $ = await next.render$('/')
+      expect($('p').text()).toBe('app/page.tsx')
     })
   }
 )

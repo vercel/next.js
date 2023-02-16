@@ -1,1 +1,1 @@
-export default () => <p>App</p>
+export default () => <p>app/page.tsx</p>
