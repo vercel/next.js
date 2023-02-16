@@ -305,12 +305,12 @@ export default function transformer(
       let firstArg = requireExp.value.arguments[0]
       if (
         firstArg &&
-        firstArg.type === 'Literal' &&
+        firstArg.type === 'StringLiteral' &&
         firstArg.value === 'next/legacy/image'
       ) {
         const tagName = requireExp?.parentPath?.value?.id?.name
         if (tagName) {
-          requireExp.value.arguments[0] = j.literal('next/image')
+          requireExp.value.arguments[0] = j.stringLiteral('next/image')
           findAndReplaceProps(j, root, tagName)
         }
       }

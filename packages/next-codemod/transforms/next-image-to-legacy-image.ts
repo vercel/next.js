@@ -5,7 +5,7 @@ export default function transformer(
   api: API,
   options: Options
 ) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
 
   // Before: import Image from "next/image"
@@ -71,10 +71,10 @@ export default function transformer(
       let firstArg = requireExp.value.arguments[0]
       if (
         firstArg &&
-        firstArg.type === 'Literal' &&
+        firstArg.type === 'StringLiteral' &&
         firstArg.value === 'next/image'
       ) {
-        requireExp.value.arguments[0] = j.literal('next/legacy/image')
+        requireExp.value.arguments[0] = j.stringLiteral('next/legacy/image')
       }
     }
   })
