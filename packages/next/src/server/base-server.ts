@@ -1772,9 +1772,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const options: MatchOptions = {
       i18n: this.localeNormalizer?.match(pathname),
     }
+    console.log()
+    console.log()
+    console.log('rendering new response', pathname)
 
     try {
       for await (const match of this.matchers.matchAll(pathname, options)) {
+        console.log('matched', match)
         const result = await this.renderPageComponent(
           {
             ...ctx,
@@ -1787,7 +1791,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           bubbleNoFallback
         )
         if (result !== false) return result
+        console.log('miss')
       }
+      console.log('miss all')
 
       // currently edge functions aren't receiving the x-matched-path
       // header so we need to fallback to matching the current page

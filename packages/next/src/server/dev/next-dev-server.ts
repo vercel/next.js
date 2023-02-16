@@ -233,6 +233,9 @@ export default class DevServer extends Server {
 
     const ensurer: RouteEnsurer = {
       ensure: async (match) => {
+        console.log('ensuring')
+        console.log(match)
+        console.log(match.definition.page)
         await this.hotReloader!.ensurePage({
           match,
           page: match.definition.page,

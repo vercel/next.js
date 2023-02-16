@@ -164,13 +164,24 @@ interface ChildEntry extends EntryType {
   parentEntries: Set<string>
 }
 
+type EntryKey = `${'app' | 'pages'}/${CompilerNameValues}/${string}`
+
 export const entries: {
   /**
    * The key composed of the compiler name and the page. For example:
    * `edge-server/about`
    */
-  [entryName: string]: Entry | ChildEntry
+  [entryKey: EntryKey]: Entry | ChildEntry
 } = {}
+export const getEntryKey = ({
+  isAppDir,
+  compilerName,
+  page,
+}: {
+  isAppDir: boolean
+  compilerName: CompilerNameValues
+  page: string
+}) => `${isAppDir ? 'app' : 'pages'}/${compilerName}${page}` as EntryKey
 
 let invalidator: Invalidator
 export const getInvalidator = () => invalidator
@@ -234,7 +245,7 @@ class Invalidator {
 }
 
 function disposeInactiveEntries(maxInactiveAge: number) {
-  Object.keys(entries).forEach((entryKey) => {
+  ;(Object.keys(entries) as EntryKey[]).forEach((entryKey) => {
     const entryData = entries[entryKey]
     const { lastActiveTime, status, dispose } = entryData
 
@@ -427,16 +438,30 @@ export function onDemandEntryHandler({
     entrypoints: Map<string, { name?: string }>,
     root?: boolean
   ) {
-    const pagePaths: string[] = []
+    const pagePaths: EntryKey[] = []
     for (const entrypoint of entrypoints.values()) {
+      console.log('entry point', entrypoint)
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
-        pagePaths.push(`${type}${page}`)
+        pagePaths.push(
+          getEntryKey({
+            isAppDir: false,
+            compilerName: type,
+            page,
+          })
+        )
       } else if (
-        (root && entrypoint.name === 'root') ||
-        isMiddlewareFilename(entrypoint.name)
+        entrypoint.name &&
+        ((root && entrypoint.name === 'root') ||
+          isMiddlewareFilename(entrypoint.name))
       ) {
-        pagePaths.push(`${type}/${entrypoint.name}`)
+        pagePaths.push(
+          getEntryKey({
+            isAppDir: false,
+            compilerName: type,
+            page: entrypoint.name,
+          })
+        )
       }
     }
 
@@ -449,7 +474,7 @@ export function onDemandEntryHandler({
     }
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
     const root = !!appDir
-    const pagePaths = [
+    const pageEntries = [
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.client,
         clientStats.compilation.entrypoints,
@@ -469,8 +494,8 @@ export function onDemandEntryHandler({
         : []),
     ]
 
-    for (const page of pagePaths) {
-      const entry = entries[page]
+    for (const entryKey of pageEntries) {
+      const entry = entries[entryKey]
       if (!entry) {
         continue
       }
@@ -480,7 +505,7 @@ export function onDemandEntryHandler({
       }
 
       entry.status = BUILT
-      doneCallbacks!.emit(page)
+      doneCallbacks!.emit(entryKey)
     }
 
     invalidator.doneBuilding()
@@ -504,7 +529,11 @@ export function onDemandEntryHandler({
         COMPILER_NAMES.server,
         COMPILER_NAMES.edgeServer,
       ]) {
-        const pageKey = `${compilerType}/${page}`
+        const pageKey = getEntryKey({
+          isAppDir: true,
+          compilerName: compilerType,
+          page,
+        })
         const entryInfo = entries[pageKey]
 
         // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -613,6 +642,8 @@ export function onDemandEntryHandler({
           match
         )
 
+        console.log('pagePathData', pagePathData)
+
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
@@ -623,7 +654,11 @@ export function onDemandEntryHandler({
           newEntry: boolean
           shouldInvalidate: boolean
         } => {
-          const entryKey = `${compilerType}${pagePathData.page}`
+          const entryKey = getEntryKey({
+            isAppDir: isInsideAppDir,
+            compilerName: compilerType,
+            page: pagePathData.page,
+          })
 
           if (entries[entryKey]) {
             entries[entryKey].dispose = false
@@ -667,6 +702,7 @@ export function onDemandEntryHandler({
           isDev: true,
           pageType: isInsideAppDir ? 'app' : 'pages',
         })
+        console.log('staticInfo', staticInfo)
 
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
         const isServerComponent =
@@ -684,10 +720,15 @@ export function onDemandEntryHandler({
           },
           onServer: () => {
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
-            const edgeServerEntry = `${COMPILER_NAMES.edgeServer}${pagePathData.page}`
-            if (entries[edgeServerEntry]) {
+            const edgeServerEntryKey = getEntryKey({
+              isAppDir: isInsideAppDir,
+              compilerName: COMPILER_NAMES.edgeServer,
+              page: pagePathData.page,
+            })
+
+            if (entries[edgeServerEntryKey]) {
               // Runtime switched from edge to server
-              delete entries[edgeServerEntry]
+              delete entries[edgeServerEntryKey]
             }
           },
           onEdgeServer: () => {
@@ -695,15 +736,21 @@ export function onDemandEntryHandler({
               COMPILER_NAMES.edgeServer,
               addEntry(COMPILER_NAMES.edgeServer)
             )
-            const serverEntry = `${COMPILER_NAMES.server}${pagePathData.page}`
-            if (entries[serverEntry]) {
+            const serverEntryKey = getEntryKey({
+              isAppDir: isInsideAppDir,
+              compilerName: COMPILER_NAMES.server,
+              page: pagePathData.page,
+            })
+
+            if (entries[serverEntryKey]) {
               // Runtime switched from server to edge
-              delete entries[serverEntry]
+              delete entries[serverEntryKey]
             }
           },
         })
 
         const addedValues = [...added.values()]
+        console.log('addedValues', addedValues)
         const entriesThatShouldBeInvalidated = addedValues.filter(
           (entry) => entry.shouldInvalidate
         )
