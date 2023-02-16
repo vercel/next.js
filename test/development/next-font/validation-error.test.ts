@@ -12,19 +12,16 @@ describe('validation-error', () => {
       files: {
         pages: new FileRef(join(__dirname, 'validation-error/pages')),
       },
-      dependencies: {
-        '@next/font': 'canary',
-      },
     })
   })
   afterAll(() => next.destroy())
 
-  it('show a @next/font error when input is wrong', async () => {
+  it('show a next/font error when input is wrong', async () => {
     const browser = await webdriver(next.url, '/')
     expect(await hasRedbox(browser, true)).toBeTrue()
     expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
       "pages/index.js
-      \`@next/font\` error:
+      \`next/font\` error:
       Missing required \`src\` property"
     `)
   })
