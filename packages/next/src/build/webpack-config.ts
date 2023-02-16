@@ -2,6 +2,7 @@ import React from 'react'
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
+import { builtinModules } from 'module'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -1245,6 +1246,39 @@ export default async function getBaseWebpackConfig(
     // If the request cannot be resolved we need to have
     // webpack "bundle" it so it surfaces the not found error.
     if (!res) {
+      // We tried to bundle this request in the server layer but it failed.
+      // In this case we need to display a helpful error message for people to
+      // add the package to the `serverComponentsExternalPackages` config.
+      if (layer === WEBPACK_LAYERS.server && !request.startsWith('#')) {
+        if (/[/\\]node_modules[/\\]/.test(context)) {
+          // Built-in modules can be safely ignored.
+          if (!builtinModules.includes(request)) {
+            // Try to match the package name from the context path:
+            // - /node_modules/package-name/...
+            // - /node_modules/.pnpm/package-name@version/...
+            // - /node_modules/@scope/package-name/...
+            // - /node_modules/.pnpm/scope+package-name@version/...
+            const packageName =
+              context.match(
+                /[/\\]node_modules[/\\](\.pnpm[/\\])?([^/\\@]+)/
+              )?.[2] ||
+              context.match(
+                /[/\\]node_modules[/\\](@[^/\\]+[/\\][^/\\]+)[/\\]/
+              )?.[2] ||
+              context
+                .match(
+                  /[/\\]node_modules[/\\]\.pnpm[/\\](@[^/\\@]+\+[^/\\@]+)/
+                )?.[1]
+                ?.replace(/\+/g, '/')
+
+            throw new Error(
+              `Failed to bundle ${
+                packageName ? `package "${packageName}"` : context
+              } in Server Components because it uses "${request}". Please try adding it to the \`serverComponentsExternalPackages\` config: https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages`
+            )
+          }
+        }
+      }
       return
     }
 
@@ -1372,13 +1406,6 @@ export default async function getBaseWebpackConfig(
       return excludePath.includes('node_modules')
     },
   }
-
-  const fontLoaderTargets =
-    config.experimental.fontLoaders &&
-    config.experimental.fontLoaders.map(({ loader }) => {
-      const resolved = require.resolve(loader)
-      return path.join(resolved, '../target.css')
-    })
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1655,6 +1682,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
+        'next-edge-app-route-loader',
         'next-edge-ssr-loader',
         'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
@@ -2002,7 +2030,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /node_modules\/client-only\/error.js/,
+          test: /node_modules[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.server,
           options: {
@@ -2011,7 +2039,7 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
-          test: /node_modules\/server-only\/index.js/,
+          test: /node_modules[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.client,
           options: {
@@ -2111,7 +2139,6 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
-          hasFontLoaders: !!config.experimental.fontLoaders,
         }),
       isClient &&
         new BuildManifestPlugin({
@@ -2176,10 +2203,8 @@ export default async function getBaseWebpackConfig(
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
-        fontLoaderTargets &&
         new FontLoaderManifestPlugin({
           appDirEnabled: !!config.experimental.appDir,
-          fontLoaderTargets,
         }),
       !dev &&
         isClient &&

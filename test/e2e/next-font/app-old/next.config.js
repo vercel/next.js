@@ -3,6 +3,7 @@ module.exports = {
     fontLoaders: [
       {
         loader: '@next/font/google',
+        options: { subsets: ['latin'] },
       },
     ],
   },
