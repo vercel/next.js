@@ -6,7 +6,10 @@
  */
 
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { CLIENT_REFERENCE_MANIFEST } from '../../../shared/lib/constants'
+import {
+  CLIENT_REFERENCE_MANIFEST,
+  SYSTEM_ENTRYPOINTS,
+} from '../../../shared/lib/constants'
 import { relative, sep } from 'path'
 import { isClientComponentModule, regexCSS } from '../loaders/utils'
 
@@ -16,6 +19,7 @@ import {
 } from './flight-client-entry-plugin'
 
 import { traverseModules } from '../utils'
+import { nonNullable } from '../../../lib/non-nullable'
 
 // This is the module that will be used to anchor all client references to.
 // I.e. it will have all the client files as async deps from this point on.
@@ -247,14 +251,20 @@ export class FlightManifestPlugin {
         ]
 
         function getAppPathRequiredChunks() {
-          return chunkGroup.chunks.map((requiredChunk: webpack.Chunk) => {
-            return (
-              requiredChunk.id +
-              ':' +
-              (requiredChunk.name || requiredChunk.id) +
-              (dev ? '' : '-' + requiredChunk.hash)
-            )
-          })
+          return chunkGroup.chunks
+            .map((requiredChunk: webpack.Chunk) => {
+              if (SYSTEM_ENTRYPOINTS.has(requiredChunk.name)) {
+                return null
+              }
+
+              return (
+                requiredChunk.id +
+                ':' +
+                (requiredChunk.name || requiredChunk.id) +
+                (dev ? '' : '-' + requiredChunk.hash)
+              )
+            })
+            .filter(nonNullable)
         }
 
         const moduleExportedKeys = ['', '*']
