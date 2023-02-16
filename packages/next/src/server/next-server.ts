@@ -67,7 +67,6 @@ import BaseServer, {
   Options,
   FindComponentsResult,
   MiddlewareRoutingItem,
-  RoutingItem,
   NoFallbackError,
   RequestContext,
 } from './base-server'
@@ -181,28 +180,6 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
   // https://github.com/pillarjs/send/blob/53f0ab476145670a9bdd3dc722ab2fdc8d358fc6/index.js#L669
   416,
 ])
-
-function getEdgeMatcher(
-  info: MiddlewareManifest['functions'][string]
-): RouteMatchFn {
-  const stored = EdgeMatcherCache.get(info)
-  if (stored) {
-    return stored
-  }
-
-  if (!Array.isArray(info.matchers) || info.matchers.length !== 1) {
-    throw new Error(
-      `Invariant: invalid matchers for middleware ${JSON.stringify(info)}`
-    )
-  }
-
-  const matcher = getRouteMatcher({
-    re: new RegExp(info.matchers[0].regexp),
-    groups: {},
-  })
-  EdgeMatcherCache.set(info, matcher)
-  return matcher
-}
 
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
