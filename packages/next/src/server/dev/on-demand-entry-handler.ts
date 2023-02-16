@@ -442,9 +442,10 @@ export function onDemandEntryHandler({
     for (const entrypoint of entrypoints.values()) {
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
+        const isAppDir = entrypoint.name?.startsWith('app/') ?? false
         pagePaths.push(
           getEntryKey({
-            isAppDir: true,
+            isAppDir,
             compilerName: type,
             page,
           })
