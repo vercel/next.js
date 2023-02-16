@@ -20,6 +20,9 @@
     "ncc-fontkit": "ncc build ./fontkit.js -o dist/fontkit",
     "test-pack": "cd ../../ && pnpm test-pack font"
   },
+  "peerDependencies": {
+    "next": "13.1.7-canary.16"
+  },
   "devDependencies": {
     "@types/fontkit": "2.0.0",
     "@vercel/ncc": "0.34.0",
