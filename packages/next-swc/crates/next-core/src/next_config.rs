@@ -549,7 +549,7 @@ pub async fn load_next_config(execution_context: ExecutionContextVc) -> Result<N
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
-    let context = node_evaluate_asset_context(Some(import_map.cell()));
+    let context = node_evaluate_asset_context(Some(import_map.cell()), None);
     let find_config_result = find_context_file(project_root, next_configs());
     let config_asset = match &*find_config_result.await? {
         FindContextFileResult::Found(config_path, _) => Some(SourceAssetVc::new(*config_path)),

@@ -197,6 +197,7 @@ pub async fn get_next_server_import_map(
                 );
             }
         }
+        ServerContextType::Middleware => {}
     }
 
     Ok(import_map.cell())
@@ -329,6 +330,7 @@ pub async fn insert_next_server_special_aliases(
                 request_to_import_mapping(app_dir, "next/dist/compiled/react-dom/*"),
             );
         }
+        ServerContextType::Middleware => {}
     }
     Ok(())
 }
