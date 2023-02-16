@@ -156,6 +156,7 @@ function merge(
       case 'colorScheme':
       case 'itunes':
       case 'formatDetection':
+      case 'manifest':
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
         break
@@ -247,7 +248,13 @@ export async function collectMetadata(
 export async function accumulateMetadata(
   metadataItems: MetadataItems
 ): Promise<ResolvedMetadata> {
+  const deepClone: <T>(v: T) => T =
+    process.env.NODE_ENV === 'development'
+      ? require('next/dist/compiled/@edge-runtime/primitives/structured-clone')
+          .structuredClone
+      : (v) => v
   const resolvedMetadata = createDefaultMetadata()
+
   let parentPromise = Promise.resolve(resolvedMetadata)
 
   for (const item of metadataItems) {
@@ -263,13 +270,15 @@ export async function accumulateMetadata(
 
     parentPromise = parentPromise.then((resolved) => {
       return layerMetadataPromise.then((metadata) => {
+        resolved = deepClone(resolved)
         merge(resolved, metadata, staticFilesMetadata, {
           title: resolved.title?.template || null,
           openGraph: resolved.openGraph?.title?.template || null,
           twitter: resolved.twitter?.title?.template || null,
         })
-
-        return resolved
+        return process.env.NODE_ENV === 'development'
+          ? Object.freeze(resolved)
+          : resolved
       })
     })
   }
