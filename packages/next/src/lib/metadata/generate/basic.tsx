@@ -21,7 +21,7 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
           ))
         : null}
       {metadata.manifest ? (
-        <link rel="manifest" href={metadata.manifest?.toString()} />
+        <link rel="manifest" href={metadata.manifest.toString()} />
       ) : null}
       <Meta name="generator" content={metadata.generator} />
       <Meta name="keywords" content={metadata.keywords?.join(',')} />
