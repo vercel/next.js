@@ -641,10 +641,10 @@ function assignDefaults(
     silent
   )
 
-  if (result.experimental?.swcMinifyDebugOptions) {
+  if (typeof result.experimental?.swcMinifyDebugOptions !== 'undefined') {
     if (!silent) {
       Log.warn(
-        'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
+        'SWC minify debug option is not supported anymore, please remove it from your config.'
       )
     }
   }
