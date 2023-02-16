@@ -154,7 +154,7 @@ function nextConfigTransformer(j: JSCodeshift, root: Collection) {
   root.find(j.ObjectExpression).forEach((o) => {
     const [images] = o.value.properties || []
     if (
-      images.type === 'Property' &&
+      images.type === 'ObjectProperty' &&
       images.key.type === 'Identifier' &&
       images.key.name === 'images' &&
       images.value.type === 'ObjectExpression' &&
@@ -162,7 +162,7 @@ function nextConfigTransformer(j: JSCodeshift, root: Collection) {
     ) {
       const properties = images.value.properties.filter((p) => {
         if (
-          p.type === 'Property' &&
+          p.type === 'ObjectProperty' &&
           p.key.type === 'Identifier' &&
           p.key.name === 'loader' &&
           'value' in p.value
@@ -177,7 +177,7 @@ function nextConfigTransformer(j: JSCodeshift, root: Collection) {
           }
         }
         if (
-          p.type === 'Property' &&
+          p.type === 'ObjectProperty' &&
           p.key.type === 'Identifier' &&
           p.key.name === 'path' &&
           'value' in p.value
@@ -247,7 +247,7 @@ export default function transformer(
   api: API,
   options: Options
 ) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
 
   const isConfig =
