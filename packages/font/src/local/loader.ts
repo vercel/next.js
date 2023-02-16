@@ -1,6 +1,6 @@
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-import fontFromBuffer from '@next/font/dist/fontkit'
+import fontFromBuffer from '../fontkit'
 import type { AdjustFontFallback, FontLoader } from 'next/font'
 
 import { promisify } from 'util'

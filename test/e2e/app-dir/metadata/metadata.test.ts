@@ -104,15 +104,22 @@ createNextDescribe(
         await checkMetaNameContentPair(browser, 'application-name', 'test')
         await checkMetaNameContentPair(
           browser,
+          'manifest',
+          'https://github.com/manifest.json'
+        )
+
+        await checkMetaNameContentPair(
+          browser,
           'referrer',
-          'origin-when-crossorigin'
+          'origin-when-cross-origin'
         )
         await checkMetaNameContentPair(
           browser,
           'keywords',
           'next.js,react,javascript'
         )
-        await checkMetaNameContentPair(browser, 'author', 'John Doe,Jane Doe')
+        await checkMetaNameContentPair(browser, 'author', ['huozhi', 'tree'])
+        await checkLink(browser, 'author', 'https://tree.com')
         await checkMetaNameContentPair(browser, 'theme-color', 'cyan')
         await checkMetaNameContentPair(browser, 'color-scheme', 'dark')
         await checkMetaNameContentPair(
@@ -293,7 +300,7 @@ createNextDescribe(
         await checkMetaNameContentPair(
           browser,
           'referrer',
-          'origin-when-crossorigin'
+          'origin-when-cross-origin'
         )
         await browser.back().waitForElementByCss('#index')
         expect(await getTitle(browser)).toBe('index page')
@@ -305,12 +312,12 @@ createNextDescribe(
       })
 
       it('should support generateMetadata export', async () => {
-        const browser = await next.browser('/params/slug')
+        const browser = await next.browser('/async/slug')
         expect(await getTitle(browser)).toBe('params - slug')
 
         await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
-        await browser.loadPage(next.url + '/params/blog?q=xxx')
+        await browser.loadPage(next.url + '/async/blog?q=xxx')
         await check(
           () => browser.elementByCss('p').text(),
           /params - blog query - xxx/
