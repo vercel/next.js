@@ -19,10 +19,7 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type {
-  Params,
-  RouteMatchFn,
-} from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 
 import fs from 'fs'
@@ -80,7 +77,6 @@ import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute, stringifyQuery } from './server-route-utils'
@@ -120,11 +116,6 @@ export interface NodeRequestHandler {
 const MiddlewareMatcherCache = new WeakMap<
   MiddlewareManifest['middleware'][string],
   MiddlewareRouteMatch
->()
-
-const EdgeMatcherCache = new WeakMap<
-  MiddlewareManifest['functions'][string],
-  RouteMatchFn
 >()
 
 function getMiddlewareMatcher(
