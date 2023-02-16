@@ -61,6 +61,11 @@ export type AppRouteModule = {
    * The exported async storage object for this worker/module.
    */
   requestAsyncStorage: RequestAsyncStorage
+
+  /**
+   * The absolute path to the module file
+   */
+  resolvedPagePath: string
 }
 
 /**
@@ -172,7 +177,26 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
     if (!isHTTPMethod(req.method)) return handleBadRequestResponse
 
     // Pull out the handlers from the app route module.
-    const { handlers } = mod
+    const { handlers, resolvedPagePath } = mod
+
+    if (process.env.NODE_ENV !== 'production') {
+      // Print error in development if the exported handlers are in lowercase, only uppercase handlers are supported
+      for (const invalidMethodName of [
+        'get',
+        'head',
+        'options',
+        'post',
+        'put',
+        'delete',
+        'patch',
+      ]) {
+        if ((handlers as any)[invalidMethodName]) {
+          Log.error(
+            `Detected lowercase method '${invalidMethodName}' in '${resolvedPagePath}'. Export the uppercase '${invalidMethodName.toUpperCase()}' method name to fix this error.`
+          )
+        }
+      }
+    }
 
     // Check to see if the requested method is available.
     const handler: AppRouteHandlerFn | undefined = handlers[req.method]
