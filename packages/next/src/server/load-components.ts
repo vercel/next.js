@@ -12,8 +12,8 @@ import type {
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-  FLIGHT_MANIFEST,
-  ACTIONS_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -108,12 +108,14 @@ export async function loadComponents({
     loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
     loadManifest<ReactLoadableManifest>(join(distDir, REACT_LOADABLE_MANIFEST)),
     hasServerComponents
-      ? loadManifest(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
+      ? loadManifest(
+          join(distDir, 'server', CLIENT_REFERENCE_MANIFEST + '.json')
+        )
       : null,
     hasServerComponents
-      ? loadManifest(join(distDir, 'server', ACTIONS_MANIFEST + '.json')).catch(
-          () => null
-        )
+      ? loadManifest(
+          join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
+        ).catch(() => null)
       : null,
   ])
 

@@ -166,7 +166,7 @@ export class NextInstance {
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
-                    ' && yarn post-build',
+                    ' && pnpm post-build',
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
                   'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
@@ -285,7 +285,12 @@ export class NextInstance {
       throw new Error(`stop() must be called before cleaning`)
     }
 
-    const keptFiles = ['node_modules', 'package.json', 'yarn.lock']
+    const keptFiles = [
+      'node_modules',
+      'package.json',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+    ]
     for (const file of await fs.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
         await fs.remove(path.join(this.testDir, file))
