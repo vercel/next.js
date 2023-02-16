@@ -1116,8 +1116,9 @@ export async function renderToHTMLOrFlight(
       parentParams: { [key: string]: any },
       metadataItems: MetadataItems
     ): Promise<[React.ReactNode, MetadataItems]> {
-      const [segment, parallelRoutes, { head, page }] = tree
+      const [segment, parallelRoutes, { head, layout, page }] = tree
       const isPage = typeof page !== 'undefined'
+      const isLayout = typeof layout !== 'undefined'
       // Handle dynamic segment params.
       const segmentParam = getDynamicParamFromSegment(segment)
       /**
@@ -1138,7 +1139,10 @@ export async function renderToHTMLOrFlight(
         ...(isPage && searchParamsProps),
       }
 
-      await collectMetadata(tree, layerProps, metadataItems)
+      // If the layout is located next to the page as leaf layer
+      const isLeafLayout =
+        typeof parallelRoutes.children?.[2].page !== 'undefined'
+      await collectMetadata(tree, layerProps, metadataItems, isLeafLayout)
 
       for (const key in parallelRoutes) {
         const childTree = parallelRoutes[key]

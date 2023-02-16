@@ -31,10 +31,11 @@ type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
 type MetadataResolver = (
   _parent: ResolvingMetadata
 ) => Metadata | Promise<Metadata>
-export type MetadataItems = [
-  Metadata | MetadataResolver | null,
-  StaticMetadata
-][]
+export type MetadataItems = {
+  metadataExport: Metadata | MetadataResolver | null
+  staticFilesMetadata: StaticMetadata
+  isLeafLayout: boolean
+}[]
 
 function mergeStaticMetadata(
   metadata: ResolvedMetadata,
@@ -236,13 +237,14 @@ async function resolveStaticMetadata(components: ComponentsType) {
 export async function collectMetadata(
   loaderTree: LoaderTree,
   props: any,
-  array: MetadataItems
+  array: MetadataItems,
+  isLeafLayout: boolean
 ) {
   const mod = await getLayoutOrPageModule(loaderTree)
   const staticFilesMetadata = await resolveStaticMetadata(loaderTree[2])
   const metadataExport = mod ? await getDefinedMetadata(mod, props) : null
 
-  array.push([metadataExport, staticFilesMetadata])
+  array.push({ metadataExport, staticFilesMetadata, isLeafLayout })
 }
 
 export async function accumulateMetadata(
@@ -255,7 +257,7 @@ export async function accumulateMetadata(
 
   // call each `generateMetadata function concurrently and stash their resolver
   for (let i = 0; i < metadataItems.length; i++) {
-    const [metadataExport] = metadataItems[i]
+    const { metadataExport } = metadataItems[i]
     if (typeof metadataExport === 'function') {
       generateMetadataResults.push(
         metadataExport(
@@ -266,13 +268,14 @@ export async function accumulateMetadata(
       )
     }
   }
-  Promise.resolve
+
   // Loop over all metadata items again, merging synchronously any static object exports,
   // awaiting any static promise exports, and resolving parent metadata and awaiting any generated
   // metadata
   let resolvingIndex = 0
   for (let i = 0; i < metadataItems.length; i++) {
-    const [metadataExport, staticFilesMetadata] = metadataItems[i]
+    const { metadataExport, staticFilesMetadata, isLeafLayout } =
+      metadataItems[i]
     let metadata: Metadata | null = null
     if (typeof metadataExport === 'function') {
       const resolveParent = resolvers[resolvingIndex]
@@ -298,6 +301,12 @@ export async function accumulateMetadata(
     } else {
       metadata = metadataExport
     }
+
+    // If the layout is the same layer with page, skip the
+    if (isLeafLayout && metadata) {
+      delete metadata.title
+    }
+
     merge(resolvedMetadata, metadata, staticFilesMetadata, {
       title: resolvedMetadata.title?.template || null,
       openGraph: resolvedMetadata.openGraph?.title?.template || null,
