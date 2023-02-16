@@ -75,8 +75,8 @@ describe('Custom _error', () => {
     it('should warn on custom /_error without custom /404', async () => {
       stderr = ''
       const html = await renderViaHTTP(appPort, '/404')
-      expect(html).toContain('An error 404 occurred on server')
       expect(stderr).toMatch(customErrNo404Match)
+      expect(html).toContain('An error 404 occurred on server')
     })
   })
 

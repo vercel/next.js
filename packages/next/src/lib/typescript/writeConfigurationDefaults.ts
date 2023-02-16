@@ -109,7 +109,8 @@ export async function writeConfigurationDefaults(
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
   isAppDirEnabled: boolean,
-  distDir: string
+  distDir: string,
+  hasPagesDir: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
@@ -198,7 +199,10 @@ export async function writeConfigurationDefaults(
       // If the TS config extends on another config, we can't add the `plugin` field
       // because that will override the parent config's plugins.
       // Instead we have to show a message to the user to add the plugin manually.
-      if ('extends' in userTsConfig && !('plugins' in userTsConfig)) {
+      if (
+        'extends' in userTsConfig &&
+        !('plugins' in userTsConfig.compilerOptions)
+      ) {
         console.log(
           `\nYour ${chalk.cyan(
             'tsconfig.json'
@@ -222,6 +226,20 @@ export async function writeConfigurationDefaults(
               chalk.bold(`{ name: 'next' }`)
           )
         }
+      }
+
+      // If `strict` is set to `false` or `strictNullChecks` is set to `false`,
+      // then set `strictNullChecks` to `true`.
+      if (
+        hasPagesDir &&
+        isAppDirEnabled &&
+        !userTsConfig.compilerOptions.strict &&
+        !('strictNullChecks' in userTsConfig.compilerOptions)
+      ) {
+        userTsConfig.compilerOptions.strictNullChecks = true
+        suggestedActions.push(
+          chalk.cyan('strictNullChecks') + ' was set to ' + chalk.bold(`true`)
+        )
       }
     }
   }

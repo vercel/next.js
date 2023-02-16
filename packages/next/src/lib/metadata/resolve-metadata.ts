@@ -4,6 +4,7 @@ import type {
   ResolvingMetadata,
 } from './types/metadata-interface'
 import type { AbsoluteTemplateString } from './types/metadata-types'
+import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { mergeTitle } from './resolvers/resolve-title'
@@ -25,17 +26,63 @@ import {
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
 
+type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
+
+type MetadataResolver = (
+  _parent: ResolvingMetadata
+) => Metadata | Promise<Metadata>
+export type MetadataItems = [
+  Metadata | MetadataResolver | null,
+  StaticMetadata
+][]
+
+function mergeStaticMetadata(
+  metadata: ResolvedMetadata,
+  staticFilesMetadata: StaticMetadata
+) {
+  if (!staticFilesMetadata) return
+  const { icon, apple, opengraph, twitter } = staticFilesMetadata
+  if (icon || apple) {
+    if (!metadata.icons) metadata.icons = { icon: [], apple: [] }
+    if (icon) metadata.icons.icon.push(...icon)
+    if (apple) metadata.icons.apple.push(...apple)
+  }
+  if (twitter) {
+    const resolvedTwitter = resolveTwitter(
+      {
+        card: 'summary_large_image',
+        images: twitter,
+      },
+      null
+    )
+    metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
+  }
+
+  if (opengraph) {
+    const resolvedOg = resolveOpenGraph(
+      {
+        images: opengraph,
+      },
+      null
+    )
+    metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
+  }
+
+  return metadata
+}
+
 // Merge the source metadata into the resolved target metadata.
 function merge(
   target: ResolvedMetadata,
-  source: Metadata,
+  source: Metadata | null,
+  staticFilesMetadata: StaticMetadata,
   templateStrings: {
     title: string | null
     openGraph: string | null
     twitter: string | null
   }
 ) {
-  const metadataBase = source.metadataBase || null
+  const metadataBase = source?.metadataBase || null
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
@@ -109,6 +156,7 @@ function merge(
       case 'colorScheme':
       case 'itunes':
       case 'formatDetection':
+      case 'manifest':
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
         break
@@ -122,15 +170,8 @@ function merge(
         break
     }
   }
+  mergeStaticMetadata(target, staticFilesMetadata)
 }
-
-type MetadataResolver = (
-  _parent: ResolvingMetadata
-) => Metadata | Promise<Metadata>
-export type MetadataItems = [
-  Metadata | MetadataResolver | null,
-  Metadata | null
-][]
 
 async function getDefinedMetadata(
   mod: any,
@@ -156,35 +197,39 @@ async function getDefinedMetadata(
   )
 }
 
-async function collectStaticFsBasedIcons(
+async function collectStaticImagesFiles(
   metadata: ComponentsType['metadata'],
-  type: 'icon' | 'apple'
+  type: keyof NonNullable<ComponentsType['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
-  const iconPromises = metadata[type].map(
+
+  const iconPromises = metadata[type as 'icon' | 'apple'].map(
     // TODO-APP: share the typing between next-metadata-image-loader and here
-    async (iconResolver) =>
-      interopDefault(await iconResolver()) as { url: string; sizes: string }
+    async (iconResolver: any) =>
+      interopDefault(await iconResolver()) as MetadataImageModule
   )
   return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
 }
 
-async function resolveStaticMetadata(
-  components: ComponentsType
-): Promise<Metadata | null> {
+async function resolveStaticMetadata(components: ComponentsType) {
   const { metadata } = components
   if (!metadata) return null
 
-  const [icon, apple] = await Promise.all([
-    collectStaticFsBasedIcons(metadata, 'icon'),
-    collectStaticFsBasedIcons(metadata, 'apple'),
+  const [icon, apple, opengraph, twitter] = await Promise.all([
+    collectStaticImagesFiles(metadata, 'icon'),
+    collectStaticImagesFiles(metadata, 'apple'),
+    collectStaticImagesFiles(metadata, 'opengraph'),
+    collectStaticImagesFiles(metadata, 'twitter'),
   ])
 
-  const icons: Metadata['icons'] = {}
-  if (icon) icons.icon = icon
-  if (apple) icons.apple = apple
+  const staticMetadata = {
+    icon,
+    apple,
+    opengraph,
+    twitter,
+  }
 
-  return { icons }
+  return staticMetadata
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
@@ -203,35 +248,37 @@ export async function collectMetadata(
 export async function accumulateMetadata(
   metadataItems: MetadataItems
 ): Promise<ResolvedMetadata> {
+  const deepClone: <T>(v: T) => T =
+    process.env.NODE_ENV === 'development'
+      ? require('next/dist/compiled/@edge-runtime/primitives/structured-clone')
+          .structuredClone
+      : (v) => v
   const resolvedMetadata = createDefaultMetadata()
+
   let parentPromise = Promise.resolve(resolvedMetadata)
 
   for (const item of metadataItems) {
     const [metadataExport, staticFilesMetadata] = item
-    const layerMetadataPromise = Promise.resolve(
+    const currentMetadata =
       typeof metadataExport === 'function'
         ? metadataExport(parentPromise)
         : metadataExport
-    )
+    const layerMetadataPromise =
+      currentMetadata instanceof Promise
+        ? currentMetadata
+        : Promise.resolve(currentMetadata)
 
     parentPromise = parentPromise.then((resolved) => {
-      return layerMetadataPromise.then((exportedMetadata) => {
-        const metadata = exportedMetadata || staticFilesMetadata
-
-        if (metadata) {
-          // Overriding the metadata if static files metadata is present
-          merge(
-            resolved,
-            { ...metadata, ...staticFilesMetadata },
-            {
-              title: resolved.title?.template || null,
-              openGraph: resolved.openGraph?.title?.template || null,
-              twitter: resolved.twitter?.title?.template || null,
-            }
-          )
-        }
-
-        return resolved
+      return layerMetadataPromise.then((metadata) => {
+        resolved = deepClone(resolved)
+        merge(resolved, metadata, staticFilesMetadata, {
+          title: resolved.title?.template || null,
+          openGraph: resolved.openGraph?.title?.template || null,
+          twitter: resolved.twitter?.title?.template || null,
+        })
+        return process.env.NODE_ENV === 'development'
+          ? Object.freeze(resolved)
+          : resolved
       })
     })
   }
