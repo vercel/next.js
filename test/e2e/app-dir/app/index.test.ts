@@ -377,29 +377,6 @@ createNextDescribe(
       }
     })
 
-    describe('parallel routes', () => {
-      if (!isNextDeploy) {
-        it('should match parallel routes', async () => {
-          const html = await next.render('/parallel/nested')
-          expect(html).toContain('parallel/layout')
-          expect(html).toContain('parallel/@foo/nested/layout')
-          expect(html).toContain('parallel/@foo/nested/@a/page')
-          expect(html).toContain('parallel/@foo/nested/@b/page')
-          expect(html).toContain('parallel/@bar/nested/layout')
-          expect(html).toContain('parallel/@bar/nested/@a/page')
-          expect(html).toContain('parallel/@bar/nested/@b/page')
-          expect(html).toContain('parallel/nested/page')
-        })
-      }
-
-      it('should match parallel routes in route groups', async () => {
-        const html = await next.render('/parallel/nested-2')
-        expect(html).toContain('parallel/layout')
-        expect(html).toContain('parallel/(new)/layout')
-        expect(html).toContain('parallel/(new)/@baz/nested/page')
-      })
-    })
-
     describe('<Link />', () => {
       it('should hard push', async () => {
         const browser = await next.browser('/link-hard-push/123')
@@ -860,22 +837,19 @@ createNextDescribe(
           async (method) => {
             const browser = await next.browser('/internal')
 
-            try {
-              // Wait for and click the navigation element, this should trigger
-              // the flight request that'll be caught by the middleware. If the
-              // middleware sees any flight data on the request it'll redirect to
-              // a page with an element of #failure, otherwise, we'll see the
-              // element for #success.
-              await browser
-                .waitForElementByCss(`#navigate-${method}`)
-                .elementById(`navigate-${method}`)
-                .click()
-              expect(
-                await browser.waitForElementByCss('#success', 3000).text()
-              ).toBe('Success')
-            } finally {
-              await browser.close()
-            }
+            // Wait for and click the navigation element, this should trigger
+            // the flight request that'll be caught by the middleware. If the
+            // middleware sees any flight data on the request it'll redirect to
+            // a page with an element of #failure, otherwise, we'll see the
+            // element for #success.
+            await browser
+              .waitForElementByCss(`#navigate-${method}`)
+              .elementById(`navigate-${method}`)
+              .click()
+            await check(
+              async () => await browser.elementByCss('#success').text(),
+              /Success/
+            )
           }
         )
       })

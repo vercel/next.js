@@ -1,10 +1,10 @@
 import type { __ApiPreviewProps } from './api-utils'
 import type { CustomRoutes } from '../lib/load-custom-routes'
 import type { DomainLocale } from './config'
-import type { DynamicRoutes, PageChecker, Route } from './router'
+import type { RouterOptions } from './router'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
-import type { RouteMatch } from '../shared/lib/router/utils/route-matcher'
+import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
@@ -34,11 +34,13 @@ import { format as formatUrl, parse as parseUrl } from 'url'
 import { getRedirectStatus } from '../lib/redirect-status'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
+  APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
+  PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../shared/lib/constants'
-import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
+import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
   setLazyProp,
   getCookieParser,
@@ -68,8 +70,6 @@ import {
   normalizeAppPath,
   normalizeRscPath,
 } from '../shared/lib/router/utils/app-paths'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
@@ -80,6 +80,18 @@ import {
   FLIGHT_PARAMETERS,
   FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
+import {
+  MatchOptions,
+  RouteMatcherManager,
+} from './future/route-matcher-managers/route-matcher-manager'
+import { RouteHandlerManager } from './future/route-handler-managers/route-handler-manager'
+import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
+import { DefaultRouteMatcherManager } from './future/route-matcher-managers/default-route-matcher-manager'
+import { AppPageRouteMatcherProvider } from './future/route-matcher-providers/app-page-route-matcher-provider'
+import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/app-route-route-matcher-provider'
+import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
+import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
+import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -88,7 +100,7 @@ export type FindComponentsResult = {
 
 export interface RoutingItem {
   page: string
-  match: RouteMatch
+  match: RouteMatchFn
   re?: RegExp
 }
 
@@ -173,18 +185,18 @@ type ResponsePayload = {
 }
 
 export default abstract class Server<ServerOptions extends Options = Options> {
-  protected dir: string
-  protected quiet: boolean
-  protected nextConfig: NextConfigComplete
-  protected distDir: string
-  protected publicDir: string
-  protected hasStaticDir: boolean
-  protected hasAppDir: boolean
-  protected pagesManifest?: PagesManifest
-  protected appPathsManifest?: PagesManifest
-  protected buildId: string
-  protected minimalMode: boolean
-  protected renderOpts: {
+  protected readonly dir: string
+  protected readonly quiet: boolean
+  protected readonly nextConfig: NextConfigComplete
+  protected readonly distDir: string
+  protected readonly publicDir: string
+  protected readonly hasStaticDir: boolean
+  protected readonly hasAppDir: boolean
+  protected readonly pagesManifest?: PagesManifest
+  protected readonly appPathsManifest?: PagesManifest
+  protected readonly buildId: string
+  protected readonly minimalMode: boolean
+  protected readonly renderOpts: {
     poweredByHeader: boolean
     buildId: string
     generateEtags: boolean
@@ -218,11 +230,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     renderServerComponentData?: boolean
     serverComponentProps?: any
     largePageDataBytes?: number
+    appDirDevErrorLogger?: (err: any) => Promise<void>
   }
   protected serverOptions: ServerOptions
   private responseCache: ResponseCacheBase
   protected router: Router
-  protected dynamicRoutes?: DynamicRoutes
   protected appPathRoutes?: Record<string, string[]>
   protected customRoutes: CustomRoutes
   protected serverComponentManifest?: any
@@ -244,8 +256,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
-    appPaths?: string[] | null
     sriEnabled?: boolean
+    appPaths?: string[] | null
+    shouldEnsure: boolean
   }): Promise<FindComponentsResult | null>
   protected abstract getFontManifest(): FontManifest | undefined
   protected abstract getPrerenderManifest(): PrerenderManifest
@@ -260,22 +273,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getCustomRoutes(): CustomRoutes
   protected abstract hasPage(pathname: string): Promise<boolean>
 
-  protected abstract generateRoutes(): {
-    headers: Route[]
-    rewrites: {
-      beforeFiles: Route[]
-      afterFiles: Route[]
-      fallback: Route[]
-    }
-    fsRoutes: Route[]
-    redirects: Route[]
-    catchAllRoute: Route
-    catchAllMiddleware: Route[]
-    pageChecker: PageChecker
-    useFileSystemPublicRoutes: boolean
-    dynamicRoutes: DynamicRoutes | undefined
-    nextConfig: NextConfig
-  }
+  protected abstract generateRoutes(): RouterOptions
 
   protected abstract sendRenderResult(
     req: BaseNextRequest,
@@ -324,6 +322,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     forceReload?: boolean
   }): void
 
+  protected readonly matchers: RouteMatcherManager
+  protected readonly handlers: RouteHandlerManager
+  protected readonly localeNormalizer?: LocaleRouteNormalizer
+
   public constructor(options: ServerOptions) {
     const {
       dir = '.',
@@ -355,6 +357,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.publicDir = this.getPublicDir()
     this.hasStaticDir = !minimalMode && this.getHasStaticDir()
 
+    // Configure the locale normalizer, it's used for routes inside `pages/`.
+    this.localeNormalizer =
+      this.nextConfig.i18n?.locales && this.nextConfig.i18n.defaultLocale
+        ? new LocaleRouteNormalizer(
+            this.nextConfig.i18n.locales,
+            this.nextConfig.i18n.defaultLocale
+          )
+        : undefined
+
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
     const {
@@ -376,9 +387,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.serverCSSManifest = serverComponents
       ? this.getServerCSSManifest()
       : undefined
-    this.fontLoaderManifest = this.nextConfig.experimental.fontLoaders
-      ? this.getFontLoaderManifest()
-      : undefined
+    this.fontLoaderManifest = this.getFontLoaderManifest()
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
@@ -408,12 +417,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ? this.nextConfig.crossOrigin
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
-    }
-
-    // Only the `publicRuntimeConfig` key is exposed to the client side
-    // It'll be rendered as part of __NEXT_DATA__ on the client side
-    if (Object.keys(publicRuntimeConfig).length > 0) {
-      this.renderOpts.runtimeConfig = publicRuntimeConfig
+      // Only the `publicRuntimeConfig` key is exposed to the client side
+      // It'll be rendered as part of __NEXT_DATA__ on the client side
+      runtimeConfig:
+        Object.keys(publicRuntimeConfig).length > 0
+          ? publicRuntimeConfig
+          : undefined,
     }
 
     // Initialize next/config with the environment configuration
@@ -425,11 +434,73 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.pagesManifest = this.getPagesManifest()
     this.appPathsManifest = this.getAppPathsManifest()
 
+    // Configure the routes.
+    const { matchers, handlers } = this.getRoutes()
+    this.matchers = matchers
+    this.handlers = handlers
+
+    // Start route compilation. We don't wait for the routes to finish loading
+    // because we use the `waitTillReady` promise below in `handleRequest` to
+    // wait. Also we can't `await` in the constructor.
+    matchers.reload()
+
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
     this.responseCache = this.getResponseCache({ dev })
+  }
+
+  protected getRoutes(): {
+    matchers: RouteMatcherManager
+    handlers: RouteHandlerManager
+  } {
+    // Create a new manifest loader that get's the manifests from the server.
+    const manifestLoader = new ServerManifestLoader((name) => {
+      switch (name) {
+        case PAGES_MANIFEST:
+          return this.getPagesManifest() ?? null
+        case APP_PATHS_MANIFEST:
+          return this.getAppPathsManifest() ?? null
+        default:
+          return null
+      }
+    })
+
+    // Configure the matchers and handlers.
+    const matchers: RouteMatcherManager = new DefaultRouteMatcherManager()
+    const handlers = new RouteHandlerManager()
+
+    // Match pages under `pages/`.
+    matchers.push(
+      new PagesRouteMatcherProvider(
+        this.distDir,
+        manifestLoader,
+        this.localeNormalizer
+      )
+    )
+
+    // Match api routes under `pages/api/`.
+    matchers.push(
+      new PagesAPIRouteMatcherProvider(
+        this.distDir,
+        manifestLoader,
+        this.localeNormalizer
+      )
+    )
+
+    // If the app directory is enabled, then add the app matchers and handlers.
+    if (this.hasAppDir) {
+      // Match app pages under `app/`.
+      matchers.push(
+        new AppPageRouteMatcherProvider(this.distDir, manifestLoader)
+      )
+      matchers.push(
+        new AppRouteRouteMatcherProvider(this.distDir, manifestLoader)
+      )
+    }
+
+    return { matchers, handlers }
   }
 
   public logError(err: Error): void {
@@ -443,6 +514,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
     try {
+      // Wait for the matchers to be ready.
+      await this.matchers.waitTillReady()
+
       // ensure cookies set in middleware are merged and
       // not overridden by API routes/getServerSideProps
       const _res = (res as any).originalResponse || res
@@ -559,36 +633,33 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           if (urlPathname.startsWith(`/_next/data/`)) {
             parsedUrl.query.__nextDataReq = '1'
           }
+
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
           matchedPath = this.stripNextDataPath(matchedPath, false)
 
-          if (this.nextConfig.i18n) {
-            const localeResult = normalizeLocalePath(
-              matchedPath,
-              this.nextConfig.i18n.locales
-            )
-            matchedPath = localeResult.pathname
-
-            if (localeResult.detectedLocale) {
-              parsedUrl.query.__nextLocale = localeResult.detectedLocale
-            }
+          // Perform locale detection and normalization.
+          const options: MatchOptions = {
+            i18n: this.localeNormalizer?.match(matchedPath),
           }
+          if (options.i18n?.detectedLocale) {
+            parsedUrl.query.__nextLocale = options.i18n.detectedLocale
+          }
+
+          // TODO: check if this is needed any more?
           matchedPath = denormalizePagePath(matchedPath)
+
           let srcPathname = matchedPath
-
-          if (
-            !isDynamicRoute(srcPathname) &&
-            !(await this.hasPage(removeTrailingSlash(srcPathname)))
-          ) {
-            for (const dynamicRoute of this.dynamicRoutes || []) {
-              if (dynamicRoute.match(srcPathname)) {
-                srcPathname = dynamicRoute.page
-                break
-              }
-            }
+          const match = await this.matchers.match(matchedPath, options)
+          if (match) {
+            srcPathname = match.definition.pathname
           }
+          const pageIsDynamic = typeof match?.params !== 'undefined'
 
-          const pageIsDynamic = isDynamicRoute(srcPathname)
+          // The rest of this function can't handle i18n properly, so ensure we
+          // restore the pathname with the locale information stripped from it
+          // now that we're done matching.
+          matchedPath = options.i18n?.pathname ?? matchedPath
+
           const utils = getUtils({
             pageIsDynamic,
             page: srcPathname,
@@ -803,34 +874,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return false
   }
 
-  protected getDynamicRoutes(): Array<RoutingItem> {
-    const addedPages = new Set<string>()
-
-    return getSortedRoutes(
-      [
-        ...Object.keys(this.appPathRoutes || {}),
-        ...Object.keys(this.pagesManifest!),
-      ].map(
-        (page) =>
-          normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
-      )
-    )
-      .map((page) => {
-        if (addedPages.has(page) || !isDynamicRoute(page)) return null
-        addedPages.add(page)
-        return {
-          page,
-          match: getRouteMatcher(getRouteRegex(page)),
-        }
-      })
-      .filter((item): item is RoutingItem => Boolean(item))
-  }
-
   protected getAppPathRoutes(): Record<string, string[]> {
     const appPathRoutes: Record<string, string[]> = {}
 
     Object.keys(this.appPathsManifest || {}).forEach((entry) => {
-      const normalizedPath = normalizeAppPath(entry) || '/'
+      const normalizedPath = normalizeAppPath(entry)
       if (!appPathRoutes[normalizedPath]) {
         appPathRoutes[normalizedPath] = []
       }
@@ -1691,8 +1739,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       query,
       params: ctx.renderOpts.params || {},
       isAppPath,
-      appPaths,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
+      appPaths,
+      // Ensuring for loading page component routes is done via the matcher.
+      shouldEnsure: false,
     })
     if (result) {
       try {
@@ -1716,34 +1766,24 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const bubbleNoFallback = !!query._nextBubbleNoFallback
     delete query._nextBubbleNoFallback
 
-    try {
-      // Ensure a request to the URL /accounts/[id] will be treated as a dynamic
-      // route correctly and not loaded immediately without parsing params.
-      if (!isDynamicRoute(page)) {
-        const result = await this.renderPageComponent(ctx, bubbleNoFallback)
-        if (result !== false) return result
-      }
+    const options: MatchOptions = {
+      i18n: this.localeNormalizer?.match(pathname),
+    }
 
-      if (this.dynamicRoutes) {
-        for (const dynamicRoute of this.dynamicRoutes) {
-          const params = dynamicRoute.match(pathname)
-          if (!params) {
-            continue
-          }
-          page = dynamicRoute.page
-          const result = await this.renderPageComponent(
-            {
-              ...ctx,
-              pathname: page,
-              renderOpts: {
-                ...ctx.renderOpts,
-                params,
-              },
+    try {
+      for await (const match of this.matchers.matchAll(pathname, options)) {
+        const result = await this.renderPageComponent(
+          {
+            ...ctx,
+            pathname: match.definition.pathname,
+            renderOpts: {
+              ...ctx.renderOpts,
+              params: match.params,
             },
-            bubbleNoFallback
-          )
-          if (result !== false) return result
-        }
+          },
+          bubbleNoFallback
+        )
+        if (result !== false) return result
       }
 
       // currently edge functions aren't receiving the x-matched-path
@@ -1901,6 +1941,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           query,
           params: {},
           isAppPath: false,
+          // Ensuring can't be done here because you never "match" a 404 route.
+          shouldEnsure: true,
         })
         using404Page = result !== null
       }
@@ -1919,6 +1961,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             query,
             params: {},
             isAppPath: false,
+            // Ensuring can't be done here because you never "match" a 500
+            // route.
+            shouldEnsure: true,
           })
         }
       }
@@ -1929,6 +1974,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           query,
           params: {},
           isAppPath: false,
+          // Ensuring can't be done here because you never "match" an error
+          // route.
+          shouldEnsure: true,
         })
         statusPage = '/_error'
       }

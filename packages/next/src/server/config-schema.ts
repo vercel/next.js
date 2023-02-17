@@ -278,6 +278,9 @@ const configSchema = {
         externalDir: {
           type: 'boolean',
         },
+        externalMiddlewareRewritesResolve: {
+          type: 'boolean',
+        },
         fallbackNodePolyfills: {
           type: 'boolean',
         },
@@ -339,8 +342,14 @@ const configSchema = {
           minLength: 1,
           type: 'string',
         },
+        outputFileTracingExcludes: {
+          type: 'object',
+        },
         outputFileTracingIgnores: {
           type: 'array',
+        },
+        outputFileTracingIncludes: {
+          type: 'object',
         },
         pageEnv: {
           type: 'boolean',
@@ -383,18 +392,6 @@ const configSchema = {
         },
         swcMinify: {
           type: 'boolean',
-        },
-        swcMinifyDebugOptions: {
-          additionalProperties: false,
-          properties: {
-            compress: {
-              type: 'object',
-            },
-            mangle: {
-              type: 'object',
-            },
-          },
-          type: 'object',
         },
         swcPlugins: {
           type: 'array',

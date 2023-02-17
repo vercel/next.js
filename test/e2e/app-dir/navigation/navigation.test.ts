@@ -181,6 +181,17 @@ createNextDescribe(
           expect(await browser.url()).toBe(next.url + '/redirect-dest')
         })
       })
+
+      describe('status code', () => {
+        it('should respond with 307 status code in server component', async () => {
+          const res = await next.fetch('/redirect/servercomponent')
+          expect(res.status).toBe(307)
+        })
+        it('should respond with 307 status code in client component', async () => {
+          const res = await next.fetch('/redirect/clientcomponent')
+          expect(res.status).toBe(307)
+        })
+      })
     })
 
     describe('nested navigation', () => {
