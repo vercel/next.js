@@ -158,7 +158,7 @@ interface Entry extends EntryType {
 
 interface ChildEntry extends EntryType {
   type: EntryTypes.CHILD_ENTRY
-  /**
+  /*nsole.
    * Which parent entries use this childEntry.
    */
   parentEntries: Set<string>
@@ -185,15 +185,12 @@ export const getEntryKey = ({
   compilerName,
   pageEntry,
 }: EntryKeyContent): EntryKey => {
-  console.log('getEntryKey', compilerName, pageEntry)
   if (
     pageEntry !== 'root' &&
     pageEntry !== '/middleware' &&
     !pageEntry.startsWith('/app/') &&
     !pageEntry.startsWith('/pages/')
   ) {
-    console.error(`Invalid page: '${pageEntry}'`)
-    console.log(`Invalid page: '${pageEntry}'`)
     throw new Error(`Invalid page: '${pageEntry}'`)
   }
   const entryKey = JSON.stringify({
@@ -460,14 +457,11 @@ export function onDemandEntryHandler({
     entrypoints: Map<string, { name?: string }>,
     root?: boolean
   ) {
-    console.log('running getPagePathsFromEntrypoints', type, root)
     const pagePaths: EntryKey[] = []
     for (const entrypoint of entrypoints.values()) {
-      console.log('entrypointName', entrypoint.name)
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
         const pageEntry = '/' + entrypoint.name!
-        console.log('page', pageEntry)
         pagePaths.push(
           getEntryKey({
             compilerName: type,
@@ -479,7 +473,6 @@ export function onDemandEntryHandler({
         ((root && entrypoint.name === 'root') ||
           isMiddlewareFilename(entrypoint.name))
       ) {
-        console.log('entrypoint.name', entrypoint.name)
         pagePaths.push(
           getEntryKey({
             compilerName: type,
@@ -544,7 +537,6 @@ export function onDemandEntryHandler({
   function handleAppDirPing(
     tree: FlightRouterState
   ): { success: true } | { invalid: true } {
-    console.log('running handleAppDirPing')
     const pages = getEntrypointsFromTree(tree, true)
     let toSend: { invalid: true } | { success: true } = { invalid: true }
 
@@ -589,7 +581,6 @@ export function onDemandEntryHandler({
   }
 
   function handlePing(pg: string) {
-    console.log('running handlePing', pg)
     const page = normalizePathSep(pg)
     let toSend: { invalid: true } | { success: true } = { invalid: true }
 
