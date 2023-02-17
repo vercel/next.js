@@ -23,6 +23,7 @@ pub struct StatsReferences {
 pub enum StatsTaskType {
     Root(TaskId),
     Once(TaskId),
+    ReadCollectibles(TraitTypeId),
     Native(FunctionId),
     ResolveNative(FunctionId),
     ResolveTrait(TraitTypeId, String),
@@ -33,6 +34,9 @@ impl Display for StatsTaskType {
         match self {
             StatsTaskType::Root(_) => write!(f, "root"),
             StatsTaskType::Once(_) => write!(f, "once"),
+            StatsTaskType::ReadCollectibles(t) => {
+                write!(f, "read collectibles {}", registry::get_trait(*t).name)
+            }
             StatsTaskType::Native(nf) => write!(f, "{}", registry::get_function(*nf).name),
             StatsTaskType::ResolveNative(nf) => {
                 write!(f, "resolve {}", registry::get_function(*nf).name)
@@ -184,7 +188,10 @@ impl Stats {
 
     pub fn merge_resolve(&mut self) {
         self.merge(|ty, _stats| match ty {
-            StatsTaskType::Root(_) | StatsTaskType::Once(_) | StatsTaskType::Native(_) => false,
+            StatsTaskType::Root(_)
+            | StatsTaskType::Once(_)
+            | StatsTaskType::Native(_)
+            | StatsTaskType::ReadCollectibles(..) => false,
             StatsTaskType::ResolveNative(_) | StatsTaskType::ResolveTrait(_, _) => true,
         })
     }

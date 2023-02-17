@@ -107,6 +107,11 @@ impl<T: Eq + Hash, H: BuildHasher + Default> CountHashSet<T, H> {
         self.add_count(item, 1)
     }
 
+    /// Returns the current count of an item
+    pub fn get(&self, item: &T) -> isize {
+        *self.inner.get(item).unwrap_or(&0)
+    }
+
     /// Returns true when the value is no longer visible from outside
     pub fn remove_count(&mut self, item: T, count: usize) -> bool {
         match self.inner.entry(item) {

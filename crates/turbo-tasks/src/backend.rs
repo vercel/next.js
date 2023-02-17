@@ -10,14 +10,13 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 
 pub use crate::id::BackendJobId;
 use crate::{
-    event::EventListener, manager::TurboTasksBackendApi, raw_vc::CellId, registry,
-    task_input::SharedReference, FunctionId, RawVc, ReadRef, TaskId, TaskIdProvider, TaskInput,
-    TraitTypeId,
+    event::EventListener, manager::TurboTasksBackendApi, primitives::RawVcSetVc, raw_vc::CellId,
+    registry, task_input::SharedReference, FunctionId, RawVc, ReadRef, TaskId, TaskIdProvider,
+    TaskInput, TraitTypeId,
 };
 
 /// Different Task types
@@ -276,13 +275,13 @@ pub trait Backend: Sync + Send {
         }
     }
 
-    fn try_read_task_collectibles(
+    fn read_task_collectibles(
         &self,
         task: TaskId,
         trait_id: TraitTypeId,
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<AutoSet<RawVc>, EventListener>>;
+    ) -> RawVcSetVc;
 
     fn emit_collectible(
         &self,

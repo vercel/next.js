@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     fmt::{Debug, Display},
-    future::{Future, IntoFuture},
+    future::Future,
     hash::Hash,
     marker::PhantomData,
     pin::Pin,
@@ -335,15 +335,10 @@ impl CollectiblesSource for RawVc {
     fn peek_collectibles<T: ValueTraitVc>(self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
-        let set: RawVcSetVc = tt
-            .native_call(
-                *crate::collectibles::READ_COLLECTIBLES_FUNCTION_ID,
-                vec![self.into(), (*T::get_trait_type_id()).into()],
-            )
-            .into();
+        let set: RawVcSetVc = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
         CollectiblesFuture {
             turbo_tasks: tt,
-            inner: set.into_future(),
+            inner: set.strongly_consistent(),
             take: false,
             phantom: PhantomData,
         }
@@ -352,15 +347,10 @@ impl CollectiblesSource for RawVc {
     fn take_collectibles<T: ValueTraitVc>(self) -> CollectiblesFuture<T> {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
-        let set: RawVcSetVc = tt
-            .native_call(
-                *crate::collectibles::READ_COLLECTIBLES_FUNCTION_ID,
-                vec![self.into(), (*T::get_trait_type_id()).into()],
-            )
-            .into();
+        let set: RawVcSetVc = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
         CollectiblesFuture {
             turbo_tasks: tt,
-            inner: set.into_future(),
+            inner: set.strongly_consistent(),
             take: true,
             phantom: PhantomData,
         }

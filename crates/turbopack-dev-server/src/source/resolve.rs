@@ -77,7 +77,7 @@ pub async fn resolve_source_request(
                         let new_asset_path =
                             urlencoding::decode(&new_uri.path()[1..])?.into_owned();
 
-                        current_source = new_source;
+                        current_source = new_source.resolve().await?;
                         request_overwrites.uri = new_uri;
                         current_asset_path = new_asset_path;
                         data = ContentSourceData::default();

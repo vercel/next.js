@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fmt::{Debug, Display},
     hash::Hash,
     mem::take,
@@ -173,7 +172,7 @@ impl TaskScope {
                 children: CountHashSet::new(),
                 collectibles: AutoMap::new(),
                 dependent_tasks: AutoSet::new(),
-                event: Event::new(|| {
+                event: Event::new(move || {
                     #[cfg(feature = "print_scope_updates")]
                     return format!("TaskScope({id})::event");
                     #[cfg(not(feature = "print_scope_updates"))]
@@ -200,7 +199,7 @@ impl TaskScope {
                 children: CountHashSet::new(),
                 collectibles: AutoMap::new(),
                 dependent_tasks: AutoSet::new(),
-                event: Event::new(|| {
+                event: Event::new(move || {
                     #[cfg(feature = "print_scope_updates")]
                     return format!("TaskScope({id})::event");
                     #[cfg(not(feature = "print_scope_updates"))]
@@ -325,38 +324,18 @@ impl TaskScope {
         }
     }
 
-    pub fn read_collectibles(
+    pub fn read_collectibles_and_children(
         &self,
         self_id: TaskScopeId,
         trait_id: TraitTypeId,
         reader: TaskId,
-        backend: &MemoryBackend,
-    ) -> AutoSet<RawVc> {
-        let collectibles = self.read_collectibles_recursive(
-            self_id,
-            trait_id,
-            reader,
-            backend,
-            &mut HashMap::with_hasher(BuildNoHashHasher::default()),
-        );
-        AutoSet::from_iter(collectibles.iter().copied())
-    }
-
-    fn read_collectibles_recursive(
-        &self,
-        self_id: TaskScopeId,
-        trait_id: TraitTypeId,
-        reader: TaskId,
-        backend: &MemoryBackend,
-        cache: &mut HashMap<TaskScopeId, CountHashSet<RawVc>, BuildNoHashHasher<TaskScopeId>>,
-    ) -> CountHashSet<RawVc> {
-        // TODO add reverse edges from task to scopes and (scope, trait_id)
+    ) -> (CountHashSet<RawVc>, Vec<TaskScopeId>) {
         let mut state = self.state.lock();
         let children = state.children.iter().copied().collect::<Vec<_>>();
         state.dependent_tasks.insert(reader);
         Task::add_dependency_to_current(TaskDependency::ScopeChildren(self_id));
 
-        let mut current = {
+        let current = {
             let (c, dependent_tasks) = state.collectibles.entry(trait_id).or_default();
             dependent_tasks.insert(reader);
             Task::add_dependency_to_current(TaskDependency::ScopeCollectibles(self_id, trait_id));
@@ -364,22 +343,7 @@ impl TaskScope {
         };
         drop(state);
 
-        for id in children {
-            backend.with_scope(id, |scope| {
-                let child = if let Some(cached) = cache.get(&id) {
-                    cached
-                } else {
-                    let child =
-                        scope.read_collectibles_recursive(id, trait_id, reader, backend, cache);
-                    cache.entry(id).or_insert(child)
-                };
-                for v in child.iter() {
-                    current.add(*v);
-                }
-            })
-        }
-
-        current
+        (current, children)
     }
 
     pub(crate) fn remove_dependent_task(&self, reader: TaskId) {
@@ -681,12 +645,21 @@ impl TaskScopeState {
         match self.collectibles.entry(trait_id) {
             Entry::Occupied(mut entry) => {
                 let (collectibles, dependent_tasks) = entry.get_mut();
-                if collectibles.remove_count(collectible, count) {
+                let old_value = collectibles.get(&collectible);
+                let new_value = old_value - count as isize;
+                // NOTE: The read_collectibles need to be invalidated when negative count
+                // changes. Each negative count will eliminate one child scope emitted
+                // collectible. So changing from -1 to -2 might affect the visible collectibles.
+                if collectibles.remove_count(collectible, count) || new_value < 0 {
                     let notify = take(dependent_tasks);
                     if collectibles.is_unset() {
                         entry.remove();
                     }
-                    log_scope_update!("remove_collectible {} -> {}", *self.id, collectible);
+                    log_scope_update!(
+                        "remove_collectible {} -> {} ({old_value} -> {new_value})",
+                        *self.id,
+                        collectible
+                    );
                     Some(ScopeCollectibleChangeEffect { notify })
                 } else {
                     None

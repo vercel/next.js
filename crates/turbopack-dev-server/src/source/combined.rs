@@ -102,8 +102,12 @@ impl PausableCombinedContentSource {
             // we've skipped to exactly the source which requested data. Requery the source
             // with it's partially computed path and needed data.
             let result = match pending.take() {
-                Some(pending) => pending.source.get(&pending.path, mem::take(&mut data)),
-                None => source.get(path, Default::default()),
+                Some(pending) => pending
+                    .source
+                    .resolve()
+                    .await?
+                    .get(&pending.path, mem::take(&mut data)),
+                None => source.resolve().await?.get(path, Default::default()),
             };
 
             let res = result.await?;
