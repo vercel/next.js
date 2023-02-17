@@ -157,57 +157,57 @@ function nextConfigTransformer(
   let pathPrefix = ''
   let loaderType = ''
   root.find(j.ObjectExpression).forEach((o) => {
-    const [images] = o.value.properties || []
-    if (
-      images.type === 'ObjectProperty' &&
-      images.key.type === 'Identifier' &&
-      images.key.name === 'images' &&
-      images.value.type === 'ObjectExpression' &&
-      images.value.properties
-    ) {
-      const properties = images.value.properties.filter((p) => {
-        if (
-          p.type === 'ObjectProperty' &&
-          p.key.type === 'Identifier' &&
-          p.key.name === 'loader' &&
-          'value' in p.value
-        ) {
+    ;(o.value.properties || []).forEach((images) => {
+      if (
+        images.type === 'ObjectProperty' &&
+        images.key.type === 'Identifier' &&
+        images.key.name === 'images' &&
+        images.value.type === 'ObjectExpression' &&
+        images.value.properties
+      ) {
+        const properties = images.value.properties.filter((p) => {
           if (
-            p.value.value === 'imgix' ||
-            p.value.value === 'cloudinary' ||
-            p.value.value === 'akamai'
+            p.type === 'ObjectProperty' &&
+            p.key.type === 'Identifier' &&
+            p.key.name === 'loader' &&
+            'value' in p.value
           ) {
-            loaderType = p.value.value
-            p.value.value = 'custom'
+            if (
+              p.value.value === 'imgix' ||
+              p.value.value === 'cloudinary' ||
+              p.value.value === 'akamai'
+            ) {
+              loaderType = p.value.value
+              p.value.value = 'custom'
+            }
           }
-        }
-        if (
-          p.type === 'ObjectProperty' &&
-          p.key.type === 'Identifier' &&
-          p.key.name === 'path' &&
-          'value' in p.value
-        ) {
-          pathPrefix = String(p.value.value)
-          return false
-        }
-        return true
-      })
-      if (loaderType && pathPrefix) {
-        const importSpecifier = `./${loaderType}-loader.js`
-        const filePath = join(appDir, importSpecifier)
-        properties.push(
-          j.property(
-            'init',
-            j.identifier('loaderFile'),
-            j.literal(importSpecifier)
+          if (
+            p.type === 'ObjectProperty' &&
+            p.key.type === 'Identifier' &&
+            p.key.name === 'path' &&
+            'value' in p.value
+          ) {
+            pathPrefix = String(p.value.value)
+            return false
+          }
+          return true
+        })
+        if (loaderType && pathPrefix) {
+          const importSpecifier = `./${loaderType}-loader.js`
+          const filePath = join(appDir, importSpecifier)
+          properties.push(
+            j.property(
+              'init',
+              j.identifier('loaderFile'),
+              j.literal(importSpecifier)
+            )
           )
-        )
-        images.value.properties = properties
-        const normalizeSrc = `const normalizeSrc = (src) => src[0] === '/' ? src.slice(1) : src`
-        if (loaderType === 'imgix') {
-          writeFileSync(
-            filePath,
-            `${normalizeSrc}
+          images.value.properties = properties
+          const normalizeSrc = `const normalizeSrc = (src) => src[0] === '/' ? src.slice(1) : src`
+          if (loaderType === 'imgix') {
+            writeFileSync(
+              filePath,
+              `${normalizeSrc}
             export default function imgixLoader({ src, width, quality }) {
               const url = new URL('${pathPrefix}' + normalizeSrc(src))
               const params = url.searchParams
@@ -217,37 +217,38 @@ function nextConfigTransformer(
               if (quality) { params.set('q', quality.toString()) }
               return url.href
             }`
-              .split('\n')
-              .map((l) => l.trim())
-              .join('\n')
-          )
-        } else if (loaderType === 'cloudinary') {
-          writeFileSync(
-            filePath,
-            `${normalizeSrc}
+                .split('\n')
+                .map((l) => l.trim())
+                .join('\n')
+            )
+          } else if (loaderType === 'cloudinary') {
+            writeFileSync(
+              filePath,
+              `${normalizeSrc}
             export default function cloudinaryLoader({ src, width, quality }) {
               const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
               const paramsString = params.join(',') + '/'
               return '${pathPrefix}' + paramsString + normalizeSrc(src)
             }`
-              .split('\n')
-              .map((l) => l.trim())
-              .join('\n')
-          )
-        } else if (loaderType === 'akamai') {
-          writeFileSync(
-            filePath,
-            `${normalizeSrc}
+                .split('\n')
+                .map((l) => l.trim())
+                .join('\n')
+            )
+          } else if (loaderType === 'akamai') {
+            writeFileSync(
+              filePath,
+              `${normalizeSrc}
             export default function akamaiLoader({ src, width, quality }) {
               return '${pathPrefix}' + normalizeSrc(src) + '?imwidth=' + width
             }`
-              .split('\n')
-              .map((l) => l.trim())
-              .join('\n')
-          )
+                .split('\n')
+                .map((l) => l.trim())
+                .join('\n')
+            )
+          }
         }
       }
-    }
+    })
   })
   return root
 }
