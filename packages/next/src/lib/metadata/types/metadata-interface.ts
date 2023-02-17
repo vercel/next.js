@@ -44,13 +44,13 @@ interface Metadata {
    * The document title.
    * @type {null | string | TemplateString}
    * @example
-   * { title: "My Blog" }
+   * "My Blog"
    * <title>My Blog</title>
    *
-   * { title: { default: "Dashboard", template: "%s | My Website" } }
+   * { default: "Dashboard", template: "%s | My Website" }
    * <title>Dashboard | My Website</title>
    *
-   * { title: { absolute: "My Blog", template: "%s | My Website" } }
+   * { absolute: "My Blog", template: "%s | My Website" }
    * <title>My Blog</title>
    *
    */
@@ -60,7 +60,7 @@ interface Metadata {
    * The document description, and optionally the OpenGraph and twitter descriptions.
    * @type {null | string}
    * @example
-   * { description: "My Blog Description" }
+   * "My Blog Description"
    * <meta name="description" content="My Blog Description" />
    */
   description?: null | string
@@ -72,7 +72,7 @@ interface Metadata {
    * The application name.
    * @type {null | string}
    * @example
-   * { applicationName: "My Blog" }
+   * "My Blog"
    * <meta name="application-name" content="My Blog" />
    */
   applicationName?: null | string
@@ -81,7 +81,7 @@ interface Metadata {
    * The authors of the document.
    * @type {null | Author | Array<Author>}
    * @example
-   * { authors: [{ name: "Next.js Team", url: "https://nextjs.org" }] }
+   * [{ name: "Next.js Team", url: "https://nextjs.org" }]
    * <meta name="author" content="Next.js Team" />
    * <link rel="author" href="https://nextjs.org" />
    *
@@ -92,7 +92,7 @@ interface Metadata {
    * The generator used for the document.
    * @type {null | string}
    * @example
-   * { generator: "Next.js" }
+   * "Next.js"
    * <meta name="generator" content="Next.js" />
    *
    */
@@ -102,10 +102,10 @@ interface Metadata {
    * The keywords for the document. If an array is provided, it will be flattened into a single tag with comma separation.
    * @type {null | string | Array<string>}
    * @example
-   * { keywords: "nextjs, react, blog" }
+   * "nextjs, react, blog"
    * <meta name="keywords" content="nextjs, react, blog" />
    *
-   * { keywords: ["react", "server components"] }
+   * ["react", "server components"]
    * <meta name="keywords" content="react, server components" />
    *
    */
@@ -115,7 +115,7 @@ interface Metadata {
    * The referrer setting for the document.
    * @type {null | ReferrerEnum}
    * @example
-   * { referrer: "origin" }
+   * "origin"
    * <meta name="referrer" content="origin" />
    *
    */
@@ -125,7 +125,7 @@ interface Metadata {
    * The theme color for the document.
    * @type {null | string}
    * @example
-   * { themeColor: "#000000" }
+   * "#000000"
    * <meta name="theme-color" content="#000000" />
    *
    */
@@ -135,7 +135,7 @@ interface Metadata {
    * The color scheme for the document.
    * @type {null | ColorSchemeEnum}
    * @example
-   * { colorScheme: "dark" }
+   * "dark"
    * <meta name="color-scheme" content="dark" />
    */
   colorScheme?: null | ColorSchemeEnum
@@ -144,10 +144,10 @@ interface Metadata {
    * The viewport setting for the document.
    * @type {null | string | Viewport}
    * @example
-   * { viewport: "width=device-width, initial-scale=1" }
+   * "width=device-width, initial-scale=1"
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    *
-   * { viewport: { width: "device-width", initialScale: 1 } }
+   * { width: "device-width", initialScale: 1 }
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    *
    */
@@ -157,7 +157,7 @@ interface Metadata {
    * The creator of the document.
    * @type {null | string}
    * @example
-   * { creator: "Next.js Team" }
+   * "Next.js Team"
    * <meta name="creator" content="Next.js Team" />
    *
    */
@@ -167,7 +167,7 @@ interface Metadata {
    * The publisher of the document.
    * @type {null | string}
    * @example
-   * { publisher: "Vercel" }
+   * "Vercel"
    * <meta name="publisher" content="Vercel" />
    *
    */
@@ -179,10 +179,10 @@ interface Metadata {
    * The robots setting for the document.
    * @type {null | string | Robots}
    * @example
-   * { robots: "index, follow" }
+   * "index, follow"
    * <meta name="robots" content="index, follow" />
    *
-   * { robots: { index: false, follow: false } }
+   * { index: false, follow: false }
    * <meta name="robots" content="noindex, nofollow" />
    *
    */
@@ -192,10 +192,10 @@ interface Metadata {
    * The canonical and alternate URLs for the document.
    * @type {null | AlternateURLs}
    * @example
-   * { alternates: { canonical: "https://example.com" } }
+   * { canonical: "https://example.com" }
    * <link rel="canonical" href="https://example.com" />
    *
-   * { alternates: { canonical: "https://example.com", hreflang: { "en-US": "https://example.com/en-US" } } }
+   * { canonical: "https://example.com", hreflang: { "en-US": "https://example.com/en-US" } }
    * <link rel="canonical" href="https://example.com" />
    * <link rel="alternate" href="https://example.com/en-US" hreflang="en-US" />
    *
@@ -206,14 +206,14 @@ interface Metadata {
    * The icons for the document. Defaults to rel="icon".
    * @type {null | IconURL | Array<Icon> | Icons}
    * @example
-   * { icons: "https://example.com/icon.png" }
+   * "https://example.com/icon.png"
    * <link rel="icon" href="https://example.com/icon.png" />
    *
-   * { icons: { icon: "https://example.com/icon.png", appleIcon: "https://example.com/apple-icon.png" } }
+   * { icon: "https://example.com/icon.png", appleIcon: "https://example.com/apple-icon.png" }
    * <link rel="icon" href="https://example.com/icon.png" />
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
    *
-   * { icons: [{ rel: "icon", href: "https://example.com/icon.png" }, { rel: "apple-touch-icon", href: "https://example.com/apple-icon.png" }] }
+   * [{ rel: "icon", href: "https://example.com/icon.png" }, { rel: "apple-touch-icon", href: "https://example.com/apple-icon.png" }]
    * <link rel="icon" href="https://example.com/icon.png" />
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
    *
@@ -225,7 +225,7 @@ interface Metadata {
    *
    * @type {null | string | URL}
    * @example
-   * { manifest: "https://example.com/manifest.json" }
+   * "https://example.com/manifest.json"
    * <link rel="manifest" href="https://example.com/manifest.json" />
    *
    */
@@ -233,8 +233,6 @@ interface Metadata {
 
   /**
    * @example
-   * Example of Open Graph field:
-   * ```
    * {
    *   type: "website",
    *   url: "https://example.com",
@@ -244,7 +242,7 @@ interface Metadata {
    *     url: "https://example.com/og.png",
    *   }],
    * }
-   * ```
+   *
    */
   openGraph?: null | OpenGraph
 
@@ -252,7 +250,8 @@ interface Metadata {
    * The Twitter metadata for the document.
    * @type {null | Twitter}
    * @example
-   * { twitter: { card: "summary_large_image", site: "@site", creator: "@creator", "images": "https://example.com/og.png" } }
+   * { card: "summary_large_image", site: "@site", creator: "@creator", "images": "https://example.com/og.png" }
+   *
    * <meta name="twitter:card" content="summary_large_image" />
    * <meta name="twitter:site" content="@site" />
    * <meta name="twitter:creator" content="@creator" />
@@ -280,7 +279,7 @@ interface Metadata {
    * https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
    * @type {null | boolean | AppleWebApp}
    * @example
-   * { appleWebApp: true, title: "My Website", statusBarStyle: "black-translucent" }
+   * { capable: true, title: "My Website", statusBarStyle: "black-translucent" }
    * <meta name="apple-mobile-web-app-capable" content="yes" />
    * <meta name="apple-mobile-web-app-title" content="My Website" />
    * <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -293,7 +292,7 @@ interface Metadata {
    * if telephone numbers on mobile that can be clicked to dial or not.
    * @type {null | FormatDetection}
    * @example
-   * { formatDetection: { telephone: false } }
+   * { telephone: false }
    * <meta name="format-detection" content="telephone=no" />
    *
    */
@@ -304,19 +303,19 @@ interface Metadata {
    * It adds the `name="apple-itunes-app"` meta tag.
    * @type {null | ItunesApp}
    * @example
-   * { itunes: { app: { id: "123456789", affiliateData: "123456789", appArguments: "123456789" } } }
+   * { app: { id: "123456789", affiliateData: "123456789", appArguments: "123456789" } }
    * <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=123456789, app-arguments=123456789" />
    *
    */
   itunes?: null | ItunesApp
 
   /**
-   * A brief description of what this web-page is about. Not recommended, superceded by description.
+   * A brief description of what this web-page is about. Not recommended, superseded by description.
    * It adds the `name="abstract"` meta tag.
    * https://www.metatags.org/all-meta-tags-overview/meta-name-abstract/
    * @type {null | string}
    * @example
-   * { abstract: "My Website Description" }
+   * "My Website Description"
    * <meta name="abstract" content="My Website Description" />
    *
    */
@@ -326,7 +325,8 @@ interface Metadata {
    * The Facebook AppLinks metadata for the document.
    * @type {null | AppLinks}
    * @example
-   * { appLinks: { ios: { appStoreId: "123456789", url: "https://example.com" }, android: { packageName: "com.example", url: "https://example.com" } } }
+   * { ios: { appStoreId: "123456789", url: "https://example.com" }, android: { packageName: "com.example", url: "https://example.com" } }
+   *
    * <meta property="al:ios:app_store_id" content="123456789" />
    * <meta property="al:ios:url" content="https://example.com" />
    * <meta property="al:android:package" content="com.example" />
@@ -349,7 +349,7 @@ interface Metadata {
    * The assets link rel property.
    * @type {null | string | Array<string>}
    * @example
-   * { assets: "https://example.com/assets" }
+   * "https://example.com/assets"
    * <link rel="assets" href="https://example.com/assets" />
    *
    */
@@ -359,7 +359,7 @@ interface Metadata {
    * The bookmarks link rel property.
    * @type {null | string | Array<string>}
    * @example
-   * { bookmarks: "https://example.com/bookmarks" }
+   * "https://example.com/bookmarks"
    * <link rel="bookmarks" href="https://example.com/bookmarks" />
    *
    */
@@ -371,7 +371,7 @@ interface Metadata {
    * The category meta name property.
    * @type {null | string}
    * @example
-   * { category: "My Category" }
+   * "My Category"
    * <meta name="category" content="My Category" />
    */
   category?: null | string
@@ -380,7 +380,9 @@ interface Metadata {
    * The classification meta name property.
    * @type {null | string}
    * @example
-   * { classification: "My Classification" }
+   * "My Classification"
+   * <meta name="classification" content="My Classification" />
+   *
    */
   classification?: null | string
 
