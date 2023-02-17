@@ -51,5 +51,11 @@ export function normalizeAppPath(route: string) {
 }
 
 export function normalizeRscPath(pathname: string, enabled?: boolean) {
-  return enabled ? pathname.replace(/\.rsc($|\?)/, '') : pathname
+  return enabled
+    ? pathname.replace(
+        /\.rsc($|\?)/,
+        // $1 ensures `?` is preserved
+        '$1'
+      )
+    : pathname
 }
