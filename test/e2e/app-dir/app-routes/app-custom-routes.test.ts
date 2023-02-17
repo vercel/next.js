@@ -108,6 +108,7 @@ createNextDescribe(
           })
 
           const res = await next.fetch('/advanced/body/streaming', {
+            duplex: 'half',
             method: 'POST',
             body: stream,
           })
