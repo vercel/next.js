@@ -244,6 +244,7 @@ export function enhanceGlobals() {
   })
 
   if (
+    '__ENTRIES' in globalThis &&
     _ENTRIES.middleware_instrumentation &&
     _ENTRIES.middleware_instrumentation.register
   ) {
