@@ -21,8 +21,8 @@ describe('next/jest', () => {
           import Image from "next/image";
           import img from "../public/vercel.svg";
           import styles from "../styles/index.module.css";
-          import localFont from "@next/font/local";
-          import { Inter } from "@next/font/google";
+          import localFont from "next/font/local";
+          import { Inter } from "next/font/google";
 
           const inter = Inter({ subsets: ["latin"] });
           const myFont = localFont({ src: "./my-font.woff2" });
