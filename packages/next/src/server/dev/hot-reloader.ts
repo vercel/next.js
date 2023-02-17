@@ -607,8 +607,6 @@ export default class HotReloader {
             else if (pageEntry.startsWith('/pages/')) page = pageEntry.slice(6)
             else page = pageEntry
 
-            console.log('page', page)
-
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
             if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
               return
