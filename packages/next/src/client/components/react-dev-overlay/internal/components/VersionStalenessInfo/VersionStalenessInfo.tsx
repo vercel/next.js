@@ -1,17 +1,5 @@
 import React from 'react'
-
-export interface VersionInfo {
-  installed: string
-  staleness:
-    | 'fresh'
-    | 'stale-patch'
-    | 'stale-minor'
-    | 'stale-major'
-    | 'stale-prerelease'
-    | 'newer-than-npm'
-    | 'unknown'
-  expected?: string
-}
+import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 
 export function VersionStalenessInfo(props: VersionInfo) {
   if (!props) return null

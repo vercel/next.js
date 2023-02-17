@@ -1,5 +1,4 @@
-import type { VersionInfo } from '../../packages/next/src/client/components/react-dev-overlay/internal/components/VersionStalenessInfo'
-import { parseVersionInfo } from 'next/dist/server/dev/hot-reloader'
+import { parseVersionInfo, VersionInfo } from './parse-version-info'
 
 describe('parse version info', () => {
   test.each<

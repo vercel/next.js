@@ -19,10 +19,8 @@ import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
-import {
-  VersionInfo,
-  VersionStalenessInfo,
-} from '../components/VersionStalenessInfo'
+import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
+import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 
 export type SupportedErrorEvent = {
   id: number

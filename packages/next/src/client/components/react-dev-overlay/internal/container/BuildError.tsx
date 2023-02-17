@@ -1,4 +1,5 @@
 import * as React from 'react'
+import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import {
   Dialog,
   DialogBody,
@@ -7,10 +8,7 @@ import {
 } from '../components/Dialog'
 import { Overlay } from '../components/Overlay'
 import { Terminal } from '../components/Terminal'
-import {
-  VersionInfo,
-  VersionStalenessInfo,
-} from '../components/VersionStalenessInfo'
+import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import { noop as css } from '../helpers/noop-template'
 
 export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }

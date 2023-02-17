@@ -23,9 +23,9 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type ws from 'ws'
-import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/components/VersionStalenessInfo'
 import { isMiddlewareFilename } from '../../build/utils'
 import { nonNullable } from '../../lib/non-nullable'
+import type { VersionInfo } from './parse-version-info'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {

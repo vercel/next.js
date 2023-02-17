@@ -1,5 +1,5 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { VersionInfo } from './components/VersionStalenessInfo'
+import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './container/Errors'
 import { ComponentStackFrame } from './helpers/parse-component-stack'
 

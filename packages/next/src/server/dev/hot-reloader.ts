@@ -1,5 +1,4 @@
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import * as semver from 'next/dist/compiled/semver'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
@@ -51,9 +50,9 @@ import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
-import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/components/VersionStalenessInfo/VersionStalenessInfo'
 import { RouteMatch } from '../future/route-matches/route-match'
 import type { Telemetry } from '../../telemetry/storage'
+import { parseVersionInfo, VersionInfo } from './parse-version-info'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -157,61 +156,6 @@ function erroredPages(compilation: webpack.Compilation) {
   }
 
   return failedPages
-}
-
-export function parseVersionInfo(o: {
-  installed: string
-  latest: string
-  canary: string
-}): VersionInfo {
-  const latest = semver.parse(o.latest)
-  const canary = semver.parse(o.canary)
-  const installedParsed = semver.parse(o.installed)
-  const installed = o.installed
-  if (installedParsed && latest && canary) {
-    if (installedParsed.major < latest.major) {
-      // Old major version
-      return { staleness: 'stale-major', expected: latest.raw, installed }
-    } else if (
-      installedParsed.prerelease[0] === 'canary' &&
-      semver.lt(installedParsed, canary)
-    ) {
-      // Matching major, but old canary
-      return {
-        staleness: 'stale-prerelease',
-        expected: canary.raw,
-        installed,
-      }
-    } else if (
-      !installedParsed.prerelease.length &&
-      semver.lt(installedParsed, latest)
-    ) {
-      // Stable, but not the latest
-      if (installedParsed.minor === latest.minor) {
-        // Same major and minor, but not the latest patch
-        return {
-          staleness: 'stale-patch',
-          expected: latest.raw,
-          installed,
-        }
-      }
-      return { staleness: 'stale-minor', expected: latest.raw, installed }
-    } else if (
-      semver.gt(installedParsed, latest) &&
-      installedParsed.version !== canary.version
-    ) {
-      // Newer major version
-      return { staleness: 'newer-than-npm', installed }
-    } else {
-      // Latest and greatest
-      return { staleness: 'fresh', installed }
-    }
-  }
-
-  return {
-    installed: installedParsed?.raw ?? '0.0.0',
-    staleness: 'unknown',
-  }
 }
 
 export default class HotReloader {
