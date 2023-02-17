@@ -164,36 +164,46 @@ interface ChildEntry extends EntryType {
   parentEntries: Set<string>
 }
 
-export type EntryKey = `${'app' | 'pages'}/${CompilerNameValues}/${string}`
-export const entries: {
+export type EntryKeyContent = {
+  compilerName: CompilerNameValues
   /**
-   * The key composed of the compiler name and the page. For example:
-   * `edge-server/about`
+   * Should be ~ file path of entrypiont.
+   * There are multiple types:
+   *  - /pages/[pathname]
+   *  - /app/[pathname]
+   *  - /middleware
+   *  - root
    */
+  pageEntry: string
+}
+export type EntryKey = string & { __entryKey: true }
+export const entries: {
   [entryKey: EntryKey]: Entry | ChildEntry
 } = {}
 
 export const getEntryKey = ({
-  isAppDir,
   compilerName,
-  page,
-}: {
-  isAppDir: boolean
-  compilerName: CompilerNameValues
-  page: string
-}): EntryKey => {
-  if (page[0] !== '/') throw new Error('page must start with /')
-  return `${isAppDir ? 'app' : 'pages'}/${compilerName}/${page.slice(1)}`
-}
-
-export const parseEntryKey = (entryKey: EntryKey) => {
-  const [directory, compilerName, page] = entryKey.split('/', 3)
-  return {
-    isAppDir: directory === 'app',
-    compilerName: compilerName as CompilerNameValues,
-    page: '/' + page,
+  pageEntry,
+}: EntryKeyContent): EntryKey => {
+  console.log('getEntryKey', compilerName, pageEntry)
+  if (
+    pageEntry !== 'root' &&
+    pageEntry !== '/middleware' &&
+    !pageEntry.startsWith('/app/') &&
+    !pageEntry.startsWith('/pages/')
+  ) {
+    console.error(`Invalid page: '${pageEntry}'`)
+    console.log(`Invalid page: '${pageEntry}'`)
+    throw new Error(`Invalid page: '${pageEntry}'`)
   }
+  const entryKey = JSON.stringify({
+    compilerName,
+    pageEntry,
+  }) as EntryKey
+  return entryKey
 }
+export const parseEntryKey = (entryKey: EntryKey) =>
+  JSON.parse(entryKey) as EntryKeyContent
 
 let invalidator: Invalidator
 export const getInvalidator = () => invalidator
@@ -450,14 +460,13 @@ export function onDemandEntryHandler({
     entrypoints: Map<string, { name?: string }>,
     root?: boolean
   ) {
+    console.log('running getPagePathsFromEntrypoints', type, root)
     const pagePaths: EntryKey[] = []
     for (const entrypoint of entrypoints.values()) {
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
-        const isAppDir = entrypoint.name?.startsWith('app/') ?? false
         pagePaths.push(
           getEntryKey({
-            isAppDir,
             compilerName: type,
             page,
           })
@@ -467,6 +476,7 @@ export function onDemandEntryHandler({
         ((root && entrypoint.name === 'root') ||
           isMiddlewareFilename(entrypoint.name))
       ) {
+        console.log('entrypoint.name', entrypoint.name)
         pagePaths.push(
           getEntryKey({
             isAppDir: true,
@@ -532,6 +542,7 @@ export function onDemandEntryHandler({
   function handleAppDirPing(
     tree: FlightRouterState
   ): { success: true } | { invalid: true } {
+    console.log('running handleAppDirPing')
     const pages = getEntrypointsFromTree(tree, true)
     let toSend: { invalid: true } | { success: true } = { invalid: true }
 
@@ -577,6 +588,7 @@ export function onDemandEntryHandler({
   }
 
   function handlePing(pg: string) {
+    console.log('running handlePing', pg)
     const page = normalizePathSep(pg)
     let toSend: { invalid: true } | { success: true } = { invalid: true }
 
@@ -586,7 +598,6 @@ export function onDemandEntryHandler({
       COMPILER_NAMES.edgeServer,
     ]) {
       const entryKey = getEntryKey({
-        isAppDir: false,
         compilerName: compilerType,
         page,
       })
@@ -660,18 +671,20 @@ export function onDemandEntryHandler({
 
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
+        const pageEntry = `/${isInsideAppDir ? 'app' : 'page'}${
+          pagePathData.page
+        }`
 
         const addEntry = (
           compilerType: CompilerNameValues
         ): {
-          entryKey: string
+          entryKey: EntryKey
           newEntry: boolean
           shouldInvalidate: boolean
         } => {
           const entryKey = getEntryKey({
-            isAppDir: isInsideAppDir,
             compilerName: compilerType,
-            page: pagePathData.page,
+            pageEntry,
           })
 
           if (entries[entryKey]) {
@@ -734,9 +747,8 @@ export function onDemandEntryHandler({
           onServer: () => {
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
             const edgeServerEntryKey = getEntryKey({
-              isAppDir: isInsideAppDir,
               compilerName: COMPILER_NAMES.edgeServer,
-              page: pagePathData.page,
+              pageEntry,
             })
 
             if (entries[edgeServerEntryKey]) {
@@ -750,9 +762,8 @@ export function onDemandEntryHandler({
               addEntry(COMPILER_NAMES.edgeServer)
             )
             const serverEntryKey = getEntryKey({
-              isAppDir: isInsideAppDir,
               compilerName: COMPILER_NAMES.server,
-              page: pagePathData.page,
+              pageEntry,
             })
 
             if (entries[serverEntryKey]) {

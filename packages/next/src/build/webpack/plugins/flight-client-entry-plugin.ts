@@ -575,6 +575,7 @@ export class FlightClientEntryPlugin {
     clientImports: ClientComponentImports
     bundlePath: string
   }): [shouldInvalidate: boolean, addEntryPromise: Promise<void>] {
+    console.log('running injectClientEntryAndSSRModules')
     let shouldInvalidate = false
 
     const loaderOptions: NextFlightClientEntryLoaderOptions = {
@@ -602,11 +603,9 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
-      const [directory, page] = entryName.split('/', 2)
       const entryKey = getEntryKey({
-        isAppDir: directory === 'app',
         compilerName: COMPILER_NAMES.client,
-        page: '/' + page,
+        pageEntry: '/' + entryName,
       })
       if (!entries[entryKey]) {
         entries[entryKey] = {

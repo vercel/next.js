@@ -600,7 +600,14 @@ export default class HotReloader {
           (Object.keys(entries) as EntryKey[]).map(async (entryKey) => {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
-            const { compilerName: key, page } = parseEntryKey(entryKey)
+            const { compilerName: key, pageEntry } = parseEntryKey(entryKey)
+
+            let page: string
+            if (pageEntry.startsWith('/app/')) page = pageEntry.slice(4)
+            else if (pageEntry.startsWith('/pages/')) page = pageEntry.slice(6)
+            else page = pageEntry
+
+            console.log('page', page)
 
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
             if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
