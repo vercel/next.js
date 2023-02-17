@@ -463,12 +463,15 @@ export function onDemandEntryHandler({
     console.log('running getPagePathsFromEntrypoints', type, root)
     const pagePaths: EntryKey[] = []
     for (const entrypoint of entrypoints.values()) {
+      console.log('entrypointName', entrypoint.name)
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
+        const pageEntry = '/' + entrypoint.name!
+        console.log('page', pageEntry)
         pagePaths.push(
           getEntryKey({
             compilerName: type,
-            page,
+            pageEntry,
           })
         )
       } else if (
@@ -479,9 +482,8 @@ export function onDemandEntryHandler({
         console.log('entrypoint.name', entrypoint.name)
         pagePaths.push(
           getEntryKey({
-            isAppDir: true,
             compilerName: type,
-            page: entrypoint.name,
+            pageEntry: '/' + entrypoint.name,
           })
         )
       }
@@ -553,9 +555,8 @@ export function onDemandEntryHandler({
         COMPILER_NAMES.edgeServer,
       ]) {
         const pageKey = getEntryKey({
-          isAppDir: true,
           compilerName: compilerType,
-          page,
+          pageEntry: '/app' + page,
         })
         const entryInfo = entries[pageKey]
 
@@ -599,7 +600,7 @@ export function onDemandEntryHandler({
     ]) {
       const entryKey = getEntryKey({
         compilerName: compilerType,
-        page,
+        pageEntry: '/pages' + page,
       })
       const entryInfo = entries[entryKey]
 
@@ -671,9 +672,22 @@ export function onDemandEntryHandler({
 
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
-        const pageEntry = `/${isInsideAppDir ? 'app' : 'page'}${
-          pagePathData.page
-        }`
+
+        let pageEntry = pagePathData.page
+        if (isInsideAppDir) {
+          pageEntry = '/app' + pageEntry
+        } else if (
+          pagesDir &&
+          pagePathData.absolutePagePath.startsWith(pagesDir)
+        ) {
+          pageEntry = '/pages' + pageEntry
+        }
+
+        // If next.js provides default error, it's absolute path doesn't start with pagesDir
+        // But it's expected as /pages/_error elsewhere
+        if (pageEntry === '/_error') {
+          pageEntry = '/pages/_error'
+        }
 
         const addEntry = (
           compilerType: CompilerNameValues
