@@ -905,8 +905,8 @@ export default async function getBaseWebpackConfig(
     [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
     [COMPILER_NAMES.edgeServer]: [
       'edge-light',
-      'browser',
       'worker',
+      'browser',
       'module',
       'main',
     ],
