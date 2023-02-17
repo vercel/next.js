@@ -77,7 +77,7 @@ impl ContentSource for NextImageContentSource {
             ContentSourceContent::HttpProxy(
                 ProxyResult {
                     status: 302,
-                    headers: vec!["Location".to_string(), url.clone()],
+                    headers: vec![("Location".to_string(), url.clone())],
                     body: "".into(),
                 }
                 .cell(),
