@@ -1,4 +1,6 @@
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
+import { isNotFoundError } from './components/not-found'
+import { isRedirectError } from './components/redirect'
 
 export default function onRecoverableError(err: any, errorInfo: any) {
   const digest = err.digest || errorInfo.digest
@@ -14,7 +16,14 @@ export default function onRecoverableError(err: any, errorInfo: any) {
           window.console.error(error)
         }
 
+  console.log({ err })
+
   // Skip certain custom errors which are not expected to be reported on client
-  if (digest === NEXT_DYNAMIC_NO_SSR_CODE) return
+  if (
+    digest === NEXT_DYNAMIC_NO_SSR_CODE ||
+    isRedirectError(err) ||
+    isNotFoundError(err)
+  )
+    return
   defaultOnRecoverableError(err)
 }

@@ -38,6 +38,7 @@ import {
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
+import { RedirectBoundary } from './redirect-boundary'
 
 const isServer = typeof window === 'undefined'
 
@@ -327,7 +328,7 @@ function Router({
     }
   }, [onPopState])
 
-  const content = <>{cache.subTreeData}</>
+  const content = <RedirectBoundary>{cache.subTreeData}</RedirectBoundary>
 
   return (
     <PathnameContext.Provider value={pathname}>
