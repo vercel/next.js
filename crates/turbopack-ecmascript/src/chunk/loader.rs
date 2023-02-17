@@ -8,9 +8,11 @@ use turbopack_core::{
     asset::{Asset, AssetContentVc, AssetVc},
     chunk::{
         ChunkGroupVc, ChunkItem, ChunkItemVc, ChunkReferenceVc, ChunkVc, ChunkableAsset,
-        ChunkableAssetVc, ChunkingContext, ChunkingContextVc, ChunksVc,
+        ChunkableAssetReference, ChunkableAssetReferenceVc, ChunkableAssetVc, ChunkingContext,
+        ChunkingContextVc, ChunkingType, ChunkingTypeOptionVc, ChunksVc,
     },
-    reference::AssetReferencesVc,
+    reference::{AssetReference, AssetReferenceVc, AssetReferencesVc},
+    resolve::{ResolveResult, ResolveResultVc},
 };
 
 use crate::{
@@ -64,7 +66,11 @@ impl ValueToString for ManifestLoaderItem {
 impl ChunkItem for ManifestLoaderItem {
     #[turbo_tasks::function]
     fn references(&self) -> AssetReferencesVc {
-        AssetReferencesVc::empty()
+        AssetReferencesVc::cell(vec![ManifestChunkAssetReference {
+            manifest: self.manifest,
+        }
+        .cell()
+        .into()])
     }
 }
 
@@ -308,5 +314,37 @@ impl ChunkItem for ManifestChunkItem {
                 .map(Into::into)
                 .collect(),
         ))
+    }
+}
+
+#[turbo_tasks::value]
+struct ManifestChunkAssetReference {
+    manifest: ManifestChunkAssetVc,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for ManifestChunkAssetReference {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<StringVc> {
+        Ok(StringVc::cell(format!(
+            "referenced manifest {}",
+            self.manifest.path().to_string().await?
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl AssetReference for ManifestChunkAssetReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> ResolveResultVc {
+        ResolveResult::asset(self.manifest.into()).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableAssetReference for ManifestChunkAssetReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self, _context: ChunkingContextVc) -> ChunkingTypeOptionVc {
+        ChunkingTypeOptionVc::cell(Some(ChunkingType::Separate))
     }
 }

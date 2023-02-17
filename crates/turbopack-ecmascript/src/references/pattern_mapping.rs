@@ -157,7 +157,7 @@ impl PatternMappingVc {
 
         if let Some(chunkable) = ChunkableAssetVc::resolve_from(asset).await? {
             if *resolve_type == ResolveType::EsmAsync {
-                if let Some((loader, _)) =
+                if let Some(loader) =
                     EcmascriptChunkItemVc::from_async_asset(context, chunkable).await?
                 {
                     return Ok(PatternMappingVc::cell(PatternMapping::Single(
