@@ -1,8 +1,8 @@
 /* global jest */
 jest.autoMockOff()
 const Runner = require('jscodeshift/dist/Runner');
-const { cp, mkdir, rm, readdir, readFile } = require('fs/promises')
-const { mkdtempSync, readdirSync } = require('fs')
+const { cp, mkdir, mkdtemp, rm, readdir, readFile, stat } = require('fs/promises')
+const { readdirSync } = require('fs')
 const { tmpdir } = require('os')
 const { join } = require('path')
 
@@ -14,13 +14,19 @@ async function toObj(dir) {
   const obj = {}
   const files = await readdir(dir)
   for (const file of files) {
-    obj[file] = await readFile(join(dir, file), 'utf8')
+    const filePath = join(dir, file)
+    const s = await stat(filePath)
+    if (s.isDirectory()) {
+      obj[file] = await toObj(filePath)
+    } else {
+      obj[file] = await readFile(filePath, 'utf8')
+    }
   }
   return obj
 }
 
 it.each(readdirSync(fixtureDir))('should transform loader %s', async (loader) => {
-  const tmp = mkdtempSync(join(tmpdir(), `next-image-experimental-${loader}-`))
+  const tmp = await mkdtemp(join(tmpdir(), `next-image-experimental-${loader}-`))
   const originalCwd = process.cwd()
   try {
     await mkdir(tmp, opts)
