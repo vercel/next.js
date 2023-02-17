@@ -793,6 +793,10 @@
         {
           "title": "app-static-to-dynamic-error",
           "path": "/errors/app-static-to-dynamic-error.md"
+        },
+        {
+          "title": "built-in-next-font",
+          "path": "/errors/built-in-next-font.md"
         }
       ]
     }

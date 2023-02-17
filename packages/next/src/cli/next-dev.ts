@@ -173,15 +173,23 @@ const nextDev: CliCommand = async (argv) => {
     const { getPackageVersion } = await Promise.resolve(
       require('../lib/get-package-version')
     )
-    const [sassVersion, nodeSassVersion] = await Promise.all([
+    const [sassVersion, nodeSassVersion, nextFontVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
+      getPackageVersion({ cwd: dir, name: '@next/font' }),
     ])
     if (sassVersion && nodeSassVersion) {
       Log.warn(
         'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
           'Please remove the `node-sass` dependency from your project. ' +
           ' Read more: https://nextjs.org/docs/messages/duplicate-sass'
+      )
+    }
+    if (nextFontVersion) {
+      Log.warn(
+        'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
+          'The `@next/font` package will be removed in Next.js 14. ' +
+          'You can migrate by running the `built-in-next-font` codemod. Read more: https://nextjs.org/docs/messages/built-in-next-font'
       )
     }
   }
