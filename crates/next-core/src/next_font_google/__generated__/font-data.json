@@ -5333,6 +5333,14 @@
       "normal"
     ]
   },
+  "Gajraj One": {
+    "weights": [
+      "400"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
   "Galada": {
     "weights": [
       "400"
@@ -5609,6 +5617,14 @@
     "weights": [
       "400",
       "700"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
+  "Gloock": {
+    "weights": [
+      "400"
     ],
     "styles": [
       "normal"
@@ -7646,6 +7662,32 @@
       "normal"
     ]
   },
+  "Labrada": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal",
+      "italic"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Lacquer": {
     "weights": [
       "400"
@@ -9649,6 +9691,14 @@
     ]
   },
   "My Soul": {
+    "weights": [
+      "400"
+    ],
+    "styles": [
+      "normal"
+    ]
+  },
+  "Mynerve": {
     "weights": [
       "400"
     ],
@@ -13624,6 +13674,29 @@
       "italic"
     ]
   },
+  "Phudu": {
+    "weights": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ]
+  },
   "Piazzolla": {
     "weights": [
       "100",
@@ -15639,6 +15712,47 @@
     ],
     "styles": [
       "normal"
+    ]
+  },
+  "Shantell Sans": {
+    "weights": [
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "variable"
+    ],
+    "styles": [
+      "normal",
+      "italic"
+    ],
+    "axes": [
+      {
+        "tag": "BNCE",
+        "min": -100,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "INFM",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "SPAC",
+        "min": 0,
+        "max": 100,
+        "defaultValue": 0
+      },
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 800,
+        "defaultValue": 400
+      }
     ]
   },
   "Shanti": {
