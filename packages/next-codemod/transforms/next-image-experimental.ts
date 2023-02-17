@@ -1,3 +1,4 @@
+import { join, parse } from 'path'
 import { writeFileSync } from 'fs'
 import type {
   API,
@@ -148,7 +149,11 @@ function findAndReplaceProps(
     })
 }
 
-function nextConfigTransformer(j: JSCodeshift, root: Collection) {
+function nextConfigTransformer(
+  j: JSCodeshift,
+  root: Collection,
+  appDir: string
+) {
   let pathPrefix = ''
   let loaderType = ''
   root.find(j.ObjectExpression).forEach((o) => {
@@ -196,7 +201,7 @@ function nextConfigTransformer(j: JSCodeshift, root: Collection) {
         const normalizeSrc = `const normalizeSrc = (src) => src[0] === '/' ? src.slice(1) : src`
         if (loaderType === 'imgix') {
           writeFileSync(
-            filename,
+            join(appDir, filename),
             `${normalizeSrc}
             export default function imgixLoader({ src, width, quality }) {
               const url = new URL('${pathPrefix}' + normalizeSrc(src))
@@ -250,14 +255,15 @@ export default function transformer(
   const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
 
+  const parsed = parse(file.path)
   const isConfig =
-    file.path === 'next.config.js' ||
-    file.path === 'next.config.ts' ||
-    file.path === 'next.config.mjs' ||
-    file.path === 'next.config.cjs'
+    parsed.base === 'next.config.js' ||
+    parsed.base === 'next.config.ts' ||
+    parsed.base === 'next.config.mjs' ||
+    parsed.base === 'next.config.cjs'
 
   if (isConfig) {
-    const result = nextConfigTransformer(j, root)
+    const result = nextConfigTransformer(j, root, parsed.dir)
     return result.toSource()
   }
 
