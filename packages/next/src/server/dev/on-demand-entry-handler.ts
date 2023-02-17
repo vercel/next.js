@@ -158,7 +158,7 @@ interface Entry extends EntryType {
 
 interface ChildEntry extends EntryType {
   type: EntryTypes.CHILD_ENTRY
-  /*nsole.
+  /**
    * Which parent entries use this childEntry.
    */
   parentEntries: Set<string>
