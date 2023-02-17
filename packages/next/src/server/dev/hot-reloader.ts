@@ -53,6 +53,7 @@ import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
 import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/components/VersionStalenessInfo/VersionStalenessInfo'
 import { RouteMatch } from '../future/route-matches/route-match'
+import { Telemetry } from '../../telemetry/storage'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -477,10 +478,17 @@ export default class HotReloader {
       )
   }
 
-  private async getVersionInfo(span: Span) {
+  private async getVersionInfo(span: Span, distDir: string) {
     const versionInfoSpan = span.traceChild('get-version-info')
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
       let installed = '0.0.0'
+
+      // Don't fetch version info if telemetry is disabled
+      const telemetry = new Telemetry({ distDir })
+      if (!telemetry.isEnabled) {
+        return { installed, staleness: 'unknown' }
+      }
+
       try {
         installed = require('next/package.json').version
 
@@ -660,7 +668,7 @@ export default class HotReloader {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    this.versionInfo = await this.getVersionInfo(startSpan)
+    this.versionInfo = await this.getVersionInfo(startSpan, this.distDir)
 
     await this.clean(startSpan)
     // Ensure distDir exists before writing package.json
