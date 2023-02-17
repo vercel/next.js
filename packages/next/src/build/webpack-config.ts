@@ -903,7 +903,13 @@ export default async function getBaseWebpackConfig(
   const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
     [COMPILER_NAMES.server]: ['main', 'module'],
     [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-    [COMPILER_NAMES.edgeServer]: ['edge-light', 'browser', 'module', 'main'],
+    [COMPILER_NAMES.edgeServer]: [
+      'edge-light',
+      'browser',
+      'worker',
+      'module',
+      'main',
+    ],
   }
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
@@ -1022,7 +1028,9 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
-    ...(isEdgeServer && { conditionNames: ['edge-light', 'import', 'node'] }),
+    ...(isEdgeServer && {
+      conditionNames: mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
+    }),
     plugins: [],
   }
 
@@ -1724,7 +1732,11 @@ export default async function getBaseWebpackConfig(
                 resolve: {
                   conditionNames: [
                     'react-server',
-                    ...(!isEdgeServer ? [] : ['edge-light']),
+                    ...mainFieldsPerCompiler[
+                      isEdgeServer
+                        ? COMPILER_NAMES.edgeServer
+                        : COMPILER_NAMES.server
+                    ],
                     'node',
                     'import',
                     'require',
