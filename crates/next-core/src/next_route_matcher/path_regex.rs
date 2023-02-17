@@ -51,7 +51,7 @@ impl RouteMatcher for PathRegex {
                             NamedParamKind::Multi => Param::Multi(
                                 value
                                     .as_str()
-                                    .split("/")
+                                    .split('/')
                                     .map(|segment| segment.to_string())
                                     .collect(),
                             ),

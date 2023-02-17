@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use anyhow::{anyhow, Result};
+use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::introspect::{
@@ -182,7 +181,7 @@ impl Introspectable for NodeApiContentSource {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<IntrospectableChildrenVc> {
-        let mut set = HashSet::new();
+        let mut set = IndexSet::new();
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((

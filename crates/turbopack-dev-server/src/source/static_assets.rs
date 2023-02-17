@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPathVc};
@@ -72,7 +70,7 @@ impl Introspectable for StaticAssetsContentSource {
     async fn children(&self) -> Result<IntrospectableChildrenVc> {
         let dir = self.dir.read_dir().await?;
         let children = match &*dir {
-            DirectoryContent::NotFound => HashSet::new(),
+            DirectoryContent::NotFound => Default::default(),
             DirectoryContent::Entries(entries) => entries
                 .iter()
                 .map(|(name, entry)| {

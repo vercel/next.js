@@ -422,7 +422,7 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let dir = options
         .dir
         .as_ref()
-        .map(|dir| canonicalize(dir))
+        .map(canonicalize)
         .unwrap_or_else(current_dir)
         .context("project directory can't be found")?
         .to_str()

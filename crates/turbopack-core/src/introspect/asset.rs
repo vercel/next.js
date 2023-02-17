@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
+use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, ValueToString};
 use turbo_tasks_fs::FileContent;
 
@@ -81,7 +80,7 @@ pub async fn children_from_asset_references(
     references: AssetReferencesVc,
 ) -> Result<IntrospectableChildrenVc> {
     let key = reference_ty();
-    let mut children = HashSet::new();
+    let mut children = IndexSet::new();
     let references = references.await?;
     for reference in &*references {
         for result in reference.resolve_reference().await?.primary.iter() {

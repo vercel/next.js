@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use anyhow::Result;
-use indexmap::indexset;
+use indexmap::{indexset, IndexSet};
 use turbo_tasks::{primitives::StringVc, State, Value, ValueToString};
-use turbo_tasks_fs::FileSystemPathVc;
+use turbo_tasks_fs::{FileSystemPath, FileSystemPathVc};
 use turbopack_core::{
     asset::{Asset, AssetVc, AssetsSetVc},
     introspect::{
@@ -74,62 +74,75 @@ impl AssetGraphContentSourceVc {
     #[turbo_tasks::function]
     async fn all_assets_map(self) -> Result<AssetsMapVc> {
         let this = self.await?;
-        let mut map = HashMap::new();
-        let root_path = this.root_path.await?;
-        let mut assets = Vec::new();
-        let mut queue = VecDeque::with_capacity(32);
-        let mut assets_set = HashSet::new();
-        let root_assets = this.root_assets.await?;
-        if let Some(expanded) = &this.expanded {
-            let expanded = expanded.get();
-            for root_asset in root_assets.iter() {
-                let expanded = expanded.contains(root_asset);
-                assets.push((root_asset.path(), *root_asset));
-                assets_set.insert(*root_asset);
-                if expanded {
-                    queue.push_back(all_referenced_assets(*root_asset));
-                }
-            }
-        } else {
-            for root_asset in root_assets.iter() {
-                assets.push((root_asset.path(), *root_asset));
-                assets_set.insert(*root_asset);
+        Ok(AssetsMapVc::cell(
+            expand(
+                &*this.root_assets.await?,
+                &*this.root_path.await?,
+                this.expanded.as_ref(),
+            )
+            .await?,
+        ))
+    }
+}
+
+async fn expand(
+    root_assets: &IndexSet<AssetVc>,
+    root_path: &FileSystemPath,
+    expanded: Option<&State<HashSet<AssetVc>>>,
+) -> Result<HashMap<String, AssetVc>> {
+    let mut map = HashMap::new();
+    let mut assets = Vec::new();
+    let mut queue = VecDeque::with_capacity(32);
+    let mut assets_set = HashSet::new();
+    if let Some(expanded) = &expanded {
+        let expanded = expanded.get();
+        for root_asset in root_assets.iter() {
+            let expanded = expanded.contains(root_asset);
+            assets.push((root_asset.path(), *root_asset));
+            assets_set.insert(*root_asset);
+            if expanded {
                 queue.push_back(all_referenced_assets(*root_asset));
             }
         }
-
-        while let Some(references) = queue.pop_front() {
-            for asset in references.await?.iter() {
-                if assets_set.insert(*asset) {
-                    let expanded = if let Some(expanded) = &this.expanded {
-                        expanded.get().contains(asset)
-                    } else {
-                        true
-                    };
-                    if expanded {
-                        queue.push_back(all_referenced_assets(*asset));
-                    }
-                    assets.push((asset.path(), *asset));
-                }
-            }
+    } else {
+        for root_asset in root_assets.iter() {
+            assets.push((root_asset.path(), *root_asset));
+            assets_set.insert(*root_asset);
+            queue.push_back(all_referenced_assets(*root_asset));
         }
-        for (p_vc, asset) in assets {
-            // For clippy -- This explicit deref is necessary
-            let p = &*p_vc.await?;
-            if let Some(sub_path) = root_path.get_path_to(p) {
-                map.insert(sub_path.to_string(), asset);
-                if sub_path == "index.html" {
-                    map.insert("".to_string(), asset);
-                } else if let Some(p) = sub_path.strip_suffix("/index.html") {
-                    map.insert(p.to_string(), asset);
-                    map.insert(format!("{p}/"), asset);
-                } else if let Some(p) = sub_path.strip_suffix(".html") {
-                    map.insert(p.to_string(), asset);
-                }
-            }
-        }
-        Ok(AssetsMapVc::cell(map))
     }
+
+    while let Some(references) = queue.pop_front() {
+        for asset in references.await?.iter() {
+            if assets_set.insert(*asset) {
+                let expanded = if let Some(expanded) = &expanded {
+                    expanded.get().contains(asset)
+                } else {
+                    true
+                };
+                if expanded {
+                    queue.push_back(all_referenced_assets(*asset));
+                }
+                assets.push((asset.path(), *asset));
+            }
+        }
+    }
+    for (p_vc, asset) in assets {
+        // For clippy -- This explicit deref is necessary
+        let p = &*p_vc.await?;
+        if let Some(sub_path) = root_path.get_path_to(p) {
+            map.insert(sub_path.to_string(), asset);
+            if sub_path == "index.html" {
+                map.insert("".to_string(), asset);
+            } else if let Some(p) = sub_path.strip_suffix("/index.html") {
+                map.insert(p.to_string(), asset);
+                map.insert(format!("{p}/"), asset);
+            } else if let Some(p) = sub_path.strip_suffix(".html") {
+                map.insert(p.to_string(), asset);
+            }
+        }
+    }
+    Ok(map)
 }
 
 #[turbo_tasks::value_impl]
@@ -177,12 +190,21 @@ impl Introspectable for AssetGraphContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<IntrospectableChildrenVc> {
         let key = StringVc::cell("root".to_string());
+        let expanded_key = StringVc::cell("expanded".to_string());
+
+        let root_assets = self.root_assets.await?;
+        let root_assets = root_assets
+            .iter()
+            .map(|&asset| (key, IntrospectableAssetVc::new(asset)));
+
+        let expanded_assets =
+            expand(&*self.root_assets.await?, &*self.root_path.await?, None).await?;
+        let expanded_assets = expanded_assets
+            .iter()
+            .map(|(_k, &v)| (expanded_key, IntrospectableAssetVc::new(v)));
+
         Ok(IntrospectableChildrenVc::cell(
-            self.root_assets
-                .await?
-                .iter()
-                .map(|&asset| (key, IntrospectableAssetVc::new(asset)))
-                .collect(),
+            root_assets.chain(expanded_assets).collect(),
         ))
     }
 }
