@@ -359,7 +359,7 @@ pub trait FromChunkableAsset: ChunkItem + Sized + Debug {
     async fn from_async_asset(
         context: ChunkingContextVc,
         asset: ChunkableAssetVc,
-    ) -> Result<Option<(Self, ChunkableAssetVc)>>;
+    ) -> Result<Option<Self>>;
 }
 
 pub async fn chunk_content_split<I: FromChunkableAsset>(
@@ -509,12 +509,10 @@ async fn chunk_content_internal<I: FromChunkableAsset>(
                                 .push(ChunkGroupVc::from_asset(chunkable_asset, context));
                         }
                         ChunkingType::SeparateAsync => {
-                            if let Some((manifest_loader_item, manifest_chunk)) =
+                            if let Some(chunk_item) =
                                 I::from_async_asset(context, chunkable_asset).await?
                             {
-                                inner_chunk_items.push(manifest_loader_item);
-                                inner_chunk_groups
-                                    .push(ChunkGroupVc::from_asset(manifest_chunk, context));
+                                inner_chunk_items.push(chunk_item);
                             } else {
                                 external_asset_references.push(reference);
                                 continue 'outer;

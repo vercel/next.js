@@ -1247,12 +1247,9 @@ impl FromChunkableAsset for EcmascriptChunkItemVc {
     async fn from_async_asset(
         context: ChunkingContextVc,
         asset: ChunkableAssetVc,
-    ) -> Result<Option<(Self, ChunkableAssetVc)>> {
+    ) -> Result<Option<Self>> {
         let chunk = ManifestChunkAssetVc::new(asset, context);
-        Ok(Some((
-            ManifestLoaderItemVc::new(context, chunk).into(),
-            chunk.into(),
-        )))
+        Ok(Some(ManifestLoaderItemVc::new(context, chunk).into()))
     }
 }
 
