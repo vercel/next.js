@@ -790,6 +790,8 @@ export default class DevServer extends Server {
       this.router = new Router(this.generateRoutes())
     }
 
+    const telemetry = new Telemetry({ distDir: this.distDir })
+
     this.hotReloader = new HotReloader(this.dir, {
       pagesDir: this.pagesDir,
       distDir: this.distDir,
@@ -798,6 +800,7 @@ export default class DevServer extends Server {
       buildId: this.buildId,
       rewrites,
       appDir: this.appDir,
+      telemetry,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -812,8 +815,6 @@ export default class DevServer extends Server {
         pathJoin(this.distDir, CLIENT_STATIC_FILES_PATH)
       )
     }
-
-    const telemetry = new Telemetry({ distDir: this.distDir })
 
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)

@@ -25,6 +25,7 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type ws from 'ws'
 import { isMiddlewareFilename } from '../../build/utils'
 import { nonNullable } from '../../lib/non-nullable'
+import type { VersionInfo } from './parse-version-info'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -85,13 +86,15 @@ export class WebpackHotMiddleware {
   middlewareLatestStats: { ts: number; stats: webpack.Stats } | null
   serverLatestStats: { ts: number; stats: webpack.Stats } | null
   closed: boolean
+  versionInfo: VersionInfo
 
-  constructor(compilers: webpack.Compiler[]) {
+  constructor(compilers: webpack.Compiler[], versionInfo: VersionInfo) {
     this.eventStream = new EventStream()
     this.clientLatestStats = null
     this.middlewareLatestStats = null
     this.serverLatestStats = null
     this.closed = false
+    this.versionInfo = versionInfo
 
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
@@ -182,6 +185,7 @@ export class WebpackHotMiddleware {
           ...(stats.warnings || []),
           ...(middlewareStats.warnings || []),
         ],
+        versionInfo: this.versionInfo,
       })
     }
   }
