@@ -482,13 +482,12 @@ export default class HotReloader {
       )
   }
 
-  private async getVersionInfo(span: Span, telemetryIsEnabled: boolean) {
+  private async getVersionInfo(span: Span, enabled: boolean) {
     const versionInfoSpan = span.traceChild('get-version-info')
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
       let installed = '0.0.0'
 
-      // Don't fetch version info if telemetry is disabled
-      if (!telemetryIsEnabled) {
+      if (!enabled) {
         return { installed, staleness: 'unknown' }
       }
 
@@ -673,7 +672,7 @@ export default class HotReloader {
 
     this.versionInfo = await this.getVersionInfo(
       startSpan,
-      this.telemetry.isEnabled
+      !!process.env.NEXT_TEST_MODE || this.telemetry.isEnabled
     )
 
     await this.clean(startSpan)
