@@ -49,7 +49,7 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
-import { FlightTypesPlugin } from './webpack/plugins/flight-types-plugin'
+import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -650,7 +650,7 @@ export default async function getBaseWebpackConfig(
   const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
-  const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
+  const enableTypedRoutes = !!config.experimental.typedRoutes
 
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
@@ -661,11 +661,6 @@ export default async function getBaseWebpackConfig(
     if (config.experimental.runtime === 'nodejs') {
       Log.warn(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
-      )
-    }
-    if (config.experimental.typedRoutes && !hasAppDir) {
-      Log.warn(
-        '`experimental.typedRoutes` requires `experimental.appDir` to be enabled.'
       )
     }
   }
@@ -2193,11 +2188,12 @@ export default async function getBaseWebpackConfig(
               dev,
               isEdgeServer,
             })),
-      hasAppDir &&
-        !isClient &&
-        new FlightTypesPlugin({
+      // Only enable the plugin in the Node server and Edge server compilers.
+      !isClient &&
+        new NextTypesPlugin({
           dir,
           distDir: config.distDir,
+          pagesDir,
           appDir,
           dev,
           isEdgeServer,

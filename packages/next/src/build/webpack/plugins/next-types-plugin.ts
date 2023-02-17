@@ -6,12 +6,13 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
-const PLUGIN_NAME = 'FlightTypesPlugin'
+const PLUGIN_NAME = 'NextTypesPlugin'
 
 interface Options {
   dir: string
   distDir: string
-  appDir: string
+  appDir: string | undefined
+  pagesDir: string | undefined
   dev: boolean
   isEdgeServer: boolean
   typedRoutes: boolean
@@ -191,14 +192,17 @@ declare module 'next' {
 }`
 }
 
-export class FlightTypesPlugin {
+export class NextTypesPlugin {
   dir: string
   distDir: string
-  appDir: string
-  pagesDir: string
+  appDir: string | undefined
+  pagesDir: string | undefined
   dev: boolean
   isEdgeServer: boolean
   typedRoutes: boolean
+
+  distDirRelative: string
+  assetDirRelative: string
 
   constructor(options: Options) {
     this.dir = options.dir
@@ -206,8 +210,14 @@ export class FlightTypesPlugin {
     this.appDir = options.appDir
     this.dev = options.dev
     this.isEdgeServer = options.isEdgeServer
-    this.pagesDir = path.join(this.appDir, '..', 'pages')
+    this.pagesDir = options.pagesDir
     this.typedRoutes = options.typedRoutes
+
+    // From dist root to project root
+    this.distDirRelative = path.relative(this.distDir + '/..', '.')
+
+    // From asset root to dist root
+    this.assetDirRelative = this.dev ? '..' : this.isEdgeServer ? '..' : '../..'
   }
 
   collectPage(filePath: string) {
@@ -216,13 +226,16 @@ export class FlightTypesPlugin {
     const isApp = filePath.startsWith(this.appDir + path.sep)
 
     // Filter out non-page files in app dir
-    if (isApp && !/[/\\]page\.[^.]+$/.test(filePath)) {
-      return
-    }
+    if (isApp && !/[/\\]page\.[^.]+$/.test(filePath)) return
 
-    const page = isApp
-      ? normalizeAppPath(path.relative(this.appDir, filePath))
-      : '/' + path.relative(this.pagesDir, filePath)
+    const page =
+      this.appDir && isApp
+        ? normalizeAppPath(path.relative(this.appDir, filePath))
+        : this.pagesDir
+        ? '/' + path.relative(this.pagesDir, filePath)
+        : null
+
+    if (page === null) return
 
     let route =
       (isApp
@@ -256,16 +269,6 @@ export class FlightTypesPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    // From dist root to project root
-    const distDirRelative = path.relative(this.distDir + '/..', '.')
-
-    // From asset root to dist root
-    const assetDirRelative = this.dev
-      ? '..'
-      : this.isEdgeServer
-      ? '..'
-      : '../..'
-
     const handleModule = async (_mod: webpack.Module, assets: any) => {
       const mod: webpack.NormalModule = _mod as any
 
@@ -273,14 +276,19 @@ export class FlightTypesPlugin {
 
       if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
 
-      if (!mod.resource.startsWith(this.appDir + path.sep)) {
-        if (!this.dev) {
-          if (mod.resource.startsWith(this.pagesDir + path.sep)) {
-            this.collectPage(mod.resource)
-          }
+      const isInsideApp =
+        this.appDir && mod.resource.startsWith(this.appDir + path.sep)
+      const isInsidePages =
+        this.pagesDir && mod.resource.startsWith(this.pagesDir + path.sep)
+
+      // For production builds we need to collect routes in this plugin
+      if (!this.dev) {
+        if (isInsideApp || isInsidePages) {
+          this.collectPage(mod.resource)
         }
-        return
       }
+
+      if (!isInsideApp || !this.appDir) return
 
       if (_mod.layer !== WEBPACK_LAYERS.server) return
 
@@ -289,12 +297,6 @@ export class FlightTypesPlugin {
       const relativePathToApp = path.relative(this.appDir, mod.resource)
       const relativePathToRoot = path.relative(this.dir, mod.resource)
 
-      if (!this.dev) {
-        if (IS_PAGE) {
-          this.collectPage(mod.resource)
-        }
-      }
-
       const typePath = path.join(
         'types',
         'app',
@@ -302,12 +304,13 @@ export class FlightTypesPlugin {
       )
       const relativeImportPath = path
         .join(
-          distDirRelative,
+          this.distDirRelative,
           path.relative(typePath, ''),
           relativePathToRoot.replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
         )
         .replace(/\\/g, '/')
-      const assetPath = assetDirRelative + '/' + typePath.replace(/\\/g, '/')
+      const assetPath =
+        this.assetDirRelative + '/' + typePath.replace(/\\/g, '/')
 
       if (IS_LAYOUT) {
         const slots = await collectNamedSlots(mod.resource)
@@ -381,7 +384,7 @@ export class FlightTypesPlugin {
 
             const linkTypePath = path.join('types', 'link.d.ts')
             const assetPath =
-              assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
+              this.assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
               createRouteDefinitions()
             ) as unknown as webpack.sources.RawSource

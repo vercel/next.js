@@ -169,31 +169,33 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const nextAppTypes = `${distDir}/types/**/*.ts`
+  // Include Next.js generated types.
+  const nextGeneratedTypes = `${distDir}/types/**/*.ts`
 
   if (!('include' in rawConfig)) {
-    userTsConfig.include = isAppDirEnabled
-      ? ['next-env.d.ts', nextAppTypes, '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
+    userTsConfig.include = [
+      'next-env.d.ts',
+      nextGeneratedTypes,
+      '**/*.ts',
+      '**/*.tsx',
+    ]
     suggestedActions.push(
       chalk.cyan('include') +
         ' was set to ' +
         chalk.bold(
-          isAppDirEnabled
-            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
+          `['next-env.d.ts', '${nextGeneratedTypes}', '**/*.ts', '**/*.tsx']`
         )
     )
-  } else if (isAppDirEnabled && !rawConfig.include.includes(nextAppTypes)) {
-    userTsConfig.include.push(nextAppTypes)
+  } else if (!rawConfig.include.includes(nextGeneratedTypes)) {
+    userTsConfig.include.push(nextGeneratedTypes)
     suggestedActions.push(
       chalk.cyan('include') +
         ' was updated to add ' +
-        chalk.bold(`'${nextAppTypes}'`)
+        chalk.bold(`'${nextGeneratedTypes}'`)
     )
   }
 
-  // Enable the Next.js typescript plugin.
+  // Enable the Next.js typescript plugin for app dir.
   if (isAppDirEnabled) {
     if (userTsConfig.compilerOptions) {
       // If the TS config extends on another config, we can't add the `plugin` field
