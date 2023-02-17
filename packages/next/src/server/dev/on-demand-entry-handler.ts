@@ -633,8 +633,13 @@ export function onDemandEntryHandler({
           shouldInvalidate: boolean
         } => {
           const entryKey = `${compilerType}${pagePathData.page}`
-
-          if (entries[entryKey]) {
+          if (
+            entries[entryKey] &&
+            // there can be an overlap in the entryKey for the instrumentation hook file and a page named the same
+            // this is a quick fix to support this scenario by overwriting the instrumentation hook entry, since we only use it one time
+            // any changes to the instrumentation hook file will require a restart of the dev server anyway
+            !isInstrumentationHookFilename(entries[entryKey].bundlePath)
+          ) {
             entries[entryKey].dispose = false
             entries[entryKey].lastActiveTime = Date.now()
             if (entries[entryKey].status === BUILT) {
