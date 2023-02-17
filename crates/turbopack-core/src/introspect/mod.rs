@@ -1,11 +1,10 @@
 pub mod asset;
 
-use std::collections::HashSet;
-
+use indexmap::IndexSet;
 use turbo_tasks::primitives::StringVc;
 
 #[turbo_tasks::value(transparent)]
-pub struct IntrospectableChildren(HashSet<(StringVc, IntrospectableVc)>);
+pub struct IntrospectableChildren(IndexSet<(StringVc, IntrospectableVc)>);
 
 #[turbo_tasks::value_trait]
 pub trait Introspectable {
@@ -17,6 +16,6 @@ pub trait Introspectable {
         StringVc::empty()
     }
     fn children(&self) -> IntrospectableChildrenVc {
-        IntrospectableChildrenVc::cell(HashSet::new())
+        IntrospectableChildrenVc::cell(IndexSet::new())
     }
 }

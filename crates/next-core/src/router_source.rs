@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
+use indexmap::IndexSet;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::{
     environment::ServerAddrVc,
@@ -148,7 +147,7 @@ impl Introspectable for NextRouterContentSource {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<IntrospectableChildrenVc> {
-        let mut children = HashSet::new();
+        let mut children = IndexSet::new();
         if let Some(inner) = IntrospectableVc::resolve_from(self.inner).await? {
             children.insert((StringVc::cell("inner".to_string()), inner));
         }
