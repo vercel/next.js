@@ -50,6 +50,10 @@ export function normalizeAppPath(route: string) {
   )
 }
 
+/**
+ * Strips the `.rsc` extension if it's in the pathname.
+ * Since this function is used on full urls it checks `?` for searchParams handling.
+ */
 export function normalizeRscPath(pathname: string, enabled?: boolean) {
   return enabled
     ? pathname.replace(

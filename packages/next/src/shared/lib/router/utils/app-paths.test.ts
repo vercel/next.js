@@ -5,7 +5,7 @@ describe('normalizeRscPath', () => {
     it('should normalize url with .rsc', () => {
       expect(normalizeRscPath('/test.rsc', true)).toBe('/test')
     })
-    it('should normalize url with .rsc and querystring', () => {
+    it('should normalize url with .rsc and searchparams', () => {
       expect(normalizeRscPath('/test.rsc?abc=def', true)).toBe('/test?abc=def')
     })
   })
@@ -13,7 +13,7 @@ describe('normalizeRscPath', () => {
     it('should normalize url with .rsc', () => {
       expect(normalizeRscPath('/test.rsc', false)).toBe('/test.rsc')
     })
-    it('should normalize url with .rsc and querystring', () => {
+    it('should normalize url with .rsc and searchparams', () => {
       expect(normalizeRscPath('/test.rsc?abc=def', false)).toBe(
         '/test.rsc?abc=def'
       )
