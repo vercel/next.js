@@ -602,10 +602,11 @@ export class FlightClientEntryPlugin {
     // Add for the client compilation
     // Inject the entry to the client compiler.
     if (this.dev) {
+      const [directory, page] = entryName.split('/', 2)
       const entryKey = getEntryKey({
-        isAppDir: true,
+        isAppDir: directory === 'app',
         compilerName: COMPILER_NAMES.client,
-        page: bundlePath,
+        page: '/' + page,
       })
       if (!entries[entryKey]) {
         entries[entryKey] = {

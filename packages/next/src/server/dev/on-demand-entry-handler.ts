@@ -187,11 +187,11 @@ export const getEntryKey = ({
 }
 
 export const parseEntryKey = (entryKey: EntryKey) => {
-  const [directory, compilerName, ...segments] = entryKey.split('/')
+  const [directory, compilerName, page] = entryKey.split('/', 3)
   return {
     isAppDir: directory === 'app',
     compilerName: compilerName as CompilerNameValues,
-    page: '/' + segments.join('/'),
+    page: '/' + page,
   }
 }
 
