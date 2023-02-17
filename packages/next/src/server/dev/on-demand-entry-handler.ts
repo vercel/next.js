@@ -186,24 +186,6 @@ export const getEntryKey = ({
   pageEntry,
 }: EntryKeyContent): EntryKey => {
   console.log('getEntryKey', compilerName, pageEntry)
-  // We try to catch common issues with pageEntry serialization here
-  if (
-    (pageEntry !== 'root' &&
-      pageEntry !== '/middleware' &&
-      !pageEntry.startsWith('/app/') &&
-      !pageEntry.startsWith('/pages/')) ||
-    pageEntry.startsWith('/pages//') ||
-    pageEntry.startsWith('/app//')
-  ) {
-    try {
-      throw new Error(`Invalid page: '${pageEntry}'`)
-    } catch (e) {
-      // This error is catched somewhere
-      // But we want to log this error because this should never happen
-      //
-      console.error(e)
-    }
-  }
   const entryKey = JSON.stringify({
     compilerName,
     pageEntry,
