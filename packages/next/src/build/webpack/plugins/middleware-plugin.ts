@@ -90,7 +90,7 @@ function isUsingIndirectEvalAndUsedByExports(args: {
 function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
-  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
+  opts: { sriEnabled: boolean }
 ) {
   const files: string[] = []
   if (meta.edgeSSR) {
@@ -120,9 +120,7 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    if (opts.hasFontLoaders) {
-      files.push(`server/${FONT_LOADER_MANIFEST}.js`)
-    }
+    files.push(`server/${FONT_LOADER_MANIFEST}.js`)
   }
 
   files.push(
@@ -136,7 +134,7 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
+  opts: { sriEnabled: boolean }
 }) {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
@@ -787,20 +785,10 @@ function getExtractMetadata(params: {
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
-  private readonly hasFontLoaders: boolean
 
-  constructor({
-    dev,
-    sriEnabled,
-    hasFontLoaders,
-  }: {
-    dev: boolean
-    sriEnabled: boolean
-    hasFontLoaders: boolean
-  }) {
+  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
-    this.hasFontLoaders = hasFontLoaders
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -845,7 +833,6 @@ export default class MiddlewarePlugin {
           metadataByEntry,
           opts: {
             sriEnabled: this.sriEnabled,
-            hasFontLoaders: this.hasFontLoaders,
           },
         })
       )

@@ -62,9 +62,9 @@ createNextDescribe(
 
     const checkLink = (
       browser: BrowserInterface,
-      name: string,
+      rel: string,
       content: string | string[]
-    ) => checkMeta(browser, name, content, 'rel', 'link', 'href')
+    ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
     describe('basic', () => {
       it('should support title and description', async () => {
@@ -102,11 +102,7 @@ createNextDescribe(
         const browser = await next.browser('/basic')
         await checkMetaNameContentPair(browser, 'generator', 'next.js')
         await checkMetaNameContentPair(browser, 'application-name', 'test')
-        await checkMetaNameContentPair(
-          browser,
-          'manifest',
-          'https://github.com/manifest.json'
-        )
+        await checkLink(browser, 'manifest', 'https://github.com/manifest.json')
 
         await checkMetaNameContentPair(
           browser,
@@ -312,12 +308,12 @@ createNextDescribe(
       })
 
       it('should support generateMetadata export', async () => {
-        const browser = await next.browser('/params/slug')
+        const browser = await next.browser('/async/slug')
         expect(await getTitle(browser)).toBe('params - slug')
 
         await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
-        await browser.loadPage(next.url + '/params/blog?q=xxx')
+        await browser.loadPage(next.url + '/async/blog?q=xxx')
         await check(
           () => browser.elementByCss('p').text(),
           /params - blog query - xxx/

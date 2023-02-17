@@ -387,9 +387,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.serverCSSManifest = serverComponents
       ? this.getServerCSSManifest()
       : undefined
-    this.fontLoaderManifest = this.nextConfig.experimental.fontLoaders
-      ? this.getFontLoaderManifest()
-      : undefined
+    this.fontLoaderManifest = this.getFontLoaderManifest()
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
