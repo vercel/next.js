@@ -43,12 +43,25 @@ interface Metadata {
   /**
    * The document title.
    * @type {null | string | TemplateString}
+   * @example
+   * { title: "My Blog" }
+   * <title>My Blog</title>
+   *
+   * { title: { default: "Dashboard", template: "%s | My Website" } }
+   * <title>Dashboard | My Website</title>
+   *
+   * { title: { absolute: "My Blog", template: "%s | My Website" } }
+   * <title>My Blog</title>
+   *
    */
   title?: null | string | TemplateString
 
   /**
    * The document description, and optionally the OpenGraph and twitter descriptions.
    * @type {null | string}
+   * @example
+   * { description: "My Blog Description" }
+   * <meta name="description" content="My Blog Description" />
    */
   description?: null | string
 
@@ -58,60 +71,105 @@ interface Metadata {
   /**
    * The application name.
    * @type {null | string}
+   * @example
+   * { applicationName: "My Blog" }
+   * <meta name="application-name" content="My Blog" />
    */
   applicationName?: null | string
 
   /**
    * The authors of the document.
    * @type {null | Author | Array<Author>}
+   * @example
+   * { authors: [{ name: "Next.js Team", url: "https://nextjs.org" }] }
+   * <meta name="author" content="Next.js Team" />
+   * <link rel="author" href="https://nextjs.org" />
+   *
    */
   authors?: null | Author | Array<Author>
 
   /**
    * The generator used for the document.
    * @type {null | string}
+   * @example
+   * { generator: "Next.js" }
+   * <meta name="generator" content="Next.js" />
+   *
    */
   generator?: null | string
 
   /**
    * The keywords for the document. If an array is provided, it will be flattened into a single tag with comma separation.
    * @type {null | string | Array<string>}
+   * @example
+   * { keywords: "nextjs, react, blog" }
+   * <meta name="keywords" content="nextjs, react, blog" />
+   *
+   * { keywords: ["react", "server components"] }
+   * <meta name="keywords" content="react, server components" />
+   *
    */
   keywords?: null | string | Array<string>
 
   /**
    * The referrer setting for the document.
    * @type {null | ReferrerEnum}
+   * @example
+   * { referrer: "origin" }
+   * <meta name="referrer" content="origin" />
+   *
    */
   referrer?: null | ReferrerEnum
 
   /**
    * The theme color for the document.
    * @type {null | string}
+   * @example
+   * { themeColor: "#000000" }
+   * <meta name="theme-color" content="#000000" />
+   *
    */
   themeColor?: null | string
 
   /**
    * The color scheme for the document.
    * @type {null | ColorSchemeEnum}
+   * @example
+   * { colorScheme: "dark" }
+   * <meta name="color-scheme" content="dark" />
    */
   colorScheme?: null | ColorSchemeEnum
 
   /**
    * The viewport setting for the document.
    * @type {null | string | Viewport}
+   * @example
+   * { viewport: "width=device-width, initial-scale=1" }
+   * <meta name="viewport" content="width=device-width, initial-scale=1" />
+   *
+   * { viewport: { width: "device-width", initialScale: 1 } }
+   * <meta name="viewport" content="width=device-width, initial-scale=1" />
+   *
    */
   viewport?: null | string | Viewport
 
   /**
    * The creator of the document.
    * @type {null | string}
+   * @example
+   * { creator: "Next.js Team" }
+   * <meta name="creator" content="Next.js Team" />
+   *
    */
   creator?: null | string
 
   /**
    * The publisher of the document.
    * @type {null | string}
+   * @example
+   * { publisher: "Vercel" }
+   * <meta name="publisher" content="Vercel" />
+   *
    */
   publisher?: null | string
 
@@ -120,18 +178,45 @@ interface Metadata {
   /**
    * The robots setting for the document.
    * @type {null | string | Robots}
+   * @example
+   * { robots: "index, follow" }
+   * <meta name="robots" content="index, follow" />
+   *
+   * { robots: { index: false, follow: false } }
+   * <meta name="robots" content="noindex, nofollow" />
+   *
    */
   robots?: null | string | Robots
 
   /**
    * The canonical and alternate URLs for the document.
    * @type {null | AlternateURLs}
+   * @example
+   * { alternates: { canonical: "https://example.com" } }
+   * <link rel="canonical" href="https://example.com" />
+   *
+   * { alternates: { canonical: "https://example.com", hreflang: { "en-US": "https://example.com/en-US" } } }
+   * <link rel="canonical" href="https://example.com" />
+   * <link rel="alternate" href="https://example.com/en-US" hreflang="en-US" />
+   *
    */
   alternates?: null | AlternateURLs
 
   /**
    * The icons for the document. Defaults to rel="icon".
    * @type {null | IconURL | Array<Icon> | Icons}
+   * @example
+   * { icons: "https://example.com/icon.png" }
+   * <link rel="icon" href="https://example.com/icon.png" />
+   *
+   * { icons: { icon: "https://example.com/icon.png", appleIcon: "https://example.com/apple-icon.png" } }
+   * <link rel="icon" href="https://example.com/icon.png" />
+   * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
+   *
+   * { icons: [{ rel: "icon", href: "https://example.com/icon.png" }, { rel: "apple-touch-icon", href: "https://example.com/apple-icon.png" }] }
+   * <link rel="icon" href="https://example.com/icon.png" />
+   * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
+   *
    */
   icons?: null | IconURL | Array<Icon> | Icons
 
@@ -139,6 +224,10 @@ interface Metadata {
    * The manifest.json file is the only file that every extension using WebExtension APIs must contain
    *
    * @type {null | string | URL}
+   * @example
+   * { manifest: "https://example.com/manifest.json" }
+   * <link rel="manifest" href="https://example.com/manifest.json" />
+   *
    */
   manifest?: null | string | URL
 
@@ -162,12 +251,27 @@ interface Metadata {
   /**
    * The Twitter metadata for the document.
    * @type {null | Twitter}
+   * @example
+   * { twitter: { card: "summary_large_image", site: "@site", creator: "@creator", "images": "https://example.com/og.png" } }
+   * <meta name="twitter:card" content="summary_large_image" />
+   * <meta name="twitter:site" content="@site" />
+   * <meta name="twitter:creator" content="@creator" />
+   * <meta name="twitter:title" content="My Website" />
+   * <meta name="twitter:description" content="My Website Description" />
+   * <meta name="twitter:image" content="https://example.com/og.png" />
+   *
    */
   twitter?: null | Twitter
 
   /**
    * The common verification tokens for the document.
    * @type {Verification}
+   * @example
+   * { verification: { google: "google-site-verification=1234567890", yandex: "1234567890", "me": "1234567890" } }
+   * <meta name="google-site-verification" content="1234567890" />
+   * <meta name="yandex-verification" content="1234567890" />
+   * <meta name="me" content="@me" />
+   *
    */
   verification?: Verification
 
@@ -175,6 +279,12 @@ interface Metadata {
    * The Apple web app metadata for the document.
    * https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
    * @type {null | boolean | AppleWebApp}
+   * @example
+   * { appleWebApp: true, title: "My Website", statusBarStyle: "black-translucent" }
+   * <meta name="apple-mobile-web-app-capable" content="yes" />
+   * <meta name="apple-mobile-web-app-title" content="My Website" />
+   * <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+   *
    */
   appleWebApp?: null | boolean | AppleWebApp
 
@@ -182,6 +292,10 @@ interface Metadata {
    * Indicates if devices should try to interpret various formats and make actionable links out of them. For example it controles
    * if telephone numbers on mobile that can be clicked to dial or not.
    * @type {null | FormatDetection}
+   * @example
+   * { formatDetection: { telephone: false } }
+   * <meta name="format-detection" content="telephone=no" />
+   *
    */
   formatDetection?: null | FormatDetection
 
@@ -189,6 +303,10 @@ interface Metadata {
    * The metadata for the iTunes App.
    * It adds the `name="apple-itunes-app"` meta tag.
    * @type {null | ItunesApp}
+   * @example
+   * { itunes: { app: { id: "123456789", affiliateData: "123456789", appArguments: "123456789" } } }
+   * <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=123456789, app-arguments=123456789" />
+   *
    */
   itunes?: null | ItunesApp
 
@@ -197,30 +315,53 @@ interface Metadata {
    * It adds the `name="abstract"` meta tag.
    * https://www.metatags.org/all-meta-tags-overview/meta-name-abstract/
    * @type {null | string}
+   * @example
+   * { abstract: "My Website Description" }
+   * <meta name="abstract" content="My Website Description" />
+   *
    */
   abstract?: null | string
 
   /**
    * The Facebook AppLinks metadata for the document.
    * @type {null | AppLinks}
+   * @example
+   * { appLinks: { ios: { appStoreId: "123456789", url: "https://example.com" }, android: { packageName: "com.example", url: "https://example.com" } } }
+   * <meta property="al:ios:app_store_id" content="123456789" />
+   * <meta property="al:ios:url" content="https://example.com" />
+   * <meta property="al:android:package" content="com.example" />
+   * <meta property="al:android:url" content="https://example.com" />
+   *
    */
   appLinks?: null | AppLinks
 
   /**
    * The archives link rel property.
    * @type {null | string | Array<string>}
+   * @example
+   * { archives: "https://example.com/archives" }
+   * <link rel="archives" href="https://example.com/archives" />
+   *
    */
   archives?: null | string | Array<string>
 
   /**
    * The assets link rel property.
    * @type {null | string | Array<string>}
+   * @example
+   * { assets: "https://example.com/assets" }
+   * <link rel="assets" href="https://example.com/assets" />
+   *
    */
   assets?: null | string | Array<string>
 
   /**
    * The bookmarks link rel property.
    * @type {null | string | Array<string>}
+   * @example
+   * { bookmarks: "https://example.com/bookmarks" }
+   * <link rel="bookmarks" href="https://example.com/bookmarks" />
+   *
    */
   bookmarks?: null | string | Array<string> // This is technically against HTML spec but is used in wild
 
@@ -229,12 +370,17 @@ interface Metadata {
   /**
    * The category meta name property.
    * @type {null | string}
+   * @example
+   * { category: "My Category" }
+   * <meta name="category" content="My Category" />
    */
   category?: null | string
 
   /**
    * The classification meta name property.
    * @type {null | string}
+   * @example
+   * { classification: "My Classification" }
    */
   classification?: null | string
 
