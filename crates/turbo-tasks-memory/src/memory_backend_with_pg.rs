@@ -26,8 +26,9 @@ use turbo_tasks::{
         ActivateResult, DeactivateResult, PersistResult, PersistTaskState, PersistedGraph,
         PersistedGraphApi, ReadTaskState, TaskCell, TaskData,
     },
+    primitives::RawVcSetVc,
     util::{IdFactory, NoMoveVec, SharedError},
-    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi,
+    CellId, RawVc, TaskId, TraitTypeId, TurboTasksBackendApi, Unused,
 };
 
 type RootTaskFn =
@@ -1395,13 +1396,13 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    fn try_read_task_collectibles(
+    fn read_task_collectibles(
         &self,
         _task: TaskId,
         _trait_id: TraitTypeId,
         _reader: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi,
-    ) -> Result<Result<AutoSet<RawVc>, EventListener>> {
+    ) -> RawVcSetVc {
         todo!()
     }
 
@@ -1484,6 +1485,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
 
         let task = turbo_tasks.get_fresh_task_id();
+        let task = task.into();
         let new_task = Task {
             active_parents: AtomicU32::new(1),
             task_state: Mutex::new(TaskState {
@@ -1505,6 +1507,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
                 // SAFETY: We are still the only owner of this task and id
                 unsafe {
                     self.tasks.remove(*task);
+                    let task = Unused::new_unchecked(task);
                     turbo_tasks.reuse_task_id(task);
                 }
                 self.connect(parent_task, existing_task, turbo_tasks);
@@ -1528,6 +1531,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         turbo_tasks: &dyn TurboTasksBackendApi,
     ) -> TaskId {
         let task = turbo_tasks.get_fresh_task_id();
+        let task = task.into();
         let new_task = Task {
             active_parents: AtomicU32::new(1),
             task_state: Mutex::new(TaskState {
@@ -1567,6 +1571,7 @@ impl<'a, P: PersistedGraph> PersistedGraphApi for MemoryBackendPersistedGraphApi
             task_type: TaskType::Persistent(task_type.clone()),
         };
         let task = self.turbo_tasks.get_fresh_task_id();
+        let task = task.into();
         // SAFETY: It's a fresh task id
         unsafe {
             self.backend.tasks.insert(*task, new_task);
@@ -1574,7 +1579,9 @@ impl<'a, P: PersistedGraph> PersistedGraphApi for MemoryBackendPersistedGraphApi
         match cache.entry(task_type) {
             Entry::Occupied(e) => {
                 let value = *e.into_ref();
+                // Safety: We didn't store the task id in the cache, we it's still unused
                 unsafe {
+                    let task = Unused::new_unchecked(task);
                     self.turbo_tasks.reuse_task_id(task);
                 }
                 value

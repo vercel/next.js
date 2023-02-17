@@ -18,6 +18,7 @@ use auto_hash_map::AutoSet;
 use turbo_tasks::{
     backend::CellContent,
     event::{Event, EventListener},
+    primitives::RawVcSetVc,
     registry,
     test_helpers::{current_task_for_testing, with_turbo_tasks_for_testing},
     CellId, RawVc, TaskId, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
@@ -179,11 +180,7 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
-    fn try_read_task_collectibles(
-        &self,
-        _task: TaskId,
-        _trait_id: TraitTypeId,
-    ) -> Result<Result<AutoSet<RawVc>, EventListener>> {
+    fn read_task_collectibles(&self, _task: TaskId, _trait_id: TraitTypeId) -> RawVcSetVc {
         unimplemented!()
     }
 
