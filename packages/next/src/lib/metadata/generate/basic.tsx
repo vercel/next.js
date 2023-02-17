@@ -1,18 +1,28 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
 
 import React from 'react'
-import { Meta } from './meta'
+import { Meta, MultiMeta } from './meta'
 
 export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
   return (
     <>
       <meta charSet="utf-8" />
-      {metadata.title !== null ? (
+      {metadata.title !== null && metadata.title.absolute ? (
         <title>{metadata.title.absolute}</title>
       ) : null}
       <Meta name="description" content={metadata.description} />
       <Meta name="application-name" content={metadata.applicationName} />
-      <Meta name="author" content={metadata.authors?.join(',')} />
+      {metadata.authors
+        ? metadata.authors.map((author, index) => (
+            <React.Fragment key={index}>
+              {author.url && <link rel="author" href={author.url.toString()} />}
+              <Meta name="author" content={author.name} />
+            </React.Fragment>
+          ))
+        : null}
+      {metadata.manifest ? (
+        <link rel="manifest" href={metadata.manifest.toString()} />
+      ) : null}
       <Meta name="generator" content={metadata.generator} />
       <Meta name="keywords" content={metadata.keywords?.join(',')} />
       <Meta name="referrer" content={metadata.referrer} />
@@ -79,7 +89,7 @@ export function FormatDetectionMeta({
   if (!formatDetection) return null
   let content = ''
   for (const key of formatDetectionKeys) {
-    if (formatDetection[key]) {
+    if (key in formatDetection) {
       if (content) content += ', '
       content += `${key}=no`
     }
@@ -100,9 +110,7 @@ export function AppleWebAppMeta({
       {capable ? (
         <meta name="apple-mobile-web-app-capable" content="yes" />
       ) : null}
-      {title ? (
-        <meta name="apple-mobile-web-app-title" content={title} />
-      ) : null}
+      <Meta name="apple-mobile-web-app-title" content={title} />
       {startupImage
         ? startupImage.map((image, index) => (
             <link
@@ -119,6 +127,34 @@ export function AppleWebAppMeta({
           content={statusBarStyle}
         />
       ) : null}
+    </>
+  )
+}
+
+export function VerificationMeta({
+  verification,
+}: {
+  verification: ResolvedMetadata['verification']
+}) {
+  if (!verification) return null
+
+  return (
+    <>
+      <MultiMeta
+        namePrefix="google-site-verification"
+        contents={verification.google}
+      />
+      <MultiMeta namePrefix="y_key" contents={verification.yahoo} />
+      <MultiMeta
+        namePrefix="yandex-verification"
+        contents={verification.yandex}
+      />
+      <MultiMeta namePrefix="me" contents={verification.me} />
+      {verification.other
+        ? Object.entries(verification.other).map(([key, value], index) => (
+            <MultiMeta key={key + index} namePrefix={key} contents={value} />
+          ))
+        : null}
     </>
   )
 }

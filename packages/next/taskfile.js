@@ -489,6 +489,33 @@ export async function ncc_next__react_dev_overlay(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_next_font(task, opts) {
+  // `@next/font` can be copied as is, its only dependency is already NCCed
+  const destDir = join(__dirname, 'dist/compiled/@next/font')
+  const pkgPath = require.resolve('@next/font/package.json')
+  const pkg = await fs.readJson(pkgPath)
+  const srcDir = dirname(pkgPath)
+  await fs.remove(destDir)
+  await fs.ensureDir(destDir)
+
+  const files = glob.sync('{dist,google,local}/**/*.{js,json,d.ts}', {
+    cwd: srcDir,
+  })
+
+  for (const file of files) {
+    const outputFile = join(destDir, file)
+    await fs.ensureDir(dirname(outputFile))
+    await fs.copyFile(join(srcDir, file), outputFile)
+  }
+
+  await fs.outputJson(join(destDir, 'package.json'), {
+    name: '@next/font',
+    license: pkg.license,
+    types: pkg.types,
+  })
+}
+
+// eslint-disable-next-line camelcase
 externals['watchpack'] = 'next/dist/compiled/watchpack'
 export async function ncc_watchpack(task, opts) {
   await task
@@ -1080,7 +1107,7 @@ export async function ncc_babel_bundle(task, opts) {
     delete bundleExternals[pkg]
   }
   await task
-    .source('bundles/babel/bundle.js')
+    .source('src/bundles/babel/bundle.js')
     .ncc({
       packageName: '@babel/core',
       bundleName: 'babel',
@@ -1106,7 +1133,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
   await fs.writeFile(eslintParseFile, replacedContent)
 
   await task
-    .source('bundles/babel/packages-bundle.js')
+    .source('src/bundles/babel/packages-bundle.js')
     .ncc({
       externals: externals,
     })
@@ -1117,7 +1144,7 @@ export async function ncc_babel_bundle_packages(task, opts) {
     JSON.stringify({ name: 'babel-packages', main: './packages-bundle.js' })
   )
 
-  await task.source('bundles/babel/packages/*').target('src/compiled/babel')
+  await task.source('src/bundles/babel/packages/*').target('src/compiled/babel')
 }
 
 // eslint-disable-next-line camelcase
@@ -1358,7 +1385,14 @@ externals['native-url'] = 'next/dist/compiled/native-url'
 export async function ncc_native_url(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('native-url')))
-    .ncc({ packageName: 'native-url', externals, target: 'es5' })
+    .ncc({
+      packageName: 'native-url',
+      externals: {
+        ...externals,
+        querystring: 'next/dist/compiled/querystring-es3',
+      },
+      target: 'es5',
+    })
     .target('src/compiled/native-url')
 }
 // eslint-disable-next-line camelcase
@@ -1912,7 +1946,7 @@ export async function ncc_webpack_bundle5(task, opts) {
     delete bundleExternals[pkg]
   }
   await task
-    .source('bundles/webpack/bundle5.js')
+    .source('src/bundles/webpack/bundle5.js')
     .ncc({
       packageName: 'webpack',
       bundleName: 'webpack',
@@ -1936,7 +1970,7 @@ Object.assign(externals, webpackBundlePackages)
 
 export async function ncc_webpack_bundle_packages(task, opts) {
   await task
-    .source('bundles/webpack/packages/*')
+    .source('src/bundles/webpack/packages/*')
     .target('src/compiled/webpack/')
 }
 
@@ -2144,6 +2178,7 @@ export async function compile(task, opts) {
   await task.serial([
     'ncc_react_refresh_utils',
     'ncc_next__react_dev_overlay',
+    'ncc_next_font',
     'ncc_next_server',
   ])
 }
@@ -2164,21 +2199,21 @@ export async function cli(task, opts) {
 
 export async function lib(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }
 
 export async function server(task, opts) {
   await task
-    .source('src/server/**/*.+(js|ts|tsx)')
+    .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
 
@@ -2190,14 +2225,14 @@ export async function server(task, opts) {
 
 export async function server_esm(task, opts) {
   await task
-    .source('src/server/**/*.+(js|ts|tsx)')
+    .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/server')
 }
 
 export async function nextbuild(task, opts) {
   await task
-    .source('src/build/**/*.+(js|ts|tsx)', {
+    .source('src/build/**/!(*.test).+(js|ts|tsx)', {
       ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
     })
     .swc('server', { dev: opts.dev })
@@ -2206,7 +2241,7 @@ export async function nextbuild(task, opts) {
 
 export async function nextbuild_esm(task, opts) {
   await task
-    .source('src/build/**/*.+(js|ts|tsx)', {
+    .source('src/build/**/!(*.test).+(js|ts|tsx)', {
       ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
     })
     .swc('server', { dev: opts.dev, esm: true })
@@ -2215,7 +2250,7 @@ export async function nextbuild_esm(task, opts) {
 
 export async function nextbuildjest(task, opts) {
   await task
-    .source('src/build/jest/**/*.+(js|ts|tsx)', {
+    .source('src/build/jest/**/!(*.test).+(js|ts|tsx)', {
       ignore: ['**/fixture/**', '**/tests/**'],
     })
     .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
@@ -2224,14 +2259,14 @@ export async function nextbuildjest(task, opts) {
 
 export async function client(task, opts) {
   await task
-    .source('src/client/**/*.+(js|ts|tsx)')
+    .source('src/client/**/!(*.test).+(js|ts|tsx)')
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
 }
 
 export async function client_esm(task, opts) {
   await task
-    .source('src/client/**/*.+(js|ts|tsx)')
+    .source('src/client/**/!(*.test).+(js|ts|tsx)')
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/client')
 }
@@ -2239,7 +2274,7 @@ export async function client_esm(task, opts) {
 // export is a reserved keyword for functions
 export async function nextbuildstatic(task, opts) {
   await task
-    .source('src/export/**/*.+(js|ts|tsx)')
+    .source('src/export/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/export')
 }
@@ -2358,7 +2393,7 @@ export default async function (task) {
 export async function shared(task, opts) {
   await task
     .source(
-      'src/shared/**/!(amp|config|constants|dynamic|head|runtime-config).+(js|ts|tsx)'
+      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head|runtime-config).+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev })
     .target('dist/shared')
@@ -2366,7 +2401,9 @@ export async function shared(task, opts) {
 
 export async function shared_esm(task, opts) {
   await task
-    .source('src/shared/**/!(amp|config|constants|dynamic|head).+(js|ts|tsx)')
+    .source(
+      'src/shared/**/!(amp|config|constants|dynamic|app-dynamic|head).+(js|ts|tsx)'
+    )
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/shared')
 }
@@ -2374,7 +2411,7 @@ export async function shared_esm(task, opts) {
 export async function shared_re_exported(task, opts) {
   await task
     .source(
-      'src/shared/**/{amp,config,constants,dynamic,head,runtime-config}.+(js|ts|tsx)'
+      'src/shared/**/{amp,config,constants,dynamic,app-dynamic,head,runtime-config}.+(js|ts|tsx)'
     )
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/shared')
@@ -2382,7 +2419,9 @@ export async function shared_re_exported(task, opts) {
 
 export async function shared_re_exported_esm(task, opts) {
   await task
-    .source('src/shared/**/{amp,config,constants,dynamic,head}.+(js|ts|tsx)')
+    .source(
+      'src/shared/**/{amp,config,constants,app-dynamic,dynamic,head}.+(js|ts|tsx)'
+    )
     .swc('client', {
       dev: opts.dev,
       esm: true,

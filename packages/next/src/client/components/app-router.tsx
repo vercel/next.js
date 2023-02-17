@@ -36,10 +36,15 @@ import {
   InitialRouterStateParameters,
 } from './router-reducer/create-initial-router-state'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
+import { isBot } from '../../shared/lib/router/utils/is-bot'
+import { addBasePath } from '../add-base-path'
+
+const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
-let initialParallelRoutes: CacheNode['parallelRoutes'] =
-  typeof window === 'undefined' ? null! : new Map()
+let initialParallelRoutes: CacheNode['parallelRoutes'] = isServer
+  ? null!
+  : new Map()
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -58,42 +63,15 @@ const HotReloader:
 const prefetched = new Set<string>()
 
 type AppRouterProps = Omit<
-  InitialRouterStateParameters,
+  Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
 > & {
   initialHead: ReactNode
   assetPrefix: string
 }
 
-function findHeadInCache(
-  cache: CacheNode,
-  parallelRoutes: FlightRouterState[1]
-): React.ReactNode {
-  const isLastItem = Object.keys(parallelRoutes).length === 0
-  if (isLastItem) {
-    return cache.head
-  }
-  for (const key in parallelRoutes) {
-    const [segment, childParallelRoutes] = parallelRoutes[key]
-    const childSegmentMap = cache.parallelRoutes.get(key)
-    if (!childSegmentMap) {
-      continue
-    }
-
-    const cacheKey = Array.isArray(segment) ? segment[1] : segment
-
-    const cacheNode = childSegmentMap.get(cacheKey)
-    if (!cacheNode) {
-      continue
-    }
-
-    const item = findHeadInCache(cacheNode, childParallelRoutes)
-    if (item) {
-      return item
-    }
-  }
-
-  return undefined
+function isExternalURL(url: URL) {
+  return url.origin !== window.location.origin
 }
 
 /**
@@ -113,18 +91,17 @@ function Router({
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
+        isServer,
+        location: !isServer ? window.location : null,
+        initialHead,
       }),
-    [children, initialCanonicalUrl, initialTree]
+    [children, initialCanonicalUrl, initialTree, initialHead]
   )
   const [
     { tree, cache, prefetchCache, pushRef, focusAndScrollRef, canonicalUrl },
     dispatch,
     sync,
   ] = useReducerWithReduxDevtools(reducer, initialState)
-
-  const head = useMemo(() => {
-    return findHeadInCache(cache, tree[1])
-  }, [cache, tree])
 
   useEffect(() => {
     // Ensure initialParallelRoutes is cleaned up from memory once it's used.
@@ -180,9 +157,13 @@ function Router({
       navigateType: 'push' | 'replace',
       forceOptimisticNavigation: boolean
     ) => {
+      const url = new URL(addBasePath(href), location.origin)
+
       return dispatch({
         type: ACTION_NAVIGATE,
-        url: new URL(href, location.origin),
+        url,
+        isExternalUrl: isExternalURL(url),
+        locationSearch: location.search,
         forceOptimisticNavigation,
         navigateType,
         cache: {
@@ -199,12 +180,21 @@ function Router({
       back: () => window.history.back(),
       forward: () => window.history.forward(),
       prefetch: async (href) => {
+        const hrefWithBasePath = addBasePath(href)
+
         // If prefetch has already been triggered, don't trigger it again.
-        if (prefetched.has(href)) {
+        if (
+          prefetched.has(hrefWithBasePath) ||
+          (typeof window !== 'undefined' && isBot(window.navigator.userAgent))
+        ) {
           return
         }
-        prefetched.add(href)
-        const url = new URL(href, location.origin)
+        prefetched.add(hrefWithBasePath)
+        const url = new URL(hrefWithBasePath, location.origin)
+        // External urls can't be prefetched in the same way.
+        if (isExternalURL(url)) {
+          return
+        }
         try {
           const routerTree = window.history.state?.tree || initialTree
           const serverResponse = await fetchServerResponse(
@@ -250,6 +240,7 @@ function Router({
               parallelRoutes: new Map(),
             },
             mutable: {},
+            origin: window.location.origin,
           })
         })
       },
@@ -261,7 +252,12 @@ function Router({
   useEffect(() => {
     // When mpaNavigation flag is set do a hard navigation to the new url.
     if (pushRef.mpaNavigation) {
-      window.location.href = canonicalUrl
+      const location = window.location
+      if (pushRef.pendingPush) {
+        location.assign(canonicalUrl)
+      } else {
+        location.replace(canonicalUrl)
+      }
       return
     }
 
@@ -331,12 +327,7 @@ function Router({
     }
   }, [onPopState])
 
-  const content = (
-    <>
-      {head || initialHead}
-      {cache.subTreeData}
-    </>
-  )
+  const content = <>{cache.subTreeData}</>
 
   return (
     <PathnameContext.Provider value={pathname}>
@@ -356,6 +347,7 @@ function Router({
                 // Root node always has `url`
                 // Provided in AppTreeContext to ensure it can be overwritten in layout-router
                 url: canonicalUrl,
+                headRenderedAboveThisLevel: false,
               }}
             >
               {HotReloader ? (

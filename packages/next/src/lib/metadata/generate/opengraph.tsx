@@ -1,8 +1,8 @@
 import type { ResolvedMetadata } from '../types/metadata-interface'
+import type { TwitterAppDescriptor } from '../types/twitter-types'
 
 import React from 'react'
-import { ExtendMeta, Meta, MultiMeta } from './meta'
-import { TwitterAppDescriptor } from '../types/twitter-types'
+import { Meta, MultiMeta } from './meta'
 
 export function OpenGraphMetadata({
   openGraph,
@@ -233,8 +233,11 @@ function TwitterAppItem({
   return (
     <>
       <Meta name={`twitter:app:name:${type}`} content={app.name} />
-      <ExtendMeta namePrefix="twitter:app:id" content={app.id} />
-      <ExtendMeta namePrefix="twitter:app:url" content={app.url} />
+      <Meta name={`twitter:app:id:${type}`} content={app.id[type]} />
+      <Meta
+        name={`twitter:app:url:${type}`}
+        content={app.url?.[type]?.toString()}
+      />
     </>
   )
 }

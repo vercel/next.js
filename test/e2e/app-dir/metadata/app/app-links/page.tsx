@@ -13,6 +13,7 @@ export const metadata = {
       app_name: 'app_name_android',
     },
     web: {
+      url: 'https://example.com/web',
       should_fallback: true,
     },
   },

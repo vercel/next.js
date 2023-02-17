@@ -1,6 +1,6 @@
 {
   "name": "@next/bundle-analyzer",
-  "version": "13.1.6",
+  "version": "13.1.7-canary.17",
   "main": "index.js",
   "types": "index.d.ts",
   "license": "MIT",

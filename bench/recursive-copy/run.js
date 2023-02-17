@@ -12,7 +12,7 @@ const createSrcFolder = async () => {
 
   const files = new Array(100)
     .fill(undefined)
-    .map((x, i) =>
+    .map((_, i) =>
       join(srcDir, `folder${i % 5}`, `folder${i + (1 % 5)}`, `file${i}`)
     )
 

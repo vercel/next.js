@@ -102,6 +102,14 @@ describe.each([
           }
         })
 
+        it('should SSR nested dynamic components and skip nonSSR ones', async () => {
+          const $ = await get$(basePath + '/dynamic/nested')
+          const text = $('#__next').text()
+          expect(text).toContain('Nested 1')
+          expect(text).toContain('Nested 2')
+          expect(text).not.toContain('Browser hydrated')
+        })
+
         it('should hydrate nested chunks', async () => {
           let browser
           try {

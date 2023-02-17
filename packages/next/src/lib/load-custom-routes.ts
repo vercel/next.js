@@ -525,7 +525,9 @@ function processRoutes<T>(
           newRoutes.push({
             ...r,
             destination,
-            source: `${srcBasePath}/${item.locale}${r.source}`,
+            source: `${srcBasePath}/${item.locale}${
+              r.source === '/' && !config.trailingSlash ? '' : r.source
+            }`,
           })
         })
       }
@@ -668,6 +670,13 @@ export default async function loadCustomRoutes(
           permanent: true,
           locale: config.i18n ? false : undefined,
           internal: true,
+          // don't run this redirect for _next/data requests
+          missing: [
+            {
+              type: 'header',
+              key: 'x-nextjs-data',
+            },
+          ],
         } as Redirect,
         {
           source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',

@@ -251,11 +251,11 @@ export type AlternateURLs = {
 
 export type ResolvedAlternateURLs = {
   canonical: null | URL
-  languages: Languages<null | URL>
-  media?: {
+  languages: null | Languages<null | URL>
+  media: null | {
     [media: string]: null | URL
   }
-  types?: {
+  types: null | {
     [types: string]: null | URL
   }
 }

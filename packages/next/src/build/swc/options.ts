@@ -129,6 +129,11 @@ function getBaseSWCOptions({
     serverComponents: hasServerComponents
       ? { isServer: !!isServerLayer }
       : undefined,
+    serverActions: hasServerComponents
+      ? {
+          isServer: !!isServerLayer,
+        }
+      : undefined,
   }
 }
 
@@ -245,14 +250,16 @@ any) {
     hasServerComponents,
     isServerLayer,
   })
+  baseOptions.fontLoaders = {
+    fontLoaders: [
+      'next/font/local',
+      'next/font/google',
 
-  if (nextConfig?.experimental?.fontLoaders && relativeFilePathFromRoot) {
-    baseOptions.fontLoaders = {
-      fontLoaders: nextConfig.experimental.fontLoaders.map(
-        ({ loader }: any) => loader
-      ),
-      relativeFilePathFromRoot,
-    }
+      // TODO: remove this in the next major version
+      '@next/font/local',
+      '@next/font/google',
+    ],
+    relativeFilePathFromRoot,
   }
 
   const isNextDist = nextDistPath.test(filename)

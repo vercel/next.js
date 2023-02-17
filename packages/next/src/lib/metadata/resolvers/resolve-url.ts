@@ -1,0 +1,42 @@
+import path from '../../../shared/lib/isomorphic/path'
+import type { ResolvedMetadata } from '../types/metadata-interface'
+
+function isStringOrURL(icon: any): icon is string | URL {
+  return typeof icon === 'string' || icon instanceof URL
+}
+
+function resolveUrl(
+  url: string | URL | null | undefined,
+  metadataBase: URL | null
+): URL | null {
+  if (!url) return null
+  if (url instanceof URL) return url
+
+  try {
+    // If we can construct a URL instance from url, ignore metadataBase
+    const parsedUrl = new URL(url)
+    return parsedUrl
+  } catch (_) {}
+
+  if (!metadataBase) throw new Error('missing metadataBase')
+
+  // Handle relative or absolute paths
+  const basePath = metadataBase.pathname || '/'
+  const joinedPath = path.join(basePath, url)
+
+  return new URL(joinedPath, metadataBase)
+}
+
+function resolveUrlValuesOfObject(
+  obj: Record<string, string | URL | null> | null | undefined,
+  metadataBase: ResolvedMetadata['metadataBase']
+): null | Record<string, URL | null> {
+  if (!obj) return null
+  const result: Record<string, URL | null> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    result[key as keyof typeof obj] = resolveUrl(value, metadataBase)
+  }
+  return result
+}
+
+export { isStringOrURL, resolveUrl, resolveUrlValuesOfObject }

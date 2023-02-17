@@ -5,6 +5,7 @@ import {
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../app-router-headers'
 import { urlToUrlWithoutFlightMarker } from '../app-router'
 
@@ -33,6 +34,8 @@ export async function fetchServerResponse(
   }
 
   const res = await fetch(url.toString(), {
+    // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
+    credentials: 'same-origin',
     headers,
   })
   const canonicalUrl = res.redirected
@@ -40,7 +43,7 @@ export async function fetchServerResponse(
     : undefined
 
   const isFlightResponse =
-    res.headers.get('content-type') === 'application/octet-stream'
+    res.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
 
   // If fetch returns something different than flight response handle it like a mpa navigation
   if (!isFlightResponse) {

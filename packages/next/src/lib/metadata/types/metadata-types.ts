@@ -59,6 +59,13 @@ type RobotsInfo = {
   nosnippet?: boolean
   noimageindex?: boolean
   nocache?: boolean
+  notranslate?: boolean
+  indexifembedded?: boolean
+  nositelinkssearchbox?: boolean
+  unavailable_after?: string
+  'max-video-preview'?: number | string
+  'max-image-preview'?: 'none' | 'standard' | 'large'
+  'max-snippet'?: number
 }
 export type Robots = RobotsInfo & {
   // if you want to specify an alternate robots just for google
@@ -93,6 +100,8 @@ export type Icons = {
 export type Verification = {
   google?: null | string | number | (string | number)[]
   yahoo?: null | string | number | (string | number)[]
+  yandex?: null | string | number | (string | number)[]
+  me?: null | string | number | (string | number)[]
   // if you ad-hoc additional verification
   other?: {
     [name: string]: string | number | (string | number)[]
@@ -102,14 +111,16 @@ export type Verification = {
 export type ResolvedVerification = {
   google?: null | (string | number)[]
   yahoo?: null | (string | number)[]
+  yandex?: null | (string | number)[]
+  me?: null | (string | number)[]
   other?: {
     [name: string]: (string | number)[]
   }
 }
 
 export type ResolvedIcons = {
-  icon?: IconDescriptor[]
+  icon: IconDescriptor[]
+  apple: IconDescriptor[]
   shortcut?: IconDescriptor[]
-  apple?: IconDescriptor[]
   other?: IconDescriptor[]
 }

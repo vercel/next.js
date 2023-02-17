@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 START_DIR=$PWD
 # gets last argument which should be the project dir

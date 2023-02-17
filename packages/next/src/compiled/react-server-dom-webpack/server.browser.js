@@ -176,7 +176,7 @@ function closeWithError(destination, error) {
 var stringify = JSON.stringify;
 
 function serializeRowHeader(tag, id) {
-  return tag + id.toString(16) + ':';
+  return id.toString(16) + ':' + tag;
 }
 
 function processErrorChunkProd(request, id, digest) {
@@ -203,41 +203,32 @@ function processErrorChunkDev(request, id, digest, message, stack) {
 }
 function processModelChunk(request, id, model) {
   var json = stringify(model, request.toJSON);
-  var row = serializeRowHeader('J', id) + json + '\n';
+  var row = id.toString(16) + ':' + json + '\n';
   return stringToChunk(row);
 }
 function processReferenceChunk(request, id, reference) {
   var json = stringify(reference);
-  var row = serializeRowHeader('J', id) + json + '\n';
+  var row = id.toString(16) + ':' + json + '\n';
   return stringToChunk(row);
 }
 function processModuleChunk(request, id, moduleMetaData) {
   var json = stringify(moduleMetaData);
-  var row = serializeRowHeader('M', id) + json + '\n';
-  return stringToChunk(row);
-}
-function processProviderChunk(request, id, contextName) {
-  var row = serializeRowHeader('P', id) + contextName + '\n';
-  return stringToChunk(row);
-}
-function processSymbolChunk(request, id, name) {
-  var json = stringify(name);
-  var row = serializeRowHeader('S', id) + json + '\n';
+  var row = serializeRowHeader('I', id) + json + '\n';
   return stringToChunk(row);
 }
 
 // eslint-disable-next-line no-unused-vars
-var MODULE_TAG = Symbol.for('react.module.reference');
-function getModuleKey(reference) {
+var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+function getClientReferenceKey(reference) {
   return reference.filepath + '#' + reference.name + (reference.async ? '#async' : '');
 }
-function isModuleReference(reference) {
-  return reference.$$typeof === MODULE_TAG;
+function isClientReference(reference) {
+  return reference.$$typeof === CLIENT_REFERENCE_TAG;
 }
-function resolveModuleMetaData(config, moduleReference) {
-  var resolvedModuleData = config[moduleReference.filepath][moduleReference.name];
+function resolveModuleMetaData(config, clientReference) {
+  var resolvedModuleData = config[clientReference.filepath][clientReference.name];
 
-  if (moduleReference.async) {
+  if (clientReference.async) {
     return {
       id: resolvedModuleData.id,
       chunks: resolvedModuleData.chunks,
@@ -265,8 +256,8 @@ var REACT_LAZY_TYPE = Symbol.for('react.lazy');
 var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var REACT_MEMO_CACHE_SENTINEL = Symbol.for('react.memo_cache_sentinel');
 
-// A reserved attribute.
 // It is handled by React separately and shouldn't be written to the DOM.
+
 var RESERVED = 0; // A simple string attribute.
 // Attributes that aren't in the filter are presumed to have this type.
 
@@ -691,6 +682,8 @@ var rendererSigil;
   rendererSigil = {};
 } // Used to store the parent path of all context overrides in a shared linked list.
 // Forming a reverse tree.
+// The structure of a context snapshot is an implementation of this file.
+// Currently, it's implemented as tracking the current active node.
 
 
 var rootContextSnapshot = null; // We assume that this runtime owns the "current" field on all ReactContext instances.
@@ -1010,7 +1003,11 @@ function getThenableStateAfterSuspending() {
 function readContext$1(context) {
   {
     if (context.$$typeof !== REACT_SERVER_CONTEXT_TYPE) {
-      error('Only createServerContext is supported in Server Components.');
+      if (isClientReference(context)) {
+        error('Cannot read a Client Context from a Server Component.');
+      } else {
+        error('Only createServerContext is supported in Server Components.');
+      }
     }
 
     if (currentRequest === null) {
@@ -1077,7 +1074,7 @@ function useId() {
 }
 
 function use(usable) {
-  if (usable !== null && typeof usable === 'object') {
+  if (usable !== null && typeof usable === 'object' || typeof usable === 'function') {
     // $FlowFixMe[method-unbinding]
     if (typeof usable.then === 'function') {
       // This is a thenable.
@@ -1094,6 +1091,12 @@ function use(usable) {
     } else if (usable.$$typeof === REACT_SERVER_CONTEXT_TYPE) {
       var context = usable;
       return readContext$1(context);
+    }
+  }
+
+  {
+    if (isClientReference(usable)) {
+      error('Cannot use() an already resolved Client Reference.');
     }
   } // eslint-disable-next-line react-internal/safe-string-coercion
 
@@ -1125,8 +1128,7 @@ var DefaultCacheDispatcher = {
     var entry = cache.get(createSignal);
 
     if (entry === undefined) {
-      entry = createSignal(); // $FlowFixMe[incompatible-use] found when upgrading Flow
-
+      entry = createSignal();
       cache.set(createSignal, entry);
     }
 
@@ -1138,7 +1140,6 @@ var DefaultCacheDispatcher = {
 
     if (entry === undefined) {
       entry = resourceType(); // TODO: Warn if undefined?
-      // $FlowFixMe[incompatible-use] found when upgrading Flow
 
       cache.set(resourceType, entry);
     }
@@ -1206,6 +1207,7 @@ function createRequest(model, bundlerConfig, onError, context, identifierPrefix)
     identifierPrefix: identifierPrefix || '',
     identifierCount: 1,
     onError: onError === undefined ? defaultErrorHandler : onError,
+    // $FlowFixMe[missing-this-annot]
     toJSON: function (key, value) {
       return resolveModelToJSON(request, this, key, value);
     }
@@ -1226,6 +1228,81 @@ var POP = {}; // Used for DEV messages to keep track of which parent rendered so
 
 var jsxPropsParents = new WeakMap();
 var jsxChildrenParents = new WeakMap();
+
+function serializeThenable(request, thenable) {
+  request.pendingChunks++;
+  var newTask = createTask(request, null, getActiveContext(), request.abortableTasks);
+
+  switch (thenable.status) {
+    case 'fulfilled':
+      {
+        // We have the resolved value, we can go ahead and schedule it for serialization.
+        newTask.model = thenable.value;
+        pingTask(request, newTask);
+        return newTask.id;
+      }
+
+    case 'rejected':
+      {
+        var x = thenable.reason;
+        var digest = logRecoverableError(request, x);
+
+        {
+          var _getErrorMessageAndSt = getErrorMessageAndStackDev(x),
+              message = _getErrorMessageAndSt.message,
+              stack = _getErrorMessageAndSt.stack;
+
+          emitErrorChunkDev(request, newTask.id, digest, message, stack);
+        }
+
+        return newTask.id;
+      }
+
+    default:
+      {
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          break;
+        }
+
+        var pendingThenable = thenable;
+        pendingThenable.status = 'pending';
+        pendingThenable.then(function (fulfilledValue) {
+          if (thenable.status === 'pending') {
+            var fulfilledThenable = thenable;
+            fulfilledThenable.status = 'fulfilled';
+            fulfilledThenable.value = fulfilledValue;
+          }
+        }, function (error) {
+          if (thenable.status === 'pending') {
+            var rejectedThenable = thenable;
+            rejectedThenable.status = 'rejected';
+            rejectedThenable.reason = error;
+          }
+        });
+        break;
+      }
+  }
+
+  thenable.then(function (value) {
+    newTask.model = value;
+    pingTask(request, newTask);
+  }, function (reason) {
+    // TODO: Is it safe to directly emit these without being inside a retry?
+    var digest = logRecoverableError(request, reason);
+
+    {
+      var _getErrorMessageAndSt2 = getErrorMessageAndStackDev(reason),
+          _message = _getErrorMessageAndSt2.message,
+          _stack = _getErrorMessageAndSt2.stack;
+
+      emitErrorChunkDev(request, newTask.id, digest, _message, _stack);
+    }
+  });
+  return newTask.id;
+}
 
 function readThenable(thenable) {
   if (thenable.status === 'fulfilled') {
@@ -1283,7 +1360,7 @@ function createLazyWrapperAroundWakeable(wakeable) {
   return lazyType;
 }
 
-function attemptResolveElement(type, key, ref, props, prevThenableState) {
+function attemptResolveElement(request, type, key, ref, props, prevThenableState) {
   if (ref !== null && ref !== undefined) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
@@ -1300,7 +1377,7 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
   }
 
   if (typeof type === 'function') {
-    if (isModuleReference(type)) {
+    if (isClientReference(type)) {
       // This is a reference to a Client Component.
       return [REACT_ELEMENT_TYPE, type, key, props];
     } // This is a server-side component.
@@ -1310,6 +1387,16 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
     var result = type(props);
 
     if (typeof result === 'object' && result !== null && typeof result.then === 'function') {
+      // When the return value is in children position we can resolve it immediately,
+      // to its value without a wrapper if it's synchronously available.
+      var thenable = result;
+
+      if (thenable.status === 'fulfilled') {
+        return thenable.value;
+      } // TODO: Once we accept Promises as children on the client, we can just return
+      // the thenable here.
+
+
       return createLazyWrapperAroundWakeable(result);
     }
 
@@ -1330,7 +1417,7 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
 
     return [REACT_ELEMENT_TYPE, type, key, props];
   } else if (type != null && typeof type === 'object') {
-    if (isModuleReference(type)) {
+    if (isClientReference(type)) {
       // This is a reference to a Client Component.
       return [REACT_ELEMENT_TYPE, type, key, props];
     }
@@ -1341,7 +1428,7 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
           var payload = type._payload;
           var init = type._init;
           var wrappedType = init(payload);
-          return attemptResolveElement(wrappedType, key, ref, props, prevThenableState);
+          return attemptResolveElement(request, wrappedType, key, ref, props, prevThenableState);
         }
 
       case REACT_FORWARD_REF_TYPE:
@@ -1353,7 +1440,7 @@ function attemptResolveElement(type, key, ref, props, prevThenableState) {
 
       case REACT_MEMO_TYPE:
         {
-          return attemptResolveElement(type.type, key, ref, props, prevThenableState);
+          return attemptResolveElement(request, type.type, key, ref, props, prevThenableState);
         }
 
       case REACT_PROVIDER_TYPE:
@@ -1418,12 +1505,24 @@ function serializeByValueID(id) {
   return '$' + id.toString(16);
 }
 
-function serializeByRefID(id) {
-  return '@' + id.toString(16);
+function serializeLazyID(id) {
+  return '$L' + id.toString(16);
 }
 
-function serializeModuleReference(request, parent, key, moduleReference) {
-  var moduleKey = getModuleKey(moduleReference);
+function serializePromiseID(id) {
+  return '$@' + id.toString(16);
+}
+
+function serializeSymbolReference(name) {
+  return '$S' + name;
+}
+
+function serializeProviderReference(name) {
+  return '$P' + name;
+}
+
+function serializeClientReference(request, parent, key, moduleReference) {
+  var moduleKey = getClientReferenceKey(moduleReference);
   var writtenModules = request.writtenModules;
   var existingId = writtenModules.get(moduleKey);
 
@@ -1434,7 +1533,7 @@ function serializeModuleReference(request, parent, key, moduleReference) {
       // knows how to deal with lazy values. This lets us suspend
       // on this component rather than its parent until the code has
       // loaded.
-      return serializeByRefID(existingId);
+      return serializeLazyID(existingId);
     }
 
     return serializeByValueID(existingId);
@@ -1453,7 +1552,7 @@ function serializeModuleReference(request, parent, key, moduleReference) {
       // knows how to deal with lazy values. This lets us suspend
       // on this component rather than its parent until the code has
       // loaded.
-      return serializeByRefID(moduleId);
+      return serializeLazyID(moduleId);
     }
 
     return serializeByValueID(moduleId);
@@ -1463,9 +1562,9 @@ function serializeModuleReference(request, parent, key, moduleReference) {
     var digest = logRecoverableError(request, x);
 
     {
-      var _getErrorMessageAndSt = getErrorMessageAndStackDev(x),
-          message = _getErrorMessageAndSt.message,
-          stack = _getErrorMessageAndSt.stack;
+      var _getErrorMessageAndSt3 = getErrorMessageAndStackDev(x),
+          message = _getErrorMessageAndSt3.message,
+          stack = _getErrorMessageAndSt3.stack;
 
       emitErrorChunkDev(request, errorId, digest, message, stack);
     }
@@ -1475,7 +1574,7 @@ function serializeModuleReference(request, parent, key, moduleReference) {
 }
 
 function escapeStringValue(value) {
-  if (value[0] === '$' || value[0] === '@') {
+  if (value[0] === '$') {
     // We need to escape $ or @ prefixed strings since we use those to encode
     // references to IDs and as special symbol values.
     return '$' + value;
@@ -1642,16 +1741,16 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
       var array = objectOrArray;
 
       for (var i = 0; i < array.length; i++) {
-        var _value = array[i];
+        var value = array[i];
         var substr = void 0;
 
-        if (typeof _value === 'string') {
-          substr = _value;
-        } else if (typeof _value === 'object' && _value !== null) {
+        if (typeof value === 'string') {
+          substr = value;
+        } else if (typeof value === 'object' && value !== null) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
-          substr = '{' + describeObjectForErrorMessage(_value) + '}';
+          substr = '{' + describeObjectForErrorMessage(value) + '}';
         } else {
-          substr = '{' + describeValueForErrorMessage(_value) + '}';
+          substr = '{' + describeValueForErrorMessage(value) + '}';
         }
 
         if ('' + i === expandedName) {
@@ -1676,15 +1775,15 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           str += ', ';
         }
 
-        var _value2 = _array[_i];
+        var _value = _array[_i];
 
         var _substr = void 0;
 
-        if (typeof _value2 === 'object' && _value2 !== null) {
+        if (typeof _value === 'object' && _value !== null) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
-          _substr = describeObjectForErrorMessage(_value2);
+          _substr = describeObjectForErrorMessage(_value);
         } else {
-          _substr = describeValueForErrorMessage(_value2);
+          _substr = describeValueForErrorMessage(_value);
         }
 
         if ('' + _i === expandedName) {
@@ -1715,18 +1814,18 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         str += ' ';
         var name = names[_i2];
         str += describeKeyForErrorMessage(name) + '=';
-        var _value3 = object[name];
+        var _value2 = object[name];
 
         var _substr2 = void 0;
 
-        if (name === expandedName && typeof _value3 === 'object' && _value3 !== null) {
+        if (name === expandedName && typeof _value2 === 'object' && _value2 !== null) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
-          _substr2 = describeObjectForErrorMessage(_value3);
+          _substr2 = describeObjectForErrorMessage(_value2);
         } else {
-          _substr2 = describeValueForErrorMessage(_value3);
+          _substr2 = describeValueForErrorMessage(_value2);
         }
 
-        if (typeof _value3 !== 'string') {
+        if (typeof _value2 !== 'string') {
           _substr2 = '{' + _substr2 + '}';
         }
 
@@ -1756,15 +1855,15 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
 
         var _name = _names[_i3];
         str += describeKeyForErrorMessage(_name) + ': ';
-        var _value4 = _object[_name];
+        var _value3 = _object[_name];
 
         var _substr3 = void 0;
 
-        if (typeof _value4 === 'object' && _value4 !== null) {
+        if (typeof _value3 === 'object' && _value3 !== null) {
           // $FlowFixMe[incompatible-call] found when upgrading Flow
-          _substr3 = describeObjectForErrorMessage(_value4);
+          _substr3 = describeObjectForErrorMessage(_value3);
         } else {
-          _substr3 = describeValueForErrorMessage(_value4);
+          _substr3 = describeValueForErrorMessage(_value3);
         }
 
         if (_name === expandedName) {
@@ -1847,7 +1946,7 @@ function resolveModelToJSON(request, parent, key, value) {
             // TODO: Concatenate keys of parents onto children.
             var element = value; // Attempt to render the Server Component.
 
-            value = attemptResolveElement(element.type, element.key, element.ref, element.props, null);
+            value = attemptResolveElement(request, element.type, element.key, element.ref, element.props, null);
             break;
           }
 
@@ -1874,7 +1973,7 @@ function resolveModelToJSON(request, parent, key, value) {
         var ping = newTask.ping;
         x.then(ping, ping);
         newTask.thenableState = getThenableStateAfterSuspending();
-        return serializeByRefID(newTask.id);
+        return serializeLazyID(newTask.id);
       } else {
         // Something errored. We'll still send everything we have up until this point.
         // We'll replace this element with a lazy reference that throws on the client
@@ -1884,14 +1983,14 @@ function resolveModelToJSON(request, parent, key, value) {
         var digest = logRecoverableError(request, x);
 
         {
-          var _getErrorMessageAndSt2 = getErrorMessageAndStackDev(x),
-              message = _getErrorMessageAndSt2.message,
-              stack = _getErrorMessageAndSt2.stack;
+          var _getErrorMessageAndSt4 = getErrorMessageAndStackDev(x),
+              message = _getErrorMessageAndSt4.message,
+              stack = _getErrorMessageAndSt4.stack;
 
           emitErrorChunkDev(request, errorId, digest, message, stack);
         }
 
-        return serializeByRefID(errorId);
+        return serializeLazyID(errorId);
       }
     }
   }
@@ -1901,8 +2000,13 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'object') {
-    if (isModuleReference(value)) {
-      return serializeModuleReference(request, parent, key, value);
+    if (isClientReference(value)) {
+      return serializeClientReference(request, parent, key, value);
+    } else if (typeof value.then === 'function') {
+      // We assume that any object with a .then property is a "Thenable" type,
+      // or a Promise type. Either of which can be represented by a Promise.
+      var promiseId = serializeThenable(request, value);
+      return serializePromiseID(promiseId);
     } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
       var providerKey = value._context._globalName;
       var writtenProviders = request.writtenProviders;
@@ -1957,8 +2061,8 @@ function resolveModelToJSON(request, parent, key, value) {
   }
 
   if (typeof value === 'function') {
-    if (isModuleReference(value)) {
-      return serializeModuleReference(request, parent, key, value);
+    if (isClientReference(value)) {
+      return serializeClientReference(request, parent, key, value);
     }
 
     if (/^on[A-Z]/.test(key)) {
@@ -1989,8 +2093,7 @@ function resolveModelToJSON(request, parent, key, value) {
     emitSymbolChunk(request, symbolId, name);
     writtenSymbols.set(value, symbolId);
     return serializeByValueID(symbolId);
-  } // $FlowFixMe: bigint isn't added to Flow yet.
-
+  }
 
   if (typeof value === 'bigint') {
     throw new Error("BigInt (" + value + ") is not yet supported in Client Component props." + describeObjectForErrorMessage(parent, key));
@@ -2063,12 +2166,14 @@ function emitModuleChunk(request, id, moduleMetaData) {
 }
 
 function emitSymbolChunk(request, id, name) {
-  var processedChunk = processSymbolChunk(request, id, name);
+  var symbolReference = serializeSymbolReference(name);
+  var processedChunk = processReferenceChunk(request, id, symbolReference);
   request.completedModuleChunks.push(processedChunk);
 }
 
 function emitProviderChunk(request, id, contextName) {
-  var processedChunk = processProviderChunk(request, id, contextName);
+  var contextReference = serializeProviderReference(contextName);
+  var processedChunk = processReferenceChunk(request, id, contextReference);
   request.completedJSONChunks.push(processedChunk);
 }
 
@@ -2081,34 +2186,34 @@ function retryTask(request, task) {
   switchContext(task.context);
 
   try {
-    var _value5 = task.model;
+    var value = task.model;
 
-    if (typeof _value5 === 'object' && _value5 !== null && _value5.$$typeof === REACT_ELEMENT_TYPE) {
+    if (typeof value === 'object' && value !== null && value.$$typeof === REACT_ELEMENT_TYPE) {
       // TODO: Concatenate keys of parents onto children.
-      var element = _value5; // When retrying a component, reuse the thenableState from the
+      var element = value; // When retrying a component, reuse the thenableState from the
       // previous attempt.
 
       var prevThenableState = task.thenableState; // Attempt to render the Server Component.
       // Doing this here lets us reuse this same task if the next component
       // also suspends.
 
-      task.model = _value5;
-      _value5 = attemptResolveElement(element.type, element.key, element.ref, element.props, prevThenableState); // Successfully finished this component. We're going to keep rendering
+      task.model = value;
+      value = attemptResolveElement(request, element.type, element.key, element.ref, element.props, prevThenableState); // Successfully finished this component. We're going to keep rendering
       // using the same task, but we reset its thenable state before continuing.
 
       task.thenableState = null; // Keep rendering and reuse the same task. This inner loop is separate
       // from the render above because we don't need to reset the thenable state
       // until the next time something suspends and retries.
 
-      while (typeof _value5 === 'object' && _value5 !== null && _value5.$$typeof === REACT_ELEMENT_TYPE) {
+      while (typeof value === 'object' && value !== null && value.$$typeof === REACT_ELEMENT_TYPE) {
         // TODO: Concatenate keys of parents onto children.
-        var nextElement = _value5;
-        task.model = _value5;
-        _value5 = attemptResolveElement(nextElement.type, nextElement.key, nextElement.ref, nextElement.props, null);
+        var nextElement = value;
+        task.model = value;
+        value = attemptResolveElement(request, nextElement.type, nextElement.key, nextElement.ref, nextElement.props, null);
       }
     }
 
-    var processedChunk = processModelChunk(request, task.id, _value5);
+    var processedChunk = processModelChunk(request, task.id, value);
     request.completedJSONChunks.push(processedChunk);
     request.abortableTasks.delete(task);
     task.status = COMPLETED;
@@ -2132,9 +2237,9 @@ function retryTask(request, task) {
       var digest = logRecoverableError(request, x);
 
       {
-        var _getErrorMessageAndSt3 = getErrorMessageAndStackDev(x),
-            message = _getErrorMessageAndSt3.message,
-            stack = _getErrorMessageAndSt3.stack;
+        var _getErrorMessageAndSt5 = getErrorMessageAndStackDev(x),
+            message = _getErrorMessageAndSt5.message,
+            stack = _getErrorMessageAndSt5.stack;
 
         emitErrorChunkDev(request, task.id, digest, message, stack);
       }
@@ -2294,16 +2399,15 @@ function abort(request, reason) {
     if (abortableTasks.size > 0) {
       // We have tasks to abort. We'll emit one error row and then emit a reference
       // to that row from every row that's still remaining.
-      var _error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
-
-      var digest = logRecoverableError(request, _error);
+      var error = reason === undefined ? new Error('The render was aborted by the server without a reason.') : reason;
+      var digest = logRecoverableError(request, error);
       request.pendingChunks++;
       var errorId = request.nextChunkId++;
 
       if (true) {
-        var _getErrorMessageAndSt4 = getErrorMessageAndStackDev(_error),
-            message = _getErrorMessageAndSt4.message,
-            stack = _getErrorMessageAndSt4.stack;
+        var _getErrorMessageAndSt6 = getErrorMessageAndStackDev(error),
+            message = _getErrorMessageAndSt6.message,
+            stack = _getErrorMessageAndSt6.stack;
 
         emitErrorChunkDev(request, errorId, digest, message, stack);
       } else {}
@@ -2331,9 +2435,9 @@ function importServerContexts(contexts) {
     for (var i = 0; i < contexts.length; i++) {
       var _contexts$i = contexts[i],
           name = _contexts$i[0],
-          _value6 = _contexts$i[1];
+          value = _contexts$i[1];
       var context = getOrCreateServerContext(name);
-      pushProvider(context, _value6);
+      pushProvider(context, value);
     }
 
     var importedContext = getActiveContext();
@@ -2397,55 +2501,57 @@ exports.renderToReadableStream = renderToReadableStream;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var ea=__nccwpck_require__(522);var e="function"===typeof AsyncLocalStorage,fa=e?new AsyncLocalStorage:null,m=null,n=0;function p(a,b){if(0!==b.length)if(512<b.length)0<n&&(a.enqueue(new Uint8Array(m.buffer,0,n)),m=new Uint8Array(512),n=0),a.enqueue(b);else{var d=m.length-n;d<b.length&&(0===d?a.enqueue(m):(m.set(b.subarray(0,d),n),a.enqueue(m),b=b.subarray(d)),m=new Uint8Array(512),n=0);m.set(b,n);n+=b.length}return!0}var q=new TextEncoder;
-function r(a){return q.encode(a)}function ha(a,b){"function"===typeof a.error?a.error(b):a.close()}var t=JSON.stringify,u=Symbol.for("react.module.reference"),v=Symbol.for("react.element"),ia=Symbol.for("react.fragment"),ja=Symbol.for("react.provider"),ka=Symbol.for("react.server_context"),la=Symbol.for("react.forward_ref"),ma=Symbol.for("react.suspense"),na=Symbol.for("react.suspense_list"),oa=Symbol.for("react.memo"),w=Symbol.for("react.lazy"),pa=Symbol.for("react.default_value"),qa=Symbol.for("react.memo_cache_sentinel");
-function x(a,b,d,c,f,g,h){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=c;this.attributeNamespace=f;this.mustUseProperty=d;this.propertyName=a;this.type=b;this.sanitizeURL=g;this.removeEmptyString=h}"children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ").forEach(function(a){new x(a,0,!1,a,null,!1,!1)});
-[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){new x(a[0],1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){new x(a,2,!1,a.toLowerCase(),null,!1,!1)});["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){new x(a,2,!1,a,null,!1,!1)});
-"allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope".split(" ").forEach(function(a){new x(a,3,!1,a.toLowerCase(),null,!1,!1)});["checked","multiple","muted","selected"].forEach(function(a){new x(a,3,!0,a,null,!1,!1)});["capture","download"].forEach(function(a){new x(a,4,!1,a,null,!1,!1)});
-["cols","rows","size","span"].forEach(function(a){new x(a,6,!1,a,null,!1,!1)});["rowSpan","start"].forEach(function(a){new x(a,5,!1,a.toLowerCase(),null,!1,!1)});var z=/[\-:]([a-z])/g;function A(a){return a[1].toUpperCase()}
-"accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height".split(" ").forEach(function(a){var b=a.replace(z,
-A);new x(b,1,!1,a,null,!1,!1)});"xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type".split(" ").forEach(function(a){var b=a.replace(z,A);new x(b,1,!1,a,"http://www.w3.org/1999/xlink",!1,!1)});["xml:base","xml:lang","xml:space"].forEach(function(a){var b=a.replace(z,A);new x(b,1,!1,a,"http://www.w3.org/XML/1998/namespace",!1,!1)});["tabIndex","crossOrigin"].forEach(function(a){new x(a,1,!1,a.toLowerCase(),null,!1,!1)});
-new x("xlinkHref",1,!1,"xlink:href","http://www.w3.org/1999/xlink",!0,!1);["src","href","action","formAction"].forEach(function(a){new x(a,1,!1,a.toLowerCase(),null,!0,!0)});
-var B={animationIterationCount:!0,aspectRatio:!0,borderImageOutset:!0,borderImageSlice:!0,borderImageWidth:!0,boxFlex:!0,boxFlexGroup:!0,boxOrdinalGroup:!0,columnCount:!0,columns:!0,flex:!0,flexGrow:!0,flexPositive:!0,flexShrink:!0,flexNegative:!0,flexOrder:!0,gridArea:!0,gridRow:!0,gridRowEnd:!0,gridRowSpan:!0,gridRowStart:!0,gridColumn:!0,gridColumnEnd:!0,gridColumnSpan:!0,gridColumnStart:!0,fontWeight:!0,lineClamp:!0,lineHeight:!0,opacity:!0,order:!0,orphans:!0,tabSize:!0,widows:!0,zIndex:!0,zoom:!0,
-fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},ra=["Webkit","ms","Moz","O"];Object.keys(B).forEach(function(a){ra.forEach(function(b){b=b+a.charAt(0).toUpperCase()+a.substring(1);B[b]=B[a]})});var sa=Array.isArray;r('"></template>');r("<script>");r("\x3c/script>");r('<script src="');r('<script type="module" src="');r('" integrity="');r('" async="">\x3c/script>');r("\x3c!-- --\x3e");r(' style="');r(":");r(";");
+var aa=__nccwpck_require__(522);var e="function"===typeof AsyncLocalStorage,ba=e?new AsyncLocalStorage:null,m=null,n=0;function p(a,b){if(0!==b.length)if(512<b.length)0<n&&(a.enqueue(new Uint8Array(m.buffer,0,n)),m=new Uint8Array(512),n=0),a.enqueue(b);else{var c=m.length-n;c<b.length&&(0===c?a.enqueue(m):(m.set(b.subarray(0,c),n),a.enqueue(m),b=b.subarray(c)),m=new Uint8Array(512),n=0);m.set(b,n);n+=b.length}return!0}var q=new TextEncoder;
+function r(a){return q.encode(a)}function ca(a,b){"function"===typeof a.error?a.error(b):a.close()}var t=JSON.stringify;function u(a,b,c){a=t(c);b=b.toString(16)+":"+a+"\n";return q.encode(b)}
+var v=Symbol.for("react.client.reference"),w=Symbol.for("react.element"),ia=Symbol.for("react.fragment"),ja=Symbol.for("react.provider"),ka=Symbol.for("react.server_context"),la=Symbol.for("react.forward_ref"),ma=Symbol.for("react.suspense"),na=Symbol.for("react.suspense_list"),oa=Symbol.for("react.memo"),y=Symbol.for("react.lazy"),pa=Symbol.for("react.default_value"),qa=Symbol.for("react.memo_cache_sentinel");
+function z(a,b,c,d,f,g,h){this.acceptsBooleans=2===b||3===b||4===b;this.attributeName=d;this.attributeNamespace=f;this.mustUseProperty=c;this.propertyName=a;this.type=b;this.sanitizeURL=g;this.removeEmptyString=h}"children dangerouslySetInnerHTML defaultValue defaultChecked innerHTML suppressContentEditableWarning suppressHydrationWarning style".split(" ").forEach(function(a){new z(a,0,!1,a,null,!1,!1)});
+[["acceptCharset","accept-charset"],["className","class"],["htmlFor","for"],["httpEquiv","http-equiv"]].forEach(function(a){new z(a[0],1,!1,a[1],null,!1,!1)});["contentEditable","draggable","spellCheck","value"].forEach(function(a){new z(a,2,!1,a.toLowerCase(),null,!1,!1)});["autoReverse","externalResourcesRequired","focusable","preserveAlpha"].forEach(function(a){new z(a,2,!1,a,null,!1,!1)});
+"allowFullScreen async autoFocus autoPlay controls default defer disabled disablePictureInPicture disableRemotePlayback formNoValidate hidden loop noModule noValidate open playsInline readOnly required reversed scoped seamless itemScope".split(" ").forEach(function(a){new z(a,3,!1,a.toLowerCase(),null,!1,!1)});["checked","multiple","muted","selected"].forEach(function(a){new z(a,3,!0,a,null,!1,!1)});["capture","download"].forEach(function(a){new z(a,4,!1,a,null,!1,!1)});
+["cols","rows","size","span"].forEach(function(a){new z(a,6,!1,a,null,!1,!1)});["rowSpan","start"].forEach(function(a){new z(a,5,!1,a.toLowerCase(),null,!1,!1)});var A=/[\-:]([a-z])/g;function B(a){return a[1].toUpperCase()}
+"accent-height alignment-baseline arabic-form baseline-shift cap-height clip-path clip-rule color-interpolation color-interpolation-filters color-profile color-rendering dominant-baseline enable-background fill-opacity fill-rule flood-color flood-opacity font-family font-size font-size-adjust font-stretch font-style font-variant font-weight glyph-name glyph-orientation-horizontal glyph-orientation-vertical horiz-adv-x horiz-origin-x image-rendering letter-spacing lighting-color marker-end marker-mid marker-start overline-position overline-thickness paint-order panose-1 pointer-events rendering-intent shape-rendering stop-color stop-opacity strikethrough-position strikethrough-thickness stroke-dasharray stroke-dashoffset stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor text-decoration text-rendering underline-position underline-thickness unicode-bidi unicode-range units-per-em v-alphabetic v-hanging v-ideographic v-mathematical vector-effect vert-adv-y vert-origin-x vert-origin-y word-spacing writing-mode xmlns:xlink x-height".split(" ").forEach(function(a){var b=a.replace(A,
+B);new z(b,1,!1,a,null,!1,!1)});"xlink:actuate xlink:arcrole xlink:role xlink:show xlink:title xlink:type".split(" ").forEach(function(a){var b=a.replace(A,B);new z(b,1,!1,a,"http://www.w3.org/1999/xlink",!1,!1)});["xml:base","xml:lang","xml:space"].forEach(function(a){var b=a.replace(A,B);new z(b,1,!1,a,"http://www.w3.org/XML/1998/namespace",!1,!1)});["tabIndex","crossOrigin"].forEach(function(a){new z(a,1,!1,a.toLowerCase(),null,!1,!1)});
+new z("xlinkHref",1,!1,"xlink:href","http://www.w3.org/1999/xlink",!0,!1);["src","href","action","formAction"].forEach(function(a){new z(a,1,!1,a.toLowerCase(),null,!0,!0)});
+var C={animationIterationCount:!0,aspectRatio:!0,borderImageOutset:!0,borderImageSlice:!0,borderImageWidth:!0,boxFlex:!0,boxFlexGroup:!0,boxOrdinalGroup:!0,columnCount:!0,columns:!0,flex:!0,flexGrow:!0,flexPositive:!0,flexShrink:!0,flexNegative:!0,flexOrder:!0,gridArea:!0,gridRow:!0,gridRowEnd:!0,gridRowSpan:!0,gridRowStart:!0,gridColumn:!0,gridColumnEnd:!0,gridColumnSpan:!0,gridColumnStart:!0,fontWeight:!0,lineClamp:!0,lineHeight:!0,opacity:!0,order:!0,orphans:!0,tabSize:!0,widows:!0,zIndex:!0,zoom:!0,
+fillOpacity:!0,floodOpacity:!0,stopOpacity:!0,strokeDasharray:!0,strokeDashoffset:!0,strokeMiterlimit:!0,strokeOpacity:!0,strokeWidth:!0},ra=["Webkit","ms","Moz","O"];Object.keys(C).forEach(function(a){ra.forEach(function(b){b=b+a.charAt(0).toUpperCase()+a.substring(1);C[b]=C[a]})});var sa=Array.isArray;r('"></template>');r("<script>");r("\x3c/script>");r('<script src="');r('<script type="module" src="');r('" integrity="');r('" async="">\x3c/script>');r("\x3c!-- --\x3e");r(' style="');r(":");r(";");
 r(" ");r('="');r('"');r('=""');r(">");r("/>");r(' selected=""');r("\n");r("<!DOCTYPE html>");r("</");r(">");r('<template id="');r('"></template>');r("\x3c!--$--\x3e");r('\x3c!--$?--\x3e<template id="');r('"></template>');r("\x3c!--$!--\x3e");r("\x3c!--/$--\x3e");r("<template");r('"');r(' data-dgst="');r(' data-msg="');r(' data-stck="');r("></template>");r('<div hidden id="');r('">');r("</div>");r('<svg aria-hidden="true" style="display:none" id="');r('">');r("</svg>");r('<math aria-hidden="true" style="display:none" id="');
 r('">');r("</math>");r('<table hidden id="');r('">');r("</table>");r('<table hidden><tbody id="');r('">');r("</tbody></table>");r('<table hidden><tr id="');r('">');r("</tr></table>");r('<table hidden><colgroup id="');r('">');r("</colgroup></table>");r('$RS=function(a,b){a=document.getElementById(a);b=document.getElementById(b);for(a.parentNode.removeChild(a);a.firstChild;)b.parentNode.insertBefore(a.firstChild,b);b.parentNode.removeChild(b)};;$RS("');r('$RS("');r('","');r('")\x3c/script>');r('<template data-rsi="" data-sid="');
 r('" data-pid="');r('$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};;$RC("');
 r('$RC("');r('$RC=function(b,c,e){c=document.getElementById(c);c.parentNode.removeChild(c);var a=document.getElementById(b);if(a){b=a.previousSibling;if(e)b.data="$!",a.setAttribute("data-dgst",e);else{e=b.parentNode;a=b.nextSibling;var f=0;do{if(a&&8===a.nodeType){var d=a.data;if("/$"===d)if(0===f)break;else f--;else"$"!==d&&"$?"!==d&&"$!"!==d||f++}d=a.nextSibling;e.removeChild(a);a=d}while(a);for(;c.firstChild;)e.insertBefore(c.firstChild,a);b.data="$"}b._reactRetry&&b._reactRetry()}};;$RM=new Map;\n$RR=function(p,q,v){function r(l){this.s=l}for(var t=$RC,u=$RM,m=new Map,n=document,g,e,f=n.querySelectorAll("link[data-precedence],style[data-precedence]"),d=0;e=f[d++];)m.set(e.dataset.precedence,g=e);e=0;f=[];for(var c,h,b,a;c=v[e++];){var k=0;h=c[k++];if(b=u.get(h))"l"!==b.s&&f.push(b);else{a=n.createElement("link");a.href=h;a.rel="stylesheet";for(a.dataset.precedence=d=c[k++];b=c[k++];)a.setAttribute(b,c[k++]);b=a._p=new Promise(function(l,w){a.onload=l;a.onerror=w});b.then(r.bind(b,\n"l"),r.bind(b,"e"));u.set(h,b);f.push(b);c=m.get(d)||g;c===g&&(g=a);m.set(d,a);c?c.parentNode.insertBefore(a,c.nextSibling):(d=n.head,d.insertBefore(a,d.firstChild))}}Promise.all(f).then(t.bind(null,p,q,""),t.bind(null,p,q,"Resource failed to load"))};;$RR("');
 r('$RM=new Map;\n$RR=function(p,q,v){function r(l){this.s=l}for(var t=$RC,u=$RM,m=new Map,n=document,g,e,f=n.querySelectorAll("link[data-precedence],style[data-precedence]"),d=0;e=f[d++];)m.set(e.dataset.precedence,g=e);e=0;f=[];for(var c,h,b,a;c=v[e++];){var k=0;h=c[k++];if(b=u.get(h))"l"!==b.s&&f.push(b);else{a=n.createElement("link");a.href=h;a.rel="stylesheet";for(a.dataset.precedence=d=c[k++];b=c[k++];)a.setAttribute(b,c[k++]);b=a._p=new Promise(function(l,w){a.onload=l;a.onerror=w});b.then(r.bind(b,\n"l"),r.bind(b,"e"));u.set(h,b);f.push(b);c=m.get(d)||g;c===g&&(g=a);m.set(d,a);c?c.parentNode.insertBefore(a,c.nextSibling):(d=n.head,d.insertBefore(a,d.firstChild))}}Promise.all(f).then(t.bind(null,p,q,""),t.bind(null,p,q,"Resource failed to load"))};;$RR("');
 r('$RR("');r('","');r('",');r('"');r(")\x3c/script>");r('<template data-rci="" data-bid="');r('<template data-rri="" data-bid="');r('" data-sid="');r('" data-sty="');r('$RX=function(b,c,d,e){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data="$!",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),b._reactRetry&&b._reactRetry())};;$RX("');r('$RX("');r('"');r(",");r(")\x3c/script>");r('<template data-rxi="" data-bid="');r('" data-dgst="');r('" data-msg="');r('" data-stck="');r('<style data-precedence="');
-r('"></style>');r("[");r(",[");r(",");r("]");var C=null;function D(a,b){if(a!==b){a.context._currentValue=a.parentValue;a=a.parent;var d=b.parent;if(null===a){if(null!==d)throw Error("The stacks must reach the root at the same time. This is a bug in React.");}else{if(null===d)throw Error("The stacks must reach the root at the same time. This is a bug in React.");D(a,d);b.context._currentValue=b.value}}}function ta(a){a.context._currentValue=a.parentValue;a=a.parent;null!==a&&ta(a)}
-function ua(a){var b=a.parent;null!==b&&ua(b);a.context._currentValue=a.value}function va(a,b){a.context._currentValue=a.parentValue;a=a.parent;if(null===a)throw Error("The depth must equal at least at zero before reaching the root. This is a bug in React.");a.depth===b.depth?D(a,b):va(a,b)}
-function wa(a,b){var d=b.parent;if(null===d)throw Error("The depth must equal at least at zero before reaching the root. This is a bug in React.");a.depth===d.depth?D(a,d):wa(a,d);b.context._currentValue=b.value}function G(a){var b=C;b!==a&&(null===b?ua(a):null===a?ta(b):b.depth===a.depth?D(b,a):b.depth>a.depth?va(b,a):wa(b,a),C=a)}function xa(a,b){var d=a._currentValue;a._currentValue=b;var c=C;return C=a={parent:c,depth:null===c?0:c.depth+1,context:a,parentValue:d,value:b}}var H=Error("Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`");
-function ya(){}function za(a,b,d){d=a[d];void 0===d?a.push(b):d!==b&&(b.then(ya,ya),b=d);switch(b.status){case "fulfilled":return b.value;case "rejected":throw b.reason;default:if("string"!==typeof b.status)switch(a=b,a.status="pending",a.then(function(a){if("pending"===b.status){var c=b;c.status="fulfilled";c.value=a}},function(a){if("pending"===b.status){var c=b;c.status="rejected";c.reason=a}}),b.status){case "fulfilled":return b.value;case "rejected":throw b.reason;}I=b;throw H;}}var I=null;
-function Aa(){if(null===I)throw Error("Expected a suspended thenable. This is a bug in React. Please file an issue.");var a=I;I=null;return a}var J=null,K=0,L=null;function Ba(){var a=L;L=null;return a}function Ca(a){return a._currentValue}
-var Ha={useMemo:function(a){return a()},useCallback:function(a){return a},useDebugValue:function(){},useDeferredValue:M,useTransition:M,readContext:Ca,useContext:Ca,useReducer:M,useRef:M,useState:M,useInsertionEffect:M,useLayoutEffect:M,useImperativeHandle:M,useEffect:M,useId:Da,useMutableSource:M,useSyncExternalStore:M,useCacheRefresh:function(){return Fa},useMemoCache:function(a){for(var b=Array(a),d=0;d<a;d++)b[d]=qa;return b},use:Ga};
-function M(){throw Error("This Hook is not supported in Server Components.");}function Fa(){throw Error("Refreshing the cache is not supported in Server Components.");}function Da(){if(null===J)throw Error("useId can only be used while React is rendering");var a=J.identifierCount++;return":"+J.identifierPrefix+"S"+a.toString(32)+":"}
-function Ga(a){if(null!==a&&"object"===typeof a){if("function"===typeof a.then){var b=K;K+=1;null===L&&(L=[]);return za(L,a,b)}if(a.$$typeof===ka)return a._currentValue}throw Error("An unsupported type was passed to use(): "+String(a));}function N(){return(new AbortController).signal}function Ia(){if(O)return O;if(e){var a=fa.getStore();if(a)return a}return new Map}
-var Ja={getCacheSignal:function(){var a=Ia(),b=a.get(N);void 0===b&&(b=N(),a.set(N,b));return b},getCacheForType:function(a){var b=Ia(),d=b.get(a);void 0===d&&(d=a(),b.set(a,d));return d}},O=null,P=ea.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,Q=P.ContextRegistry,R=P.ReactCurrentDispatcher,S=P.ReactCurrentCache;function Ka(a){console.error(a)}
-function La(a,b,d,c,f){if(null!==S.current&&S.current!==Ja)throw Error("Currently React only supports one RSC renderer at a time.");S.current=Ja;var g=new Set,h=[],k={status:0,fatalError:null,destination:null,bundlerConfig:b,cache:new Map,nextChunkId:0,pendingChunks:0,abortableTasks:g,pingedTasks:h,completedModuleChunks:[],completedJSONChunks:[],completedErrorChunks:[],writtenSymbols:new Map,writtenModules:new Map,writtenProviders:new Map,identifierPrefix:f||"",identifierCount:1,onError:void 0===
-d?Ka:d,toJSON:function(a,b){return Ma(k,this,a,b)}};k.pendingChunks++;b=Na(c);a=Oa(k,a,b,g);h.push(a);return k}var Pa={};function Qa(a){if("fulfilled"===a.status)return a.value;if("rejected"===a.status)throw a.reason;throw a;}
-function Ra(a){switch(a.status){case "fulfilled":case "rejected":break;default:"string"!==typeof a.status&&(a.status="pending",a.then(function(b){"pending"===a.status&&(a.status="fulfilled",a.value=b)},function(b){"pending"===a.status&&(a.status="rejected",a.reason=b)}))}return{$$typeof:w,_payload:a,_init:Qa}}
-function T(a,b,d,c,f){if(null!==d&&void 0!==d)throw Error("Refs cannot be used in Server Components, nor passed to Client Components.");if("function"===typeof a){if(a.$$typeof===u)return[v,a,b,c];K=0;L=f;c=a(c);return"object"===typeof c&&null!==c&&"function"===typeof c.then?Ra(c):c}if("string"===typeof a)return[v,a,b,c];if("symbol"===typeof a)return a===ia?c.children:[v,a,b,c];if(null!=a&&"object"===typeof a){if(a.$$typeof===u)return[v,a,b,c];switch(a.$$typeof){case w:var g=a._init;a=g(a._payload);
-return T(a,b,d,c,f);case la:return b=a.render,K=0,L=f,b(c,void 0);case oa:return T(a.type,b,d,c,f);case ja:return xa(a._context,c.value),[v,a,b,{value:c.value,children:c.children,__pop:Pa}]}}throw Error("Unsupported Server Component type: "+U(a));}function Oa(a,b,d,c){var f={id:a.nextChunkId++,status:0,model:b,context:d,ping:function(){var b=a.pingedTasks;b.push(f);1===b.length&&V(a)},thenableState:null};c.add(f);return f}
-function Sa(a,b,d,c){var f=c.filepath+"#"+c.name+(c.async?"#async":""),g=a.writtenModules,h=g.get(f);if(void 0!==h)return b[0]===v&&"1"===d?"@"+h.toString(16):"$"+h.toString(16);try{var k=a.bundlerConfig[c.filepath][c.name];var l=c.async?{id:k.id,chunks:k.chunks,name:k.name,async:!0}:k;a.pendingChunks++;var y=a.nextChunkId++,aa=t(l),ba="M"+y.toString(16)+":"+aa+"\n";var ca=q.encode(ba);a.completedModuleChunks.push(ca);g.set(f,y);return b[0]===v&&"1"===d?"@"+y.toString(16):"$"+y.toString(16)}catch(da){return a.pendingChunks++,
-b=a.nextChunkId++,d=W(a,da),X(a,b,d),"$"+b.toString(16)}}function Ta(a){return Object.prototype.toString.call(a).replace(/^\[object (.*)\]$/,function(a,d){return d})}function U(a){switch(typeof a){case "string":return JSON.stringify(10>=a.length?a:a.substr(0,10)+"...");case "object":if(sa(a))return"[...]";a=Ta(a);return"Object"===a?"{...}":a;case "function":return"function";default:return String(a)}}
-function Y(a){if("string"===typeof a)return a;switch(a){case ma:return"Suspense";case na:return"SuspenseList"}if("object"===typeof a)switch(a.$$typeof){case la:return Y(a.render);case oa:return Y(a.type);case w:var b=a._payload;a=a._init;try{return Y(a(b))}catch(d){}}return""}
-function Z(a,b){var d=Ta(a);if("Object"!==d&&"Array"!==d)return d;d=-1;var c=0;if(sa(a)){var f="[";for(var g=0;g<a.length;g++){0<g&&(f+=", ");var h=a[g];h="object"===typeof h&&null!==h?Z(h):U(h);""+g===b?(d=f.length,c=h.length,f+=h):f=10>h.length&&40>f.length+h.length?f+h:f+"..."}f+="]"}else if(a.$$typeof===v)f="<"+Y(a.type)+"/>";else{f="{";g=Object.keys(a);for(h=0;h<g.length;h++){0<h&&(f+=", ");var k=g[h],l=JSON.stringify(k);f+=('"'+k+'"'===l?k:l)+": ";l=a[k];l="object"===typeof l&&null!==l?Z(l):
-U(l);k===b?(d=f.length,c=l.length,f+=l):f=10>l.length&&40>f.length+l.length?f+l:f+"..."}f+="}"}return void 0===b?f:-1<d&&0<c?(a=" ".repeat(d)+"^".repeat(c),"\n  "+f+"\n  "+a):"\n  "+f}
-function Ma(a,b,d,c){switch(c){case v:return"$"}for(;"object"===typeof c&&null!==c&&(c.$$typeof===v||c.$$typeof===w);)try{switch(c.$$typeof){case v:var f=c;c=T(f.type,f.key,f.ref,f.props,null);break;case w:var g=c._init;c=g(c._payload)}}catch(h){d=h===H?Aa():h;if("object"===typeof d&&null!==d&&"function"===typeof d.then)return a.pendingChunks++,a=Oa(a,c,C,a.abortableTasks),c=a.ping,d.then(c,c),a.thenableState=Ba(),"@"+a.id.toString(16);a.pendingChunks++;c=a.nextChunkId++;d=W(a,d);X(a,c,d);return"@"+
-c.toString(16)}if(null===c)return null;if("object"===typeof c){if(c.$$typeof===u)return Sa(a,b,d,c);if(c.$$typeof===ja)return f=c._context._globalName,b=a.writtenProviders,c=b.get(d),void 0===c&&(a.pendingChunks++,c=a.nextChunkId++,b.set(f,c),d="P"+c.toString(16)+":"+f+"\n",d=q.encode(d),a.completedJSONChunks.push(d)),"$"+c.toString(16);if(c===Pa){a=C;if(null===a)throw Error("Tried to pop a Context at the root of the app. This is a bug in React.");c=a.parentValue;a.context._currentValue=c===pa?a.context._defaultValue:
-c;C=a.parent;return}return c}if("string"===typeof c)return a="$"===c[0]||"@"===c[0]?"$"+c:c,a;if("boolean"===typeof c||"number"===typeof c||"undefined"===typeof c)return c;if("function"===typeof c){if(c.$$typeof===u)return Sa(a,b,d,c);if(/^on[A-Z]/.test(d))throw Error("Event handlers cannot be passed to Client Component props."+Z(b,d)+"\nIf you need interactivity, consider converting part of this to a Client Component.");throw Error("Functions cannot be passed directly to Client Components because they're not serializable."+
-Z(b,d));}if("symbol"===typeof c){f=a.writtenSymbols;g=f.get(c);if(void 0!==g)return"$"+g.toString(16);g=c.description;if(Symbol.for(g)!==c)throw Error("Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for("+(c.description+") cannot be found among global symbols.")+Z(b,d));a.pendingChunks++;d=a.nextChunkId++;b=t(g);b="S"+d.toString(16)+":"+b+"\n";b=q.encode(b);a.completedModuleChunks.push(b);f.set(c,d);return"$"+d.toString(16)}if("bigint"===typeof c)throw Error("BigInt ("+
-c+") is not yet supported in Client Component props."+Z(b,d));throw Error("Type "+typeof c+" is not supported in Client Component props."+Z(b,d));}function W(a,b){a=a.onError;b=a(b);if(null!=b&&"string"!==typeof b)throw Error('onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "'+typeof b+'" instead');return b||""}
-function Ua(a,b){null!==a.destination?(a.status=2,ha(a.destination,b)):(a.status=1,a.fatalError=b)}function X(a,b,d){d={digest:d};b="E"+b.toString(16)+":"+t(d)+"\n";b=q.encode(b);a.completedErrorChunks.push(b)}
-function V(a){var b=R.current,d=O;R.current=Ha;O=a.cache;J=a;try{var c=a.pingedTasks;a.pingedTasks=[];for(var f=0;f<c.length;f++){var g=c[f];var h=a;if(0===g.status){G(g.context);try{var k=g.model;if("object"===typeof k&&null!==k&&k.$$typeof===v){var l=k,y=g.thenableState;g.model=k;k=T(l.type,l.key,l.ref,l.props,y);for(g.thenableState=null;"object"===typeof k&&null!==k&&k.$$typeof===v;)l=k,g.model=k,k=T(l.type,l.key,l.ref,l.props,null)}var aa=g.id,ba=t(k,h.toJSON),ca="J"+aa.toString(16)+":"+ba+"\n";
-var da=q.encode(ca);h.completedJSONChunks.push(da);h.abortableTasks.delete(g);g.status=1}catch(E){var F=E===H?Aa():E;if("object"===typeof F&&null!==F&&"function"===typeof F.then){var Ea=g.ping;F.then(Ea,Ea);g.thenableState=Ba()}else{h.abortableTasks.delete(g);g.status=4;var Xa=W(h,F);X(h,g.id,Xa)}}}}null!==a.destination&&Va(a,a.destination)}catch(E){W(a,E),Ua(a,E)}finally{R.current=b,O=d,J=null}}
-function Va(a,b){m=new Uint8Array(512);n=0;try{for(var d=a.completedModuleChunks,c=0;c<d.length;c++)if(a.pendingChunks--,!p(b,d[c])){a.destination=null;c++;break}d.splice(0,c);var f=a.completedJSONChunks;for(c=0;c<f.length;c++)if(a.pendingChunks--,!p(b,f[c])){a.destination=null;c++;break}f.splice(0,c);var g=a.completedErrorChunks;for(c=0;c<g.length;c++)if(a.pendingChunks--,!p(b,g[c])){a.destination=null;c++;break}g.splice(0,c)}finally{m&&0<n&&(b.enqueue(new Uint8Array(m.buffer,0,n)),m=null,n=0)}0===
-a.pendingChunks&&b.close()}function Wa(a,b){try{var d=a.abortableTasks;if(0<d.size){var c=W(a,void 0===b?Error("The render was aborted by the server without a reason."):b);a.pendingChunks++;var f=a.nextChunkId++;X(a,f,c);d.forEach(function(b){b.status=3;var c="$"+f.toString(16);b=b.id;c=t(c);c="J"+b.toString(16)+":"+c+"\n";c=q.encode(c);a.completedErrorChunks.push(c)});d.clear()}null!==a.destination&&Va(a,a.destination)}catch(g){W(a,g),Ua(a,g)}}
-function Na(a){if(a){var b=C;G(null);for(var d=0;d<a.length;d++){var c=a[d],f=c[0];c=c[1];Q[f]||(Q[f]=ea.createServerContext(f,pa));xa(Q[f],c)}a=C;G(b);return a}return null}
-exports.renderToReadableStream=function(a,b,d){var c=La(a,b,d?d.onError:void 0,d?d.context:void 0,d?d.identifierPrefix:void 0);if(d&&d.signal){var f=d.signal;if(f.aborted)Wa(c,f.reason);else{var g=function(){Wa(c,f.reason);f.removeEventListener("abort",g)};f.addEventListener("abort",g)}}return new ReadableStream({type:"bytes",start:function(){e?fa.run(c.cache,V,c):V(c)},pull:function(a){if(1===c.status)c.status=2,ha(a,c.fatalError);else if(2!==c.status&&null===c.destination){c.destination=a;try{Va(c,
-a)}catch(k){W(c,k),Ua(c,k)}}},cancel:function(){}},{highWaterMark:0})};
+r('"></style>');r("[");r(",[");r(",");r("]");var D=null;function G(a,b){if(a!==b){a.context._currentValue=a.parentValue;a=a.parent;var c=b.parent;if(null===a){if(null!==c)throw Error("The stacks must reach the root at the same time. This is a bug in React.");}else{if(null===c)throw Error("The stacks must reach the root at the same time. This is a bug in React.");G(a,c);b.context._currentValue=b.value}}}function ta(a){a.context._currentValue=a.parentValue;a=a.parent;null!==a&&ta(a)}
+function ua(a){var b=a.parent;null!==b&&ua(b);a.context._currentValue=a.value}function va(a,b){a.context._currentValue=a.parentValue;a=a.parent;if(null===a)throw Error("The depth must equal at least at zero before reaching the root. This is a bug in React.");a.depth===b.depth?G(a,b):va(a,b)}
+function wa(a,b){var c=b.parent;if(null===c)throw Error("The depth must equal at least at zero before reaching the root. This is a bug in React.");a.depth===c.depth?G(a,c):wa(a,c);b.context._currentValue=b.value}function H(a){var b=D;b!==a&&(null===b?ua(a):null===a?ta(b):b.depth===a.depth?G(b,a):b.depth>a.depth?va(b,a):wa(b,a),D=a)}function xa(a,b){var c=a._currentValue;a._currentValue=b;var d=D;return D=a={parent:d,depth:null===d?0:d.depth+1,context:a,parentValue:c,value:b}}var I=Error("Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`");
+function ya(){}function za(a,b,c){c=a[c];void 0===c?a.push(b):c!==b&&(b.then(ya,ya),b=c);switch(b.status){case "fulfilled":return b.value;case "rejected":throw b.reason;default:if("string"!==typeof b.status)switch(a=b,a.status="pending",a.then(function(a){if("pending"===b.status){var c=b;c.status="fulfilled";c.value=a}},function(a){if("pending"===b.status){var c=b;c.status="rejected";c.reason=a}}),b.status){case "fulfilled":return b.value;case "rejected":throw b.reason;}J=b;throw I;}}var J=null;
+function Aa(){if(null===J)throw Error("Expected a suspended thenable. This is a bug in React. Please file an issue.");var a=J;J=null;return a}var K=null,L=0,M=null;function Ba(){var a=M;M=null;return a}function Ca(a){return a._currentValue}
+var Ha={useMemo:function(a){return a()},useCallback:function(a){return a},useDebugValue:function(){},useDeferredValue:N,useTransition:N,readContext:Ca,useContext:Ca,useReducer:N,useRef:N,useState:N,useInsertionEffect:N,useLayoutEffect:N,useImperativeHandle:N,useEffect:N,useId:Da,useMutableSource:N,useSyncExternalStore:N,useCacheRefresh:function(){return Ea},useMemoCache:function(a){for(var b=Array(a),c=0;c<a;c++)b[c]=qa;return b},use:Fa};
+function N(){throw Error("This Hook is not supported in Server Components.");}function Ea(){throw Error("Refreshing the cache is not supported in Server Components.");}function Da(){if(null===K)throw Error("useId can only be used while React is rendering");var a=K.identifierCount++;return":"+K.identifierPrefix+"S"+a.toString(32)+":"}
+function Fa(a){if(null!==a&&"object"===typeof a||"function"===typeof a){if("function"===typeof a.then){var b=L;L+=1;null===M&&(M=[]);return za(M,a,b)}if(a.$$typeof===ka)return a._currentValue}throw Error("An unsupported type was passed to use(): "+String(a));}function O(){return(new AbortController).signal}function Ia(){if(P)return P;if(e){var a=ba.getStore();if(a)return a}return new Map}
+var Ja={getCacheSignal:function(){var a=Ia(),b=a.get(O);void 0===b&&(b=O(),a.set(O,b));return b},getCacheForType:function(a){var b=Ia(),c=b.get(a);void 0===c&&(c=a(),b.set(a,c));return c}},P=null,Q=aa.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,R=Q.ContextRegistry,S=Q.ReactCurrentDispatcher,T=Q.ReactCurrentCache;function Ka(a){console.error(a)}
+function La(a,b,c,d,f){if(null!==T.current&&T.current!==Ja)throw Error("Currently React only supports one RSC renderer at a time.");T.current=Ja;var g=new Set,h=[],k={status:0,fatalError:null,destination:null,bundlerConfig:b,cache:new Map,nextChunkId:0,pendingChunks:0,abortableTasks:g,pingedTasks:h,completedModuleChunks:[],completedJSONChunks:[],completedErrorChunks:[],writtenSymbols:new Map,writtenModules:new Map,writtenProviders:new Map,identifierPrefix:f||"",identifierCount:1,onError:void 0===
+c?Ka:c,toJSON:function(a,b){return Ma(k,this,a,b)}};k.pendingChunks++;b=Na(d);a=U(k,a,b,g);h.push(a);return k}var Oa={};
+function Pa(a,b){a.pendingChunks++;var c=U(a,null,D,a.abortableTasks);switch(b.status){case "fulfilled":return c.model=b.value,Qa(a,c),c.id;case "rejected":var d=V(a,b.reason);W(a,c.id,d);return c.id;default:"string"!==typeof b.status&&(b.status="pending",b.then(function(a){"pending"===b.status&&(b.status="fulfilled",b.value=a)},function(a){"pending"===b.status&&(b.status="rejected",b.reason=a)}))}b.then(function(b){c.model=b;Qa(a,c)},function(b){b=V(a,b);W(a,c.id,b)});return c.id}
+function Ra(a){if("fulfilled"===a.status)return a.value;if("rejected"===a.status)throw a.reason;throw a;}function Sa(a){switch(a.status){case "fulfilled":case "rejected":break;default:"string"!==typeof a.status&&(a.status="pending",a.then(function(b){"pending"===a.status&&(a.status="fulfilled",a.value=b)},function(b){"pending"===a.status&&(a.status="rejected",a.reason=b)}))}return{$$typeof:y,_payload:a,_init:Ra}}
+function X(a,b,c,d,f,g){if(null!==d&&void 0!==d)throw Error("Refs cannot be used in Server Components, nor passed to Client Components.");if("function"===typeof b){if(b.$$typeof===v)return[w,b,c,f];L=0;M=g;f=b(f);return"object"===typeof f&&null!==f&&"function"===typeof f.then?"fulfilled"===f.status?f.value:Sa(f):f}if("string"===typeof b)return[w,b,c,f];if("symbol"===typeof b)return b===ia?f.children:[w,b,c,f];if(null!=b&&"object"===typeof b){if(b.$$typeof===v)return[w,b,c,f];switch(b.$$typeof){case y:var h=
+b._init;b=h(b._payload);return X(a,b,c,d,f,g);case la:return a=b.render,L=0,M=g,a(f,void 0);case oa:return X(a,b.type,c,d,f,g);case ja:return xa(b._context,f.value),[w,b,c,{value:f.value,children:f.children,__pop:Oa}]}}throw Error("Unsupported Server Component type: "+Ta(b));}function Qa(a,b){var c=a.pingedTasks;c.push(b);1===c.length&&Ua(a)}function U(a,b,c,d){var f={id:a.nextChunkId++,status:0,model:b,context:c,ping:function(){return Qa(a,f)},thenableState:null};d.add(f);return f}
+function Va(a,b,c,d){var f=d.filepath+"#"+d.name+(d.async?"#async":""),g=a.writtenModules,h=g.get(f);if(void 0!==h)return b[0]===w&&"1"===c?"$L"+h.toString(16):"$"+h.toString(16);try{var k=a.bundlerConfig[d.filepath][d.name];var l=d.async?{id:k.id,chunks:k.chunks,name:k.name,async:!0}:k;a.pendingChunks++;var x=a.nextChunkId++,da=t(l),ea=x.toString(16)+":I"+da+"\n";var fa=q.encode(ea);a.completedModuleChunks.push(fa);g.set(f,x);return b[0]===w&&"1"===c?"$L"+x.toString(16):"$"+x.toString(16)}catch(ha){return a.pendingChunks++,
+b=a.nextChunkId++,c=V(a,ha),W(a,b,c),"$"+b.toString(16)}}function Wa(a){return Object.prototype.toString.call(a).replace(/^\[object (.*)\]$/,function(a,c){return c})}function Ta(a){switch(typeof a){case "string":return JSON.stringify(10>=a.length?a:a.substr(0,10)+"...");case "object":if(sa(a))return"[...]";a=Wa(a);return"Object"===a?"{...}":a;case "function":return"function";default:return String(a)}}
+function Y(a){if("string"===typeof a)return a;switch(a){case ma:return"Suspense";case na:return"SuspenseList"}if("object"===typeof a)switch(a.$$typeof){case la:return Y(a.render);case oa:return Y(a.type);case y:var b=a._payload;a=a._init;try{return Y(a(b))}catch(c){}}return""}
+function Z(a,b){var c=Wa(a);if("Object"!==c&&"Array"!==c)return c;c=-1;var d=0;if(sa(a)){var f="[";for(var g=0;g<a.length;g++){0<g&&(f+=", ");var h=a[g];h="object"===typeof h&&null!==h?Z(h):Ta(h);""+g===b?(c=f.length,d=h.length,f+=h):f=10>h.length&&40>f.length+h.length?f+h:f+"..."}f+="]"}else if(a.$$typeof===w)f="<"+Y(a.type)+"/>";else{f="{";g=Object.keys(a);for(h=0;h<g.length;h++){0<h&&(f+=", ");var k=g[h],l=JSON.stringify(k);f+=('"'+k+'"'===l?k:l)+": ";l=a[k];l="object"===typeof l&&null!==l?Z(l):
+Ta(l);k===b?(c=f.length,d=l.length,f+=l):f=10>l.length&&40>f.length+l.length?f+l:f+"..."}f+="}"}return void 0===b?f:-1<c&&0<d?(a=" ".repeat(c)+"^".repeat(d),"\n  "+f+"\n  "+a):"\n  "+f}
+function Ma(a,b,c,d){switch(d){case w:return"$"}for(;"object"===typeof d&&null!==d&&(d.$$typeof===w||d.$$typeof===y);)try{switch(d.$$typeof){case w:var f=d;d=X(a,f.type,f.key,f.ref,f.props,null);break;case y:var g=d._init;d=g(d._payload)}}catch(h){c=h===I?Aa():h;if("object"===typeof c&&null!==c&&"function"===typeof c.then)return a.pendingChunks++,a=U(a,d,D,a.abortableTasks),d=a.ping,c.then(d,d),a.thenableState=Ba(),"$L"+a.id.toString(16);a.pendingChunks++;d=a.nextChunkId++;c=V(a,c);W(a,d,c);return"$L"+
+d.toString(16)}if(null===d)return null;if("object"===typeof d){if(d.$$typeof===v)return Va(a,b,c,d);if("function"===typeof d.then)return"$@"+Pa(a,d).toString(16);if(d.$$typeof===ja)return d=d._context._globalName,b=a.writtenProviders,c=b.get(c),void 0===c&&(a.pendingChunks++,c=a.nextChunkId++,b.set(d,c),d=u(a,c,"$P"+d),a.completedJSONChunks.push(d)),"$"+c.toString(16);if(d===Oa){a=D;if(null===a)throw Error("Tried to pop a Context at the root of the app. This is a bug in React.");d=a.parentValue;a.context._currentValue=
+d===pa?a.context._defaultValue:d;D=a.parent;return}return d}if("string"===typeof d)return a="$"===d[0]?"$"+d:d,a;if("boolean"===typeof d||"number"===typeof d||"undefined"===typeof d)return d;if("function"===typeof d){if(d.$$typeof===v)return Va(a,b,c,d);if(/^on[A-Z]/.test(c))throw Error("Event handlers cannot be passed to Client Component props."+Z(b,c)+"\nIf you need interactivity, consider converting part of this to a Client Component.");throw Error("Functions cannot be passed directly to Client Components because they're not serializable."+
+Z(b,c));}if("symbol"===typeof d){f=a.writtenSymbols;g=f.get(d);if(void 0!==g)return"$"+g.toString(16);g=d.description;if(Symbol.for(g)!==d)throw Error("Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for("+(d.description+") cannot be found among global symbols.")+Z(b,c));a.pendingChunks++;c=a.nextChunkId++;b=u(a,c,"$S"+g);a.completedModuleChunks.push(b);f.set(d,c);return"$"+c.toString(16)}if("bigint"===typeof d)throw Error("BigInt ("+d+") is not yet supported in Client Component props."+
+Z(b,c));throw Error("Type "+typeof d+" is not supported in Client Component props."+Z(b,c));}function V(a,b){a=a.onError;b=a(b);if(null!=b&&"string"!==typeof b)throw Error('onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "'+typeof b+'" instead');return b||""}function Xa(a,b){null!==a.destination?(a.status=2,ca(a.destination,b)):(a.status=1,a.fatalError=b)}
+function W(a,b,c){c={digest:c};b=b.toString(16)+":E"+t(c)+"\n";b=q.encode(b);a.completedErrorChunks.push(b)}
+function Ua(a){var b=S.current,c=P;S.current=Ha;P=a.cache;K=a;try{var d=a.pingedTasks;a.pingedTasks=[];for(var f=0;f<d.length;f++){var g=d[f];var h=a;if(0===g.status){H(g.context);try{var k=g.model;if("object"===typeof k&&null!==k&&k.$$typeof===w){var l=k,x=g.thenableState;g.model=k;k=X(h,l.type,l.key,l.ref,l.props,x);for(g.thenableState=null;"object"===typeof k&&null!==k&&k.$$typeof===w;)l=k,g.model=k,k=X(h,l.type,l.key,l.ref,l.props,null)}var da=g.id,ea=t(k,h.toJSON),fa=da.toString(16)+":"+ea+"\n";
+var ha=q.encode(fa);h.completedJSONChunks.push(ha);h.abortableTasks.delete(g);g.status=1}catch(E){var F=E===I?Aa():E;if("object"===typeof F&&null!==F&&"function"===typeof F.then){var Ga=g.ping;F.then(Ga,Ga);g.thenableState=Ba()}else{h.abortableTasks.delete(g);g.status=4;var $a=V(h,F);W(h,g.id,$a)}}}}null!==a.destination&&Ya(a,a.destination)}catch(E){V(a,E),Xa(a,E)}finally{S.current=b,P=c,K=null}}
+function Ya(a,b){m=new Uint8Array(512);n=0;try{for(var c=a.completedModuleChunks,d=0;d<c.length;d++)if(a.pendingChunks--,!p(b,c[d])){a.destination=null;d++;break}c.splice(0,d);var f=a.completedJSONChunks;for(d=0;d<f.length;d++)if(a.pendingChunks--,!p(b,f[d])){a.destination=null;d++;break}f.splice(0,d);var g=a.completedErrorChunks;for(d=0;d<g.length;d++)if(a.pendingChunks--,!p(b,g[d])){a.destination=null;d++;break}g.splice(0,d)}finally{m&&0<n&&(b.enqueue(new Uint8Array(m.buffer,0,n)),m=null,n=0)}0===
+a.pendingChunks&&b.close()}function Za(a,b){try{var c=a.abortableTasks;if(0<c.size){var d=V(a,void 0===b?Error("The render was aborted by the server without a reason."):b);a.pendingChunks++;var f=a.nextChunkId++;W(a,f,d);c.forEach(function(b){b.status=3;var c="$"+f.toString(16);b=u(a,b.id,c);a.completedErrorChunks.push(b)});c.clear()}null!==a.destination&&Ya(a,a.destination)}catch(g){V(a,g),Xa(a,g)}}
+function Na(a){if(a){var b=D;H(null);for(var c=0;c<a.length;c++){var d=a[c],f=d[0];d=d[1];R[f]||(R[f]=aa.createServerContext(f,pa));xa(R[f],d)}a=D;H(b);return a}return null}
+exports.renderToReadableStream=function(a,b,c){var d=La(a,b,c?c.onError:void 0,c?c.context:void 0,c?c.identifierPrefix:void 0);if(c&&c.signal){var f=c.signal;if(f.aborted)Za(d,f.reason);else{var g=function(){Za(d,f.reason);f.removeEventListener("abort",g)};f.addEventListener("abort",g)}}return new ReadableStream({type:"bytes",start:function(){e?ba.run(d.cache,Ua,d):Ua(d)},pull:function(a){if(1===d.status)d.status=2,ca(a,d.fatalError);else if(2!==d.status&&null===d.destination){d.destination=a;try{Ya(d,
+a)}catch(k){V(d,k),Xa(d,k)}}},cancel:function(){}},{highWaterMark:0})};
 
 
 /***/ }),

@@ -1,5 +1,5 @@
-import { check } from 'next-test-utils'
 import { createNextDescribe, FileRef } from 'e2e-utils'
+import { check } from 'next-test-utils'
 import path from 'path'
 import { sandbox } from './helpers'
 
@@ -56,21 +56,6 @@ createNextDescribe(
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
         '"getStaticProps" is not supported in app/'
-      )
-
-      await cleanup()
-    })
-
-    it('should error for styled-jsx imports on server side', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/server-with-errors/styled-jsx'
-      )
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxDescription()).toInclude(
-        'This module cannot be imported from a Server Component module. It should only be used from a Client Component.'
       )
 
       await cleanup()
@@ -224,6 +209,7 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
@@ -239,17 +225,21 @@ createNextDescribe(
         app/server-with-errors/error-file/error.js"
       `)
 
-      // Add "use client"
-      await session.patch(
-        'app/server-with-errors/error-file/error.js',
-        '"use client"'
+      await cleanup()
+    })
+
+    it('should throw an error when error file is a server component with empty error file', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/server-with-errors/error-file'
       )
-      expect(await session.hasRedbox(false)).toBe(false)
 
       // Empty file
       await session.patch('app/server-with-errors/error-file/error.js', '')
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
@@ -296,6 +286,25 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app/editor-links/component.js
+        ReactServerComponentsError:
+
+        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
+
+           ,-[1:1]
+         1 | import { useState } from 'react'
+           :          ^^^^^^^^
+         2 | export default function Component() {
+         3 |   return <div>Component</div>
+         4 | }
+           \`----
+
+        Maybe one of these should be marked as a client entry with \\"use client\\":
+        app/editor-links/component.js
+        app/editor-links/page.js"
+      `)
+
       await browser.waitForElementByCss('[data-with-open-in-editor-link]')
       const collapsedFrameworkGroups = await browser.elementsByCss(
         '[data-with-open-in-editor-link]'

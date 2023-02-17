@@ -109,7 +109,8 @@ export async function writeConfigurationDefaults(
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
   isAppDirEnabled: boolean,
-  distDir: string
+  distDir: string,
+  hasPagesDir: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
@@ -195,19 +196,49 @@ export async function writeConfigurationDefaults(
   // Enable the Next.js typescript plugin.
   if (isAppDirEnabled) {
     if (userTsConfig.compilerOptions) {
-      if (!('plugins' in userTsConfig.compilerOptions)) {
-        userTsConfig.compilerOptions.plugins = []
-      }
+      // If the TS config extends on another config, we can't add the `plugin` field
+      // because that will override the parent config's plugins.
+      // Instead we have to show a message to the user to add the plugin manually.
       if (
-        !userTsConfig.compilerOptions.plugins.some(
-          (plugin: { name: string }) => plugin.name === 'next'
-        )
+        'extends' in userTsConfig &&
+        !('plugins' in userTsConfig.compilerOptions)
       ) {
-        userTsConfig.compilerOptions.plugins.push({ name: 'next' })
+        console.log(
+          `\nYour ${chalk.cyan(
+            'tsconfig.json'
+          )} extends another configuration, which means we cannot add the Next.js TypeScript plugin automatically. To improve your development experience, we recommend adding the Next.js plugin (\`${chalk.cyan(
+            '"plugins": [{ "name": "next" }]'
+          )}\`) manually to your TypeScript configuration. Learn more: https://beta.nextjs.org/docs/configuring/typescript#using-the-typescript-plugin\n`
+        )
+      } else {
+        if (!('plugins' in userTsConfig.compilerOptions)) {
+          userTsConfig.compilerOptions.plugins = []
+        }
+        if (
+          !userTsConfig.compilerOptions.plugins.some(
+            (plugin: { name: string }) => plugin.name === 'next'
+          )
+        ) {
+          userTsConfig.compilerOptions.plugins.push({ name: 'next' })
+          suggestedActions.push(
+            chalk.cyan('plugins') +
+              ' was updated to add ' +
+              chalk.bold(`{ name: 'next' }`)
+          )
+        }
+      }
+
+      // If `strict` is set to `false` or `strictNullChecks` is set to `false`,
+      // then set `strictNullChecks` to `true`.
+      if (
+        hasPagesDir &&
+        isAppDirEnabled &&
+        !userTsConfig.compilerOptions.strict &&
+        !('strictNullChecks' in userTsConfig.compilerOptions)
+      ) {
+        userTsConfig.compilerOptions.strictNullChecks = true
         suggestedActions.push(
-          chalk.cyan('plugins') +
-            ' was updated to add ' +
-            chalk.bold(`{ name: 'next' }`)
+          chalk.cyan('strictNullChecks') + ' was set to ' + chalk.bold(`true`)
         )
       }
     }

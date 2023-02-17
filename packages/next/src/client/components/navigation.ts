@@ -12,7 +12,6 @@ import {
   PathnameContext,
   // LayoutSegmentsContext,
 } from '../../shared/lib/hooks-client-context'
-import { bailoutToClientRendering } from './bailout-to-client-rendering'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
@@ -23,7 +22,7 @@ function readonlyURLSearchParamsError() {
   return new Error('ReadonlyURLSearchParams cannot be modified')
 }
 
-class ReadonlyURLSearchParams {
+export class ReadonlyURLSearchParams {
   [INTERNAL_URLSEARCHPARAMS_INSTANCE]: URLSearchParams
 
   entries: URLSearchParams['entries']
@@ -69,22 +68,31 @@ class ReadonlyURLSearchParams {
 /**
  * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
  * Learn more about URLSearchParams here: https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams
+ *
+ * @internal - re-exported in `next-env.d.ts`.
  */
-export function useSearchParams() {
+export function useSearchParams(): ReadonlyURLSearchParams | null {
   clientHookInServerComponentError('useSearchParams')
   const searchParams = useContext(SearchParamsContext)
 
   const readonlySearchParams = useMemo(() => {
-    return new ReadonlyURLSearchParams(searchParams || new URLSearchParams())
+    if (!searchParams) {
+      // When the router is not ready in pages, we won't have the search params
+      // available.
+      return null
+    }
+
+    return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams])
 
-  if (bailoutToClientRendering()) {
-    // TODO-APP: handle dynamic = 'force-static' here and on the client
-    return readonlySearchParams
-  }
-
-  if (!searchParams) {
-    throw new Error('invariant expected search params to be mounted')
+  if (typeof window === 'undefined') {
+    // AsyncLocalStorage should not be included in the client bundle.
+    const { bailoutToClientRendering } =
+      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
+    if (bailoutToClientRendering()) {
+      // TODO-APP: handle dynamic = 'force-static' here and on the client
+      return readonlySearchParams
+    }
   }
 
   return readonlySearchParams
@@ -92,6 +100,8 @@ export function useSearchParams() {
 
 /**
  * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
+ *
+ * @internal - re-exported in `next-env.d.ts`.
  */
 export function usePathname(): string | null {
   clientHookInServerComponentError('usePathname')

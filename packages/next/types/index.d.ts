@@ -28,6 +28,9 @@ export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'
 
+// @ts-ignore This path is generated at build time and conflicts otherwise
+export { Metadata } from '../dist/lib/metadata/types/metadata-interface'
+
 // Extend the React types with missing properties
 declare module 'react' {
   // <html amp=""> support
@@ -109,7 +112,15 @@ export type PageConfig = {
   runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
+  /**
+   * @deprecated this config has been removed in favor of the next.config.js option
+   */
+  // TODO: remove in next minor release (current v13.1.1)
   unstable_includeFiles?: string[]
+  /**
+   * @deprecated this config has been removed in favor of the next.config.js option
+   */
+  // TODO: remove in next minor release (current v13.1.1)
   unstable_excludeFiles?: string[]
 }
 
