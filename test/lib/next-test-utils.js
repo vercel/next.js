@@ -13,6 +13,7 @@ import http from 'http'
 import https from 'https'
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
+// TODO: only use undici in Node.js 16. Leverage built-in fetch in Node.js 18.
 import { fetch } from 'undici'
 import path from 'path'
 import qs from 'querystring'
