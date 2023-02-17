@@ -797,6 +797,10 @@
         {
           "title": "built-in-next-font",
           "path": "/errors/built-in-next-font.md"
+        },
+        {
+          "title": "version-staleness",
+          "path": "/errors/version-staleness.md"
         }
       ]
     }
