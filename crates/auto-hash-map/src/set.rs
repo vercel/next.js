@@ -46,7 +46,7 @@ impl<K> AutoSet<K, RandomState> {
 
 impl<K, H: BuildHasher> AutoSet<K, H> {
     /// see [HashSet::with_hasher](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.with_hasher)
-    pub fn with_hasher() -> Self {
+    pub const fn with_hasher() -> Self {
         Self {
             map: AutoMap::with_hasher(),
         }

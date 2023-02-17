@@ -186,7 +186,7 @@ pub trait TurboTasksBackendApi: TaskIdProvider + TurboTasksCallApi + Sync + Send
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
-    fn schedule_notify_tasks_set(&self, tasks: &AutoSet<TaskId>);
+    fn schedule_notify_tasks_set(&self, tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>>);
 
     /// Returns the stats reporting type.
     fn stats_type(&self) -> StatsType;
@@ -956,7 +956,7 @@ impl<B: Backend> TurboTasksBackendApi for TurboTasks<B> {
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `dependent_cell_updated()` on all tasks.
-    fn schedule_notify_tasks_set(&self, tasks: &AutoSet<TaskId>) {
+    fn schedule_notify_tasks_set(&self, tasks: &AutoSet<TaskId, BuildNoHashHasher<TaskId>>) {
         let result = CURRENT_TASK_STATE.try_with(|cell| {
             let CurrentTaskState {
                 tasks_to_notify, ..

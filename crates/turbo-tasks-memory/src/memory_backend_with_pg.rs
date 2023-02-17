@@ -16,6 +16,7 @@ use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
 use concurrent_queue::ConcurrentQueue;
 use dashmap::{mapref::entry::Entry, DashMap, DashSet};
+use nohash_hasher::BuildNoHashHasher;
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CellContent, PersistentTaskType, TaskExecutionSpec,
@@ -70,11 +71,11 @@ struct MemoryTaskState {
     need_persist: bool,
     has_changes: bool,
     freshness: TaskFreshness,
-    cells: HashMap<CellId, (TaskCell, AutoSet<TaskId>)>,
+    cells: HashMap<CellId, (TaskCell, AutoSet<TaskId, BuildNoHashHasher<TaskId>>)>,
     output: Option<Result<RawVc, SharedError>>,
-    output_dependent: AutoSet<TaskId>,
+    output_dependent: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
     dependencies: AutoSet<RawVc>,
-    children: AutoSet<TaskId>,
+    children: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
     event: Event,
     event_cells: Event,
 }
@@ -85,7 +86,7 @@ impl MemoryTaskState {
             freshness,
             need_persist: Default::default(),
             has_changes: Default::default(),
-            cells: Default::default(),
+            cells: HashMap::default(),
             output: Default::default(),
             output_dependent: Default::default(),
             dependencies: Default::default(),
@@ -272,10 +273,10 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
                     cells: data
                         .cells
                         .into_iter()
-                        .map(|(k, s)| (k, (s, AutoSet::new())))
+                        .map(|(k, s)| (k, (s, AutoSet::default())))
                         .collect(),
                     output: Some(Ok(data.output)),
-                    output_dependent: AutoSet::new(),
+                    output_dependent: AutoSet::default(),
                     dependencies: data.dependencies.into_iter().collect(),
                     children: data.children.into_iter().collect(),
                     need_persist: Default::default(),
@@ -1096,7 +1097,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
             mem_state.output = Some(result.map_err(SharedError::new));
             take(&mut mem_state.output_dependent)
         } else {
-            AutoSet::new()
+            AutoSet::default()
         };
 
         drop(state);
