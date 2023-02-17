@@ -3,7 +3,7 @@ import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { NextRouter } from './router/router'
+import { LinkType, NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from 'next/types'
 import { COMPILER_NAMES } from './constants'
@@ -307,6 +307,16 @@ export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
 // Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
 const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/
 export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url)
+
+export function getLinkType(url: string): LinkType {
+  if (url.startsWith('#')) return LinkType.Fragment
+  if (url.startsWith('?')) return LinkType.Query
+  if (url.startsWith('//')) return LinkType.SchemeRelative
+  if (/^\/(?!\/)/.test(url)) return LinkType.DomainRelative
+  if (isAbsoluteUrl(url)) return LinkType.Absolute
+
+  return LinkType.PageRelative
+}
 
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location

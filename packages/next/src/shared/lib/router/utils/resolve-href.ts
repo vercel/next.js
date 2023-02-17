@@ -1,9 +1,9 @@
-import type { NextRouter, Url } from '../router'
+import { LinkType, NextRouter, Url } from '../router'
 
 import { searchParamsToUrlQuery } from './querystring'
 import { formatWithValidation } from './format-url'
 import { omit } from './omit'
-import { normalizeRepeatedSlashes } from '../../utils'
+import { getLinkType, normalizeRepeatedSlashes } from '../../utils'
 import { normalizePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
 import { isLocalURL } from './is-local-url'
 import { isDynamicRoute } from './is-dynamic'
@@ -16,17 +16,26 @@ import { interpolateAs } from './interpolate-as'
 export function resolveHref(
   router: NextRouter,
   href: Url,
-  resolveAs: true
+  resolveAs: true,
+  linkTypes?: LinkType[]
 ): [string, string] | [string]
 export function resolveHref(
   router: NextRouter,
   href: Url,
-  resolveAs?: false
+  resolveAs?: false,
+  linkTypes?: LinkType[]
 ): string
 export function resolveHref(
   router: NextRouter,
   href: Url,
-  resolveAs?: boolean
+  resolveAs?: boolean,
+  linkTypes: LinkType[] = [
+    LinkType.Absolute,
+    LinkType.DomainRelative,
+    LinkType.PageRelative,
+    LinkType.Query,
+    LinkType.Fragment,
+  ]
 ): [string, string] | [string] | string {
   // we use a dummy base url for relative urls
   let base: URL
@@ -34,23 +43,31 @@ export function resolveHref(
 
   // repeated slashes and backslashes in the URL are considered
   // invalid and will never match a Next.js page/file
-  const urlProtoMatch = urlAsString.match(/^[a-zA-Z]{1,}:\/\//)
-  const urlAsStringNoProto = urlProtoMatch
-    ? urlAsString.slice(urlProtoMatch[0].length)
+  const urlSchemeMatch = urlAsString.match(/^(?:[a-zA-Z]+:)?\/\//)
+  const urlAsStringNoScheme = urlSchemeMatch
+    ? urlAsString.slice(urlSchemeMatch[0].length)
     : urlAsString
 
-  const urlParts = urlAsStringNoProto.split('?')
+  const urlParts = urlAsStringNoScheme.split('?')
 
   if ((urlParts[0] || '').match(/(\/\/|\\)/)) {
     console.error(
       `Invalid href passed to next/router: ${urlAsString}, repeated forward-slashes (//) or backslashes \\ are not valid in the href`
     )
-    const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoProto)
-    urlAsString = (urlProtoMatch ? urlProtoMatch[0] : '') + normalizedUrl
+    const normalizedUrl = normalizeRepeatedSlashes(urlAsStringNoScheme)
+    urlAsString = (urlSchemeMatch ? urlSchemeMatch[0] : '') + normalizedUrl
+  }
+
+  const linkType = getLinkType(urlAsString)
+
+  if (!linkTypes.includes(linkType)) {
+    throw new Error(
+      `Invalid href passed to next/router: ${urlAsString}, link type ${linkType} not one of ${linkTypes}`
+    )
   }
 
   // Return because it cannot be routed by the Next.js router
-  if (!isLocalURL(urlAsString)) {
+  if (!isLocalURL(urlAsString, linkType)) {
     return (resolveAs ? [urlAsString] : urlAsString) as string
   }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import type {
+  LinkType,
   NextRouter,
   PrefetchOptions as RouterPrefetchOptions,
 } from '../shared/lib/router/router'
@@ -84,6 +85,11 @@ type InternalLinkProps = {
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
   legacyBehavior?: boolean
+  /**
+   * Whitelist of locations this Link can navigate to. Avoid the use of Absolute and SchemeRelative to prevent open-redirects.
+   * @defaultValue `[LinkType.Absolute, LinkType.DomainRelative, LinkType.PageRelative, LinkType.Query, LinkType.Fragment]`
+   */
+  linkTypes?: LinkType[]
   /**
    * Optional event handler for when the mouse pointer is moved onto Link
    */
@@ -301,6 +307,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onMouseEnter: true,
         onTouchStart: true,
         legacyBehavior: true,
+        linkTypes: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -351,6 +358,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               actual: valType,
             })
           }
+        } else if (key === 'linkTypes') {
+          if (props[key] != null && valType !== 'object') {
+            throw createPropError({
+              key,
+              expected: '`object`',
+              actual: valType,
+            })
+          }
         } else {
           // TypeScript trick for type-guarding:
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -386,6 +401,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onTouchStart: onTouchStartProp,
       // @ts-expect-error this is inlined as a literal boolean not a string
       legacyBehavior = process.env.__NEXT_NEW_LINK_BEHAVIOR === false,
+      linkTypes,
       ...restProps
     } = props
 
@@ -445,7 +461,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       const [resolvedHref, resolvedAs] = resolveHref(
         pagesRouter,
         hrefProp,
-        true
+        true,
+        linkTypes
       )
 
       return {
@@ -454,7 +471,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           ? resolveHref(pagesRouter, asProp)
           : resolvedAs || resolvedHref,
       }
-    }, [pagesRouter, hrefProp, asProp])
+    }, [pagesRouter, hrefProp, asProp, linkTypes])
 
     const previousHref = React.useRef<string>(href)
     const previousAs = React.useRef<string>(as)

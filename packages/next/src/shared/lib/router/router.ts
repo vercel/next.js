@@ -669,6 +669,16 @@ const getCancelledHandler = ({
   return handleCancelled
 }
 
+/** A type of URL that an href can be. */
+export enum LinkType {
+  Absolute,
+  SchemeRelative,
+  DomainRelative,
+  PageRelative,
+  Query,
+  Fragment,
+}
+
 export default class Router implements BaseRouter {
   basePath: string
 

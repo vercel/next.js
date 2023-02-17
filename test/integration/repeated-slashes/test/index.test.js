@@ -93,21 +93,21 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 
   it('should handle double slashes correctly', async () => {
     if (!isExport) {
-      const res = await fetchViaHTTP(appPort, '//google.com', undefined, {
+      const res = await fetchViaHTTP(appPort, '/vercel//next.js', undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
 
       const parsedUrl = url.parse(res.headers.get('location'), true)
-      expect(parsedUrl.pathname).toBe('/google.com')
+      expect(parsedUrl.pathname).toBe('/vercel/next.js')
       expect(parsedUrl.hostname).toBe('localhost')
       expect(parsedUrl.query).toEqual({})
     }
 
-    const browser = await webdriver(appPort, '//google.com')
+    const browser = await webdriver(appPort, '/vercel//next.js')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
-      isExport ? '//google.com' : '/google.com'
+      isExport ? '/vercel//next.js' : '/vercel/next.js'
     )
     expect(await browser.eval('window.location.search')).toBe('')
     expect(await browser.eval('window.location.hash')).toBe('')
@@ -120,7 +120,7 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
     if (!isExport) {
       const res = await fetchViaHTTP(
         appPort,
-        '//google.com',
+        '/vercel//next.js',
         { h: '1' },
         {
           redirect: 'manual',
@@ -128,15 +128,15 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       )
       expect(res.status).toBe(308)
       const parsedUrl = url.parse(res.headers.get('location'), true)
-      expect(parsedUrl.pathname).toBe('/google.com')
+      expect(parsedUrl.pathname).toBe('/vercel/next.js')
       expect(parsedUrl.hostname).toBe('localhost')
       expect(parsedUrl.query).toEqual({ h: '1' })
     }
 
-    const browser = await webdriver(appPort, '//google.com?h=1')
+    const browser = await webdriver(appPort, '/vercel//next.js?h=1')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
-      isExport ? '//google.com' : '/google.com'
+      isExport ? '/vercel//next.js' : '/vercel/next.js'
     )
     expect(await browser.eval('window.location.search')).toBe('?h=1')
     expect(await browser.eval('window.location.hash')).toBe('')
@@ -147,20 +147,20 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 
   it('should handle double slashes correctly with hash', async () => {
     if (!isExport) {
-      const res = await fetchViaHTTP(appPort, '//google.com', undefined, {
+      const res = await fetchViaHTTP(appPort, '/vercel//next.js', undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
       const parsedUrl = url.parse(res.headers.get('location'), true)
-      expect(parsedUrl.pathname).toBe('/google.com')
+      expect(parsedUrl.pathname).toBe('/vercel/next.js')
       expect(parsedUrl.hostname).toBe('localhost')
       expect(parsedUrl.query).toEqual({})
     }
 
-    const browser = await webdriver(appPort, '//google.com#hello')
+    const browser = await webdriver(appPort, '/vercel//next.js#hello')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
-      isExport ? '//google.com' : '/google.com'
+      isExport ? '/vercel//next.js' : '/vercel/next.js'
     )
     expect(await browser.eval('window.location.hash')).toBe('#hello')
     expect(await browser.eval('window.location.search')).toBe('')
@@ -235,21 +235,21 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 
   it('should handle backslashes correctly', async () => {
     if (!isExport) {
-      const res = await fetchViaHTTP(appPort, '/\\google.com', undefined, {
+      const res = await fetchViaHTTP(appPort, '/vercel//next.js', undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
       const parsedUrl = url.parse(res.headers.get('location'), true)
-      expect(parsedUrl.pathname).toBe('/google.com')
+      expect(parsedUrl.pathname).toBe('/vercel/next.js')
       expect(parsedUrl.hostname).toBe('localhost')
       expect(parsedUrl.query).toEqual({})
-      expect(await res.text()).toBe('/google.com')
+      expect(await res.text()).toBe('/vercel/next.js')
     }
 
-    const browser = await webdriver(appPort, '/\\google.com')
+    const browser = await webdriver(appPort, '/vercel//next.js')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
-      isExport ? '//google.com' : '/google.com'
+      isExport ? '/vercel//next.js' : '/vercel/next.js'
     )
     expect(await browser.eval('window.location.hash')).toBe('')
     expect(await browser.eval('window.location.search')).toBe('')
@@ -260,21 +260,23 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 
   it('should handle mixed backslashes/forward slashes correctly', async () => {
     if (!isExport) {
-      const res = await fetchViaHTTP(appPort, '/\\/google.com', undefined, {
+      const res = await fetchViaHTTP(appPort, '/vercel/\\/next.js', undefined, {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
       const parsedUrl = url.parse(res.headers.get('location'), true)
-      expect(parsedUrl.pathname).toBe(isExport ? '//google.com' : '/google.com')
+      expect(parsedUrl.pathname).toBe(
+        isExport ? '/vercel//next.js' : '/vercel/next.js'
+      )
       expect(parsedUrl.hostname).toBe('localhost')
       expect(parsedUrl.query).toEqual({})
-      expect(await res.text()).toBe('/google.com')
+      expect(await res.text()).toBe('/vercel/next.js')
     }
 
-    const browser = await webdriver(appPort, '/\\/google.com#hello')
+    const browser = await webdriver(appPort, '/vercel/\\/next.js#hello')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
-      isExport ? '///google.com' : '/google.com'
+      isExport ? '/vercel///next.js' : '/vercel/next.js'
     )
     expect(await browser.eval('window.location.hash')).toBe('#hello')
     expect(await browser.eval('window.location.search')).toBe('')
@@ -289,12 +291,12 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       `/invalid${isExport ? '.html' : ''}`
     )
     const invalidHrefs = [
-      '//google.com',
-      '//google.com?hello=1',
-      '//google.com#hello',
-      '\\/\\/google.com',
-      '\\/\\/google.com?hello=1',
-      '\\/\\/google.com#hello',
+      '/vercel//next.js',
+      '/vercel//next.js?hello=1',
+      '/vercel//next.js#hello',
+      '\\/vercel\\/\\/next.js',
+      '\\/vercel\\/\\/next.js?hello=1',
+      '\\/vercel\\/\\/next.js#hello',
     ]
 
     for (const href of invalidHrefs) {
@@ -313,24 +315,24 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       {
         page: '/another',
         href: '/another',
-        as: '//google.com',
-        pathname: '/google.com',
+        as: '/vercel//next.js',
+        pathname: '/vercel/next.js',
       },
       {
         page: isPages404 ? '/404' : '/_error',
-        href: '//google.com',
-        pathname: '/google.com',
+        href: '/vercel//next.js',
+        pathname: '/vercel/next.js',
       },
       {
         page: isPages404 ? '/404' : '/_error',
-        href: '//google.com?hello=1',
-        pathname: '/google.com',
+        href: '/vercel//next.js?hello=1',
+        pathname: '/vercel/next.js',
         search: '?hello=1',
       },
       {
         page: isPages404 ? '/404' : '/_error',
-        href: '//google.com#hello',
-        pathname: '/google.com',
+        href: '/vercel//next.js#hello',
+        pathname: '/vercel/next.js',
         hash: '#hello',
       },
     ]) {

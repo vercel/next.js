@@ -14,43 +14,47 @@ export default function Invalid() {
   return (
     <>
       <p id="invalid">invalid page</p>
-      <Link href="/another" as="//google.com" id="page-with-as-slashes">
-        to /another as //google.com
+      <Link href="/another" as="/vercel//next.js" id="page-with-as-slashes">
+        to /another as /vercel//next.js
       </Link>
       <br />
 
-      <Link href="//google.com" id="href-with-slashes">
-        to //google.com
+      <Link href="/vercel//next.js" id="href-with-slashes">
+        to /vercel//next.js
       </Link>
       <br />
 
-      <Link href="//google.com?hello=1" id="href-with-slashes-query">
-        to //google.com?hello=1
+      <Link href="/vercel//next.js?hello=1" id="href-with-slashes-query">
+        to /vercel//next.js?hello=1
       </Link>
       <br />
 
-      <Link href="//google.com#hello" id="href-with-slashes-hash">
-        to //google.com#hello
+      <Link href="/vercel//next.js#hello" id="href-with-slashes-hash">
+        to /vercel//next.js#hello
       </Link>
       <br />
 
-      <Link href="/another" as="\/\/google.com" id="page-with-as-backslashes">
-        to /another as \\/\\/google.com
+      <Link
+        href="/another"
+        as="\/vercel\/\/next.js"
+        id="page-with-as-backslashes"
+      >
+        to /another as \\/vercel\\/\\/next.js
       </Link>
       <br />
 
-      <Link href="\/\/google.com" id="href-with-backslashes">
-        to \\/\\/google.com
+      <Link href="\/vercel\/\/next.js" id="href-with-backslashes">
+        to \\/vercel\\/\\/next.js
       </Link>
       <br />
 
-      <Link href="\/\/google.com?hello=1" id="href-with-backslashes-query">
-        to \\/\\/google.com?hello=1
+      <Link href="\/vercel\/\/next.js?hello=1" id="href-with-backslashes-query">
+        to \\/vercel\\/\\/next.js?hello=1
       </Link>
       <br />
 
-      <Link href="\/\/google.com#hello" id="href-with-backslashes-hash">
-        to \\/\\/google.com#hello
+      <Link href="\/vercel\/\/next.js#hello" id="href-with-backslashes-hash">
+        to \\/vercel\\/\\/next.js#hello
       </Link>
       <br />
     </>
