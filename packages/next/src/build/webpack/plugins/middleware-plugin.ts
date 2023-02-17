@@ -19,7 +19,6 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
-  FONT_LOADER_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
   getPageStaticInfo,
@@ -127,6 +126,7 @@ function getEntryFiles(
     if (opts.hasInstrumentationHook) {
       files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
     }
+  }
 
   files.push(
     ...entryFiles
@@ -798,12 +798,15 @@ export default class MiddlewarePlugin {
   constructor({
     dev,
     sriEnabled,
+    hasInstrumentationHook,
   }: {
     dev: boolean
     sriEnabled: boolean
+    hasInstrumentationHook: boolean
   }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
+    this.hasInstrumentationHook = hasInstrumentationHook
   }
 
   public apply(compiler: webpack.Compiler) {
