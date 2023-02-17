@@ -575,7 +575,6 @@ export class FlightClientEntryPlugin {
     clientImports: ClientComponentImports
     bundlePath: string
   }): [shouldInvalidate: boolean, addEntryPromise: Promise<void>] {
-    console.log('running injectClientEntryAndSSRModules')
     let shouldInvalidate = false
 
     const loaderOptions: NextFlightClientEntryLoaderOptions = {
