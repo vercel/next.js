@@ -95,7 +95,6 @@ function merge(
         break
       }
       case 'openGraph': {
-        if (target.openGraph) console.log('override')
         target.openGraph = resolveOpenGraph(source.openGraph, metadataBase)
         if (target.openGraph) {
           target.openGraph.title = resolveTitle(
