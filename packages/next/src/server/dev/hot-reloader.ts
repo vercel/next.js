@@ -53,7 +53,7 @@ import { UnwrapPromise } from '../../lib/coalesced-function'
 import { getRegistry } from '../../lib/helpers/get-registry'
 import type { VersionInfo } from '../../client/components/react-dev-overlay/internal/components/VersionStalenessInfo/VersionStalenessInfo'
 import { RouteMatch } from '../future/route-matches/route-match'
-import { Telemetry } from '../../telemetry/storage'
+import type { Telemetry } from '../../telemetry/storage'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -238,6 +238,7 @@ export default class HotReloader {
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
+  private telemetry: Telemetry
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
@@ -257,6 +258,7 @@ export default class HotReloader {
       previewProps,
       rewrites,
       appDir,
+      telemetry,
     }: {
       config: NextConfigComplete
       pagesDir?: string
@@ -265,6 +267,7 @@ export default class HotReloader {
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
       appDir?: string
+      telemetry: Telemetry
     }
   ) {
     this.buildId = buildId
@@ -277,6 +280,7 @@ export default class HotReloader {
     this.serverStats = null
     this.edgeServerStats = null
     this.serverPrevDocumentHash = null
+    this.telemetry = telemetry
 
     this.config = config
     this.hasServerComponents = !!this.appDir
@@ -478,14 +482,13 @@ export default class HotReloader {
       )
   }
 
-  private async getVersionInfo(span: Span, distDir: string) {
+  private async getVersionInfo(span: Span, telemetryIsEnabled: boolean) {
     const versionInfoSpan = span.traceChild('get-version-info')
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
       let installed = '0.0.0'
 
       // Don't fetch version info if telemetry is disabled
-      const telemetry = new Telemetry({ distDir })
-      if (!telemetry.isEnabled) {
+      if (!telemetryIsEnabled) {
         return { installed, staleness: 'unknown' }
       }
 
@@ -668,7 +671,10 @@ export default class HotReloader {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    this.versionInfo = await this.getVersionInfo(startSpan, this.distDir)
+    this.versionInfo = await this.getVersionInfo(
+      startSpan,
+      this.telemetry.isEnabled
+    )
 
     await this.clean(startSpan)
     // Ensure distDir exists before writing package.json
