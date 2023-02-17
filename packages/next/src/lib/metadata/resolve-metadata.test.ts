@@ -2,7 +2,7 @@ import { accumulateMetadata, MetadataItems } from './resolve-metadata'
 
 describe('accumulateMetadata', () => {
   describe('merge title', () => {
-    it('should merge page title', async () => {
+    it('should merge title with page title', async () => {
       const metadataItems: MetadataItems = [
         [{ title: 'root' }, null],
         [{ title: 'layout' }, null],
@@ -14,7 +14,7 @@ describe('accumulateMetadata', () => {
       })
     })
 
-    it('should merge page title', async () => {
+    it('should merge title with parent layout ', async () => {
       const metadataItems: MetadataItems = [
         [{ title: 'root' }, null],
         [
