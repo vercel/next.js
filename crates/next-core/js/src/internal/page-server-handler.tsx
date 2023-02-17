@@ -15,7 +15,7 @@ import type { BuildManifest } from "next/dist/server/get-page-files";
 import type { ReactLoadableManifest } from "next/dist/server/load-components";
 
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
-import { headersFromEntries } from "@vercel/turbopack-next/internal/utils";
+import { headersFromEntries } from "@vercel/turbopack-next/internal/headers";
 import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { RenderData } from "types/turbopack";
 import type { ChunkGroup } from "types/next";

@@ -146,10 +146,10 @@ async fn proxy_error(
 
     Ok(ProxyResult {
         status: 500,
-        headers: vec![
+        headers: vec![(
             "content-type".to_string(),
             "text/html; charset=utf-8".to_string(),
-        ],
+        )],
         body: body.into(),
     }
     .cell())

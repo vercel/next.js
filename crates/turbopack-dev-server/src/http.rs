@@ -120,7 +120,7 @@ pub async fn process_request_with_content_source(
             let mut response = Response::builder().status(proxy_result.status);
             let headers = response.headers_mut().expect("headers must be defined");
 
-            for [name, value] in proxy_result.headers.array_chunks() {
+            for (name, value) in &proxy_result.headers {
                 headers.append(
                     HeaderName::from_bytes(name.as_bytes())?,
                     hyper::header::HeaderValue::from_str(value)?,
