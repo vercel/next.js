@@ -42,6 +42,7 @@ rustls-tls = ["next-core/rustls-tls"]
 anyhow = { version = "1.0.47", features = ["backtrace"] }
 clap = { version = "4.0.18", features = ["derive", "env"], optional = true }
 console-subscriber = { version = "0.1.8", optional = true }
+dunce = "1.0.3"
 futures = "0.3.25"
 mime = "0.3.16"
 next-core = { path = "../next-core" }

@@ -17,6 +17,7 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use devserver_options::DevServerOptions;
+use dunce::canonicalize;
 use next_core::{
     create_app_source, create_page_source, create_web_entry_source, env::load_env,
     manifest::DevManifestContentSource, next_config::load_next_config,
@@ -421,7 +422,7 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
     let dir = options
         .dir
         .as_ref()
-        .map(|dir| dir.canonicalize())
+        .map(|dir| canonicalize(dir))
         .unwrap_or_else(current_dir)
         .context("project directory can't be found")?
         .to_str()
@@ -429,7 +430,7 @@ pub async fn start_server(options: &DevServerOptions) -> Result<()> {
         .to_string();
 
     let root_dir = if let Some(root) = options.root.as_ref() {
-        root.canonicalize()
+        canonicalize(root)
             .context("root directory can't be found")?
             .to_str()
             .context("root directory contains invalid characters")?
