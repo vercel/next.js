@@ -1,6 +1,4 @@
 use std::borrow::Cow;
-#[cfg(target_family = "windows")]
-use std::path::Path;
 
 /// Joins two /-separated paths into a normalized path.
 /// Paths are concatenated with /.
@@ -111,17 +109,4 @@ pub fn normalize_request(str: &str) -> String {
         }
     }
     seqments.join("/")
-}
-
-#[cfg(target_family = "windows")]
-/// Checks if the path has the `\\?\` prefix which "tells the Windows APIs to
-/// disable all string parsing and to send the string that follows it straight
-/// to the file system."
-///
-/// See [Win32 File Namespaces](https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces)
-pub fn is_windows_raw_path(path: impl AsRef<Path>) -> bool {
-    // `Path::new("\\\\?\\D:\\workspace\\turbo-tooling").starts_with("\\\\?\\")` is
-    // `false`.
-    // So we use `String::starts_with` here
-    path.as_ref().to_string_lossy().starts_with("\\\\?\\")
 }

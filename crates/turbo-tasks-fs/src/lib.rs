@@ -37,6 +37,7 @@ use std::{
 use anyhow::{anyhow, bail, Context, Result};
 use auto_hash_map::AutoMap;
 use bitflags::bitflags;
+use dunce::simplified;
 use glob::GlobVc;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
@@ -58,8 +59,6 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use util::{join_path, normalize_path, sys_to_unix, unix_to_sys};
 
 use self::{json::UnparseableJson, mutex_map::MutexMap};
-#[cfg(target_family = "windows")]
-use crate::util::is_windows_raw_path;
 use crate::{
     attach::AttachedFileSystemVc,
     retry::{retry_blocking, retry_future},
@@ -270,7 +269,8 @@ impl DiskFileSystem {
     }
 
     pub async fn to_sys_path(&self, fs_path: FileSystemPathVc) -> Result<PathBuf> {
-        let path = Path::new(&self.root);
+        // just in case there's a windows unc path prefix we remove it with `dunce`
+        let path = simplified(Path::new(&self.root));
         let fs_path = fs_path.await?;
         Ok(if fs_path.path.is_empty() {
             path.to_path_buf()
@@ -419,18 +419,11 @@ impl FileSystem for DiskFileSystem {
         // strip the root from the path, it serves two purpose
         // 1. ensure the linked path is under the root
         // 2. strip the root path if the linked path is absolute
-        #[cfg(target_family = "windows")]
-        let result = {
-            let root_path = Path::new(&self.root);
-            if is_windows_raw_path(root_path) && !is_windows_raw_path(&file) {
-                file.strip_prefix(Path::new(&self.root[4..]))
-            } else {
-                file.strip_prefix(root_path)
-            }
-        };
+        //
+        // we use `dunce::simplify` to strip a potential UNC prefix on windows, on any
+        // other OS this gets compiled away
+        let result = simplified(&file).strip_prefix(simplified(Path::new(&self.root)));
 
-        #[cfg(not(target_family = "windows"))]
-        let result = file.strip_prefix(Path::new(&self.root));
         let relative_to_root_path = match result {
             Ok(file) => PathBuf::from(sys_to_unix(&file.to_string_lossy()).as_ref()),
             Err(_) => return Ok(LinkContent::Invalid.cell()),

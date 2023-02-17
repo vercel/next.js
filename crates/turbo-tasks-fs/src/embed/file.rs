@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
+use dunce::canonicalize;
 
 use crate::{DiskFileSystemVc, File, FileContentVc, FileSystem};
 
@@ -8,8 +9,8 @@ use crate::{DiskFileSystemVc, File, FileContentVc, FileSystem};
 pub async fn content_from_relative_path(package_path: &str, path: &str) -> Result<FileContentVc> {
     let package_path = PathBuf::from(package_path);
     let resolved_path = package_path.join(path);
-    let resolved_path = std::fs::canonicalize(&resolved_path)
-        .context("failed to canonicalize embedded file path")?;
+    let resolved_path =
+        canonicalize(&resolved_path).context("failed to canonicalize embedded file path")?;
     let root_path = resolved_path.parent().unwrap();
     let path = resolved_path.file_name().unwrap().to_str().unwrap();
 
