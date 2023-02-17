@@ -1,6 +1,6 @@
 ## Adding examples
 
-When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high-quality examples:
+When you add an example to the [examples](https://github.com/vercel/next.js/tree/canary/examples) directory, please follow these guidelines to ensure high-quality examples:
 
 - TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred)
 - Examples should not add custom ESLint configuration (we have specific templates for ESLint)
