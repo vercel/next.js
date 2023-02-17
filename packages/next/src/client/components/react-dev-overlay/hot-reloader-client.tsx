@@ -241,7 +241,7 @@ function processMessage(
         )
 
         // "Massage" webpack messages.
-        var formatted = formatWebpackMessages({
+        let formatted = formatWebpackMessages({
           errors: errors,
           warnings: [],
         })

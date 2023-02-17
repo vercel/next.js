@@ -2,6 +2,7 @@
 jest.autoMockOff()
 const Runner = require('jscodeshift/dist/Runner');
 const { cp, mkdir, rm, readdir, readFile } = require('fs/promises')
+const { readdirSync } = require('fs')
 const { join } = require('path')
 
 const fixtureDir = join(__dirname, '..', '__testfixtures__', 'next-image-experimental-loader')
@@ -16,7 +17,8 @@ async function toObj(dir) {
   }
   return obj
 }
-it.each(['imgix', 'cloudinary', 'akamai'])('should transform loader %s', async (loader) => {
+
+it.each(readdirSync(fixtureDir))('should transform loader %s', async (loader) => {
   try {
     await mkdir(join(fixtureDir, 'tmp'), opts)
     await cp(join(fixtureDir, loader, 'input'), join(fixtureDir, 'tmp'), opts)
