@@ -72,6 +72,6 @@ export async function findPageFile(
 // The filename should start with 'page' and end with one of the allowed extensions
 export function isLayoutsLeafPage(filePath: string, pageExtensions: string[]) {
   return new RegExp(
-    `(^page|[\\\\/]page)\\.(?:${pageExtensions.join('|')})$`
+    `(^page|[\\\\/]page|^route|[\\\\/]route)\\.(?:${pageExtensions.join('|')})$`
   ).test(filePath)
 }

@@ -36,9 +36,9 @@ var init_define_process = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/tslib@2.4.0/node_modules/tslib/tslib.js
+// ../../node_modules/.pnpm/tslib@2.4.1/node_modules/tslib/tslib.js
 var require_tslib = __commonJS({
-  "../../node_modules/.pnpm/tslib@2.4.0/node_modules/tslib/tslib.js"(exports, module2) {
+  "../../node_modules/.pnpm/tslib@2.4.1/node_modules/tslib/tslib.js"(exports, module2) {
     init_define_process();
     var __extends2;
     var __assign2;
@@ -196,7 +196,7 @@ var require_tslib = __commonJS({
         function step(op) {
           if (f)
             throw new TypeError("Generator is already executing.");
-          while (_)
+          while (g && (g = 0, op[0] && (_ = 0)), _)
             try {
               if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done)
                 return t;
@@ -505,7 +505,7 @@ __export(crypto_exports, {
 module.exports = __toCommonJS(crypto_exports);
 init_define_process();
 
-// ../../node_modules/.pnpm/@peculiar+webcrypto@1.4.0/node_modules/@peculiar/webcrypto/build/webcrypto.es.js
+// ../../node_modules/.pnpm/@peculiar+webcrypto@1.4.1/node_modules/@peculiar/webcrypto/build/webcrypto.es.js
 init_define_process();
 
 // ../../node_modules/.pnpm/webcrypto-core@1.7.5/node_modules/webcrypto-core/build/webcrypto-core.es.js
@@ -4783,7 +4783,7 @@ var AsnConvert = class {
 };
 __name(AsnConvert, "AsnConvert");
 
-// ../../node_modules/.pnpm/tslib@2.4.0/node_modules/tslib/modules/index.js
+// ../../node_modules/.pnpm/tslib@2.4.1/node_modules/tslib/modules/index.js
 init_define_process();
 var import_tslib = __toESM(require_tslib(), 1);
 var {
@@ -6697,7 +6697,7 @@ var SubtleCrypto = class {
 };
 __name(SubtleCrypto, "SubtleCrypto");
 
-// ../../node_modules/.pnpm/@peculiar+webcrypto@1.4.0/node_modules/@peculiar/webcrypto/build/webcrypto.es.js
+// ../../node_modules/.pnpm/@peculiar+webcrypto@1.4.1/node_modules/@peculiar/webcrypto/build/webcrypto.es.js
 var crypto = __toESM(require("crypto"));
 var import_crypto = __toESM(require("crypto"));
 var process = __toESM(require("process"));
@@ -8298,6 +8298,9 @@ ${key.data.toString("base64")}
     ecdh.setPrivateKey(Buffer.from(asnEcPrivateKey.privateKey));
     const asnPublicKey = AsnParser.parse(algorithm.public.data, index$1.PublicKeyInfo);
     const bits = ecdh.computeSecret(Buffer.from(asnPublicKey.publicKey));
+    if (length === null) {
+      return bits;
+    }
     return new Uint8Array(bits).buffer.slice(0, length >> 3);
   }
   static async exportKey(format, key) {

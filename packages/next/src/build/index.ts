@@ -1352,7 +1352,17 @@ export default async function build(
                   pageType === 'app' &&
                   staticInfo?.rsc !== RSC_MODULE_TYPES.client
 
-                if (!isReservedPage(page)) {
+                if (
+                  !isReservedPage(page) &&
+                  // TODO-APP: static generation of route
+                  !(
+                    pageType === 'app' &&
+                    isEdgeRuntime(pageRuntime) &&
+                    pagePath
+                      .replace(/\\/g, '/')
+                      .match(`/route\\.(?:${config.pageExtensions.join('|')})$`)
+                  )
+                ) {
                   try {
                     let edgeInfo: any
 
@@ -1722,12 +1732,16 @@ export default async function build(
             require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
           const glob = (pattern: string): Promise<string[]> => {
             return new Promise((resolve, reject) => {
-              globOrig(pattern, { cwd: dir }, (err, files) => {
-                if (err) {
-                  return reject(err)
+              globOrig(
+                pattern,
+                { cwd: dir, nodir: true, dot: true },
+                (err, files) => {
+                  if (err) {
+                    return reject(err)
+                  }
+                  resolve(files)
                 }
-                resolve(files)
-              })
+              )
             })
           }
 
