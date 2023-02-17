@@ -16,6 +16,7 @@ use std::{
 use anyhow::{bail, Result};
 use auto_hash_map::AutoSet;
 use dashmap::{mapref::entry::Entry, DashMap};
+use nohash_hasher::BuildNoHashHasher;
 use rustc_hash::FxHasher;
 use tokio::task::futures::TaskLocalFuture;
 use turbo_tasks::{
@@ -685,9 +686,9 @@ impl Backend for MemoryBackend {
 }
 
 pub(crate) enum Job {
-    RemoveFromScopes(AutoSet<TaskId>, Vec<TaskScopeId>),
-    RemoveFromScope(AutoSet<TaskId>, TaskScopeId),
-    ScheduleWhenDirtyFromScope(AutoSet<TaskId>),
+    RemoveFromScopes(AutoSet<TaskId, BuildNoHashHasher<TaskId>>, Vec<TaskScopeId>),
+    RemoveFromScope(AutoSet<TaskId, BuildNoHashHasher<TaskId>>, TaskScopeId),
+    ScheduleWhenDirtyFromScope(AutoSet<TaskId, BuildNoHashHasher<TaskId>>),
     /// Add tasks from a scope. Scheduled by `run_add_from_scope_queue` to
     /// split off work.
     AddToScopeQueue {

@@ -4,6 +4,7 @@ use std::{
 };
 
 use auto_hash_map::AutoSet;
+use nohash_hasher::BuildNoHashHasher;
 use turbo_tasks::{
     backend::CellContent,
     event::{Event, EventListener},
@@ -22,18 +23,20 @@ pub(crate) enum Cell {
     /// tracking is still active. Any update will invalidate dependent tasks.
     /// Assigning a value will transition to the Value state.
     /// Reading this cell will transition to the Recomputing state.
-    TrackedValueless { dependent_tasks: AutoSet<TaskId> },
+    TrackedValueless {
+        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+    },
     /// Someone wanted to read the content and it was not available. The content
     /// is now being recomputed.
     /// Assigning a value will transition to the Value state.
     Recomputing {
-        dependent_tasks: AutoSet<TaskId>,
+        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
         event: Event,
     },
     /// The content was set only once and is tracked.
     /// GC operation will transition to the TrackedValueless state.
     Value {
-        dependent_tasks: AutoSet<TaskId>,
+        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
         content: CellContent,
     },
 }
@@ -90,10 +93,10 @@ impl Cell {
     }
 
     /// Returns the list of dependent tasks.
-    pub fn dependent_tasks(&self) -> &AutoSet<TaskId> {
+    pub fn dependent_tasks(&self) -> &AutoSet<TaskId, BuildNoHashHasher<TaskId>> {
         match self {
             Cell::Empty => {
-                static EMPTY: AutoSet<TaskId> = AutoSet::new();
+                static EMPTY: AutoSet<TaskId, BuildNoHashHasher<TaskId>> = AutoSet::with_hasher();
                 &EMPTY
             }
             Cell::Value {
@@ -111,7 +114,7 @@ impl Cell {
     /// Switch the cell to recomputing state.
     fn recompute(
         &mut self,
-        dependent_tasks: AutoSet<TaskId>,
+        dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
         description: impl Fn() -> String + Sync + Send + 'static,
         note: impl Fn() -> String + Sync + Send + 'static,
     ) -> EventListener {
@@ -159,7 +162,7 @@ impl Cell {
     ) -> Result<CellContent, RecomputingCell> {
         match self {
             Cell::Empty => {
-                let listener = self.recompute(AutoSet::new(), description, note);
+                let listener = self.recompute(AutoSet::default(), description, note);
                 Err(RecomputingCell {
                     listener,
                     schedule: true,
@@ -206,7 +209,7 @@ impl Cell {
             Cell::Empty => {
                 *self = Cell::Value {
                     content,
-                    dependent_tasks: AutoSet::new(),
+                    dependent_tasks: AutoSet::default(),
                 };
             }
             &mut Cell::Recomputing {
@@ -229,7 +232,7 @@ impl Cell {
                 }
                 *self = Cell::Value {
                     content,
-                    dependent_tasks: AutoSet::new(),
+                    dependent_tasks: AutoSet::default(),
                 };
             }
             Cell::Value {

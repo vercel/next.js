@@ -1,6 +1,7 @@
 use std::mem::replace;
 
 use auto_hash_map::AutoSet;
+use nohash_hasher::BuildNoHashHasher;
 use once_cell::sync::Lazy;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use turbo_tasks::{StatsType, TaskId};
@@ -237,7 +238,9 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
         }
     }
 
-    pub(super) fn scopes_and_children(&mut self) -> (&mut TaskScopes, &AutoSet<TaskId>) {
+    pub(super) fn scopes_and_children(
+        &mut self,
+    ) -> (&mut TaskScopes, &AutoSet<TaskId, BuildNoHashHasher<TaskId>>) {
         match self {
             TaskMetaStateWriteGuard::Full(state) => {
                 let TaskState {
@@ -249,7 +252,8 @@ impl<'a> TaskMetaStateWriteGuard<'a> {
             }
             TaskMetaStateWriteGuard::Partial(state) => {
                 let PartialTaskState { ref mut scopes, .. } = **state;
-                static EMPTY: Lazy<AutoSet<TaskId>> = Lazy::new(AutoSet::new);
+                static EMPTY: Lazy<AutoSet<TaskId, BuildNoHashHasher<TaskId>>> =
+                    Lazy::new(AutoSet::default);
                 (scopes, &*EMPTY)
             }
             TaskMetaStateWriteGuard::Unloaded(_) => unreachable!(

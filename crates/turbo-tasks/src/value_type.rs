@@ -7,6 +7,7 @@ use std::{
 };
 
 use auto_hash_map::{AutoMap, AutoSet};
+use nohash_hasher::BuildNoHashHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -108,7 +109,7 @@ pub struct ValueType {
     /// A readable name of the type
     pub name: String,
     /// List of traits available
-    pub traits: AutoSet<TraitTypeId>,
+    pub traits: AutoSet<TraitTypeId, BuildNoHashHasher<TraitTypeId>>,
     /// List of trait methods available
     pub trait_methods: AutoMap<(TraitTypeId, Cow<'static, str>), FunctionId>,
 
@@ -170,7 +171,7 @@ impl ValueType {
     pub fn new<T>() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
-            traits: AutoSet::new(),
+            traits: AutoSet::default(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
             any_serialization: None,
@@ -183,7 +184,7 @@ impl ValueType {
     >() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
-            traits: AutoSet::new(),
+            traits: AutoSet::default(),
             trait_methods: AutoMap::new(),
             magic_serialization: Some((
                 <dyn MagicAny>::as_serialize::<T>,
@@ -199,7 +200,7 @@ impl ValueType {
     >() -> Self {
         Self {
             name: std::any::type_name::<T>().to_string(),
-            traits: AutoSet::new(),
+            traits: AutoSet::default(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
             any_serialization: Some((any_as_serialize::<T>, AnyDeserializeSeed::new::<T>())),

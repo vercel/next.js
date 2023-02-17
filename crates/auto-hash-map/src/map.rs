@@ -53,7 +53,7 @@ impl<K, V> AutoMap<K, V, RandomState> {
 
 impl<K, V, H: BuildHasher> AutoMap<K, V, H> {
     /// see [HashMap::with_hasher](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.with_hasher)
-    pub fn with_hasher() -> Self {
+    pub const fn with_hasher() -> Self {
         AutoMap::List(Vec::new())
     }
 

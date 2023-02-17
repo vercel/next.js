@@ -138,7 +138,7 @@ pub struct TaskScopeState {
     active: isize,
     /// When not active, this list contains all dirty tasks.
     /// When the scope becomes active, these need to be scheduled.
-    dirty_tasks: AutoSet<TaskId>,
+    dirty_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
     /// All child scopes, when the scope becomes active, child scopes need to
     /// become active too
     children: CountHashSet<TaskScopeId, BuildNoHashHasher<TaskScopeId>>,
@@ -151,9 +151,16 @@ pub struct TaskScopeState {
     pub parents: CountHashSet<TaskScopeId, BuildNoHashHasher<TaskScopeId>>,
     /// Tasks that have read children
     /// When they change these tasks are invalidated
-    dependent_tasks: AutoSet<TaskId>,
+    dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
     /// Emitted collectibles with count and dependent_tasks by trait type
-    collectibles: AutoMap<TraitTypeId, (CountHashSet<RawVc>, AutoSet<TaskId>)>,
+    collectibles: AutoMap<
+        TraitTypeId,
+        (
+            CountHashSet<RawVc>,
+            AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
+        ),
+        BuildNoHashHasher<TraitTypeId>,
+    >,
 }
 
 impl TaskScope {
@@ -168,10 +175,10 @@ impl TaskScope {
                 #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 0,
-                dirty_tasks: AutoSet::new(),
+                dirty_tasks: AutoSet::default(),
                 children: CountHashSet::new(),
-                collectibles: AutoMap::new(),
-                dependent_tasks: AutoSet::new(),
+                collectibles: AutoMap::default(),
+                dependent_tasks: AutoSet::default(),
                 event: Event::new(move || {
                     #[cfg(feature = "print_scope_updates")]
                     return format!("TaskScope({id})::event");
@@ -195,10 +202,10 @@ impl TaskScope {
                 #[cfg(feature = "print_scope_updates")]
                 id,
                 active: 1,
-                dirty_tasks: AutoSet::new(),
+                dirty_tasks: AutoSet::default(),
                 children: CountHashSet::new(),
-                collectibles: AutoMap::new(),
-                dependent_tasks: AutoSet::new(),
+                collectibles: AutoMap::default(),
+                dependent_tasks: AutoSet::default(),
                 event: Event::new(move || {
                     #[cfg(feature = "print_scope_updates")]
                     return format!("TaskScope({id})::event");
@@ -426,14 +433,14 @@ impl TaskScope {
 }
 
 pub struct ScopeChildChangeEffect {
-    pub notify: AutoSet<TaskId>,
+    pub notify: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
     pub active: bool,
     /// `true` when the child to parent relationship needs to be updated
     pub parent: bool,
 }
 
 pub struct ScopeCollectibleChangeEffect {
-    pub notify: AutoSet<TaskId>,
+    pub notify: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
 }
 
 impl TaskScopeState {
@@ -447,7 +454,7 @@ impl TaskScopeState {
     pub fn increment_active(
         &mut self,
         more_jobs: &mut Vec<TaskScopeId>,
-    ) -> Option<AutoSet<TaskId>> {
+    ) -> Option<AutoSet<TaskId, BuildNoHashHasher<TaskId>>> {
         self.increment_active_by(1, more_jobs)
     }
     /// increments the active counter, returns list of tasks that need to be
@@ -458,7 +465,7 @@ impl TaskScopeState {
         &mut self,
         count: usize,
         more_jobs: &mut Vec<TaskScopeId>,
-    ) -> Option<AutoSet<TaskId>> {
+    ) -> Option<AutoSet<TaskId, BuildNoHashHasher<TaskId>>> {
         let was_zero = self.active <= 0;
         self.active += count as isize;
         if self.active > 0 && was_zero {
@@ -553,7 +560,7 @@ impl TaskScopeState {
 
     /// Takes all children or collectibles dependent tasks and returns them for
     /// notification.
-    pub fn take_all_dependent_tasks(&mut self) -> AutoSet<TaskId> {
+    pub fn take_all_dependent_tasks(&mut self) -> AutoSet<TaskId, BuildNoHashHasher<TaskId>> {
         let mut set = self.take_dependent_tasks();
         self.collectibles = take(&mut self.collectibles)
             .into_iter()
@@ -614,7 +621,7 @@ impl TaskScopeState {
                 debug_assert!(result, "this must be always a new entry");
                 log_scope_update!("add_collectible {} -> {}", *self.id, collectible);
                 Some(ScopeCollectibleChangeEffect {
-                    notify: AutoSet::new(),
+                    notify: AutoSet::default(),
                 })
             }
         }
@@ -677,7 +684,7 @@ impl TaskScopeState {
         }
     }
 
-    pub fn take_dependent_tasks(&mut self) -> AutoSet<TaskId> {
+    pub fn take_dependent_tasks(&mut self) -> AutoSet<TaskId, BuildNoHashHasher<TaskId>> {
         take(&mut self.dependent_tasks)
     }
 }

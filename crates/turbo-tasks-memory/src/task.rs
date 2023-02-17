@@ -189,7 +189,7 @@ struct TaskState {
     stateful: bool,
 
     /// Children are only modified from execution
-    children: AutoSet<TaskId>,
+    children: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
 
     /// Collectibles are only modified from execution
     collectibles: MaybeCollectibles,
@@ -199,7 +199,7 @@ struct TaskState {
     prepared_type: PrepareTaskType,
 
     output: Output,
-    cells: AutoMap<ValueTypeId, Vec<Cell>>,
+    cells: AutoMap<ValueTypeId, Vec<Cell>, BuildNoHashHasher<ValueTypeId>>,
 
     // GC state:
     gc: GcTaskState,
@@ -971,7 +971,7 @@ impl Task {
             self.state_mut()
         };
         if let TaskMetaStateWriteGuard::Full(mut state) = state {
-            let mut clear_dependencies = AutoSet::new();
+            let mut clear_dependencies = AutoSet::default();
 
             match state.state_type {
                 Dirty { .. } | Scheduled { .. } | InProgressDirty { .. } => {
@@ -1163,7 +1163,7 @@ impl Task {
             }
 
             if let Some(collectibles) = state.collectibles.as_ref() {
-                let mut tasks = AutoSet::new();
+                let mut tasks = AutoSet::default();
                 {
                     let mut scope_state = scope.state.lock();
                     collectibles
@@ -1232,7 +1232,7 @@ impl Task {
             scope.decrement_tasks();
 
             if let Some(collectibles) = state.collectibles.as_ref() {
-                let mut tasks = AutoSet::new();
+                let mut tasks = AutoSet::default();
                 {
                     let mut scope_state = scope.state.lock();
                     collectibles
@@ -1454,7 +1454,7 @@ impl Task {
                 self.ty
             );
             let mut active_counter = 0isize;
-            let mut tasks = AutoSet::new();
+            let mut tasks = AutoSet::default();
             let mut scopes_to_add_as_parent = Vec::new();
             let mut scopes_to_remove_as_parent = Vec::new();
             for (scope_id, count) in scopes.iter() {
@@ -2055,7 +2055,7 @@ impl Task {
                     })
                 })
                 .flat_map(|e| e.notify)
-                .collect::<AutoSet<_>>();
+                .collect::<AutoSet<_, _>>();
             drop(state);
             turbo_tasks.schedule_notify_tasks_set(&tasks);
         }
@@ -2070,7 +2070,7 @@ impl Task {
     ) {
         let mut state = self.full_state_mut();
         if state.collectibles.unemit(trait_type, collectible) {
-            let mut tasks = AutoSet::new();
+            let mut tasks = AutoSet::default();
             state
                 .scopes
                 .iter()
@@ -2552,7 +2552,7 @@ fn remove_collectible_from_scopes(
 ) {
     task_scopes.iter().for_each(|id| {
         backend.with_scope(id, |scope| {
-            let mut tasks = AutoSet::new();
+            let mut tasks = AutoSet::default();
             {
                 let mut state = scope.state.lock();
                 emitted
@@ -2575,7 +2575,7 @@ fn remove_collectible_from_scopes(
 }
 
 fn remove_from_scopes(
-    tasks: AutoSet<TaskId>,
+    tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
     task_scopes: &TaskScopes,
     backend: &MemoryBackend,
     turbo_tasks: &dyn TurboTasksBackendApi,

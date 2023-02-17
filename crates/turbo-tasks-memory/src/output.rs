@@ -6,13 +6,14 @@ use std::{
 
 use anyhow::{anyhow, Error, Result};
 use auto_hash_map::AutoSet;
+use nohash_hasher::BuildNoHashHasher;
 use turbo_tasks::{util::SharedError, RawVc, TaskId, TurboTasksBackendApi};
 
 #[derive(Default, Debug)]
 pub struct Output {
     pub(crate) content: OutputContent,
     updates: u32,
-    pub(crate) dependent_tasks: AutoSet<TaskId>,
+    pub(crate) dependent_tasks: AutoSet<TaskId, BuildNoHashHasher<TaskId>>,
 }
 
 #[derive(Clone, Debug)]
@@ -95,7 +96,7 @@ impl Output {
         }
     }
 
-    pub fn dependent_tasks(&self) -> &AutoSet<TaskId> {
+    pub fn dependent_tasks(&self) -> &AutoSet<TaskId, BuildNoHashHasher<TaskId>> {
         &self.dependent_tasks
     }
 
