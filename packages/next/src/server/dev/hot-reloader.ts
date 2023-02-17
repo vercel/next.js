@@ -36,6 +36,7 @@ import {
   EntryTypes,
   getInvalidator,
   onDemandEntryHandler,
+  parseEntryKey,
 } from './on-demand-entry-handler'
 import type { EntryKey } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
@@ -599,10 +600,8 @@ export default class HotReloader {
           (Object.keys(entries) as EntryKey[]).map(async (entryKey) => {
             const entryData = entries[entryKey]
             const { bundlePath, dispose } = entryData
+            const { compilerName: key, page } = parseEntryKey(entryKey)
 
-            const result =
-              /^(app|pages)\/(client|server|edge-server)(.*)/g.exec(entryKey)
-            const [, , key, page] = result! // this match should always happen
             if (key === COMPILER_NAMES.client && !isClientCompilation) return
             if (key === COMPILER_NAMES.server && !isNodeServerCompilation)
               return

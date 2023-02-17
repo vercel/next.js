@@ -181,7 +181,19 @@ export const getEntryKey = ({
   isAppDir: boolean
   compilerName: CompilerNameValues
   page: string
-}) => `${isAppDir ? 'app' : 'pages'}/${compilerName}${page}` as EntryKey
+}): EntryKey => {
+  if (page[0] !== '/') throw new Error('page must start with /')
+  return `${isAppDir ? 'app' : 'pages'}/${compilerName}/${page.slice(1)}`
+}
+
+export const parseEntryKey = (entryKey: EntryKey) => {
+  const [directory, compilerName, ...segments] = entryKey.split('/')
+  return {
+    isAppDir: directory === 'app',
+    compilerName: compilerName as CompilerNameValues,
+    page: '/' + segments.join('/'),
+  }
+}
 
 let invalidator: Invalidator
 export const getInvalidator = () => invalidator
