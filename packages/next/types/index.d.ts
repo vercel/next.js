@@ -62,7 +62,11 @@ export type Redirect =
 /**
  * `Page` type, use it as a guide to create `pages`.
  */
-export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
+export type NextPage<Props = {}, InitialProps = Props> = NextComponentType<
+  NextPageContext,
+  InitialProps,
+  Props
+>
 
 export type FileSizeSuffix = `${
   | 'k'
@@ -135,29 +139,29 @@ export {
 export type PreviewData = string | false | object | undefined
 
 export type GetStaticPropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = {
-  params?: Q
+  params?: Params
   preview?: boolean
-  previewData?: D
+  previewData?: Preview
   locale?: string
   locales?: string[]
   defaultLocale?: string
 }
 
-export type GetStaticPropsResult<P> =
-  | { props: P; revalidate?: number | boolean }
+export type GetStaticPropsResult<Props> =
+  | { props: Props; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
   | { notFound: true; revalidate?: number | boolean }
 
 export type GetStaticProps<
-  P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Props extends { [key: string]: any } = { [key: string]: any },
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = (
-  context: GetStaticPropsContext<Q, D>
-) => Promise<GetStaticPropsResult<P>> | GetStaticPropsResult<P>
+  context: GetStaticPropsContext<Params, Preview>
+) => Promise<GetStaticPropsResult<Props>> | GetStaticPropsResult<Props>
 
 export type InferGetStaticPropsType<T extends (args: any) => any> = Extract<
   Awaited<ReturnType<T>>,
@@ -169,45 +173,47 @@ export type GetStaticPathsContext = {
   defaultLocale?: string
 }
 
-export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
-  paths: Array<string | { params: P; locale?: string }>
+export type GetStaticPathsResult<
+  Params extends ParsedUrlQuery = ParsedUrlQuery
+> = {
+  paths: Array<string | { params: Params; locale?: string }>
   fallback: boolean | 'blocking'
 }
 
-export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
+export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
-) => Promise<GetStaticPathsResult<P>> | GetStaticPathsResult<P>
+) => Promise<GetStaticPathsResult<Params>> | GetStaticPathsResult<Params>
 
 export type GetServerSidePropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = {
   req: IncomingMessage & {
     cookies: NextApiRequestCookies
   }
   res: ServerResponse
-  params?: Q
+  params?: Params
   query: ParsedUrlQuery
   preview?: boolean
-  previewData?: D
+  previewData?: Preview
   resolvedUrl: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
 }
 
-export type GetServerSidePropsResult<P> =
-  | { props: P | Promise<P> }
+export type GetServerSidePropsResult<Props> =
+  | { props: Props | Promise<Props> }
   | { redirect: Redirect }
   | { notFound: true }
 
 export type GetServerSideProps<
-  P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Props extends { [key: string]: any } = { [key: string]: any },
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = (
-  context: GetServerSidePropsContext<Q, D>
-) => Promise<GetServerSidePropsResult<P>>
+  context: GetServerSidePropsContext<Params, Preview>
+) => Promise<GetServerSidePropsResult<Props>>
 
 export type InferGetServerSidePropsType<T extends (args: any) => any> = Awaited<
   Extract<Awaited<ReturnType<T>>, { props: any }>['props']
