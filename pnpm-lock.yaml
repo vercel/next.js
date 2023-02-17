@@ -593,7 +593,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.0.2
+      edge-runtime: 2.0.0
       events: 3.3.0
       fibers: '>= 3.1.0'
       find-cache-dir: 3.3.1
@@ -801,7 +801,7 @@ importers:
       debug: 4.1.1
       devalue: 2.0.1
       domain-browser: 4.19.0
-      edge-runtime: 2.0.2
+      edge-runtime: 2.0.0
       events: 3.3.0
       find-cache-dir: 3.3.1
       find-up: 4.1.0
@@ -4373,8 +4373,8 @@ packages:
       jest-util: 28.1.3
     dev: true
 
-  /@edge-runtime/primitives/2.0.2:
-    resolution: {integrity: sha512-pE/VlEMzF2+WOdQUR8vgecd0b5kY4/d2Z5rA8tdq2uANQvqallJQ6tJvLmWxResq75kMFln4NDXrtzNBw3mgXA==}
+  /@edge-runtime/primitives/2.0.0:
+    resolution: {integrity: sha512-AXqUq1zruTJAICrllUvZcgciIcEGHdF6KJ3r6FM0n4k8LpFxZ62tPWVIJ9HKm+xt+ncTBUZxwgUaQ73QMUQEKw==}
     dev: true
 
   /@edge-runtime/primitives/2.0.5:
@@ -4382,10 +4382,10 @@ packages:
     engines: {node: '>=14'}
     dev: true
 
-  /@edge-runtime/vm/2.0.2:
-    resolution: {integrity: sha512-yQFE4H5R7jy98xRMnH3dOt3PQkORVtKTT2gn0U86JBHWMvoSZxvd1hw8UXxJtyp+bqW3yV7N1oTwDdX71It+Gg==}
+  /@edge-runtime/vm/2.0.0:
+    resolution: {integrity: sha512-BOLrAX8IWHRXu1siZocwLguKJPEUv7cr+rG8tI4hvHgMdIsBWHJlLeB8EjuUVnIURFrUiM49lVKn8DRrECmngw==}
     dependencies:
-      '@edge-runtime/primitives': 2.0.2
+      '@edge-runtime/primitives': 2.0.0
     dev: true
 
   /@edge-runtime/vm/2.0.5:
@@ -11158,12 +11158,12 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime/2.0.2:
-    resolution: {integrity: sha512-pM4EYn+cyXthPmjAzxVF3mQRNh2ejLI2QUbVH093sPVdTKJ8Lp76jk6Hb68dRD7i6JtpLnQLGuWK01HUkv1G2A==}
+  /edge-runtime/2.0.0:
+    resolution: {integrity: sha512-TmRJhKi4mlM1e+zgF4CSzVU5gJ1sWj7ia+XhVgZ8PYyYUxk4PPjJU8qScpSLsAbdSxoBghLxdMuwuCzdYLd1sQ==}
     hasBin: true
     dependencies:
       '@edge-runtime/format': 1.1.0
-      '@edge-runtime/vm': 2.0.2
+      '@edge-runtime/vm': 2.0.0
       exit-hook: 2.2.1
       http-status: 1.5.3
       mri: 1.2.0
