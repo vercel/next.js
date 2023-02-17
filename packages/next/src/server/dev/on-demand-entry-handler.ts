@@ -472,17 +472,15 @@ export function onDemandEntryHandler({
     for (const entrypoint of entrypoints.values()) {
       const page = getRouteFromEntrypoint(entrypoint.name!, root)
       if (page) {
-        const pageEntry = '/' + entrypoint.name!
         pagePaths.push(
           getEntryKey({
             compilerName: type,
-            pageEntry,
+            pageEntry: page,
           })
         )
       } else if (
-        entrypoint.name &&
-        ((root && entrypoint.name === 'root') ||
-          isMiddlewareFilename(entrypoint.name))
+        (root && entrypoint.name === 'root') ||
+        isMiddlewareFilename(entrypoint.name)
       ) {
         pagePaths.push(
           getEntryKey({
@@ -559,7 +557,7 @@ export function onDemandEntryHandler({
       ]) {
         const pageKey = getEntryKey({
           compilerName: compilerType,
-          pageEntry: '/app/' + page,
+          pageEntry: '/' + page,
         })
         const entryInfo = entries[pageKey]
 
@@ -602,7 +600,7 @@ export function onDemandEntryHandler({
     ]) {
       const entryKey = getEntryKey({
         compilerName: compilerType,
-        pageEntry: '/pages' + page,
+        pageEntry: page,
       })
       const entryInfo = entries[entryKey]
 
@@ -675,22 +673,6 @@ export function onDemandEntryHandler({
         const isInsideAppDir =
           !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
 
-        let pageEntry = pagePathData.page
-        if (isInsideAppDir) {
-          pageEntry = '/app' + pageEntry
-        } else if (
-          pagesDir &&
-          pagePathData.absolutePagePath.startsWith(pagesDir)
-        ) {
-          pageEntry = '/pages' + pageEntry
-        }
-
-        // If next.js provides default error, it's absolute path doesn't start with pagesDir
-        // But it's expected as /pages/_error elsewhere
-        if (pageEntry === '/_error') {
-          pageEntry = '/pages/_error'
-        }
-
         const addEntry = (
           compilerType: CompilerNameValues
         ): {
@@ -700,7 +682,7 @@ export function onDemandEntryHandler({
         } => {
           const entryKey = getEntryKey({
             compilerName: compilerType,
-            pageEntry,
+            pageEntry: pagePathData.page,
           })
 
           if (entries[entryKey]) {
@@ -764,7 +746,7 @@ export function onDemandEntryHandler({
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
             const edgeServerEntryKey = getEntryKey({
               compilerName: COMPILER_NAMES.edgeServer,
-              pageEntry,
+              pageEntry: pagePathData.page,
             })
 
             if (entries[edgeServerEntryKey]) {
@@ -779,7 +761,7 @@ export function onDemandEntryHandler({
             )
             const serverEntryKey = getEntryKey({
               compilerName: COMPILER_NAMES.server,
-              pageEntry,
+              pageEntry: pagePathData.page,
             })
 
             if (entries[serverEntryKey]) {

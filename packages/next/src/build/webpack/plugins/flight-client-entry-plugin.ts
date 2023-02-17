@@ -604,7 +604,7 @@ export class FlightClientEntryPlugin {
     if (this.dev) {
       const entryKey = getEntryKey({
         compilerName: COMPILER_NAMES.client,
-        pageEntry: '/' + entryName,
+        pageEntry: bundlePath,
       })
       if (!entries[entryKey]) {
         entries[entryKey] = {
