@@ -1,7 +1,7 @@
 import type { ClientRequest, IncomingMessage, Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import http, { ServerResponse } from "node:http";
-import { headersFromEntries } from "@vercel/turbopack-next/internal/utils";
+import { headersFromEntries } from "@vercel/turbopack-next/internal/headers";
 
 /**
  * Creates a server that listens a random port.
@@ -24,7 +24,7 @@ export function makeRequest(
   method: string,
   path: string,
   rawQuery?: string,
-  rawHeaders?: Array<[string, string]>
+  rawHeaders?: [string, string][]
 ): Promise<{
   clientRequest: ClientRequest;
   clientResponsePromise: Promise<IncomingMessage>;

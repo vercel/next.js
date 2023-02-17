@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Buffer } from "node:buffer";
 import { join } from "node:path";
 import { createServer, makeRequest } from "@vercel/turbopack-next/ipc/server";
+import { toPairs } from "@vercel/turbopack-next/internal/headers";
 import { makeResolver } from "next/dist/server/router.js";
 import loadConfig from "next/dist/server/config";
 import { PHASE_DEVELOPMENT_SERVER } from "next/dist/shared/lib/constants";
@@ -14,8 +15,7 @@ import middlewareChunkGroup from "MIDDLEWARE_CHUNK_GROUP";
 type RouterRequest = {
   method: string;
   pathname: string;
-  // TODO: not passed to request
-  rawHeaders: Array<[string, string]>;
+  rawHeaders: [string, string][];
   rawQuery: string;
 };
 
@@ -49,12 +49,12 @@ type MessageData =
 
 type RewriteResponse = {
   url: string;
-  headers: string[];
+  headers: [string, string][];
 };
 
 type MiddlewareHeadersResponse = {
   statusCode: number;
-  headers: string[];
+  headers: [string, string][];
 };
 
 let resolveRouteMemo: Promise<
@@ -166,7 +166,7 @@ async function handleClientResponse(
           type: "rewrite",
           data: {
             url: data.url,
-            headers: Object.entries(data.headers).flat(),
+            headers: Object.entries(data.headers),
           },
         };
     }
@@ -174,7 +174,7 @@ async function handleClientResponse(
 
   const responseHeaders: MiddlewareHeadersResponse = {
     statusCode: clientResponse.statusCode!,
-    headers: clientResponse.rawHeaders,
+    headers: toPairs(clientResponse.rawHeaders),
   };
 
   // TODO: support streaming middleware

@@ -7,6 +7,7 @@ import type { Ipc } from "@vercel/turbopack-next/ipc/index";
 import type { ClientRequest, IncomingMessage, Server } from "node:http";
 import type { ServerResponse } from "node:http";
 import { createServer, makeRequest } from "@vercel/turbopack-next/ipc/server";
+import { toPairs } from "@vercel/turbopack-next/internal/headers";
 import { Buffer } from "node:buffer";
 
 const ipc = IPC as Ipc<IpcIncomingMessage, IpcOutgoingMessage>;
@@ -34,7 +35,7 @@ type IpcOutgoingMessage =
 
 type ResponseHeaders = {
   status: number;
-  headers: string[];
+  headers: [string, string][];
 };
 
 type Handler = (data: {
@@ -139,7 +140,7 @@ export default function startHandler(handler: Handler): void {
     const responseData: Buffer[] = [];
     const responseHeaders: ResponseHeaders = {
       status: clientResponse.statusCode!,
-      headers: clientResponse.rawHeaders,
+      headers: toPairs(clientResponse.rawHeaders),
     };
 
     ipc.send({

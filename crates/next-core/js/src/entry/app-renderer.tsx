@@ -33,7 +33,7 @@ import "@vercel/turbopack-next/polyfill/async-local-storage";
 import { RenderOpts, renderToHTMLOrFlight } from "next/dist/server/app-render";
 import { PassThrough } from "stream";
 import { ServerResponseShim } from "@vercel/turbopack-next/internal/http";
-import { headersFromEntries } from "@vercel/turbopack-next/internal/utils";
+import { headersFromEntries } from "@vercel/turbopack-next/internal/headers";
 import { parse, ParsedUrlQuery } from "node:querystring";
 
 globalThis.__next_require__ = (data) => {
