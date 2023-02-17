@@ -2,6 +2,7 @@ import React from 'react'
 import ReactRefreshWebpackPlugin from 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin'
 import chalk from 'next/dist/compiled/chalk'
 import crypto from 'crypto'
+import { builtinModules } from 'module'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
@@ -902,13 +903,13 @@ export default async function getBaseWebpackConfig(
   const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
     [COMPILER_NAMES.server]: ['main', 'module'],
     [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-    [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
+    [COMPILER_NAMES.edgeServer]: ['edge-light', 'browser', 'module', 'main'],
   }
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
   const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
 
-  const resolveConfig = {
+  const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
       ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
@@ -1021,6 +1022,7 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
+    ...(isEdgeServer && { conditionNames: ['edge-light', 'import', 'node'] }),
     plugins: [],
   }
 
@@ -1245,6 +1247,39 @@ export default async function getBaseWebpackConfig(
     // If the request cannot be resolved we need to have
     // webpack "bundle" it so it surfaces the not found error.
     if (!res) {
+      // We tried to bundle this request in the server layer but it failed.
+      // In this case we need to display a helpful error message for people to
+      // add the package to the `serverComponentsExternalPackages` config.
+      if (layer === WEBPACK_LAYERS.server && !request.startsWith('#')) {
+        if (/[/\\]node_modules[/\\]/.test(context)) {
+          // Built-in modules can be safely ignored.
+          if (!builtinModules.includes(request)) {
+            // Try to match the package name from the context path:
+            // - /node_modules/package-name/...
+            // - /node_modules/.pnpm/package-name@version/...
+            // - /node_modules/@scope/package-name/...
+            // - /node_modules/.pnpm/scope+package-name@version/...
+            const packageName =
+              context.match(
+                /[/\\]node_modules[/\\](\.pnpm[/\\])?([^/\\@]+)/
+              )?.[2] ||
+              context.match(
+                /[/\\]node_modules[/\\](@[^/\\]+[/\\][^/\\]+)[/\\]/
+              )?.[2] ||
+              context
+                .match(
+                  /[/\\]node_modules[/\\]\.pnpm[/\\](@[^/\\@]+\+[^/\\@]+)/
+                )?.[1]
+                ?.replace(/\+/g, '/')
+
+            throw new Error(
+              `Failed to bundle ${
+                packageName ? `package "${packageName}"` : context
+              } in Server Components because it uses "${request}". Please try adding it to the \`serverComponentsExternalPackages\` config: https://beta.nextjs.org/docs/api-reference/next.config.js#servercomponentsexternalpackages`
+            )
+          }
+        }
+      }
       return
     }
 
@@ -1560,11 +1595,9 @@ export default async function getBaseWebpackConfig(
               ...terserOptions,
               compress: {
                 ...terserOptions.compress,
-                ...(config.experimental.swcMinifyDebugOptions?.compress ?? {}),
               },
               mangle: {
                 ...terserOptions.mangle,
-                ...(config.experimental.swcMinifyDebugOptions?.mangle ?? {}),
               },
             },
           }).apply(compiler)
@@ -1648,6 +1681,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
+        'next-edge-app-route-loader',
         'next-edge-ssr-loader',
         'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
@@ -1688,7 +1722,13 @@ export default async function getBaseWebpackConfig(
                   return true
                 },
                 resolve: {
-                  conditionNames: ['react-server', 'node', 'import', 'require'],
+                  conditionNames: [
+                    'react-server',
+                    ...(!isEdgeServer ? [] : ['edge-light']),
+                    'node',
+                    'import',
+                    'require',
+                  ],
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1995,7 +2035,7 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /node_modules\/client-only\/error.js/,
+          test: /node_modules[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.server,
           options: {
@@ -2004,7 +2044,7 @@ export default async function getBaseWebpackConfig(
           },
         },
         {
-          test: /node_modules\/server-only\/index.js/,
+          test: /node_modules[/\\]server-only[/\\]index.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.client,
           options: {

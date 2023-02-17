@@ -2199,21 +2199,21 @@ export async function cli(task, opts) {
 
 export async function lib(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }
 
 export async function server(task, opts) {
   await task
-    .source('src/server/**/*.+(js|ts|tsx)')
+    .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
 
@@ -2225,14 +2225,14 @@ export async function server(task, opts) {
 
 export async function server_esm(task, opts) {
   await task
-    .source('src/server/**/*.+(js|ts|tsx)')
+    .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/server')
 }
 
 export async function nextbuild(task, opts) {
   await task
-    .source('src/build/**/*.+(js|ts|tsx)', {
+    .source('src/build/**/!(*.test).+(js|ts|tsx)', {
       ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
     })
     .swc('server', { dev: opts.dev })
@@ -2241,7 +2241,7 @@ export async function nextbuild(task, opts) {
 
 export async function nextbuild_esm(task, opts) {
   await task
-    .source('src/build/**/*.+(js|ts|tsx)', {
+    .source('src/build/**/!(*.test).+(js|ts|tsx)', {
       ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
     })
     .swc('server', { dev: opts.dev, esm: true })
@@ -2250,7 +2250,7 @@ export async function nextbuild_esm(task, opts) {
 
 export async function nextbuildjest(task, opts) {
   await task
-    .source('src/build/jest/**/*.+(js|ts|tsx)', {
+    .source('src/build/jest/**/!(*.test).+(js|ts|tsx)', {
       ignore: ['**/fixture/**', '**/tests/**'],
     })
     .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
@@ -2259,14 +2259,14 @@ export async function nextbuildjest(task, opts) {
 
 export async function client(task, opts) {
   await task
-    .source('src/client/**/*.+(js|ts|tsx)')
+    .source('src/client/**/!(*.test).+(js|ts|tsx)')
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
 }
 
 export async function client_esm(task, opts) {
   await task
-    .source('src/client/**/*.+(js|ts|tsx)')
+    .source('src/client/**/!(*.test).+(js|ts|tsx)')
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/client')
 }
@@ -2274,7 +2274,7 @@ export async function client_esm(task, opts) {
 // export is a reserved keyword for functions
 export async function nextbuildstatic(task, opts) {
   await task
-    .source('src/export/**/*.+(js|ts|tsx)')
+    .source('src/export/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/export')
 }
