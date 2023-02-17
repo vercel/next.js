@@ -127,6 +127,13 @@ declare module 'next/dist/compiled/arg/index.js' {
 declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }
+
+declare module 'next/dist/compiled/@next/font/dist/google' {
+  export * from '@next/font/google'
+}
+declare module 'next/dist/compiled/@next/font/dist/local' {
+  export * from '@next/font/local'
+}
 declare module 'next/dist/compiled/babel/traverse' {
   import traverse from '@babel/traverse'
   export default traverse
