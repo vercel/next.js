@@ -343,6 +343,35 @@ export async function ncc_acorn(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['@edge-runtime/cookies'] = 'next/dist/compiled/@edge-runtime/cookies'
+
+export async function ncc_edge_runtime_cookies() {
+  // `@edge-runtime/cookies` is precompiled and pre-bundled
+  // so we vendor the package as it is.
+  const dest = 'src/compiled/@edge-runtime/cookies'
+  const pkg = await fs.readJson(
+    require.resolve('@edge-runtime/cookies/package.json')
+  )
+  await fs.remove(dest)
+
+  await fs.outputJson(join(dest, 'package.json'), {
+    name: '@edge-runtime/cookies',
+    version: pkg.version,
+    main: './index.js',
+    license: pkg.license,
+  })
+
+  await fs.copy(
+    require.resolve('@edge-runtime/cookies/dist/index.js'),
+    join(dest, 'index.js')
+  )
+  await fs.copy(
+    require.resolve('@edge-runtime/cookies/dist/index.d.ts'),
+    join(dest, 'index.d.ts')
+  )
+}
+
+// eslint-disable-next-line camelcase
 externals['@edge-runtime/primitives'] =
   'next/dist/compiled/@edge-runtime/primitives'
 
@@ -486,6 +515,33 @@ export async function ncc_next__react_dev_overlay(task, opts) {
       ''
     )
   )
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_next_font(task, opts) {
+  // `@next/font` can be copied as is, its only dependency is already NCCed
+  const destDir = join(__dirname, 'dist/compiled/@next/font')
+  const pkgPath = require.resolve('@next/font/package.json')
+  const pkg = await fs.readJson(pkgPath)
+  const srcDir = dirname(pkgPath)
+  await fs.remove(destDir)
+  await fs.ensureDir(destDir)
+
+  const files = glob.sync('{dist,google,local}/**/*.{js,json,d.ts}', {
+    cwd: srcDir,
+  })
+
+  for (const file of files) {
+    const outputFile = join(destDir, file)
+    await fs.ensureDir(dirname(outputFile))
+    await fs.copyFile(join(srcDir, file), outputFile)
+  }
+
+  await fs.outputJson(join(destDir, 'package.json'), {
+    name: '@next/font',
+    license: pkg.license,
+    types: pkg.types,
+  })
 }
 
 // eslint-disable-next-line camelcase
@@ -2111,6 +2167,7 @@ export async function ncc(task, opts) {
       'copy_react_is',
       'ncc_sass_loader',
       'ncc_jest_worker',
+      'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime',
     ],
@@ -2151,6 +2208,7 @@ export async function compile(task, opts) {
   await task.serial([
     'ncc_react_refresh_utils',
     'ncc_next__react_dev_overlay',
+    'ncc_next_font',
     'ncc_next_server',
   ])
 }
@@ -2171,21 +2229,21 @@ export async function cli(task, opts) {
 
 export async function lib(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source('src/lib/**/*.+(js|ts|tsx|json)')
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }
 
 export async function server(task, opts) {
   await task
-    .source('src/server/**/*.+(js|ts|tsx)')
+    .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
 
@@ -2197,14 +2255,14 @@ export async function server(task, opts) {
 
 export async function server_esm(task, opts) {
   await task
-    .source('src/server/**/*.+(js|ts|tsx)')
+    .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/server')
 }
 
 export async function nextbuild(task, opts) {
   await task
-    .source('src/build/**/*.+(js|ts|tsx)', {
+    .source('src/build/**/!(*.test).+(js|ts|tsx)', {
       ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
     })
     .swc('server', { dev: opts.dev })
@@ -2213,7 +2271,7 @@ export async function nextbuild(task, opts) {
 
 export async function nextbuild_esm(task, opts) {
   await task
-    .source('src/build/**/*.+(js|ts|tsx)', {
+    .source('src/build/**/!(*.test).+(js|ts|tsx)', {
       ignore: ['**/fixture/**', '**/tests/**', '**/jest/**'],
     })
     .swc('server', { dev: opts.dev, esm: true })
@@ -2222,7 +2280,7 @@ export async function nextbuild_esm(task, opts) {
 
 export async function nextbuildjest(task, opts) {
   await task
-    .source('src/build/jest/**/*.+(js|ts|tsx)', {
+    .source('src/build/jest/**/!(*.test).+(js|ts|tsx)', {
       ignore: ['**/fixture/**', '**/tests/**'],
     })
     .swc('server', { dev: opts.dev, interopClientDefaultExport: true })
@@ -2231,14 +2289,14 @@ export async function nextbuildjest(task, opts) {
 
 export async function client(task, opts) {
   await task
-    .source('src/client/**/*.+(js|ts|tsx)')
+    .source('src/client/**/!(*.test).+(js|ts|tsx)')
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
 }
 
 export async function client_esm(task, opts) {
   await task
-    .source('src/client/**/*.+(js|ts|tsx)')
+    .source('src/client/**/!(*.test).+(js|ts|tsx)')
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/client')
 }
@@ -2246,7 +2304,7 @@ export async function client_esm(task, opts) {
 // export is a reserved keyword for functions
 export async function nextbuildstatic(task, opts) {
   await task
-    .source('src/export/**/*.+(js|ts|tsx)')
+    .source('src/export/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/export')
 }

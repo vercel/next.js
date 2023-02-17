@@ -6,7 +6,11 @@ export function getNextFontError(
 ): SimpleWebpackError | false {
   try {
     const resourceResolveData = module.resourceResolveData
-    if (resourceResolveData.descriptionFileData.name !== '@next/font') {
+    if (
+      !module.loaders.find((loader: any) =>
+        loader.loader.includes('next-font-loader/index.js')
+      )
+    ) {
       return false
     }
 
@@ -18,26 +22,14 @@ export function getNextFontError(
       // Known error thrown by @next/font, display the error message
       return new SimpleWebpackError(
         file,
-        `\`@next/font\` error:\n${err.message}`
+        `\`next/font\` error:\n${err.message}`
       )
     } else {
       // Unknown error thrown by @next/font
-      // It might be becuase of incompatible versions of @next/font and next are being used, or it might be a bug
-
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      const nextFontVersion = require('@next/font/package.json').version
-      const nextVersion = process.env.__NEXT_VERSION
-
-      let message = `An error occured in \`@next/font\`.`
-
-      // Using different versions of @next/font and next, add message that it's possibly fixed by updating both
-      if (nextFontVersion !== nextVersion) {
-        message += `\n\nYou might be using incompatible version of \`@next/font\` (${nextFontVersion}) and \`next\` (${nextVersion}). Try updating both \`@next/font\` and \`next\`, if the error still persists it may be a bug.`
-      }
-
-      message += `\n\n${err.stack}`
-
-      return new SimpleWebpackError(file, message)
+      return new SimpleWebpackError(
+        file,
+        `An error occured in \`next/font\`.\n\n${err.stack}`
+      )
     }
   } catch {
     return false

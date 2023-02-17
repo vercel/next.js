@@ -170,9 +170,10 @@ const nextDev: CliCommand = async (argv) => {
   }
 
   async function preflight() {
-    const { getPackageVersion } = await Promise.resolve(
+    const { getPackageVersion, getDependencies } = (await Promise.resolve(
       require('../lib/get-package-version')
-    )
+    )) as typeof import('../lib/get-package-version')
+
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
@@ -182,6 +183,23 @@ const nextDev: CliCommand = async (argv) => {
         'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
           'Please remove the `node-sass` dependency from your project. ' +
           ' Read more: https://nextjs.org/docs/messages/duplicate-sass'
+      )
+    }
+
+    const { dependencies, devDependencies } = await getDependencies({
+      cwd: dir,
+    })
+
+    // Warn if @next/font is installed as a dependency. Ignore `workspace:*` to not warn in the Next.js monorepo.
+    if (
+      dependencies['@next/font'] ||
+      (devDependencies['@next/font'] &&
+        devDependencies['@next/font'] !== 'workspace:*')
+    ) {
+      Log.warn(
+        'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
+          'The `@next/font` package will be removed in Next.js 14. ' +
+          'You can migrate by running the `built-in-next-font` codemod. Read more: https://nextjs.org/docs/messages/built-in-next-font'
       )
     }
   }

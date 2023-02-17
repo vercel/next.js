@@ -2,10 +2,10 @@ import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
-import { execSync } from 'child_process'
 import tar from 'next/dist/compiled/tar'
 import fetch from 'next/dist/compiled/node-fetch'
 import { fileExists } from './file-exists'
+import { getRegistry } from './helpers/get-registry'
 
 const MAX_VERSIONS_TO_CACHE = 5
 
@@ -94,14 +94,8 @@ export async function downloadWasmNextRs(
       cacheDirectory,
       `${tarFileName}.temp-${Date.now()}`
     )
-    let registry = `https://registry.npmjs.org/`
 
-    try {
-      const output = execSync('npm config get registry').toString().trim()
-      if (output.startsWith('http')) {
-        registry = output.endsWith('/') ? output : `${output}/`
-      }
-    } catch (_) {}
+    const registry = getRegistry()
 
     await fetch(`${registry}${pkgName}/-/${tarFileName}`).then((res) => {
       if (!res.ok) {
