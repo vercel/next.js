@@ -193,15 +193,20 @@ function nextConfigTransformer(
         return true
       })
       if (loaderType && pathPrefix) {
-        let filename = `./${loaderType}-loader.js`
+        const importSpecifier = `./${loaderType}-loader.js`
+        const filePath = join(appDir, importSpecifier)
         properties.push(
-          j.property('init', j.identifier('loaderFile'), j.literal(filename))
+          j.property(
+            'init',
+            j.identifier('loaderFile'),
+            j.literal(importSpecifier)
+          )
         )
         images.value.properties = properties
         const normalizeSrc = `const normalizeSrc = (src) => src[0] === '/' ? src.slice(1) : src`
         if (loaderType === 'imgix') {
           writeFileSync(
-            join(appDir, filename),
+            filePath,
             `${normalizeSrc}
             export default function imgixLoader({ src, width, quality }) {
               const url = new URL('${pathPrefix}' + normalizeSrc(src))
@@ -218,7 +223,7 @@ function nextConfigTransformer(
           )
         } else if (loaderType === 'cloudinary') {
           writeFileSync(
-            filename,
+            filePath,
             `${normalizeSrc}
             export default function cloudinaryLoader({ src, width, quality }) {
               const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
@@ -231,7 +236,7 @@ function nextConfigTransformer(
           )
         } else if (loaderType === 'akamai') {
           writeFileSync(
-            filename,
+            filePath,
             `${normalizeSrc}
             export default function akamaiLoader({ src, width, quality }) {
               return '${pathPrefix}' + normalizeSrc(src) + '?imwidth=' + width
@@ -255,7 +260,7 @@ export default function transformer(
   const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
 
-  const parsed = parse(file.path)
+  const parsed = parse(file.path || '/')
   const isConfig =
     parsed.base === 'next.config.js' ||
     parsed.base === 'next.config.ts' ||
