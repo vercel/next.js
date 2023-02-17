@@ -200,6 +200,7 @@ export const getEntryKey = ({
     } catch (e) {
       // This error is catched somewhere
       // But we want to log this error because this should never happen
+      //
       console.error(e)
     }
   }
