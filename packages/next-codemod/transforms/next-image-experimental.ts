@@ -154,7 +154,7 @@ function nextConfigTransformer(j: JSCodeshift, root: Collection) {
   root.find(j.ObjectExpression).forEach((o) => {
     const [images] = o.value.properties || []
     if (
-      images.type === 'Property' &&
+      images.type === 'ObjectProperty' &&
       images.key.type === 'Identifier' &&
       images.key.name === 'images' &&
       images.value.type === 'ObjectExpression' &&
@@ -162,7 +162,7 @@ function nextConfigTransformer(j: JSCodeshift, root: Collection) {
     ) {
       const properties = images.value.properties.filter((p) => {
         if (
-          p.type === 'Property' &&
+          p.type === 'ObjectProperty' &&
           p.key.type === 'Identifier' &&
           p.key.name === 'loader' &&
           'value' in p.value
@@ -177,7 +177,7 @@ function nextConfigTransformer(j: JSCodeshift, root: Collection) {
           }
         }
         if (
-          p.type === 'Property' &&
+          p.type === 'ObjectProperty' &&
           p.key.type === 'Identifier' &&
           p.key.name === 'path' &&
           'value' in p.value
@@ -247,7 +247,7 @@ export default function transformer(
   api: API,
   options: Options
 ) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
 
   const isConfig =
@@ -285,15 +285,17 @@ export default function transformer(
     })
   // Before: const Image = await import("next/legacy/image")
   //  After: const Image = await import("next/image")
-  root
-    .find(j.ImportExpression, {
-      source: { value: 'next/legacy/image' },
-    })
-    .forEach((imageImport) => {
-      j(imageImport).replaceWith(
-        j.importExpression(j.stringLiteral('next/image'))
-      )
-    })
+  root.find(j.AwaitExpression).forEach((awaitExp) => {
+    const arg = awaitExp.value.argument
+    if (arg?.type === 'CallExpression' && arg.callee.type === 'Import') {
+      if (
+        arg.arguments[0].type === 'StringLiteral' &&
+        arg.arguments[0].value === 'next/legacy/image'
+      ) {
+        arg.arguments[0] = j.stringLiteral('next/image')
+      }
+    }
+  })
 
   // Before: const Image = require("next/legacy/image")
   //  After: const Image = require("next/image")
@@ -305,12 +307,12 @@ export default function transformer(
       let firstArg = requireExp.value.arguments[0]
       if (
         firstArg &&
-        firstArg.type === 'Literal' &&
+        firstArg.type === 'StringLiteral' &&
         firstArg.value === 'next/legacy/image'
       ) {
         const tagName = requireExp?.parentPath?.value?.id?.name
         if (tagName) {
-          requireExp.value.arguments[0] = j.literal('next/image')
+          requireExp.value.arguments[0] = j.stringLiteral('next/image')
           findAndReplaceProps(j, root, tagName)
         }
       }

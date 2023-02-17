@@ -62,9 +62,9 @@ createNextDescribe(
 
     const checkLink = (
       browser: BrowserInterface,
-      name: string,
+      rel: string,
       content: string | string[]
-    ) => checkMeta(browser, name, content, 'rel', 'link', 'href')
+    ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
     describe('basic', () => {
       it('should support title and description', async () => {
@@ -81,20 +81,30 @@ createNextDescribe(
 
       it('should support title template', async () => {
         const browser = await next.browser('/title-template')
-        expect(await browser.eval(`document.title`)).toBe('Page | Layout')
+        // Use the parent layout (root layout) instead of app/title-template/layout.tsx
+        expect(await browser.eval(`document.title`)).toBe('Page')
       })
 
       it('should support stashed title in one layer of page and layout', async () => {
         const browser = await next.browser('/title-template/extra')
+        // Use the parent layout (app/title-template/layout.tsx) instead of app/title-template/extra/layout.tsx
+        expect(await browser.eval(`document.title`)).toBe('Extra Page | Layout')
+      })
+
+      it('should use parent layout title when no title is defined in page', async () => {
+        const browser = await next.browser('/title-template/use-layout-title')
         expect(await browser.eval(`document.title`)).toBe(
-          'Extra Page | Extra Layout'
+          'title template layout default'
         )
       })
 
       it('should support stashed title in two layers of page and layout', async () => {
-        const browser = await next.browser('/title-template/extra/inner')
-        expect(await browser.eval(`document.title`)).toBe(
-          'Inner Page | Extra Layout'
+        const $inner = await next.render$('/title-template/extra/inner')
+        expect(await $inner('title').text()).toBe('Inner Page | Extra Layout')
+
+        const $deep = await next.render$('/title-template/extra/inner/deep')
+        expect(await $deep('title').text()).toBe(
+          'extra layout default | Layout'
         )
       })
 
@@ -102,11 +112,7 @@ createNextDescribe(
         const browser = await next.browser('/basic')
         await checkMetaNameContentPair(browser, 'generator', 'next.js')
         await checkMetaNameContentPair(browser, 'application-name', 'test')
-        await checkMetaNameContentPair(
-          browser,
-          'manifest',
-          'https://github.com/manifest.json'
-        )
+        await checkLink(browser, 'manifest', 'https://github.com/manifest.json')
 
         await checkMetaNameContentPair(
           browser,
@@ -312,12 +318,12 @@ createNextDescribe(
       })
 
       it('should support generateMetadata export', async () => {
-        const browser = await next.browser('/params/slug')
+        const browser = await next.browser('/async/slug')
         expect(await getTitle(browser)).toBe('params - slug')
 
         await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
-        await browser.loadPage(next.url + '/params/blog?q=xxx')
+        await browser.loadPage(next.url + '/async/blog?q=xxx')
         await check(
           () => browser.elementByCss('p').text(),
           /params - blog query - xxx/
