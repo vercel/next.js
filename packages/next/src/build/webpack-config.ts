@@ -1255,14 +1255,15 @@ export default async function getBaseWebpackConfig(
           // Built-in modules can be safely ignored.
           if (!builtinModules.includes(request)) {
             // Try to match the package name from the context path:
-            // - /node_modules/package-name/...
             // - /node_modules/.pnpm/package-name@version/...
+            // - /node_modules/package-name/...
             // - /node_modules/@scope/package-name/...
             // - /node_modules/.pnpm/scope+package-name@version/...
             const packageName =
               context.match(
-                /[/\\]node_modules[/\\](\.pnpm[/\\])?([^/\\@]+)/
-              )?.[2] ||
+                /[/\\]node_modules[/\\]\.pnpm[/\\]([^/\\@]+)/
+              )?.[1] ||
+              context.match(/[/\\]node_modules[/\\]([^/\\@]+)/)?.[1] ||
               context.match(
                 /[/\\]node_modules[/\\](@[^/\\]+[/\\][^/\\]+)[/\\]/
               )?.[2] ||
