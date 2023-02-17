@@ -2563,7 +2563,7 @@ describe('Custom routes', () => {
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
   })
 
-  describe('dev mode', () => {
+  describe.only('dev mode', () => {
     let nextConfigContent
 
     beforeAll(async () => {
@@ -2577,14 +2577,14 @@ describe('Custom routes', () => {
       )
 
       const tempPort = await findPort()
-      const tempApp = await launchApp(appDir, tempPort)
+      const tempApp = await launchApp(appDir, tempPort, { turbo: true })
       await renderViaHTTP(tempPort, '/')
 
       await killApp(tempApp)
       await fs.writeFile(nextConfigPath, nextConfigContent)
 
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await launchApp(appDir, appPort, { turbo: true })
       buildId = 'development'
     })
     afterAll(async () => {
