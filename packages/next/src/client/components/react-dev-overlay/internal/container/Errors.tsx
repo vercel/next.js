@@ -19,6 +19,8 @@ import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
+import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
+import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 
 export type SupportedErrorEvent = {
   id: number
@@ -27,6 +29,7 @@ export type SupportedErrorEvent = {
 export type ErrorsProps = {
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
+  versionInfo?: VersionInfo
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -81,6 +84,7 @@ const HotlinkedText: React.FC<{
 export const Errors: React.FC<ErrorsProps> = function Errors({
   errors,
   initialDisplayState,
+  versionInfo,
 }) {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -271,6 +275,7 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
                 <span>{readyErrors.length}</span> unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
+              {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
