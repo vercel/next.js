@@ -1455,6 +1455,36 @@ createNextDescribe(
           const val2 = await browser.elementByCss('#value-2').text()
           expect(val1).toBe(val2)
         })
+
+        it('middleware overriding headers', async () => {
+          const browser = await next.browser('/searchparams-normalization-bug')
+          await browser.eval(`window.didFullPageTransition = 'no'`)
+          expect(await browser.elementByCss('#header-empty').text()).toBe(
+            'Header value: empty'
+          )
+          expect(
+            await browser
+              .elementByCss('#button-a')
+              .click()
+              .waitForElementByCss('#header-a')
+              .text()
+          ).toBe('Header value: a')
+          expect(
+            await browser
+              .elementByCss('#button-b')
+              .click()
+              .waitForElementByCss('#header-b')
+              .text()
+          ).toBe('Header value: b')
+          expect(
+            await browser
+              .elementByCss('#button-c')
+              .click()
+              .waitForElementByCss('#header-c')
+              .text()
+          ).toBe('Header value: c')
+          expect(await browser.eval(`window.didFullPageTransition`)).toBe('no')
+        })
       })
 
       describe('should support React fetch instrumentation', () => {
