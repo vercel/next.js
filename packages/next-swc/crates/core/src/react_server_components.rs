@@ -370,19 +370,13 @@ impl<C: Comments> ReactServerComponents<C> {
                             if let ExportSpecifier::Named(named) = specifier {
                                 match &named.orig {
                                     ModuleExportName::Ident(i) => {
-                                        if invalid_exports_matcher(
-                                            &i.sym.to_string(),
-                                            &mut invalid_exports,
-                                        ) {
+                                        if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
                                             span = named.span;
                                             invalid_export_name = i.sym.to_string();
                                         }
                                     }
                                     ModuleExportName::Str(s) => {
-                                        if invalid_exports_matcher(
-                                            &s.value.to_string(),
-                                            &mut invalid_exports,
-                                        ) {
+                                        if invalid_exports_matcher(&s.value, &mut invalid_exports) {
                                             span = named.span;
                                             invalid_export_name = s.value.to_string();
                                         }
@@ -393,10 +387,7 @@ impl<C: Comments> ReactServerComponents<C> {
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
                         Decl::Fn(f) => {
-                            if invalid_exports_matcher(
-                                &f.ident.sym.to_string(),
-                                &mut invalid_exports,
-                            ) {
+                            if invalid_exports_matcher(&f.ident.sym, &mut invalid_exports) {
                                 span = f.ident.span;
                                 invalid_export_name = f.ident.sym.to_string();
                             }
@@ -404,10 +395,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         Decl::Var(v) => {
                             for decl in &v.decls {
                                 if let Pat::Ident(i) = &decl.name {
-                                    if invalid_exports_matcher(
-                                        &i.sym.to_string(),
-                                        &mut invalid_exports,
-                                    ) {
+                                    if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
                                         span = i.span;
                                         invalid_export_name = i.sym.to_string();
                                     }
