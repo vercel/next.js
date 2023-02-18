@@ -1,6 +1,6 @@
 ## Adding examples
 
-When you add an example to the [examples](examples) directory, please follow these guidelines to ensure high-quality examples:
+When you add an example to the [examples](https://github.com/vercel/next.js/tree/canary/examples) directory, please follow these guidelines to ensure high-quality examples:
 
 - TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred)
 - Examples should not add custom ESLint configuration (we have specific templates for ESLint)
@@ -12,7 +12,7 @@ When you add an example to the [examples](examples) directory, please follow the
 - Use `export default function` for page components and API Routes instead of `const`/`let` (The exception is if the page has `getInitialProps`, in which case [`NextPage`](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props#typescript) could be useful)
 - CMS example directories should be prefixed with `cms-`
 - Example directories should not be prefixed with `with-`
-- Make sure linting passes (you can run `pnpm lint-fix`)
+- Make sure linting passes (you can run `pnpm build && pnpm lint` to verify and `pnpm lint-fix` for automatic fixes)
 
 Also, don’t forget to add a `README.md` file with the following format:
 
