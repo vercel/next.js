@@ -6,7 +6,7 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
-const PLUGIN_NAME = 'FlightTypesPlugin'
+const PLUGIN_NAME = 'NextTypesPlugin'
 
 interface Options {
   dir: string
@@ -191,7 +191,7 @@ declare module 'next' {
 }`
 }
 
-export class FlightTypesPlugin {
+export class NextTypesPlugin {
   dir: string
   distDir: string
   appDir: string
