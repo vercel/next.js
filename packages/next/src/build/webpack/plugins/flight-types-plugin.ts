@@ -232,7 +232,8 @@ export class FlightTypesPlugin {
     let route =
       (isApp
         ? page.replace(/[/\\]page\.[^./]+$/, '')
-        : page.replace(/\.[^./]+$/, '').replace(/[/\\]index$/, '')) || '/'
+        : page.replace(/\.[^./]+$/, '').replace(/[/\\]index$/, '')
+      ).replace(/\\/g, '/') || '/'
 
     if (isDynamicRoute(route)) {
       route = route
