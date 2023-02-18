@@ -31,6 +31,7 @@ import {
 } from '../loaders/utils'
 import { traverseModules } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
 interface Options {
   dev: boolean
@@ -165,7 +166,13 @@ export class FlightClientEntryPlugin {
     ) {
       for (const [name, entry] of compilation.entries.entries()) {
         // Skip for entries under pages/
-        if (name.startsWith('pages/')) continue
+        if (
+          name.startsWith('pages/') ||
+          // Skip for route.js entries
+          (name.startsWith('app/') && isAppRouteRoute(name))
+        ) {
+          continue
+        }
 
         // Check if the page entry is a server component or not.
         const entryDependency: webpack.NormalModule | undefined =
