@@ -421,7 +421,7 @@ impl<C: Comments> ReactServerComponents<C> {
                                 span,
                                 format!(
                                     "NEXT_RSC_ERR_INVALID_API: {}",
-                                    invalid_export_name.to_string()
+                                    invalid_export_name
                                 )
                                 .as_str(),
                             )
