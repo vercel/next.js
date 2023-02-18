@@ -37,6 +37,65 @@ createNextDescribe(
       await cleanup()
     })
 
+    it('should throw an error when metadata export is used in client components', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/client-with-errors/metadata-export'
+      )
+
+      const pageFile = 'app/client-with-errors/metadata-export/page.js'
+      const content = await next.readFile(pageFile)
+      let uncomment = content.replace(
+        '// export const metadata',
+        'export const metadata'
+      )
+      console.log('uncomment', uncomment)
+      await session.patch(pageFile, uncomment)
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        '"metadata" is not supported in app/'
+      )
+
+      uncomment = content.replace(
+        '// export async function generateMetadata',
+        'export async function generateMetadata'
+      )
+      console.log('uncomment', uncomment)
+      await session.patch(pageFile, uncomment)
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        '"generateMetadata" is not supported in app/'
+      )
+
+      await cleanup()
+    })
+
+    it('should throw an error when metadata exports are used together in server components', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/server-with-errors/metadata-export'
+      )
+
+      const pageFile = 'app/server-with-errors/metadata-export/page.js'
+      const content = await next.readFile(pageFile)
+      const uncomment = content.replace(
+        '// export async function generateMetadata',
+        'export async function generateMetadata'
+      )
+
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        'export generateMetadata and metadata together'
+      )
+
+      await cleanup()
+    })
+
     it('should throw an error when getStaticProps is used', async () => {
       const { session, cleanup } = await sandbox(
         next,
@@ -247,7 +306,7 @@ createNextDescribe(
         ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
 
            ,----
-         1 |  
+         1 |
            : ^
            \`----
 
