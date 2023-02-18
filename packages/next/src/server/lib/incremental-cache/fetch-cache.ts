@@ -45,11 +45,6 @@ export default class FetchCache implements CacheHandler {
     this.cacheEndpoint = `https://${ctx._requestHeaders['x-vercel-sc-host']}${
       ctx._requestHeaders['x-vercel-sc-basepath'] || ''
     }`
-    if (ctx._requestHeaders['cache-control']) {
-      this.headers['x-vercel-cache-control'] = JSON.stringify(
-        ctx._requestHeaders['cache-control']
-      )
-    }
     if (this.debug) {
       console.log('using cache endpoint', this.cacheEndpoint)
     }
@@ -77,8 +72,7 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid response from cache ${res.status}`)
         }
 
-        const item = await res.text()
-        const cached = JSON.parse(item)
+        const cached = await res.json()
 
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
@@ -97,7 +91,7 @@ export default class FetchCache implements CacheHandler {
           console.log(
             `got fetch cache entry for ${key}, duration: ${
               Date.now() - start
-            }ms, size: ${item.length}`
+            }ms, size: ${Object.keys(cached).length}`
           )
         }
 
@@ -126,12 +120,14 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const start = Date.now()
-      const body = JSON.stringify(data)
-      const setHeaders = this.headers
       if (data !== null && 'revalidate' in data) {
-        setHeaders['x-vercel-revalidate'] = data.revalidate.toString()
+        this.headers['x-vercel-revalidate'] = data.revalidate.toString()
       }
-
+      if (data !== null && 'data' in data) {
+        this.headers['x-vercel-cache-control'] =
+          data.data.headers['cache-control']
+      }
+      const body = JSON.stringify(data)
       const res = await fetch(
         `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
         {
