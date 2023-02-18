@@ -1139,6 +1139,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
     }
+
     delete query.__nextDataReq
 
     // normalize req.url for SSG paths as it is not exposed
@@ -1166,6 +1167,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isFlightRequest = Boolean(
       this.serverComponentManifest && req.headers[RSC.toLowerCase()]
     )
+
+    // For pages we need to ensure the correct Vary header is set too, to avoid
+    // caching issues when navigating between pages and app
+    if (!isAppPath && isFlightRequest) {
+      res.setHeader('vary', RSC_VARY_HEADER)
+    }
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isDataReq && !isFlightRequest) {

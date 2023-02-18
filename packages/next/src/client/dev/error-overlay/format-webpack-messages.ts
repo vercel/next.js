@@ -193,25 +193,18 @@ export default function formatWebpackMessages(json: any, verbose?: boolean) {
   })
 
   // Reorder errors to put the most relevant ones first.
-  let reactServerComponentsBundleError = -1
   let reactServerComponentsError = -1
 
   for (let i = 0; i < formattedErrors.length; i++) {
     const error = formattedErrors[i]
     if (error.includes('ReactServerComponentsError')) {
       reactServerComponentsError = i
-    }
-    if (/Failed to bundle .+ in Server Components/.test(error)) {
-      reactServerComponentsBundleError = i
+      break
     }
   }
 
-  // Move the reactServerComponentsBundleError to the top, if it exists
-  // Otherwise, move the reactServerComponentsError to the top if it exists
-  if (reactServerComponentsBundleError !== -1) {
-    const error = formattedErrors.splice(reactServerComponentsBundleError, 1)
-    formattedErrors.unshift(error[0])
-  } else if (reactServerComponentsError !== -1) {
+  // Move the reactServerComponentsError to the top if it exists
+  if (reactServerComponentsError !== -1) {
     const error = formattedErrors.splice(reactServerComponentsError, 1)
     formattedErrors.unshift(error[0])
   }
