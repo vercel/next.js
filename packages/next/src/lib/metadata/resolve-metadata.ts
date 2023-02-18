@@ -8,6 +8,7 @@ import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
+import { isClientReference } from '../../build/is-client-reference'
 import {
   getLayoutOrPageModule,
   LoaderTree,
@@ -178,6 +179,11 @@ async function getDefinedMetadata(
   mod: any,
   props: any
 ): Promise<Metadata | MetadataResolver | null> {
+  // Layer is a client component, we just skip it. It can't have metadata exported.
+  // Return early to avoid accessing properties error for client references.
+  if (isClientReference(mod)) {
+    return null
+  }
   return (
     (mod.generateMetadata
       ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)

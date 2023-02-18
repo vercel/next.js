@@ -68,7 +68,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
                 return;
             }
         } else {
-            self.assert_client_graph(&imports, module, is_client_entry);
+            self.assert_client_graph(&imports, module);
         }
         module.visit_mut_children_with(self)
     }
@@ -250,7 +250,7 @@ impl<C: Comments> ReactServerComponents<C> {
         );
     }
 
-    fn assert_server_graph(&self, imports: &Vec<ModuleImports>, module: &Module) {
+    fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -322,12 +322,7 @@ impl<C: Comments> ReactServerComponents<C> {
         }
     }
 
-    fn assert_client_graph(
-        &self,
-        imports: &Vec<ModuleImports>,
-        module: &Module,
-        is_client_entry: bool,
-    ) {
+    fn assert_client_graph(&self, imports: &[ModuleImports], module: &Module) {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -342,7 +337,7 @@ impl<C: Comments> ReactServerComponents<C> {
             }
         }
 
-        self.assert_invalid_api(module, is_client_entry);
+        self.assert_invalid_api(module, true);
     }
 
     fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {

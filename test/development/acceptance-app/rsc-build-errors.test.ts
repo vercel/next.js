@@ -50,7 +50,6 @@ createNextDescribe(
         '// export const metadata',
         'export const metadata'
       )
-      console.log('uncomment', uncomment)
       await session.patch(pageFile, uncomment)
 
       expect(await session.hasRedbox(true)).toBe(true)
@@ -62,7 +61,6 @@ createNextDescribe(
         '// export async function generateMetadata',
         'export async function generateMetadata'
       )
-      console.log('uncomment', uncomment)
       await session.patch(pageFile, uncomment)
 
       expect(await session.hasRedbox(true)).toBe(true)
