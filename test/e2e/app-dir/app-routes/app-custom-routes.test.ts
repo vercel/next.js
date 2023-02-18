@@ -312,6 +312,15 @@ createNextDescribe(
       })
     })
 
+    describe('edge functions', () => {
+      it('returns response using edge runtime', async () => {
+        const res = await next.fetch('/edge')
+
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toContain('hello, world')
+      })
+    })
+
     if (isNextDev) {
       describe('lowercase exports', () => {
         it.each([
@@ -326,15 +335,19 @@ createNextDescribe(
           'should print an error when using lowercase %p in dev',
           async (method: string) => {
             await next.fetch('/lowercase/' + method)
-            expect(next.cliOutput).toContain(
-              `Detected lowercase method '${method}' in`
-            )
-            expect(next.cliOutput).toContain(
-              `Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
-            )
-            expect(next.cliOutput).toMatch(
-              /Detected lowercase method '.+' in '.+\/route\.ts'\. Export the uppercase '.+' method name to fix this error\./
-            )
+
+            await check(() => {
+              expect(next.cliOutput).toContain(
+                `Detected lowercase method '${method}' in`
+              )
+              expect(next.cliOutput).toContain(
+                `Export the uppercase '${method.toUpperCase()}' method name to fix this error.`
+              )
+              expect(next.cliOutput).toMatch(
+                /Detected lowercase method '.+' in '.+\/route\.ts'\. Export the uppercase '.+' method name to fix this error\./
+              )
+              return 'yes'
+            }, 'yes')
           }
         )
       })

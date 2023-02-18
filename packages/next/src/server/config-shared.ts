@@ -163,15 +163,9 @@ export interface ExperimentalConfig {
   forceSwcTransforms?: boolean
 
   /**
-   * The option for the minifier of [SWC compiler](https://swc.rs).
-   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
-   *
-   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
+   * This option is removed
    */
-  swcMinifyDebugOptions?: {
-    compress?: object
-    mangle?: object
-  }
+  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -656,7 +650,6 @@ export const defaultConfig: NextConfig = {
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,
-    swcMinifyDebugOptions: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
     amp: undefined,
@@ -669,42 +662,6 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
   },
 }
-
-export function setFontLoaderDefaults(config: NextConfig) {
-  try {
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    require('@next/font/package.json')
-
-    const googleFontLoader = {
-      loader: '@next/font/google',
-    }
-    const localFontLoader = {
-      loader: '@next/font/local',
-    }
-    if (!config.experimental) {
-      config.experimental = {}
-    }
-    if (!config.experimental.fontLoaders) {
-      config.experimental.fontLoaders = []
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === googleFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(googleFontLoader)
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === localFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(localFontLoader)
-    }
-  } catch {}
-}
-
-setFontLoaderDefaults(defaultConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
