@@ -1554,7 +1554,7 @@ export function detectConflictingPaths(
   >()
 
   const dynamicSsgPages = [...ssgPages].filter((page) => isDynamicRoute(page))
-  const additionalSsgPathsByPath: {[key: string]: {[key: string]: string}} = {};
+  const additionalSsgPathsByPath: {[page: string]: {[path: string]: string}} = {};
 
   additionalSsgPaths.forEach((paths, pathsPage)=>{
     additionalSsgPathsByPath[pathsPage] ||= {};
