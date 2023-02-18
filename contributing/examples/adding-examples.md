@@ -12,7 +12,7 @@ When you add an example to the [examples](https://github.com/vercel/next.js/tree
 - Use `export default function` for page components and API Routes instead of `const`/`let` (The exception is if the page has `getInitialProps`, in which case [`NextPage`](https://nextjs.org/docs/api-reference/data-fetching/get-initial-props#typescript) could be useful)
 - CMS example directories should be prefixed with `cms-`
 - Example directories should not be prefixed with `with-`
-- Make sure linting passes (you can run `pnpm build && pnpm lint`)
+- Make sure linting passes (you can run `pnpm build && pnpm lint` to verify and `pnpm lint-fix` for automatic fixes)
 
 Also, don’t forget to add a `README.md` file with the following format:
 
