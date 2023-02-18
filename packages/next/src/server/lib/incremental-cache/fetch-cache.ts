@@ -5,7 +5,7 @@ import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
 export default class FetchCache implements CacheHandler {
-  private headers: Record<string, string | string>
+  private headers: Record<string, string>
   private cacheEndpoint: string
   private debug: boolean
 
