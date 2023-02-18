@@ -351,12 +351,12 @@ impl<C: Comments> ReactServerComponents<C> {
             let mut invalid_exports: HashMap<String, bool> = HashMap::new();
 
             fn invalid_exports_matcher(
-                export_name: String,
+                export_name: &str,
                 invalid_exports: &mut HashMap<String, bool>,
             ) -> bool {
-                match export_name.as_str() {
+                match export_name {
                     "getServerSideProps" | "getStaticProps" | "generateMetadata" | "metadata" => {
-                        invalid_exports.insert(export_name, true);
+                        invalid_exports.insert(export_name.to_string(), true);
                         true
                     }
                     _ => false,
@@ -371,7 +371,7 @@ impl<C: Comments> ReactServerComponents<C> {
                                 match &named.orig {
                                     ModuleExportName::Ident(i) => {
                                         if invalid_exports_matcher(
-                                            i.sym.to_string(),
+                                            &i.sym.to_string(),
                                             &mut invalid_exports,
                                         ) {
                                             span = named.span;
@@ -380,7 +380,7 @@ impl<C: Comments> ReactServerComponents<C> {
                                     }
                                     ModuleExportName::Str(s) => {
                                         if invalid_exports_matcher(
-                                            s.value.to_string(),
+                                            &s.value.to_string(),
                                             &mut invalid_exports,
                                         ) {
                                             span = named.span;
@@ -394,7 +394,7 @@ impl<C: Comments> ReactServerComponents<C> {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
                         Decl::Fn(f) => {
                             if invalid_exports_matcher(
-                                f.ident.sym.to_string(),
+                                &f.ident.sym.to_string(),
                                 &mut invalid_exports,
                             ) {
                                 span = f.ident.span;
@@ -405,7 +405,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             for decl in &v.decls {
                                 if let Pat::Ident(i) = &decl.name {
                                     if invalid_exports_matcher(
-                                        i.sym.to_string(),
+                                        &i.sym.to_string(),
                                         &mut invalid_exports,
                                     ) {
                                         span = i.span;
@@ -431,8 +431,11 @@ impl<C: Comments> ReactServerComponents<C> {
                         handler
                             .struct_span_err(
                                 span,
-                                format!("NEXT_RSC_ERR_INVALID_API: {}", invalid_export_name)
-                                    .as_str(),
+                                format!(
+                                    "NEXT_RSC_ERR_INVALID_API: {}",
+                                    invalid_export_name.to_string()
+                                )
+                                .as_str(),
                             )
                             .emit()
                     })
