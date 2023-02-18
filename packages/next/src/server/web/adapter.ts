@@ -75,10 +75,16 @@ export async function adapter(params: {
   }
 
   const requestHeaders = fromNodeHeaders(params.request.headers)
+  const flightHeaders = new Map()
   // Parameters should only be stripped for middleware
   if (!isEdgeRendering) {
     for (const param of FLIGHT_PARAMETERS) {
-      requestHeaders.delete(param.toString().toLowerCase())
+      const key = param.toString().toLowerCase()
+      const value = requestHeaders.get(key)
+      if (value) {
+        flightHeaders.set(key, requestHeaders.get(key))
+        requestHeaders.delete(key)
+      }
     }
   }
 
@@ -192,8 +198,29 @@ export async function adapter(params: {
     }
   }
 
+  const finalResponse = response ? response : NextResponse.next()
+
+  // Flight headers are not overridable / removable so they are applied at the end.
+  const middlewareOverrideHeaders = finalResponse.headers.get(
+    'x-middleware-override-headers'
+  )
+  const overwrittenHeaders: string[] = []
+  if (middlewareOverrideHeaders) {
+    for (const [key, value] of flightHeaders) {
+      finalResponse.headers.set(`x-middleware-request-${key}`, value)
+      overwrittenHeaders.push(key)
+    }
+
+    if (overwrittenHeaders.length > 0) {
+      finalResponse.headers.set(
+        'x-middleware-override-headers',
+        middlewareOverrideHeaders + ',' + overwrittenHeaders.join(',')
+      )
+    }
+  }
+
   return {
-    response: response || NextResponse.next(),
+    response: finalResponse,
     waitUntil: Promise.all(event[waitUntilSymbol]),
   }
 }

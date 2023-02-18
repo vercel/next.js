@@ -39,7 +39,7 @@ export function validateData(
   const subsets = callSubsets ?? config?.subsets ?? []
 
   if (functionName === '') {
-    nextFontError(`@next/font/google has no default export`)
+    nextFontError(`next/font/google has no default export`)
   }
 
   const fontFamily = functionName.replace(/_/g, ' ')

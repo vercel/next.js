@@ -5,7 +5,7 @@ on:
 name: Generate Pull Request Stats
 
 env:
-  NAPI_CLI_VERSION: 2.13.3
+  NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 1.6.3
   RUST_TOOLCHAIN: nightly-2022-11-04
   PNPM_VERSION: 7.24.3
@@ -63,14 +63,14 @@ jobs:
       # We will not get exact match, but doc says
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
       # So we get latest cache
-      - name: Cache built files
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ./packages/next-target
-          key: next-swc-cargo-cache-ubuntu-latest--${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            next-swc-cargo-cache-ubuntu-latest
+      # - name: Cache built files
+      #   uses: actions/cache@v3
+      #   timeout-minutes: 5
+      #   with:
+      #     path: ./packages/next-target
+      #     key: next-swc-cargo-cache-ubuntu-latest--${{ hashFiles('**/Cargo.lock') }}
+      #     restore-keys: |
+      #       next-swc-cargo-cache-ubuntu-latest
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3

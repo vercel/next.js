@@ -1,5 +1,5 @@
-import localFont from '@next/font/local'
-import { Open_Sans } from '@next/font/google'
+import localFont from 'next/font/local'
+import { Open_Sans } from 'next/font/google'
 const openSans = Open_Sans({
   fallback: ['system-ui', 'Arial'],
   variable: '--open-sans',

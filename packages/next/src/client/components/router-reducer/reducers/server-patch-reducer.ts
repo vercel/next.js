@@ -85,7 +85,6 @@ export function serverPatchReducer(
   mutable.previousTree = state.tree
   mutable.patchedTree = newTree
   mutable.cache = cache
-  mutable.applyFocusAndScroll = false
 
   return handleMutable(state, mutable)
 }

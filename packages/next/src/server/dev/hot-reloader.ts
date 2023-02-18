@@ -49,6 +49,10 @@ import ws from 'next/dist/compiled/ws'
 import { promises as fs } from 'fs'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { UnwrapPromise } from '../../lib/coalesced-function'
+import { getRegistry } from '../../lib/helpers/get-registry'
+import { RouteMatch } from '../future/route-matches/route-match'
+import type { Telemetry } from '../../telemetry/storage'
+import { parseVersionInfo, VersionInfo } from './parse-version-info'
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -60,7 +64,7 @@ export async function renderScriptError(
   res: ServerResponse,
   error: Error,
   { verbose = true } = {}
-) {
+): Promise<{ finished: true | undefined }> {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader(
     'Cache-Control',
@@ -68,9 +72,7 @@ export async function renderScriptError(
   )
 
   if ((error as any).code === 'ENOENT') {
-    res.statusCode = 404
-    res.end('404 - Not Found')
-    return
+    return { finished: undefined }
   }
 
   if (verbose) {
@@ -78,6 +80,7 @@ export async function renderScriptError(
   }
   res.statusCode = 500
   res.end('500 - Internal Error')
+  return { finished: true }
 }
 
 function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
@@ -179,6 +182,11 @@ export default class HotReloader {
   private hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
+  private telemetry: Telemetry
+  private versionInfo: VersionInfo = {
+    staleness: 'unknown',
+    installed: '0.0.0',
+  }
   public multiCompiler?: webpack.MultiCompiler
   public activeConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
@@ -194,6 +202,7 @@ export default class HotReloader {
       previewProps,
       rewrites,
       appDir,
+      telemetry,
     }: {
       config: NextConfigComplete
       pagesDir?: string
@@ -202,6 +211,7 @@ export default class HotReloader {
       previewProps: __ApiPreviewProps
       rewrites: CustomRoutes['rewrites']
       appDir?: string
+      telemetry: Telemetry
     }
   ) {
     this.buildId = buildId
@@ -214,6 +224,7 @@ export default class HotReloader {
     this.serverStats = null
     this.edgeServerStats = null
     this.serverPrevDocumentHash = null
+    this.telemetry = telemetry
 
     this.config = config
     this.hasServerComponents = !!this.appDir
@@ -271,14 +282,14 @@ export default class HotReloader {
         try {
           await this.ensurePage({ page, clientOnly: true })
         } catch (error) {
-          await renderScriptError(pageBundleRes, getProperError(error))
-          return { finished: true }
+          return await renderScriptError(pageBundleRes, getProperError(error))
         }
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(pageBundleRes, errors[0], { verbose: false })
-          return { finished: true }
+          return await renderScriptError(pageBundleRes, errors[0], {
+            verbose: false,
+          })
         }
       }
 
@@ -413,6 +424,36 @@ export default class HotReloader {
       .traceAsyncFn(() =>
         recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
       )
+  }
+
+  private async getVersionInfo(span: Span, enabled: boolean) {
+    const versionInfoSpan = span.traceChild('get-version-info')
+    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
+      let installed = '0.0.0'
+
+      if (!enabled) {
+        return { installed, staleness: 'unknown' }
+      }
+
+      try {
+        installed = require('next/package.json').version
+
+        const registry = getRegistry()
+        const res = await fetch(`${registry}-/package/next/dist-tags`)
+
+        if (!res.ok) return { installed, staleness: 'unknown' }
+
+        const tags = await res.json()
+
+        return parseVersionInfo({
+          installed,
+          latest: tags.latest,
+          canary: tags.canary,
+        })
+      } catch {
+        return { installed, staleness: 'unknown' }
+      }
+    })
   }
 
   private async getWebpackConfig(span: Span) {
@@ -573,6 +614,11 @@ export default class HotReloader {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
+    this.versionInfo = await this.getVersionInfo(
+      startSpan,
+      !!process.env.NEXT_TEST_MODE || this.telemetry.isEnabled
+    )
+
     await this.clean(startSpan)
     // Ensure distDir exists before writing package.json
     await fs.mkdir(this.distDir, { recursive: true })
@@ -655,6 +701,7 @@ export default class HotReloader {
                       rootDir: this.dir,
                       isDev: true,
                       tsconfigPath: this.config.typescript.tsconfigPath,
+                      assetPrefix: this.config.assetPrefix,
                     }).import
                   : undefined
 
@@ -736,6 +783,7 @@ export default class HotReloader {
                         rootDir: this.dir,
                         isDev: true,
                         tsconfigPath: this.config.typescript.tsconfigPath,
+                        assetPrefix: this.config.assetPrefix,
                       })
                     : relativeRequest,
                   hasAppDir,
@@ -1054,7 +1102,8 @@ export default class HotReloader {
     )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
-      this.multiCompiler.compilers
+      this.multiCompiler.compilers,
+      this.versionInfo
     )
 
     let booted = false
@@ -1147,10 +1196,12 @@ export default class HotReloader {
     page,
     clientOnly,
     appPaths,
+    match,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: string[] | null
+    match?: RouteMatch
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
@@ -1166,6 +1217,7 @@ export default class HotReloader {
       page,
       clientOnly,
       appPaths,
+      match,
     }) as any
   }
 }

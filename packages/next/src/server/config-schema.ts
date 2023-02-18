@@ -278,6 +278,9 @@ const configSchema = {
         externalDir: {
           type: 'boolean',
         },
+        externalMiddlewareRewritesResolve: {
+          type: 'boolean',
+        },
         fallbackNodePolyfills: {
           type: 'boolean',
         },
@@ -339,8 +342,14 @@ const configSchema = {
           minLength: 1,
           type: 'string',
         },
+        outputFileTracingExcludes: {
+          type: 'object',
+        },
         outputFileTracingIgnores: {
           type: 'array',
+        },
+        outputFileTracingIncludes: {
+          type: 'object',
         },
         pageEnv: {
           type: 'boolean',
@@ -384,18 +393,6 @@ const configSchema = {
         swcMinify: {
           type: 'boolean',
         },
-        swcMinifyDebugOptions: {
-          additionalProperties: false,
-          properties: {
-            compress: {
-              type: 'object',
-            },
-            mangle: {
-              type: 'object',
-            },
-          },
-          type: 'object',
-        },
         swcPlugins: {
           type: 'array',
         },
@@ -438,11 +435,23 @@ const configSchema = {
         mdxRs: {
           type: 'boolean',
         },
+        typedRoutes: {
+          type: 'boolean',
+        },
         webpackBuildWorker: {
           type: 'boolean',
         },
-        turbopackLoaders: {
+        turbo: {
           type: 'object',
+          additionalProperties: false,
+          properties: {
+            loaders: {
+              type: 'object',
+            },
+            resolveAlias: {
+              type: 'object',
+            },
+          },
         },
         turbotrace: {
           type: 'object',
@@ -472,14 +481,8 @@ const configSchema = {
             processCwd: {
               type: 'string',
             },
-            maxFiles: {
-              type: 'integer',
-            },
             memoryLimit: {
               type: 'integer',
-            },
-            skipEntries: {
-              type: 'boolean',
             },
           },
         },

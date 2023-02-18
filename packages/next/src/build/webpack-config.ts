@@ -61,7 +61,7 @@ import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plu
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
-import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/app-dir/metadata'
+import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
 const EXTERNAL_PACKAGES = require('../lib/server-external-packages.json')
 
@@ -305,6 +305,9 @@ export function getDefineEnv({
     'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.skipMiddlewareUrlNormalize
+    ),
+    'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE': JSON.stringify(
+      config.experimental.externalMiddlewareRewritesResolve
     ),
     'process.env.__NEXT_MANUAL_TRAILING_SLASH': JSON.stringify(
       config.skipTrailingSlashRedirect
@@ -646,6 +649,7 @@ export default async function getBaseWebpackConfig(
   const hasAppDir = !!config.experimental.appDir && !!appDir
   const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
+  const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
 
   if (isClient) {
     if (isEdgeRuntime(config.experimental.runtime)) {
@@ -656,6 +660,11 @@ export default async function getBaseWebpackConfig(
     if (config.experimental.runtime === 'nodejs') {
       Log.warn(
         'You are using the experimental Node.js Runtime with `experimental.runtime`.'
+      )
+    }
+    if (config.experimental.typedRoutes && !hasAppDir) {
+      Log.warn(
+        '`experimental.typedRoutes` requires `experimental.appDir` to be enabled.'
       )
     }
   }
@@ -893,13 +902,19 @@ export default async function getBaseWebpackConfig(
   const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
     [COMPILER_NAMES.server]: ['main', 'module'],
     [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-    [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
+    [COMPILER_NAMES.edgeServer]: [
+      'edge-light',
+      'worker',
+      'browser',
+      'module',
+      'main',
+    ],
   }
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
   const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
 
-  const resolveConfig = {
+  const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
       ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
@@ -1012,6 +1027,13 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
+    ...(isEdgeServer && {
+      conditionNames: [
+        ...mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
+        'import',
+        'node',
+      ],
+    }),
     plugins: [],
   }
 
@@ -1188,7 +1210,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) return
 
       const isNextExternal =
-        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|head[^-]))/.test(
+        /next[/\\]dist[/\\](esm[\\/])?(shared|server)[/\\](?!lib[/\\](router[/\\]router|dynamic|app-dynamic|lazy-dynamic|head[^-]))/.test(
           localRes
         )
 
@@ -1363,13 +1385,6 @@ export default async function getBaseWebpackConfig(
       return excludePath.includes('node_modules')
     },
   }
-
-  const fontLoaderTargets =
-    config.experimental.fontLoaders &&
-    config.experimental.fontLoaders.map(({ loader }) => {
-      const resolved = require.resolve(loader)
-      return path.join(resolved, '../target.css')
-    })
 
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
@@ -1558,11 +1573,9 @@ export default async function getBaseWebpackConfig(
               ...terserOptions,
               compress: {
                 ...terserOptions.compress,
-                ...(config.experimental.swcMinifyDebugOptions?.compress ?? {}),
               },
               mangle: {
                 ...terserOptions.mangle,
-                ...(config.experimental.swcMinifyDebugOptions?.mangle ?? {}),
               },
             },
           }).apply(compiler)
@@ -1646,6 +1659,7 @@ export default async function getBaseWebpackConfig(
         'noop-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
+        'next-edge-app-route-loader',
         'next-edge-ssr-loader',
         'next-middleware-asset-loader',
         'next-middleware-wasm-loader',
@@ -1686,7 +1700,17 @@ export default async function getBaseWebpackConfig(
                   return true
                 },
                 resolve: {
-                  conditionNames: ['react-server', 'node', 'import', 'require'],
+                  conditionNames: [
+                    'react-server',
+                    ...mainFieldsPerCompiler[
+                      isEdgeServer
+                        ? COMPILER_NAMES.edgeServer
+                        : COMPILER_NAMES.server
+                    ],
+                    'node',
+                    'import',
+                    'require',
+                  ],
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -1993,12 +2017,21 @@ export default async function getBaseWebpackConfig(
             ]
           : []),
         {
-          test: /node_modules\/client-only\/error.js/,
+          test: /node_modules[/\\]client-only[/\\]error.js/,
           loader: 'next-invalid-import-error-loader',
           issuerLayer: WEBPACK_LAYERS.server,
           options: {
             message:
               "'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.",
+          },
+        },
+        {
+          test: /node_modules[/\\]server-only[/\\]index.js/,
+          loader: 'next-invalid-import-error-loader',
+          issuerLayer: WEBPACK_LAYERS.client,
+          options: {
+            message:
+              "'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.",
           },
         },
       ].filter(Boolean),
@@ -2093,7 +2126,6 @@ export default async function getBaseWebpackConfig(
         new MiddlewarePlugin({
           dev,
           sriEnabled: !dev && !!config.experimental.sri?.algorithm,
-          hasFontLoaders: !!config.experimental.fontLoaders,
         }),
       isClient &&
         new BuildManifestPlugin({
@@ -2145,23 +2177,21 @@ export default async function getBaseWebpackConfig(
             })),
       hasAppDir &&
         !isClient &&
-        !dev &&
         new FlightTypesPlugin({
           dir,
           distDir: config.distDir,
           appDir,
           dev,
           isEdgeServer,
+          typedRoutes: enableTypedRoutes,
         }),
       !dev &&
         isClient &&
         !!config.experimental.sri?.algorithm &&
         new SubresourceIntegrityPlugin(config.experimental.sri.algorithm),
       isClient &&
-        fontLoaderTargets &&
         new FontLoaderManifestPlugin({
           appDirEnabled: !!config.experimental.appDir,
-          fontLoaderTargets,
         }),
       !dev &&
         isClient &&
