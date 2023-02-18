@@ -64,7 +64,6 @@ export default class FetchCache implements CacheHandler {
     if (!data) {
       try {
         const start = Date.now()
-
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
@@ -79,7 +78,6 @@ export default class FetchCache implements CacheHandler {
         }
 
         const item = await res.text()
-
         const cached = JSON.parse(item)
 
         if (!cached || cached.kind !== 'FETCH') {
@@ -128,9 +126,7 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const start = Date.now()
-
       const body = JSON.stringify(data)
-
       const setHeaders = this.headers
       if (data !== null && 'revalidate' in data) {
         setHeaders['x-vercel-revalidate'] = data.revalidate.toString()

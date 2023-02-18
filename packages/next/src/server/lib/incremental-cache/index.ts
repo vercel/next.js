@@ -189,15 +189,14 @@ export class IncrementalCache {
     const cacheData = await this.cacheHandler.get(pathname, fetchCache)
 
     if (cacheData?.value?.kind === 'FETCH') {
+      const revalidate = cacheData.value.revalidate
       const age =
         cacheData.age ||
         Math.round((Date.now() - (cacheData.lastModified || 0)) / 1000)
-      let isStale
-      if (cacheData.cacheState !== undefined) {
-        isStale = cacheData.cacheState !== 'fresh'
-      } else {
-        isStale = age > cacheData.value.revalidate
-      }
+
+      const isStale = cacheData.cacheState
+        ? cacheData.cacheState !== 'fresh'
+        : age > revalidate
       const data = cacheData.value.data
 
       return {
@@ -205,11 +204,10 @@ export class IncrementalCache {
         value: {
           kind: 'FETCH',
           data,
-          revalidate: cacheData.value.revalidate,
+          revalidate: revalidate,
         },
         revalidateAfter:
-          (cacheData.lastModified || Date.now()) +
-          cacheData.value.revalidate * 1000,
+          (cacheData.lastModified || Date.now()) + revalidate * 1000,
       }
     }
 
