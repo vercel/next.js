@@ -4,12 +4,23 @@ Turbopack supports a subset of webpack's loader API, allowing you to use some we
 
 Install the dependencies and start the development server.
 
-```bash
+```sh
 npm install
 npm run dev
-# or
+```
+
+or
+
+```sh
 yarn
 yarn dev
+```
+
+or
+
+```sh
+pnpm install
+pnpm dev
 ```
 
 ## Deploy your own
