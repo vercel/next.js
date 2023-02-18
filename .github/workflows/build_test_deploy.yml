@@ -944,6 +944,9 @@ jobs:
             turbo run build-native --cache-dir=".turbo" -- --target x86_64-unknown-linux-gnu &&
             strip packages/next-swc/native/next-swc.*.node
 
+      - run: sudo chown -R $USER:$GROUP ./packages/next-swc/target
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
