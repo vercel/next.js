@@ -221,7 +221,7 @@ export class FlightTypesPlugin {
     }
 
     // Filter out non-page files in pages dir
-    if (!isApp && !/[/\\](?:_app|_document|404|500)\.[^.]+$/.test(filePath)) {
+    if (!isApp && /[/\\](?:_app|_document|404|500)\.[^.]+$/.test(filePath)) {
       return
     }
 
