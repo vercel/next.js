@@ -32,6 +32,7 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 - [Builder.io](/examples/cms-builder-io)
 - [DotCMS](/examples/cms-dotcms)
 - [Enterspeed](/examples/cms-enterspeed)
+- [Blockenberg](/examples/cms-blockenberg)
 
 ## How to use
 

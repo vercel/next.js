@@ -33,6 +33,7 @@ You'll get:
 - [Builder.io](/examples/cms-builder-io)
 - [DotCMS](/examples/cms-dotcms)
 - [Enterspeed](/examples/cms-enterspeed)
+- [Blockenberg](/examples/cms-blockenberg)
 
 # Configuration
 

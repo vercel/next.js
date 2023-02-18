@@ -99,3 +99,4 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 - [Blog Starter](/examples/blog-starter)
 - [DotCMS](/examples/cms-dotcms)
 - [Enterspeed](/examples/cms-enterspeed)
+- [Blockenberg](/examples/cms-blockenberg)

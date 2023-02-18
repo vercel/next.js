@@ -29,6 +29,7 @@ Using the Deploy Button below, you'll deploy the Next.js project.
 - [Ghost](/examples/cms-ghost)
 - [Contentful](/examples/cms-contentful)
 - [Blog Starter](/examples/blog-starter)
+- [Blockenberg](/examples/cms-blockenberg)
 
 ## How to use
 

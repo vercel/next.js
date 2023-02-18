@@ -30,6 +30,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [Blog Starter](/examples/blog-starter)
 - [Builder.io](/examples/cms-builder-io)
 - [DotCMS](/examples/cms-dotcms)
+- [Blockenberg](/examples/cms-blockenberg)
 
 ## How to use
 

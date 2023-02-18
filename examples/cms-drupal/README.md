@@ -31,6 +31,7 @@ Once you have [configured the Next.js module for Drupal](https://next-drupal.org
 - [Blog Starter](/examples/blog-starter)
 - [DotCMS](/examples/cms-dotcms)
 - [Enterspeed](/examples/cms-enterspeed)
+- [Blockenberg](/examples/cms-blockenberg)
 
 ## How to use
 

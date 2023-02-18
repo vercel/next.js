@@ -28,6 +28,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Blog Starter](/examples/blog-starter)
 - [DotCMS](/examples/cms-dotcms)
 - [Enterspeed](/examples/cms-enterspeed)
+- [Blockenberg](/examples/cms-blockenberg)
 
 ## Getting Started
 
