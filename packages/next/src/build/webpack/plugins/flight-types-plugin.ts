@@ -220,15 +220,19 @@ export class FlightTypesPlugin {
       return
     }
 
+    // Filter out non-page files in pages dir
+    if (!isApp && !/[/\\](?:_app|_document|404|500)\.[^.]+$/.test(filePath)) {
+      return
+    }
+
     const page = isApp
       ? normalizeAppPath(path.relative(this.appDir, filePath))
       : '/' + path.relative(this.pagesDir, filePath)
 
     let route =
       (isApp
-        ? page.replace(/\/page\.[^./]+$/, '')
-        : page.replace(/\.[^./]+$/, '')
-      ).replace(/\/index$/, '') || '/'
+        ? page.replace(/[/\\]page\.[^./]+$/, '')
+        : page.replace(/\.[^./]+$/, '').replace(/[/\\]index$/, '')) || '/'
 
     if (isDynamicRoute(route)) {
       route = route
