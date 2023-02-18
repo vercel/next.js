@@ -1028,7 +1028,11 @@ export default async function getBaseWebpackConfig(
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
     ...(isEdgeServer && {
-      conditionNames: mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
+      conditionNames: [
+        ...mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
+        'import',
+        'node',
+      ],
     }),
     plugins: [],
   }
