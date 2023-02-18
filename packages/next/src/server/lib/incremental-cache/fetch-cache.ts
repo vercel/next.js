@@ -5,7 +5,7 @@ import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
 export default class FetchCache implements CacheHandler {
-  private headers: Record<string, string>
+  private headers: Record<string, string | string>
   private cacheEndpoint: string
   private debug: boolean
 
@@ -45,6 +45,11 @@ export default class FetchCache implements CacheHandler {
     this.cacheEndpoint = `https://${ctx._requestHeaders['x-vercel-sc-host']}${
       ctx._requestHeaders['x-vercel-sc-basepath'] || ''
     }`
+    if (ctx._requestHeaders['cache-control']) {
+      this.headers['x-vercel-cache-control'] = JSON.stringify(
+        ctx._requestHeaders['cache-control']
+      )
+    }
     if (this.debug) {
       console.log('using cache endpoint', this.cacheEndpoint)
     }
@@ -59,11 +64,11 @@ export default class FetchCache implements CacheHandler {
     if (!data) {
       try {
         const start = Date.now()
+
         const res = await fetch(
-          `${this.cacheEndpoint}/v1/suspense-cache/getItems`,
+          `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
-            method: 'POST',
-            body: JSON.stringify([key]),
+            method: 'GET',
             headers: this.headers,
           }
         )
@@ -73,29 +78,28 @@ export default class FetchCache implements CacheHandler {
           throw new Error(`invalid response from cache ${res.status}`)
         }
 
-        const items = await res.json()
-        const item = items?.[key]
+        const item = await res.text()
 
-        if (!item || !item.value) {
-          throw new Error(`invalid item returned ${JSON.stringify({ item })}`)
-        }
-
-        const cached = JSON.parse(item.value)
+        const cached = JSON.parse(item)
 
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
           throw new Error(`invalid cache value`)
         }
 
+        const cacheState = res.headers.get('x-vercel-cache-state')
+        const age = res.headers.get('age')
+
         data = {
-          lastModified: Date.now() - item.age * 1000,
+          age: age === null ? undefined : parseInt(age, 10),
+          cacheState: cacheState || undefined,
           value: cached,
         }
         if (this.debug) {
           console.log(
             `got fetch cache entry for ${key}, duration: ${
               Date.now() - start
-            }ms, size: ${item.value.length}`
+            }ms, size: ${item.length}`
           )
         }
 
@@ -124,15 +128,16 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const start = Date.now()
-      const body = JSON.stringify([
-        {
-          id: key,
-          value: JSON.stringify(data),
-        },
-      ])
+
+      const body = JSON.stringify(data)
+
+      const setHeaders = this.headers
+      if (data !== null && 'revalidate' in data) {
+        setHeaders['x-vercel-revalidate'] = data.revalidate.toString()
+      }
 
       const res = await fetch(
-        `${this.cacheEndpoint}/v1/suspense-cache/setItems`,
+        `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
         {
           method: 'POST',
           headers: this.headers,

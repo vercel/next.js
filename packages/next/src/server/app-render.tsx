@@ -356,8 +356,6 @@ function patchFetch(ComponentMod: any) {
             cacheKey,
             {
               kind: 'FETCH',
-              isStale: false,
-              age: 0,
               data: {
                 headers: Object.fromEntries(clonedRes.headers.entries()),
                 body: base64Body,

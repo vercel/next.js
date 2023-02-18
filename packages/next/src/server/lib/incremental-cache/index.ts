@@ -25,6 +25,8 @@ export interface CacheHandlerContext {
 
 export interface CacheHandlerValue {
   lastModified?: number
+  age?: number
+  cacheState?: string
   value: IncrementalCacheValue | null
 }
 
@@ -187,23 +189,27 @@ export class IncrementalCache {
     const cacheData = await this.cacheHandler.get(pathname, fetchCache)
 
     if (cacheData?.value?.kind === 'FETCH') {
+      const age =
+        cacheData.age ||
+        Math.round((Date.now() - (cacheData.lastModified || 0)) / 1000)
+      let isStale
+      if (cacheData.cacheState !== undefined) {
+        isStale = cacheData.cacheState !== 'fresh'
+      } else {
+        isStale = age > cacheData.value.revalidate
+      }
       const data = cacheData.value.data
-      const age = Math.round(
-        (Date.now() - (cacheData.lastModified || 0)) / 1000
-      )
-      const revalidate = cacheData.value.revalidate
 
       return {
-        isStale: age > revalidate,
+        isStale: isStale,
         value: {
           kind: 'FETCH',
           data,
-          age,
-          revalidate,
-          isStale: age > revalidate,
+          revalidate: cacheData.value.revalidate,
         },
         revalidateAfter:
-          (cacheData.lastModified || Date.now()) + revalidate * 1000,
+          (cacheData.lastModified || Date.now()) +
+          cacheData.value.revalidate * 1000,
       }
     }
 
