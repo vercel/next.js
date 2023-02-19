@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use regex::Regex;
@@ -249,7 +250,7 @@ impl<C: Comments> ReactServerComponents<C> {
         );
     }
 
-    fn assert_server_graph(&self, imports: &Vec<ModuleImports>, module: &Module) {
+    fn assert_server_graph(&self, imports: &[ModuleImports], module: &Module) {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_server_imports.contains(&source) {
@@ -292,7 +293,7 @@ impl<C: Comments> ReactServerComponents<C> {
             }
         }
 
-        self.assert_invalid_api(module);
+        self.assert_invalid_api(module, false);
         self.assert_server_filename(module);
     }
 
@@ -321,7 +322,7 @@ impl<C: Comments> ReactServerComponents<C> {
         }
     }
 
-    fn assert_client_graph(&self, imports: &Vec<ModuleImports>, module: &Module) {
+    fn assert_client_graph(&self, imports: &[ModuleImports], module: &Module) {
         for import in imports {
             let source = import.source.0.clone();
             if self.invalid_client_imports.contains(&source) {
@@ -336,48 +337,48 @@ impl<C: Comments> ReactServerComponents<C> {
             }
         }
 
-        self.assert_invalid_api(module);
+        self.assert_invalid_api(module, true);
     }
 
-    fn assert_invalid_api(&self, module: &Module) {
-        // Assert `getServerSideProps` and `getStaticProps` exports.
+    fn assert_invalid_api(&self, module: &Module, is_client_entry: bool) {
         let is_layout_or_page = Regex::new(r"/(page|layout)\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
 
         if is_layout_or_page {
             let mut span = DUMMY_SP;
-            let mut has_get_server_side_props = false;
-            let mut has_get_static_props = false;
+            let mut invalid_export_name = String::new();
+            let mut invalid_exports: HashMap<String, bool> = HashMap::new();
 
-            'matcher: for export in &module.body {
+            fn invalid_exports_matcher(
+                export_name: &str,
+                invalid_exports: &mut HashMap<String, bool>,
+            ) -> bool {
+                match export_name {
+                    "getServerSideProps" | "getStaticProps" | "generateMetadata" | "metadata" => {
+                        invalid_exports.insert(export_name.to_string(), true);
+                        true
+                    }
+                    _ => false,
+                }
+            }
+
+            for export in &module.body {
                 match export {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
                         for specifier in &export.specifiers {
                             if let ExportSpecifier::Named(named) = specifier {
                                 match &named.orig {
                                     ModuleExportName::Ident(i) => {
-                                        if i.sym == *"getServerSideProps" {
-                                            has_get_server_side_props = true;
+                                        if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
                                             span = named.span;
-                                            break 'matcher;
-                                        }
-                                        if i.sym == *"getStaticProps" {
-                                            has_get_static_props = true;
-                                            span = named.span;
-                                            break 'matcher;
+                                            invalid_export_name = i.sym.to_string();
                                         }
                                     }
                                     ModuleExportName::Str(s) => {
-                                        if s.value == *"getServerSideProps" {
-                                            has_get_server_side_props = true;
+                                        if invalid_exports_matcher(&s.value, &mut invalid_exports) {
                                             span = named.span;
-                                            break 'matcher;
-                                        }
-                                        if s.value == *"getStaticProps" {
-                                            has_get_static_props = true;
-                                            span = named.span;
-                                            break 'matcher;
+                                            invalid_export_name = s.value.to_string();
                                         }
                                     }
                                 }
@@ -386,29 +387,17 @@ impl<C: Comments> ReactServerComponents<C> {
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
                         Decl::Fn(f) => {
-                            if f.ident.sym == *"getServerSideProps" {
-                                has_get_server_side_props = true;
+                            if invalid_exports_matcher(&f.ident.sym, &mut invalid_exports) {
                                 span = f.ident.span;
-                                break 'matcher;
-                            }
-                            if f.ident.sym == *"getStaticProps" {
-                                has_get_static_props = true;
-                                span = f.ident.span;
-                                break 'matcher;
+                                invalid_export_name = f.ident.sym.to_string();
                             }
                         }
                         Decl::Var(v) => {
                             for decl in &v.decls {
                                 if let Pat::Ident(i) = &decl.name {
-                                    if i.sym == *"getServerSideProps" {
-                                        has_get_server_side_props = true;
+                                    if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
                                         span = i.span;
-                                        break 'matcher;
-                                    }
-                                    if i.sym == *"getStaticProps" {
-                                        has_get_static_props = true;
-                                        span = i.span;
-                                        break 'matcher;
+                                        invalid_export_name = i.sym.to_string();
                                     }
                                 }
                             }
@@ -419,20 +408,46 @@ impl<C: Comments> ReactServerComponents<C> {
                 }
             }
 
-            if has_get_server_side_props || has_get_static_props {
+            // Assert invalid metadata and generateMetadata exports.
+            let has_gm_export = invalid_exports.contains_key("generateMetadata");
+            let has_metadata_export = invalid_exports.contains_key("metadata");
+
+            // Client entry can't export `generateMetadata` or `metadata`.
+            if is_client_entry {
+                if has_gm_export || has_metadata_export {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                span,
+                                format!("NEXT_RSC_ERR_INVALID_API: {}", invalid_export_name)
+                                    .as_str(),
+                            )
+                            .emit()
+                    })
+                }
+            } else {
+                // Server entry can't export `generateMetadata` and `metadata` together.
+                if has_gm_export && has_metadata_export {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                span,
+                                "NEXT_RSC_ERR_INVALID_API: export generateMetadata and metadata \
+                                 together",
+                            )
+                            .emit()
+                    })
+                }
+            }
+            // Assert `getServerSideProps` and `getStaticProps` exports.
+            if invalid_export_name == "getServerSideProps"
+                || invalid_export_name == "getStaticProps"
+            {
                 HANDLER.with(|handler| {
                     handler
                         .struct_span_err(
                             span,
-                            format!(
-                                "NEXT_RSC_ERR_INVALID_API: {}",
-                                if has_get_server_side_props {
-                                    "getServerSideProps"
-                                } else {
-                                    "getStaticProps"
-                                }
-                            )
-                            .as_str(),
+                            format!("NEXT_RSC_ERR_INVALID_API: {}", invalid_export_name).as_str(),
                         )
                         .emit()
                 })
