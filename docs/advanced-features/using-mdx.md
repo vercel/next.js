@@ -214,6 +214,32 @@ export default function Post(props) {
 
 If you use it across the site you may want to add the provider to `_app.js` so all MDX pages pick up the custom element config.
 
+```jsx
+import Image from 'next/image'
+import { Heading, InlineCode, Pre, Table, Text } from 'my-components'
+
+const ResponsiveImage = (props) => (
+  <Image alt={props.alt} layout="responsive" {...props} />
+)
+
+const components = {
+  img: ResponsiveImage,
+  h1: Heading.H1,
+  h2: Heading.H2,
+  p: Text,
+  pre: Pre,
+  code: InlineCode,
+}
+
+
+function MyApp({ Component, pageProps }: AppProps) {
+  // You can directly pass custom components to the page props
+  return <Component {...pageProps} components={components} />;
+}
+
+export default MyApp;
+```
+
 ## Using rust based MDX compiler (experimental)
 
 Next.js supports a new MDX compiler written in Rust. This compiler is still experimental and is not recommended for production use. To use the new compiler, you need to configure `next.config.js` when you pass it to `withMDX`:
