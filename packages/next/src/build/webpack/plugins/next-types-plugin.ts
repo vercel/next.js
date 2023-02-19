@@ -6,7 +6,7 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 
-const PLUGIN_NAME = 'FlightTypesPlugin'
+const PLUGIN_NAME = 'NextTypesPlugin'
 
 interface Options {
   dir: string
@@ -191,7 +191,7 @@ declare module 'next' {
 }`
 }
 
-export class FlightTypesPlugin {
+export class NextTypesPlugin {
   dir: string
   distDir: string
   appDir: string
@@ -220,15 +220,23 @@ export class FlightTypesPlugin {
       return
     }
 
+    // Filter out non-page files in pages dir
+    if (
+      !isApp &&
+      /[/\\](?:_app|_document|_error|404|500)\.[^.]+$/.test(filePath)
+    ) {
+      return
+    }
+
     const page = isApp
       ? normalizeAppPath(path.relative(this.appDir, filePath))
       : '/' + path.relative(this.pagesDir, filePath)
 
     let route =
       (isApp
-        ? page.replace(/\/page\.[^./]+$/, '')
-        : page.replace(/\.[^./]+$/, '')
-      ).replace(/\/index$/, '') || '/'
+        ? page.replace(/[/\\]page\.[^./]+$/, '')
+        : page.replace(/\.[^./]+$/, '').replace(/[/\\]index$/, '')
+      ).replace(/\\/g, '/') || '/'
 
     if (isDynamicRoute(route)) {
       route = route
