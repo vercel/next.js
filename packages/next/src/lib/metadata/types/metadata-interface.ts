@@ -42,6 +42,7 @@ interface Metadata {
   /**
    * The document title.
    * @example
+   * ```tsx
    * "My Blog"
    * <title>My Blog</title>
    *
@@ -50,15 +51,17 @@ interface Metadata {
    *
    * { absolute: "My Blog", template: "%s | My Website" }
    * <title>My Blog</title>
-   *
+   * ```
    */
   title?: null | string | TemplateString
 
   /**
    * The document description, and optionally the OpenGraph and twitter descriptions.
    * @example
+   * ```tsx
    * "My Blog Description"
    * <meta name="description" content="My Blog Description" />
+   * ```
    */
   description?: null | string
 
@@ -68,8 +71,10 @@ interface Metadata {
   /**
    * The application name.
    * @example
+   * ```tsx
    * "My Blog"
    * <meta name="application-name" content="My Blog" />
+   * ```
    */
   applicationName?: null | string
 
@@ -155,18 +160,21 @@ interface Metadata {
   /**
    * The creator of the document.
    * @example
+   * ```tsx
    * "Next.js Team"
    * <meta name="creator" content="Next.js Team" />
-   *
+   * ```
    */
   creator?: null | string
 
   /**
    * The publisher of the document.
    * @example
+   *
+   * ```tsx
    * "Vercel"
    * <meta name="publisher" content="Vercel" />
-   *
+   * ```
    */
   publisher?: null | string
 
@@ -177,25 +185,27 @@ interface Metadata {
    *
    * @see https://developer.mozilla.org/en-US/docs/Glossary/Robots.txt
    * @example
+   * ```tsx
    * "index, follow"
    * <meta name="robots" content="index, follow" />
    *
    * { index: false, follow: false }
    * <meta name="robots" content="noindex, nofollow" />
-   *
+   * ```
    */
   robots?: null | string | Robots
 
   /**
    * The canonical and alternate URLs for the document.
    * @example
+   * ```tsx
    * { canonical: "https://example.com" }
    * <link rel="canonical" href="https://example.com" />
    *
    * { canonical: "https://example.com", hreflang: { "en-US": "https://example.com/en-US" } }
    * <link rel="canonical" href="https://example.com" />
    * <link rel="alternate" href="https://example.com/en-US" hreflang="en-US" />
-   *
+   * ```
    */
   alternates?: null | AlternateURLs
 
@@ -204,6 +214,7 @@ interface Metadata {
    *
    * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel#attr-icon
    * @example
+   * ```tsx
    * "https://example.com/icon.png"
    * <link rel="icon" href="https://example.com/icon.png" />
    *
@@ -214,7 +225,7 @@ interface Metadata {
    * [{ rel: "icon", href: "https://example.com/icon.png" }, { rel: "apple-touch-icon", href: "https://example.com/apple-icon.png" }]
    * <link rel="icon" href="https://example.com/icon.png" />
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
-   *
+   * ```
    */
   icons?: null | IconURL | Array<Icon> | Icons
 
@@ -223,8 +234,10 @@ interface Metadata {
    *
    * @see https://developer.mozilla.org/en-US/docs/Web/Manifest
    * @example
+   * ```tsx
    * "https://example.com/manifest.json"
    * <link rel="manifest" href="https://example.com/manifest.json" />
+   * ```
    *
    */
   manifest?: null | string | URL
@@ -234,15 +247,24 @@ interface Metadata {
    *
    * @see https://ogp.me
    * @example
+   * ```tsx
    * {
    *   type: "website",
    *   url: "https://example.com",
-   *   siteName: "My Website",
    *   title: "My Website",
+   *   description: "My Website Description",
+   *   siteName: "My Website",
    *   images: [{
    *     url: "https://example.com/og.png",
    *   }],
    * }
+   * ```
+   * <meta property="og:type" content="website" />
+   * <meta property="og:url" content="https://example.com" />
+   * <meta property="og:site_name" content="My Website" />
+   * <meta property="og:title" content="My Website" />
+   * <meta property="og:description" content="My Website Description" />
+   * <meta property="og:image" content="https://example.com/og.png" />
    *
    */
   openGraph?: null | OpenGraph
@@ -250,6 +272,7 @@ interface Metadata {
   /**
    * The Twitter metadata for the document.
    * @example
+   * ```tsx
    * { card: "summary_large_image", site: "@site", creator: "@creator", "images": "https://example.com/og.png" }
    *
    * <meta name="twitter:card" content="summary_large_image" />
@@ -258,6 +281,7 @@ interface Metadata {
    * <meta name="twitter:title" content="My Website" />
    * <meta name="twitter:description" content="My Website Description" />
    * <meta name="twitter:image" content="https://example.com/og.png" />
+   * ```
    *
    */
   twitter?: null | Twitter
@@ -265,11 +289,12 @@ interface Metadata {
   /**
    * The common verification tokens for the document.
    * @example
+   * ```tsx
    * { verification: { google: "google-site-verification=1234567890", yandex: "1234567890", "me": "1234567890" } }
    * <meta name="google-site-verification" content="1234567890" />
    * <meta name="yandex-verification" content="1234567890" />
    * <meta name="me" content="@me" />
-   *
+   * ```
    */
   verification?: Verification
 
@@ -278,10 +303,12 @@ interface Metadata {
    *
    * @see https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
    * @example
+   * ```tsx
    * { capable: true, title: "My Website", statusBarStyle: "black-translucent" }
    * <meta name="apple-mobile-web-app-capable" content="yes" />
    * <meta name="apple-mobile-web-app-title" content="My Website" />
    * <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+   * ```
    *
    */
   appleWebApp?: null | boolean | AppleWebApp
@@ -290,8 +317,10 @@ interface Metadata {
    * Indicates if devices should try to interpret various formats and make actionable links out of them. For example it controles
    * if telephone numbers on mobile that can be clicked to dial or not.
    * @example
+   * ```tsx
    * { telephone: false }
    * <meta name="format-detection" content="telephone=no" />
+   * ```
    *
    */
   formatDetection?: null | FormatDetection
@@ -299,10 +328,12 @@ interface Metadata {
   /**
    * The metadata for the iTunes App.
    * It adds the `name="apple-itunes-app"` meta tag.
+   *
    * @example
+   * ```tsx
    * { app: { id: "123456789", affiliateData: "123456789", appArguments: "123456789" } }
    * <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=123456789, app-arguments=123456789" />
-   *
+   * ```
    */
   itunes?: null | ItunesApp
 
@@ -312,49 +343,54 @@ interface Metadata {
    *
    * @see https://www.metatags.org/all-meta-tags-overview/meta-name-abstract/
    * @example
+   * ```tsx
    * "My Website Description"
    * <meta name="abstract" content="My Website Description" />
-   *
+   * ```
    */
   abstract?: null | string
 
   /**
    * The Facebook AppLinks metadata for the document.
    * @example
+   * ```ts
    * { ios: { appStoreId: "123456789", url: "https://example.com" }, android: { packageName: "com.example", url: "https://example.com" } }
    *
    * <meta property="al:ios:app_store_id" content="123456789" />
    * <meta property="al:ios:url" content="https://example.com" />
    * <meta property="al:android:package" content="com.example" />
    * <meta property="al:android:url" content="https://example.com" />
-   *
+   * ```
    */
   appLinks?: null | AppLinks
 
   /**
    * The archives link rel property.
    * @example
+   * ```tsx
    * { archives: "https://example.com/archives" }
    * <link rel="archives" href="https://example.com/archives" />
-   *
+   * ```
    */
   archives?: null | string | Array<string>
 
   /**
    * The assets link rel property.
    * @example
+   * ```tsx
    * "https://example.com/assets"
    * <link rel="assets" href="https://example.com/assets" />
-   *
+   * ```
    */
   assets?: null | string | Array<string>
 
   /**
    * The bookmarks link rel property.
    * @example
+   * ```tsx
    * "https://example.com/bookmarks"
    * <link rel="bookmarks" href="https://example.com/bookmarks" />
-   *
+   * ```
    */
   bookmarks?: null | string | Array<string> // This is technically against HTML spec but is used in wild
 
@@ -363,17 +399,20 @@ interface Metadata {
   /**
    * The category meta name property.
    * @example
+   * ```tsx
    * "My Category"
    * <meta name="category" content="My Category" />
+   * ```
    */
   category?: null | string
 
   /**
    * The classification meta name property.
    * @example
+   * ```tsx
    * "My Classification"
    * <meta name="classification" content="My Classification" />
-   *
+   * ```
    */
   classification?: null | string
 
