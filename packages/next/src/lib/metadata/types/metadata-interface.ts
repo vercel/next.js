@@ -258,14 +258,14 @@ interface Metadata {
    *     url: "https://example.com/og.png",
    *   }],
    * }
-   * ```
+   *
    * <meta property="og:type" content="website" />
    * <meta property="og:url" content="https://example.com" />
    * <meta property="og:site_name" content="My Website" />
    * <meta property="og:title" content="My Website" />
    * <meta property="og:description" content="My Website Description" />
    * <meta property="og:image" content="https://example.com/og.png" />
-   *
+   * ```
    */
   openGraph?: null | OpenGraph
 
@@ -353,7 +353,7 @@ interface Metadata {
   /**
    * The Facebook AppLinks metadata for the document.
    * @example
-   * ```ts
+   * ```tsx
    * { ios: { appStoreId: "123456789", url: "https://example.com" }, android: { packageName: "com.example", url: "https://example.com" } }
    *
    * <meta property="al:ios:app_store_id" content="123456789" />
