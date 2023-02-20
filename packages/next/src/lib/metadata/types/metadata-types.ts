@@ -85,6 +85,7 @@ export type IconDescriptor = {
   sizes?: string
   // defaults to rel="icon" unless superceded by Icons map
   rel?: string
+  media?: string
 }
 export type Icons = {
   // rel="icon"
