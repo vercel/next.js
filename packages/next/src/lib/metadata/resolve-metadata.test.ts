@@ -9,7 +9,7 @@ describe('accumulateMetadata', () => {
         [() => Promise.resolve({ description: 'child' }), null],
       ]
 
-      const metadata = await accumulateMetadata(metadataItems)
+      const metadata = await accumulateMetadata(metadataItems, undefined)
       expect(metadata).toMatchObject({
         description: 'child',
       })
@@ -23,7 +23,7 @@ describe('accumulateMetadata', () => {
         [{ title: 'layout' }, null],
         [{ title: 'page' }, null],
       ]
-      const metadata = await accumulateMetadata(metadataItems)
+      const metadata = await accumulateMetadata(metadataItems, undefined)
       expect(metadata).toMatchObject({
         title: { absolute: 'page', template: null },
       })
@@ -43,7 +43,7 @@ describe('accumulateMetadata', () => {
         [null, null], // same level layout
         [{ title: 'page' }, null],
       ]
-      const metadata = await accumulateMetadata(metadataItems)
+      const metadata = await accumulateMetadata(metadataItems, undefined)
       expect(metadata).toMatchObject({
         title: { absolute: '2nd parent layout page', template: null },
       })

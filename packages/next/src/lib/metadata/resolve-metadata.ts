@@ -251,7 +251,7 @@ function constructMetadataBase(urlBase: string) {
 
 export async function accumulateMetadata(
   metadataItems: MetadataItems,
-  urlBase: string
+  urlBase: string | undefined
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
 
