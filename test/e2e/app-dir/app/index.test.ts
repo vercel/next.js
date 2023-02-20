@@ -317,16 +317,16 @@ createNextDescribe(
         try {
           // Click the link.
           await browser.elementById('link-to-rewritten-path').click()
-          await browser.waitForElementByCss('#from-dashboard')
+          await browser.waitForElementByCss('#from-dashboard', 5000)
 
           // Check to see that we were rewritten and not redirected.
           // TODO-APP: rewrite url is broken
           // expect(await browser.url()).toBe(`${next.url}/rewritten-to-dashboard`)
 
           // Check to see that the page we navigated to is in fact the dashboard.
-          expect(await browser.elementByCss('#from-dashboard').text()).toBe(
-            'hello from app/dashboard'
-          )
+          expect(
+            await browser.elementByCss('#from-dashboard', 5000).text()
+          ).toBe('hello from app/dashboard')
         } finally {
           await browser.close()
         }
@@ -589,15 +589,15 @@ createNextDescribe(
         try {
           // Click the link.
           await browser.elementById('pages-link').click()
-          expect(await browser.waitForElementByCss('#pages-text').text()).toBe(
-            'hello from pages/dynamic-pages-route-app-overlap/[slug]'
-          )
+          expect(
+            await browser.waitForElementByCss('#pages-text', 5000).text()
+          ).toBe('hello from pages/dynamic-pages-route-app-overlap/[slug]')
 
           // When refreshing the browser, the app page should be rendered
           await browser.refresh()
-          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
-            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
-          )
+          expect(
+            await browser.waitForElementByCss('#app-text', 5000).text()
+          ).toBe('hello from app/dynamic-pages-route-app-overlap/app-dir/page')
         } finally {
           await browser.close()
         }
