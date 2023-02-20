@@ -341,7 +341,7 @@ module.exports = createJestConfig(customJestConfig)
 Under the hood, `next/jest` is automatically configuring Jest for you, including:
 
 - Setting up `transform` using [SWC](https://nextjs.org/docs/advanced-features/compiler)
-- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants), image imports and [`@next/font`](https://nextjs.org/docs/basic-features/font-optimization)
+- Auto mocking stylesheets (`.css`, `.module.css`, and their scss variants), image imports and [`next/font`](https://nextjs.org/docs/basic-features/font-optimization)
 - Loading `.env` (and all variants) into `process.env`
 - Ignoring `node_modules` from test resolving and transforms
 - Ignoring `.next` from test resolving
