@@ -103,7 +103,8 @@ describe('accumulateMetadata', () => {
       items.forEach(async (item) => {
         const [configuredMetadata, result] = item
         const metadata = await accumulateMetadata(
-          configuredMetadata.map((m) => [m, null])
+          configuredMetadata.map((m) => [m, null]),
+          undefined
         )
         expect(metadata).toMatchObject(result)
       })
