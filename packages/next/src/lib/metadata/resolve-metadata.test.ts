@@ -1,5 +1,5 @@
 import { accumulateMetadata, MetadataItems } from './resolve-metadata'
-import { Metadata, ResolvedMetadata } from './types/metadata-interface'
+import { Metadata } from './types/metadata-interface'
 
 describe('accumulateMetadata', () => {
   describe('typing', () => {
