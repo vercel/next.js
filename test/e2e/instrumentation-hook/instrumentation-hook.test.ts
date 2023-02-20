@@ -22,7 +22,6 @@ createNextDescribe(
     })
     it('should run the edge instrumentation compiled version with the edge runtime', async () => {
       await next.render('/edge')
-      const stdout = await next.cliOutput
       await check(() => next.cliOutput, /instrumentation hook on the edge/)
     })
     if (isNextDev) {
