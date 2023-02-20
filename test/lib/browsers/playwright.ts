@@ -8,6 +8,7 @@ import {
   BrowserContext,
   Page,
   ElementHandle,
+  devices,
 } from 'playwright-chromium'
 import path from 'path'
 
@@ -26,7 +27,7 @@ export async function quit() {
   browser = undefined
 }
 
-class Playwright extends BrowserInterface {
+export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
@@ -49,15 +50,33 @@ class Playwright extends BrowserInterface {
   async setup(browserName: string, locale?: string) {
     if (browser) return
     const headless = !!process.env.HEADLESS
+    let device
 
-    if (browserName === 'safari') {
-      browser = await webkit.launch({ headless })
-    } else if (browserName === 'firefox') {
-      browser = await firefox.launch({ headless })
-    } else {
-      browser = await chromium.launch({ headless, devtools: !headless })
+    if (process.env.DEVICE_NAME) {
+      device = devices[process.env.DEVICE_NAME]
+
+      if (!device) {
+        throw new Error(
+          `Invalid playwright device name ${process.env.DEVICE_NAME}`
+        )
+      }
     }
-    context = await browser.newContext({ locale })
+
+    browser = await this.launchBrowser(browserName, { headless })
+    context = await browser.newContext({ locale, ...device })
+  }
+
+  async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
+    if (browserName === 'safari') {
+      return await webkit.launch(launchOptions)
+    } else if (browserName === 'firefox') {
+      return await firefox.launch(launchOptions)
+    } else {
+      return await chromium.launch({
+        devtools: !launchOptions.headless,
+        ...launchOptions,
+      })
+    }
   }
 
   async get(url: string): Promise<void> {
@@ -258,12 +277,12 @@ class Playwright extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute(attr) {
-    return this.chain((el) => el.getAttribute(attr))
+  async getAttribute<T = any>(attr) {
+    return this.chain((el) => el.getAttribute(attr)) as T
   }
 
-  async hasElementByCssSelector(selector: string) {
-    return this.eval(`!!document.querySelector('${selector}')`) as any
+  hasElementByCssSelector(selector: string) {
+    return this.eval<boolean>(`!!document.querySelector('${selector}')`)
   }
 
   keydown(key: string): BrowserInterface {
@@ -281,6 +300,12 @@ class Playwright extends BrowserInterface {
   click() {
     return this.chain((el) => {
       return el.click().then(() => el)
+    })
+  }
+
+  touchStart() {
+    return this.chain((el: ElementHandle) => {
+      return el.dispatchEvent('touchstart').then(() => el)
     })
   }
 
@@ -319,22 +344,22 @@ class Playwright extends BrowserInterface {
     })
   }
 
-  async eval(snippet) {
-    // TODO: should this and evalAsync be chained? Might lead
-    // to bad chains
-    return page
-      .evaluate(snippet)
-      .catch((err) => {
-        console.error('eval error:', err)
-        return null
-      })
-      .then(async (val) => {
-        await page.waitForLoadState()
-        return val
-      })
+  eval<T = any>(snippet): Promise<T> {
+    return this.chainWithReturnValue(() =>
+      page
+        .evaluate(snippet)
+        .catch((err) => {
+          console.error('eval error:', err)
+          return null
+        })
+        .then(async (val) => {
+          await page.waitForLoadState()
+          return val as T
+        })
+    )
   }
 
-  async evalAsync(snippet) {
+  async evalAsync<T = any>(snippet) {
     if (typeof snippet === 'function') {
       snippet = snippet.toString()
     }
@@ -352,7 +377,7 @@ class Playwright extends BrowserInterface {
       })()`
     }
 
-    return page.evaluate(snippet).catch(() => null)
+    return page.evaluate<T>(snippet).catch(() => null)
   }
 
   async log() {
@@ -367,5 +392,3 @@ class Playwright extends BrowserInterface {
     return this.chain(() => page.evaluate('window.location.href')) as any
   }
 }
-
-export default Playwright

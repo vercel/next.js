@@ -3,9 +3,9 @@ export default function Home() {
 
     <div data-custom="2">
 
-      <h1 nested={()=><div >nested</div>}>Hello World!</h1>
+      <h1 nested={()=><div>nested</div>}>Hello World!</h1>
 
     </div>
 
   </div>;
-};
+}

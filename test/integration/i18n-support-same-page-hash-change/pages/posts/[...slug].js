@@ -11,8 +11,9 @@ export default function Page(props) {
       <Link
         href={{ pathname: router.pathname, query: router.query, hash: '#hash' }}
         locale={router.locale === 'fr' ? 'en' : 'fr'}
+        id="change-locale"
       >
-        <a id="change-locale">Change Locale</a>
+        Change Locale
       </Link>
     </>
   )

@@ -23,8 +23,13 @@ import {
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
+export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
+
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from '../dist/server/config'
+
+// @ts-ignore This path is generated at build time and conflicts otherwise
+export { Metadata } from '../dist/lib/metadata/types/metadata-interface'
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -37,6 +42,9 @@ declare module 'react' {
   interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
     nonce?: string
   }
+
+  function use<T>(promise: Promise<T> | React.Context<T>): T
+  function cache<T extends Function>(fn: T): T
 }
 
 export type Redirect =
@@ -54,7 +62,27 @@ export type Redirect =
 /**
  * `Page` type, use it as a guide to create `pages`.
  */
-export type NextPage<P = {}, IP = P> = NextComponentType<NextPageContext, IP, P>
+export type NextPage<Props = {}, InitialProps = Props> = NextComponentType<
+  NextPageContext,
+  InitialProps,
+  Props
+>
+
+export type FileSizeSuffix = `${
+  | 'k'
+  | 'K'
+  | 'm'
+  | 'M'
+  | 'g'
+  | 'G'
+  | 't'
+  | 'T'
+  | 'p'
+  | 'P'}${'b' | 'B'}`
+
+export type SizeLimit = number | `${number}${FileSizeSuffix}`
+
+export type ResponseLimit = SizeLimit | boolean
 
 /**
  * `Config` type, use it for export const config
@@ -67,12 +95,16 @@ export type PageConfig = {
      * any string format supported by `bytes`, for example `1000`, `'500kb'` or
      * `'3mb'`.
      */
-    responseLimit?: number | string | boolean
+    responseLimit?: ResponseLimit
     /**
      * The byte limit of the body. This is the number of bytes or any string
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
-    bodyParser?: { sizeLimit?: number | string } | false
+    bodyParser?:
+      | {
+          sizeLimit?: SizeLimit
+        }
+      | false
     /**
      * Flag to disable warning "API page resolved
      * without sending a response", due to explicitly
@@ -81,9 +113,18 @@ export type PageConfig = {
     externalResolver?: true
   }
   env?: Array<string>
+  runtime?: ServerRuntime
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
+  /**
+   * @deprecated this config has been removed in favor of the next.config.js option
+   */
+  // TODO: remove in next minor release (current v13.1.1)
   unstable_includeFiles?: string[]
+  /**
+   * @deprecated this config has been removed in favor of the next.config.js option
+   */
+  // TODO: remove in next minor release (current v13.1.1)
   unstable_excludeFiles?: string[]
 }
 
@@ -98,93 +139,85 @@ export {
 export type PreviewData = string | false | object | undefined
 
 export type GetStaticPropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = {
-  params?: Q
+  params?: Params
   preview?: boolean
-  previewData?: D
+  previewData?: Preview
   locale?: string
   locales?: string[]
   defaultLocale?: string
 }
 
-export type GetStaticPropsResult<P> =
-  | { props: P; revalidate?: number | boolean }
+export type GetStaticPropsResult<Props> =
+  | { props: Props; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
   | { notFound: true; revalidate?: number | boolean }
 
 export type GetStaticProps<
-  P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Props extends { [key: string]: any } = { [key: string]: any },
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = (
-  context: GetStaticPropsContext<Q, D>
-) => Promise<GetStaticPropsResult<P>> | GetStaticPropsResult<P>
+  context: GetStaticPropsContext<Params, Preview>
+) => Promise<GetStaticPropsResult<Props>> | GetStaticPropsResult<Props>
 
-export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
-  ? P
-  : T extends (
-      context?: GetStaticPropsContext<any>
-    ) => Promise<GetStaticPropsResult<infer P>> | GetStaticPropsResult<infer P>
-  ? P
-  : never
+export type InferGetStaticPropsType<T extends (args: any) => any> = Extract<
+  Awaited<ReturnType<T>>,
+  { props: any }
+>['props']
 
 export type GetStaticPathsContext = {
   locales?: string[]
   defaultLocale?: string
 }
 
-export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
-  paths: Array<string | { params: P; locale?: string }>
+export type GetStaticPathsResult<
+  Params extends ParsedUrlQuery = ParsedUrlQuery
+> = {
+  paths: Array<string | { params: Params; locale?: string }>
   fallback: boolean | 'blocking'
 }
 
-export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
+export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
-) => Promise<GetStaticPathsResult<P>> | GetStaticPathsResult<P>
+) => Promise<GetStaticPathsResult<Params>> | GetStaticPathsResult<Params>
 
 export type GetServerSidePropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = {
   req: IncomingMessage & {
     cookies: NextApiRequestCookies
   }
   res: ServerResponse
-  params?: Q
+  params?: Params
   query: ParsedUrlQuery
   preview?: boolean
-  previewData?: D
+  previewData?: Preview
   resolvedUrl: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
 }
 
-export type GetServerSidePropsResult<P> =
-  | { props: P | Promise<P> }
+export type GetServerSidePropsResult<Props> =
+  | { props: Props | Promise<Props> }
   | { redirect: Redirect }
   | { notFound: true }
 
 export type GetServerSideProps<
-  P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery,
-  D extends PreviewData = PreviewData
+  Props extends { [key: string]: any } = { [key: string]: any },
+  Params extends ParsedUrlQuery = ParsedUrlQuery,
+  Preview extends PreviewData = PreviewData
 > = (
-  context: GetServerSidePropsContext<Q, D>
-) => Promise<GetServerSidePropsResult<P>>
+  context: GetServerSidePropsContext<Params, Preview>
+) => Promise<GetServerSidePropsResult<Props>>
 
-export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
-  infer P,
-  any
+export type InferGetServerSidePropsType<T extends (args: any) => any> = Awaited<
+  Extract<Awaited<ReturnType<T>>, { props: any }>['props']
 >
-  ? P
-  : T extends (
-      context?: GetServerSidePropsContext<any>
-    ) => Promise<GetServerSidePropsResult<infer P>>
-  ? P
-  : never
 
 declare global {
   interface Crypto {

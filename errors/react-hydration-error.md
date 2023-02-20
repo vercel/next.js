@@ -37,6 +37,40 @@ function MyComponent() {
 }
 ```
 
+Another example:
+
+Invalid HTML may cause hydration mismatch such as div inside p.
+
+```jsx
+export const IncorrectComponent = () => {
+  return (
+    <p>
+      <div>
+        This is not correct and should never be done because the p tag has been
+        abused
+      </div>
+      <Image src="/vercel.svg" alt="" width="30" height="30" />
+    </p>
+  )
+}
+```
+
+How to fix it:
+
+```jsx
+export const CorrectComponent = () => {
+  return (
+    <div>
+      <div>
+        This is correct and should work because a div is really good for this
+        task.
+      </div>
+      <Image src="/vercel.svg" alt="" width="30" height="30" />
+    </div>
+  )
+}
+```
+
 Common causes with css-in-js libraries:
 
 - When using Styled Components / Emotion
@@ -48,7 +82,11 @@ Common causes with css-in-js libraries:
 - When using other css-in-js libraries
   - Similar to Styled Components / Emotion css-in-js libraries generally need configuration specified in their examples in the [examples directory](https://github.com/vercel/next.js/tree/canary/examples)
 
+Local Overrides
+
+It's possible you may have [Local Overrides enabled in Chrome devtools](https://developer.chrome.com/blog/new-in-devtools-65/#overrides). With this enabled, the HTML served will be different from what the SSR emitted. It also won't show up in view-source, so you may be left wondering what is going on.
+
 ### Useful Links
 
-- [React Hydration Documentation](https://reactjs.org/docs/react-dom.html#hydrate)
+- [React Hydration Documentation](https://reactjs.org/docs/react-dom-client.html#hydrateroot)
 - [Josh Comeau's article on React Hydration](https://www.joshwcomeau.com/react/the-perils-of-rehydration/)

@@ -1,4 +1,4 @@
-# MobX State Tree example
+# MobX State Tree with TypeScript example
 
 Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use mobx that also works with our universal rendering approach.
 
@@ -22,9 +22,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-mobx-state-tree with-mobx-state-tree-app
-# or
+```
+
+```bash
 yarn create next-app --example with-mobx-state-tree with-mobx-state-tree-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-mobx-state-tree with-mobx-state-tree-app
 ```
 

@@ -1,4 +1,4 @@
-import rule from '@next/eslint-plugin-next/lib/rules/no-sync-scripts'
+import rule from '@next/eslint-plugin-next/dist/rules/no-sync-scripts'
 import { RuleTester } from 'eslint'
 ;(RuleTester as any).setDefaultConfig({
   parserOptions: {

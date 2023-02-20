@@ -1,20 +1,23 @@
 import { action, observable, computed, runInAction, makeObservable } from 'mobx'
-import { enableStaticRendering } from 'mobx-react'
-import { useMemo } from 'react'
-// eslint-disable-next-line react-hooks/rules-of-hooks
+import { enableStaticRendering } from 'mobx-react-lite'
+
 enableStaticRendering(typeof window === 'undefined')
 
-let store
+export class Store {
+  lastUpdate = 0
+  light = false
 
-class Store {
   constructor() {
-    makeObservable(this)
+    makeObservable(this, {
+      lastUpdate: observable,
+      light: observable,
+      start: action,
+      hydrate: action,
+      timeString: computed,
+    })
   }
 
-  @observable lastUpdate = 0
-  @observable light = false
-
-  @action start = () => {
+  start = () => {
     this.timer = setInterval(() => {
       runInAction(() => {
         this.lastUpdate = Date.now()
@@ -23,7 +26,7 @@ class Store {
     }, 1000)
   }
 
-  @computed get timeString() {
+  get timeString() {
     const pad = (n) => (n < 10 ? `0${n}` : n)
     const format = (t) =>
       `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(
@@ -34,31 +37,10 @@ class Store {
 
   stop = () => clearInterval(this.timer)
 
-  @action hydrate = (data) => {
+  hydrate = (data) => {
     if (!data) return
 
     this.lastUpdate = data.lastUpdate !== null ? data.lastUpdate : Date.now()
     this.light = !!data.light
   }
-}
-
-function initializeStore(initialData = null) {
-  const _store = store ?? new Store()
-
-  // If your page has Next.js data fetching methods that use a Mobx store, it will
-  // get hydrated here, check `pages/ssg.js` and `pages/ssr.js` for more details
-  if (initialData) {
-    _store.hydrate(initialData)
-  }
-  // For SSG and SSR always create a new store
-  if (typeof window === 'undefined') return _store
-  // Create the store once in the client
-  if (!store) store = _store
-
-  return _store
-}
-
-export function useStore(initialState) {
-  const store = useMemo(() => initializeStore(initialState), [initialState])
-  return store
 }

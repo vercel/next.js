@@ -10,12 +10,175 @@ Codemods are transformations that run on your codebase programmatically. This al
 
 ## Usage
 
-`npx @next/codemod <transform> <path>`
+`npx @next/codemod@latest <transform> <path>`
 
 - `transform` - name of transform, see available transforms below.
 - `path` - files or directory to transform
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
+
+## Next.js 13
+
+### `new-link`
+
+Safely removes `<a>` from `next/link` or adds `legacyBehavior` prop.
+
+For example:
+
+```jsx
+export default function Page() {
+  return (
+    <Link href="/about">
+      <a>About Us</a>
+    </Link>
+  )
+}
+```
+
+Transforms into:
+
+```jsx
+export default function Page() {
+  return <Link href="/about">About Us</Link>
+}
+```
+
+### `next-image-to-legacy-image`
+
+This codemod safely migrates existing Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13.
+
+For example:
+
+```jsx
+import Image1 from 'next/image'
+import Image2 from 'next/future/image'
+
+export default function Home() {
+  return (
+    <div>
+      <Image1 src="/test.jpg" width="200" height="300" />
+      <Image2 src="/test.png" width="500" height="400" />
+    </div>
+  )
+}
+```
+
+Transforms into:
+
+```jsx
+import Image1 from 'next/legacy/image'
+import Image2 from 'next/image'
+
+export default function Home() {
+  return (
+    <div>
+      <Image1 src="/test.jpg" width="200" height="300" />
+      <Image2 src="/test.png" width="500" height="400" />
+    </div>
+  )
+}
+```
+
+### `next-image-experimental` (experimental)
+
+This codemod dangerously migrates from `next/legacy/image` to the new `next/image` by adding inline styles and removing unused props. Please note this codemod is experimental and only covers static usage (such as `<Image src={img} layout="responsive" />`) but not dynamic usage (such as `<Image {...props} />`).
+
+- Removes `layout` prop and adds `style`
+- Removes `objectFit` prop and adds `style`
+- Removes `objectPosition` prop and adds `style`
+- Removes `lazyBoundary` prop
+- Removes `lazyRoot` prop
+- Changes next.config.js `loader` to "custom", removes `path`, and sets `loaderFile` to a new file.
+
+#### Before: intrinsic
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
+
+#### After: intrinsic
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+const css = { maxWidth: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} style={css} />
+}
+```
+
+#### Before: responsive
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="responsive" />
+}
+```
+
+#### After: responsive
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+const css = { width: '100%', height: 'auto' }
+function Page() {
+  return <Image src={img} sizes="100vw" style={css} />
+}
+```
+
+#### Before: fill
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fill" />
+}
+```
+
+#### After: fill
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} sizes="100vw" fill />
+}
+```
+
+#### Before: fixed
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} layout="fixed" />
+}
+```
+
+#### After: fixed
+
+```jsx
+import Image from 'next/image'
+import img from '../img.png'
+
+function Page() {
+  return <Image src={img} />
+}
+```
 
 ## Next.js 11
 
@@ -91,7 +254,7 @@ cd path-to-your-project/
 Run the codemod:
 
 ```
-npx @next/codemod name-default-component
+npx @next/codemod@latest name-default-component
 ```
 
 ### `withamp-to-config`
@@ -133,7 +296,7 @@ cd path-to-your-project/
 Run the codemod:
 
 ```
-npx @next/codemod withamp-to-config
+npx @next/codemod@latest withamp-to-config
 ```
 
 ## Next.js 6
@@ -182,5 +345,5 @@ cd path-to-your-project/
 Run the codemod:
 
 ```
-npx @next/codemod url-to-withrouter
+npx @next/codemod@latest url-to-withrouter
 ```

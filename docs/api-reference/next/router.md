@@ -140,7 +140,7 @@ export default function Page() {
 
 #### Resetting state after navigation
 
-When navigating to the same page in Next.js, the page's state **will not** be reset by default as react does not unmount unless the parent component has changed.
+When navigating to the same page in Next.js, the page's state **will not** be reset by default as React does not unmount unless the parent component has changed.
 
 ```jsx
 // pages/[slug].js
@@ -156,11 +156,7 @@ export default function Page(props) {
       <h1>Page: {router.query.slug}</h1>
       <p>Count: {count}</p>
       <button onClick={() => setCount(count + 1)}>Increase count</button>
-      <Link href="/one">
-        <a>one</a>
-      </Link> <Link href="/two">
-        <a>two</a>
-      </Link>
+      <Link href="/one">one</Link> <Link href="/two">two</Link>
     </div>
   )
 }
@@ -248,14 +244,16 @@ export default function Page() {
 
 Prefetch pages for faster client-side transitions. This method is only useful for navigations without [`next/link`](/docs/api-reference/next/link.md), as `next/link` takes care of prefetching pages automatically.
 
-> This is a production only feature. Next.js doesn't prefetch pages on development.
+> This is a production only feature. Next.js doesn't prefetch pages in development.
 
 ```jsx
-router.prefetch(url, as)
+router.prefetch(url, as, options)
 ```
 
 - `url` - The URL to prefetch, including explicit routes (e.g. `/dashboard`) and dynamic routes (e.g. `/product/[id]`)
 - `as` - Optional decorator for `url`. Before Next.js 9.5.3 this was used to prefetch dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
+- `options` - Optional object with the following allowed fields:
+  - `locale` - allows providing a different locale from the active one. If `false`, `url` has to include the locale as the active locale won't be used.
 
 #### Usage
 

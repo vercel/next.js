@@ -27,13 +27,13 @@ export default function Page(props) {
         )}
       </p>
 
-      <Link href="/another">
-        <a id="to-another">to /another</a>
+      <Link href="/another" id="to-another">
+        to /another
       </Link>
       <br />
 
-      <Link href="/dynamic/first">
-        <a id="to-dynamic">to /dynamic/first</a>
+      <Link href="/dynamic/first" id="to-dynamic">
+        to /dynamic/first
       </Link>
       <br />
     </>

@@ -30,16 +30,6 @@ export type OriginalStackFrame =
       originalCodeFrame: null
     }
 
-export function getOriginalStackFrames(
-  frames: StackFrame[],
-  type: 'server' | 'edge-server' | null,
-  errorMessage: string
-) {
-  return Promise.all(
-    frames.map((frame) => getOriginalStackFrame(frame, type, errorMessage))
-  )
-}
-
 export function getOriginalStackFrame(
   source: StackFrame,
   type: 'server' | 'edge-server' | null,
@@ -115,6 +105,16 @@ export function getOriginalStackFrame(
     originalStackFrame: null,
     originalCodeFrame: null,
   }))
+}
+
+export function getOriginalStackFrames(
+  frames: StackFrame[],
+  type: 'server' | 'edge-server' | null,
+  errorMessage: string
+) {
+  return Promise.all(
+    frames.map((frame) => getOriginalStackFrame(frame, type, errorMessage))
+  )
 }
 
 export function getFrameSource(frame: StackFrame): string {

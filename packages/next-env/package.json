@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "12.2.4-canary.0",
+  "version": "13.1.7-canary.21",
   "keywords": [
     "react",
     "next",
@@ -27,10 +27,11 @@
     "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir types --esModuleInterop",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "build": "pnpm release && pnpm types",
-    "prepublishOnly": "cd ../../ && turbo run build"
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "test-pack": "cd ../../ && pnpm test-pack next-env"
   },
   "devDependencies": {
-    "@vercel/ncc": "0.33.4",
+    "@vercel/ncc": "0.34.0",
     "dotenv": "10.0.0",
     "dotenv-expand": "8.0.1",
     "rimraf": "3.0.2"

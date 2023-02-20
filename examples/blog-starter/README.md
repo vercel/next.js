@@ -36,6 +36,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 - [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
 - [Builder.io](/examples/cms-builder-io)
 - [TinaCMS](/examples/cms-tina/)
+- [Enterspeed](/examples/cms-enterspeed)
 
 ## How to use
 
@@ -43,9 +44,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example blog-starter blog-starter-app
-# or
+```
+
+```bash
 yarn create next-app --example blog-starter blog-starter-app
-# or
+```
+
+```bash
 pnpm create next-app --example blog-starter blog-starter-app
 ```
 

@@ -8,12 +8,6 @@ const appDir = path.join(__dirname, 'app')
 describe('next/jest', () => {
   let next: NextInstance
 
-  if (process.env.NEXT_TEST_REACT_VERSION === '^17') {
-    // react testing library is specific to react version
-    it('should bail on react v17', () => {})
-    return
-  }
-
   beforeAll(async () => {
     next = await createNext({
       files: {
@@ -55,7 +49,7 @@ describe('next/jest', () => {
   afterAll(() => next.destroy())
 
   it('data-testid should be removed in production', async () => {
-    const html = await renderViaHTTP(next.appPort, '/')
+    const html = await renderViaHTTP(next.url, '/')
 
     expect(html).not.toContain('data-testid')
   })

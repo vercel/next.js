@@ -11,10 +11,10 @@
     "ioredis": "^4.23.0",
     "next": "latest",
     "postcss": "^8.1.10",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-hot-toast": "^1.0.2",
-    "swr": "^0.5.1",
+    "swr": "^2.0.0",
     "tailwindcss": "^2.0.2",
     "uuid": "^8.3.2"
   },

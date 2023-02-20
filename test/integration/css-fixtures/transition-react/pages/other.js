@@ -21,8 +21,8 @@ export default class Other extends React.Component {
   render() {
     return (
       <main>
-        <Link href="/" prefetch={false}>
-          <a id="link-index">index page</a>
+        <Link href="/" prefetch={false} id="link-index">
+          index page
         </Link>
         <br />
         <h1 id="red-title" className={css.root} ref={this.ref}>

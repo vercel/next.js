@@ -5,9 +5,12 @@ use std::sync::Arc;
 use fxhash::FxHashSet;
 use next_swc::next_ssg::next_ssg;
 use once_cell::sync::Lazy;
-use swc::{try_with_handler, Compiler};
-use swc_common::{FileName, FilePathMapping, SourceMap};
-use swc_ecmascript::transforms::pass::noop;
+
+use next_binding::swc::core::{
+    base::{try_with_handler, Compiler},
+    common::{comments::SingleThreadedComments, FileName, FilePathMapping, SourceMap, GLOBALS},
+    ecma::transforms::base::pass::noop,
+};
 
 static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
@@ -38,14 +41,18 @@ export function getServerSideProps() {
     );
     assert!(
         try_with_handler(COMPILER.cm.clone(), Default::default(), |handler| {
-            COMPILER.process_js_with_custom_pass(
-                fm,
-                None,
-                handler,
-                &Default::default(),
-                |_, _| next_ssg(eliminated_packages.clone()),
-                |_, _| noop(),
-            )
+            GLOBALS.set(&Default::default(), || {
+                let comments = SingleThreadedComments::default();
+                COMPILER.process_js_with_custom_pass(
+                    fm,
+                    None,
+                    handler,
+                    &Default::default(),
+                    comments,
+                    |_| next_ssg(eliminated_packages.clone()),
+                    |_| noop(),
+                )
+            })
         })
         .is_ok()
     );

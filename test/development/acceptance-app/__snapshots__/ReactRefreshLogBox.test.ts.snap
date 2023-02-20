@@ -1,0 +1,130 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ReactRefreshLogBox app default Can't resolve @import in CSS file 1`] = `
+"./app/styles2.css
+Module not found: Can't resolve './boom.css'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./app/styles1.css"
+`;
+
+exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
+"./app/module.js:1:0
+Module not found: Can't resolve 'non-existing-module'
+> 1 | import \\"non-existing-module\\"
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./app/layout.js"
+`;
+
+exports[`ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
+"index.js (4:16) @ default
+
+  2 | export default () => {
+  3 |  if (typeof window !== 'undefined') {
+> 4 |    throw new Error('test')
+    |         ^
+  5 |  }
+  6 | 
+  7 |  return null"
+`;
+
+exports[`ReactRefreshLogBox app default boundaries 1`] = `
+"FunctionDefault.js (1:50) @ FunctionDefault
+
+> 1 | export default function FunctionDefault() { throw new Error('no'); }
+    |                                                  ^"
+`;
+
+exports[`ReactRefreshLogBox app default conversion to class component (1) 1`] = `
+"Child.js (5:18) @ ClickCount.render
+
+  3 |   export default class ClickCount extends Component {
+  4 |     render() {
+> 5 |       throw new Error()
+    |            ^
+  6 |     }
+  7 |   }
+  8 | "
+`;
+
+exports[`ReactRefreshLogBox app default css syntax errors 1`] = `
+"./index.module.css:1:1
+Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
+
+> 1 | button {}
+    | ^"
+`;
+
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
+
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
+
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
+
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox app default logbox: anchors links in error messages 9`] = `"http://example.com/"`;
+
+exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
+"index.js (4:14) @ eval
+
+  2 | // top offset for snapshot
+  3 | import * as React from 'react';
+> 4 | throw new Error('no')
+    |      ^
+  5 | class ClassDefault extends React.Component {
+  6 |   render() {
+  7 |     return <h1>Default Export</h1>;"
+`;
+
+exports[`ReactRefreshLogBox app default should strip whitespace correctly with newline 1`] = `
+"index.js (9:34) @ onClick
+
+   7 | 
+   8 | <a onClick={() => {
+>  9 |   throw new Error('idk')
+     |        ^
+  10 | }}>
+  11 |   click me
+  12 | </a>"
+`;
+
+exports[`ReactRefreshLogBox app default unterminated JSX 1`] = `
+"./index.js
+Error: 
+  x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+   ,-[5:1]
+ 5 |               <p>lol</p>
+ 6 |             div
+ 7 |           )
+ 8 |         }
+   :         ^
+ 9 |       
+   \`----
+
+  x Unexpected eof
+   ,-[6:1]
+ 6 |             div
+ 7 |           )
+ 8 |         }
+ 9 |       
+   \`----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./index.js
+./app/page.js"
+`;

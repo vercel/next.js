@@ -1,6 +1,6 @@
 # ESM Hello World example
 
-This example shows the most basic idea behind Next.js, and it's running on native [esm](https://nodejs.org/api/esm.html) mode. We have 2 pages: `pages/index.js` and `pages/about.js`. The former responds to `/` requests and the latter to `/about`. Using `next/link` you can add hyperlinks between them with universal routing capabilities. The `day` directory shows that you can have subdirectories.
+This example shows the most basic idea behind Next.js, and it's running on native [esm](https://nodejs.org/api/esm.html) mode. We have 2 pages: `pages/index.tsx` and `pages/about.tsx`. The former responds to `/` requests and the latter to `/about`. Using `next/link` you can add hyperlinks between them with universal routing capabilities. The `day` directory shows that you can have subdirectories.
 
 ## Deploy your own
 
@@ -14,9 +14,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example hello-world-esm hello-world-esm-app
-# or
+```
+
+```bash
 yarn create next-app --example hello-world-esm hello-world-esm-app
-# or
+```
+
+```bash
 pnpm create next-app --example hello-world-esm hello-world-esm-app
 ```
 

@@ -1,8 +1,8 @@
 import { lazy, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 
-const Foo = lazy(() => import('../components/foo.client'))
-const Bar = dynamic(() => import('../components/bar.client'), {
+const Foo = lazy(() => import('../components/foo'))
+const Bar = dynamic(() => import('../components/bar'), {
   suspense: true,
 })
 

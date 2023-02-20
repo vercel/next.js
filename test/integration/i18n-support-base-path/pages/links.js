@@ -15,32 +15,44 @@ export default function Page(props) {
       <p id="router-query">{JSON.stringify(router.query)}</p>
       <p id="router-pathname">{router.pathname}</p>
       <p id="router-as-path">{router.asPath}</p>
-      <Link href="/another" locale={nextLocale}>
-        <a id="to-another">to /another</a>
+      <Link href="/another" locale={nextLocale} id="to-another">
+        to /another
       </Link>
       <br />
-      <Link href="/gsp" locale={nextLocale}>
-        <a id="to-gsp">to /gsp</a>
+      <Link href="/gsp" locale={nextLocale} id="to-gsp">
+        to /gsp
       </Link>
       <br />
-      <Link href="/gsp/fallback/first" locale={nextLocale}>
-        <a id="to-fallback-first">to /gsp/fallback/first</a>
+      <Link
+        href="/gsp/fallback/first"
+        locale={nextLocale}
+        id="to-fallback-first"
+      >
+        to /gsp/fallback/first
       </Link>
       <br />
-      <Link href="/gsp/fallback/hello" locale={nextLocale}>
-        <a id="to-fallback-hello">to /gsp/fallback/hello</a>
+      <Link
+        href="/gsp/fallback/hello"
+        locale={nextLocale}
+        id="to-fallback-hello"
+      >
+        to /gsp/fallback/hello
       </Link>
       <br />
-      <Link href="/gsp/no-fallback/first" locale={nextLocale}>
-        <a id="to-no-fallback-first">to /gsp/no-fallback/first</a>
+      <Link
+        href="/gsp/no-fallback/first"
+        locale={nextLocale}
+        id="to-no-fallback-first"
+      >
+        to /gsp/no-fallback/first
       </Link>
       <br />
-      <Link href="/gssp" locale={nextLocale}>
-        <a id="to-gssp">to /gssp</a>
+      <Link href="/gssp" locale={nextLocale} id="to-gssp">
+        to /gssp
       </Link>
       <br />
-      <Link href="/gssp/first" locale={nextLocale}>
-        <a id="to-gssp-slug">to /gssp/first</a>
+      <Link href="/gssp/first" locale={nextLocale} id="to-gssp-slug">
+        to /gssp/first
       </Link>
       <br />
     </>

@@ -1,6 +1,4 @@
 /** @type {import("next").NextConfig} */
-const config = {
+module.exports = {
   reactStrictMode: true,
 }
-
-module.exports = config

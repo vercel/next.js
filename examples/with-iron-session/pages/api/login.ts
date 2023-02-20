@@ -6,8 +6,6 @@ import { sessionOptions } from 'lib/session'
 import { NextApiRequest, NextApiResponse } from 'next'
 const octokit = new Octokit()
 
-export default withIronSessionApiRoute(loginRoute, sessionOptions)
-
 async function loginRoute(req: NextApiRequest, res: NextApiResponse) {
   const { username } = await req.body
 
@@ -24,3 +22,5 @@ async function loginRoute(req: NextApiRequest, res: NextApiResponse) {
     res.status(500).json({ message: (error as Error).message })
   }
 }
+
+export default withIronSessionApiRoute(loginRoute, sessionOptions)

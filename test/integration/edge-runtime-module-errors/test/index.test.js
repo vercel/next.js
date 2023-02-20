@@ -68,7 +68,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: basename() })
           }
 
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -129,7 +129,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: writeFile() })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -188,7 +188,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: await throwAsync() })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -267,7 +267,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: true })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -325,7 +325,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: true })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -384,7 +384,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: true })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -445,7 +445,7 @@ describe('Edge runtime code with imports', () => {
             return Response.json({ ok: true })
           }
   
-          export const config = { runtime: 'experimental-edge' }
+          export const config = { runtime: 'edge' }
         `)
       },
     },
@@ -490,26 +490,50 @@ describe('Edge runtime code with imports', () => {
     })
   })
 
-  describe('Edge API importing vanilla 3rd party module', () => {
+  describe.each([
+    {
+      title: 'Edge API',
+      url: routeUrl,
+      init(importStatement) {
+        context.api.write(`
+          ${importStatement}
+          export default async function handler(request) {
+            const response = Response.json({ ok: true })
+            response.headers.set('x-from-runtime', nanoid())
+            return response
+          }
+  
+          export const config = { runtime: 'edge' }
+        `)
+      },
+    },
+    {
+      title: 'Middleware',
+      url: middlewareUrl,
+      init(importStatement) {
+        context.middleware.write(`
+          import { NextResponse } from 'next/server'
+          ${importStatement}
+
+          export async function middleware(request) {
+            const response = NextResponse.next()
+            response.headers.set('x-from-runtime', nanoid())
+            return response
+          }
+        `)
+      },
+    },
+  ])('$title importing vanilla 3rd party module', ({ init, url }) => {
     const moduleName = 'nanoid'
     const importStatement = `import { nanoid } from "${moduleName}"`
 
-    beforeEach(() => {
-      context.api.write(`
-      ${importStatement}
-        export default async function handler(request) {
-          return Response.json({ ok: nanoid() })
-        }
-
-        export const config = { runtime: 'experimental-edge' }
-      `)
-    })
+    beforeEach(() => init(importStatement))
 
     it('does not throw in dev at runtime', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, routeUrl)
+      const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(200)
-      expect(await res.json()).toEqual({ ok: expect.any(String) })
+      expect(res.headers.get('x-from-runtime')).toBeDefined()
       expectNoError(moduleName)
     })
 
@@ -519,47 +543,67 @@ describe('Edge runtime code with imports', () => {
       })
       expect(stderr).not.toContain(getUnsupportedModuleWarning(moduleName))
       context.app = await nextStart(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, routeUrl)
+      const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(200)
-      expect(await res.json()).toEqual({ ok: expect.any(String) })
+      expect(res.headers.get('x-from-runtime')).toBeDefined()
       expectNoError(moduleName)
     })
   })
 
-  describe('Middleware importing vanilla 3rd party module', () => {
-    const moduleName = 'nanoid'
-    const importStatement = `import { nanoid } from "${moduleName}"`
+  describe.each([
+    {
+      title: 'Edge API',
+      url: routeUrl,
+      init(importStatement) {
+        context.api.write(`
+          ${importStatement}
 
-    beforeEach(() => {
-      context.middleware.write(`
-        import { NextResponse } from 'next/server'
-        ${importStatement}
+          export default async function handler(request) {
+            const response = Response.json({ ok: true })
+            response.headers.set('x-from-runtime', Buffer.isBuffer('a string'))
+            return response
+          }
+  
+          export const config = { runtime: 'edge' }
+        `)
+      },
+    },
+    {
+      title: 'Middleware',
+      url: middlewareUrl,
+      init(importStatement) {
+        context.middleware.write(`
+          import { NextResponse } from 'next/server'
+          ${importStatement}
 
-        export async function middleware(request) {
-          const response = NextResponse.next()
-          response.headers.set('x-from-middleware', nanoid())
-          return response
-        }
-      `)
-    })
+          export async function middleware(request) {
+            const response = NextResponse.next()
+            response.headers.set('x-from-runtime', Buffer.isBuffer('a string'))
+            return response
+          }
+        `)
+      },
+    },
+  ])('$title using Buffer polyfill', ({ init, url }) => {
+    const moduleName = 'buffer'
+    const importStatement = `import { Buffer } from "${moduleName}"`
+
+    beforeEach(() => init(importStatement))
 
     it('does not throw in dev at runtime', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, middlewareUrl)
+      const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(200)
-      expect(res.headers.get('x-from-middleware')).toBeDefined()
+      expect(res.headers.get('x-from-runtime')).toBe('false')
       expectNoError(moduleName)
     })
 
     it('does not throw in production at runtime', async () => {
-      const { stderr } = await nextBuild(context.appDir, undefined, {
-        stderr: true,
-      })
-      expect(stderr).not.toContain(getUnsupportedModuleWarning(moduleName))
+      await nextBuild(context.appDir, undefined, { stderr: true })
       context.app = await nextStart(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, middlewareUrl)
+      const res = await fetchViaHTTP(context.appPort, url)
       expect(res.status).toBe(200)
-      expect(res.headers.get('x-from-middleware')).toBeDefined()
+      expect(res.headers.get('x-from-runtime')).toBe('false')
       expectNoError(moduleName)
     })
   })
@@ -612,9 +656,9 @@ function expectModuleNotFoundProdError(
   output = context.logs.output
 ) {
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
-  expect(output).not.toContain(moduleNotSupportedMessage)
+  expect(stripAnsi(output)).not.toContain(moduleNotSupportedMessage)
   const moduleNotFoundMessage = getModuleNotFound(moduleName)
-  expect(output).toContain(moduleNotFoundMessage)
+  expect(stripAnsi(output)).toContain(moduleNotFoundMessage)
 }
 
 function expectModuleNotFoundDevError(

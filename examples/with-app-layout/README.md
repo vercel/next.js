@@ -1,6 +1,6 @@
 # With `App` layout example
 
-Shows how to use \_app.js to implement a global layout for all pages.
+Shows how to use `_app.tsx` to implement a global layout for all pages.
 
 ## Deploy your own
 
@@ -14,9 +14,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-app-layout with-app-layout-app
-# or
+```
+
+```bash
 yarn create next-app --example with-app-layout with-app-layout-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-app-layout with-app-layout-app
 ```
 

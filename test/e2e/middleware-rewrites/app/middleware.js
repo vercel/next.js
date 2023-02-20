@@ -13,6 +13,22 @@ export async function middleware(request) {
     return NextResponse.next()
   }
 
+  if (url.pathname.includes('/to/some/404/path')) {
+    return NextResponse.next({
+      'x-matched-path': '/404',
+    })
+  }
+
+  if (url.pathname.includes('/rewrite-to-static')) {
+    request.nextUrl.pathname = '/static-ssg/post-1'
+    return NextResponse.rewrite(request.nextUrl)
+  }
+
+  if (url.pathname.includes('/fallback-true-blog/rewritten')) {
+    request.nextUrl.pathname = '/about'
+    return NextResponse.rewrite(request.nextUrl)
+  }
+
   if (url.pathname.startsWith('/about') && url.searchParams.has('override')) {
     const isExternal = url.searchParams.get('override') === 'external'
     return NextResponse.rewrite(

@@ -2,11 +2,11 @@
 
 This example shows different strategies that can be used for the [`next/script` component](https://nextjs.org/docs/basic-features/script):
 
-- [Loading Polyfills](./pages/polyfill.js)
-- [Lazy loading](./pages/lazy.js)
-- [Executing code after loading](./pages/onload.js)
-- [Inline scripts](./pages/inline.js)
-- [Forwarding attributes](./pages/attributes.js)
+- [Loading Polyfills](./pages/polyfill.tsx)
+- [Lazy loading](./pages/lazy.tsx)
+- [Executing code after loading](./pages/onload.tsx)
+- [Inline scripts](./pages/inline.tsx)
+- [Forwarding attributes](./pages/attributes.tsx)
 
 ## Deploy your own
 
@@ -20,9 +20,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example script-component script-component-app
-# or
+```
+
+```bash
 yarn create next-app --example script-component script-component-app
-# or
+```
+
+```bash
 pnpm create next-app --example script-component script-component-app
 ```
 

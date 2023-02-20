@@ -1,6 +1,6 @@
 # Modularize Imports Example
 
-This example shows how to use the `modularizeImports` config option.
+This example shows how to use the [`modularizeImports` config option](https://nextjs.org/docs/advanced-features/compiler#modularize-imports).
 
 ## Preview
 
@@ -20,9 +20,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example modularize-imports modularize-imports-app
-# or
+```
+
+```bash
 yarn create next-app --example modularize-imports modularize-imports-app
-# or
+```
+
+```bash
 pnpm create next-app --example modularize-imports modularize-imports-app
 ```
 

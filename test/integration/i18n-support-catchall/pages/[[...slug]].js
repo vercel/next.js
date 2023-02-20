@@ -15,33 +15,33 @@ export default function Page(props) {
       <p id="router-pathname">{router.pathname}</p>
       <p id="router-as-path">{router.asPath}</p>
 
-      <Link href="/" locale="en-US">
-        <a id="to-def-locale-index">to /</a>
+      <Link href="/" locale="en-US" id="to-def-locale-index">
+        to /
       </Link>
       <br />
 
-      <Link href="/another" locale="en-US">
-        <a id="to-def-locale-another">to /another</a>
+      <Link href="/another" locale="en-US" id="to-def-locale-another">
+        to /another
       </Link>
       <br />
 
-      <Link href="/" locale="nl-NL">
-        <a id="to-locale-index">to /nl-nl</a>
+      <Link href="/" locale="nl-NL" id="to-locale-index">
+        to /nl-nl
       </Link>
       <br />
 
-      <Link href="/another" locale="nl-NL">
-        <a id="to-locale-another">to /nl-nl/another</a>
+      <Link href="/another" locale="nl-NL" id="to-locale-another">
+        to /nl-nl/another
       </Link>
       <br />
 
-      <Link href="/fr" locale={false}>
-        <a id="to-fr-locale-index">to /fr</a>
+      <Link href="/fr" locale={false} id="to-fr-locale-index">
+        to /fr
       </Link>
       <br />
 
-      <Link href="/fr/another" locale={false}>
-        <a id="to-fr-locale-another">to /fr/another</a>
+      <Link href="/fr/another" locale={false} id="to-fr-locale-another">
+        to /fr/another
       </Link>
       <br />
     </>

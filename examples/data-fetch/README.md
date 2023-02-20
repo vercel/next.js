@@ -17,9 +17,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example data-fetch data-fetch-app
-# or
+```
+
+```bash
 yarn create next-app --example data-fetch data-fetch-app
-# or
+```
+
+```bash
 pnpm create next-app --example data-fetch data-fetch-app
 ```
 

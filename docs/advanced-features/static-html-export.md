@@ -11,7 +11,7 @@ description: Export your Next.js app to static HTML, and run it standalone witho
   </ul>
 </details>
 
-`next export` allows you to export your Next.js application to static HTML, which can be run standalone without the need of a Node.js server. It is recommended to only use `next export` if you don't need any of the [unsupported features](#unsupported-features) requiring a server.
+`next export` allows you to export your Next.js application to static HTML, which can render without the need of a Node.js server. It is recommended to only use `next export` if you don't need any of the [unsupported features](#unsupported-features) requiring a server.
 
 If you're looking to build a hybrid site where only _some_ pages are prerendered to static HTML, Next.js already does that automatically. Learn more about [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) and [Incremental Static Regeneration](/docs/basic-features/data-fetching/incremental-static-regeneration.md).
 
@@ -31,6 +31,8 @@ Running `npm run build` will generate an `out` directory.
 
 For more advanced scenarios, you can define a parameter called [`exportPathMap`](/docs/api-reference/next.config.js/exportPathMap.md) in your [`next.config.js`](/docs/api-reference/next.config.js/introduction.md) file to configure exactly which pages will be generated.
 
+> **Warning**: Using `exportPathMap` for defining routes with any `getStaticPaths` powered page is now ignored and gets overridden. We recommend not to use them together.
+
 ## Supported Features
 
 The majority of core Next.js features needed to build a static site are supported, including:
@@ -43,7 +45,7 @@ The majority of core Next.js features needed to build a static site are supporte
 - [Client-side data fetching](/docs/basic-features/data-fetching/client-side.md)
 - [`getStaticProps`](/docs/basic-features/data-fetching/get-static-props.md)
 - [`getStaticPaths`](/docs/basic-features/data-fetching/get-static-paths.md)
-- [Image Optimization](/docs/basic-features/image-optimization.md) using a [custom loader](/docs/basic-features/image-optimization.md#loader)
+- [Image Optimization](/docs/basic-features/image-optimization.md) using a [custom loader](/docs/basic-features/image-optimization.md#loaders)
 
 ## Unsupported Features
 

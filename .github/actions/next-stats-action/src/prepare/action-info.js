@@ -69,7 +69,7 @@ module.exports = function actionInfo() {
     if (releaseTypes.has(info.actionName)) {
       info.isRelease = true
     } else {
-      // Since GITHUB_REPOSITORY and REF might not match the fork
+      // since GITHUB_REPOSITORY and REF might not match the fork
       // use event data to get repository and ref info
       const prData = event['pull_request']
 

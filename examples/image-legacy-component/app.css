@@ -1,0 +1,19 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: black;
+  color: white;
+}
+
+a {
+  cursor: pointer;
+  color: #0076ff;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid black;
+}
+
+a:hover {
+  border-bottom: 1px solid #0076ff;
+}

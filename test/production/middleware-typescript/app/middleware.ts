@@ -1,6 +1,11 @@
-import { NextMiddleware, NextResponse } from 'next/server'
+import { NextMiddleware, NextResponse, URLPattern } from 'next/server'
 
 export const middleware: NextMiddleware = function (request) {
+  const pattern = new URLPattern({
+    pathname: '/:path',
+  })
+  console.log(pattern.test(request.nextUrl.pathname))
+
   if (request.nextUrl.pathname === '/static') {
     return new NextResponse(null, {
       headers: {

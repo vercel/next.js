@@ -89,7 +89,18 @@ function onRefresh() {
   Bus.emit({ type: Bus.TYPE_REFRESH })
 }
 
+function onBeforeRefresh() {
+  Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH })
+}
+
 export { getErrorByType } from './internal/helpers/getErrorByType'
 export { getServerError } from './internal/helpers/nodeStackFrames'
 export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
-export { onBuildOk, onBuildError, register, unregister, onRefresh }
+export {
+  onBuildOk,
+  onBuildError,
+  register,
+  unregister,
+  onBeforeRefresh,
+  onRefresh,
+}

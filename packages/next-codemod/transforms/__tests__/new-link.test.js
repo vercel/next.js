@@ -11,6 +11,7 @@ const fixtures = [
   'spread-props',
   'link-string',
   'styled-jsx',
+  'handle-duplicate-props'
 ]
 
 for (const fixture of fixtures) {

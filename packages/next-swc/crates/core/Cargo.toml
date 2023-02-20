@@ -4,13 +4,8 @@ name = "next-swc"
 version = "0.0.0"
 publish = false
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [features]
-plugin = [
-  "swc/plugin"
-]
+plugin = ["next-binding/__swc_core_binding_napi_plugin"]
 
 [dependencies]
 chrono = "0.4"
@@ -22,22 +17,21 @@ pathdiff = "0.2.0"
 regex = "1.5"
 serde = "1"
 serde_json = "1"
-swc_emotion = {path="../emotion"}
-styled_components = {path="../styled_components"}
-styled_jsx = {path="../styled_jsx"}
-modularize_imports = {path="../modularize_imports"}
-swc = "0.205.0"
-swc_atoms = "0.2.13"
-swc_common = { version = "0.23.0", features = ["concurrent", "sourcemap"] }
-swc_ecma_loader = { version = "0.35.0", features = ["node", "lru"] }
-swc_ecmascript = { version = "0.180.0", features = ["codegen", "minifier", "optimization", "parser", "react", "transforms", "typescript", "utils", "visit"] }
-swc_plugin_runner = { version = "0.64.0", optional = true, default-features = false }
-swc_cached = "0.1.1"
-tracing = { version = "0.1.32", features = ["release_max_level_info"] }
-wasmer = { version = "2.3.0", optional = true, default-features = false }
-wasmer-wasi = { version = "2.3.0", optional = true, default-features = false }
+tracing = { version = "0.1.37", features = ["release_max_level_info"] }
+
+next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230214.2", features = [
+  "__swc_core",
+  "__swc_core_next_core",
+  "__swc_transform_styled_jsx",
+  "__swc_transform_emotion",
+  "__swc_transform_styled_components",
+  "__swc_transform_modularize_imports",
+] }
 
 [dev-dependencies]
-swc_ecma_transforms_testing = "0.99.0"
-testing = "0.25.0"
+next-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230214.2", features = [
+  "__swc_core_testing_transform",
+  "__swc_testing",
+] }
+
 walkdir = "2.3.2"

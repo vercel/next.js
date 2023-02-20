@@ -1,12 +1,10 @@
 /* eslint-env jest */
 
 import path from 'path'
-import fs from 'fs-extra'
 import { nextBuild, nextExport } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
 const outdir = path.join(__dirname, 'out')
-const nextConfig = path.join(appDir, 'next.config.js')
 let stderr
 let exitCode
 
@@ -23,8 +21,6 @@ const runTests = () => {
   })
 }
 
-let origNextConfig
-
 describe('Auto Export', () => {
   describe('server mode', () => {
     beforeAll(async () => {
@@ -36,25 +32,6 @@ describe('Auto Export', () => {
       )
       stderr = curStderr
       exitCode = curCode
-    })
-
-    runTests()
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await nextBuild(appDir)
-      const { stderr: curStderr, code: curCode } = await nextExport(
-        appDir,
-        { outdir },
-        { stderr: true }
-      )
-      stderr = curStderr
-      exitCode = curCode
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
     })
 
     runTests()
