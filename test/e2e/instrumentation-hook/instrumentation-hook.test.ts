@@ -11,8 +11,15 @@ createNextDescribe(
       },
     },
     skipDeployment: true,
+    skipStart: true,
   },
   ({ next, isNextDev }) => {
+    beforeEach(async () => {
+      await next.start()
+    })
+    afterEach(async () => {
+      await next.stop()
+    })
     it('should run the instrumentation hook', async () => {
       await next.render('/')
       await check(() => next.cliOutput, /instrumentation hook/)
