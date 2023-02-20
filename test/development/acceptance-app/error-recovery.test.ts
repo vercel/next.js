@@ -498,6 +498,18 @@ for (const variant of ['default', 'turbo']) {
 
           await cleanup()
         })
+
+        test('displays build error on initial page load', async () => {
+          const { session, cleanup } = await sandbox(
+            next,
+            new Map([['app/page.js', '{{{']])
+          )
+
+          expect(await session.hasRedbox(true)).toBe(true)
+          await check(() => session.getRedboxSource(true), /Failed to compile/)
+
+          await cleanup()
+        })
       }
     )
   })
