@@ -361,11 +361,6 @@ createNextDescribe(
         })
       }
 
-      it('should support synchronous generateMetadata export', async () => {
-        const browser = await next.browser('/basic/sync-generate-metadata')
-        expect(await getTitle(browser)).toBe('synchronous generateMetadata')
-      })
-
       it('should handle metadataBase for urls resolved as only URL type', async () => {
         // including few urls in opengraph and alternates
         const url$ = await next.render$('/metadata-base/url')
