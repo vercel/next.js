@@ -179,10 +179,6 @@ export async function createNext(
         nextInstance = undefined
       })
 
-      if (opts.forcedPort) {
-        nextInstance.forcedPort = `${opts.forcedPort}`
-      }
-
       await nextInstance.setup(rootSpan)
 
       if (!opts.skipStart) {

@@ -10,7 +10,6 @@ createNextDescribe(
         instrumentationHook: true,
       },
     },
-    forcedPort: 3000,
   },
   ({ next, isNextDev }) => {
     it('should run the instrumentation hook', async () => {
