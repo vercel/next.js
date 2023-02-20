@@ -231,10 +231,7 @@ export default async function exportPage({
             `/${statusCode}`,
             `/${statusCode}.html`,
             `/${statusCode}/index.html`,
-          ].some(
-            (path) =>
-              path === updatedPath || `/${locale}${path}` === updatedPath
-          )
+          ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
         ) {
           res.statusCode = statusCode
         }
