@@ -661,13 +661,13 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
             )
             return setupFork()
           } else {
-            instrumentationFileLastHash = instrumentationFileHash
-            if (previousItems.size !== 0) {
+            if (!instrumentationFileLastHash && previousItems.size !== 0) {
               warn(
                 'An instrumentation file was added, restarting the server to apply changes.'
               )
               return setupFork()
             }
+            instrumentationFileLastHash = instrumentationFileHash
           }
         } else if (
           [...previousItems.keys()].find((key) =>
