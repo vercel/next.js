@@ -5,6 +5,11 @@ createNextDescribe(
   'instrumentation-hook',
   {
     files: __dirname,
+    nextConfig: {
+      experimental: {
+        instrumentationHook: true,
+      },
+    },
   },
   ({ next, isNextDev }) => {
     it('should run the instrumentation hook', async () => {

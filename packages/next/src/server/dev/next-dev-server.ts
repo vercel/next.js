@@ -492,7 +492,10 @@ export default class DevServer extends Server {
             ]
             continue
           }
-          if (isInstrumentationHookFile(rootFile)) {
+          if (
+            isInstrumentationHookFile(rootFile) &&
+            this.nextConfig.experimental.instrumentationHook
+          ) {
             this.actualInstrumentationHookFile = rootFile
             continue
           }

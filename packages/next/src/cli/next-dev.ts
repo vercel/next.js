@@ -616,10 +616,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       const watchedEntryLength = parentDir.split('/').length + 1
       const previousItems = new Set<string>()
 
-      const instrumentationFilePaths = getPossibleInstrumentationHookFilenames(
-        dir,
-        config.pageExtensions!
-      )
+      const instrumentationFilePaths = config.experimental.instrumentationHook
+        ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
+        : []
 
       const wp = new Watchpack({
         ignored: (entry: string) => {
