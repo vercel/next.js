@@ -31,6 +31,24 @@ createNextDescribe(
           `export function register() {console.log('toast')}`
         )
         await check(() => next.cliOutput, /toast/)
+        await next.renameFile(
+          './instrumentation.js',
+          './instrumentation.js.bak'
+        )
+        await check(
+          () => next.cliOutput,
+          /The instrumentation file has been removed/
+        )
+        await next.patchFile(
+          './instrumentation.js.bak',
+          `export function register() {console.log('bread')}`
+        )
+        await next.renameFile(
+          './instrumentation.js.bak',
+          './instrumentation.js'
+        )
+        await check(() => next.cliOutput, /An instrumentation file was added/)
+        await check(() => next.cliOutput, /bread/)
       })
     }
   }

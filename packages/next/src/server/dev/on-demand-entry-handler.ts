@@ -667,7 +667,6 @@ export function onDemandEntryHandler({
             lastActiveTime: Date.now(),
             status: ADDED,
           }
-
           return {
             entryKey: entryKey,
             newEntry: true,
@@ -685,10 +684,15 @@ export function onDemandEntryHandler({
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
         const isServerComponent =
           isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-
+        const pageType = pagePathData.bundlePath.startsWith('pages/')
+          ? 'pages'
+          : pagePathData.bundlePath.startsWith('app/')
+          ? 'app'
+          : 'root'
         await runDependingOnPageType({
           page: pagePathData.page,
           pageRuntime: staticInfo.runtime,
+          pageType,
           onClient: () => {
             // Skip adding the client entry for app / Server Components.
             if (isServerComponent || isInsideAppDir) {

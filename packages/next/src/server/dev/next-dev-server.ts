@@ -94,6 +94,7 @@ import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
+import { NextBuildContext } from '../../build/build-context'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -1347,6 +1348,7 @@ export default class DevServer extends Server {
 
   private async runInstrumentationHookIfAvailable() {
     if (this.actualInstrumentationHookFile) {
+      NextBuildContext!.hasInstrumentationHook = true
       await this.hotReloader!.ensurePage({
         page: this.actualInstrumentationHookFile!,
         clientOnly: false,

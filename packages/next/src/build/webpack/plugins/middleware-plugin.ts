@@ -29,6 +29,7 @@ import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
+import { NextBuildContext } from '../../build-context'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -92,7 +93,6 @@ function getEntryFiles(
   meta: EntryMetadata,
   opts: {
     sriEnabled: boolean
-    hasInstrumentationHook: boolean
   }
 ) {
   const files: string[] = []
@@ -123,7 +123,7 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    if (opts.hasInstrumentationHook) {
+    if (NextBuildContext!.hasInstrumentationHook) {
       files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
     }
   }
@@ -141,7 +141,6 @@ function getCreateAssets(params: {
   metadataByEntry: Map<string, EntryMetadata>
   opts: {
     sriEnabled: boolean
-    hasInstrumentationHook: boolean
   }
 }) {
   const { compilation, metadataByEntry, opts } = params
@@ -793,20 +792,10 @@ function getExtractMetadata(params: {
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
-  private readonly hasInstrumentationHook: boolean
 
-  constructor({
-    dev,
-    sriEnabled,
-    hasInstrumentationHook,
-  }: {
-    dev: boolean
-    sriEnabled: boolean
-    hasInstrumentationHook: boolean
-  }) {
+  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
-    this.hasInstrumentationHook = hasInstrumentationHook
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -851,7 +840,6 @@ export default class MiddlewarePlugin {
           metadataByEntry,
           opts: {
             sriEnabled: this.sriEnabled,
-            hasInstrumentationHook: this.hasInstrumentationHook,
           },
         })
       )

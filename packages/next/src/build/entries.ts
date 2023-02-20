@@ -278,9 +278,9 @@ export async function runDependingOnPageType<T>(params: {
   onServer: () => T
   page: string
   pageRuntime: ServerRuntime
-  pagesType?: 'app' | 'pages' | 'root'
+  pageType?: 'app' | 'pages' | 'root'
 }): Promise<void> {
-  if (params.pagesType === 'root' && isInstrumentationHookFile(params.page)) {
+  if (params.pageType === 'root' && isInstrumentationHookFile(params.page)) {
     await Promise.all([params.onServer(), params.onEdgeServer()])
     return
   }
@@ -421,7 +421,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
       await runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
-        pagesType,
+        pageType: pagesType,
         onClient: () => {
           if (isServerComponent || isInsideAppDir) {
             // We skip the initial entries for server component pages and let the
