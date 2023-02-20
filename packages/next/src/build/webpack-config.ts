@@ -48,7 +48,7 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
-import { FlightTypesPlugin } from './webpack/plugins/flight-types-plugin'
+import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -902,13 +902,19 @@ export default async function getBaseWebpackConfig(
   const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
     [COMPILER_NAMES.server]: ['main', 'module'],
     [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-    [COMPILER_NAMES.edgeServer]: ['browser', 'module', 'main'],
+    [COMPILER_NAMES.edgeServer]: [
+      'edge-light',
+      'worker',
+      'browser',
+      'module',
+      'main',
+    ],
   }
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
   const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
 
-  const resolveConfig = {
+  const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: isNodeServer
       ? ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm']
@@ -1021,6 +1027,13 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
+    ...(isEdgeServer && {
+      conditionNames: [
+        ...mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
+        'import',
+        'node',
+      ],
+    }),
     plugins: [],
   }
 
@@ -1560,11 +1573,9 @@ export default async function getBaseWebpackConfig(
               ...terserOptions,
               compress: {
                 ...terserOptions.compress,
-                ...(config.experimental.swcMinifyDebugOptions?.compress ?? {}),
               },
               mangle: {
                 ...terserOptions.mangle,
-                ...(config.experimental.swcMinifyDebugOptions?.mangle ?? {}),
               },
             },
           }).apply(compiler)
@@ -1689,7 +1700,17 @@ export default async function getBaseWebpackConfig(
                   return true
                 },
                 resolve: {
-                  conditionNames: ['react-server', 'node', 'import', 'require'],
+                  conditionNames: [
+                    'react-server',
+                    ...mainFieldsPerCompiler[
+                      isEdgeServer
+                        ? COMPILER_NAMES.edgeServer
+                        : COMPILER_NAMES.server
+                    ],
+                    'node',
+                    'import',
+                    'require',
+                  ],
                   alias: {
                     // If missing the alias override here, the default alias will be used which aliases
                     // react to the direct file path, not the package name. In that case the condition
@@ -2156,7 +2177,7 @@ export default async function getBaseWebpackConfig(
             })),
       hasAppDir &&
         !isClient &&
-        new FlightTypesPlugin({
+        new NextTypesPlugin({
           dir,
           distDir: config.distDir,
           appDir,

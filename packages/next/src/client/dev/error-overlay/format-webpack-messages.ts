@@ -191,6 +191,24 @@ export default function formatWebpackMessages(json: any, verbose?: boolean) {
   const formattedWarnings = json.warnings.map((message: any) => {
     return formatMessage(message, verbose)
   })
+
+  // Reorder errors to put the most relevant ones first.
+  let reactServerComponentsError = -1
+
+  for (let i = 0; i < formattedErrors.length; i++) {
+    const error = formattedErrors[i]
+    if (error.includes('ReactServerComponentsError')) {
+      reactServerComponentsError = i
+      break
+    }
+  }
+
+  // Move the reactServerComponentsError to the top if it exists
+  if (reactServerComponentsError !== -1) {
+    const error = formattedErrors.splice(reactServerComponentsError, 1)
+    formattedErrors.unshift(error[0])
+  }
+
   const result = {
     ...json,
     errors: formattedErrors,
