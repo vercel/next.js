@@ -9,7 +9,8 @@ description: Optimizing loading web fonts with the built-in `next/font` loaders.
 
 | Version   | Changes                 |
 | --------- | ----------------------- |
-| `v13.0.0` | `@next/font` was added. |
+| `v13.2.0` | `@next/font` renamed to `next/font`. Installation no longer required. |
+| `v13.0.0` | `next/font` was added. |
 
 </details>
 
