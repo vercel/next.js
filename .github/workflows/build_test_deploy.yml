@@ -275,7 +275,8 @@ jobs:
         node:
           ['${{ env.NODE_MAINTENANCE_VERSION }}', '${{ env.NODE_LTS_VERSION }}']
         group: [1, 2, 3, 4, 5]
-    if: ${{ matrix.node == '${{ env.NODE_LTS_VERSION }}' || needs.build.outputs.isRelease == 'true' }}
+    # run LTS matrix always and maintenance tests during a release
+    if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -325,7 +326,8 @@ jobs:
         node:
           ['${{ env.NODE_MAINTENANCE_VERSION }}', '${{ env.NODE_LTS_VERSION }}']
         group: [1, 2, 3, 4, 5, 6, 7, 8]
-    if: ${{ matrix.node == '${{ env.NODE_LTS_VERSION }}' || needs.build.outputs.isRelease == 'true' }}
+    # run LTS matrix always and maintenance tests during a release
+    if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -375,7 +377,8 @@ jobs:
         node:
           ['${{ env.NODE_MAINTENANCE_VERSION }}', '${{ env.NODE_LTS_VERSION }}']
         group: [1, 2, 3, 4, 5]
-    if: ${{ matrix.node == '${{ env.NODE_LTS_VERSION }}' || needs.build.outputs.isRelease == 'true' }}
+    # run LTS matrix always and maintenance tests during a release
+    if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -415,7 +418,8 @@ jobs:
         node:
           ['${{ env.NODE_MAINTENANCE_VERSION }}', '${{ env.NODE_LTS_VERSION }}']
         group: [1, 2, 3, 4, 5, 6, 7, 8]
-    if: ${{ matrix.node == '${{ env.NODE_LTS_VERSION }}' || needs.build.outputs.isRelease == 'true' }}
+    # run LTS matrix always and maintenance tests during a release
+    if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
