@@ -1554,6 +1554,17 @@ export function detectConflictingPaths(
   >()
 
   const dynamicSsgPages = [...ssgPages].filter((page) => isDynamicRoute(page))
+  const additionalSsgPathsByPath: {
+    [page: string]: { [path: string]: string }
+  } = {}
+
+  additionalSsgPaths.forEach((paths, pathsPage) => {
+    additionalSsgPathsByPath[pathsPage] ||= {}
+    paths.forEach((curPath) => {
+      const currentPath = curPath.toLowerCase()
+      additionalSsgPathsByPath[pathsPage][currentPath] = curPath
+    })
+  })
 
   additionalSsgPaths.forEach((paths, pathsPage) => {
     paths.forEach((curPath) => {
@@ -1573,9 +1584,10 @@ export function detectConflictingPaths(
         conflictingPage = dynamicSsgPages.find((page) => {
           if (page === pathsPage) return false
 
-          conflictingPath = additionalSsgPaths
-            .get(page)
-            ?.find((compPath) => compPath.toLowerCase() === lowerPath)
+          conflictingPath =
+            additionalSsgPaths.get(page) == null
+              ? undefined
+              : additionalSsgPathsByPath[page][lowerPath]
           return conflictingPath
         })
 
