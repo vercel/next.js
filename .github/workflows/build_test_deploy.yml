@@ -527,6 +527,36 @@ jobs:
           path: |
             test/traces
 
+  testCodemods:
+    name: Test Codemods
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    timeout-minutes: 5
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+
+    steps:
+      - run: echo "${{needs.build.outputs.docsChange}}"
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        if: ${{ needs.build.outputs.docsChange == 'nope' }}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - run: echo "CODEMOD_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-codemod --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
+        id: codemodChange
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v16 | FORCE=1 bash && npm i -g pnpm@${PNPM_VERSION} > /dev/null && cd ./packages/next-codemod && pnpm build && pnpm test >> /proc/1/fd/1"
+        if: ${{ needs.build.outputs.docsChange == 'nope' && steps.codemodChange.outputs.CODEMOD_CHANGE == 'yup' }}
+
   testIntegration:
     name: Test Integration
     runs-on: ubuntu-latest
@@ -671,7 +701,7 @@ jobs:
 
   testFirefox:
     name: Test Firefox (production)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [build, build-native-test]
     timeout-minutes: 10
     env:
@@ -696,7 +726,7 @@ jobs:
 
   testSafari:
     name: Test Safari (production)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [build, build-native-test]
     timeout-minutes: 15
     env:
@@ -725,7 +755,7 @@ jobs:
 
   testFirefoxNode18:
     name: Test Firefox Node.js 18
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [build, testFirefox, build-native-test]
     timeout-minutes: 10
     env:
@@ -917,14 +947,14 @@ jobs:
       # We will not get exact match, but doc says
       # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
       # So we get latest cache
-      - name: Cache built files
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            next-swc-cargo-cache-dev-ubuntu-latest
+      # - name: Cache built files
+      #   uses: actions/cache@v3
+      #   timeout-minutes: 5
+      #   with:
+      #     path: ./packages/next-swc/target
+      #     key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
+      #     restore-keys: |
+      #       next-swc-cargo-cache-dev-ubuntu-latest
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3
@@ -983,7 +1013,7 @@ jobs:
 
   test-wasm:
     name: Test the wasm build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [build, build-native-test, build-wasm-dev]
 

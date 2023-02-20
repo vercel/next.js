@@ -188,7 +188,6 @@ createNextDescribe(
           [
             'app/comp2.js',
             `
-            import "server-only-package"
             export function Comp2() {
               return (
                 <div>Hello world</div>
@@ -210,9 +209,9 @@ createNextDescribe(
         ])
       )
 
-      const pageFile = 'app/page.js'
-      const content = await next.readFile(pageFile)
-      await session.patch(pageFile, '"use client"\n' + content)
+      const file = 'app/comp2.js'
+      const content = await next.readFile(file)
+      await session.patch(file, 'import "server-only-package"\n' + content)
 
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
@@ -222,9 +221,9 @@ createNextDescribe(
         The error was caused by importing 'server-only-package/index.js' in 'app/comp2.js'.
 
         Import trace for requested module:
-          app/comp2.js
-          app/comp1.js
-          app/page.js"
+        app/comp2.js
+        app/comp1.js
+        app/page.js"
       `)
 
       await cleanup()
