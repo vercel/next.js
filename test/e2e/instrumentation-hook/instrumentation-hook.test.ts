@@ -14,9 +14,7 @@ createNextDescribe(
   ({ next, isNextDev }) => {
     it('should run the instrumentation hook', async () => {
       await next.render('/')
-      const stdout = await next.cliOutput
-      console.log(stdout)
-      expect(stdout).toInclude('instrumentation hook')
+      await check(() => next.cliOutput, /instrumentation hook/)
     })
     it('should not overlap with a instrumentation page', async () => {
       const page = await next.render('/instrumentation')
@@ -25,8 +23,7 @@ createNextDescribe(
     it('should run the edge instrumentation compiled version with the edge runtime', async () => {
       await next.render('/edge')
       const stdout = await next.cliOutput
-      console.log(stdout)
-      expect(stdout).toInclude('instrumentation hook on the edge')
+      await check(() => next.cliOutput, /instrumentation hook on the edge/)
     })
     if (isNextDev) {
       it('should reload the server when the instrumentation hook changes', async () => {
