@@ -926,45 +926,41 @@ jobs:
       - id: get-week
         run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
-      - name: Turbo Cache
-        id: turbo-cache
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+      # - name: Turbo Cache
+      #   id: turbo-cache
+      #   uses: actions/cache@v3
+      #   timeout-minutes: 5
+      #   if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+      #   with:
+      #     path: .turbo
+      #     key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
+      #     restore-keys: |
+      #       turbo-${{ github.job }}-
+      #       turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
+      #       turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
+
+      - name: Configure sccache
+        uses: actions/github-script@v6
         with:
-          path: .turbo
-          key: turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ github.job }}-
-            turbo-${{ github.job }}-${{ github.ref_name }}-${{ steps.get-week.outputs.WEEK }}-
-            turbo-${{ github.job }}-canary-${{ steps.get-week.outputs.WEEK }}-
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: normalize versions
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         run: node scripts/normalize-version-bump.js
-
-      # We use restore-key to pick latest cache.
-      # We will not get exact match, but doc says
-      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
-      # So we get latest cache
-      # - name: Cache built files
-      #   uses: actions/cache@v3
-      #   timeout-minutes: 5
-      #   with:
-      #     path: ./packages/next-swc/target
-      #     key: next-swc-cargo-cache-dev-ubuntu-latest-${{ hashFiles('**/Cargo.lock') }}
-      #     restore-keys: |
-      #       next-swc-cargo-cache-dev-ubuntu-latest
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           image: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2022-10-24-x64
-          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
+          options: -e RUST_TOOLCHAIN=${{ env.RUST_TOOLCHAIN }} -e NAPI_CLI_VERSION=${{ env.NAPI_CLI_VERSION }} -e TURBO_VERSION=${{ env.TURBO_VERSION }} -e ACTIONS_CACHE_URL=${{ env.ACTIONS_CACHE_URL }} -e ACTIONS_RUNTIME_TOKEN=${{ env.ACTIONS_RUNTIME_TOKEN }} -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build
           # turn on some optimization while building Rust codes to prevent tests timeout
           run: |
             set -e &&
+            curl -vL -o sccache.tgz https://github.com/mozilla/sccache/releases/download/v0.3.3/sccache-v0.3.3-x86_64-unknown-linux-musl.tar.gz && tar -xvf sccache.tgz && mv sccache-*/sccache /usr/local/bin/sccache &&
+            export RUSTC_WRAPPER=/usr/local/bin/sccache
             export CARGO_PROFILE_DEV_OPT_LEVEL=1 &&
             rustup toolchain install "${RUST_TOOLCHAIN}" &&
             rustup default "${RUST_TOOLCHAIN}" &&
