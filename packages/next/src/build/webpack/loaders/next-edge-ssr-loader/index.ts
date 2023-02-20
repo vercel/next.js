@@ -90,7 +90,7 @@ export default async function edgeSSRLoader(this: any) {
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
 
     enhanceGlobals()
-
+    
     const pageType = ${JSON.stringify(pagesType)}
     ${
       isAppDir
