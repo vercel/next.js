@@ -225,12 +225,19 @@ export default async function exportPage({
 
       const { req, res } = mockRequest(updatedPath, {}, 'GET')
 
-      if (updatedPath === '/404' && page === '/_error') {
-        res.statusCode = 404
-      }
-
-      if (updatedPath === '/500' && page === '/_error') {
-        res.statusCode = 500
+      for (const statusCode of [404, 500]) {
+        if (
+          [
+            `/${statusCode}`,
+            `/${statusCode}.html`,
+            `/${statusCode}/index.html`,
+          ].some(
+            (path) =>
+              path === updatedPath || `/${locale}${path}` === updatedPath
+          )
+        ) {
+          res.statusCode = statusCode
+        }
       }
 
       if (renderOpts.trailingSlash && !req.url?.endsWith('/')) {
