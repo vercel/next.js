@@ -272,8 +272,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node:
-          ['${{ env.NODE_MAINTENANCE_VERSION }}', '${{ env.NODE_LTS_VERSION }}']
+        node: [16, 18]
         group: [1, 2, 3, 4, 5]
     # run LTS matrix always and maintenance tests during a release
     if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
@@ -323,8 +322,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node:
-          ['${{ env.NODE_MAINTENANCE_VERSION }}', '${{ env.NODE_LTS_VERSION }}']
+        node: [16, 18]
         group: [1, 2, 3, 4, 5, 6, 7, 8]
     # run LTS matrix always and maintenance tests during a release
     if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
@@ -374,8 +372,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node:
-          ['${{ env.NODE_MAINTENANCE_VERSION }}', '${{ env.NODE_LTS_VERSION }}']
+        node: [16, 18]
         group: [1, 2, 3, 4, 5]
     # run LTS matrix always and maintenance tests during a release
     if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
@@ -415,8 +412,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node:
-          ['${{ env.NODE_MAINTENANCE_VERSION }}', '${{ env.NODE_LTS_VERSION }}']
+        node: [16, 18]
         group: [1, 2, 3, 4, 5, 6, 7, 8]
     # run LTS matrix always and maintenance tests during a release
     if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
