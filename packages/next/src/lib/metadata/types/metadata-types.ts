@@ -20,10 +20,6 @@ export interface DeprecatedMetadata {
   'apple-touch-icon-precomposed'?: never
 }
 
-type DeprecatedIconRel =
-  | 'apple-touch-fullscreen'
-  | 'apple-touch-icon-precomposed'
-
 export type TemplateString =
   | DefaultTemplateString
   | AbsoluteTemplateString
