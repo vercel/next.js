@@ -21,7 +21,7 @@
     "test-pack": "cd ../../ && pnpm test-pack font"
   },
   "peerDependencies": {
-    "next": "13.1.7-canary.16"
+    "next": "*"
   },
   "devDependencies": {
     "@types/fontkit": "2.0.0",
