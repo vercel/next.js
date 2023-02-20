@@ -631,9 +631,9 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       })
 
       wp.watch({ directories: [parentDir], startTime: 0 })
-      let instrumentationFileLastModified: number | undefined = undefined
+      let instrumentationFileLastHash: string | undefined = undefined
 
-      wp.on('aggregated', () => {
+      wp.on('aggregated', async () => {
         const knownFiles = wp.getTimeInfoEntries()
         const newFiles: string[] = []
         let hasPagesApp = false
@@ -644,24 +644,29 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         )
 
         if (instrumentationFile) {
-          const instrumentationFileModified =
-            knownFiles.get(instrumentationFile)?.timestamp
+          const fs = require('fs') as typeof import('fs')
+          const instrumentationFileHash = (
+            require('crypto') as typeof import('crypto')
+          )
+            .createHash('sha256')
+            .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
+            .digest('hex')
 
           if (
-            instrumentationFileLastModified !== undefined &&
-            instrumentationFileLastModified !== instrumentationFileModified
+            instrumentationFileLastHash &&
+            instrumentationFileHash !== instrumentationFileLastHash
           ) {
             warn(
               `The instrumentation file has changed, restarting the server to apply changes.`
             )
-            setupFork()
+            return setupFork()
           } else {
-            instrumentationFileLastModified = instrumentationFileModified
+            instrumentationFileLastHash = instrumentationFileHash
             if (previousItems.size !== 0) {
               warn(
                 'An instrumentation file was added, restarting the server to apply changes.'
               )
-              setupFork()
+              return setupFork()
             }
           }
         } else if (
@@ -672,8 +677,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           warn(
             `The instrumentation file has been removed, restarting the server to apply changes.`
           )
-          instrumentationFileLastModified = undefined
-          setupFork()
+          instrumentationFileLastHash = undefined
+          return setupFork()
         }
 
         // if the dir still exists nothing to check
