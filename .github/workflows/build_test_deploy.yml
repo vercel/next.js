@@ -129,7 +129,12 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
       - run: ./scripts/check-manifests.js
+
       - run: pnpm lint
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - run: pnpm lint-no-typescript
+        if: ${{needs.build.outputs.docsChange != 'nope'}}
 
   rust-check:
     runs-on: ubuntu-latest
@@ -261,8 +266,9 @@ jobs:
       - run: node run-tests.js --type unit
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-  testDev:
-    name: Test Development
+  # run LTS matrix always and maintenance tests during a release
+  testDevLTS:
+    name: Test Development Node.js LTS
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
     timeout-minutes: 35
@@ -272,10 +278,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [16, 18]
+        node: [18]
         group: [1, 2, 3, 4, 5]
-    # run LTS matrix always and maintenance tests during a release
-    if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -311,8 +315,8 @@ jobs:
           path: |
             test/traces
 
-  testDevE2E:
-    name: Test Development (E2E)
+  testDevMaintenance:
+    name: Test Development Node.js Maintenance
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
     timeout-minutes: 35
@@ -322,10 +326,59 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [16, 18]
+        node: [16]
+        group: [1, 2, 3, 4, 5]
+    # we can't use "matrix" context in job level "if" so we have
+    # to create a separate job which can skip
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    steps:
+      - run: echo "${{needs.build.outputs.docsChange}}"
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type development --timings -g ${{ matrix.group }}/5 >> /proc/1/fd/1"
+        name: Run test/development
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  testDevE2ELTS:
+    name: Test Development (E2E) Node.js LTS
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18]
         group: [1, 2, 3, 4, 5, 6, 7, 8]
-    # run LTS matrix always and maintenance tests during a release
-    if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -361,8 +414,57 @@ jobs:
           path: |
             test/traces
 
-  testProd:
-    name: Test Production
+  testDevE2EMaintenance:
+    name: Test Development (E2E) Node.js Maintenance
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16]
+        group: [1, 2, 3, 4, 5, 6, 7, 8]
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    steps:
+      - run: echo "${{needs.build.outputs.docsChange}}"
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=dev TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/8 >> /proc/1/fd/1"
+        name: Run test/e2e (dev)
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+      - name: Upload test trace
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-trace
+          if-no-files-found: ignore
+          retention-days: 2
+          path: |
+            test/traces
+
+  testProdLTS:
+    name: Test Production Node.js LTS
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
     timeout-minutes: 15
@@ -372,10 +474,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [16, 18]
+        node: [18]
         group: [1, 2, 3, 4, 5]
-    # run LTS matrix always and maintenance tests during a release
-    if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -401,8 +501,47 @@ jobs:
         name: Run test/production
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-  testProdE2E:
-    name: Test Production (E2E)
+  testProdMaintenance:
+    name: Test Production Node.js Maintenance
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16]
+        group: [1, 2, 3, 4, 5]
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
+    steps:
+      - run: echo "${{needs.build.outputs.docsChange}}"
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type production --timings -g ${{ matrix.group }}/5 >> /proc/1/fd/1"
+        name: Run test/production
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+  testProdE2ELTS:
+    name: Test Production (E2E) Node.js LTS
     runs-on: ubuntu-latest
     needs: [build, build-native-test]
     timeout-minutes: 35
@@ -412,10 +551,48 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [16, 18]
+        node: [18]
+        group: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - run: echo "${{needs.build.outputs.docsChange}}"
+
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - uses: actions/cache@v3
+        timeout-minutes: 5
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}-${{ github.run_number }}
+
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        with:
+          name: next-swc-test-binary
+          path: packages/next-swc/native
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && npm i -g pnpm@${PNPM_VERSION} > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start TEST_TIMINGS_TOKEN=${{ secrets.TEST_TIMINGS_TOKEN }} xvfb-run node run-tests.js --type e2e --timings -g ${{ matrix.group }}/8 >> /proc/1/fd/1"
+        name: Run test/e2e (production)
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+
+  testProdE2EMaintenance:
+    name: Test Production (E2E) Node.js Maintenance
+    runs-on: ubuntu-latest
+    needs: [build, build-native-test]
+    timeout-minutes: 35
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [16]
         group: [1, 2, 3, 4, 5, 6, 7, 8]
     # run LTS matrix always and maintenance tests during a release
-    if: ${{ matrix.node == '18' || needs.build.outputs.isRelease == 'true' }}
+    if: ${{ needs.build.outputs.isRelease == 'true' }}
     steps:
       - run: echo "${{needs.build.outputs.docsChange}}"
 
@@ -642,8 +819,10 @@ jobs:
         checkPrecompiled,
         testIntegration,
         testUnit,
-        testDev,
-        testProd,
+        testDevLTS,
+        testProdLTS,
+        testDevE2ELTS,
+        testprode2elts,
       ]
     steps:
       - run: exit 0
