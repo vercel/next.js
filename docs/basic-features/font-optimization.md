@@ -14,19 +14,11 @@ description: Optimizing loading web fonts with the built-in `next/font` loaders.
 
 This new font system also allows you to conveniently use all Google Fonts with performance and privacy in mind. CSS and font files are downloaded at build time and self-hosted with the rest of your static assets. **No requests are sent to Google by the browser.**
 
-## Usage
-
-To get started, install `next/font`:
-
-```bash
-npm install next/font
-```
-
 ### Google Fonts
 
 Automatically self-host any Google Font. Fonts are included in the deployment and served from the same domain as your deployment. **No requests are sent to Google by the browser.**
 
-Import the font you would like to use from `next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
+To get started, import the font you would like to use from `next/font/google` as a function. We recommend using [**variable fonts**](https://fonts.google.com/variablefonts) for the best performance and flexibility.
 
 To use the font in all your pages, add it to [`_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) under `/pages` as shown below:
 
