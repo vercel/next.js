@@ -47,5 +47,21 @@ describe('accumulateMetadata', () => {
         title: { absolute: '2nd parent layout page', template: null },
       })
     })
+
+    it.each`
+      metadataItems                                                                         | result
+      ${[[{ openGraph: { type: 'article', images: 'https://test.com' } }, null]]}           | ${{ openGraph: { images: ['https://test.com'] } }}
+      ${[[{ openGraph: { type: 'book', images: 'https://test.com' } }, null]]}              | ${{ openGraph: { images: ['https://test.com'] } }}
+      ${[[{ openGraph: { type: 'song', images: new URL('https://test.com') } }, null]]}     | ${{ openGraph: { images: [new URL('https://test.com')] } }}
+      ${[[{ openGraph: { type: 'playlist', images: { url: 'https://test.com' } } }, null]]} | ${{ openGraph: { images: [{ url: 'https://test.com' }] } }}
+      ${[[{ openGraph: { type: 'radio', images: 'https://test.com' } }, null]]}             | ${{ openGraph: { images: ['https://test.com'] } }}
+      ${[[{ openGraph: { type: 'video', images: 'https://test.com' } }, null]]}             | ${{ openGraph: { images: ['https://test.com'] } }}
+    `(
+      'should convert string or URL images field to array, not only for basic og type',
+      async ({ metadataItems, result }) => {
+        const metadata = await accumulateMetadata(metadataItems)
+        expect(metadata).toMatchObject(result)
+      }
+    )
   })
 })

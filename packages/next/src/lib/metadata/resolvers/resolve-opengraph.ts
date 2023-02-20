@@ -10,11 +10,11 @@ import { resolveAsArrayOrUndefined } from '../generate/utils'
 import { isStringOrURL, resolveUrl } from './resolve-url'
 
 const OgTypFields = {
-  article: ['authors', 'tags'],
-  song: ['albums', 'musicians'],
-  playlist: ['albums', 'musicians'],
-  radio: ['creators'],
-  video: ['actors', 'directors', 'writers', 'tags'],
+  article: ['authors', 'tags', 'images'],
+  song: ['albums', 'musicians', 'images'],
+  playlist: ['albums', 'musicians', 'images'],
+  radio: ['creators', 'images'],
+  video: ['actors', 'directors', 'writers', 'tags', 'images'],
   basic: [
     'emails',
     'phoneNumbers',
