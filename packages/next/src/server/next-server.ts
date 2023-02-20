@@ -206,7 +206,7 @@ export default class NextNodeServer extends BaseServer {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
-    if (!options.dev) {
+    if (!options.dev && this.nextConfig.experimental.instrumentationHook) {
       try {
         const instrumentationHook = require(join(
           options.dir || '.',
