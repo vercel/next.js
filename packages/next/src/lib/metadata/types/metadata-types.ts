@@ -4,7 +4,7 @@
  *
  */
 
-export interface DeprecatedMetadata {
+export interface DeprecatedMetadataFields {
   /**
    * Deprecated options that have a preferred method
    * @deprecated Use appWebApp to configure apple-mobile-web-app-capable which provides
