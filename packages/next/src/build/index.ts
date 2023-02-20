@@ -129,6 +129,7 @@ import {
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
 
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
@@ -2321,7 +2322,7 @@ export default async function build(
               appConfig.revalidate === 0 ||
               exportConfig.initialPageRevalidationMap[page] === 0
 
-            const isRouteHandler = originalAppPath.endsWith('/route')
+            const isRouteHandler = isAppRouteRoute(originalAppPath)
 
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return

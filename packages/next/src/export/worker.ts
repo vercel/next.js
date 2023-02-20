@@ -40,6 +40,7 @@ import { mockRequest } from '../server/lib/mock-request'
 import { RouteKind } from '../server/future/route-kind'
 import { NodeNextRequest, NodeNextResponse } from '../server/base-http/node'
 import { StaticGenerationContext } from '../server/future/route-handlers/app-route-route-handler'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
 
 loadRequireHook()
 
@@ -164,7 +165,7 @@ export default async function exportPage({
       let renderAmpPath = ampPath
       let query = { ...originalQuery }
       let params: { [key: string]: string | string[] } | undefined
-      const isRouteHandler = isAppDir && page.endsWith('/route')
+      const isRouteHandler = isAppDir && isAppRouteRoute(page)
 
       if (isAppDir) {
         outDir = join(distDir, 'server/app')
