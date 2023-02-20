@@ -86,6 +86,9 @@
     "postcss": "8.4.14",
     "styled-jsx": "5.1.1"
   },
+  "optionalDependencies": {
+    "@opentelemetry/api": "1.4.0"
+  },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
     "node-sass": "^6.0.0 || ^7.0.0",

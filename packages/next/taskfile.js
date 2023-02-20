@@ -2019,6 +2019,17 @@ export async function path_to_regexp(task, opts) {
     .target('dist/compiled/path-to-regexp')
 }
 
+// eslint-disable-next-line camelcase
+externals['@opentelemetry/api'] = 'next/dist/compiled/@opentelemetry/api'
+export async function ncc_opentelemetry_api(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('@opentelemetry/api'))
+    )
+    .ncc({ packageName: '@opentelemetry/api', externals })
+    .target('src/compiled/@opentelemetry/api')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     [
@@ -2151,6 +2162,7 @@ export async function ncc(task, opts) {
         'ncc_ua_parser_js',
         'ncc_minimatch',
         'ncc_mini_css_extract_plugin',
+        'ncc_opentelemetry_api',
       ],
       opts
     )
