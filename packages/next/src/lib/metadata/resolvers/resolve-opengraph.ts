@@ -10,17 +10,16 @@ import { resolveAsArrayOrUndefined } from '../generate/utils'
 import { isStringOrURL, resolveUrl } from './resolve-url'
 
 const OgTypFields = {
-  article: ['authors', 'tags', 'images'],
-  song: ['albums', 'musicians', 'images'],
-  playlist: ['albums', 'musicians', 'images'],
-  radio: ['creators', 'images'],
-  video: ['actors', 'directors', 'writers', 'tags', 'images'],
+  article: ['authors', 'tags'],
+  song: ['albums', 'musicians'],
+  playlist: ['albums', 'musicians'],
+  radio: ['creators'],
+  video: ['actors', 'directors', 'writers', 'tags'],
   basic: [
     'emails',
     'phoneNumbers',
     'faxNumbers',
     'alternateLocale',
-    'images',
     'audio',
     'videos',
   ],
@@ -69,6 +68,7 @@ export function resolveOpenGraph(
         }
       }
     }
+    resolved.images = resolveAsArrayOrUndefined(og.images)
   }
 
   assignProps(openGraph)

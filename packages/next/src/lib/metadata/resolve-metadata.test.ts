@@ -1,4 +1,5 @@
 import { accumulateMetadata, MetadataItems } from './resolve-metadata'
+import { Metadata, ResolvedMetadata } from './types/metadata-interface'
 
 describe('accumulateMetadata', () => {
   describe('typing', () => {
@@ -47,21 +48,65 @@ describe('accumulateMetadata', () => {
         title: { absolute: '2nd parent layout page', template: null },
       })
     })
+  })
 
-    it.each`
-      metadataItems                                                                         | result
-      ${[[{ openGraph: { type: 'article', images: 'https://test.com' } }, null]]}           | ${{ openGraph: { images: ['https://test.com'] } }}
-      ${[[{ openGraph: { type: 'book', images: 'https://test.com' } }, null]]}              | ${{ openGraph: { images: ['https://test.com'] } }}
-      ${[[{ openGraph: { type: 'song', images: new URL('https://test.com') } }, null]]}     | ${{ openGraph: { images: [new URL('https://test.com')] } }}
-      ${[[{ openGraph: { type: 'playlist', images: { url: 'https://test.com' } } }, null]]} | ${{ openGraph: { images: [{ url: 'https://test.com' }] } }}
-      ${[[{ openGraph: { type: 'radio', images: 'https://test.com' } }, null]]}             | ${{ openGraph: { images: ['https://test.com'] } }}
-      ${[[{ openGraph: { type: 'video', images: 'https://test.com' } }, null]]}             | ${{ openGraph: { images: ['https://test.com'] } }}
-    `(
-      'should convert string or URL images field to array, not only for basic og type',
-      async ({ metadataItems, result }) => {
-        const metadata = await accumulateMetadata(metadataItems)
+  describe('openGraph', () => {
+    it('should convert string or URL images field to array, not only for basic og type', async () => {
+      const items: [Metadata[], Metadata][] = [
+        [
+          [{ openGraph: { type: 'article', images: 'https://test.com' } }],
+          { openGraph: { images: ['https://test.com'] } },
+        ],
+        [
+          [{ openGraph: { type: 'book', images: 'https://test.com' } }],
+          { openGraph: { images: ['https://test.com'] } },
+        ],
+        [
+          [
+            {
+              openGraph: {
+                type: 'music.song',
+                images: new URL('https://test.com'),
+              },
+            },
+          ],
+          { openGraph: { images: [new URL('https://test.com')] } },
+        ],
+        [
+          [
+            {
+              openGraph: {
+                type: 'music.playlist',
+                images: { url: 'https://test.com' },
+              },
+            },
+          ],
+          { openGraph: { images: [{ url: 'https://test.com' }] } },
+        ],
+        [
+          [
+            {
+              openGraph: {
+                type: 'music.radio_station',
+                images: 'https://test.com',
+              },
+            },
+          ],
+          { openGraph: { images: ['https://test.com'] } },
+        ],
+        [
+          [{ openGraph: { type: 'video.movie', images: 'https://test.com' } }],
+          { openGraph: { images: ['https://test.com'] } },
+        ],
+      ]
+
+      items.forEach(async (item) => {
+        const [configuredMetadata, result] = item
+        const metadata = await accumulateMetadata(
+          configuredMetadata.map((m) => [m, null])
+        )
         expect(metadata).toMatchObject(result)
-      }
-    )
+      })
+    })
   })
 })
