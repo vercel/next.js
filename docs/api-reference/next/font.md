@@ -116,7 +116,7 @@ Used in `next/font/google` and `next/font/local`
 
 Examples:
 
-- `display: 'swap'`: A string assigned to the `swap` value
+- `display: 'optional'`: A string assigned to the `optional` value
 
 ### `preload`
 
