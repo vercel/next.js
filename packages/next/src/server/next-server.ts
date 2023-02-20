@@ -1165,8 +1165,11 @@ export default class NextNodeServer extends BaseServer {
         }
 
         const bubbleNoFallback = !!query._nextBubbleNoFallback
-
         const match = await this.matchers.match(pathname, options)
+
+        if (match) {
+          addRequestMeta(req, '_nextMatch', match)
+        }
 
         // Try to handle the given route with the configured handlers.
         if (match) {
@@ -1190,8 +1193,7 @@ export default class NextNodeServer extends BaseServer {
               }
             }
           }
-          let handled = await this.handlers.handle(match, req, res)
-          if (handled) return { finished: true }
+          let handled = false
 
           // If the route was detected as being a Pages API route, then handle
           // it.

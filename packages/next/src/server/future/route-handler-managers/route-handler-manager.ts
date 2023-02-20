@@ -25,12 +25,18 @@ export class RouteHandlerManager {
   public async handle(
     match: RouteMatch,
     req: BaseNextRequest,
-    res: BaseNextResponse
+    res: BaseNextResponse,
+    context?: any,
+    bubbleResult?: boolean
   ): Promise<boolean> {
     const handler = this.handlers[match.definition.kind]
     if (!handler) return false
 
-    await handler.handle(match, req, res)
+    const result = await handler.handle(match, req, res, context, bubbleResult)
+
+    if (bubbleResult) {
+      return result as any
+    }
     return true
   }
 }

@@ -649,6 +649,8 @@ export default async function exportApp(
             appPaths: options.appPaths || [],
             enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
+            isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+            fetchCache: nextConfig.experimental.fetchCache,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -669,6 +671,11 @@ export default async function exportApp(
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {
               configuration.initialPageRevalidationMap[path] =
                 result.fromBuildExportRevalidate
+            }
+
+            if (typeof result.fromBuildExportMeta !== 'undefined') {
+              configuration.initialPageMetaMap[path] =
+                result.fromBuildExportMeta
             }
 
             if (result.ssgNotFound === true) {

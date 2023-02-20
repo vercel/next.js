@@ -92,6 +92,7 @@ import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/a
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
+import { sendResponse } from './future/route-handlers/app-route-route-handler'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1358,6 +1359,53 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
+      const supportsDynamicHTML = !(isSSG || hasStaticPaths)
+
+      const match =
+        pathname !== '/_error' && !is404Page && !is500Page
+          ? getRequestMeta(req, '_nextMatch')
+          : undefined
+
+      if (match) {
+        const context = {
+          supportsDynamicHTML,
+          incrementalCache,
+        }
+        let response: Response | undefined = (await this.handlers.handle(
+          match,
+          req,
+          res,
+          context,
+          isSSG
+        )) as any
+
+        if (response) {
+          if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+            const blob = await response.blob()
+            const headers = Object.fromEntries(response.headers)
+            if (!headers['content-type'] && blob.type) {
+              headers['content-type'] = blob.type
+            }
+            const cacheEntry: ResponseCacheEntry = {
+              value: {
+                kind: 'ROUTE',
+                status: response.status,
+                body: Buffer.from(await blob.arrayBuffer()),
+                headers,
+              },
+              revalidate:
+                (context as any as { revalidate?: number }).revalidate || false,
+            }
+            console.log('got result', cacheEntry)
+            return cacheEntry
+          }
+          console.log('sending response', pathname)
+          // dynamic response so send here
+          await sendResponse(req, res, response)
+          return null
+        }
+      }
+
       let pageData: any
       let body: RenderResult | null
       let isrRevalidate: number | false
@@ -1408,10 +1456,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 query: origQuery,
               })
             : resolvedUrl,
-      }
 
-      if (isSSG || hasStaticPaths) {
-        renderOpts.supportsDynamicHTML = false
+        supportsDynamicHTML,
       }
 
       const renderResult = await this.renderHTML(
@@ -1681,6 +1727,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     } else if (cachedData.kind === 'IMAGE') {
       throw new Error('invariant SSG should not return an image cache value')
+    } else if (cachedData.kind === 'ROUTE') {
+      await sendResponse(
+        req,
+        res,
+        new Response(cachedData.body, {
+          headers: new Headers((cachedData.headers || {}) as any),
+          status: cachedData.status || 200,
+        })
+      )
+      return null
     } else {
       return {
         type: isDataReq ? (isAppPath ? 'rsc' : 'json') : 'html',

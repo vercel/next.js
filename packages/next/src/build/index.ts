@@ -133,18 +133,20 @@ import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 export type SsgRoute = {
   initialRevalidateSeconds: number | false
   srcRoute: string | null
-  dataRoute: string
+  dataRoute: string | null
+  initialStatus?: number
+  initialHeaders?: Record<string, string>
 }
 
 export type DynamicSsgRoute = {
   routeRegex: string
   fallback: string | null | false
-  dataRoute: string
-  dataRouteRegex: string
+  dataRoute: string | null
+  dataRouteRegex: string | null
 }
 
 export type PrerenderManifest = {
-  version: 3
+  version: 4
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   notFoundRoutes: string[]
@@ -1337,17 +1339,7 @@ export default async function build(
                   pageType === 'app' &&
                   staticInfo?.rsc !== RSC_MODULE_TYPES.client
 
-                if (
-                  !isReservedPage(page) &&
-                  // TODO-APP: static generation of route
-                  !(
-                    pageType === 'app' &&
-                    isEdgeRuntime(pageRuntime) &&
-                    pagePath
-                      .replace(/\\/g, '/')
-                      .match(`/route\\.(?:${config.pageExtensions.join('|')})$`)
-                  )
-                ) {
+                if (!isReservedPage(page)) {
                   try {
                     let edgeInfo: any
 
@@ -1412,9 +1404,7 @@ export default async function build(
                         if (
                           (!isDynamicRoute(page) ||
                             !workerResult.prerenderRoutes?.length) &&
-                          workerResult.appConfig?.revalidate !== 0 &&
-                          // TODO-APP: (wyattjoh) this may be where we can enable prerendering for app handlers
-                          originalAppPath.endsWith('/page')
+                          workerResult.appConfig?.revalidate !== 0
                         ) {
                           appStaticPaths.set(originalAppPath, [page])
                           appStaticPathsEncoded.set(originalAppPath, [page])
@@ -2195,6 +2185,7 @@ export default async function build(
           const exportConfig: any = {
             ...config,
             initialPageRevalidationMap: {},
+            initialPageMetaMap: {},
             pageDurationMap: {},
             ssgNotFoundPaths: [] as string[],
             // Default map will be the collection of automatic statically exported
@@ -2330,6 +2321,8 @@ export default async function build(
               appConfig.revalidate === 0 ||
               exportConfig.initialPageRevalidationMap[page] === 0
 
+            const isRouteHandler = originalAppPath.endsWith('/route')
+
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
 
@@ -2352,8 +2345,29 @@ export default async function build(
 
               if (revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route)
-                const dataRoute = path.posix.join(`${normalizedRoute}.rsc`)
+                const dataRoute = isRouteHandler
+                  ? null
+                  : path.posix.join(`${normalizedRoute}.rsc`)
+
+                let routeMeta: {
+                  initialStatus?: SsgRoute['initialStatus']
+                  initialHeaders?: SsgRoute['initialHeaders']
+                } = {}
+
+                if (isRouteHandler) {
+                  const exportRouteMeta =
+                    exportConfig.initialPageMetaMap[route] || {}
+
+                  if (exportRouteMeta.status !== 200) {
+                    routeMeta.initialStatus = exportRouteMeta.status
+                  }
+                  if (Object.keys(exportRouteMeta.headers).length) {
+                    routeMeta.initialHeaders = exportRouteMeta.headers
+                  }
+                }
+
                 finalPrerenderRoutes[route] = {
+                  ...routeMeta,
                   initialRevalidateSeconds: revalidate,
                   srcRoute: page,
                   dataRoute,
@@ -2386,11 +2400,13 @@ export default async function build(
                 fallback: appDynamicParamPaths.has(originalAppPath)
                   ? null
                   : false,
-                dataRouteRegex: normalizeRouteRegex(
-                  getNamedRouteRegex(
-                    dataRoute.replace(/\.rsc$/, '')
-                  ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
-                ),
+                dataRouteRegex: isRouteHandler
+                  ? null
+                  : normalizeRouteRegex(
+                      getNamedRouteRegex(
+                        dataRoute.replace(/\.rsc$/, '')
+                      ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                    ),
               }
             }
           }
@@ -2737,7 +2753,7 @@ export default async function build(
           }
         })
         const prerenderManifest: PrerenderManifest = {
-          version: 3,
+          version: 4,
           routes: finalPrerenderRoutes,
           dynamicRoutes: finalDynamicRoutes,
           notFoundRoutes: ssgNotFoundPaths,
@@ -2756,7 +2772,7 @@ export default async function build(
         })
       } else {
         const prerenderManifest: PrerenderManifest = {
-          version: 3,
+          version: 4,
           routes: {},
           dynamicRoutes: {},
           preview: previewProps,

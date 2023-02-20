@@ -33,6 +33,15 @@ interface CachedPageValue {
   pageData: Object
 }
 
+export interface CachedRouteValue {
+  kind: 'ROUTE'
+  // this needs to be a RenderResult so since renderResponse
+  // expects that type instead of a string
+  body: Buffer
+  status: number
+  headers: Record<string, undefined | string | string[]>
+}
+
 export interface CachedImageValue {
   kind: 'IMAGE'
   etag: string
@@ -63,11 +72,13 @@ export type IncrementalCacheValue =
   | IncrementalCachedPageValue
   | CachedImageValue
   | CachedFetchValue
+  | CachedRouteValue
 
 export type ResponseCacheValue =
   | CachedRedirectValue
   | CachedPageValue
   | CachedImageValue
+  | CachedRouteValue
 
 export type ResponseCacheEntry = {
   revalidate?: number | false
