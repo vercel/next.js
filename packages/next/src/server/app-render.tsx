@@ -925,6 +925,10 @@ export async function renderToHTMLOrFlight(
     typeof actionId === 'string' &&
     req.method === 'POST'
 
+  const protocol = req.headers['x-forwarded-proto'] || 'http'
+  const host = req.headers.host
+  const urlBase = `${protocol}://${host}`
+
   const {
     buildManifest,
     subresourceIntegrityManifest,
@@ -1813,7 +1817,11 @@ export async function renderToHTMLOrFlight(
               <>
                 {/* Adding key={requestId} to make metadata remount for each render */}
                 {/* @ts-expect-error allow to use async server component */}
-                <MetadataTree key={requestId} metadata={metadataItems} />
+                <MetadataTree
+                  key={requestId}
+                  metadata={metadataItems}
+                  urlBase={urlBase}
+                />
                 {resolvedHead}
               </>
             ),
@@ -1928,9 +1936,13 @@ export async function renderToHTMLOrFlight(
               initialTree={initialTree}
               initialHead={
                 <>
-                  {/* Adding key={requestId} to make metadata remount for each render */}
                   {/* @ts-expect-error allow to use async server component */}
-                  <MetadataTree key={requestId} metadata={metadataItems} />
+                  <MetadataTree
+                    // Adding key={requestId} to make metadata remount for each render
+                    key={requestId}
+                    urlBase={urlBase}
+                    metadata={metadataItems}
+                  />
                   {initialHead}
                 </>
               }

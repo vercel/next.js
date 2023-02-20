@@ -52,7 +52,7 @@ function mergeStaticMetadata(
         card: 'summary_large_image',
         images: twitter,
       },
-      null
+      metadata.metadataBase
     )
     metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
   }
@@ -62,7 +62,7 @@ function mergeStaticMetadata(
       {
         images: opengraph,
       },
-      null
+      metadata.metadataBase
     )
     metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
   }
@@ -81,7 +81,8 @@ function merge(
     openGraph: string | null
   }
 ) {
-  const metadataBase = source?.metadataBase || null
+  const metadataBase = source?.metadataBase || target.metadataBase
+
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
@@ -166,7 +167,7 @@ function merge(
         target.other = Object.assign({}, target.other, source.other)
         break
       case 'metadataBase':
-        target.metadataBase = metadataBase
+        if (metadataBase) target.metadataBase = metadataBase
         break
       default:
         break
@@ -239,8 +240,18 @@ export async function collectMetadata(
   array.push([metadataExport, staticFilesMetadata])
 }
 
+function constructMetadataBase(urlBase: string) {
+  // Use the host of request for metadataBase
+  try {
+    return new URL(urlBase)
+  } catch (_) {
+    return null
+  }
+}
+
 export async function accumulateMetadata(
-  metadataItems: MetadataItems
+  metadataItems: MetadataItems,
+  urlBase: string
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
 
@@ -259,6 +270,10 @@ export async function accumulateMetadata(
 
   // Loop over all metadata items again, merging synchronously any static object exports,
   // awaiting any static promise exports, and resolving parent metadata and awaiting any generated metadata
+
+  if (urlBase) {
+    resolvedMetadata.metadataBase = constructMetadataBase(urlBase)
+  }
 
   let resolvingIndex = 0
   for (let i = 0; i < metadataItems.length; i++) {

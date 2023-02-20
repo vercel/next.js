@@ -68,7 +68,16 @@ export function resolveOpenGraph(
         }
       }
     }
-    resolved.images = resolveAsArrayOrUndefined(og.images)
+    resolved.images = resolveAsArrayOrUndefined(og.images)?.map((item) => {
+      if (isStringOrURL(item))
+        return {
+          url: resolveUrl(item, metadataBase)!,
+        }
+      else {
+        item.url = resolveUrl(item.url, metadataBase)!
+        return item
+      }
+    })
   }
 
   assignProps(openGraph)

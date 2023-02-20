@@ -16,8 +16,14 @@ import { IconsMetadata } from './generate/icons'
 import { accumulateMetadata, MetadataItems } from './resolve-metadata'
 
 // Generate the actual React elements from the resolved metadata.
-export async function MetadataTree({ metadata }: { metadata: MetadataItems }) {
-  const resolved = await accumulateMetadata(metadata)
+export async function MetadataTree({
+  metadata,
+  urlBase,
+}: {
+  metadata: MetadataItems
+  urlBase: string
+}) {
+  const resolved = await accumulateMetadata(metadata, urlBase)
 
   return (
     <>
