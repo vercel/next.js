@@ -12,7 +12,7 @@ import type {
   Viewport,
 } from './extra-types'
 import type {
-  DeprecatedMetadata,
+  DeprecatedMetadataFields,
   AbsoluteTemplateString,
   Author,
   ColorSchemeEnum,
@@ -34,7 +34,7 @@ import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
  * Metadata interface to describe all the metadata fields that can be set in a document.
  * @interface
  */
-interface Metadata extends DeprecatedMetadata {
+interface Metadata extends DeprecatedMetadataFields {
   /**
    * The base path and origin for absolute urls for various metadata links such as OpenGraph images.
    */
@@ -422,10 +422,10 @@ interface Metadata extends DeprecatedMetadata {
    */
   other?: {
     [name: string]: string | number | Array<string | number>
-  } & DeprecatedMetadata
+  } & DeprecatedMetadataFields
 }
 
-interface ResolvedMetadata extends DeprecatedMetadata {
+interface ResolvedMetadata extends DeprecatedMetadataFields {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
   metadataBase: null | URL
@@ -504,7 +504,7 @@ interface ResolvedMetadata extends DeprecatedMetadata {
     | null
     | ({
         [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadata)
+      } & DeprecatedMetadataFields)
 }
 
 export type ResolvingMetadata = Promise<ResolvedMetadata>
