@@ -1,7 +1,21 @@
 import { accumulateMetadata, MetadataItems } from './resolve-metadata'
 
 describe('accumulateMetadata', () => {
-  describe('merge title', () => {
+  describe('typing', () => {
+    it('should support both sync and async metadata', async () => {
+      const metadataItems: MetadataItems = [
+        [{ description: 'parent' }, null],
+        [() => Promise.resolve({ description: 'child' }), null],
+      ]
+
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        description: 'child',
+      })
+    })
+  })
+
+  describe('title', () => {
     it('should merge title with page title', async () => {
       const metadataItems: MetadataItems = [
         [{ title: 'root' }, null],

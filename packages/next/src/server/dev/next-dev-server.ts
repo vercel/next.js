@@ -81,7 +81,7 @@ import {
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
-import { pageFiles } from '../../build/webpack/plugins/flight-types-plugin'
+import { pageFiles } from '../../build/webpack/plugins/next-types-plugin'
 import {
   DevRouteMatcherManager,
   RouteEnsurer,

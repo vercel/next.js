@@ -82,6 +82,7 @@ export function getRender({
       pagesRenderToHTML,
       loadComponent: async (pathname) => {
         if (isAppPath) return null
+
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,
@@ -91,6 +92,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
+            isAppPath: !!pageMod.__next_app_webpack_require__,
             pathname,
           }
         }
