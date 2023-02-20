@@ -175,7 +175,6 @@ export const installTemplate = async ({
         ? `@${process.env.NEXT_PRIVATE_TEST_VERSION}`
         : ''
     }`,
-    '@next/font',
   ]
   /**
    * TypeScript projects will have type definitions and other devDependencies.

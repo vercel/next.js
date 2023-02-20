@@ -453,6 +453,9 @@ const configSchema = {
             },
           },
         },
+        instrumentationHook: {
+          type: 'boolean',
+        },
         turbotrace: {
           type: 'object',
           properties: {
