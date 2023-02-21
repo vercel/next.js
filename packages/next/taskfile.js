@@ -1670,14 +1670,18 @@ export async function ncc_react_server_dom_webpack(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // We replace the module/chunk loading code with our own implementation in Next.js.
-      file.data = source.replace(
-        /require\(["']react["']\)/g,
-        'require("next/dist/compiled/react")'
-      )
-      file.data = source.replace(
-        /require\(["']react-dom["']\)/g,
-        'require("next/dist/compiled/react-dom")'
-      )
+      file.data = source
+        .replace(
+          /require\(["']react["']\)/g,
+          'require("next/dist/compiled/react")'
+        )
+        .replace(
+          /require\(["']react-dom["']\)/g,
+          'require("next/dist/compiled/react-dom")'
+        )
+        // We replace the module/chunk loading code with our own implementation in Next.js.
+        .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
+        .replace(/__webpack_require__/g, 'globalThis.__next_require__')
     })
     .target(`src/compiled/react-server-dom-webpack`)
   // Use installed versions instead of bundled version

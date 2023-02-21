@@ -319,7 +319,7 @@ function useFlightResponse(
   }
   const {
     createFromReadableStream,
-  } = require('next/dist/compiled/react-server-dom-webpack/client')
+  } = require('next/dist/compiled/react-server-dom-webpack/client.edge')
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {

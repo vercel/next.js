@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require('react');
+var React = require("next/dist/compiled/react");
 
 function createStringDecoder() {
   return new TextDecoder();
@@ -73,7 +73,7 @@ function preloadModule(metadata) {
     var entry = chunkCache.get(chunkId);
 
     if (entry === undefined) {
-      var thenable = __webpack_chunk_load__(chunkId);
+      var thenable = globalThis.__next_chunk_load__(chunkId);
 
       promises.push(thenable); // $FlowFixMe[method-unbinding]
 
@@ -96,7 +96,7 @@ function preloadModule(metadata) {
       return existingPromise;
     } else {
       var modulePromise = Promise.all(promises).then(function () {
-        return __webpack_require__(metadata.id);
+        return globalThis.__next_require__(metadata.id);
       });
       modulePromise.then(function (value) {
         var fulfilledThenable = modulePromise;
@@ -132,7 +132,7 @@ function requireModule(metadata) {
       throw promise.reason;
     }
   } else {
-    moduleExports = __webpack_require__(metadata.id);
+    moduleExports = globalThis.__next_require__(metadata.id);
   }
 
   if (metadata.name === '*') {
