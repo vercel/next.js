@@ -492,7 +492,6 @@ export async function resolveExternal(
   context: string,
   request: string,
   isEsmRequested: boolean,
-  hasAppDir: boolean,
   getResolve: (
     options: any
   ) => (
@@ -1234,7 +1233,6 @@ export default async function getBaseWebpackConfig(
       context,
       request,
       isEsmRequested,
-      hasAppDir,
       getResolve,
       isLocal ? isLocalCallback : undefined
     )
@@ -1304,7 +1302,6 @@ export default async function getBaseWebpackConfig(
           config.experimental.esmExternals,
           context,
           pkg + '/package.json',
-          hasAppDir,
           isEsmRequested,
           getResolve,
           isLocal ? isLocalCallback : undefined
