@@ -82,7 +82,7 @@ export class IncrementalCache {
   }) {
     let cacheHandlerMod: any
 
-    if (flushToDisk && fs && serverDistDir) {
+    if (fs && serverDistDir) {
       cacheHandlerMod = FileSystemCache
     }
 
