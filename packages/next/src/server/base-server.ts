@@ -1682,14 +1682,27 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } else if (cachedData.kind === 'IMAGE') {
       throw new Error('invariant SSG should not return an image cache value')
     } else {
+      if (isAppPath) {
+        if (isDataReq && typeof cachedData.pageData !== 'string') {
+          throw new Error(
+            'invariant: Expected pageData to be a string for app data request but received ' +
+              typeof cachedData.pageData +
+              '. This is a bug in Next.js.'
+          )
+        }
+
+        return {
+          type: isDataReq ? 'rsc' : 'html',
+          body: isDataReq
+            ? RenderResult.fromStatic(cachedData.pageData as string)
+            : cachedData.html,
+        }
+      }
+
       return {
-        type: isDataReq ? (isAppPath ? 'rsc' : 'json') : 'html',
+        type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? RenderResult.fromStatic(
-              isAppPath
-                ? (cachedData.pageData as string)
-                : JSON.stringify(cachedData.pageData)
-            )
+          ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
           : cachedData.html,
         revalidateOptions,
       }
