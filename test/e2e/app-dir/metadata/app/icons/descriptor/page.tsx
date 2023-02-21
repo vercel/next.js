@@ -12,8 +12,8 @@ export const metadata = {
     ],
     other: [
       {
-        rel: 'apple-touch-icon-precomposed',
-        url: '/apple-touch-icon-precomposed.png',
+        rel: 'other-touch-icon',
+        url: '/other-touch-icon.png',
       },
     ],
   },

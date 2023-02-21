@@ -1,4 +1,4 @@
-import type { NextConfig } from '../../../../server/config-shared'
+import type { NextConfigComplete } from '../../../../server/config-shared'
 
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
@@ -48,7 +48,7 @@ export function getRender({
   serverComponentManifest: any
   serverCSSManifest: any
   appServerMod: any
-  config: NextConfig
+  config: NextConfigComplete
   buildId: string
   fontLoaderManifest: FontLoaderManifest
 }) {
@@ -82,6 +82,7 @@ export function getRender({
       pagesRenderToHTML,
       loadComponent: async (pathname) => {
         if (isAppPath) return null
+
         if (pathname === page) {
           return {
             ...baseLoadComponentResult,
@@ -91,6 +92,7 @@ export function getRender({
             getServerSideProps: pageMod.getServerSideProps,
             getStaticPaths: pageMod.getStaticPaths,
             ComponentMod: pageMod,
+            isAppPath: !!pageMod.__next_app_webpack_require__,
             pathname,
           }
         }

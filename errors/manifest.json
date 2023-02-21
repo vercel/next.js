@@ -779,6 +779,10 @@
           "path": "/errors/context-in-server-component.md"
         },
         {
+          "title": "next-response-next-in-app-route-handler",
+          "path": "/errors/next-response-next-in-app-route-handler.md"
+        },
+        {
           "title": "react-client-hook-in-server-component",
           "path": "/errors/react-client-hook-in-server-component.md"
         },
@@ -789,6 +793,14 @@
         {
           "title": "app-static-to-dynamic-error",
           "path": "/errors/app-static-to-dynamic-error.md"
+        },
+        {
+          "title": "built-in-next-font",
+          "path": "/errors/built-in-next-font.md"
+        },
+        {
+          "title": "version-staleness",
+          "path": "/errors/version-staleness.md"
         }
       ]
     }

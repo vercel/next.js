@@ -12,6 +12,7 @@ import { APP_DIR_ALIAS } from '../../../lib/constants'
 import { buildMetadata, discoverStaticMetadataFiles } from './metadata/discover'
 
 const isNotResolvedError = (err: any) => err.message.includes("Can't resolve")
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
 const FILE_TYPES = {
   layout: 'layout',
@@ -25,12 +26,46 @@ const FILE_TYPES = {
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 
+type PathResolver = (
+  pathname: string,
+  resolveDir?: boolean
+) => Promise<string | undefined>
 export type ComponentsType = {
   readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
 } & {
   readonly page?: ModuleReference
 } & {
   readonly metadata?: CollectedMetadata
+}
+
+async function createAppRouteCode({
+  pagePath,
+  resolver,
+}: {
+  pagePath: string
+  resolver: PathResolver
+}): Promise<string> {
+  // Split based on any specific path separators (both `/` and `\`)...
+  const splittedPath = pagePath.split(/[\\/]/)
+  // Then join all but the last part with the same separator, `/`...
+  const segmentPath = splittedPath.slice(0, -1).join('/')
+  // Then add the `/route` suffix...
+  const matchedPagePath = `${segmentPath}/route`
+  // This, when used with the resolver will give us the pathname to the built
+  // route handler file.
+  const resolvedPagePath = await resolver(matchedPagePath)
+
+  // TODO: verify if other methods need to be injected
+  // TODO: validate that the handler exports at least one of the supported methods
+
+  return `
+    import 'next/dist/server/node-polyfill-headers'
+
+    export * as handlers from ${JSON.stringify(resolvedPagePath)}
+    export const resolvedPagePath = ${JSON.stringify(resolvedPagePath)}
+
+    export { requestAsyncStorage } from 'next/dist/client/components/request-async-storage'
+  `
 }
 
 async function createTreeCodeFromPath(
@@ -279,8 +314,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     return Object.entries(matched)
   }
-
-  const resolver = async (pathname: string, resolveDir?: boolean) => {
+  const resolver: PathResolver = async (pathname, resolveDir) => {
     if (resolveDir) {
       return createAbsolutePath(appDir, pathname)
     }
@@ -300,6 +334,10 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       }
       throw err
     }
+  }
+
+  if (isAppRouteRoute(name)) {
+    return createAppRouteCode({ pagePath, resolver })
   }
 
   const {

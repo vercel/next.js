@@ -13,7 +13,7 @@ import {
   EDGE_RUNTIME_WEBPACK,
   EDGE_UNSUPPORTED_NODE_APIS,
   MIDDLEWARE_BUILD_MANIFEST,
-  FLIGHT_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
   MIDDLEWARE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
@@ -29,6 +29,8 @@ import { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
+import { NextBuildContext } from '../../build-context'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -90,12 +92,14 @@ function isUsingIndirectEvalAndUsedByExports(args: {
 function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
-  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
+  opts: {
+    sriEnabled: boolean
+  }
 ) {
   const files: string[] = []
   if (meta.edgeSSR) {
     if (meta.edgeSSR.isServerComponent) {
-      files.push(`server/${FLIGHT_MANIFEST}.js`)
+      files.push(`server/${CLIENT_REFERENCE_MANIFEST}.js`)
       files.push(`server/${FLIGHT_SERVER_CSS_MANIFEST}.js`)
       if (opts.sriEnabled) {
         files.push(`server/${SUBRESOURCE_INTEGRITY_MANIFEST}.js`)
@@ -120,8 +124,10 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    if (opts.hasFontLoaders) {
-      files.push(`server/${FONT_LOADER_MANIFEST}.js`)
+    files.push(`server/${FONT_LOADER_MANIFEST}.js`)
+
+    if (NextBuildContext!.hasInstrumentationHook) {
+      files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
     }
   }
 
@@ -136,7 +142,9 @@ function getEntryFiles(
 function getCreateAssets(params: {
   compilation: webpack.Compilation
   metadataByEntry: Map<string, EntryMetadata>
-  opts: { sriEnabled: boolean; hasFontLoaders: boolean }
+  opts: {
+    sriEnabled: boolean
+  }
 }) {
   const { compilation, metadataByEntry, opts } = params
   return (assets: any) => {
@@ -787,20 +795,10 @@ function getExtractMetadata(params: {
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
-  private readonly hasFontLoaders: boolean
 
-  constructor({
-    dev,
-    sriEnabled,
-    hasFontLoaders,
-  }: {
-    dev: boolean
-    sriEnabled: boolean
-    hasFontLoaders: boolean
-  }) {
+  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
-    this.hasFontLoaders = hasFontLoaders
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -845,7 +843,6 @@ export default class MiddlewarePlugin {
           metadataByEntry,
           opts: {
             sriEnabled: this.sriEnabled,
-            hasFontLoaders: this.hasFontLoaders,
           },
         })
       )

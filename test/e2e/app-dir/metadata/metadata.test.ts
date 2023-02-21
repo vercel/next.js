@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, hasRedbox, getRedboxDescription } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
 
 createNextDescribe(
@@ -62,9 +62,9 @@ createNextDescribe(
 
     const checkLink = (
       browser: BrowserInterface,
-      name: string,
+      rel: string,
       content: string | string[]
-    ) => checkMeta(browser, name, content, 'rel', 'link', 'href')
+    ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
     describe('basic', () => {
       it('should support title and description', async () => {
@@ -81,20 +81,30 @@ createNextDescribe(
 
       it('should support title template', async () => {
         const browser = await next.browser('/title-template')
-        expect(await browser.eval(`document.title`)).toBe('Page | Layout')
+        // Use the parent layout (root layout) instead of app/title-template/layout.tsx
+        expect(await browser.eval(`document.title`)).toBe('Page')
       })
 
       it('should support stashed title in one layer of page and layout', async () => {
         const browser = await next.browser('/title-template/extra')
+        // Use the parent layout (app/title-template/layout.tsx) instead of app/title-template/extra/layout.tsx
+        expect(await browser.eval(`document.title`)).toBe('Extra Page | Layout')
+      })
+
+      it('should use parent layout title when no title is defined in page', async () => {
+        const browser = await next.browser('/title-template/use-layout-title')
         expect(await browser.eval(`document.title`)).toBe(
-          'Extra Page | Extra Layout'
+          'title template layout default'
         )
       })
 
       it('should support stashed title in two layers of page and layout', async () => {
-        const browser = await next.browser('/title-template/extra/inner')
-        expect(await browser.eval(`document.title`)).toBe(
-          'Inner Page | Extra Layout'
+        const $inner = await next.render$('/title-template/extra/inner')
+        expect(await $inner('title').text()).toBe('Inner Page | Extra Layout')
+
+        const $deep = await next.render$('/title-template/extra/inner/deep')
+        expect(await $deep('title').text()).toBe(
+          'extra layout default | Layout'
         )
       })
 
@@ -102,17 +112,20 @@ createNextDescribe(
         const browser = await next.browser('/basic')
         await checkMetaNameContentPair(browser, 'generator', 'next.js')
         await checkMetaNameContentPair(browser, 'application-name', 'test')
+        await checkLink(browser, 'manifest', 'https://github.com/manifest.json')
+
         await checkMetaNameContentPair(
           browser,
           'referrer',
-          'origin-when-crossorigin'
+          'origin-when-cross-origin'
         )
         await checkMetaNameContentPair(
           browser,
           'keywords',
           'next.js,react,javascript'
         )
-        await checkMetaNameContentPair(browser, 'author', 'John Doe,Jane Doe')
+        await checkMetaNameContentPair(browser, 'author', ['huozhi', 'tree'])
+        await checkLink(browser, 'author', 'https://tree.com')
         await checkMetaNameContentPair(browser, 'theme-color', 'cyan')
         await checkMetaNameContentPair(browser, 'color-scheme', 'dark')
         await checkMetaNameContentPair(
@@ -293,7 +306,7 @@ createNextDescribe(
         await checkMetaNameContentPair(
           browser,
           'referrer',
-          'origin-when-crossorigin'
+          'origin-when-cross-origin'
         )
         await browser.back().waitForElementByCss('#index')
         expect(await getTitle(browser)).toBe('index page')
@@ -305,22 +318,48 @@ createNextDescribe(
       })
 
       it('should support generateMetadata export', async () => {
-        const browser = await next.browser('/params/slug')
+        const browser = await next.browser('/async/slug')
         expect(await getTitle(browser)).toBe('params - slug')
 
         await checkMetaNameContentPair(browser, 'keywords', 'parent,child')
 
-        await browser.loadPage(next.url + '/params/blog?q=xxx')
+        await browser.loadPage(next.url + '/async/blog?q=xxx')
         await check(
           () => browser.elementByCss('p').text(),
           /params - blog query - xxx/
         )
       })
 
-      it('should support synchronous generateMetadata export', async () => {
-        const browser = await next.browser('/basic/sync-generate-metadata')
-        expect(await getTitle(browser)).toBe('synchronous generateMetadata')
-      })
+      if (isNextDev) {
+        it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
+          const pagePath = 'app/mutate/page.tsx'
+          const content = `export default function page(props) {
+            return <p>mutate</p>
+          }
+
+          export async function generateMetadata(props, parent) {
+            const parentMetadata = await parent
+            parentMetadata.x = 1
+            return {
+              ...parentMetadata,
+            }
+          }`
+          await next.patchFile(pagePath, content)
+
+          const browser = await next.browser('/mutate')
+          await check(
+            async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
+            /success/
+          )
+          const error = await getRedboxDescription(browser)
+
+          await next.deleteFile(pagePath)
+
+          expect(error).toContain(
+            'Cannot add property x, object is not extensible'
+          )
+        })
+      }
 
       it('should handle metadataBase for urls resolved as only URL type', async () => {
         // including few urls in opengraph and alternates
@@ -441,11 +480,7 @@ createNextDescribe(
         await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
         await checkLink(browser, 'icon', '/icon.png')
         await checkLink(browser, 'apple-touch-icon', '/apple-icon.png')
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
       })
 
       it('should support basic string icons field', async () => {
@@ -466,11 +501,7 @@ createNextDescribe(
           '/apple-icon-x3.png',
         ])
 
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
 
         expect(
           await queryMetaProps(browser, 'link', 'href="/apple-icon-x3.png"', [

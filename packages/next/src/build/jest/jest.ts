@@ -143,6 +143,8 @@ export default function nextJest(options: { dir?: string } = {}) {
 
           // Handle @next/font
           '@next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
+          // Handle next/font
+          'next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
 
           // If we were able to derive moduleNameMapper settings from the paths in jsconfig
           ...(moduleNameMapperJsConfig || {}),

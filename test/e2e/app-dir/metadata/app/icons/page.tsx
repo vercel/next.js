@@ -8,8 +8,9 @@ export const metadata = {
     shortcut: '/shortcut-icon.png',
     apple: '/apple-icon.png',
     other: {
-      rel: 'apple-touch-icon-precomposed',
-      url: '/apple-touch-icon-precomposed.png',
+      rel: 'other-touch-icon',
+      url: '/other-touch-icon.png',
+      media: '(prefers-color-scheme: dark)',
     },
   },
 }

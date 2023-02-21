@@ -19,7 +19,7 @@ import {
   APP_CLIENT_INTERNALS,
   COMPILER_NAMES,
   EDGE_RUNTIME_WEBPACK,
-  ACTIONS_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
   FLIGHT_SERVER_CSS_MANIFEST,
 } from '../../../shared/lib/constants'
 import { ASYNC_CLIENT_MODULES } from './flight-manifest-plugin'
@@ -31,6 +31,7 @@ import {
 } from '../loaders/utils'
 import { traverseModules } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
 interface Options {
   dev: boolean
@@ -165,7 +166,13 @@ export class FlightClientEntryPlugin {
     ) {
       for (const [name, entry] of compilation.entries.entries()) {
         // Skip for entries under pages/
-        if (name.startsWith('pages/')) continue
+        if (
+          name.startsWith('pages/') ||
+          // Skip for route.js entries
+          (name.startsWith('app/') && isAppRouteRoute(name))
+        ) {
+          continue
+        }
 
         // Check if the page entry is a server component or not.
         const entryDependency: webpack.NormalModule | undefined =
@@ -756,9 +763,8 @@ export class FlightClientEntryPlugin {
       }
     }
 
-    const file = ACTIONS_MANIFEST
     const json = JSON.stringify(serverActions, null, this.dev ? 2 : undefined)
-    assets[file + '.json'] = new sources.RawSource(
+    assets[SERVER_REFERENCE_MANIFEST + '.json'] = new sources.RawSource(
       json
     ) as unknown as webpack.sources.RawSource
   }
