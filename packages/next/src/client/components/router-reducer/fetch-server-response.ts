@@ -1,6 +1,6 @@
 'use client'
 
-import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client.edge'
+import { createFromFetch } from 'next/dist/compiled/react-server-dom-webpack/client'
 import { FlightRouterState, FlightData } from '../../../server/app-render'
 import {
   NEXT_ROUTER_PREFETCH,

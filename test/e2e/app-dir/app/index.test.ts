@@ -1668,13 +1668,13 @@ createNextDescribe(
       it('should insert preload tags for beforeInteractive and afterInteractive scripts', async () => {
         const html = await next.render('/script')
         expect(html).toContain(
-          '<link href="/test1.js" rel="preload" as="script"/>'
+          '<link rel="preload" as="script" href="/test1.js"/>'
         )
         expect(html).toContain(
-          '<link href="/test2.js" rel="preload" as="script"/>'
+          '<link rel="preload" as="script" href="/test2.js"/>'
         )
         expect(html).toContain(
-          '<link href="/test3.js" rel="preload" as="script"/>'
+          '<link rel="preload" as="script" href="/test3.js"/>'
         )
 
         // test4.js has lazyOnload which doesn't need to be preloaded

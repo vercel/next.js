@@ -14,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
   (function() {
 'use strict';
 
-var React = require("next/dist/compiled/react");
+var React = require('react');
 
 function createStringDecoder() {
   return new TextDecoder();

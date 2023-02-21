@@ -85,7 +85,7 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
         // ensure we reset the cache for sc_server components
         // loaded via react-server-dom-webpack
         const reactServerDomModId = require.resolve(
-          'next/dist/compiled/react-server-dom-webpack/client.edge'
+          'next/dist/compiled/react-server-dom-webpack/client'
         )
         const reactServerDomMod = require.cache[reactServerDomModId]
 
