@@ -480,11 +480,7 @@ createNextDescribe(
         await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
         await checkLink(browser, 'icon', '/icon.png')
         await checkLink(browser, 'apple-touch-icon', '/apple-icon.png')
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
       })
 
       it('should support basic string icons field', async () => {
@@ -505,11 +501,7 @@ createNextDescribe(
           '/apple-icon-x3.png',
         ])
 
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
 
         expect(
           await queryMetaProps(browser, 'link', 'href="/apple-icon-x3.png"', [
