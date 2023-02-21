@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::resolve::options::{ImportMapping, ImportMappingVc};
 
@@ -18,4 +19,18 @@ pub async fn get_postcss_package_mapping(
         .cell(),
     ])
     .cell())
+}
+
+#[turbo_tasks::function]
+pub async fn get_external_next_compiled_package_mapping(
+    package_name: StringVc,
+) -> Result<ImportMappingVc> {
+    Ok(
+        ImportMapping::Alternatives(vec![ImportMapping::External(Some(format!(
+            "next/dist/compiled/{}",
+            &*package_name.await?
+        )))
+        .into()])
+        .cell(),
+    )
 }

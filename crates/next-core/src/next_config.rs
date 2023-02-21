@@ -9,10 +9,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::EnvMapVc;
 use turbo_tasks_fs::json::parse_json_rope_with_source_context;
-use turbopack::{
-    evaluate_context::node_evaluate_asset_context,
-    module_options::{WebpackLoadersOptions, WebpackLoadersOptionsVc},
-};
+use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
     asset::Asset,
     context::AssetContext,
@@ -446,6 +443,10 @@ pub enum RemoveConsoleConfig {
     Config { exclude: Option<Vec<String>> },
 }
 
+#[derive(Default)]
+#[turbo_tasks::value(transparent)]
+pub struct WebpackExtensionToLoaders(IndexMap<String, WebpackLoaderConfigsVc>);
+
 #[turbo_tasks::value_impl]
 impl NextConfigVc {
     #[turbo_tasks::function]
@@ -500,20 +501,16 @@ impl NextConfigVc {
     }
 
     #[turbo_tasks::function]
-    pub async fn webpack_loaders_options(self) -> Result<WebpackLoadersOptionsVc> {
+    pub async fn webpack_loaders_options(self) -> Result<WebpackExtensionToLoadersVc> {
         let this = self.await?;
         let Some(turbo_loaders) = this.experimental.turbo.as_ref().and_then(|t| t.loaders.as_ref()) else {
-            return Ok(WebpackLoadersOptionsVc::cell(WebpackLoadersOptions::default()));
+            return Ok(WebpackExtensionToLoadersVc::cell(IndexMap::new()));
         };
         let mut extension_to_loaders = IndexMap::new();
         for (ext, loaders) in turbo_loaders {
             extension_to_loaders.insert(ext.clone(), WebpackLoaderConfigsVc::cell(loaders.clone()));
         }
-        Ok(WebpackLoadersOptions {
-            extension_to_loaders,
-            ..Default::default()
-        }
-        .cell())
+        Ok(WebpackExtensionToLoaders(extension_to_loaders).cell())
     }
 
     #[turbo_tasks::function]
