@@ -32,7 +32,6 @@ importers:
       '@next/polyfill-module': workspace:*
       '@next/polyfill-nomodule': workspace:*
       '@next/swc': workspace:*
-      '@picocss/pico': 1.5.7
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55
       '@swc/core': 1.2.203
@@ -208,7 +207,6 @@ importers:
       '@next/polyfill-module': link:packages/next-polyfill-module
       '@next/polyfill-nomodule': link:packages/next-polyfill-nomodule
       '@next/swc': link:packages/next-swc
-      '@picocss/pico': 1.5.7
       '@svgr/webpack': 5.5.0
       '@swc/cli': 0.1.55_@swc+core@1.2.203
       '@swc/core': 1.2.203
@@ -6122,10 +6120,6 @@ packages:
     dependencies:
       '@octokit/openapi-types': 4.0.2
       '@types/node': 18.11.18
-    dev: true
-
-  /@picocss/pico/1.5.7:
-    resolution: {integrity: sha512-RygdXNlSXieAs9jMw/AeqA1ki1kldgEYbRn8BnYZIPfRTM5NWZ4uVzMK6uMPhYlRjoT5wD/OplZvIefnCqyDCQ==}
     dev: true
 
   /@pkgr/utils/2.3.1:
