@@ -408,7 +408,7 @@ impl TaskScope {
             "Scope dependent tasks not correctly cleaned up: {:?}",
             state.dependent_tasks
         );
-        // TODO read_collectibles_tasks need to be cleaned up
+        // TODO(WEB-615) read_collectibles_tasks need to be cleaned up
         // assert!(
         //     state.collectibles.is_empty(),
         //     "Scope collectibles not correctly cleaned up: {:?}",
