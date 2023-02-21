@@ -42,6 +42,15 @@ createNextDescribe(
             )
           ).toBe('rgb(0, 128, 0)')
         })
+
+        it('should support external css imports', async () => {
+          const browser = await next.browser('/css/css-external')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('main')).paddingTop`
+            )
+          ).toBe('80px')
+        })
       })
 
       describe('server pages', () => {
