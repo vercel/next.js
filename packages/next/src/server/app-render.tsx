@@ -993,6 +993,8 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
+  const staticGenerationBailout =
+    ComponentMod.staticGenerationBailout as typeof import('../client/components/static-generation-bailout').staticGenerationBailout
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -1038,9 +1040,15 @@ export async function renderToHTMLOrFlight(
         ? crypto.randomUUID()
         : require('next/dist/compiled/nanoid').nanoid()
 
-    const searchParamsProps = { searchParams: query }
-
     stripInternalQueries(query)
+
+    const providedSearchParams = new Proxy(query, {
+      get(target, prop) {
+        staticGenerationBailout(`searchParams.${prop as string}`)
+        return (target as any)[prop]
+      },
+    })
+    const searchParamsProps = { searchParams: providedSearchParams }
 
     const LayoutRouter =
       ComponentMod.LayoutRouter as typeof import('../client/components/layout-router').default
