@@ -20,6 +20,7 @@ pub struct PostCssTransformOptions {
 #[derive(Default, Clone, Debug)]
 pub struct WebpackLoadersOptions {
     pub extension_to_loaders: IndexMap<String, WebpackLoaderConfigsVc>,
+    pub loader_runner_package: Option<ImportMappingVc>,
     pub placeholder_for_future_extensions: (),
 }
 

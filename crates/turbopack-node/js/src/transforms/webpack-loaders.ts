@@ -18,9 +18,13 @@ type LoaderConfig =
       options: { [k: string]: unknown };
     };
 
-const { runLoaders } = __turbopack_external_require__(
-  "loader-runner"
-) as typeof import("loader-runner");
+// @ts-ignore
+let runLoaders: typeof import("loader-runner");
+try {
+  ({ runLoaders } = require("@vercel/turbopack/loader-runner"));
+} catch {
+  ({ runLoaders } = __turbopack_external_require__("loader-runner"));
+}
 
 const contextDir = process.cwd();
 const toPath = (file: string) => {
