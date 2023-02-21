@@ -154,7 +154,6 @@ export class NextServer {
           process.env.NEXT_PREBUNDLED_REACT = '1'
           overrideBuiltInReactPackages()
         }
-
         this.server = await this.createServer({
           ...this.options,
           conf,

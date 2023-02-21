@@ -216,6 +216,11 @@ export interface ExperimentalConfig {
    * This option is to enable running the Webpack build in a worker thread.
    */
   webpackBuildWorker?: boolean
+
+  /**
+   *
+   */
+  instrumentationHook?: boolean
 }
 
 export type ExportPathMap = {
@@ -660,6 +665,7 @@ export const defaultConfig: NextConfig = {
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
+    instrumentationHook: false,
   },
 }
 

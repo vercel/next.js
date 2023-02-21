@@ -23,6 +23,7 @@ import {
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
   PAGES_DIR_ALIAS,
+  INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -516,10 +517,29 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
+      const instrumentationHookDetectionRegExp = new RegExp(
+        `^${INSTRUMENTATION_HOOK_FILENAME}\\.(?:${config.pageExtensions.join(
+          '|'
+        )})$`
+      )
+
       const rootDir = path.join((pagesDir || appDir)!, '..')
+      const instrumentationHookEnabled = Boolean(
+        config.experimental.instrumentationHook
+      )
       const rootPaths = (
-        await flatReaddir(rootDir, middlewareDetectionRegExp)
+        await flatReaddir(rootDir, [
+          middlewareDetectionRegExp,
+          ...(instrumentationHookEnabled
+            ? [instrumentationHookDetectionRegExp]
+            : []),
+        ])
       ).map((absoluteFile) => absoluteFile.replace(dir, ''))
+
+      const hasInstrumentationHook = rootPaths.some((p) =>
+        p.includes(INSTRUMENTATION_HOOK_FILENAME)
+      )
+      NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
       // needed for static exporting since we want to replace with HTML
       // files

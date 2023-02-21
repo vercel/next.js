@@ -17,6 +17,7 @@ import {
   ROOT_DIR_ALIAS,
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
+  INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -36,6 +37,7 @@ import { warn } from './output/log'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
+  isInstrumentationHookFile,
   NestedMiddlewareError,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
@@ -148,6 +150,7 @@ export interface CreateEntrypointsParams {
   appDir?: string
   appPaths?: Record<string, string>
   pageExtensions: string[]
+  hasInstrumentationHook?: boolean
 }
 
 export function getEdgeServerEntry(opts: {
@@ -163,6 +166,7 @@ export function getEdgeServerEntry(opts: {
   middleware?: Partial<MiddlewareConfig>
   pagesType: 'app' | 'pages' | 'root'
   appDirLoader?: string
+  hasInstrumentationHook?: boolean
 }) {
   if (
     opts.pagesType === 'app' &&
@@ -198,6 +202,13 @@ export function getEdgeServerEntry(opts: {
     }
 
     return `next-edge-function-loader?${stringify(loaderParams)}!`
+  }
+
+  if (isInstrumentationHookFile(opts.page)) {
+    return {
+      import: opts.page,
+      filename: `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`,
+    }
   }
 
   const loaderParams: EdgeSSRLoaderQuery = {
@@ -267,7 +278,13 @@ export async function runDependingOnPageType<T>(params: {
   onServer: () => T
   page: string
   pageRuntime: ServerRuntime
+  pageType?: 'app' | 'pages' | 'root'
 }): Promise<void> {
+  if (params.pageType === 'root' && isInstrumentationHookFile(params.page)) {
+    await Promise.all([params.onServer(), params.onEdgeServer()])
+    return
+  }
+
   if (isMiddlewareFile(params.page)) {
     await params.onEdgeServer()
     return
@@ -404,6 +421,7 @@ export async function createEntrypoints(params: CreateEntrypointsParams) {
       await runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
+        pageType: pagesType,
         onClient: () => {
           if (isServerComponent || isInsideAppDir) {
             // We skip the initial entries for server component pages and let the
