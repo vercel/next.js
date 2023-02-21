@@ -104,7 +104,6 @@ jobs:
         run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         uses: actions/upload-artifact@v3
         with:
           name: repo-build
@@ -123,7 +122,6 @@ jobs:
       - run: npm i -g pnpm@${PNPM_VERSION}
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -141,7 +139,6 @@ jobs:
     needs: build
     steps:
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -208,7 +205,6 @@ jobs:
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -243,7 +239,6 @@ jobs:
           check-latest: true
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -282,7 +277,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -331,7 +325,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -377,7 +370,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -424,7 +416,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -470,7 +461,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -507,7 +497,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -543,7 +532,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -581,7 +569,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -612,7 +599,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -656,7 +642,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -717,7 +702,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -758,7 +742,6 @@ jobs:
           check-latest: true
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -806,7 +789,6 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -833,7 +815,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -856,7 +837,6 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -894,7 +874,6 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -924,7 +903,6 @@ jobs:
       VERCEL_TEST_TEAM: vtest314-next-e2e-tests
     steps:
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -963,7 +941,6 @@ jobs:
           check-latest: true
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -1108,7 +1085,6 @@ jobs:
 
     steps:
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -1490,7 +1466,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
@@ -1576,7 +1551,6 @@ jobs:
           check-latest: true
 
       - uses: actions/download-artifact@v3
-        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
           name: repo-build
           path: .
