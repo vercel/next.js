@@ -29,16 +29,6 @@ const Title = styled.h1`
   & a:active {
     text-decoration: underline;
   }
-  & h2 {
-    margin: 0 0 1rem 0;
-    font-size: 1.5rem;
-  }
-  
-  & p {
-    margin: 0;
-    font-size: 1.25rem;
-    line-height: 1.5;
-  }
 `;
 
 const Description = styled.p`
@@ -104,6 +94,16 @@ const Card = styled.a`
   &:active {
     color: #0070f3;
     border-color: #0070f3;
+  }
+  & h2 {
+    margin: 0 0 1rem 0;
+    font-size: 1.5rem;
+  }
+  
+  & p {
+    margin: 0;
+    font-size: 1.25rem;
+    line-height: 1.5;
   }
 `;
 
