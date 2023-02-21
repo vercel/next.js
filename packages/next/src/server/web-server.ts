@@ -123,7 +123,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
   protected getPrerenderManifest() {
     return {
-      version: 3 as const,
+      version: 4 as const,
       routes: {},
       dynamicRoutes: {},
       notFoundRoutes: [],

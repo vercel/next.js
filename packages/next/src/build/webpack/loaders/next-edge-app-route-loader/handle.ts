@@ -26,6 +26,8 @@ export function getHandle({ page, mod }: any) {
       mod,
       extendedReq,
       extendedRes,
+      // TODO: pass incrementalCache here
+      {},
       request
     )
 
