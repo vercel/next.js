@@ -1611,7 +1611,7 @@ export async function ncc_react(task, opts) {
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
-      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      // We replace the module/chunk loading code with our own implementation in Next.js.
       file.data = source.replace(
         /require\(["']scheduler["']\)/g,
         'require("next/dist/compiled/scheduler")'
@@ -1658,7 +1658,30 @@ export async function ncc_rsc_poison_packages(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_react_server_dom_webpack(task, opts) {
+  const reactServerDomDir = dirname(
+    relative(
+      __dirname,
+      require.resolve(`react-server-dom-webpack/package.json`)
+    )
+  )
+  await task
+    .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // We replace the module/chunk loading code with our own implementation in Next.js.
+      file.data = source.replace(
+        /require\(["']react["']\)/g,
+        'require("next/dist/compiled/react")'
+      )
+      file.data = source.replace(
+        /require\(["']react-dom["']\)/g,
+        'require("next/dist/compiled/react-dom")'
+      )
+    })
+    .target(`src/compiled/react-server-dom-webpack`)
   // Use installed versions instead of bundled version
+  /*
   const peerDeps = {
     react: 'react',
     'react-dom': 'react-dom',
@@ -1675,6 +1698,9 @@ export async function ncc_react_server_dom_webpack(task, opts) {
     .target('src/compiled/react-server-dom-webpack')
   await task
     .source(require.resolve('react-server-dom-webpack/server.browser'))
+    .target('src/compiled/react-server-dom-webpack')
+  await task
+    .source(require.resolve('react-server-dom-webpack/server.edge'))
     .target('src/compiled/react-server-dom-webpack')
 
   // Replace webpack internal apis before bundling
@@ -1703,6 +1729,13 @@ export async function ncc_react_server_dom_webpack(task, opts) {
       externals: peerDeps,
     })
     .target('src/compiled/react-server-dom-webpack')
+  await task
+    .source('src/compiled/react-server-dom-webpack/server.edge.js')
+    .ncc({
+      minify: false,
+      externals: peerDeps,
+    })
+    .target('src/compiled/react-server-dom-webpack')
 
   await task
     .source('src/compiled/react-server-dom-webpack/client.js')
@@ -1713,6 +1746,7 @@ export async function ncc_react_server_dom_webpack(task, opts) {
     .target('src/compiled/react-server-dom-webpack')
 
   await fs.remove(join(__dirname, 'src/compiled/react-server-dom-webpack/cjs'))
+  */
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'

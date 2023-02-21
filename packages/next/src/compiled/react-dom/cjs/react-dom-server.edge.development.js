@@ -1,6 +1,6 @@
 /**
  * @license React
- * react-dom-server.browser.development.js
+ * react-dom-server.edge.development.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -77,6 +77,9 @@ function printWarning(level, format, args) {
 function scheduleWork(callback) {
   callback();
 }
+
+var supportsRequestStorage = typeof AsyncLocalStorage === 'function';
+var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null;
 var VIEW_SIZE = 512;
 var currentView = null;
 var writtenBytes = 0;

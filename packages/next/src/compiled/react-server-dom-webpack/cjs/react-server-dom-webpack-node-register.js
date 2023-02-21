@@ -1,0 +1,21 @@
+/**
+ * @license React
+ * react-server-dom-webpack-node-register.js
+ *
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+'use strict';
+
+'use strict';const m=require("acorn"),n=require("url"),q=require("module");
+module.exports=function(){const h=Symbol.for("react.client.reference"),k=Symbol.for("react.server.reference"),r=Promise.prototype,t=Function.prototype.bind;Function.prototype.bind=function(a){const b=t.apply(this,arguments);if(this.$$typeof===k){const a=Array.prototype.slice.call(arguments,1);b.$$typeof=k;b.$$filepath=this.$$filepath;b.$$name=this.$$name;b.$$bound=this.$$bound.concat(a)}return b};const u={get:function(a,b){switch(b){case "$$typeof":return a.$$typeof;case "filepath":return a.filepath;
+case "name":return a.name;case "displayName":return;case "async":return a.async;case "defaultProps":return;case "toJSON":return;case Symbol.toPrimitive:return Object.prototype[Symbol.toPrimitive];case "Provider":throw Error("Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider.");}switch(a.name){case "":a=String(b);break;case "*":a=String(b);break;default:a=String(a.name)+"."+String(b)}throw Error("Cannot access "+
+a+" on the server. You cannot dot into a client module from a server component. You can only pass the imported name through.");},set:function(){throw Error("Cannot assign to a client module from a server module.");}},p={get:function(a,b){switch(b){case "$$typeof":return a.$$typeof;case "filepath":return a.filepath;case "name":return a.name;case "async":return a.async;case "defaultProps":return;case "toJSON":return;case Symbol.toPrimitive:return Object.prototype[Symbol.toPrimitive];case "__esModule":const d=
+a.filepath;a.default=Object.defineProperties(function(){throw Error("Attempted to call the default export of "+d+" from the server but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.");},{name:{value:""},$$typeof:{value:h},filepath:{value:a.filepath},async:{value:a.async}});return!0;case "then":if(a.then)return a.then;if(a.async)return;{var c=Object.defineProperties({},{name:{value:"*"},
+$$typeof:{value:h},filepath:{value:a.filepath},async:{value:!0}});const b=new Proxy(c,p);a.status="fulfilled";a.value=b;return a.then=Object.defineProperties(function(a){return Promise.resolve(a(b))},{name:{value:"then"},$$typeof:{value:h},filepath:{value:a.filepath},async:{value:!1}})}}c=a[b];c||(c=Object.defineProperties(function(){throw Error("Attempted to call "+String(b)+"() from the server but "+String(b)+" is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.");
+},{name:{value:b},$$typeof:{value:h},filepath:{value:a.filepath},async:{value:a.async}}),c=a[b]=new Proxy(c,u));return c},getPrototypeOf(){return r},set:function(){throw Error("Cannot assign to a client module from a server module.");}},l=q.prototype._compile;q.prototype._compile=function(a,b){if(-1===a.indexOf("use client")&&-1===a.indexOf("use server"))return l.apply(this,arguments);var c=m.parse(a,{ecmaVersion:"2019",sourceType:"source"}).body,d=!1,f=!1;for(var e=0;e<c.length;e++){var g=c[e];if("ExpressionStatement"!==
+g.type||!g.directive)break;"use client"===g.directive&&(d=!0);"use server"===g.directive&&(f=!0)}if(!d&&!f)return l.apply(this,arguments);if(d&&f)throw Error('Cannot have both "use client" and "use server" directives in the same file.');d&&(c=n.pathToFileURL(b).href,c=Object.defineProperties({},{name:{value:"*"},$$typeof:{value:h},filepath:{value:c},async:{value:!1}}),this.exports=new Proxy(c,p));if(f)if(l.apply(this,arguments),f=n.pathToFileURL(b).href,c=this.exports,"function"===typeof c)Object.defineProperties(c,
+{$$typeof:{value:k},$$filepath:{value:f},$$name:{value:"*"},$$bound:{value:[]}});else for(d=Object.keys(c),e=0;e<d.length;e++){g=d[e];const a=c[d[e]];"function"===typeof a&&Object.defineProperties(a,{$$typeof:{value:k},$$filepath:{value:f},$$name:{value:g},$$bound:{value:[]}})}}};

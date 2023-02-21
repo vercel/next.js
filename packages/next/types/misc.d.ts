@@ -13,6 +13,7 @@ declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
 declare module 'next/dist/compiled/react-dom/server.browser'
+declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/browserslist'
 declare module 'react-dom/server.browser'
 
