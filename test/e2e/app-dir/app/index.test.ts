@@ -100,6 +100,25 @@ createNextDescribe(
       expect(res.headers.get('Content-Type')).toBe('text/x-component')
     })
 
+    it('should return the `vary` header from edge runtime', async () => {
+      const res = await next.fetch('/dashboard')
+      expect(res.headers.get('x-edge-runtime')).toBe('1')
+      expect(res.headers.get('vary')).toBe(
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+      )
+    })
+
+    it('should return the `vary` header from pages for flight requests', async () => {
+      const res = await next.fetch('/', {
+        headers: {
+          ['RSC'.toString()]: '1',
+        },
+      })
+      expect(res.headers.get('vary')).toBe(
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+      )
+    })
+
     it('should pass props from getServerSideProps in root layout', async () => {
       const $ = await next.render$('/dashboard')
       expect($('title').first().text()).toBe('hello world')
@@ -1454,6 +1473,36 @@ createNextDescribe(
           const val1 = await browser.elementByCss('#value-1').text()
           const val2 = await browser.elementByCss('#value-2').text()
           expect(val1).toBe(val2)
+        })
+
+        it('middleware overriding headers', async () => {
+          const browser = await next.browser('/searchparams-normalization-bug')
+          await browser.eval(`window.didFullPageTransition = 'no'`)
+          expect(await browser.elementByCss('#header-empty').text()).toBe(
+            'Header value: empty'
+          )
+          expect(
+            await browser
+              .elementByCss('#button-a')
+              .click()
+              .waitForElementByCss('#header-a')
+              .text()
+          ).toBe('Header value: a')
+          expect(
+            await browser
+              .elementByCss('#button-b')
+              .click()
+              .waitForElementByCss('#header-b')
+              .text()
+          ).toBe('Header value: b')
+          expect(
+            await browser
+              .elementByCss('#button-c')
+              .click()
+              .waitForElementByCss('#header-c')
+              .text()
+          ).toBe('Header value: c')
+          expect(await browser.eval(`window.didFullPageTransition`)).toBe('no')
         })
       })
 

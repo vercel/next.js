@@ -37,6 +37,7 @@ export const NextBuildContext: Partial<{
   mappedRootPaths: {
     [page: string]: string
   }
+  hasInstrumentationHook: boolean
 
   // misc fields
   telemetryPlugin: TelemetryPlugin
