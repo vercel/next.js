@@ -88,6 +88,8 @@ import {
 } from '../shared/lib/router/adapters'
 import { AppRouterContext } from '../shared/lib/app-router-context'
 import { SearchParamsContext } from '../shared/lib/hooks-client-context'
+import { getTracer } from './lib/trace/tracer'
+import { RenderSpan } from './lib/trace/constants'
 
 let tryGetPreviewData: typeof import('./api-utils/node').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -944,21 +946,23 @@ export async function renderToHTML(
     }
 
     try {
-      data = await getServerSideProps({
-        req: req as IncomingMessage & {
-          cookies: NextApiRequestCookies
-        },
-        res: resOrProxy,
-        query,
-        resolvedUrl: renderOpts.resolvedUrl as string,
-        ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-        ...(previewData !== false
-          ? { preview: true, previewData: previewData }
-          : undefined),
-        locales: renderOpts.locales,
-        locale: renderOpts.locale,
-        defaultLocale: renderOpts.defaultLocale,
-      })
+      data = await getTracer().trace(RenderSpan.getServerSideProps, async () =>
+        getServerSideProps({
+          req: req as IncomingMessage & {
+            cookies: NextApiRequestCookies
+          },
+          res: resOrProxy,
+          query,
+          resolvedUrl: renderOpts.resolvedUrl as string,
+          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
+          ...(previewData !== false
+            ? { preview: true, previewData: previewData }
+            : undefined),
+          locales: renderOpts.locales,
+          locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
+        })
+      )
       canAccessRes = false
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
@@ -1233,24 +1237,24 @@ export async function renderToHTML(
       })
     }
 
-    const createBodyResult = (
-      initialStream: ReactReadableStream,
-      suffix?: string
-    ) => {
-      // this must be called inside bodyResult so appWrappers is
-      // up to date when `wrapApp` is called
-      const getServerInsertedHTML = async (): Promise<string> => {
-        return renderToString(styledJsxInsertedHTML())
-      }
+    const createBodyResult = getTracer().wrap(
+      RenderSpan.createBodyResult,
+      (initialStream: ReactReadableStream, suffix?: string) => {
+        // this must be called inside bodyResult so appWrappers is
+        // up to date when `wrapApp` is called
+        const getServerInsertedHTML = async (): Promise<string> => {
+          return renderToString(styledJsxInsertedHTML())
+        }
 
-      return continueFromInitialStream(initialStream, {
-        suffix,
-        dataStream: serverComponentsInlinedTransformStream?.readable,
-        generateStaticHTML,
-        getServerInsertedHTML,
-        serverInsertedHTMLToHead: false,
-      })
-    }
+        return continueFromInitialStream(initialStream, {
+          suffix,
+          dataStream: serverComponentsInlinedTransformStream?.readable,
+          generateStaticHTML,
+          getServerInsertedHTML,
+          serverInsertedHTMLToHead: false,
+        })
+      }
+    )
 
     const hasDocumentGetInitialProps = !(
       process.env.NEXT_RUNTIME === 'edge' || !Document.getInitialProps
@@ -1303,7 +1307,10 @@ export async function renderToHTML(
     }
   }
 
-  const documentResult = await renderDocument()
+  const documentResult = await getTracer().trace(
+    RenderSpan.renderDocument,
+    async () => renderDocument()
+  )
   if (!documentResult) {
     return null
   }
@@ -1407,7 +1414,10 @@ export async function renderToHTML(
     </AmpStateContext.Provider>
   )
 
-  const documentHTML = await renderToString(document)
+  const documentHTML = await getTracer().trace(
+    RenderSpan.renderToString,
+    async () => renderToString(document)
+  )
 
   if (process.env.NODE_ENV !== 'production') {
     const nonRenderedComponents = []

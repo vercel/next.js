@@ -55,6 +55,8 @@ import { warnOnce } from '../shared/lib/utils/warn-once'
 import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
+import { getTracer, SpanKind } from './lib/trace/tracer'
+import { AppRenderSpan } from './lib/trace/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -308,165 +310,147 @@ function patchFetch(ComponentMod: any) {
     ComponentMod.staticGenerationAsyncStorage
 
   const originFetch = globalThis.fetch
-  globalThis.fetch = async (input, init) => {
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  globalThis.fetch = getTracer().wrap(
+    AppRenderSpan.fetch,
+    {
+      kind: SpanKind.CLIENT,
+    },
+    async (input, init) => {
+      const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+      const span = getTracer().getActiveScopeSpan()
+      span?.setAttributes({
+        'http.url': input.toString(),
+        'http.method': init?.method || 'GET',
+        // TODO: add more attributes
+      })
+      // If the staticGenerationStore is not available, we can't do any special
+      // treatment of fetch, therefore fallback to the original fetch
+      // implementation.
+      if (!staticGenerationStore) {
+        return originFetch(input, init)
+      }
 
-    // If the staticGenerationStore is not available, we can't do any special
-    // treatment of fetch, therefore fallback to the original fetch
-    // implementation.
-    if (!staticGenerationStore) {
-      return originFetch(input, init)
-    }
+      let revalidate: number | undefined | boolean
 
-    let revalidate: number | undefined | boolean
+      if (typeof init?.next?.revalidate === 'number') {
+        revalidate = init.next.revalidate
+      }
 
-    if (typeof init?.next?.revalidate === 'number') {
-      revalidate = init.next.revalidate
-    }
+      if (init?.next?.revalidate === false) {
+        revalidate = CACHE_ONE_YEAR
+      }
 
-    if (init?.next?.revalidate === false) {
-      revalidate = CACHE_ONE_YEAR
-    }
+      if (
+        !staticGenerationStore.revalidate ||
+        (typeof revalidate === 'number' &&
+          revalidate < staticGenerationStore.revalidate)
+      ) {
+        staticGenerationStore.revalidate = revalidate
+      }
 
-    if (
-      !staticGenerationStore.revalidate ||
-      (typeof revalidate === 'number' &&
-        revalidate < staticGenerationStore.revalidate)
-    ) {
-      staticGenerationStore.revalidate = revalidate
-    }
+      let cacheKey: string | undefined
 
-    let cacheKey: string | undefined
+      const doOriginalFetch = async () => {
+        return originFetch(input, init).then(async (res) => {
+          if (
+            staticGenerationStore.incrementalCache &&
+            cacheKey &&
+            typeof revalidate === 'number' &&
+            revalidate > 0
+          ) {
+            const clonedRes = res.clone()
 
-    const doOriginalFetch = async () => {
-      return originFetch(input, init).then(async (res) => {
-        if (
-          staticGenerationStore.incrementalCache &&
-          cacheKey &&
-          typeof revalidate === 'number' &&
-          revalidate > 0
-        ) {
-          const clonedRes = res.clone()
+            let base64Body = ''
 
-          let base64Body = ''
+            if (process.env.NEXT_RUNTIME === 'edge') {
+              let string = ''
+              new Uint8Array(await clonedRes.arrayBuffer()).forEach((byte) => {
+                string += String.fromCharCode(byte)
+              })
+              base64Body = btoa(string)
+            } else {
+              base64Body = Buffer.from(await clonedRes.arrayBuffer()).toString(
+                'base64'
+              )
+            }
 
-          if (process.env.NEXT_RUNTIME === 'edge') {
-            let string = ''
-            new Uint8Array(await clonedRes.arrayBuffer()).forEach((byte) => {
-              string += String.fromCharCode(byte)
-            })
-            base64Body = btoa(string)
-          } else {
-            base64Body = Buffer.from(await clonedRes.arrayBuffer()).toString(
-              'base64'
-            )
-          }
-
-          await staticGenerationStore.incrementalCache.set(
-            cacheKey,
-            {
-              kind: 'FETCH',
-              isStale: false,
-              age: 0,
-              data: {
-                headers: Object.fromEntries(clonedRes.headers.entries()),
-                body: base64Body,
+            await staticGenerationStore.incrementalCache.set(
+              cacheKey,
+              {
+                kind: 'FETCH',
+                isStale: false,
+                age: 0,
+                data: {
+                  headers: Object.fromEntries(clonedRes.headers.entries()),
+                  body: base64Body,
+                },
+                revalidate,
               },
               revalidate,
-            },
-            revalidate,
-            true
-          )
-        }
-        return res
-      })
-    }
-
-    if (
-      staticGenerationStore.incrementalCache &&
-      typeof revalidate === 'number' &&
-      revalidate > 0
-    ) {
-      cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
-        input.toString(),
-        init
-      )
-      const entry = await staticGenerationStore.incrementalCache.get(
-        cacheKey,
-        true
-      )
-
-      if (entry?.value && entry.value.kind === 'FETCH') {
-        // when stale and is revalidating we wait for fresh data
-        // so the revalidated entry has the updated data
-        if (!staticGenerationStore.isRevalidate || !entry.isStale) {
-          if (entry.isStale) {
-            if (!staticGenerationStore.pendingRevalidates) {
-              staticGenerationStore.pendingRevalidates = []
-            }
-            staticGenerationStore.pendingRevalidates.push(
-              doOriginalFetch().catch(console.error)
+              true
             )
           }
+          return res
+        })
+      }
 
-          const resData = entry.value.data
-          let decodedBody = ''
+      if (
+        staticGenerationStore.incrementalCache &&
+        typeof revalidate === 'number' &&
+        revalidate > 0
+      ) {
+        cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
+          input.toString(),
+          init
+        )
+        const entry = await staticGenerationStore.incrementalCache.get(
+          cacheKey,
+          true
+        )
 
-          // TODO: handle non-text response bodies
-          if (process.env.NEXT_RUNTIME === 'edge') {
-            decodedBody = atob(resData.body)
-          } else {
-            decodedBody = Buffer.from(resData.body, 'base64').toString()
+        if (entry?.value && entry.value.kind === 'FETCH') {
+          // when stale and is revalidating we wait for fresh data
+          // so the revalidated entry has the updated data
+          if (!staticGenerationStore.isRevalidate || !entry.isStale) {
+            if (entry.isStale) {
+              if (!staticGenerationStore.pendingRevalidates) {
+                staticGenerationStore.pendingRevalidates = []
+              }
+              staticGenerationStore.pendingRevalidates.push(
+                doOriginalFetch().catch(console.error)
+              )
+            }
+
+            const resData = entry.value.data
+            let decodedBody = ''
+
+            // TODO: handle non-text response bodies
+            if (process.env.NEXT_RUNTIME === 'edge') {
+              decodedBody = atob(resData.body)
+            } else {
+              decodedBody = Buffer.from(resData.body, 'base64').toString()
+            }
+
+            return new Response(decodedBody, {
+              headers: resData.headers,
+              status: resData.status,
+            })
           }
-
-          return new Response(decodedBody, {
-            headers: resData.headers,
-            status: resData.status,
-          })
         }
       }
-    }
 
-    if (staticGenerationStore.isStaticGeneration) {
-      if (init && typeof init === 'object') {
-        const cache = init.cache
-        // Delete `cache` property as Cloudflare Workers will throw an error
-        if (isEdgeRuntime) {
-          delete init.cache
-        }
-        if (cache === 'no-store') {
-          staticGenerationStore.revalidate = 0
-          // TODO: ensure this error isn't logged to the user
-          // seems it's slipping through currently
-          const dynamicUsageReason = `no-store fetch ${input}${
-            staticGenerationStore.pathname
-              ? ` ${staticGenerationStore.pathname}`
-              : ''
-          }`
-          const err = new DynamicServerError(dynamicUsageReason)
-          staticGenerationStore.dynamicUsageStack = err.stack
-          staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-
-          throw err
-        }
-
-        const hasNextConfig = 'next' in init
-        const next = init.next || {}
-        if (
-          typeof next.revalidate === 'number' &&
-          (typeof staticGenerationStore.revalidate === 'undefined' ||
-            next.revalidate < staticGenerationStore.revalidate)
-        ) {
-          const forceDynamic = staticGenerationStore.forceDynamic
-
-          if (!forceDynamic || next.revalidate !== 0) {
-            staticGenerationStore.revalidate = next.revalidate
+      if (staticGenerationStore.isStaticGeneration) {
+        if (init && typeof init === 'object') {
+          const cache = init.cache
+          // Delete `cache` property as Cloudflare Workers will throw an error
+          if (isEdgeRuntime) {
+            delete init.cache
           }
-
-          if (!forceDynamic && next.revalidate === 0) {
-            const dynamicUsageReason = `revalidate: ${
-              next.revalidate
-            } fetch ${input}${
+          if (cache === 'no-store') {
+            staticGenerationStore.revalidate = 0
+            // TODO: ensure this error isn't logged to the user
+            // seems it's slipping through currently
+            const dynamicUsageReason = `no-store fetch ${input}${
               staticGenerationStore.pathname
                 ? ` ${staticGenerationStore.pathname}`
                 : ''
@@ -477,13 +461,42 @@ function patchFetch(ComponentMod: any) {
 
             throw err
           }
-        }
-        if (hasNextConfig) delete init.next
-      }
-    }
 
-    return doOriginalFetch()
-  }
+          const hasNextConfig = 'next' in init
+          const next = init.next || {}
+          if (
+            typeof next.revalidate === 'number' &&
+            (typeof staticGenerationStore.revalidate === 'undefined' ||
+              next.revalidate < staticGenerationStore.revalidate)
+          ) {
+            const forceDynamic = staticGenerationStore.forceDynamic
+
+            if (!forceDynamic || next.revalidate !== 0) {
+              staticGenerationStore.revalidate = next.revalidate
+            }
+
+            if (!forceDynamic && next.revalidate === 0) {
+              const dynamicUsageReason = `revalidate: ${
+                next.revalidate
+              } fetch ${input}${
+                staticGenerationStore.pathname
+                  ? ` ${staticGenerationStore.pathname}`
+                  : ''
+              }`
+              const err = new DynamicServerError(dynamicUsageReason)
+              staticGenerationStore.dynamicUsageStack = err.stack
+              staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
+
+              throw err
+            }
+          }
+          if (hasNextConfig) delete init.next
+        }
+      }
+
+      return doOriginalFetch()
+    }
+  )
   ;(globalThis.fetch as any).patched = true
 }
 
@@ -916,9 +929,11 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServer.renderToReadableStream(element)
-  await renderStream.allReady
-  return streamToString(renderStream)
+  return getTracer().trace(AppRenderSpan.renderToString, async () => {
+    const renderStream = await ReactDOMServer.renderToReadableStream(element)
+    await renderStream.allReady
+    return streamToString(renderStream)
+  })
 }
 
 export async function renderToHTMLOrFlight(
@@ -1982,124 +1997,127 @@ export async function renderToHTMLOrFlight(
       )
     }
 
-    const bodyResult = async () => {
-      const polyfills = buildManifest.polyfillFiles
-        .filter(
-          (polyfill) =>
-            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+    const bodyResult = getTracer().wrap(
+      AppRenderSpan.getBodyResult,
+      async () => {
+        const polyfills = buildManifest.polyfillFiles
+          .filter(
+            (polyfill) =>
+              polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+          )
+          .map((polyfill) => ({
+            src: `${assetPrefix}/_next/${polyfill}`,
+            integrity: subresourceIntegrityManifest?.[polyfill],
+          }))
+
+        const content = (
+          <InsertedHTML>
+            <ServerComponentsRenderer />
+          </InsertedHTML>
         )
-        .map((polyfill) => ({
-          src: `${assetPrefix}/_next/${polyfill}`,
-          integrity: subresourceIntegrityManifest?.[polyfill],
-        }))
 
-      const content = (
-        <InsertedHTML>
-          <ServerComponentsRenderer />
-        </InsertedHTML>
-      )
+        let polyfillsFlushed = false
+        const getServerInsertedHTML = (): Promise<string> => {
+          const flushed = renderToString(
+            <>
+              {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+                callback()
+              )}
+              {polyfillsFlushed
+                ? null
+                : polyfills?.map((polyfill) => {
+                    return (
+                      <script
+                        key={polyfill.src}
+                        src={polyfill.src}
+                        integrity={polyfill.integrity}
+                        noModule={true}
+                        nonce={nonce}
+                      />
+                    )
+                  })}
+            </>
+          )
+          polyfillsFlushed = true
+          return flushed
+        }
 
-      let polyfillsFlushed = false
-      const getServerInsertedHTML = (): Promise<string> => {
-        const flushed = renderToString(
-          <>
-            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-              callback()
-            )}
-            {polyfillsFlushed
-              ? null
-              : polyfills?.map((polyfill) => {
-                  return (
-                    <script
-                      key={polyfill.src}
-                      src={polyfill.src}
-                      integrity={polyfill.integrity}
-                      noModule={true}
-                      nonce={nonce}
-                    />
-                  )
-                })}
-          </>
-        )
-        polyfillsFlushed = true
-        return flushed
-      }
+        try {
+          const renderStream = await renderToInitialStream({
+            ReactDOMServer,
+            element: content,
+            streamOptions: {
+              onError: htmlRendererErrorHandler,
+              nonce,
+              // Include hydration scripts in the HTML
+              bootstrapScripts: [
+                ...(subresourceIntegrityManifest
+                  ? buildManifest.rootMainFiles.map((src) => ({
+                      src: `${assetPrefix}/_next/` + src,
+                      integrity: subresourceIntegrityManifest[src],
+                    }))
+                  : buildManifest.rootMainFiles.map(
+                      (src) => `${assetPrefix}/_next/` + src
+                    )),
+              ],
+            },
+          })
 
-      try {
-        const renderStream = await renderToInitialStream({
-          ReactDOMServer,
-          element: content,
-          streamOptions: {
-            onError: htmlRendererErrorHandler,
-            nonce,
-            // Include hydration scripts in the HTML
-            bootstrapScripts: [
-              ...(subresourceIntegrityManifest
+          const result = await continueFromInitialStream(renderStream, {
+            dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML:
+              staticGenerationStore.isStaticGeneration || generateStaticHTML,
+            getServerInsertedHTML,
+            serverInsertedHTMLToHead: true,
+            ...validateRootLayout,
+          })
+
+          return result
+        } catch (err: any) {
+          const shouldNotIndex = isNotFoundError(err)
+          if (isNotFoundError(err)) {
+            res.statusCode = 404
+          }
+          if (isRedirectError(err)) {
+            res.statusCode = 307
+          }
+
+          const renderStream = await renderToInitialStream({
+            ReactDOMServer,
+            element: (
+              <html id="__next_error__">
+                <head>
+                  {shouldNotIndex ? (
+                    <meta name="robots" content="noindex" />
+                  ) : null}
+                </head>
+                <body></body>
+              </html>
+            ),
+            streamOptions: {
+              nonce,
+              // Include hydration scripts in the HTML
+              bootstrapScripts: subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
                     src: `${assetPrefix}/_next/` + src,
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
                     (src) => `${assetPrefix}/_next/` + src
-                  )),
-            ],
-          },
-        })
+                  ),
+            },
+          })
 
-        const result = await continueFromInitialStream(renderStream, {
-          dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML:
-            staticGenerationStore.isStaticGeneration || generateStaticHTML,
-          getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
-          ...validateRootLayout,
-        })
-
-        return result
-      } catch (err: any) {
-        const shouldNotIndex = isNotFoundError(err)
-        if (isNotFoundError(err)) {
-          res.statusCode = 404
+          return await continueFromInitialStream(renderStream, {
+            dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML: staticGenerationStore.isStaticGeneration,
+            getServerInsertedHTML,
+            serverInsertedHTMLToHead: true,
+            ...validateRootLayout,
+          })
         }
-        if (isRedirectError(err)) {
-          res.statusCode = 307
-        }
-
-        const renderStream = await renderToInitialStream({
-          ReactDOMServer,
-          element: (
-            <html id="__next_error__">
-              <head>
-                {shouldNotIndex ? (
-                  <meta name="robots" content="noindex" />
-                ) : null}
-              </head>
-              <body></body>
-            </html>
-          ),
-          streamOptions: {
-            nonce,
-            // Include hydration scripts in the HTML
-            bootstrapScripts: subresourceIntegrityManifest
-              ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${assetPrefix}/_next/` + src,
-                  integrity: subresourceIntegrityManifest[src],
-                }))
-              : buildManifest.rootMainFiles.map(
-                  (src) => `${assetPrefix}/_next/` + src
-                ),
-          },
-        })
-
-        return await continueFromInitialStream(renderStream, {
-          dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: staticGenerationStore.isStaticGeneration,
-          getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
-          ...validateRootLayout,
-        })
       }
-    }
+    )
     const renderResult = new RenderResult(await bodyResult())
 
     if (staticGenerationStore.pendingRevalidates) {

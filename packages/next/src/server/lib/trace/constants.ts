@@ -70,12 +70,42 @@ enum StartServerSpan {
   startServer = 'startServer.startServer',
 }
 
+enum RenderSpan {
+  getServerSideProps = 'Render.getServerSideProps',
+  renderToString = 'Render.renderToString',
+  renderDocument = 'Render.renderDocument',
+  createBodyResult = 'Render.createBodyResult',
+}
+
+enum AppRenderSpan {
+  renderToString = 'AppRender.renderToString',
+  renderToReadableStream = 'AppRender.renderToReadableStream',
+  getBodyResult = 'AppRender.getBodyResult',
+  fetch = 'AppRender.fetch',
+}
+
+enum RouterSpan {
+  executeRoute = 'Router.executeRoute',
+}
+
 type SpanNames =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
   | `${NextServerSpan}`
   | `${StartServerSpan}`
   | `${NextNodeServerSpan}`
+  | `${RenderSpan}`
+  | `${RouterSpan}`
+  | `${AppRenderSpan}`
+
+// This list is used to filter out spans that are not relevant to the user
+export const NextVanillaSpanAllowlist = [
+  NextServerSpan.getRequestHandler,
+  NextNodeServerSpan.findPageComponents,
+  BaseServerSpan.renderToResponse,
+  RenderSpan.getServerSideProps,
+  AppRenderSpan.fetch,
+]
 
 export {
   BaseServerSpan,
@@ -84,4 +114,7 @@ export {
   NextNodeServerSpan,
   StartServerSpan,
   SpanNames,
+  RenderSpan,
+  RouterSpan,
+  AppRenderSpan,
 }

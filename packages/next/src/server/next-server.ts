@@ -97,6 +97,8 @@ import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-ha
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
+import { getTracer } from './lib/trace/tracer'
+import { NextNodeServerSpan } from './lib/trace/constants'
 
 export * from './base-server'
 
@@ -207,24 +209,6 @@ export default class NextNodeServer extends BaseServer {
     }
 
     if (!options.dev && this.nextConfig.experimental.instrumentationHook) {
-      try {
-        const instrumentationHook = require(join(
-          options.dir || '.',
-          options.conf.distDir!,
-          'server',
-          INSTRUMENTATION_HOOK_FILENAME
-        ))
-
-        instrumentationHook.register?.()
-      } catch (err: any) {
-        if (err.code !== 'MODULE_NOT_FOUND') {
-          err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-          throw err
-        }
-      }
-    }
-
-    if (!options.dev) {
       try {
         const instrumentationHook = require(join(
           options.dir || '.',
@@ -845,6 +829,18 @@ export default class NextNodeServer extends BaseServer {
     query: NextParsedUrlQuery,
     renderOpts: RenderOpts
   ): Promise<RenderResult | null> {
+    return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
+      this.renderHTMLImpl(req, res, pathname, query, renderOpts)
+    )
+  }
+
+  private async renderHTMLImpl(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery,
+    renderOpts: RenderOpts
+  ): Promise<RenderResult | null> {
     // Due to the way we pass data by mutating `renderOpts`, we can't extend the
     // object here but only updating its `serverComponentManifest` field.
     // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
@@ -942,6 +938,22 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async findPageComponents({
+    pathname,
+    query,
+    params,
+    isAppPath,
+  }: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params | null
+    isAppPath: boolean
+  }): Promise<FindComponentsResult | null> {
+    return getTracer().trace(NextNodeServerSpan.findPageComponents, () =>
+      this.findPageComponentsImpl({ pathname, query, params, isAppPath })
+    )
+  }
+
+  private async findPageComponentsImpl({
     pathname,
     query,
     params,
@@ -2061,7 +2073,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getRoutesManifest() {
-    return require(join(this.distDir, ROUTES_MANIFEST))
+    return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () =>
+      require(join(this.distDir, ROUTES_MANIFEST))
+    )
   }
 
   protected attachRequestMeta(
