@@ -3,7 +3,8 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "start:otel-verbose": "NEXT_OTEL_VERBOSE=1 next start"
   },
   "dependencies": {
     "@opentelemetry/api": "1.4.0",

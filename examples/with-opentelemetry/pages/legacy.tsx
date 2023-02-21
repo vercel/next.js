@@ -1,16 +1,11 @@
 import Link from 'next/link'
-import type { InferGetStaticPropsType } from 'next'
-import type { Repository } from '../types/github'
-
-// @ts-ignore
 import api from '@opentelemetry/api'
 
 export async function getServerSideProps() {
   const tracer = api.trace.getTracer('nextjs-example')
-  const span = tracer.startSpan('getServerSideProps')
-
+  const span = tracer.startSpan('a custom span')
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
-  const data: Repository = await res.json()
+  const data = await res.json()
   span.end()
   return {
     props: {
