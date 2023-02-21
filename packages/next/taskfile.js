@@ -1369,6 +1369,14 @@ export async function ncc_jsonwebtoken(task, opts) {
     .target('src/compiled/jsonwebtoken')
 }
 // eslint-disable-next-line camelcase
+externals['loader-runner'] = 'next/dist/compiled/loader-runner'
+export async function ncc_loader_runner(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('loader-runner')))
+    .ncc({ packageName: 'loader-runner', externals })
+    .target('src/compiled/loader-runner')
+}
+// eslint-disable-next-line camelcase
 externals['loader-utils'] = 'error loader-utils version not specified'
 externals['loader-utils2'] = 'next/dist/compiled/loader-utils2'
 export async function ncc_loader_utils2(task, opts) {
@@ -2123,6 +2131,7 @@ export async function ncc(task, opts) {
         'ncc_is_wsl',
         'ncc_json5',
         'ncc_jsonwebtoken',
+        'ncc_loader_runner',
         'ncc_loader_utils2',
         'ncc_loader_utils3',
         'ncc_lodash_curry',

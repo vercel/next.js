@@ -29,6 +29,7 @@ import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
+import { NextBuildContext } from '../../build-context'
 
 export interface EdgeFunctionDefinition {
   env: string[]
@@ -92,7 +93,6 @@ function getEntryFiles(
   meta: EntryMetadata,
   opts: {
     sriEnabled: boolean
-    hasInstrumentationHook: boolean
   }
 ) {
   const files: string[] = []
@@ -123,7 +123,9 @@ function getEntryFiles(
       `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
     )
 
-    if (opts.hasInstrumentationHook) {
+    files.push(`server/${FONT_LOADER_MANIFEST}.js`)
+
+    if (NextBuildContext!.hasInstrumentationHook) {
       files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
     }
   }
@@ -141,7 +143,6 @@ function getCreateAssets(params: {
   metadataByEntry: Map<string, EntryMetadata>
   opts: {
     sriEnabled: boolean
-    hasInstrumentationHook: boolean
   }
 }) {
   const { compilation, metadataByEntry, opts } = params

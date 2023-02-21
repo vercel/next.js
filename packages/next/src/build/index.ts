@@ -521,10 +521,15 @@ export default async function build(
       )
 
       const rootDir = path.join((pagesDir || appDir)!, '..')
+      const instrumentationHookEnabled = Boolean(
+        config.experimental.instrumentationHook
+      )
       const rootPaths = (
         await flatReaddir(rootDir, [
           middlewareDetectionRegExp,
-          instrumentationHookDetectionRegExp,
+          ...(instrumentationHookEnabled
+            ? [instrumentationHookDetectionRegExp]
+            : []),
         ])
       ).map((absoluteFile) => absoluteFile.replace(dir, ''))
 
