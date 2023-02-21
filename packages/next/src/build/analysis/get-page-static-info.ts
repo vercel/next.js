@@ -17,6 +17,7 @@ import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
+import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 
 export interface MiddlewareConfig {
   matchers: MiddlewareMatcher[]
@@ -39,21 +40,18 @@ export interface PageStaticInfo {
   middleware?: Partial<MiddlewareConfig>
 }
 
-const CLIENT_MODULE_LABEL = '/* __next_internal_client_entry_do_not_use__ */'
+const CLIENT_MODULE_LABEL =
+  /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) \*\//
 const ACTION_MODULE_LABEL =
   /\/\* __next_internal_action_entry_do_not_use__ ([^ ]+) \*\//
 
 export type RSCModuleType = 'server' | 'client'
-export function getRSCModuleInformation(source: string): {
-  type: RSCModuleType
-  actions?: string[]
-} {
-  const type = source.includes(CLIENT_MODULE_LABEL)
-    ? RSC_MODULE_TYPES.client
-    : RSC_MODULE_TYPES.server
-
+export function getRSCModuleInformation(source: string): RSCMeta {
+  const clientRefs = source.match(CLIENT_MODULE_LABEL)?.[1]?.split(',')
   const actions = source.match(ACTION_MODULE_LABEL)?.[1]?.split(',')
-  return { type, actions }
+
+  const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
+  return { type, actions, clientRefs }
 }
 
 /**
