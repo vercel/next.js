@@ -90,9 +90,9 @@
     ),
     (
         "knownWindowsPackages",
-        Object(
-            7,
-            [
+        Object {
+            total_nodes: 7,
+            parts: [
                 KeyValue(
                     Constant(
                         StrWord(
@@ -130,7 +130,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "path",
@@ -229,9 +230,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -259,7 +260,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),

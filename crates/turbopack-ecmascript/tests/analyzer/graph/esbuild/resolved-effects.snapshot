@@ -16,7 +16,7 @@
 0 -> 11 call = (...) => (undefined | {"pkg": pkg, "subpath": subpath})()
 
 0 -> 13 member call = require*0*["resolve"](
-    `${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}/${(???*4* | ???*5* | "esbuild.exe" | "bin/esbuild")}`
+    `${(???*1* | ???*2* | ???*3* | ???*4* | "esbuild-linux-64")}/${(???*5* | ???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)}`
 )
 - *0* require: The require method from CommonJS
 - *1* undefined["pkg"]
@@ -25,14 +25,16 @@
   ⚠️  pattern without value
 - *3* FreeVar(undefined)
   ⚠️  unknown global
-- *4* undefined["subpath"]
+- *4* unknown mutation
+- *5* undefined["subpath"]
   ⚠️  nested operation
-- *5* subpath
+- *6* subpath
   ⚠️  pattern without value
+- *7* unknown mutation
 
 0 -> 14 call = ???*0*(
-    (undefined["pkg"] | ???*1* | ???*2* | "esbuild-linux-64"),
-    (undefined["subpath"] | ???*3* | "esbuild.exe" | "bin/esbuild")
+    (undefined["pkg"] | ???*1* | ???*2* | ???*3* | "esbuild-linux-64"),
+    (undefined["subpath"] | ???*4* | "esbuild.exe" | "bin/esbuild" | ???*5*)
 )
 - *0* FreeVar(downloadedBinPath)
   ⚠️  unknown global
@@ -40,16 +42,18 @@
   ⚠️  pattern without value
 - *2* FreeVar(undefined)
   ⚠️  unknown global
-- *3* subpath
+- *3* unknown mutation
+- *4* subpath
   ⚠️  pattern without value
+- *5* unknown mutation
 
-0 -> 16 member call = ???*0*["existsSync"]((???*1* | ???*2* | ???*9*))
+0 -> 16 member call = ???*0*["existsSync"]((???*1* | ???*2* | ???*11*))
 - *0* FreeVar(fs)
   ⚠️  unknown global
 - *1* binPath
   ⚠️  pattern without value
 - *2* require.resolve*3*(
-        `${(???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(???*7* | ???*8* | "esbuild.exe" | "bin/esbuild")}`
+        `${(???*4* | ???*5* | ???*6* | ???*7* | "esbuild-linux-64")}/${(???*8* | ???*9* | "esbuild.exe" | "bin/esbuild" | ???*10*)}`
     )
   ⚠️  resolve.resolve non constant
 - *3* require.resolve: The require.resolve method from CommonJS
@@ -59,13 +63,15 @@
   ⚠️  pattern without value
 - *6* FreeVar(undefined)
   ⚠️  unknown global
-- *7* undefined["subpath"]
+- *7* unknown mutation
+- *8* undefined["subpath"]
   ⚠️  nested operation
-- *8* subpath
+- *9* subpath
   ⚠️  pattern without value
-- *9* ???*10*(pkg, subpath)
+- *10* unknown mutation
+- *11* ???*12*(pkg, subpath)
   ⚠️  unknown callee
-- *10* FreeVar(downloadedBinPath)
+- *12* FreeVar(downloadedBinPath)
   ⚠️  unknown global
 
 0 -> 17 conditional = !(???*0*)
@@ -75,13 +81,14 @@
   ⚠️  unknown global
 
 17 -> 19 member call = require*0*["resolve"](
-    (undefined["pkg"] | ???*1* | ???*2* | "esbuild-linux-64")
+    (undefined["pkg"] | ???*1* | ???*2* | ???*3* | "esbuild-linux-64")
 )
 - *0* require: The require method from CommonJS
 - *1* pkg
   ⚠️  pattern without value
 - *2* FreeVar(undefined)
   ⚠️  unknown global
+- *3* unknown mutation
 
 0 -> 20 call = require*0*("pnpapi")
 - *0* require: The require method from CommonJS
@@ -95,15 +102,16 @@
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
 21 -> 28 member call = path*0*["basename"](
-    (undefined["subpath"] | ???*1* | "esbuild.exe" | "bin/esbuild")
+    (undefined["subpath"] | ???*1* | "esbuild.exe" | "bin/esbuild" | ???*2*)
 )
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 - *1* subpath
   ⚠️  pattern without value
+- *2* unknown mutation
 
 21 -> 29 member call = path*0*["join"](
     ""esbuild"/resolved/lib",
-    `pnpapi-${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
+    `pnpapi-${(???*1* | ???*2* | ???*3* | ???*4* | "esbuild-linux-64")}-${???*5*}`
 )
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 - *1* undefined["pkg"]
@@ -112,18 +120,20 @@
   ⚠️  pattern without value
 - *3* FreeVar(undefined)
   ⚠️  unknown global
-- *4* ???*5*(
-        (undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild")
+- *4* unknown mutation
+- *5* ???*6*(
+        (undefined["subpath"] | ???*8* | "esbuild.exe" | "bin/esbuild" | ???*9*)
     )
   ⚠️  unknown callee
-- *5* path*6*["basename"]
+- *6* path*7*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *6* path: The Node.js path module: https://nodejs.org/api/path.html
-- *7* subpath
+- *7* path: The Node.js path module: https://nodejs.org/api/path.html
+- *8* subpath
   ⚠️  pattern without value
+- *9* unknown mutation
 
 21 -> 31 member call = ???*0*["existsSync"](
-    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
+    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | ???*3* | ???*4* | "esbuild-linux-64")}-${???*5*}`
 )
 - *0* FreeVar(fs)
   ⚠️  unknown global
@@ -133,15 +143,17 @@
   ⚠️  pattern without value
 - *3* FreeVar(undefined)
   ⚠️  unknown global
-- *4* ???*5*(
-        (undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild")
+- *4* unknown mutation
+- *5* ???*6*(
+        (undefined["subpath"] | ???*8* | "esbuild.exe" | "bin/esbuild" | ???*9*)
     )
   ⚠️  unknown callee
-- *5* path*6*["basename"]
+- *6* path*7*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *6* path: The Node.js path module: https://nodejs.org/api/path.html
-- *7* subpath
+- *7* path: The Node.js path module: https://nodejs.org/api/path.html
+- *8* subpath
   ⚠️  pattern without value
+- *9* unknown mutation
 
 21 -> 32 conditional = !(???*0*)
 - *0* ???*1*["existsSync"](binTargetPath)
@@ -150,15 +162,15 @@
   ⚠️  unknown global
 
 32 -> 34 member call = ???*0*["copyFileSync"](
-    (???*1* | ???*2* | ???*9*),
-    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*11* | ???*12* | ???*13* | "esbuild-linux-64")}-${???*14*}`
+    (???*1* | ???*2* | ???*11*),
+    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*13* | ???*14* | ???*15* | ???*16* | "esbuild-linux-64")}-${???*17*}`
 )
 - *0* FreeVar(fs)
   ⚠️  unknown global
 - *1* binPath
   ⚠️  pattern without value
 - *2* require.resolve*3*(
-        `${(???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(???*7* | ???*8* | "esbuild.exe" | "bin/esbuild")}`
+        `${(???*4* | ???*5* | ???*6* | ???*7* | "esbuild-linux-64")}/${(???*8* | ???*9* | "esbuild.exe" | "bin/esbuild" | ???*10*)}`
     )
   ⚠️  resolve.resolve non constant
 - *3* require.resolve: The require.resolve method from CommonJS
@@ -168,32 +180,36 @@
   ⚠️  pattern without value
 - *6* FreeVar(undefined)
   ⚠️  unknown global
-- *7* undefined["subpath"]
+- *7* unknown mutation
+- *8* undefined["subpath"]
   ⚠️  nested operation
-- *8* subpath
+- *9* subpath
   ⚠️  pattern without value
-- *9* ???*10*(pkg, subpath)
+- *10* unknown mutation
+- *11* ???*12*(pkg, subpath)
   ⚠️  unknown callee
-- *10* FreeVar(downloadedBinPath)
+- *12* FreeVar(downloadedBinPath)
   ⚠️  unknown global
-- *11* undefined["pkg"]
+- *13* undefined["pkg"]
   ⚠️  nested operation
-- *12* pkg
+- *14* pkg
   ⚠️  pattern without value
-- *13* FreeVar(undefined)
+- *15* FreeVar(undefined)
   ⚠️  unknown global
-- *14* ???*15*(
-        (undefined["subpath"] | ???*17* | "esbuild.exe" | "bin/esbuild")
+- *16* unknown mutation
+- *17* ???*18*(
+        (undefined["subpath"] | ???*20* | "esbuild.exe" | "bin/esbuild" | ???*21*)
     )
   ⚠️  unknown callee
-- *15* path*16*["basename"]
+- *18* path*19*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *16* path: The Node.js path module: https://nodejs.org/api/path.html
-- *17* subpath
+- *19* path: The Node.js path module: https://nodejs.org/api/path.html
+- *20* subpath
   ⚠️  pattern without value
+- *21* unknown mutation
 
 32 -> 36 member call = ???*0*["chmodSync"](
-    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`,
+    `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*1* | ???*2* | ???*3* | ???*4* | "esbuild-linux-64")}-${???*5*}`,
     493
 )
 - *0* FreeVar(fs)
@@ -204,15 +220,17 @@
   ⚠️  pattern without value
 - *3* FreeVar(undefined)
   ⚠️  unknown global
-- *4* ???*5*(
-        (undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild")
+- *4* unknown mutation
+- *5* ???*6*(
+        (undefined["subpath"] | ???*8* | "esbuild.exe" | "bin/esbuild" | ???*9*)
     )
   ⚠️  unknown callee
-- *5* path*6*["basename"]
+- *6* path*7*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *6* path: The Node.js path module: https://nodejs.org/api/path.html
-- *7* subpath
+- *7* path: The Node.js path module: https://nodejs.org/api/path.html
+- *8* subpath
   ⚠️  pattern without value
+- *9* unknown mutation
 
 0 -> 38 member call = path*0*["basename"]("__filename")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html

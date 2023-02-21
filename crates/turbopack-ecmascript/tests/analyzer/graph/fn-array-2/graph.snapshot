@@ -24,9 +24,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Array(
-                        5,
-                        [
+                    Array {
+                        total_nodes: 5,
+                        items: [
                             Concat(
                                 3,
                                 [
@@ -51,7 +51,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),

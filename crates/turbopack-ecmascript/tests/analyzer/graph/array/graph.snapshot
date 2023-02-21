@@ -21,9 +21,9 @@
         "c",
         Member(
             7,
-            Array(
-                3,
-                [
+            Array {
+                total_nodes: 3,
+                items: [
                     Constant(
                         Num(
                             ConstantNumber(
@@ -37,7 +37,8 @@
                         ),
                     ),
                 ],
-            ),
+                mutable: true,
+            },
             Member(
                 3,
                 FreeVar(
@@ -55,9 +56,9 @@
     ),
     (
         "d1",
-        Array(
-            3,
-            [
+        Array {
+            total_nodes: 3,
+            items: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -71,7 +72,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "d2",

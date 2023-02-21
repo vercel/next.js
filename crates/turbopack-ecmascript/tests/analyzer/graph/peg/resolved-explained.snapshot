@@ -391,22 +391,28 @@ description#79 = ???*0*
 descriptions = ???*0*
 - *0* unknown new expression
 
-details = ({"line": 1, "column": 1} | ???*0* | {"line": (1 | ???*2*), "column": (1 | ???*5*)})
+details = (
+  | {"line": 1, "column": 1}
+  | ???*0*
+  | {"line": (1 | ???*2* | ???*3*), "column": (1 | ???*6* | ???*7*)}
+)
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* ???*3*["line"]
+- *2* unknown mutation
+- *3* ???*4*["line"]
   ⚠️  unknown object
-- *3* [][???*4*]
+- *4* [][???*5*]
   ⚠️  unknown array prototype methods or values
-- *4* arguments[0]
+- *5* arguments[0]
   ⚠️  function calls are not analysed yet
-- *5* ???*6*["column"]
+- *6* unknown mutation
+- *7* ???*8*["column"]
   ⚠️  unknown object
-- *6* [][???*7*]
+- *8* [][???*9*]
   ⚠️  unknown array prototype methods or values
-- *7* arguments[0]
+- *9* arguments[0]
   ⚠️  function calls are not analysed yet
 
 digits = ???*0*

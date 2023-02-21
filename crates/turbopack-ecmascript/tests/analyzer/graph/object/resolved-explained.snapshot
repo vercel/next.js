@@ -1,12 +1,17 @@
-a = 1
+a = (1 | ???*0*)
+- *0* unknown mutation
 
-a1 = 1
+a1 = (1 | ???*0*)
+- *0* unknown mutation
 
-a2 = 1
+a2 = (1 | ???*0*)
+- *0* unknown mutation
 
-a3 = 1
+a3 = (1 | ???*0*)
+- *0* unknown mutation
 
-a4 = 1
+a4 = (1 | ???*0*)
+- *0* unknown mutation
 
 a5 = ???*0*
 - *0* {"a": 1, ...???*1*, "b": 2}["a"]
@@ -14,33 +19,46 @@ a5 = ???*0*
 - *1* FreeVar(global)
   ⚠️  unknown global
 
-a6 = (1 | 2 | 4)
+a6 = (1 | 2 | 4 | ???*0*)
+- *0* unknown mutation
 
-b = 2
+b = (2 | ???*0*)
+- *0* unknown mutation
 
-b1 = 2
+b1 = (2 | ???*0*)
+- *0* unknown mutation
 
-b2 = 2
+b2 = (2 | ???*0*)
+- *0* unknown mutation
 
-b3 = 22
+b3 = (22 | ???*0*)
+- *0* unknown mutation
 
-b4 = 2
+b4 = (2 | ???*0*)
+- *0* unknown mutation
 
-b5 = 2
+b5 = (2 | ???*0*)
+- *0* unknown mutation
 
-b6 = (2 | 4 | ???*0*)
+b6 = (2 | 4 | ???*0* | ???*1*)
 - *0* {}["b"]
   ⚠️  unknown object prototype methods or values
+- *1* unknown mutation
 
-c = 3
+c = (3 | ???*0*)
+- *0* unknown mutation
 
-c1 = 3
+c1 = (3 | ???*0*)
+- *0* unknown mutation
 
-c2 = 3
+c2 = (3 | ???*0*)
+- *0* unknown mutation
 
-c3 = 3
+c3 = (3 | ???*0*)
+- *0* unknown mutation
 
-c4 = 3
+c4 = (3 | ???*0*)
+- *0* unknown mutation
 
 c5 = ???*0*
 - *0* {"a": 1, ...???*1*, "b": 2}["c"]
@@ -48,33 +66,41 @@ c5 = ???*0*
 - *1* FreeVar(global)
   ⚠️  unknown global
 
-c6 = (3 | 4)
+c6 = (3 | 4 | ???*0*)
+- *0* unknown mutation
 
-d = ???*0*
+d = (???*0* | ???*1*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
+- *1* unknown mutation
 
-d1 = ???*0*
+d1 = (???*0* | ???*1*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
+- *1* unknown mutation
 
-d2 = ???*0*
+d2 = (???*0* | ???*1*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
+- *1* unknown mutation
 
-d3 = ???*0*
+d3 = (???*0* | ???*1*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
+- *1* unknown mutation
 
-d4 = ???*0*
+d4 = (???*0* | ???*1*)
 - *0* FreeVar(undefined)
   ⚠️  unknown global
+- *1* unknown mutation
 
-d6 = (2 | 4 | ???*0*)
+d6 = (2 | 4 | ???*0* | ???*1*)
 - *0* {}["d"]
   ⚠️  unknown object prototype methods or values
+- *1* unknown mutation
 
-e6 = 5
+e6 = (5 | ???*0*)
+- *0* unknown mutation
 
 object = {"a": 1, "b": 2, "c": 3}
 

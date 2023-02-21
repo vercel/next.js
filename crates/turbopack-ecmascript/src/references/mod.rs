@@ -1011,13 +1011,13 @@ pub(crate) async fn analyze_ecmascript_module(
                     JsValue::WellKnownFunction(WellKnownFunctionKind::NodeProtobufLoad) => {
                         let args = linked_args(args).await?;
                         if args.len() == 2 {
-                            if let Some(JsValue::Object(_, parts)) = args.get(1) {
+                            if let Some(JsValue::Object { parts, .. }) = args.get(1) {
                                 for dir in parts
                                     .iter()
                                     .filter_map(|object_part| {
                                         if let ObjectPart::KeyValue(
                                             JsValue::Constant(key),
-                                            JsValue::Array(_, dirs),
+                                            JsValue::Array { items: dirs, .. },
                                         ) = object_part
                                         {
                                             if key.as_str() == Some("includeDirs") {
@@ -1279,13 +1279,21 @@ pub(crate) async fn analyze_ecmascript_module(
                                 let mut obj = link_value(obj).await?;
                                 let prop = link_value(prop).await?;
 
-                                if let JsValue::Array(_, ref mut values) = obj {
+                                if let JsValue::Array {
+                                    items: ref mut values,
+                                    mutable,
+                                    ..
+                                } = obj
+                                {
                                     if matches!(prop.as_str(), Some("map" | "forEach" | "filter")) {
                                         if let [EffectArg::Closure(value, block)] = &mut args[..] {
                                             *value = link_value(take(value)).await?;
                                             if let JsValue::Function(_, func_ident, _) = value {
-                                                let closure_arg =
+                                                let mut closure_arg =
                                                     JsValue::alternatives(take(values));
+                                                if mutable {
+                                                    closure_arg.add_unknown_mutations();
+                                                }
                                                 fun_args_values
                                                     .get_mut()
                                                     .insert(*func_ident, vec![closure_arg]);
@@ -1407,7 +1415,7 @@ fn analyze_amd_define(
     args: Vec<JsValue>,
 ) {
     match &args[..] {
-        [JsValue::Constant(id), JsValue::Array(_, deps), _] if id.as_str().is_some() => {
+        [JsValue::Constant(id), JsValue::Array { items: deps, .. }, _] if id.as_str().is_some() => {
             analyze_amd_define_with_deps(
                 analysis,
                 origin,
@@ -1418,7 +1426,7 @@ fn analyze_amd_define(
                 deps,
             );
         }
-        [JsValue::Array(_, deps), _] => {
+        [JsValue::Array { items: deps, .. }, _] => {
             analyze_amd_define_with_deps(analysis, origin, handler, span, ast_path, None, deps);
         }
         [JsValue::Constant(id), JsValue::Function(..)] if id.as_str().is_some() => {
@@ -1457,7 +1465,7 @@ fn analyze_amd_define(
                 AmdDefineFactoryType::Function,
             ));
         }
-        [JsValue::Object(..)] => {
+        [JsValue::Object { .. }] => {
             analysis.add_code_gen(AmdDefineWithDependenciesCodeGenVc::new(
                 vec![],
                 origin,

@@ -10,17 +10,17 @@
                     Constant(
                         Undefined,
                     ),
-                    Array(
-                        10,
-                        [
+                    Array {
+                        total_nodes: 10,
+                        items: [
                             Constant(
                                 StrWord(
                                     Atom('node' type=inline),
                                 ),
                             ),
-                            Array(
-                                8,
-                                [
+                            Array {
+                                total_nodes: 8,
+                                items: [
                                     MemberCall(
                                         7,
                                         Variable(
@@ -56,12 +56,14 @@
                                         ],
                                     ),
                                 ],
-                            ),
+                                mutable: true,
+                            },
                         ],
-                    ),
-                    Array(
-                        4,
-                        [
+                        mutable: true,
+                    },
+                    Array {
+                        total_nodes: 4,
+                        items: [
                             Call(
                                 2,
                                 Variable(
@@ -72,12 +74,14 @@
                                 ),
                                 [],
                             ),
-                            Array(
-                                1,
-                                [],
-                            ),
+                            Array {
+                                total_nodes: 1,
+                                items: [],
+                                mutable: true,
+                            },
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -394,9 +398,9 @@
     ),
     (
         "knownUnixlikePackages",
-        Object(
-            31,
-            [
+        Object {
+            total_nodes: 31,
+            parts: [
                 KeyValue(
                     Constant(
                         StrWord(
@@ -578,13 +582,14 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "knownWindowsPackages",
-        Object(
-            7,
-            [
+        Object {
+            total_nodes: 7,
+            parts: [
                 KeyValue(
                     Constant(
                         StrWord(
@@ -622,7 +627,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "os",
@@ -753,9 +759,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -783,7 +789,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),

@@ -1,8 +1,8 @@
 [
     Member {
-        obj: Array(
-            3,
-            [
+        obj: Array {
+            total_nodes: 3,
+            items: [
                 Constant(
                     Num(
                         ConstantNumber(
@@ -16,7 +16,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
         prop: Member(
             3,
             FreeVar(

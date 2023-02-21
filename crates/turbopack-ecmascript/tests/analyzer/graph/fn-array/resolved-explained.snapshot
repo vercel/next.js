@@ -10,6 +10,8 @@ c = (...) => (undefined | [`${a}${b}`, a])
 
 d = (undefined | ["12", "1"])
 
-e = (undefined[0] | "12")
+e = (undefined[0] | "12" | ???*0*)
+- *0* unknown mutation
 
-f = (undefined[1] | "1")
+f = (undefined[1] | "1" | ???*0*)
+- *0* unknown mutation
