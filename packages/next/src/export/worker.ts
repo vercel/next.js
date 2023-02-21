@@ -265,8 +265,8 @@ export default async function exportPage({
 
       // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an
       // extension of `.slug]`
-      const pageExt = isDynamic ? '' : extname(page)
-      const pathExt = isDynamic ? '' : extname(path)
+      const pageExt = isDynamic || isAppDir ? '' : extname(page)
+      const pathExt = isDynamic || isAppDir ? '' : extname(path)
 
       // force output 404.html for backwards compat
       if (path === '/404.html') {

@@ -12,7 +12,42 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
+    describe('works with api prefix correctly', () => {
+      it('statically generates correctly with no dynamic usage', async () => {
+        if (isNextStart) {
+          expect(
+            await next.readFile('.next/server/app/api/hello.json.body')
+          ).toBeTruthy()
+          expect(
+            await next.readFile('.next/server/app/api/hello.json.meta')
+          ).toBeTruthy()
+        }
+        expect(JSON.parse(await next.render('/api/hello.json'))).toEqual({
+          pathname: '/api/hello.json',
+        })
+      })
+
+      it('does not statically generate with dynamic usage', async () => {
+        if (isNextStart) {
+          expect(
+            await next
+              .readFile('.next/server/app/api/dynamic.body')
+              .catch(() => '')
+          ).toBeFalsy()
+          expect(
+            await next
+              .readFile('.next/server/app/api/dynamic.meta')
+              .catch(() => '')
+          ).toBeFalsy()
+        }
+        expect(JSON.parse(await next.render('/api/dynamic'))).toEqual({
+          pathname: '/api/dynamic',
+          query: {},
+        })
+      })
+    })
+
     describe('basic fetch request with a response', () => {
       describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
         'made via a %s request',

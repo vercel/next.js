@@ -353,46 +353,68 @@ export class AppRouteRouteHandler implements RouteHandler<AppRouteRouteMatch> {
               }
             }
 
+            const handleNextUrlBailout = (prop: string | symbol) => {
+              if (
+                [
+                  'search',
+                  'searchParams',
+                  'toString',
+                  'href',
+                  'origin',
+                ].includes(prop as string)
+              ) {
+                module.staticGenerationBailout(`nextUrl.${prop as string}`)
+              }
+            }
+
             const wrappedNextUrl = new Proxy(_req.nextUrl, {
               get(target, prop) {
-                if (
-                  ['search', 'searchParams', 'toString', 'href'].includes(
-                    prop as string
-                  )
-                ) {
-                  module.staticGenerationBailout(`nextUrl.${prop as string}`)
-                }
+                handleNextUrlBailout(prop)
                 return (target as any)[prop]
+              },
+              set(target, prop, value) {
+                handleNextUrlBailout(prop)
+                ;(target as any)[prop] = value
+                return true
               },
             })
 
+            const handleReqBailout = (prop: string | symbol) => {
+              if (prop === 'headers') {
+                return module.headerHooks.headers()
+              }
+              // if request.url is accessed directly instead of
+              // request.nextUrl we bail since it includes query
+              // values that can be relied on dynamically
+              if (prop === 'url') {
+                module.staticGenerationBailout(`request.${prop as string}`)
+              }
+              if (
+                [
+                  'body',
+                  'blob',
+                  'json',
+                  'text',
+                  'arrayBuffer',
+                  'formData',
+                ].includes(prop as string)
+              ) {
+                module.staticGenerationBailout(`request.${prop as string}`)
+              }
+            }
+
             const wrappedReq = new Proxy(_req, {
               get(target, prop) {
-                if (prop === 'headers') {
-                  return module.headerHooks.headers()
-                }
-                // if request.url is accessed directly instead of
-                // request.nextUrl we bail since it includes query
-                // values that can be relied on dynamically
-                if (prop === 'url') {
-                  module.staticGenerationBailout(`request.${prop as string}`)
-                }
+                handleReqBailout(prop)
                 if (prop === 'nextUrl') {
                   return wrappedNextUrl
                 }
-                if (
-                  [
-                    'body',
-                    'blob',
-                    'json',
-                    'text',
-                    'arrayBuffer',
-                    'formData',
-                  ].includes(prop as string)
-                ) {
-                  module.staticGenerationBailout(`request.${prop as string}`)
-                }
                 return (target as any)[prop]
+              },
+              set(target, prop, value) {
+                handleReqBailout(prop)
+                ;(target as any)[prop] = value
+                return true
               },
             })
             return handle(wrappedReq, { params })

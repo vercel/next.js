@@ -481,7 +481,9 @@ export default async function exportApp(
 
     const filteredPaths = exportPaths.filter(
       // Remove API routes
-      (route) => !isAPIRoute(exportPathMap[route].page)
+      (route) =>
+        (exportPathMap[route] as any)._isAppDir ||
+        !isAPIRoute(exportPathMap[route].page)
     )
 
     if (filteredPaths.length !== exportPaths.length) {
