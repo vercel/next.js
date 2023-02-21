@@ -94,15 +94,15 @@ createNextDescribe(
       await browser
         .elementByCss('#to-blog')
         .click()
-        .waitForElementByCss('#layout', 2000)
+        .waitForElementByCss('#layout')
 
       expect(await getTitle()).toBe('hello from blog layout')
-      await browser.back().waitForElementByCss('#to-blog', 2000)
+      await browser.back().waitForElementByCss('#to-blog')
       expect(await getTitle()).toBe('hello from index')
       await browser
         .elementByCss('#to-blog-slug')
         .click()
-        .waitForElementByCss('#layout', 2000)
+        .waitForElementByCss('#layout')
       expect(await getTitle()).toBe('hello from dynamic blog page post-1')
     })
 
