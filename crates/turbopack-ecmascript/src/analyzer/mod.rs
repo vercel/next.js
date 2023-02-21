@@ -266,9 +266,17 @@ pub enum JsValue {
     // NESTED VALUES
     // ----------------------------
     /// An array of nested values
-    Array(usize, Vec<JsValue>),
+    Array {
+        total_nodes: usize,
+        items: Vec<JsValue>,
+        mutable: bool,
+    },
     /// An object of nested values
-    Object(usize, Vec<ObjectPart>),
+    Object {
+        total_nodes: usize,
+        parts: Vec<ObjectPart>,
+        mutable: bool,
+    },
     /// A list of alternative values
     Alternatives(usize, Vec<JsValue>),
     /// A function reference. The return value might contain [JsValue::Argument]
@@ -381,18 +389,20 @@ impl Display for JsValue {
         match self {
             JsValue::Constant(v) => write!(f, "{v}"),
             JsValue::Url(url) => write!(f, "{}", url),
-            JsValue::Array(_, elems) => write!(
+            JsValue::Array { items, mutable, .. } => write!(
                 f,
-                "[{}]",
-                elems
+                "{}[{}]",
+                if *mutable { "" } else { "frozen " },
+                items
                     .iter()
                     .map(|v| v.to_string())
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::Object(_, parts) => write!(
+            JsValue::Object { parts, mutable, .. } => write!(
                 f,
-                "{{{}}}",
+                "{}{{{}}}",
+                if *mutable { "" } else { "frozen " },
                 parts
                     .iter()
                     .map(|v| v.to_string())
@@ -528,8 +538,8 @@ impl JsValue {
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Unknown(..) => JsValueMetaKind::Leaf,
-            JsValue::Array(..)
-            | JsValue::Object(..)
+            JsValue::Array { .. }
+            | JsValue::Object { .. }
             | JsValue::Alternatives(..)
             | JsValue::Function(..) => JsValueMetaKind::Nested,
             JsValue::Concat(..)
@@ -581,8 +591,20 @@ impl JsValue {
         Self::Not(1 + inner.total_nodes(), inner)
     }
 
-    pub fn array(list: Vec<JsValue>) -> Self {
-        Self::Array(1 + total_nodes(&list), list)
+    pub fn array(items: Vec<JsValue>) -> Self {
+        Self::Array {
+            total_nodes: 1 + total_nodes(&items),
+            items,
+            mutable: true,
+        }
+    }
+
+    pub fn frozen_array(items: Vec<JsValue>) -> Self {
+        Self::Array {
+            total_nodes: 1 + total_nodes(&items),
+            items,
+            mutable: false,
+        }
     }
 
     pub fn function(func_ident: u32, return_value: Box<JsValue>) -> Self {
@@ -590,16 +612,31 @@ impl JsValue {
     }
 
     pub fn object(list: Vec<ObjectPart>) -> Self {
-        Self::Object(
-            1 + list
+        Self::Object {
+            total_nodes: 1 + list
                 .iter()
                 .map(|v| match v {
                     ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                     ObjectPart::Spread(s) => s.total_nodes(),
                 })
                 .sum::<usize>(),
-            list,
-        )
+            parts: list,
+            mutable: true,
+        }
+    }
+
+    pub fn frozen_object(list: Vec<ObjectPart>) -> Self {
+        Self::Object {
+            total_nodes: 1 + list
+                .iter()
+                .map(|v| match v {
+                    ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
+                    ObjectPart::Spread(s) => s.total_nodes(),
+                })
+                .sum::<usize>(),
+            parts: list,
+            mutable: false,
+        }
     }
 
     pub fn call(f: Box<JsValue>, args: Vec<JsValue>) -> Self {
@@ -633,8 +670,8 @@ impl JsValue {
             | JsValue::Unknown(_, _)
             | JsValue::Argument(..) => 1,
 
-            JsValue::Array(c, _)
-            | JsValue::Object(c, _)
+            JsValue::Array { total_nodes: c, .. }
+            | JsValue::Object { total_nodes: c, .. }
             | JsValue::Alternatives(c, _)
             | JsValue::Concat(c, _)
             | JsValue::Add(c, _)
@@ -659,7 +696,11 @@ impl JsValue {
             | JsValue::Unknown(_, _)
             | JsValue::Argument(..) => {}
 
-            JsValue::Array(c, list)
+            JsValue::Array {
+                total_nodes: c,
+                items: list,
+                ..
+            }
             | JsValue::Alternatives(c, list)
             | JsValue::Concat(c, list)
             | JsValue::Add(c, list)
@@ -671,8 +712,12 @@ impl JsValue {
                 *c = 1 + r.total_nodes();
             }
 
-            JsValue::Object(c, props) => {
-                *c = 1 + props
+            JsValue::Object {
+                total_nodes: c,
+                parts,
+                mutable: _,
+            } => {
+                *c = 1 + parts
                     .iter()
                     .map(|v| match v {
                         ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
@@ -731,7 +776,7 @@ impl JsValue {
                 | JsValue::Unknown(_, _)
                 | JsValue::Argument(..) => self.make_unknown_without_content("node limit reached"),
 
-                JsValue::Array(_, list)
+                JsValue::Array { items: list, .. }
                 | JsValue::Alternatives(_, list)
                 | JsValue::Concat(_, list)
                 | JsValue::Logical(_, _, list)
@@ -742,8 +787,8 @@ impl JsValue {
                 JsValue::Not(_, r) => {
                     r.make_unknown_without_content("node limit reached");
                 }
-                JsValue::Object(_, list) => {
-                    make_max_unknown(list.iter_mut().flat_map(|v| match v {
+                JsValue::Object { parts, .. } => {
+                    make_max_unknown(parts.iter_mut().flat_map(|v| match v {
                         // TODO this probably can avoid heap allocation somehow
                         ObjectPart::KeyValue(k, v) => vec![k, v].into_iter(),
                         ObjectPart::Spread(s) => vec![s].into_iter(),
@@ -834,10 +879,11 @@ impl JsValue {
     ) -> String {
         match self {
             JsValue::Constant(v) => format!("{v}"),
-            JsValue::Array(_, elems) => format!(
-                "[{}]",
+            JsValue::Array { items, mutable, .. } => format!(
+                "{}[{}]",
+                if *mutable { "" } else { "frozen " },
                 pretty_join(
-                    &elems
+                    &items
                         .iter()
                         .map(|v| v.explain_internal_inner(
                             hints,
@@ -852,8 +898,9 @@ impl JsValue {
                     ""
                 )
             ),
-            JsValue::Object(_, parts) => format!(
-                "{{{}}}",
+            JsValue::Object { parts, mutable, .. } => format!(
+                "{}{{{}}}",
+                if *mutable { "" } else { "frozen " },
                 pretty_join(
                     &parts
                         .iter()
@@ -1255,6 +1302,10 @@ impl JsValue {
             false
         }
     }
+
+    pub fn add_unknown_mutations(&mut self) {
+        self.add_alt(JsValue::Unknown(None, "unknown mutation"));
+    }
 }
 
 // Compile-time information gathering
@@ -1274,8 +1325,8 @@ impl JsValue {
             JsValue::Constant(c) => Some(c.is_truthy()),
             JsValue::Concat(..) => self.is_empty_string().map(|x| !x),
             JsValue::Url(..)
-            | JsValue::Array(..)
-            | JsValue::Object(..)
+            | JsValue::Array { .. }
+            | JsValue::Object { .. }
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Function(..) => Some(true),
@@ -1305,8 +1356,8 @@ impl JsValue {
             JsValue::Constant(c) => Some(c.is_nullish()),
             JsValue::Concat(..)
             | JsValue::Url(..)
-            | JsValue::Array(..)
-            | JsValue::Object(..)
+            | JsValue::Array { .. }
+            | JsValue::Object { .. }
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Not(..)
@@ -1352,8 +1403,8 @@ impl JsValue {
                 }
             },
             JsValue::Url(..)
-            | JsValue::Array(..)
-            | JsValue::Object(..)
+            | JsValue::Array { .. }
+            | JsValue::Object { .. }
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Function(..) => Some(false),
@@ -1380,8 +1431,8 @@ impl JsValue {
             | JsValue::Concat(..) => Some(true),
 
             JsValue::Constant(..)
-            | JsValue::Array(..)
-            | JsValue::Object(..)
+            | JsValue::Array { .. }
+            | JsValue::Object { .. }
             | JsValue::Url(..)
             | JsValue::Module(..)
             | JsValue::Function(..)
@@ -1575,7 +1626,7 @@ macro_rules! for_each_children_async {
             | JsValue::Concat(_, list)
             | JsValue::Add(_, list)
             | JsValue::Logical(_, _, list)
-            | JsValue::Array(_, list) => {
+            | JsValue::Array{ items: list, ..} => {
                 let mut modified = false;
                 for item in list.iter_mut() {
                     let (v, m) = $visit_fn(take(item), $($args),+).await?;
@@ -1587,9 +1638,9 @@ macro_rules! for_each_children_async {
                 $value.update_total_nodes();
                 ($value, modified)
             }
-            JsValue::Object(_, list) => {
+            JsValue::Object{ parts, ..} => {
                 let mut modified = false;
-                for item in list.iter_mut() {
+                for item in parts.iter_mut() {
                     match item {
                         ObjectPart::KeyValue(key, value) => {
                             let (v, m) = $visit_fn(take(key), $($args),+).await?;
@@ -1832,7 +1883,7 @@ impl JsValue {
             | JsValue::Concat(_, list)
             | JsValue::Add(_, list)
             | JsValue::Logical(_, _, list)
-            | JsValue::Array(_, list) => {
+            | JsValue::Array { items: list, .. } => {
                 let mut modified = false;
                 for item in list.iter_mut() {
                     if visitor(item) {
@@ -1851,9 +1902,9 @@ impl JsValue {
                 }
                 modified
             }
-            JsValue::Object(_, list) => {
+            JsValue::Object { parts, .. } => {
                 let mut modified = false;
-                for item in list.iter_mut() {
+                for item in parts.iter_mut() {
                     match item {
                         ObjectPart::KeyValue(key, value) => {
                             if visitor(key) {
@@ -2019,7 +2070,7 @@ impl JsValue {
             | JsValue::Concat(_, list)
             | JsValue::Add(_, list)
             | JsValue::Logical(_, _, list)
-            | JsValue::Array(_, list) => {
+            | JsValue::Array { items: list, .. } => {
                 for item in list.iter() {
                     visitor(item);
                 }
@@ -2027,8 +2078,8 @@ impl JsValue {
             JsValue::Not(_, value) => {
                 visitor(value);
             }
-            JsValue::Object(_, list) => {
-                for item in list.iter() {
+            JsValue::Object { parts, .. } => {
+                for item in parts.iter() {
                     match item {
                         ObjectPart::KeyValue(key, value) => {
                             visitor(key);
@@ -2257,12 +2308,30 @@ impl JsValue {
         }
         match (self, other) {
             (JsValue::Constant(l), JsValue::Constant(r)) => l == r,
-            (JsValue::Array(lc, l), JsValue::Array(rc, r)) => {
-                lc == rc && all_similar(l, r, depth - 1)
-            }
-            (JsValue::Object(lc, l), JsValue::Object(rc, r)) => {
-                lc == rc && all_parts_similar(l, r, depth - 1)
-            }
+            (
+                JsValue::Array {
+                    total_nodes: lc,
+                    items: li,
+                    mutable: lm,
+                },
+                JsValue::Array {
+                    total_nodes: rc,
+                    items: ri,
+                    mutable: rm,
+                },
+            ) => lc == rc && lm == rm && all_similar(li, ri, depth - 1),
+            (
+                JsValue::Object {
+                    total_nodes: lc,
+                    parts: lp,
+                    mutable: lm,
+                },
+                JsValue::Object {
+                    total_nodes: rc,
+                    parts: rp,
+                    mutable: rm,
+                },
+            ) => lc == rc && lm == rm && all_parts_similar(lp, rp, depth - 1),
             (JsValue::Url(l), JsValue::Url(r)) => l == r,
             (JsValue::Alternatives(lc, l), JsValue::Alternatives(rc, r)) => {
                 lc == rc && all_similar(l, r, depth - 1)
@@ -2342,11 +2411,11 @@ impl JsValue {
 
         match self {
             JsValue::Constant(v) => Hash::hash(v, state),
-            JsValue::Object(_, v) => all_parts_similar_hash(v, state, depth - 1),
+            JsValue::Object { parts, .. } => all_parts_similar_hash(parts, state, depth - 1),
             JsValue::Url(v) => Hash::hash(v, state),
             JsValue::FreeVar(v) => Hash::hash(v, state),
             JsValue::Variable(v) => Hash::hash(v, state),
-            JsValue::Array(_, v)
+            JsValue::Array { items: v, .. }
             | JsValue::Alternatives(_, v)
             | JsValue::Concat(_, v)
             | JsValue::Add(_, v)

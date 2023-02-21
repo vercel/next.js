@@ -27663,9 +27663,9 @@
         ),
         args: [
             Value(
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('a' type=static),
@@ -27691,7 +27691,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
         ],
         ast_path: [

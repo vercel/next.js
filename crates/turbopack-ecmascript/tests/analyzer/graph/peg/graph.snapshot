@@ -50,9 +50,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -79,7 +79,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -142,9 +143,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        6,
-                        [
+                    Object {
+                        total_nodes: 6,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -175,7 +176,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -457,9 +459,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -487,7 +489,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -524,9 +527,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -553,7 +556,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -569,9 +573,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -598,7 +602,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -614,9 +619,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -643,7 +648,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -679,9 +685,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -706,7 +712,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -722,9 +729,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -749,7 +756,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -808,9 +816,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        7,
-                        [
+                    Object {
+                        total_nodes: 7,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -850,7 +858,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -895,9 +904,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        9,
-                        [
+                    Object {
+                        total_nodes: 9,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -950,7 +959,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1004,9 +1014,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        7,
-                        [
+                    Object {
+                        total_nodes: 7,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1046,7 +1056,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1062,9 +1073,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        9,
-                        [
+                    Object {
+                        total_nodes: 9,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1117,7 +1128,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1133,9 +1145,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1163,7 +1175,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1179,9 +1192,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1208,7 +1221,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1267,9 +1281,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1296,7 +1310,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1312,9 +1327,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1341,7 +1356,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1357,9 +1373,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        8,
-                        [
+                    Object {
+                        total_nodes: 8,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1400,7 +1416,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1420,10 +1437,11 @@
                         None,
                         "spread is not supported",
                     ),
-                    Array(
-                        1,
-                        [],
-                    ),
+                    Array {
+                        total_nodes: 1,
+                        items: [],
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1628,9 +1646,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1657,7 +1675,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1757,9 +1776,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        13,
-                        [
+                    Object {
+                        total_nodes: 13,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1838,7 +1857,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1854,9 +1874,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1880,7 +1900,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1896,9 +1917,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1925,7 +1946,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -1941,9 +1963,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -1970,7 +1992,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2007,9 +2030,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2034,7 +2057,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2071,9 +2095,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        7,
-                        [
+                    Object {
+                        total_nodes: 7,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2113,7 +2137,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2129,9 +2154,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        9,
-                        [
+                    Object {
+                        total_nodes: 9,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2181,7 +2206,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2218,9 +2244,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        7,
-                        [
+                    Object {
+                        total_nodes: 7,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2260,7 +2286,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2276,9 +2303,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2305,7 +2332,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2321,9 +2349,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2348,7 +2376,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2364,9 +2393,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        7,
-                        [
+                    Object {
+                        total_nodes: 7,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2406,7 +2435,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2491,9 +2521,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        9,
-                        [
+                    Object {
+                        total_nodes: 9,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2543,7 +2573,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2559,9 +2590,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        7,
-                        [
+                    Object {
+                        total_nodes: 7,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2601,7 +2632,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2617,9 +2649,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        7,
-                        [
+                    Object {
+                        total_nodes: 7,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2645,15 +2677,17 @@
                                             None,
                                             "spread is not supported",
                                         ),
-                                        Array(
-                                            1,
-                                            [],
-                                        ),
+                                        Array {
+                                            total_nodes: 1,
+                                            items: [],
+                                            mutable: true,
+                                        },
                                     ],
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2724,9 +2758,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2753,7 +2787,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2769,9 +2804,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        3,
-                        [
+                    Object {
+                        total_nodes: 3,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2785,7 +2820,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2801,9 +2837,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        3,
-                        [
+                    Object {
+                        total_nodes: 3,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2817,7 +2853,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2833,9 +2870,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2859,7 +2896,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2875,9 +2913,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2901,7 +2939,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -2917,9 +2956,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        14,
-                        [
+                    Object {
+                        total_nodes: 14,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -2992,7 +3031,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -3059,9 +3099,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        8,
-                        [
+                    Object {
+                        total_nodes: 8,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -3103,7 +3143,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -3119,9 +3160,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -3146,7 +3187,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -3162,9 +3204,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -3189,7 +3231,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -3259,9 +3302,9 @@
         Function(
             10,
             13694,
-            Object(
-                9,
-                [
+            Object {
+                total_nodes: 9,
+                parts: [
                     KeyValue(
                         Constant(
                             StrWord(
@@ -3314,7 +3357,8 @@
                         ),
                     ),
                 ],
-            ),
+                mutable: true,
+            },
         ),
     ),
     (
@@ -3322,9 +3366,9 @@
         Function(
             10,
             16259,
-            Object(
-                9,
-                [
+            Object {
+                total_nodes: 9,
+                parts: [
                     KeyValue(
                         Constant(
                             StrWord(
@@ -3377,7 +3421,8 @@
                         ),
                     ),
                 ],
-            ),
+                mutable: true,
+            },
         ),
     ),
     (
@@ -3385,9 +3430,9 @@
         Function(
             10,
             169161,
-            Object(
-                9,
-                [
+            Object {
+                total_nodes: 9,
+                parts: [
                     KeyValue(
                         Constant(
                             StrWord(
@@ -3440,14 +3485,15 @@
                         ),
                     ),
                 ],
-            ),
+                mutable: true,
+            },
         ),
     ),
     (
         "DESCRIBE_EXPECTATION_FNS",
-        Object(
-            11,
-            [
+        Object {
+            total_nodes: 11,
+            parts: [
                 KeyValue(
                     Constant(
                         StrWord(
@@ -3514,7 +3560,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "alias#34",
@@ -4220,9 +4267,9 @@
                         ),
                     ),
                 ),
-                Object(
-                    9,
-                    [
+                Object {
+                    total_nodes: 9,
+                    parts: [
                         KeyValue(
                             Constant(
                                 StrWord(
@@ -4266,7 +4313,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -5297,10 +5345,11 @@
                         #21,
                     ),
                 ),
-                Object(
-                    1,
-                    [],
-                ),
+                Object {
+                    total_nodes: 1,
+                    parts: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -5357,10 +5406,11 @@
     ),
     (
         "peg$FAILED",
-        Object(
-            1,
-            [],
-        ),
+        Object {
+            total_nodes: 1,
+            parts: [],
+            mutable: true,
+        },
     ),
     (
         "peg$SyntaxError",
@@ -5383,9 +5433,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        3,
-                        [
+                    Object {
+                        total_nodes: 3,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -5399,7 +5449,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -5747,12 +5798,12 @@
                 ),
             ),
             [
-                Array(
-                    8,
-                    [
-                        Array(
-                            3,
-                            [
+                Array {
+                    total_nodes: 8,
+                    items: [
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('a' type=static),
@@ -5764,10 +5815,11 @@
                                     ),
                                 ),
                             ],
-                        ),
-                        Array(
-                            3,
-                            [
+                            mutable: true,
+                        },
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('A' type=inline),
@@ -5779,14 +5831,16 @@
                                     ),
                                 ),
                             ],
-                        ),
+                            mutable: true,
+                        },
                         Constant(
                             StrWord(
                                 Atom('_' type=inline),
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
                 Constant(
                     False,
                 ),
@@ -5838,12 +5892,12 @@
                 ),
             ),
             [
-                Array(
-                    11,
-                    [
-                        Array(
-                            3,
-                            [
+                Array {
+                    total_nodes: 11,
+                    items: [
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('a' type=static),
@@ -5855,10 +5909,11 @@
                                     ),
                                 ),
                             ],
-                        ),
-                        Array(
-                            3,
-                            [
+                            mutable: true,
+                        },
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('A' type=inline),
@@ -5870,10 +5925,11 @@
                                     ),
                                 ),
                             ],
-                        ),
-                        Array(
-                            3,
-                            [
+                            mutable: true,
+                        },
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('0' type=inline),
@@ -5885,14 +5941,16 @@
                                     ),
                                 ),
                             ],
-                        ),
+                            mutable: true,
+                        },
                         Constant(
                             StrWord(
                                 Atom('_' type=inline),
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
                 Constant(
                     False,
                 ),
@@ -6361,12 +6419,12 @@
                 ),
             ),
             [
-                Array(
-                    7,
-                    [
-                        Array(
-                            3,
-                            [
+                Array {
+                    total_nodes: 7,
+                    items: [
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('0' type=inline),
@@ -6378,10 +6436,11 @@
                                     ),
                                 ),
                             ],
-                        ),
-                        Array(
-                            3,
-                            [
+                            mutable: true,
+                        },
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('a' type=static),
@@ -6393,9 +6452,11 @@
                                     ),
                                 ),
                             ],
-                        ),
+                            mutable: true,
+                        },
                     ],
-                ),
+                    mutable: true,
+                },
                 Constant(
                     False,
                 ),
@@ -7664,12 +7725,12 @@
                 ),
             ),
             [
-                Array(
-                    4,
-                    [
-                        Array(
-                            3,
-                            [
+                Array {
+                    total_nodes: 4,
+                    items: [
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('0' type=inline),
@@ -7681,9 +7742,11 @@
                                     ),
                                 ),
                             ],
-                        ),
+                            mutable: true,
+                        },
                     ],
-                ),
+                    mutable: true,
+                },
                 Constant(
                     False,
                 ),
@@ -7817,9 +7880,9 @@
                 ),
             ),
             [
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Constant(
                             StrWord(
                                 Atom(' ' type=inline),
@@ -7842,7 +7905,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
                 Constant(
                     False,
                 ),
@@ -7902,9 +7966,9 @@
                 ),
             ),
             [
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Constant(
                             StrWord(
                                 Atom('
@@ -7917,7 +7981,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
                 Constant(
                     False,
                 ),
@@ -8442,9 +8507,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        9,
-                        [
+                    Object {
+                        total_nodes: 9,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -8497,7 +8562,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -8513,18 +8579,18 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        25,
-                        [
+                    Object {
+                        total_nodes: 25,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
                                         Atom('start' type=static),
                                     ),
                                 ),
-                                Object(
-                                    11,
-                                    [
+                                Object {
+                                    total_nodes: 11,
+                                    parts: [
                                         KeyValue(
                                             Constant(
                                                 StrWord(
@@ -8581,7 +8647,8 @@
                                             ),
                                         ),
                                     ],
-                                ),
+                                    mutable: true,
+                                },
                             ),
                             KeyValue(
                                 Constant(
@@ -8589,9 +8656,9 @@
                                         Atom('end' type=static),
                                     ),
                                 ),
-                                Object(
-                                    11,
-                                    [
+                                Object {
+                                    total_nodes: 11,
+                                    parts: [
                                         KeyValue(
                                             Constant(
                                                 StrWord(
@@ -8648,10 +8715,12 @@
                                             ),
                                         ),
                                     ],
-                                ),
+                                    mutable: true,
+                                },
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -9465,9 +9534,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        3,
-                        [
+                    Object {
+                        total_nodes: 3,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -9481,7 +9550,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -9517,9 +9587,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        7,
-                        [
+                    Object {
+                        total_nodes: 7,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -9559,17 +9629,19 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
     ),
     (
         "peg$maxFailExpected",
-        Array(
-            1,
-            [],
-        ),
+        Array {
+            total_nodes: 1,
+            items: [],
+            mutable: true,
+        },
     ),
     (
         "peg$maxFailPos",
@@ -9603,9 +9675,9 @@
                     Constant(
                         Undefined,
                     ),
-                    Object(
-                        5,
-                        [
+                    Object {
+                        total_nodes: 5,
+                        parts: [
                             KeyValue(
                                 Constant(
                                     StrWord(
@@ -9632,7 +9704,8 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
             ),
         ),
@@ -11592,12 +11665,12 @@
     ),
     (
         "peg$posDetailsCache",
-        Array(
-            6,
-            [
-                Object(
-                    5,
-                    [
+        Array {
+            total_nodes: 6,
+            items: [
+                Object {
+                    total_nodes: 5,
+                    parts: [
                         KeyValue(
                             Constant(
                                 StrWord(
@@ -11627,9 +11700,11 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "peg$result",
@@ -12186,9 +12261,9 @@
     ),
     (
         "peg$startRuleFunctions",
-        Object(
-            3,
-            [
+        Object {
+            total_nodes: 3,
+            parts: [
                 KeyValue(
                     Constant(
                         StrWord(
@@ -12203,7 +12278,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "peg$subclass",
@@ -12511,10 +12587,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -16469,9 +16546,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -16485,7 +16562,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -16540,9 +16618,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -16556,7 +16634,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -16611,9 +16690,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -16627,7 +16706,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -16682,9 +16762,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -16698,7 +16778,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -16753,9 +16834,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -16769,7 +16850,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -16824,9 +16906,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -16840,7 +16922,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -16895,9 +16978,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -16911,7 +16994,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -16966,9 +17050,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -16982,7 +17066,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17037,9 +17122,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17053,7 +17138,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17108,9 +17194,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17124,7 +17210,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17179,9 +17266,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17195,7 +17282,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17570,9 +17658,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17586,7 +17674,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17641,9 +17730,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17657,7 +17746,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17712,9 +17802,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17728,7 +17818,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17760,9 +17851,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17776,7 +17867,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17808,9 +17900,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17824,7 +17916,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17856,9 +17949,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17872,7 +17965,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -17904,9 +17998,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s1' type=inline),
@@ -17920,7 +18014,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -19773,10 +19868,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
                 Variable(
                     (
                         Atom('peg$FAILED' type=dynamic),
@@ -21117,10 +21213,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -21198,10 +21295,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22030,10 +22128,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22421,10 +22520,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22502,10 +22602,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22525,10 +22626,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22548,10 +22650,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22571,10 +22674,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22652,10 +22756,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22675,10 +22780,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22698,10 +22804,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22721,10 +22828,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22744,10 +22852,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22767,10 +22876,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -22848,10 +22958,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
                 Variable(
                     (
                         Atom('peg$FAILED' type=dynamic),
@@ -22924,10 +23035,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -23063,10 +23175,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -23086,10 +23199,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -23159,10 +23273,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -23309,10 +23424,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
                 Variable(
                     (
                         Atom('peg$FAILED' type=dynamic),
@@ -25546,10 +25662,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -25569,10 +25686,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -25608,9 +25726,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -25624,7 +25742,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -25654,9 +25773,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -25682,7 +25801,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -25712,9 +25832,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -25728,7 +25848,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -25891,9 +26012,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -25919,7 +26040,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -25949,9 +26071,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -25977,7 +26099,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -26007,9 +26130,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -26035,7 +26158,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -26065,9 +26189,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -26093,7 +26217,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -26181,9 +26306,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -26209,7 +26334,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -26239,9 +26365,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -26267,7 +26393,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -26297,9 +26424,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -26325,7 +26452,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -26355,9 +26483,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -26383,7 +26511,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -26413,9 +26542,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -26441,7 +26570,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -26471,9 +26601,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -26499,7 +26629,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -26903,9 +27034,9 @@
                     ),
                     [],
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s4' type=inline),
@@ -26919,7 +27050,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -27059,10 +27191,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -27123,9 +27256,9 @@
                         #21,
                     ),
                 ),
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Variable(
                             (
                                 Atom('s5' type=inline),
@@ -27139,7 +27272,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
         ),
     ),
@@ -28372,10 +28506,11 @@
                     ),
                     "pattern without value",
                 ),
-                Array(
-                    1,
-                    [],
-                ),
+                Array {
+                    total_nodes: 1,
+                    items: [],
+                    mutable: true,
+                },
                 Variable(
                     (
                         Atom('peg$FAILED' type=dynamic),

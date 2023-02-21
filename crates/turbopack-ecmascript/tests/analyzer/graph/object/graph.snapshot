@@ -477,9 +477,9 @@
     ),
     (
         "object",
-        Object(
-            7,
-            [
+        Object {
+            total_nodes: 7,
+            parts: [
                 KeyValue(
                     Constant(
                         StrWord(
@@ -523,13 +523,14 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "object2",
-        Object(
-            11,
-            [
+        Object {
+            total_nodes: 11,
+            parts: [
                 KeyValue(
                     Constant(
                         StrWord(
@@ -601,13 +602,14 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "object_spread",
-        Object(
-            6,
-            [
+        Object {
+            total_nodes: 6,
+            parts: [
                 KeyValue(
                     Constant(
                         StrWord(
@@ -645,13 +647,14 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
     (
         "unknown_spread",
-        Object(
-            6,
-            [
+        Object {
+            total_nodes: 6,
+            parts: [
                 KeyValue(
                     Constant(
                         StrWord(
@@ -688,6 +691,7 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
     ),
 ]

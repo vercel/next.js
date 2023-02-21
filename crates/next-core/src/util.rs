@@ -194,7 +194,7 @@ fn parse_config_from_js_value(module_asset: AssetVc, value: &JsValue) -> NextSou
         .as_issue()
         .emit()
     };
-    if let JsValue::Object(_, parts) = value {
+    if let JsValue::Object { parts, .. } = value {
         for part in parts {
             match part {
                 ObjectPart::Spread(_) => invalid_config(

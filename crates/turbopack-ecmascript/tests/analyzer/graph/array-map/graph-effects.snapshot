@@ -1,8 +1,8 @@
 [
     Member {
-        obj: Array(
-            3,
-            [
+        obj: Array {
+            total_nodes: 3,
+            items: [
                 Constant(
                     StrWord(
                         Atom('../lib/a.js' type=dynamic),
@@ -14,7 +14,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
         prop: Constant(
             StrWord(
                 Atom('map' type=static),
@@ -67,9 +68,9 @@
         },
     },
     MemberCall {
-        obj: Array(
-            3,
-            [
+        obj: Array {
+            total_nodes: 3,
+            items: [
                 Constant(
                     StrWord(
                         Atom('../lib/a.js' type=dynamic),
@@ -81,7 +82,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
         prop: Constant(
             StrWord(
                 Atom('map' type=static),
@@ -182,9 +184,9 @@
         },
     },
     Member {
-        obj: Array(
-            3,
-            [
+        obj: Array {
+            total_nodes: 3,
+            items: [
                 Constant(
                     StrWord(
                         Atom('../lib/a.js' type=dynamic),
@@ -196,7 +198,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
         prop: Constant(
             StrWord(
                 Atom('map' type=static),
@@ -249,9 +252,9 @@
         },
     },
     MemberCall {
-        obj: Array(
-            3,
-            [
+        obj: Array {
+            total_nodes: 3,
+            items: [
                 Constant(
                     StrWord(
                         Atom('../lib/a.js' type=dynamic),
@@ -263,7 +266,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
         prop: Constant(
             StrWord(
                 Atom('map' type=static),
@@ -364,9 +368,9 @@
         },
     },
     Member {
-        obj: Array(
-            3,
-            [
+        obj: Array {
+            total_nodes: 3,
+            items: [
                 Constant(
                     StrWord(
                         Atom('../lib/a.js' type=dynamic),
@@ -378,7 +382,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
         prop: Constant(
             StrWord(
                 Atom('map' type=static),
@@ -431,9 +436,9 @@
         },
     },
     MemberCall {
-        obj: Array(
-            3,
-            [
+        obj: Array {
+            total_nodes: 3,
+            items: [
                 Constant(
                     StrWord(
                         Atom('../lib/a.js' type=dynamic),
@@ -445,7 +450,8 @@
                     ),
                 ),
             ],
-        ),
+            mutable: true,
+        },
         prop: Constant(
             StrWord(
                 Atom('map' type=static),

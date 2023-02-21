@@ -1321,10 +1321,10 @@ impl VisitAstPath for Analyzer<'_> {
 
             Pat::Array(arr) => {
                 match &value {
-                    Some(JsValue::Array(_, value)) => {
+                    Some(JsValue::Array { items, .. }) => {
                         ast_path.with(AstParentNodeRef::Pat(pat, PatField::Array), |ast_path| {
                             for (idx, elem) in arr.elems.iter().enumerate() {
-                                self.current_value = value.get(idx).cloned();
+                                self.current_value = items.get(idx).cloned();
                                 ast_path.with(
                                     AstParentNodeRef::ArrayPat(arr, ArrayPatField::Elems(idx)),
                                     |ast_path| {

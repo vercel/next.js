@@ -670,9 +670,9 @@
                 ),
             ),
             Value(
-                Object(
-                    3,
-                    [
+                Object {
+                    total_nodes: 3,
+                    parts: [
                         KeyValue(
                             Constant(
                                 StrWord(
@@ -687,7 +687,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
         ],
         ast_path: [
@@ -1779,9 +1780,9 @@
         ),
         args: [
             Value(
-                Object(
-                    5,
-                    [
+                Object {
+                    total_nodes: 5,
+                    parts: [
                         KeyValue(
                             Constant(
                                 StrWord(
@@ -1809,7 +1810,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
         ],
         ast_path: [

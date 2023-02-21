@@ -18574,12 +18574,12 @@
         ),
         args: [
             Value(
-                Array(
-                    4,
-                    [
-                        Array(
-                            3,
-                            [
+                Array {
+                    total_nodes: 4,
+                    items: [
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('0' type=inline),
@@ -18591,9 +18591,11 @@
                                     ),
                                 ),
                             ],
-                        ),
+                            mutable: true,
+                        },
                     ],
-                ),
+                    mutable: true,
+                },
             ),
             Value(
                 Constant(
@@ -19518,9 +19520,9 @@
         ),
         args: [
             Value(
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Constant(
                             StrWord(
                                 Atom(' ' type=inline),
@@ -19543,7 +19545,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
             Value(
                 Constant(
@@ -19694,9 +19697,9 @@
         ),
         args: [
             Value(
-                Array(
-                    3,
-                    [
+                Array {
+                    total_nodes: 3,
+                    items: [
                         Constant(
                             StrWord(
                                 Atom('
@@ -19709,7 +19712,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
             Value(
                 Constant(
@@ -21435,12 +21439,12 @@
         ),
         args: [
             Value(
-                Array(
-                    8,
-                    [
-                        Array(
-                            3,
-                            [
+                Array {
+                    total_nodes: 8,
+                    items: [
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('a' type=static),
@@ -21452,10 +21456,11 @@
                                     ),
                                 ),
                             ],
-                        ),
-                        Array(
-                            3,
-                            [
+                            mutable: true,
+                        },
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('A' type=inline),
@@ -21467,14 +21472,16 @@
                                     ),
                                 ),
                             ],
-                        ),
+                            mutable: true,
+                        },
                         Constant(
                             StrWord(
                                 Atom('_' type=inline),
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
             Value(
                 Constant(
@@ -21550,12 +21557,12 @@
         ),
         args: [
             Value(
-                Array(
-                    11,
-                    [
-                        Array(
-                            3,
-                            [
+                Array {
+                    total_nodes: 11,
+                    items: [
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('a' type=static),
@@ -21567,10 +21574,11 @@
                                     ),
                                 ),
                             ],
-                        ),
-                        Array(
-                            3,
-                            [
+                            mutable: true,
+                        },
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('A' type=inline),
@@ -21582,10 +21590,11 @@
                                     ),
                                 ),
                             ],
-                        ),
-                        Array(
-                            3,
-                            [
+                            mutable: true,
+                        },
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('0' type=inline),
@@ -21597,14 +21606,16 @@
                                     ),
                                 ),
                             ],
-                        ),
+                            mutable: true,
+                        },
                         Constant(
                             StrWord(
                                 Atom('_' type=inline),
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
             Value(
                 Constant(
@@ -23273,12 +23284,12 @@
         ),
         args: [
             Value(
-                Array(
-                    7,
-                    [
-                        Array(
-                            3,
-                            [
+                Array {
+                    total_nodes: 7,
+                    items: [
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('0' type=inline),
@@ -23290,10 +23301,11 @@
                                     ),
                                 ),
                             ],
-                        ),
-                        Array(
-                            3,
-                            [
+                            mutable: true,
+                        },
+                        Array {
+                            total_nodes: 3,
+                            items: [
                                 Constant(
                                     StrWord(
                                         Atom('a' type=static),
@@ -23305,9 +23317,11 @@
                                     ),
                                 ),
                             ],
-                        ),
+                            mutable: true,
+                        },
                     ],
-                ),
+                    mutable: true,
+                },
             ),
             Value(
                 Constant(
@@ -26854,9 +26868,9 @@
         ),
         args: [
             Value(
-                Array(
-                    4,
-                    [
+                Array {
+                    total_nodes: 4,
+                    items: [
                         Call(
                             3,
                             Variable(
@@ -26875,7 +26889,8 @@
                             ],
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
             Value(
                 MemberCall(

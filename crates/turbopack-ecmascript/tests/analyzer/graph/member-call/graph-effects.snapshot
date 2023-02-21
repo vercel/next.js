@@ -149,9 +149,9 @@
                 ),
             ),
             Value(
-                Array(
-                    4,
-                    [
+                Array {
+                    total_nodes: 4,
+                    items: [
                         Constant(
                             Num(
                                 ConstantNumber(
@@ -174,7 +174,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
             Value(
                 Concat(
@@ -235,12 +236,12 @@
     Member {
         obj: Member(
             7,
-            Array(
-                5,
-                [
-                    Array(
-                        4,
-                        [
+            Array {
+                total_nodes: 5,
+                items: [
+                    Array {
+                        total_nodes: 4,
+                        items: [
                             Constant(
                                 Num(
                                     ConstantNumber(
@@ -263,9 +264,11 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
-            ),
+                mutable: true,
+            },
             Constant(
                 Num(
                     ConstantNumber(
@@ -326,12 +329,12 @@
         },
     },
     Member {
-        obj: Array(
-            5,
-            [
-                Array(
-                    4,
-                    [
+        obj: Array {
+            total_nodes: 5,
+            items: [
+                Array {
+                    total_nodes: 4,
+                    items: [
                         Constant(
                             Num(
                                 ConstantNumber(
@@ -354,9 +357,11 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
-        ),
+            mutable: true,
+        },
         prop: Constant(
             Num(
                 ConstantNumber(
@@ -419,12 +424,12 @@
     MemberCall {
         obj: Member(
             7,
-            Array(
-                5,
-                [
-                    Array(
-                        4,
-                        [
+            Array {
+                total_nodes: 5,
+                items: [
+                    Array {
+                        total_nodes: 4,
+                        items: [
                             Constant(
                                 Num(
                                     ConstantNumber(
@@ -447,9 +452,11 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
-            ),
+                mutable: true,
+            },
             Constant(
                 Num(
                     ConstantNumber(
@@ -465,9 +472,9 @@
         ),
         args: [
             Value(
-                Array(
-                    5,
-                    [
+                Array {
+                    total_nodes: 5,
+                    items: [
                         Constant(
                             Num(
                                 ConstantNumber(
@@ -495,7 +502,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
         ],
         ast_path: [
@@ -538,12 +546,12 @@
     Member {
         obj: Member(
             7,
-            Array(
-                5,
-                [
-                    Array(
-                        4,
-                        [
+            Array {
+                total_nodes: 5,
+                items: [
+                    Array {
+                        total_nodes: 4,
+                        items: [
                             Constant(
                                 Num(
                                     ConstantNumber(
@@ -566,9 +574,11 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
-            ),
+                mutable: true,
+            },
             Constant(
                 Num(
                     ConstantNumber(
@@ -629,12 +639,12 @@
         },
     },
     Member {
-        obj: Array(
-            5,
-            [
-                Array(
-                    4,
-                    [
+        obj: Array {
+            total_nodes: 5,
+            items: [
+                Array {
+                    total_nodes: 4,
+                    items: [
                         Constant(
                             Num(
                                 ConstantNumber(
@@ -657,9 +667,11 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
-        ),
+            mutable: true,
+        },
         prop: Constant(
             Num(
                 ConstantNumber(
@@ -722,12 +734,12 @@
     MemberCall {
         obj: Member(
             7,
-            Array(
-                5,
-                [
-                    Array(
-                        4,
-                        [
+            Array {
+                total_nodes: 5,
+                items: [
+                    Array {
+                        total_nodes: 4,
+                        items: [
                             Constant(
                                 Num(
                                     ConstantNumber(
@@ -750,9 +762,11 @@
                                 ),
                             ),
                         ],
-                    ),
+                        mutable: true,
+                    },
                 ],
-            ),
+                mutable: true,
+            },
             Constant(
                 Num(
                     ConstantNumber(
@@ -962,9 +976,9 @@
         ),
         args: [
             Value(
-                Array(
-                    4,
-                    [
+                Array {
+                    total_nodes: 4,
+                    items: [
                         Constant(
                             Num(
                                 ConstantNumber(
@@ -987,7 +1001,8 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ),
         ],
         ast_path: [

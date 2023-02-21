@@ -141,10 +141,11 @@
     ),
     (
         "exports",
-        Object(
-            1,
-            [],
-        ),
+        Object {
+            total_nodes: 1,
+            parts: [],
+            mutable: true,
+        },
     ),
     (
         "handler",
@@ -224,12 +225,12 @@
     ),
     (
         "users",
-        Array(
-            10,
-            [
-                Object(
-                    3,
-                    [
+        Array {
+            total_nodes: 10,
+            items: [
+                Object {
+                    total_nodes: 3,
+                    parts: [
                         KeyValue(
                             Constant(
                                 StrWord(
@@ -245,10 +246,11 @@
                             ),
                         ),
                     ],
-                ),
-                Object(
-                    3,
-                    [
+                    mutable: true,
+                },
+                Object {
+                    total_nodes: 3,
+                    parts: [
                         KeyValue(
                             Constant(
                                 StrWord(
@@ -264,10 +266,11 @@
                             ),
                         ),
                     ],
-                ),
-                Object(
-                    3,
-                    [
+                    mutable: true,
+                },
+                Object {
+                    total_nodes: 3,
+                    parts: [
                         KeyValue(
                             Constant(
                                 StrWord(
@@ -283,8 +286,10 @@
                             ),
                         ),
                     ],
-                ),
+                    mutable: true,
+                },
             ],
-        ),
+            mutable: true,
+        },
     ),
 ]

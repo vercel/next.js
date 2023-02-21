@@ -20,8 +20,8 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
             JsValue::Constant(_)
             | JsValue::Url(_)
             | JsValue::WellKnownObject(_)
-            | JsValue::Array(_, _)
-            | JsValue::Object(_, _)
+            | JsValue::Array { .. }
+            | JsValue::Object { .. }
             | JsValue::Alternatives(_, _)
             | JsValue::Concat(_, _)
             | JsValue::Add(_, _)
@@ -79,7 +79,11 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 true
             }
             // matching property access on an array like `[1,2,3].prop` or `[1,2,3][1]`
-            JsValue::Array(_, array) => {
+            &mut JsValue::Array {
+                ref mut items,
+                mutable,
+                ..
+            } => {
                 fn items_to_alternatives(items: &mut Vec<JsValue>, prop: &mut JsValue) -> JsValue {
                     items.push(JsValue::Unknown(
                         Some(Arc::new(JsValue::member(
@@ -95,8 +99,11 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     // We can replace this with the value at the index
                     JsValue::Constant(ConstantValue::Num(num @ ConstantNumber(_))) => {
                         if let Some(index) = num.as_u32_index() {
-                            if index < array.len() {
-                                *value = array.swap_remove(index);
+                            if index < items.len() {
+                                *value = items.swap_remove(index);
+                                if mutable {
+                                    value.add_unknown_mutations();
+                                }
                                 true
                             } else {
                                 *value = JsValue::Unknown(
@@ -130,13 +137,17 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     // otherwise we can say that this might gives an item of the array
                     // but we also add an unknown value to the alternatives for other properties
                     _ => {
-                        *value = items_to_alternatives(array, prop);
+                        *value = items_to_alternatives(items, prop);
                         true
                     }
                 }
             }
             // matching property access on an object like `{a: 1, b: 2}.a`
-            JsValue::Object(_, parts) => {
+            &mut JsValue::Object {
+                ref mut parts,
+                mutable,
+                ..
+            } => {
                 fn parts_to_alternatives(
                     parts: &mut Vec<ObjectPart>,
                     prop: &mut Box<JsValue>,
@@ -220,6 +231,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                     false,
                                                 );
                                             }
+                                            if mutable {
+                                                value.add_unknown_mutations();
+                                            }
                                             return true;
                                         }
                                     } else {
@@ -241,6 +255,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 prop,
                                 true,
                             );
+                        }
+                        if mutable {
+                            value.add_unknown_mutations();
                         }
                         true
                     }
@@ -267,7 +284,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         JsValue::MemberCall(_, box ref mut obj, box ref mut prop, ref mut args) => {
             match obj {
                 // matching calls on an array like `[1,2,3].concat([4,5,6])`
-                JsValue::Array(_, items) => {
+                JsValue::Array { items, mutable, .. } => {
                     // matching cases where the property is a const string
                     if let Some(str) = prop.as_str() {
                         match str {
@@ -276,7 +293,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 if args.iter().all(|arg| {
                                     matches!(
                                         arg,
-                                        JsValue::Array(..)
+                                        JsValue::Array { .. }
                                             | JsValue::Constant(_)
                                             | JsValue::Url(_)
                                             | JsValue::Concat(..)
@@ -288,8 +305,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 }) {
                                     for arg in args {
                                         match arg {
-                                            JsValue::Array(_, inner) => {
+                                            JsValue::Array {
+                                                items: inner,
+                                                mutable: inner_mutable,
+                                                ..
+                                            } => {
                                                 items.extend(take(inner));
+                                                *mutable |= *inner_mutable;
                                             }
                                             JsValue::Constant(_)
                                             | JsValue::Url(_)
@@ -372,16 +394,22 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             true
         }
         // match object literals
-        JsValue::Object(_, parts) => {
+        JsValue::Object { parts, mutable, .. } => {
             // If the object contains any spread, we might be able to flatten that
             if parts
                 .iter()
-                .any(|part| matches!(part, ObjectPart::Spread(JsValue::Object(..))))
+                .any(|part| matches!(part, ObjectPart::Spread(JsValue::Object { .. })))
             {
                 let old_parts = take(parts);
                 for part in old_parts {
-                    if let ObjectPart::Spread(JsValue::Object(_, inner_parts)) = part {
+                    if let ObjectPart::Spread(JsValue::Object {
+                        parts: inner_parts,
+                        mutable: inner_mutable,
+                        ..
+                    }) = part
+                    {
                         parts.extend(inner_parts);
+                        *mutable |= inner_mutable;
                     } else {
                         parts.push(part);
                     }

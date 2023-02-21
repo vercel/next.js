@@ -12,11 +12,11 @@
 args = ???*0*
 - *0* max number of linking steps reached
 
-binPath = (???*0* | ???*1* | ???*8*)
+binPath = (???*0* | ???*1* | ???*10*)
 - *0* binPath
   ⚠️  pattern without value
 - *1* require.resolve*2*(
-        `${(???*3* | ???*4* | ???*5* | "esbuild-linux-64")}/${(???*6* | ???*7* | "esbuild.exe" | "bin/esbuild")}`
+        `${(???*3* | ???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(???*7* | ???*8* | "esbuild.exe" | "bin/esbuild" | ???*9*)}`
     )
   ⚠️  resolve.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
@@ -26,31 +26,35 @@ binPath = (???*0* | ???*1* | ???*8*)
   ⚠️  pattern without value
 - *5* FreeVar(undefined)
   ⚠️  unknown global
-- *6* undefined["subpath"]
+- *6* unknown mutation
+- *7* undefined["subpath"]
   ⚠️  nested operation
-- *7* subpath
+- *8* subpath
   ⚠️  pattern without value
-- *8* ???*9*(pkg, subpath)
+- *9* unknown mutation
+- *10* ???*11*(pkg, subpath)
   ⚠️  unknown callee
-- *9* FreeVar(downloadedBinPath)
+- *11* FreeVar(downloadedBinPath)
   ⚠️  unknown global
 
-binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | ???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | ???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
 - *0* undefined["pkg"]
   ⚠️  nested operation
 - *1* pkg
   ⚠️  pattern without value
 - *2* FreeVar(undefined)
   ⚠️  unknown global
-- *3* ???*4*(
-        (undefined["subpath"] | ???*6* | "esbuild.exe" | "bin/esbuild")
+- *3* unknown mutation
+- *4* ???*5*(
+        (undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)
     )
   ⚠️  unknown callee
-- *4* path*5*["basename"]
+- *5* path*6*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *5* path: The Node.js path module: https://nodejs.org/api/path.html
-- *6* subpath
+- *6* path: The Node.js path module: https://nodejs.org/api/path.html
+- *7* subpath
   ⚠️  pattern without value
+- *8* unknown mutation
 
 command = ???*0*
 - *0* max number of linking steps reached
@@ -113,17 +117,19 @@ path = path*0*
 path2 = path*0*
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-pkg#3 = (???*0* | ???*1* | "esbuild-linux-64")
+pkg#3 = (???*0* | ???*1* | ???*2* | "esbuild-linux-64")
 - *0* pkg
   ⚠️  pattern without value
 - *1* FreeVar(undefined)
   ⚠️  unknown global
+- *2* unknown mutation
 
-pkg#4 = (undefined["pkg"] | ???*0* | ???*1* | "esbuild-linux-64")
+pkg#4 = (undefined["pkg"] | ???*0* | ???*1* | ???*2* | "esbuild-linux-64")
 - *0* pkg
   ⚠️  pattern without value
 - *1* FreeVar(undefined)
   ⚠️  unknown global
+- *2* unknown mutation
 
 pkgAndSubpathForCurrentPlatform = (...) => (undefined | {"pkg": pkg, "subpath": subpath})
 
@@ -133,9 +139,10 @@ subpath#3 = (???*0* | "esbuild.exe" | "bin/esbuild")
 - *0* subpath
   ⚠️  pattern without value
 
-subpath#4 = (undefined["subpath"] | ???*0* | "esbuild.exe" | "bin/esbuild")
+subpath#4 = (undefined["subpath"] | ???*0* | "esbuild.exe" | "bin/esbuild" | ???*1*)
 - *0* subpath
   ⚠️  pattern without value
+- *1* unknown mutation
 
 x = ???*0*
 - *0* max number of linking steps reached
