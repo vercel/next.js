@@ -1,5 +1,5 @@
 import type { AsyncLocalStorage } from 'async_hooks'
-import { PreviewData } from '../../../types'
+import type { PreviewData } from '../../../types'
 import type {
   ReadonlyHeaders,
   ReadonlyRequestCookies,

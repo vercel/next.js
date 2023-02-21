@@ -2,6 +2,15 @@ import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
 import type { LoadComponentsReturnType } from './load-components'
 import type { ServerRuntime } from '../../types'
 import type { FontLoaderManifest } from '../build/webpack/plugins/font-loader-manifest-plugin'
+import type { ParsedUrlQuery } from 'querystring'
+import type { NextParsedUrlQuery } from './request-meta'
+import type {
+  FlightCSSManifest,
+  FlightManifest,
+} from '../build/webpack/plugins/flight-manifest-plugin'
+import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
+import type { RequestAsyncStorage } from '../client/components/request-async-storage'
+import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 
 // Import builtin react directly to avoid require cache conflicts
 import React, { use } from 'next/dist/compiled/react'
@@ -10,8 +19,6 @@ import { NotFound as DefaultNotFound } from '../client/components/error'
 // this needs to be required lazily so that `next-server` can set
 // the env before we require
 import ReactDOMServer from 'next/dist/compiled/react-dom/server.browser'
-import { ParsedUrlQuery } from 'querystring'
-import { NextParsedUrlQuery } from './request-meta'
 import RenderResult from './render-result'
 import {
   readableStreamTee,
@@ -24,10 +31,6 @@ import {
 } from './node-web-streams-helper'
 import { ESCAPE_REGEX, htmlEscapeJsonString } from './htmlescape'
 import { matchSegment } from '../client/components/match-segments'
-import {
-  FlightCSSManifest,
-  FlightManifest,
-} from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
 import { RequestCookies } from './web/spec-extension/cookies'
@@ -41,20 +44,18 @@ import {
   RSC,
   RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
-import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
-import type { RequestAsyncStorage } from '../client/components/request-async-storage'
 import { formatServerError } from '../lib/format-server-error'
 import { MetadataTree } from '../lib/metadata/metadata'
 import { runWithRequestAsyncStorage } from './run-with-request-async-storage'
 import { runWithStaticGenerationAsyncStorage } from './run-with-static-generation-async-storage'
 import { collectMetadata } from '../lib/metadata/resolve-metadata'
-import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 import { warnOnce } from '../shared/lib/utils/warn-once'
 import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
+import { runWithRSCStorage } from './async-storage/rsc-async-storage'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -567,10 +568,7 @@ function useFlightResponse(
  */
 function createServerComponentRenderer(
   ComponentToRender: any,
-  ComponentMod: {
-    renderToReadableStream: any
-    __next_app_webpack_require__?: any
-  },
+  ComponentMod: any,
   {
     transformStream,
     serverComponentManifest,
@@ -587,16 +585,6 @@ function createServerComponentRenderer(
   serverComponentsErrorHandler: ReturnType<typeof createErrorHandler>,
   nonce?: string
 ): () => JSX.Element {
-  // We need to expose the `__webpack_require__` API globally for
-  // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app_webpack_require__) {
-    // @ts-ignore
-    globalThis.__next_require__ = ComponentMod.__next_app_webpack_require__
-
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = () => Promise.resolve()
-  }
-
   let RSCStream: ReadableStream<Uint8Array>
   const createRSCStream = () => {
     if (!RSCStream) {
@@ -993,6 +981,14 @@ export async function renderToHTMLOrFlight(
     ComponentMod.staticGenerationAsyncStorage
   const requestAsyncStorage: RequestAsyncStorage =
     ComponentMod.requestAsyncStorage
+
+  // We need to expose the `__webpack_require__` API globally for
+  // react-server-dom-webpack. This is a hack until we find a better way.
+  if (!ComponentMod.__next_app_webpack_require__) {
+    throw new Error(
+      'invariant: Invalid module for server component rendering. This is a bug in Next.js.'
+    )
+  }
 
   // we wrap the render in an AsyncLocalStorage context
   const wrappedRender = async () => {
@@ -2153,7 +2149,13 @@ export async function renderToHTMLOrFlight(
       runWithStaticGenerationAsyncStorage(
         staticGenerationAsyncStorage,
         { pathname, renderOpts },
-        () => wrappedRender()
+        () =>
+          runWithRSCStorage(
+            {
+              __next_require__: ComponentMod.__next_app_webpack_require__,
+            },
+            wrappedRender
+          )
       )
   )
 }
