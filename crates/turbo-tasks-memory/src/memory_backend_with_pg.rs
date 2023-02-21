@@ -134,7 +134,7 @@ enum BackgroundJob {
     DeactivatePersisted(TaskId),
 }
 
-pub struct MemoryBackendWithPersistedGraph<P: PersistedGraph> {
+pub struct MemoryBackendWithPersistedGraph<P: PersistedGraph + 'static> {
     pub pg: P,
     tasks: NoMoveVec<Task>,
     cache: DashMap<PersistentTaskType, TaskId>,
@@ -189,7 +189,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn state_mut(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> (MutexGuard<'_, TaskState>, &Task) {
         let task_info = self.tasks.get(*task).unwrap();
         let mut state = task_info.task_state.lock().unwrap();
@@ -200,7 +200,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn mem_state_mut(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> (MutexGuard<'_, TaskState>, &Task) {
         let task_info = self.tasks.get(*task).unwrap();
         loop {
@@ -234,7 +234,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         task_info: &Task,
         task_state: &mut TaskState,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         if task_state.memory.is_none() && task_state.persisted.is_none() {
             if let TaskType::Persistent(_) = &task_info.task_type {
@@ -257,7 +257,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         task_state: &mut TaskState,
         delayed_activate: &mut Vec<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         if task_state.memory.is_none() {
             if let Some((data, state)) = self.pg_read(task, turbo_tasks) {
@@ -317,7 +317,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn lookup(
         &self,
         task_type: &PersistentTaskType,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Option<TaskId> {
         for i in 0..task_type.len() {
             let partial = task_type.partial(i);
@@ -336,7 +336,12 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         self.pg_lookup_one(task_type, turbo_tasks)
     }
 
-    fn connect(&self, parent_task: TaskId, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn connect(
+        &self,
+        parent_task: TaskId,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
         // connect() will never be called concurrently for the same parent_task
         // therefore it's safe to add the task into children before incrementing
         // active_parents.
@@ -361,7 +366,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         &self,
         parent_task: TaskId,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         // The active_parents count was already initialized with 1
         // When this was incorrect, we need to revert that.
@@ -385,7 +390,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    fn schedule_background_job(&self, job: BackgroundJob, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn schedule_background_job(
+        &self,
+        job: BackgroundJob,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
         let id = self.background_job_id_factory.get();
         // SAFETY: It's a fresh id
         unsafe {
@@ -394,7 +403,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         turbo_tasks.schedule_backend_background_job(id);
     }
 
-    fn activate_persisted(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn activate_persisted(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
         if let Some(ActivateResult {
             keeps_external_active,
             external,
@@ -425,7 +438,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    fn deactivate_persisted(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn deactivate_persisted(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
         if let Some(DeactivateResult {
             more_tasks_to_deactivate,
         }) = self.pg_deactivate_when_needed(task, turbo_tasks)
@@ -445,7 +462,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         by: u32,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let mut delayed_activate = Vec::new();
         self.try_increment_active_parents(task, true, by, &mut delayed_activate, turbo_tasks);
@@ -469,7 +486,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         force: bool,
         by: u32,
         delayed_activate: &mut Vec<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let task_info = self.tasks.get(*task).unwrap();
         let prev = task_info.active_parents.fetch_add(by, Ordering::Relaxed);
@@ -496,7 +513,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         state: MutexGuard<TaskState>,
         task_info: &Task,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let mut delayed_activate = Vec::new();
         self.activate_task_inner(task, state, task_info, &mut delayed_activate, turbo_tasks);
@@ -520,7 +537,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         mut state: MutexGuard<TaskState>,
         task_info: &Task,
         delayed_activate: &mut Vec<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let TaskState {
             ref mut active,
@@ -586,7 +603,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         by: u32,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         self.decrement_active_parents_limited(&[(task, by)], 0, turbo_tasks);
     }
@@ -595,7 +612,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         &self,
         tasks: &[(TaskId, u32)],
         remaining_depth: u8,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let mut delayed_deactivate = Vec::new();
         for (task, by) in tasks {
@@ -621,7 +638,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         by: u32,
         remaining_depth: u8,
         delayed_deactivate: &mut Vec<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let task_info = self.tasks.get(*task).unwrap();
         let prev = task_info.active_parents.fetch_sub(by, Ordering::Relaxed);
@@ -656,7 +673,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         state: MutexGuard<TaskState>,
         task_info: &Task,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let mut delayed_deactivate = Vec::new();
         self.deactivate_task_inner(
@@ -675,7 +692,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    fn deactivate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn deactivate_tasks(
+        &self,
+        tasks: &[TaskId],
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
         let mut delayed_deactivate = Vec::new();
         for task in tasks {
             let (state, task_info) = self.state_mut(*task, turbo_tasks);
@@ -703,7 +724,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         task_info: &Task,
         remaining_depth: u8,
         delayed_deactivate: &mut Vec<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let mut deactivate_persisted = false;
         let TaskState {
@@ -738,7 +759,10 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    fn persist(&self, turbo_tasks: &dyn TurboTasksBackendApi) -> bool {
+    fn persist(
+        &self,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) -> bool {
         loop {
             if let Ok(mut task) = self.persist_queue1.pop() {
                 self.persist_queue1_queued.remove(&task);
@@ -879,7 +903,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
                 .any(|q| !q.lock().unwrap().is_empty())
     }
 
-    fn increase_persist_workers(&self, n: usize, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn increase_persist_workers(
+        &self,
+        n: usize,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
         loop {
             let capacity = self.persist_capacity.load(Ordering::Acquire);
             if capacity == 0 {
@@ -905,7 +933,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
 }
 
 impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
-    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>) {
         let (tasks_to_activate, tasks_to_deactivate) =
             self.pg_get_pending_active_update(turbo_tasks);
         let tasks = self.pg_get_active_external_tasks(turbo_tasks);
@@ -975,11 +1003,15 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>) {
         self.pg_stop(turbo_tasks);
     }
 
-    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn invalidate_task(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
         let (mut state, _) = self.state_mut(task, turbo_tasks);
 
         if let Some(MemoryTaskState { freshness, .. }) = &mut state.memory {
@@ -1002,7 +1034,11 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
     }
 
-    fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn invalidate_tasks(
+        &self,
+        tasks: Vec<TaskId>,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
         for task in tasks {
             self.invalidate_task(task, turbo_tasks);
         }
@@ -1025,7 +1061,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     fn try_start_task_execution(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Option<TaskExecutionSpec> {
         let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
         let mem_state = state.memory.as_mut().unwrap();
@@ -1078,7 +1114,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let (mut state, _task_info) = self.mem_state_mut(task, turbo_tasks);
         let TaskState { ref mut memory, .. } = *state;
@@ -1113,7 +1149,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         duration: Duration,
         _instant: Instant,
         _stateful: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> bool {
         #[cfg(feature = "log_running_tasks")]
         {
@@ -1174,7 +1210,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     fn run_backend_job<'a>(
         &'a self,
         id: BackendJobId,
-        turbo_tasks: &'a dyn TurboTasksBackendApi,
+        turbo_tasks: &'a dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         if id == self.persist_job {
             return Box::pin(async {
@@ -1220,7 +1256,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         reader: TaskId,
         _strongly_consistent: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Result<Result<RawVc, EventListener>> {
         let (mut state, _task_info) = self.mem_state_mut(task, turbo_tasks);
         let TaskState {
@@ -1259,7 +1295,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         _strongly_consistent: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Result<Result<RawVc, EventListener>> {
         let (state, task_info) = self.mem_state_mut(task, turbo_tasks);
         let mem_state = state.memory.as_ref().unwrap();
@@ -1280,7 +1316,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         index: CellId,
         reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Result<Result<CellContent, EventListener>> {
         let (mut state, _task_info) = self.mem_state_mut(task, turbo_tasks);
         let TaskState {
@@ -1345,7 +1381,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         index: CellId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Result<Result<CellContent, EventListener>> {
         let (mut state, _) = self.mem_state_mut(task, turbo_tasks);
         let TaskState {
@@ -1383,7 +1419,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         task: TaskId,
         index: CellId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Result<CellContent> {
         let (state, _) = self.mem_state_mut(task, turbo_tasks);
         let mem_state = state.memory.as_ref().unwrap();
@@ -1402,7 +1438,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         _task: TaskId,
         _trait_id: TraitTypeId,
         _reader: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
+        _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> RawVcSetVc {
         todo!()
     }
@@ -1412,7 +1448,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         _trait_id: TraitTypeId,
         _collectible: RawVc,
         _task: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
+        _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         todo!()
     }
@@ -1422,7 +1458,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         _trait_id: TraitTypeId,
         _collectible: RawVc,
         _task: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
+        _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         todo!()
     }
@@ -1432,7 +1468,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         index: CellId,
         content: CellContent,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) {
         let (mut state, task_info) = self.mem_state_mut(task, turbo_tasks);
         let TaskState {
@@ -1473,7 +1509,7 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         &self,
         task_type: PersistentTaskType,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> TaskId {
         if let Some(task) = self.cache.get(&task_type) {
             self.connect(parent_task, *task, turbo_tasks);
@@ -1526,10 +1562,19 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
         }
     }
 
+    fn connect_task(
+        &self,
+        _task: TaskId,
+        _parent_task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
+        todo!()
+    }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> TaskId {
         let task = turbo_tasks.get_fresh_task_id();
         let task = task.into();
@@ -1556,9 +1601,9 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
     }
 }
 
-struct MemoryBackendPersistedGraphApi<'a, P: PersistedGraph> {
+struct MemoryBackendPersistedGraphApi<'a, P: PersistedGraph + 'static> {
     backend: &'a MemoryBackendWithPersistedGraph<P>,
-    turbo_tasks: &'a dyn TurboTasksBackendApi,
+    turbo_tasks: &'a dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
 }
 
 impl<'a, P: PersistedGraph> PersistedGraphApi for MemoryBackendPersistedGraphApi<'a, P> {
@@ -1607,7 +1652,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn pg_read(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Option<(TaskData, ReadTaskState)> {
         self.pg
             .read(
@@ -1623,7 +1668,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn pg_lookup_one(
         &self,
         task_type: &PersistentTaskType,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Option<TaskId> {
         self.pg
             .lookup_one(
@@ -1639,7 +1684,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn pg_lookup(
         &self,
         partial_task_type: &PersistentTaskType,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> bool {
         self.pg
             .lookup(
@@ -1652,7 +1697,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
             .unwrap()
     }
 
-    fn pg_is_persisted(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> bool {
+    fn pg_is_persisted(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) -> bool {
         self.pg
             .is_persisted(
                 task,
@@ -1669,7 +1718,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
         task: TaskId,
         data: TaskData,
         state: PersistTaskState,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Option<PersistResult> {
         self.pg
             .persist(
@@ -1688,7 +1737,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn pg_activate_when_needed(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Option<ActivateResult> {
         self.pg
             .activate_when_needed(
@@ -1705,7 +1754,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn pg_deactivate_when_needed(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Option<DeactivateResult> {
         self.pg
             .deactivate_when_needed(
@@ -1722,7 +1771,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn pg_set_externally_active(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> bool {
         self.pg
             .set_externally_active(
@@ -1739,7 +1788,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn pg_unset_externally_active(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> bool {
         self.pg
             .unset_externally_active(
@@ -1753,7 +1802,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     }
 
     #[must_use]
-    fn pg_make_dirty(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) -> bool {
+    fn pg_make_dirty(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) -> bool {
         self.pg
             .make_dirty(
                 task,
@@ -1769,7 +1822,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     fn pg_make_dependent_dirty(
         &self,
         vc: RawVc,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Vec<TaskId> {
         self.pg
             .make_dependent_dirty(
@@ -1782,7 +1835,11 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
             .unwrap()
     }
 
-    fn pg_make_clean(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn pg_make_clean(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) {
         self.pg
             .make_clean(
                 task,
@@ -1799,7 +1856,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     #[must_use]
     fn pg_remove_outdated_externally_active(
         &self,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> Vec<TaskId> {
         self.pg
             .remove_outdated_externally_active(&MemoryBackendPersistedGraphApi {
@@ -1810,7 +1867,10 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     }
 
     #[must_use]
-    fn pg_get_active_external_tasks(&self, turbo_tasks: &dyn TurboTasksBackendApi) -> Vec<TaskId> {
+    fn pg_get_active_external_tasks(
+        &self,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) -> Vec<TaskId> {
         self.pg
             .get_active_external_tasks(&MemoryBackendPersistedGraphApi {
                 backend: self,
@@ -1820,7 +1880,10 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     }
 
     #[must_use]
-    fn pg_get_dirty_active_tasks(&self, turbo_tasks: &dyn TurboTasksBackendApi) -> Vec<TaskId> {
+    fn pg_get_dirty_active_tasks(
+        &self,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
+    ) -> Vec<TaskId> {
         self.pg
             .get_dirty_active_tasks(&MemoryBackendPersistedGraphApi {
                 backend: self,
@@ -1832,7 +1895,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
     #[must_use]
     fn pg_get_pending_active_update(
         &self,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>,
     ) -> (Vec<TaskId>, Vec<TaskId>) {
         self.pg
             .get_pending_active_update(&MemoryBackendPersistedGraphApi {
@@ -1842,7 +1905,7 @@ impl<P: PersistedGraph> MemoryBackendWithPersistedGraph<P> {
             .unwrap()
     }
 
-    fn pg_stop(&self, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn pg_stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackendWithPersistedGraph<P>>) {
         self.pg
             .stop(&MemoryBackendPersistedGraphApi {
                 backend: self,

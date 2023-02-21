@@ -200,6 +200,10 @@ impl TurboTasksApi for VcStorage {
         let cell = map.entry((task, index)).or_default();
         *cell = content;
     }
+
+    fn connect_task(&self, _task: TaskId) {
+        // no-op
+    }
 }
 
 impl VcStorage {

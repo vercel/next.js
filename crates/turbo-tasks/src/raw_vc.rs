@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     fmt::{Debug, Display},
-    future::Future,
+    future::{Future, IntoFuture},
     hash::Hash,
     marker::PhantomData,
     pin::Pin,
@@ -284,6 +284,11 @@ impl RawVc {
         }
     }
 
+    pub fn connect(&self) {
+        let tt = turbo_tasks();
+        tt.connect_task(self.get_task_id());
+    }
+
     pub fn is_resolved(&self) -> bool {
         match self {
             RawVc::TaskOutput(_) => false,
@@ -338,7 +343,7 @@ impl CollectiblesSource for RawVc {
         let set: RawVcSetVc = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
         CollectiblesFuture {
             turbo_tasks: tt,
-            inner: set.strongly_consistent(),
+            inner: set.into_future(),
             take: false,
             phantom: PhantomData,
         }
@@ -350,7 +355,7 @@ impl CollectiblesSource for RawVc {
         let set: RawVcSetVc = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
         CollectiblesFuture {
             turbo_tasks: tt,
-            inner: set.strongly_consistent(),
+            inner: set.into_future(),
             take: true,
             phantom: PhantomData,
         }
@@ -499,6 +504,13 @@ pub struct CollectiblesFuture<T: ValueTraitVc> {
     inner: ReadRawVcFuture<RawVcSet, AutoSet<RawVc>>,
     take: bool,
     phantom: PhantomData<fn() -> T>,
+}
+
+impl<T: ValueTraitVc> CollectiblesFuture<T> {
+    pub fn strongly_consistent(mut self) -> Self {
+        self.inner.strongly_consistent = true;
+        self
+    }
 }
 
 impl<T: ValueTraitVc> Future for CollectiblesFuture<T> {
