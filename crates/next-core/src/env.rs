@@ -51,6 +51,9 @@ pub async fn env_for_js(
     client: bool,
     next_config: NextConfigVc,
 ) -> Result<ProcessEnvVc> {
+    let test_mode = env.read("__NEXT_TEST_MODE").await?;
+    let test_mode = test_mode.as_deref().unwrap_or("");
+
     let env = if client {
         FilterProcessEnvVc::new(env, "NEXT_PUBLIC_".to_string()).into()
     } else {
@@ -76,6 +79,10 @@ pub async fn env_for_js(
 
     if next_config.react_strict_mode.unwrap_or(true) {
         map.insert("__NEXT_STRICT_MODE_APP".to_string(), "true".to_string());
+    }
+
+    if !test_mode.is_empty() {
+        map.insert("__NEXT_TEST_MODE".to_string(), "true".to_string());
     }
 
     Ok(CustomProcessEnvVc::new(env, EnvMapVc::cell(map)).into())
