@@ -1665,6 +1665,9 @@ export async function ncc_react_server_dom_webpack(task, opts) {
     )
   )
   await task
+    .source(join(reactServerDomDir, 'LICENSE'))
+    .target(`src/compiled/react-server-dom-webpack`)
+  await task
     .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
