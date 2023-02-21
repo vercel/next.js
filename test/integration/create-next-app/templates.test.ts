@@ -66,7 +66,7 @@ describe('create-next-app templates', () => {
   })
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {
-    useTempDir(async (cwd) => {
+    await useTempDir(async (cwd) => {
       const projectName = 'choose-ts-js'
 
       /**
