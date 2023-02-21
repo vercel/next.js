@@ -14,10 +14,10 @@ function toRoute(pathname: string): string {
 }
 
 export interface CacheHandlerContext {
-  fs: CacheFs
+  fs?: CacheFs
   dev?: boolean
   flushToDisk?: boolean
-  serverDistDir: string
+  serverDistDir?: string
   maxMemoryCacheSize?: number
   _appDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
@@ -68,19 +68,23 @@ export class IncrementalCache {
     getPrerenderManifest,
     incrementalCacheHandlerPath,
   }: {
-    fs: CacheFs
+    fs?: CacheFs
     dev: boolean
     appDir?: boolean
     fetchCache?: boolean
     minimalMode?: boolean
-    serverDistDir: string
+    serverDistDir?: string
     flushToDisk?: boolean
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
     incrementalCacheHandlerPath?: string
     getPrerenderManifest: () => PrerenderManifest
   }) {
-    let cacheHandlerMod: any = FileSystemCache
+    let cacheHandlerMod: any
+
+    if (flushToDisk && fs && serverDistDir) {
+      cacheHandlerMod = FileSystemCache
+    }
 
     if (process.env.NEXT_RUNTIME !== 'edge' && incrementalCacheHandlerPath) {
       cacheHandlerMod = require(incrementalCacheHandlerPath)

@@ -259,17 +259,19 @@ export default class NextNodeServer extends BaseServer {
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
+    const flushToDisk =
+      (!this.minimalMode && this.nextConfig.experimental.isrFlushToDisk) ??
+      false
     return new IncrementalCache({
-      fs: this.getCacheFilesystem(),
+      fs: flushToDisk ? this.getCacheFilesystem() : undefined,
       dev,
       requestHeaders,
       appDir: this.hasAppDir,
       minimalMode: this.minimalMode,
-      serverDistDir: this.serverDistDir,
+      serverDistDir: flushToDisk ? this.serverDistDir : undefined,
       fetchCache: this.nextConfig.experimental.fetchCache,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
-      flushToDisk:
-        !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
+      flushToDisk: flushToDisk,
       incrementalCacheHandlerPath:
         this.nextConfig.experimental?.incrementalCacheHandlerPath,
       getPrerenderManifest: () => {
