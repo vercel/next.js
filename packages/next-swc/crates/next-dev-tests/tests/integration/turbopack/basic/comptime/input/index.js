@@ -39,6 +39,27 @@ it("should not follow conditional references", () => {
   expect(func.toString()).not.toContain("import(");
 });
 
+it("should allow to mutate objects", () => {
+  const obj = { a: true, b: false };
+  if (!obj.a) {
+    throw new Error("should not be executed");
+  }
+  if (obj.b) {
+    throw new Error("should not be executed");
+  }
+  function changeIt(o) {
+    o.a = false;
+    o.b = true;
+  }
+  changeIt(obj);
+  if (obj.a) {
+    throw new Error("should not be executed");
+  }
+  if (!obj.b) {
+    throw new Error("should not be executed");
+  }
+});
+
 it("should allow replacements in IIFEs", () => {
   (function func() {
     if (false) {
