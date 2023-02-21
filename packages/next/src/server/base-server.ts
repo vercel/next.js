@@ -1396,10 +1396,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               revalidate:
                 (context as any as { revalidate?: number }).revalidate || false,
             }
-            console.log('got result', cacheEntry)
             return cacheEntry
           }
-          console.log('sending response', pathname)
           // dynamic response so send here
           await sendResponse(req, res, response)
           return null
