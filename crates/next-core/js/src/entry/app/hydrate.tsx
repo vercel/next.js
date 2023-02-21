@@ -1,6 +1,8 @@
 import ReactDOMClient from "react-dom/client";
 import React, { use } from "react";
 import type { ReactElement } from "react";
+// @ts-expect-error
+import { version } from "next/package.json";
 import { createFromReadableStream } from "next/dist/compiled/react-server-dom-webpack/client";
 
 import { HeadManagerContext } from "next/dist/shared/lib/head-manager-context";
@@ -10,6 +12,11 @@ import { initializeHMR } from "@vercel/turbopack-next/dev/client";
 initializeHMR({
   assetPrefix: "",
 });
+
+window.next = {
+  version,
+  appDir: true,
+};
 
 globalThis.__next_require__ = (data) => {
   const [client_id] = JSON.parse(data);

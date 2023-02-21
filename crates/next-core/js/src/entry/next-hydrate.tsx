@@ -1,6 +1,12 @@
 import "@vercel/turbopack-next/internal/shims-client";
 
-import { initialize, hydrate, router } from "next/dist/client";
+import {
+  initialize,
+  hydrate,
+  router,
+  emitter,
+  version,
+} from "next/dist/client";
 import type { Router } from "next/dist/client/router";
 import {
   assign,
@@ -36,6 +42,15 @@ async function loadPageChunk(assetPrefix: string, chunkPath: string) {
 
 (async () => {
   console.debug("Initializing Next.js");
+
+  window.next = {
+    version: version || "",
+    // @ts-expect-error
+    get router() {
+      return router;
+    },
+    emitter,
+  };
 
   const { assetPrefix } = await initialize({
     webpackHMR: {
