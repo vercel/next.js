@@ -72,14 +72,16 @@ import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
+  getPossibleInstrumentationHookFilenames,
   getPossibleMiddlewareFilenames,
+  isInstrumentationHookFile,
   isMiddlewareFile,
   NestedMiddlewareError,
 } from '../../build/utils'
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
-import { pageFiles } from '../../build/webpack/plugins/flight-types-plugin'
+import { pageFiles } from '../../build/webpack/plugins/next-types-plugin'
 import {
   DevRouteMatcherManager,
   RouteEnsurer,
@@ -92,6 +94,8 @@ import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { CachedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/cached-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
+import { NextBuildContext } from '../../build/build-context'
+import { logAppDirError } from './log-app-dir-error'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -121,6 +125,7 @@ export default class DevServer extends Server {
   private pagesDir?: string
   private appDir?: string
   private actualMiddlewareFile?: string
+  private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
   private edgeFunctions?: RoutingItem[]
   private verifyingTypeScript?: boolean
@@ -233,7 +238,7 @@ export default class DevServer extends Server {
 
     const ensurer: RouteEnsurer = {
       ensure: async (match) => {
-        await this.hotReloader!.ensurePage({
+        await this.hotReloader?.ensurePage({
           match,
           page: match.definition.page,
           clientOnly: false,
@@ -364,10 +369,16 @@ export default class DevServer extends Server {
       const directories = [...pages, ...app]
 
       const rootDir = this.pagesDir || this.appDir
-      const files = getPossibleMiddlewareFilenames(
-        pathJoin(rootDir!, '..'),
-        this.nextConfig.pageExtensions
-      )
+      const files = [
+        ...getPossibleMiddlewareFilenames(
+          pathJoin(rootDir!, '..'),
+          this.nextConfig.pageExtensions
+        ),
+        ...getPossibleInstrumentationHookFilenames(
+          pathJoin(rootDir!, '..'),
+          this.nextConfig.pageExtensions
+        ),
+      ]
       let nestedMiddleware: string[] = []
 
       const envFiles = [
@@ -480,6 +491,13 @@ export default class DevServer extends Server {
             middlewareMatchers = staticInfo.middleware?.matchers || [
               { regexp: '.*' },
             ]
+            continue
+          }
+          if (
+            isInstrumentationHookFile(rootFile) &&
+            this.nextConfig.experimental.instrumentationHook
+          ) {
+            this.actualInstrumentationHookFile = rootFile
             continue
           }
 
@@ -708,7 +726,7 @@ export default class DevServer extends Server {
             !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
           ) {
             // emit the change so clients fetch the update
-            this.hotReloader!.send(undefined, { devPagesManifest: true })
+            this.hotReloader?.send(undefined, { devPagesManifest: true })
           }
           this.sortedRoutes = sortedRoutes
 
@@ -806,6 +824,7 @@ export default class DevServer extends Server {
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
     await this.startWatcher()
+    await this.runInstrumentationHookIfAvailable()
     await this.matchers.reload()
     this.setDevReady!()
 
@@ -1099,11 +1118,12 @@ export default class DevServer extends Server {
       }
     }
 
-    const { finished = false } = await this.hotReloader!.run(
-      req.originalRequest,
-      res.originalResponse,
-      parsedUrl
-    )
+    const { finished = false } =
+      (await this.hotReloader?.run(
+        req.originalRequest,
+        res.originalResponse,
+        parsedUrl
+      )) || {}
 
     if (finished) {
       return
@@ -1131,31 +1151,6 @@ export default class DevServer extends Server {
           res.body('Internal Server Error').send()
         }
       }
-    }
-  }
-
-  private logAppDirError(err: any) {
-    if (isError(err) && err?.stack) {
-      const filteredStack = err.stack
-        .split('\n')
-        .map((line: string) =>
-          // Remove 'webpack-internal:' noise from the path
-          line.replace(/(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/, '')
-        )
-        // Only display stack frames from the user's code
-        .filter(
-          (line: string) =>
-            !/next[\\/]dist[\\/]compiled/.test(line) &&
-            !/node_modules[\\/]/.test(line) &&
-            !/node:internal[\\/]/.test(line)
-        )
-        .join('\n')
-      Log.error(filteredStack)
-      if (typeof (err as any).digest !== 'undefined') {
-        console.error(`digest: ${JSON.stringify((err as any).digest)}`)
-      }
-    } else {
-      Log.error(err)
     }
   }
 
@@ -1230,7 +1225,7 @@ export default class DevServer extends Server {
             if (type === 'warning') {
               Log.warn(err)
             } else if (type === 'app-dir') {
-              this.logAppDirError(err)
+              logAppDirError(err)
             } else if (type) {
               Log.error(`${type}:`, err)
             } else {
@@ -1251,7 +1246,7 @@ export default class DevServer extends Server {
       if (type === 'warning') {
         Log.warn(err)
       } else if (type === 'app-dir') {
-        this.logAppDirError(err)
+        logAppDirError(err)
       } else if (type) {
         Log.error(`${type}:`, err)
       } else {
@@ -1325,10 +1320,26 @@ export default class DevServer extends Server {
   }
 
   protected async ensureMiddleware() {
-    return this.hotReloader!.ensurePage({
+    return this.hotReloader?.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
     })
+  }
+
+  private async runInstrumentationHookIfAvailable() {
+    if (this.actualInstrumentationHookFile) {
+      NextBuildContext!.hasInstrumentationHook = true
+      await this.hotReloader!.ensurePage({
+        page: this.actualInstrumentationHookFile!,
+        clientOnly: false,
+      })
+      try {
+        require(pathJoin(this.distDir, 'server', 'instrumentation')).register()
+      } catch (err: any) {
+        err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+        throw err
+      }
+    }
   }
 
   protected async ensureEdgeFunction({
@@ -1338,7 +1349,7 @@ export default class DevServer extends Server {
     page: string
     appPaths: string[] | null
   }) {
-    return this.hotReloader!.ensurePage({ page, appPaths, clientOnly: false })
+    return this.hotReloader?.ensurePage({ page, appPaths, clientOnly: false })
   }
 
   generateRoutes() {
@@ -1543,7 +1554,7 @@ export default class DevServer extends Server {
     }
     try {
       if (shouldEnsure || this.renderOpts.customServer) {
-        await this.hotReloader!.ensurePage({
+        await this.hotReloader?.ensurePage({
           page: pathname,
           appPaths,
           clientOnly: false,
@@ -1578,10 +1589,10 @@ export default class DevServer extends Server {
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    await this.hotReloader!.buildFallbackError()
+    await this.hotReloader?.buildFallbackError()
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
-    await this.hotReloader!.ensurePage({ page: '/_error', clientOnly: false })
+    await this.hotReloader?.ensurePage({ page: '/_error', clientOnly: false })
     return await loadDefaultErrorComponents(this.distDir)
   }
 
@@ -1608,7 +1619,7 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
-    const errors = await this.hotReloader!.getCompilationErrors(page)
+    const errors = (await this.hotReloader?.getCompilationErrors(page)) || []
     if (errors.length === 0) return
 
     // Return the very first error we found.

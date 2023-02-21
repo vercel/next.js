@@ -35,6 +35,7 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next-env/README.md',
   ],
   cna: ['packages/create-next-app', 'test/integration/create-next-app'],
+  'next-codemod': ['packages/next-codemod'],
   'next-swc': [
     'packages/next-swc',
     'scripts/normalize-version-bump.js',
