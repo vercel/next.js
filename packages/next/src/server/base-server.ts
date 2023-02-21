@@ -1139,6 +1139,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
     }
+
     delete query.__nextDataReq
 
     // normalize req.url for SSG paths as it is not exposed
@@ -1166,6 +1167,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isFlightRequest = Boolean(
       this.serverComponentManifest && req.headers[RSC.toLowerCase()]
     )
+
+    // For pages we need to ensure the correct Vary header is set too, to avoid
+    // caching issues when navigating between pages and app
+    if (!isAppPath && isFlightRequest) {
+      res.setHeader('vary', RSC_VARY_HEADER)
+    }
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isDataReq && !isFlightRequest) {
@@ -1675,14 +1682,27 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     } else if (cachedData.kind === 'IMAGE') {
       throw new Error('invariant SSG should not return an image cache value')
     } else {
+      if (isAppPath) {
+        if (isDataReq && typeof cachedData.pageData !== 'string') {
+          throw new Error(
+            'invariant: Expected pageData to be a string for app data request but received ' +
+              typeof cachedData.pageData +
+              '. This is a bug in Next.js.'
+          )
+        }
+
+        return {
+          type: isDataReq ? 'rsc' : 'html',
+          body: isDataReq
+            ? RenderResult.fromStatic(cachedData.pageData as string)
+            : cachedData.html,
+        }
+      }
+
       return {
-        type: isDataReq ? (isAppPath ? 'rsc' : 'json') : 'html',
+        type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? RenderResult.fromStatic(
-              isAppPath
-                ? (cachedData.pageData as string)
-                : JSON.stringify(cachedData.pageData)
-            )
+          ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
           : cachedData.html,
         revalidateOptions,
       }

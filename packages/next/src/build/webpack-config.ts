@@ -48,7 +48,7 @@ import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { FlightManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
-import { FlightTypesPlugin } from './webpack/plugins/flight-types-plugin'
+import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
   SWC_TARGET_TRIPLE,
@@ -902,7 +902,13 @@ export default async function getBaseWebpackConfig(
   const mainFieldsPerCompiler: Record<typeof compilerType, string[]> = {
     [COMPILER_NAMES.server]: ['main', 'module'],
     [COMPILER_NAMES.client]: ['browser', 'module', 'main'],
-    [COMPILER_NAMES.edgeServer]: ['edge-light', 'browser', 'module', 'main'],
+    [COMPILER_NAMES.edgeServer]: [
+      'edge-light',
+      'worker',
+      'browser',
+      'module',
+      'main',
+    ],
   }
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
@@ -1021,7 +1027,13 @@ export default async function getBaseWebpackConfig(
         }
       : undefined),
     mainFields: mainFieldsPerCompiler[compilerType],
-    ...(isEdgeServer && { conditionNames: ['edge-light', 'import', 'node'] }),
+    ...(isEdgeServer && {
+      conditionNames: [
+        ...mainFieldsPerCompiler[COMPILER_NAMES.edgeServer],
+        'import',
+        'node',
+      ],
+    }),
     plugins: [],
   }
 
@@ -1690,7 +1702,11 @@ export default async function getBaseWebpackConfig(
                 resolve: {
                   conditionNames: [
                     'react-server',
-                    ...(!isEdgeServer ? [] : ['edge-light']),
+                    ...mainFieldsPerCompiler[
+                      isEdgeServer
+                        ? COMPILER_NAMES.edgeServer
+                        : COMPILER_NAMES.server
+                    ],
                     'node',
                     'import',
                     'require',
@@ -2161,7 +2177,7 @@ export default async function getBaseWebpackConfig(
             })),
       hasAppDir &&
         !isClient &&
-        new FlightTypesPlugin({
+        new NextTypesPlugin({
           dir,
           distDir: config.distDir,
           appDir,
