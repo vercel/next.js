@@ -6,6 +6,8 @@ description: Fetch data on each request with `getServerSideProps`.
 
 If you export a function called `getServerSideProps` (Server-Side Rendering) from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
 
+Remember that you cannot use `getServerSideProps` in non-page components.
+
 ```js
 export async function getServerSideProps(context) {
   return {
