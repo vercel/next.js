@@ -103,12 +103,12 @@ jobs:
       - id: get-week
         run: echo "WEEK=$(date +%U)" >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: cache-build
+      - name: Upload artifact
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
+        uses: actions/upload-artifact@v3
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: ./**/*
 
   lint:
     runs-on: ubuntu-latest
@@ -122,12 +122,12 @@ jobs:
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
+
       - run: ./scripts/check-manifests.js
 
       - run: pnpm lint
@@ -140,13 +140,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - run: echo "SWC_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-swc --exec echo 'yup')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: swc-change
@@ -209,13 +207,11 @@ jobs:
       - run: mv .git .git-bak
         if: ${{needs.build.outputs.docsChange == 'nope'}}
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - run: npm i -g pnpm@${PNPM_VERSION}
 
@@ -246,13 +242,11 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -287,13 +281,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -338,13 +330,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -386,13 +376,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -435,13 +423,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -483,13 +469,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -522,13 +506,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -560,13 +542,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -600,13 +580,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -633,13 +611,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        if: ${{ needs.build.outputs.docsChange == 'nope' }}
-        id: restore-build
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{ needs.build.outputs.docsChange == 'nope' }}
@@ -679,13 +655,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        if: ${{ needs.build.outputs.docsChange == 'nope' }}
-        id: restore-build
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - run: echo "CODEMOD_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --type next-codemod --always-canary --exec echo 'yup')" >> $GITHUB_OUTPUT; echo "EOF" >> $GITHUB_OUTPUT
         id: codemodChange
@@ -742,13 +716,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -785,13 +757,11 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -835,13 +805,11 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -864,13 +832,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -889,13 +855,11 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -929,12 +893,11 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         with:
@@ -960,12 +923,11 @@ jobs:
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
       VERCEL_TEST_TEAM: vtest314-next-e2e-tests
     steps:
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -1000,12 +962,11 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
+      - uses: actions/download-artifact@v3
+        if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         with:
@@ -1146,13 +1107,11 @@ jobs:
     needs: [build, build-native-test, build-wasm-dev]
 
     steps:
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}
+          name: repo-build
+          path: .
 
       - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -1326,18 +1285,6 @@ jobs:
       # we use checkout here instead of the build cache since
       # it can fail to restore in different OS'
       - uses: actions/checkout@v3
-      # We use restore-key to pick latest cache.
-      # We will not get exact match, but doc says
-      # "If there are multiple partial matches for a restore key, the action returns the most recently created cache."
-      # So we get latest cache
-      - name: Cache built files
-        uses: actions/cache@v3
-        timeout-minutes: 5
-        with:
-          path: ./packages/next-swc/target
-          key: next-swc-cargo-cache-${{ matrix.settings.target }}--${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            next-swc-cargo-cache-${{ matrix.settings.target }}
 
       - name: Setup node
         uses: actions/setup-node@v3
@@ -1542,13 +1489,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/cache@v3
-        timeout-minutes: 5
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
-        id: restore-build
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - name: Setup node
         if: ${{needs.build.outputs.docsChange == 'nope'}}
@@ -1630,13 +1575,11 @@ jobs:
           node-version: 16
           check-latest: true
 
-      - uses: actions/cache@v3
-        timeout-minutes: 5
-        id: restore-build
+      - uses: actions/download-artifact@v3
         if: ${{needs.build.outputs.docsChange == 'nope'}}
         with:
-          path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}
+          name: repo-build
+          path: .
 
       - name: Set Git Short sha Env
         if: ${{needs.build.outputs.docsChange == 'nope'}}
