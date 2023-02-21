@@ -70,33 +70,17 @@ function formatRSCErrorMessage(
         '\n\nOne of these is marked as a client entry with "use client":\n'
     }
   } else if (NEXT_RSC_ERR_CLIENT_DIRECTIVE.test(message)) {
-    if (isPagesDir) {
-      formattedMessage = message.replace(
-        NEXT_RSC_ERR_CLIENT_DIRECTIVE,
-        `\n\nYou have tried to use the "use client" directive which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components\n\n`
-      )
-      formattedVerboseMessage = '\n\nImport trace for requested module:\n'
-    } else {
-      formattedMessage = message.replace(
-        NEXT_RSC_ERR_CLIENT_DIRECTIVE,
-        `\n\nThe "use client" directive must be placed before other expressions. Move it to the top of the file to resolve this issue.\n\n`
-      )
-      formattedVerboseMessage = '\n\nImport path:\n'
-    }
+    formattedMessage = message.replace(
+      NEXT_RSC_ERR_CLIENT_DIRECTIVE,
+      `\n\nThe "use client" directive must be placed before other expressions. Move it to the top of the file to resolve this issue.\n\n`
+    )
+    formattedVerboseMessage = '\n\nImport path:\n'
   } else if (NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN.test(message)) {
-    if (isPagesDir) {
-      formattedMessage = message.replace(
-        NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN,
-        `\n\nYou have tried to use the "use client" directive which is not supported in the pages/ directory. Read more: https://beta.nextjs.org/docs/rendering/server-and-client-components\n\n`
-      )
-      formattedVerboseMessage = '\n\nImport trace for requested module:\n'
-    } else {
-      formattedMessage = message.replace(
-        NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN,
-        `\n\n"use client" must be a directive, and placed before other expressions. Remove the parentheses and move it to the top of the file to resolve this issue.\n\n`
-      )
-      formattedVerboseMessage = '\n\nImport path:\n'
-    }
+    formattedMessage = message.replace(
+      NEXT_RSC_ERR_CLIENT_DIRECTIVE_PAREN,
+      `\n\n"use client" must be a directive, and placed before other expressions. Remove the parentheses and move it to the top of the file to resolve this issue.\n\n`
+    )
+    formattedVerboseMessage = '\n\nImport path:\n'
   } else if (NEXT_RSC_ERR_INVALID_API.test(message)) {
     formattedMessage = message.replace(
       NEXT_RSC_ERR_INVALID_API,
