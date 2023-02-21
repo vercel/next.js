@@ -19,6 +19,7 @@ import {
   NEXT_CLIENT_SSR_ENTRY_SUFFIX,
   FLIGHT_SERVER_CSS_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
+  FONT_LOADER_MANIFEST,
 } from '../../../shared/lib/constants'
 import {
   getPageStaticInfo,
@@ -852,7 +853,6 @@ export default class MiddlewarePlugin {
           metadataByEntry,
           opts: {
             sriEnabled: this.sriEnabled,
-            hasInstrumentationHook: this.hasInstrumentationHook,
           },
         })
       )
