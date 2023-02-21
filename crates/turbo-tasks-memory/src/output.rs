@@ -9,6 +9,8 @@ use auto_hash_map::AutoSet;
 use nohash_hasher::BuildNoHashHasher;
 use turbo_tasks::{util::SharedError, RawVc, TaskId, TurboTasksBackendApi};
 
+use crate::MemoryBackend;
+
 #[derive(Default, Debug)]
 pub struct Output {
     pub(crate) content: OutputContent,
@@ -60,12 +62,12 @@ impl Output {
         }
     }
 
-    pub fn link(&mut self, target: RawVc, turbo_tasks: &dyn TurboTasksBackendApi) {
+    pub fn link(&mut self, target: RawVc, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         debug_assert!(*self != target);
         self.assign(OutputContent::Link(target), turbo_tasks)
     }
 
-    pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksBackendApi) {
+    pub fn error(&mut self, error: Error, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         self.content = OutputContent::Error(SharedError::new(error));
         self.updates += 1;
         // notify
@@ -77,7 +79,7 @@ impl Output {
     pub fn panic(
         &mut self,
         message: Option<Cow<'static, str>>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.content = OutputContent::Panic(message);
         self.updates += 1;
@@ -87,7 +89,11 @@ impl Output {
         }
     }
 
-    pub fn assign(&mut self, content: OutputContent, turbo_tasks: &dyn TurboTasksBackendApi) {
+    pub fn assign(
+        &mut self,
+        content: OutputContent,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
         self.content = content;
         self.updates += 1;
         // notify
@@ -100,7 +106,7 @@ impl Output {
         &self.dependent_tasks
     }
 
-    pub fn gc_drop(self, turbo_tasks: &dyn TurboTasksBackendApi) {
+    pub fn gc_drop(self, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         // notify
         if !self.dependent_tasks.is_empty() {
             turbo_tasks.schedule_notify_tasks_set(&self.dependent_tasks);

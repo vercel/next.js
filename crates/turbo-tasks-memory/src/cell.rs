@@ -11,6 +11,8 @@ use turbo_tasks::{
     TaskId, TurboTasksBackendApi,
 };
 
+use crate::MemoryBackend;
+
 #[derive(Default, Debug)]
 pub(crate) enum Cell {
     /// No content has been set yet, or it was removed for memory pressure
@@ -204,7 +206,11 @@ impl Cell {
         }
     }
 
-    pub fn assign(&mut self, content: CellContent, turbo_tasks: &dyn TurboTasksBackendApi) {
+    pub fn assign(
+        &mut self,
+        content: CellContent,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
         match self {
             Cell::Empty => {
                 *self = Cell::Value {
@@ -287,7 +293,7 @@ impl Cell {
     }
 
     /// Drops the cell after GC. Will notify all dependent tasks and events.
-    pub fn gc_drop(self, turbo_tasks: &dyn TurboTasksBackendApi) {
+    pub fn gc_drop(self, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         match self {
             Cell::Empty => {}
             Cell::Recomputing {

@@ -152,7 +152,7 @@ impl GcQueue {
         &self,
         factor: u8,
         backend: &MemoryBackend,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Option<(GcPriority, usize, GcStats)> {
         // Process through the inactive propagation queue.
         while let Ok(task) = self.inactive_propagate_queue.pop() {

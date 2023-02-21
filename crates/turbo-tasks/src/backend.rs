@@ -175,17 +175,17 @@ pub trait Backend: Sync + Send {
     fn initialize(&mut self, task_id_provider: &dyn TaskIdProvider) {}
 
     #[allow(unused_variables)]
-    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
+    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
     #[allow(unused_variables)]
-    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
+    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
     #[allow(unused_variables)]
-    fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi) {}
+    fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
-    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi);
+    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
-    fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi);
+    fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
     fn get_task_description(&self, task: TaskId) -> String;
 
@@ -202,14 +202,14 @@ pub trait Backend: Sync + Send {
     fn try_start_task_execution(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Option<TaskExecutionSpec>;
 
     fn task_execution_result(
         &self,
         task: TaskId,
         result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
     fn task_execution_completed(
@@ -218,13 +218,13 @@ pub trait Backend: Sync + Send {
         duration: Duration,
         instant: Instant,
         stateful: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
 
     fn run_backend_job<'a>(
         &'a self,
         id: BackendJobId,
-        turbo_tasks: &'a dyn TurboTasksBackendApi,
+        turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
     fn try_read_task_output(
@@ -232,7 +232,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         reader: TaskId,
         strongly_consistent: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
@@ -241,7 +241,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         strongly_consistent: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn try_read_task_cell(
@@ -249,7 +249,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         index: CellId,
         reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<CellContent, EventListener>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
@@ -258,7 +258,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         index: CellId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<CellContent, EventListener>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
@@ -267,7 +267,7 @@ pub trait Backend: Sync + Send {
         &self,
         current_task: TaskId,
         index: CellId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<CellContent> {
         match self.try_read_task_cell_untracked(current_task, index, turbo_tasks)? {
             Ok(content) => Ok(content),
@@ -280,7 +280,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         trait_id: TraitTypeId,
         reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> RawVcSetVc;
 
     fn emit_collectible(
@@ -288,7 +288,7 @@ pub trait Backend: Sync + Send {
         trait_type: TraitTypeId,
         collectible: RawVc,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
     fn unemit_collectible(
@@ -296,7 +296,7 @@ pub trait Backend: Sync + Send {
         trait_type: TraitTypeId,
         collectible: RawVc,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
     fn update_task_cell(
@@ -304,28 +304,35 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         index: CellId,
         content: CellContent,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
     fn get_or_create_persistent_task(
         &self,
         task_type: PersistentTaskType,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
+
+    fn connect_task(
+        &self,
+        task: TaskId,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    );
 
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 }
 
 impl PersistentTaskType {
-    pub async fn run_resolve_native(
+    pub async fn run_resolve_native<B: Backend + 'static>(
         fn_id: FunctionId,
         inputs: Vec<TaskInput>,
-        turbo_tasks: Arc<dyn TurboTasksBackendApi>,
+        turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         let mut resolved_inputs = Vec::with_capacity(inputs.len());
         for input in inputs.into_iter() {
@@ -334,11 +341,11 @@ impl PersistentTaskType {
         Ok(turbo_tasks.native_call(fn_id, resolved_inputs))
     }
 
-    pub async fn run_resolve_trait(
+    pub async fn run_resolve_trait<B: Backend + 'static>(
         trait_type: TraitTypeId,
         name: Cow<'static, str>,
         inputs: Vec<TaskInput>,
-        turbo_tasks: Arc<dyn TurboTasksBackendApi>,
+        turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         let mut resolved_inputs = Vec::with_capacity(inputs.len());
         let mut iter = inputs.into_iter();
@@ -381,9 +388,9 @@ impl PersistentTaskType {
         }
     }
 
-    pub fn run(
+    pub fn run<B: Backend + 'static>(
         self,
-        turbo_tasks: Arc<dyn TurboTasksBackendApi>,
+        turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> {
         match self {
             PersistentTaskType::Native(fn_id, inputs) => {

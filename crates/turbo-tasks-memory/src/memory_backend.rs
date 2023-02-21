@@ -50,8 +50,6 @@ pub struct MemoryBackend {
     backend_jobs: NoMoveVec<Job>,
     backend_job_id_factory: IdFactory<BackendJobId>,
     task_cache: DashMap<Arc<PersistentTaskType>, TaskId, BuildHasherDefault<FxHasher>>,
-    read_collectibles_task_cache:
-        DashMap<(TaskScopeId, TraitTypeId), TaskId, BuildHasherDefault<FxHasher>>,
     memory_limit: usize,
     gc_queue: Option<GcQueue>,
     idle_gc_active: AtomicBool,
@@ -80,7 +78,6 @@ impl MemoryBackend {
             backend_jobs: NoMoveVec::new(),
             backend_job_id_factory: IdFactory::new(),
             task_cache: DashMap::default(),
-            read_collectibles_task_cache: DashMap::default(),
             memory_limit,
             gc_queue: (memory_limit != usize::MAX).then(GcQueue::new),
             idle_gc_active: AtomicBool::new(false),
@@ -92,7 +89,7 @@ impl MemoryBackend {
         &self,
         parent: TaskId,
         child: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.with_task(parent, |parent| {
             parent.connect_child(child, self, turbo_tasks)
@@ -114,7 +111,7 @@ impl MemoryBackend {
         id: TaskId,
         strongly_consistent: bool,
         note: impl Fn() -> String + Sync + Send + 'static,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
         func: F,
     ) -> Result<Result<T, EventListener>> {
         self.with_task(id, |task| {
@@ -124,14 +121,6 @@ impl MemoryBackend {
 
     pub fn with_all_cached_tasks(&self, mut func: impl FnMut(TaskId)) {
         for id in self.task_cache.clone().into_read_only().values() {
-            func(*id);
-        }
-        for id in self
-            .read_collectibles_task_cache
-            .clone()
-            .into_read_only()
-            .values()
-        {
             func(*id);
         }
     }
@@ -155,10 +144,19 @@ impl MemoryBackend {
         id
     }
 
+    pub fn create_new_no_collectibles_scope(&self, tasks: usize) -> TaskScopeId {
+        let id = self.scope_id_factory.get();
+        unsafe {
+            self.memory_task_scopes
+                .insert(*id, TaskScope::new_no_collectibles(id, tasks));
+        }
+        id
+    }
+
     fn increase_scope_active_queue(
         &self,
         mut queue: Vec<TaskScopeId>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         while let Some(scope) = queue.pop() {
             if let Some(tasks) = self.with_scope(scope, |scope| {
@@ -174,7 +172,7 @@ impl MemoryBackend {
     pub(crate) fn increase_scope_active(
         &self,
         scope: TaskScopeId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.increase_scope_active_queue(vec![scope], turbo_tasks);
     }
@@ -183,7 +181,7 @@ impl MemoryBackend {
         &self,
         scope: TaskScopeId,
         count: usize,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         let mut queue = Vec::new();
         if let Some(tasks) = self.with_scope(scope, |scope| {
@@ -200,7 +198,7 @@ impl MemoryBackend {
         &self,
         scope: TaskScopeId,
         task_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.decrease_scope_active_by(scope, task_id, 1, turbo_tasks);
     }
@@ -210,7 +208,7 @@ impl MemoryBackend {
         scope_id: TaskScopeId,
         task_id: TaskId,
         count: usize,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
+        _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         let mut queue = Vec::new();
         self.with_scope(scope_id, |scope| {
@@ -239,7 +237,7 @@ impl MemoryBackend {
         }
     }
 
-    pub fn run_gc(&self, idle: bool, turbo_tasks: &dyn TurboTasksBackendApi) {
+    pub fn run_gc(&self, idle: bool, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         if let Some(gc_queue) = &self.gc_queue {
             const MAX_COLLECT_FACTOR: u8 = u8::MAX / 8;
 
@@ -277,43 +275,65 @@ impl MemoryBackend {
         }
     }
 
-    pub(crate) fn get_or_create_read_collectibles_task(
+    pub(crate) fn get_or_create_read_task_collectibles_task(
+        &self,
+        task_id: TaskId,
+        trait_type: TraitTypeId,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) -> TaskId {
+        self.with_task(task_id, |task| {
+            let id = task.get_read_collectibles_task(trait_type, || {
+                let scope = self.create_new_no_collectibles_scope(1);
+
+                let id = turbo_tasks.get_fresh_task_id().into();
+                let task = Task::new_read_task_collectibles(
+                    // Safety: That task will hold the value, but we are still in
+                    // control of the task
+                    id,
+                    scope,
+                    task_id,
+                    trait_type,
+                    turbo_tasks.stats_type(),
+                );
+                // Safety: We have a fresh task id that nobody knows about yet
+                unsafe { self.memory_tasks.insert(*id, task) };
+                self.with_scope(scope, |scope| {
+                    scope.state.lock().add_dirty_task(id);
+                });
+                id
+            });
+            self.connect_task_child(parent_task, id, turbo_tasks);
+            id
+        })
+    }
+
+    pub(crate) fn get_or_create_read_scope_collectibles_task(
         &self,
         scope_id: TaskScopeId,
         trait_type: TraitTypeId,
         parent_task: TaskId,
-        root_scoped: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> TaskId {
-        if let Some(task) = self.lookup_and_connect_task(
-            parent_task,
-            &self.read_collectibles_task_cache,
-            &(scope_id, trait_type),
-            turbo_tasks,
-        ) {
-            // fast pass without creating a new task
-            task
-        } else {
-            // slow pass with key lock
-            let id = turbo_tasks.get_fresh_task_id();
-            let task = Task::new_read_collectibles(
-                // Safety: That task will hold the value, but we are still in
-                // control of the task
-                *unsafe { id.get_unchecked() },
-                scope_id,
-                trait_type,
-                turbo_tasks.stats_type(),
-            );
-            self.insert_and_connect_fresh_task(
-                parent_task,
-                &self.read_collectibles_task_cache,
-                (scope_id, trait_type),
-                id,
-                task,
-                root_scoped,
-                turbo_tasks,
-            )
-        }
+        self.with_scope(scope_id, |scope| {
+            let mut state = scope.state.lock();
+            let task_id = state.get_read_collectibles_task(trait_type, || {
+                let id = turbo_tasks.get_fresh_task_id().into();
+                let task = Task::new_read_scope_collectibles(
+                    // Safety: That task will hold the value, but we are still in
+                    // control of the task
+                    id,
+                    scope_id,
+                    trait_type,
+                    turbo_tasks.stats_type(),
+                );
+                // Safety: We have a fresh task id that nobody knows about yet
+                unsafe { self.memory_tasks.insert(*id, task) };
+                id
+            });
+            self.connect_task_child(parent_task, task_id, turbo_tasks);
+            task_id
+        })
     }
 
     fn insert_and_connect_fresh_task<K: Eq + Hash, H: BuildHasher + Clone>(
@@ -324,7 +344,7 @@ impl MemoryBackend {
         new_id: Unused<TaskId>,
         task: Task,
         root_scoped: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> TaskId {
         let new_id = new_id.into();
         // Safety: We have a fresh task id that nobody knows about yet
@@ -357,7 +377,7 @@ impl MemoryBackend {
         parent_task: TaskId,
         task_cache: &DashMap<K, TaskId, H>,
         key: &Q,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Option<TaskId>
     where
         K: Borrow<Q>,
@@ -372,7 +392,7 @@ impl MemoryBackend {
 }
 
 impl Backend for MemoryBackend {
-    fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         if self
             .idle_gc_active
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -383,11 +403,15 @@ impl Backend for MemoryBackend {
         }
     }
 
-    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>) {
         self.with_task(task, |task| task.invalidate(self, turbo_tasks));
     }
 
-    fn invalidate_tasks(&self, tasks: Vec<TaskId>, turbo_tasks: &dyn TurboTasksBackendApi) {
+    fn invalidate_tasks(
+        &self,
+        tasks: Vec<TaskId>,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
         for task in tasks.into_iter() {
             self.with_task(task, |task| {
                 task.invalidate(self, turbo_tasks);
@@ -412,7 +436,7 @@ impl Backend for MemoryBackend {
     fn try_start_task_execution(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Option<TaskExecutionSpec> {
         self.with_task(task, |task| task.execute(self, turbo_tasks))
     }
@@ -421,7 +445,7 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.with_task(task, |task| {
             task.execution_result(result, self, turbo_tasks);
@@ -434,7 +458,7 @@ impl Backend for MemoryBackend {
         duration: Duration,
         instant: Instant,
         stateful: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> bool {
         let reexecute = self.with_task(task_id, |task| {
             task.execution_completed(duration, instant, stateful, self, turbo_tasks)
@@ -453,7 +477,7 @@ impl Backend for MemoryBackend {
         task: TaskId,
         reader: TaskId,
         strongly_consistent: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<RawVc, EventListener>> {
         if task == reader {
             bail!("reading it's own output is not possible");
@@ -474,7 +498,7 @@ impl Backend for MemoryBackend {
         &self,
         task: TaskId,
         strongly_consistent: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<RawVc, EventListener>> {
         self.try_get_output(
             task,
@@ -490,7 +514,7 @@ impl Backend for MemoryBackend {
         task_id: TaskId,
         index: CellId,
         reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<CellContent, EventListener>> {
         if task_id == reader {
             Ok(Ok(self.with_task(task_id, |task| {
@@ -522,7 +546,7 @@ impl Backend for MemoryBackend {
         &self,
         current_task: TaskId,
         index: CellId,
-        _turbo_tasks: &dyn TurboTasksBackendApi,
+        _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<CellContent> {
         Ok(self.with_task(current_task, |task| {
             task.with_cell(index, |cell| cell.read_own_content_untracked())
@@ -533,7 +557,7 @@ impl Backend for MemoryBackend {
         &self,
         task_id: TaskId,
         index: CellId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<CellContent, EventListener>> {
         self.with_task(task_id, |task| {
             match task.with_cell_mut(index, |cell| {
@@ -558,7 +582,7 @@ impl Backend for MemoryBackend {
         id: TaskId,
         trait_id: TraitTypeId,
         reader: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> RawVcSetVc {
         self.with_task(id, |task| {
             task.read_task_collectibles(reader, trait_id, self, turbo_tasks)
@@ -570,7 +594,7 @@ impl Backend for MemoryBackend {
         trait_type: TraitTypeId,
         collectible: RawVc,
         id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.with_task(id, |task| {
             task.emit_collectible(trait_type, collectible, self, turbo_tasks)
@@ -582,7 +606,7 @@ impl Backend for MemoryBackend {
         trait_type: TraitTypeId,
         collectible: RawVc,
         id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.with_task(id, |task| {
             task.unemit_collectible(trait_type, collectible, self, turbo_tasks)
@@ -594,7 +618,7 @@ impl Backend for MemoryBackend {
         task: TaskId,
         index: CellId,
         content: CellContent,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
         self.with_task(task, |task| {
             task.with_cell_mut(index, |cell| cell.assign(content, turbo_tasks))
@@ -605,7 +629,7 @@ impl Backend for MemoryBackend {
     fn run_backend_job<'a>(
         &'a self,
         id: BackendJobId,
-        turbo_tasks: &'a dyn TurboTasksBackendApi,
+        turbo_tasks: &'a dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         // SAFETY: id will not be reused until with job is done
         if let Some(job) = unsafe { self.backend_jobs.take(*id) } {
@@ -625,7 +649,7 @@ impl Backend for MemoryBackend {
         &self,
         mut task_type: PersistentTaskType,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> TaskId {
         if let Some(task) =
             self.lookup_and_connect_task(parent_task, &self.task_cache, &task_type, turbo_tasks)
@@ -658,10 +682,19 @@ impl Backend for MemoryBackend {
         }
     }
 
+    fn connect_task(
+        &self,
+        task: TaskId,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
+        self.connect_task_child(parent_task, task, turbo_tasks);
+    }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
-        turbo_tasks: &dyn TurboTasksBackendApi,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> TaskId {
         let id = turbo_tasks.get_fresh_task_id();
         // use INITIAL_SCOPE
@@ -719,7 +752,11 @@ impl Job {
         }
     }
 
-    async fn run(self, backend: &MemoryBackend, turbo_tasks: &dyn TurboTasksBackendApi) {
+    async fn run(
+        self,
+        backend: &MemoryBackend,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
         match self {
             Job::RemoveFromScopes(tasks, scopes) => {
                 for task in tasks {

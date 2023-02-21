@@ -301,11 +301,11 @@ impl IssueVc {
         source: T,
     ) -> Result<CapturedIssuesVc> {
         Ok(CapturedIssuesVc::cell(CapturedIssues {
-            issues: source.peek_collectibles().await?,
+            issues: source.peek_collectibles().strongly_consistent().await?,
             #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
                 None,
-                source.peek_collectibles().await?,
+                source.peek_collectibles().strongly_consistent().await?,
             )),
         }))
     }
@@ -318,11 +318,11 @@ impl IssueVc {
         source: T,
     ) -> Result<CapturedIssuesVc> {
         Ok(CapturedIssuesVc::cell(CapturedIssues {
-            issues: source.take_collectibles().await?,
+            issues: source.take_collectibles().strongly_consistent().await?,
             #[cfg(feature = "issue_path")]
             processing_path: ItemIssueProcessingPathVc::cell(ItemIssueProcessingPath(
                 None,
-                source.take_collectibles().await?,
+                source.take_collectibles().strongly_consistent().await?,
             )),
         }))
     }
