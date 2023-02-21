@@ -253,7 +253,7 @@ describe('create-next-app templates', () => {
     })
   })
 
-  it.only('should prompt user to choose if --import-alias is not provided', async () => {
+  it('should prompt user to choose if --import-alias is not provided', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'choose-import-alias'
 
