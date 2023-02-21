@@ -163,15 +163,9 @@ export interface ExperimentalConfig {
   forceSwcTransforms?: boolean
 
   /**
-   * The option for the minifier of [SWC compiler](https://swc.rs).
-   * This option is only for debugging the SWC minifier, and will be removed once the SWC minifier is stable.
-   *
-   * @see [SWC Minification](https://nextjs.org/docs/advanced-features/compiler#minification)
+   * This option is removed
    */
-  swcMinifyDebugOptions?: {
-    compress?: object
-    mangle?: object
-  }
+  swcMinifyDebugOptions?: never
   swcPlugins?: Array<[string, Record<string, unknown>]>
   largePageDataBytes?: number
   /**
@@ -222,6 +216,11 @@ export interface ExperimentalConfig {
    * This option is to enable running the Webpack build in a worker thread.
    */
   webpackBuildWorker?: boolean
+
+  /**
+   *
+   */
+  instrumentationHook?: boolean
 }
 
 export type ExportPathMap = {
@@ -656,7 +655,6 @@ export const defaultConfig: NextConfig = {
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     swcPlugins: undefined,
-    swcMinifyDebugOptions: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
     amp: undefined,
@@ -667,6 +665,7 @@ export const defaultConfig: NextConfig = {
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
+    instrumentationHook: false,
   },
 }
 

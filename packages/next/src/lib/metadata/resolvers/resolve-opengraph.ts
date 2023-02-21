@@ -20,7 +20,6 @@ const OgTypFields = {
     'phoneNumbers',
     'faxNumbers',
     'alternateLocale',
-    'images',
     'audio',
     'videos',
   ],
@@ -69,6 +68,7 @@ export function resolveOpenGraph(
         }
       }
     }
+    resolved.images = resolveAsArrayOrUndefined(og.images)
   }
 
   assignProps(openGraph)

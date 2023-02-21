@@ -7,7 +7,7 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
   return (
     <>
       <meta charSet="utf-8" />
-      {metadata.title !== null ? (
+      {metadata.title !== null && metadata.title.absolute ? (
         <title>{metadata.title.absolute}</title>
       ) : null}
       <Meta name="description" content={metadata.description} />

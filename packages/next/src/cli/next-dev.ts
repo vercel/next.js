@@ -21,6 +21,7 @@ import { fileExists } from '../lib/file-exists'
 import Watchpack from 'next/dist/compiled/watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { warn } from '../build/output/log'
+import { getPossibleInstrumentationHookFilenames } from '../build/utils'
 
 let isTurboSession = false
 let sessionStopHandled = false
@@ -170,9 +171,10 @@ const nextDev: CliCommand = async (argv) => {
   }
 
   async function preflight() {
-    const { getPackageVersion } = await Promise.resolve(
+    const { getPackageVersion, getDependencies } = (await Promise.resolve(
       require('../lib/get-package-version')
-    )
+    )) as typeof import('../lib/get-package-version')
+
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
@@ -182,6 +184,23 @@ const nextDev: CliCommand = async (argv) => {
         'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
           'Please remove the `node-sass` dependency from your project. ' +
           ' Read more: https://nextjs.org/docs/messages/duplicate-sass'
+      )
+    }
+
+    const { dependencies, devDependencies } = await getDependencies({
+      cwd: dir,
+    })
+
+    // Warn if @next/font is installed as a dependency. Ignore `workspace:*` to not warn in the Next.js monorepo.
+    if (
+      dependencies['@next/font'] ||
+      (devDependencies['@next/font'] &&
+        devDependencies['@next/font'] !== 'workspace:*')
+    ) {
+      Log.warn(
+        'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
+          'The `@next/font` package will be removed in Next.js 14. ' +
+          'You can migrate by running the `built-in-next-font` codemod. Read more: https://nextjs.org/docs/messages/built-in-next-font'
       )
     }
   }
@@ -495,8 +514,12 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
 
         return execArgv
       }
+      let childProcessExitUnsub: (() => void) | null = null
 
       const setupFork = (env?: NodeJS.ProcessEnv, newDir?: string) => {
+        childProcessExitUnsub?.()
+        childProcess?.kill()
+
         const startDir = dir
         const [, script, ...nodeArgs] = process.argv
         let shouldFilter = false
@@ -562,10 +585,11 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           }
         }
         childProcess?.addListener('exit', callback)
-        return () => childProcess?.removeListener('exit', callback)
+        childProcessExitUnsub = () =>
+          childProcess?.removeListener('exit', callback)
       }
 
-      let childProcessExitUnsub = setupFork()
+      setupFork()
 
       config = await loadConfig(
         PHASE_DEVELOPMENT_SERVER,
@@ -576,10 +600,8 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       )
 
       const handleProjectDirRename = (newDir: string) => {
-        childProcessExitUnsub()
-        childProcess?.kill()
         process.chdir(newDir)
-        childProcessExitUnsub = setupFork(
+        setupFork(
           {
             ...Object.keys(process.env).reduce((newEnv, key) => {
               newEnv[key] = process.env[key]?.replace(dir, newDir)
@@ -592,21 +614,72 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       }
       const parentDir = path.join('/', dir, '..')
       const watchedEntryLength = parentDir.split('/').length + 1
-      const previousItems = new Set()
+      const previousItems = new Set<string>()
+
+      const instrumentationFilePaths = !!config.experimental
+        ?.instrumentationHook
+        ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
+        : []
 
       const wp = new Watchpack({
         ignored: (entry: string) => {
-          // watch only one level
-          return !(entry.split('/').length <= watchedEntryLength)
+          return (
+            !(entry.split('/').length <= watchedEntryLength) &&
+            !instrumentationFilePaths.includes(entry)
+          )
         },
       })
 
       wp.watch({ directories: [parentDir], startTime: 0 })
+      let instrumentationFileLastHash: string | undefined = undefined
 
-      wp.on('aggregated', () => {
+      wp.on('aggregated', async () => {
         const knownFiles = wp.getTimeInfoEntries()
         const newFiles: string[] = []
         let hasPagesApp = false
+        // check if the `instrumentation.js` has changed
+        // if it has we need to restart the server
+        const instrumentationFile = [...knownFiles.keys()].find((key) =>
+          instrumentationFilePaths.includes(key)
+        )
+
+        if (instrumentationFile) {
+          const fs = require('fs') as typeof import('fs')
+          const instrumentationFileHash = (
+            require('crypto') as typeof import('crypto')
+          )
+            .createHash('sha256')
+            .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
+            .digest('hex')
+
+          if (
+            instrumentationFileLastHash &&
+            instrumentationFileHash !== instrumentationFileLastHash
+          ) {
+            warn(
+              `The instrumentation file has changed, restarting the server to apply changes.`
+            )
+            return setupFork()
+          } else {
+            if (!instrumentationFileLastHash && previousItems.size !== 0) {
+              warn(
+                'An instrumentation file was added, restarting the server to apply changes.'
+              )
+              return setupFork()
+            }
+            instrumentationFileLastHash = instrumentationFileHash
+          }
+        } else if (
+          [...previousItems.keys()].find((key) =>
+            instrumentationFilePaths.includes(key)
+          )
+        ) {
+          warn(
+            `The instrumentation file has been removed, restarting the server to apply changes.`
+          )
+          instrumentationFileLastHash = undefined
+          return setupFork()
+        }
 
         // if the dir still exists nothing to check
         try {

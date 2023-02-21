@@ -81,20 +81,30 @@ createNextDescribe(
 
       it('should support title template', async () => {
         const browser = await next.browser('/title-template')
-        expect(await browser.eval(`document.title`)).toBe('Page | Layout')
+        // Use the parent layout (root layout) instead of app/title-template/layout.tsx
+        expect(await browser.eval(`document.title`)).toBe('Page')
       })
 
       it('should support stashed title in one layer of page and layout', async () => {
         const browser = await next.browser('/title-template/extra')
+        // Use the parent layout (app/title-template/layout.tsx) instead of app/title-template/extra/layout.tsx
+        expect(await browser.eval(`document.title`)).toBe('Extra Page | Layout')
+      })
+
+      it('should use parent layout title when no title is defined in page', async () => {
+        const browser = await next.browser('/title-template/use-layout-title')
         expect(await browser.eval(`document.title`)).toBe(
-          'Extra Page | Extra Layout'
+          'title template layout default'
         )
       })
 
       it('should support stashed title in two layers of page and layout', async () => {
-        const browser = await next.browser('/title-template/extra/inner')
-        expect(await browser.eval(`document.title`)).toBe(
-          'Inner Page | Extra Layout'
+        const $inner = await next.render$('/title-template/extra/inner')
+        expect(await $inner('title').text()).toBe('Inner Page | Extra Layout')
+
+        const $deep = await next.render$('/title-template/extra/inner/deep')
+        expect(await $deep('title').text()).toBe(
+          'extra layout default | Layout'
         )
       })
 
@@ -351,11 +361,6 @@ createNextDescribe(
         })
       }
 
-      it('should support synchronous generateMetadata export', async () => {
-        const browser = await next.browser('/basic/sync-generate-metadata')
-        expect(await getTitle(browser)).toBe('synchronous generateMetadata')
-      })
-
       it('should handle metadataBase for urls resolved as only URL type', async () => {
         // including few urls in opengraph and alternates
         const url$ = await next.render$('/metadata-base/url')
@@ -475,11 +480,7 @@ createNextDescribe(
         await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
         await checkLink(browser, 'icon', '/icon.png')
         await checkLink(browser, 'apple-touch-icon', '/apple-icon.png')
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
       })
 
       it('should support basic string icons field', async () => {
@@ -500,11 +501,7 @@ createNextDescribe(
           '/apple-icon-x3.png',
         ])
 
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
 
         expect(
           await queryMetaProps(browser, 'link', 'href="/apple-icon-x3.png"', [

@@ -393,18 +393,6 @@ const configSchema = {
         swcMinify: {
           type: 'boolean',
         },
-        swcMinifyDebugOptions: {
-          additionalProperties: false,
-          properties: {
-            compress: {
-              type: 'object',
-            },
-            mangle: {
-              type: 'object',
-            },
-          },
-          type: 'object',
-        },
         swcPlugins: {
           type: 'array',
         },
@@ -464,6 +452,9 @@ const configSchema = {
               type: 'object',
             },
           },
+        },
+        instrumentationHook: {
+          type: 'boolean',
         },
         turbotrace: {
           type: 'object',
