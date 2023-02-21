@@ -795,20 +795,10 @@ function getExtractMetadata(params: {
 export default class MiddlewarePlugin {
   private readonly dev: boolean
   private readonly sriEnabled: boolean
-  private readonly hasInstrumentationHook: boolean
 
-  constructor({
-    dev,
-    sriEnabled,
-    hasInstrumentationHook,
-  }: {
-    dev: boolean
-    sriEnabled: boolean
-    hasInstrumentationHook: boolean
-  }) {
+  constructor({ dev, sriEnabled }: { dev: boolean; sriEnabled: boolean }) {
     this.dev = dev
     this.sriEnabled = sriEnabled
-    this.hasInstrumentationHook = hasInstrumentationHook
   }
 
   public apply(compiler: webpack.Compiler) {
