@@ -25,7 +25,9 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
 }
 
 export interface RSCMeta {
-  type?: RSCModuleType
+  type: RSCModuleType
+  actions?: string[]
+  clientRefs?: string[]
   requests?: string[] // client requests in flight client entry
 }
 
