@@ -283,6 +283,7 @@ export function getDefineEnv({
     'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
       config.experimental.scrollRestoration
     ),
+    'process.env.__NEXT_PREFETCH': JSON.stringify(config.experimental.prefetch),
     'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
       deviceSizes: config.images.deviceSizes,
       imageSizes: config.images.imageSizes,

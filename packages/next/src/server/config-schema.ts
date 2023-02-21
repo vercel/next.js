@@ -361,6 +361,24 @@ const configSchema = {
           minimum: 0,
           type: 'number',
         },
+        prefetch: {
+          additionalProperties: false,
+          properties: {
+            exclude: {
+              items: {
+                type: 'string',
+              },
+              type: 'array',
+            },
+            include: {
+              items: {
+                type: 'string',
+              },
+              type: 'array',
+            },
+          },
+          type: 'object',
+        },
         runtime: {
           // automatic typing doesn't like enum
           enum: Object.values(SERVER_RUNTIME) as any,

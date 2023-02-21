@@ -316,4 +316,46 @@ describe('Prerender prefetch', () => {
 
     runTests({ optimisticClientCache: false })
   })
+
+  describe('with opt-in prefetch urls defined', () => {
+    beforeAll(async () => {
+      next = await createNext({
+        files: {
+          pages: new FileRef(join(__dirname, 'app/pages-prefetch')),
+        },
+        nextConfig: {
+          experimental: {
+            prefetch: {
+              include: ['/blog/[slug]'],
+            },
+          },
+        },
+        dependencies: {},
+      })
+    })
+    afterAll(() => next.destroy())
+
+    runTests({ optimisticClientCache: true })
+  })
+
+  describe('with opt-out prefetch urls defined', () => {
+    beforeAll(async () => {
+      next = await createNext({
+        files: {
+          pages: new FileRef(join(__dirname, 'app/pages-prefetch')),
+        },
+        nextConfig: {
+          experimental: {
+            prefetch: {
+              exclude: ['/'],
+            },
+          },
+        },
+        dependencies: {},
+      })
+    })
+    afterAll(() => next.destroy())
+
+    runTests({ optimisticClientCache: true })
+  })
 })
