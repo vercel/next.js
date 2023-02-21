@@ -106,7 +106,7 @@ describe('create-next-app templates', () => {
           resolve()
         })
         /**
-         * Simulate "Y" for TypeScript.
+         * Simulate "N" for TypeScript.
          */
         childProcess.stdin.write('N\n')
       })
