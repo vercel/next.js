@@ -1,4 +1,5 @@
 import { accumulateMetadata, MetadataItems } from './resolve-metadata'
+import { Metadata } from './types/metadata-interface'
 
 describe('accumulateMetadata', () => {
   describe('typing', () => {
@@ -45,6 +46,66 @@ describe('accumulateMetadata', () => {
       const metadata = await accumulateMetadata(metadataItems)
       expect(metadata).toMatchObject({
         title: { absolute: '2nd parent layout page', template: null },
+      })
+    })
+  })
+
+  describe('openGraph', () => {
+    it('should convert string or URL images field to array, not only for basic og type', async () => {
+      const items: [Metadata[], Metadata][] = [
+        [
+          [{ openGraph: { type: 'article', images: 'https://test.com' } }],
+          { openGraph: { images: ['https://test.com'] } },
+        ],
+        [
+          [{ openGraph: { type: 'book', images: 'https://test.com' } }],
+          { openGraph: { images: ['https://test.com'] } },
+        ],
+        [
+          [
+            {
+              openGraph: {
+                type: 'music.song',
+                images: new URL('https://test.com'),
+              },
+            },
+          ],
+          { openGraph: { images: [new URL('https://test.com')] } },
+        ],
+        [
+          [
+            {
+              openGraph: {
+                type: 'music.playlist',
+                images: { url: 'https://test.com' },
+              },
+            },
+          ],
+          { openGraph: { images: [{ url: 'https://test.com' }] } },
+        ],
+        [
+          [
+            {
+              openGraph: {
+                type: 'music.radio_station',
+                images: 'https://test.com',
+              },
+            },
+          ],
+          { openGraph: { images: ['https://test.com'] } },
+        ],
+        [
+          [{ openGraph: { type: 'video.movie', images: 'https://test.com' } }],
+          { openGraph: { images: ['https://test.com'] } },
+        ],
+      ]
+
+      items.forEach(async (item) => {
+        const [configuredMetadata, result] = item
+        const metadata = await accumulateMetadata(
+          configuredMetadata.map((m) => [m, null])
+        )
+        expect(metadata).toMatchObject(result)
       })
     })
   })

@@ -1,4 +1,4 @@
-import type { NextConfig } from '../../../../server/config-shared'
+import type { NextConfigComplete } from '../../../../server/config-shared'
 
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
@@ -48,7 +48,7 @@ export function getRender({
   serverComponentManifest: any
   serverCSSManifest: any
   appServerMod: any
-  config: NextConfig
+  config: NextConfigComplete
   buildId: string
   fontLoaderManifest: FontLoaderManifest
 }) {

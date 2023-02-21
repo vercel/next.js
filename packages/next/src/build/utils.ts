@@ -26,6 +26,7 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
+  INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -284,6 +285,13 @@ export async function computeFromManifest(
 
 export function isMiddlewareFilename(file?: string) {
   return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+}
+
+export function isInstrumentationHookFilename(file?: string) {
+  return (
+    file === INSTRUMENTATION_HOOK_FILENAME ||
+    file === `src/${INSTRUMENTATION_HOOK_FILENAME}`
+  )
 }
 
 export interface PageInfo {
@@ -1837,6 +1845,22 @@ export function isCustomErrorPage(page: string) {
 export function isMiddlewareFile(file: string) {
   return (
     file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+  )
+}
+
+export function isInstrumentationHookFile(file: string) {
+  return (
+    file === `/${INSTRUMENTATION_HOOK_FILENAME}` ||
+    file === `/src/${INSTRUMENTATION_HOOK_FILENAME}`
+  )
+}
+
+export function getPossibleInstrumentationHookFilenames(
+  folder: string,
+  extensions: string[]
+) {
+  return extensions.map((extension) =>
+    path.join(folder, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`)
   )
 }
 
