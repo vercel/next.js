@@ -14,9 +14,11 @@ export interface ResponseCacheBase {
 
 export interface CachedFetchValue {
   kind: 'FETCH'
-  data: any
-  isStale: boolean
-  age: number
+  data: {
+    headers: { [k: string]: string }
+    body: string
+    status?: number
+  }
   revalidate: number
 }
 
