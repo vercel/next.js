@@ -66,7 +66,7 @@ describe('create-next-app templates', () => {
   })
 
   it('should prompt user to choose if --ts or --js is not provided', async () => {
-    useTempDir(async (cwd) => {
+    await useTempDir(async (cwd) => {
       const projectName = 'choose-ts-js'
 
       /**
@@ -106,7 +106,7 @@ describe('create-next-app templates', () => {
           resolve()
         })
         /**
-         * Simulate "Y" for TypeScript.
+         * Simulate "N" for TypeScript.
          */
         childProcess.stdin.write('N\n')
       })
@@ -250,6 +250,51 @@ describe('create-next-app templates', () => {
         'default',
         'turbo',
       ])
+    })
+  })
+
+  it('should prompt user to choose if --import-alias is not provided', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'choose-import-alias'
+
+      /**
+       * Start the create-next-app call.
+       */
+      const childProcess = createNextApp(
+        [
+          projectName,
+          '--ts',
+          '--eslint',
+          '--no-src-dir',
+          '--no-experimental-app',
+        ],
+        {
+          cwd,
+        },
+        testVersion
+      )
+      /**
+       * Bind the exit listener.
+       */
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(0)
+          resolve()
+        })
+        childProcess.stdin.write('@/something/*\n')
+      })
+
+      /**
+       * Verify it correctly emitted a TS project by looking for tsconfig.
+       */
+      const tsConfig = require(path.join(cwd, projectName, 'tsconfig.json'))
+      expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
+        Object {
+          "@/something/*": Array [
+            "./*",
+          ],
+        }
+      `)
     })
   })
 })

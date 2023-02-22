@@ -1,16 +1,25 @@
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
+import { CacheFs } from '../../../shared/lib/utils'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+
+type FileSystemCacheContext = Omit<
+  CacheHandlerContext,
+  'fs' | 'serverDistDir'
+> & {
+  fs: CacheFs
+  serverDistDir: string
+}
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
 export default class FileSystemCache implements CacheHandler {
-  private fs: CacheHandlerContext['fs']
-  private flushToDisk?: CacheHandlerContext['flushToDisk']
-  private serverDistDir: CacheHandlerContext['serverDistDir']
+  private fs: FileSystemCacheContext['fs']
+  private flushToDisk?: FileSystemCacheContext['flushToDisk']
+  private serverDistDir: FileSystemCacheContext['serverDistDir']
   private appDir: boolean
 
-  constructor(ctx: CacheHandlerContext) {
+  constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
     this.flushToDisk = ctx.flushToDisk
     this.serverDistDir = ctx.serverDistDir
@@ -28,6 +37,8 @@ export default class FileSystemCache implements CacheHandler {
             throw new Error('invariant image should not be incremental-cache')
           } else if (value.kind === 'FETCH') {
             return JSON.stringify(value.data || '').length
+          } else if (value.kind === 'ROUTE') {
+            return value.body.length
           }
           // rough estimate of size of cache value
           return (
@@ -42,7 +53,33 @@ export default class FileSystemCache implements CacheHandler {
     let data = memoryCache?.get(key)
 
     // let's check the disk for seed data
-    if (!data) {
+    if (!data && process.env.NEXT_RUNTIME !== 'edge') {
+      try {
+        const { filePath } = await this.getFsPath({
+          pathname: `${key}.body`,
+          appDir: true,
+        })
+        const fileData = await this.fs.readFile(filePath)
+        const { mtime } = await this.fs.stat(filePath)
+
+        const meta = JSON.parse(
+          await this.fs.readFile(filePath.replace(/\.body$/, '.meta'))
+        )
+
+        const cacheEntry: CacheHandlerValue = {
+          lastModified: mtime.getTime(),
+          value: {
+            kind: 'ROUTE',
+            body: Buffer.from(fileData),
+            headers: meta.headers,
+            status: meta.status,
+          },
+        }
+        return cacheEntry
+      } catch (_) {
+        // no .meta data for the related key
+      }
+
       try {
         const { filePath, isAppPath } = await this.getFsPath({
           pathname: fetchCache ? key : `${key}.html`,
@@ -100,6 +137,20 @@ export default class FileSystemCache implements CacheHandler {
       lastModified: Date.now(),
     })
     if (!this.flushToDisk) return
+
+    if (data?.kind === 'ROUTE') {
+      const { filePath } = await this.getFsPath({
+        pathname: `${key}.body`,
+        appDir: true,
+      })
+      await this.fs.mkdir(path.dirname(filePath))
+      await this.fs.writeFile(filePath, data.body)
+      await this.fs.writeFile(
+        filePath.replace(/\.body$/, '.meta'),
+        JSON.stringify({ headers: data.headers, status: data.status })
+      )
+      return
+    }
 
     if (data?.kind === 'PAGE') {
       const isAppPath = typeof data.pageData === 'string'

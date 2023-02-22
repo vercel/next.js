@@ -94,6 +94,7 @@ import { PagesRouteMatcherProvider } from './future/route-matcher-providers/page
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
 import { getTracer } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
+import { sendResponse } from './future/route-handlers/app-route-route-handler'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -917,6 +918,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     this.handleCompression(req, res)
 
+    // set incremental cache to request meta so it can
+    // be passed down for edge functions and the fetch disk
+    // cache can be leveraged locally
+    if (
+      !(globalThis as any).__incrementalCache &&
+      !getRequestMeta(req, '_nextIncrementalCache')
+    ) {
+      const incrementalCache = this.getIncrementalCache({
+        requestHeaders: Object.assign({}, req.headers),
+      })
+      addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
+    }
+
     try {
       const matched = await this.router.execute(req, res, parsedUrl)
       if (matched) {
@@ -1409,19 +1423,65 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
-    const incrementalCache = this.getIncrementalCache({
-      requestHeaders: Object.assign({}, req.headers),
-    })
-    if (
-      this.nextConfig.experimental.fetchCache &&
-      (!isEdgeRuntime(opts.runtime) ||
-        (this.serverOptions as any).webServerConfig)
-    ) {
+
+    // use existing incrementalCache instance if available
+    const incrementalCache =
+      (globalThis as any).__incrementalCache ||
+      this.getIncrementalCache({
+        requestHeaders: Object.assign({}, req.headers),
+      })
+
+    if (this.nextConfig.experimental.fetchCache) {
       delete req.headers[FETCH_CACHE_HEADER]
     }
     let isRevalidate = false
 
     const doRender: () => Promise<ResponseCacheEntry | null> = async () => {
+      const supportsDynamicHTML = !(isSSG || hasStaticPaths)
+
+      const match =
+        pathname !== '/_error' && !is404Page && !is500Page
+          ? getRequestMeta(req, '_nextMatch')
+          : undefined
+
+      if (match) {
+        const context = {
+          supportsDynamicHTML,
+          incrementalCache,
+        }
+        let response: Response | undefined = (await this.handlers.handle(
+          match,
+          req,
+          res,
+          context,
+          isSSG
+        )) as any
+
+        if (response) {
+          if (isSSG && process.env.NEXT_RUNTIME !== 'edge') {
+            const blob = await response.blob()
+            const headers = Object.fromEntries(response.headers)
+            if (!headers['content-type'] && blob.type) {
+              headers['content-type'] = blob.type
+            }
+            const cacheEntry: ResponseCacheEntry = {
+              value: {
+                kind: 'ROUTE',
+                status: response.status,
+                body: Buffer.from(await blob.arrayBuffer()),
+                headers,
+              },
+              revalidate:
+                (context as any as { revalidate?: number }).revalidate || false,
+            }
+            return cacheEntry
+          }
+          // dynamic response so send here
+          await sendResponse(req, res, response)
+          return null
+        }
+      }
+
       let pageData: any
       let body: RenderResult | null
       let isrRevalidate: number | false
@@ -1472,10 +1532,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 query: origQuery,
               })
             : resolvedUrl,
-      }
 
-      if (isSSG || hasStaticPaths) {
-        renderOpts.supportsDynamicHTML = false
+        supportsDynamicHTML,
       }
 
       const renderResult = await this.renderHTML(
@@ -1745,15 +1803,38 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
     } else if (cachedData.kind === 'IMAGE') {
       throw new Error('invariant SSG should not return an image cache value')
+    } else if (cachedData.kind === 'ROUTE') {
+      await sendResponse(
+        req,
+        res,
+        new Response(cachedData.body, {
+          headers: new Headers((cachedData.headers || {}) as any),
+          status: cachedData.status || 200,
+        })
+      )
+      return null
     } else {
+      if (isAppPath) {
+        if (isDataReq && typeof cachedData.pageData !== 'string') {
+          throw new Error(
+            'invariant: Expected pageData to be a string for app data request but received ' +
+              typeof cachedData.pageData +
+              '. This is a bug in Next.js.'
+          )
+        }
+
+        return {
+          type: isDataReq ? 'rsc' : 'html',
+          body: isDataReq
+            ? RenderResult.fromStatic(cachedData.pageData as string)
+            : cachedData.html,
+        }
+      }
+
       return {
-        type: isDataReq ? (isAppPath ? 'rsc' : 'json') : 'html',
+        type: isDataReq ? 'json' : 'html',
         body: isDataReq
-          ? RenderResult.fromStatic(
-              isAppPath
-                ? (cachedData.pageData as string)
-                : JSON.stringify(cachedData.pageData)
-            )
+          ? RenderResult.fromStatic(JSON.stringify(cachedData.pageData))
           : cachedData.html,
         revalidateOptions,
       }

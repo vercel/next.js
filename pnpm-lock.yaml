@@ -438,7 +438,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.1.7-canary.22
+      '@next/eslint-plugin-next': 13.1.7-canary.23
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -511,6 +511,7 @@ importers:
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
+<<<<<<< HEAD
       '@next/env': 13.1.7-canary.22
       '@next/polyfill-module': 13.1.7-canary.22
       '@next/polyfill-nomodule': 13.1.7-canary.22
@@ -518,6 +519,14 @@ importers:
       '@next/react-refresh-utils': 13.1.7-canary.22
       '@next/swc': 13.1.7-canary.22
       '@opentelemetry/api': 1.4.0
+=======
+      '@next/env': 13.1.7-canary.23
+      '@next/polyfill-module': 13.1.7-canary.23
+      '@next/polyfill-nomodule': 13.1.7-canary.23
+      '@next/react-dev-overlay': 13.1.7-canary.23
+      '@next/react-refresh-utils': 13.1.7-canary.23
+      '@next/swc': 13.1.7-canary.23
+>>>>>>> canary
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
