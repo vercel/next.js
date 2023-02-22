@@ -264,6 +264,36 @@ export function runTests(ctx) {
       expect(res.status).toBe(400)
       expect(await res.text()).toContain('valid but image type is not allowed')
     })
+
+    it('should not allow svg with application header', async () => {
+      const query = { w: ctx.w, q: 45, url: '/api/application.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toContain(
+        "The requested resource isn't a valid image"
+      )
+    })
+
+    it('should not allow svg with comma header', async () => {
+      const query = { w: ctx.w, q: 55, url: '/api/comma.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toContain(
+        "The requested resource isn't a valid image"
+      )
+    })
+
+    it('should not allow svg with uppercase header', async () => {
+      const query = { w: ctx.w, q: 65, url: '/api/uppercase.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toContain(
+        '"url" parameter is valid but image type is not allowed'
+      )
+    })
   }
 
   it('should maintain ico format', async () => {

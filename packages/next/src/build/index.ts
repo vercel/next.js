@@ -956,6 +956,18 @@ export default async function build(
             appDir ? path.join(SERVER_DIRECTORY, APP_PATHS_MANIFEST) : null,
             path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.js'),
             path.join(SERVER_DIRECTORY, FONT_LOADER_MANIFEST + '.json'),
+            ...(hasInstrumentationHook
+              ? [
+                  path.join(
+                    SERVER_DIRECTORY,
+                    `${INSTRUMENTATION_HOOK_FILENAME}.js`
+                  ),
+                  path.join(
+                    SERVER_DIRECTORY,
+                    `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
+                  ),
+                ]
+              : []),
           ]
             .filter(nonNullable)
             .map((file) => path.join(config.distDir, file)),

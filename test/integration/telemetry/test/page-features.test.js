@@ -214,7 +214,7 @@ describe('page features telemetry', () => {
     }
   })
 
-  it('detect reportWebVitals correctly for `next build`', async () => {
+  it('detects reportWebVitals with no _app correctly for `next build`', async () => {
     // Case 1: When _app.js does not exist.
     let build = await nextBuild(appDir, [], {
       stderr: true,
@@ -225,7 +225,9 @@ describe('page features telemetry', () => {
       .exec(build.stderr)
       .pop()
     expect(event1).toMatch(/hasReportWebVitals.*?false/)
+  })
 
+  it('detect with reportWebVitals correctly for `next build`', async () => {
     // Case 2: When _app.js exist with reportWebVitals function.
     await fs.utimes(
       path.join(appDir, 'pages', '_app_withreportwebvitals.empty'),
@@ -237,7 +239,7 @@ describe('page features telemetry', () => {
       path.join(appDir, 'pages', '_app.js')
     )
 
-    build = await nextBuild(appDir, [], {
+    const build = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
@@ -247,9 +249,13 @@ describe('page features telemetry', () => {
       path.join(appDir, 'pages', '_app_withreportwebvitals.empty')
     )
 
-    event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(build.stderr).pop()
+    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+      .exec(build.stderr)
+      .pop()
     expect(event1).toMatch(/hasReportWebVitals.*?true/)
+  })
 
+  it('detect without reportWebVitals correctly for `next build`', async () => {
     // Case 3: When _app.js exist without reportWebVitals function.
     await fs.utimes(
       path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty'),
@@ -261,7 +267,7 @@ describe('page features telemetry', () => {
       path.join(appDir, 'pages', '_app.js')
     )
 
-    build = await nextBuild(appDir, [], {
+    const build = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
@@ -271,7 +277,9 @@ describe('page features telemetry', () => {
       path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty')
     )
 
-    event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(build.stderr).pop()
+    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+      .exec(build.stderr)
+      .pop()
     expect(event1).toMatch(/hasReportWebVitals.*?false/)
   })
 })

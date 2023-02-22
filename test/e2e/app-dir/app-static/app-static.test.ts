@@ -85,6 +85,8 @@ createNextDescribe(
           'static-to-dynamic-error/[id].html',
           'static-to-dynamic-error/[id].rsc',
           'static-to-dynamic-error/[id]/page.js',
+          'variable-revalidate-edge/no-store/page.js',
+          'variable-revalidate-edge/revalidate-3/page.js',
           'variable-revalidate/no-store/page.js',
           'variable-revalidate/revalidate-3.html',
           'variable-revalidate/revalidate-3.rsc',
@@ -387,6 +389,34 @@ createNextDescribe(
         const res2 = await fetchViaHTTP(
           next.url,
           '/variable-revalidate/revalidate-3'
+        )
+        expect(res2.status).toBe(200)
+        const html2 = await res2.text()
+        const $2 = cheerio.load(html2)
+
+        expect($2('#layout-data').text()).toBe(layoutData)
+        expect($2('#page-data').text()).toBe(pageData)
+      }
+    })
+
+    it('should honor fetch cache correctly (edge)', async () => {
+      await fetchViaHTTP(next.url, '/variable-revalidate-edge/revalidate-3')
+
+      const res = await fetchViaHTTP(
+        next.url,
+        '/variable-revalidate-edge/revalidate-3'
+      )
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      const layoutData = $('#layout-data').text()
+      const pageData = $('#page-data').text()
+
+      for (let i = 0; i < 3; i++) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          '/variable-revalidate-edge/revalidate-3'
         )
         expect(res2.status).toBe(200)
         const html2 = await res2.text()

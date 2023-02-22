@@ -66,7 +66,8 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
     dir,
     conf: nextConfig,
   })
-  await devServer.startWatcher.bind(devServer)()
+  await devServer.matchers.reload()
+
   // @ts-expect-error
   devServer.customRoutes = await loadCustomRoutes(nextConfig)
 

@@ -26,6 +26,7 @@ export interface RequestMeta {
   _protocol?: string
   _nextDataNormalizing?: boolean
   _nextMatch?: RouteMatch
+  _nextIncrementalCache?: any
 }
 
 export function getRequestMeta(

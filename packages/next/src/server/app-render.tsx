@@ -57,6 +57,8 @@ import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { patchFetch } from './lib/patch-fetch'
 import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
+import { AppRenderSpan } from './lib/trace/constants'
+import { getTracer } from './lib/trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -723,9 +725,11 @@ function getScriptNonceFromHeader(cspHeaderValue: string): string | undefined {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServer.renderToReadableStream(element)
-  await renderStream.allReady
-  return streamToString(renderStream)
+  return getTracer().trace(AppRenderSpan.renderToString, async () => {
+    const renderStream = await ReactDOMServer.renderToReadableStream(element)
+    await renderStream.allReady
+    return streamToString(renderStream)
+  })
 }
 
 export async function renderToHTMLOrFlight(
@@ -1789,124 +1793,127 @@ export async function renderToHTMLOrFlight(
       )
     }
 
-    const bodyResult = async () => {
-      const polyfills = buildManifest.polyfillFiles
-        .filter(
-          (polyfill) =>
-            polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+    const bodyResult = getTracer().wrap(
+      AppRenderSpan.getBodyResult,
+      async () => {
+        const polyfills = buildManifest.polyfillFiles
+          .filter(
+            (polyfill) =>
+              polyfill.endsWith('.js') && !polyfill.endsWith('.module.js')
+          )
+          .map((polyfill) => ({
+            src: `${assetPrefix}/_next/${polyfill}`,
+            integrity: subresourceIntegrityManifest?.[polyfill],
+          }))
+
+        const content = (
+          <InsertedHTML>
+            <ServerComponentsRenderer />
+          </InsertedHTML>
         )
-        .map((polyfill) => ({
-          src: `${assetPrefix}/_next/${polyfill}`,
-          integrity: subresourceIntegrityManifest?.[polyfill],
-        }))
 
-      const content = (
-        <InsertedHTML>
-          <ServerComponentsRenderer />
-        </InsertedHTML>
-      )
+        let polyfillsFlushed = false
+        const getServerInsertedHTML = (): Promise<string> => {
+          const flushed = renderToString(
+            <>
+              {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
+                callback()
+              )}
+              {polyfillsFlushed
+                ? null
+                : polyfills?.map((polyfill) => {
+                    return (
+                      <script
+                        key={polyfill.src}
+                        src={polyfill.src}
+                        integrity={polyfill.integrity}
+                        noModule={true}
+                        nonce={nonce}
+                      />
+                    )
+                  })}
+            </>
+          )
+          polyfillsFlushed = true
+          return flushed
+        }
 
-      let polyfillsFlushed = false
-      const getServerInsertedHTML = (): Promise<string> => {
-        const flushed = renderToString(
-          <>
-            {Array.from(serverInsertedHTMLCallbacks).map((callback) =>
-              callback()
-            )}
-            {polyfillsFlushed
-              ? null
-              : polyfills?.map((polyfill) => {
-                  return (
-                    <script
-                      key={polyfill.src}
-                      src={polyfill.src}
-                      integrity={polyfill.integrity}
-                      noModule={true}
-                      nonce={nonce}
-                    />
-                  )
-                })}
-          </>
-        )
-        polyfillsFlushed = true
-        return flushed
-      }
+        try {
+          const renderStream = await renderToInitialStream({
+            ReactDOMServer,
+            element: content,
+            streamOptions: {
+              onError: htmlRendererErrorHandler,
+              nonce,
+              // Include hydration scripts in the HTML
+              bootstrapScripts: [
+                ...(subresourceIntegrityManifest
+                  ? buildManifest.rootMainFiles.map((src) => ({
+                      src: `${assetPrefix}/_next/` + src,
+                      integrity: subresourceIntegrityManifest[src],
+                    }))
+                  : buildManifest.rootMainFiles.map(
+                      (src) => `${assetPrefix}/_next/` + src
+                    )),
+              ],
+            },
+          })
 
-      try {
-        const renderStream = await renderToInitialStream({
-          ReactDOMServer,
-          element: content,
-          streamOptions: {
-            onError: htmlRendererErrorHandler,
-            nonce,
-            // Include hydration scripts in the HTML
-            bootstrapScripts: [
-              ...(subresourceIntegrityManifest
+          const result = await continueFromInitialStream(renderStream, {
+            dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML:
+              staticGenerationStore.isStaticGeneration || generateStaticHTML,
+            getServerInsertedHTML,
+            serverInsertedHTMLToHead: true,
+            ...validateRootLayout,
+          })
+
+          return result
+        } catch (err: any) {
+          const shouldNotIndex = isNotFoundError(err)
+          if (isNotFoundError(err)) {
+            res.statusCode = 404
+          }
+          if (isRedirectError(err)) {
+            res.statusCode = 307
+          }
+
+          const renderStream = await renderToInitialStream({
+            ReactDOMServer,
+            element: (
+              <html id="__next_error__">
+                <head>
+                  {shouldNotIndex ? (
+                    <meta name="robots" content="noindex" />
+                  ) : null}
+                </head>
+                <body></body>
+              </html>
+            ),
+            streamOptions: {
+              nonce,
+              // Include hydration scripts in the HTML
+              bootstrapScripts: subresourceIntegrityManifest
                 ? buildManifest.rootMainFiles.map((src) => ({
                     src: `${assetPrefix}/_next/` + src,
                     integrity: subresourceIntegrityManifest[src],
                   }))
                 : buildManifest.rootMainFiles.map(
                     (src) => `${assetPrefix}/_next/` + src
-                  )),
-            ],
-          },
-        })
+                  ),
+            },
+          })
 
-        const result = await continueFromInitialStream(renderStream, {
-          dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML:
-            staticGenerationStore.isStaticGeneration || generateStaticHTML,
-          getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
-          ...validateRootLayout,
-        })
-
-        return result
-      } catch (err: any) {
-        const shouldNotIndex = isNotFoundError(err)
-        if (isNotFoundError(err)) {
-          res.statusCode = 404
+          return await continueFromInitialStream(renderStream, {
+            dataStream: serverComponentsInlinedTransformStream?.readable,
+            generateStaticHTML: staticGenerationStore.isStaticGeneration,
+            getServerInsertedHTML,
+            serverInsertedHTMLToHead: true,
+            ...validateRootLayout,
+          })
         }
-        if (isRedirectError(err)) {
-          res.statusCode = 307
-        }
-
-        const renderStream = await renderToInitialStream({
-          ReactDOMServer,
-          element: (
-            <html id="__next_error__">
-              <head>
-                {shouldNotIndex ? (
-                  <meta name="robots" content="noindex" />
-                ) : null}
-              </head>
-              <body></body>
-            </html>
-          ),
-          streamOptions: {
-            nonce,
-            // Include hydration scripts in the HTML
-            bootstrapScripts: subresourceIntegrityManifest
-              ? buildManifest.rootMainFiles.map((src) => ({
-                  src: `${assetPrefix}/_next/` + src,
-                  integrity: subresourceIntegrityManifest[src],
-                }))
-              : buildManifest.rootMainFiles.map(
-                  (src) => `${assetPrefix}/_next/` + src
-                ),
-          },
-        })
-
-        return await continueFromInitialStream(renderStream, {
-          dataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: staticGenerationStore.isStaticGeneration,
-          getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
-          ...validateRootLayout,
-        })
       }
-    }
+    )
     const renderResult = new RenderResult(await bodyResult())
 
     if (staticGenerationStore.pendingRevalidates) {

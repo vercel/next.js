@@ -450,7 +450,7 @@ createNextDescribe(
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
         expect($('[property="og:image:url"]').attr('content')).toMatch(
-          /_next\/static\/media\/metadata\/opengraph-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.\w+.png/
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(
           'image/png'
@@ -459,7 +459,7 @@ createNextDescribe(
         expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
         expect($('[name="twitter:image"]').attr('content')).toMatch(
-          /_next\/static\/media\/metadata\/twitter-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/twitter-image.\w+.png/
         )
         expect($('[name="twitter:card"]').attr('content')).toBe(
           'summary_large_image'

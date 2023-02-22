@@ -62,42 +62,49 @@ export default class FetchCache implements CacheHandler {
       try {
         const start = Date.now()
         const res = await fetch(
-          `${this.cacheEndpoint}/v1/suspense-cache/getItems`,
+          `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
-            method: 'POST',
-            body: JSON.stringify([key]),
+            method: 'GET',
             headers: this.headers,
           }
         )
+
+        if (res.status === 404) {
+          if (this.debug) {
+            console.log(
+              `no fetch cache entry for ${key}, duration: ${
+                Date.now() - start
+              }ms`
+            )
+          }
+          return null
+        }
 
         if (!res.ok) {
           console.error(await res.text())
           throw new Error(`invalid response from cache ${res.status}`)
         }
 
-        const items = await res.json()
-        const item = items?.[key]
-
-        if (!item || !item.value) {
-          throw new Error(`invalid item returned ${JSON.stringify({ item })}`)
-        }
-
-        const cached = JSON.parse(item.value)
+        const cached = await res.json()
 
         if (!cached || cached.kind !== 'FETCH') {
           this.debug && console.log({ cached })
           throw new Error(`invalid cache value`)
         }
 
+        const cacheState = res.headers.get('x-vercel-cache-state')
+        const age = res.headers.get('age')
+
         data = {
-          lastModified: Date.now() - item.age * 1000,
+          age: age === null ? undefined : parseInt(age, 10),
+          cacheState: cacheState || undefined,
           value: cached,
         }
         if (this.debug) {
           console.log(
             `got fetch cache entry for ${key}, duration: ${
               Date.now() - start
-            }ms, size: ${item.value.length}`
+            }ms, size: ${Object.keys(cached).length}`
           )
         }
 
@@ -106,7 +113,9 @@ export default class FetchCache implements CacheHandler {
         }
       } catch (err) {
         // unable to get data from fetch-cache
-        console.error(`Failed to get from fetch-cache`, err)
+        if (this.debug) {
+          console.error(`Failed to get from fetch-cache`, err)
+        }
       }
     }
     return data || null
@@ -126,15 +135,16 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const start = Date.now()
-      const body = JSON.stringify([
-        {
-          id: key,
-          value: JSON.stringify(data),
-        },
-      ])
-
+      if (data !== null && 'revalidate' in data) {
+        this.headers['x-vercel-revalidate'] = data.revalidate.toString()
+      }
+      if (data !== null && 'data' in data) {
+        this.headers['x-vercel-cache-control'] =
+          data.data.headers['cache-control']
+      }
+      const body = JSON.stringify(data)
       const res = await fetch(
-        `${this.cacheEndpoint}/v1/suspense-cache/setItems`,
+        `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
         {
           method: 'POST',
           headers: this.headers,
@@ -156,7 +166,9 @@ export default class FetchCache implements CacheHandler {
       }
     } catch (err) {
       // unable to set to fetch-cache
-      console.error(`Failed to update fetch cache`, err)
+      if (this.debug) {
+        console.error(`Failed to update fetch cache`, err)
+      }
     }
     return
   }
