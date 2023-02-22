@@ -17053,6 +17053,75 @@
       "normal"
     ]
   },
+  "Tilt Neon": {
+    "weights": [
+      "400",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "XROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      },
+      {
+        "tag": "YROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      }
+    ]
+  },
+  "Tilt Prism": {
+    "weights": [
+      "400",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "XROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      },
+      {
+        "tag": "YROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      }
+    ]
+  },
+  "Tilt Warp": {
+    "weights": [
+      "400",
+      "variable"
+    ],
+    "styles": [
+      "normal"
+    ],
+    "axes": [
+      {
+        "tag": "XROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      },
+      {
+        "tag": "YROT",
+        "min": -45,
+        "max": 45,
+        "defaultValue": 0
+      }
+    ]
+  },
   "Timmana": {
     "weights": [
       "400"
