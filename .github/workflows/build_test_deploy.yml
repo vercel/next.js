@@ -90,6 +90,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - run: pnpm run build
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - id: check-release
         run: |
