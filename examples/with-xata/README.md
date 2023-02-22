@@ -38,18 +38,16 @@ pnpm create next-app --example with-xata with-xata-app
 
 ### Link With Your Xata Workspace And Update Types
 
-> 💡 We recommend installing the [Xata CLI](https://xata.io/docs/cli/getting-started) globally, but you can also use `npx @xata.io/cli` instead of `xata` in the commands below.
-
 You can link your project with a Xata workspace by running the following command:
 
 ```sh
-xata init
+npm run xata:init
 ```
 
 To update your types, run the following command:
 
 ```sh
-xata codegen
+npm run xata:codegen
 ```
 
 ### Start Coding
