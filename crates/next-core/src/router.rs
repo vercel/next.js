@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use serde::Deserialize;
 use turbo_tasks::{
     primitives::{JsonValueVc, StringsVc},
-    Value,
+    CompletionVc, Value,
 };
 use turbo_tasks_fs::{
     json::parse_json_rope_with_source_context, to_sys_path, File, FileSystemPathVc,
@@ -281,6 +281,7 @@ pub async fn route(
     request: RouterRequestVc,
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
+    routes_changed: CompletionVc,
 ) -> Result<RouterResultVc> {
     let ExecutionContext {
         project_root,
@@ -321,6 +322,7 @@ pub async fn route(
             JsonValueVc::cell(request),
             JsonValueVc::cell(dir.to_string_lossy().into()),
         ],
+        routes_changed,
         false,
     )
     .await?;

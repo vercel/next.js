@@ -14,9 +14,19 @@ impl Default for CompletionVc {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl CompletionVc {
+    /// This will always be the same and never invalidates the reading task.
+    #[turbo_tasks::function]
+    pub fn immutable() -> Self {
+        CompletionVc::cell(Completion)
+    }
+}
+
 // no #[turbo_tasks::value_impl] to inline new into the caller task
 // this ensures it's re-created on each execution
 impl CompletionVc {
+    /// This will always be a new completion and invalidates the reading task.
     pub fn new() -> Self {
         CompletionVc::cell(Completion)
     }

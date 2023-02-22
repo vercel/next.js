@@ -4,15 +4,9 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use turbo_tasks::{
-    primitives::{StringVc, StringsVc},
-    TryJoinIterExt, Value, ValueToString,
-};
+use turbo_tasks::{TryJoinIterExt, Value, ValueToString};
 use turbo_tasks_env::ProcessEnvVc;
-use turbo_tasks_fs::{
-    rope::RopeBuilder, DirectoryContent, DirectoryEntry, File, FileContent, FileContentVc,
-    FileSystemEntryType, FileSystemPathVc,
-};
+use turbo_tasks_fs::{rebase, rope::RopeBuilder, File, FileContent, FileSystemPathVc};
 use turbopack::{
     ecmascript::EcmascriptInputTransform,
     transition::{TransitionVc, TransitionsByNameVc},
@@ -23,15 +17,12 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfoVc,
     context::{AssetContext, AssetContextVc},
     environment::ServerAddrVc,
-    issue::{Issue, IssueSeverity, IssueSeverityVc, IssueVc},
     virtual_asset::VirtualAssetVc,
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
     source::{
-        combined::{CombinedContentSource, CombinedContentSourceVc},
-        specificity::SpecificityVc,
-        ContentSourceData, ContentSourceVc, NoContentSourceVc,
+        combined::CombinedContentSource, ContentSourceData, ContentSourceVc, NoContentSourceVc,
     },
 };
 use turbopack_ecmascript::{
@@ -48,6 +39,7 @@ use crate::{
     app_render::{
         next_layout_entry_transition::NextLayoutEntryTransition, LayoutSegment, LayoutSegmentsVc,
     },
+    app_structure::{AppStructure, AppStructureItem, AppStructureVc, OptionAppStructureVc},
     embed_js::{next_js_file, wrap_with_next_js_fs},
     env::env_for_js,
     fallback::get_fallback_page,
@@ -252,6 +244,7 @@ fn app_context(
 /// Next.js app folder.
 #[turbo_tasks::function]
 pub async fn create_app_source(
+    app_structure: OptionAppStructureVc,
     project_path: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     output_path: FileSystemPathVc,
@@ -263,21 +256,11 @@ pub async fn create_app_source(
 ) -> Result<ContentSourceVc> {
     let project_path = wrap_with_next_js_fs(project_path);
 
-    if !*next_config.app_dir().await? {
+    let Some(app_structure) = *app_structure.await? else {
         return Ok(NoContentSourceVc::new().into());
-    }
+    };
+    let app_dir = app_structure.directory();
 
-    let app = project_path.join("app");
-    let src_app = project_path.join("src/app");
-    let app_dir = if *app.get_type().await? == FileSystemEntryType::Directory {
-        app
-    } else if *src_app.get_type().await? == FileSystemEntryType::Directory {
-        src_app
-    } else {
-        return Ok(NoContentSourceVc::new().into());
-    }
-    .resolve()
-    .await?;
     let client_compile_time_info = get_client_compile_time_info(browserslist_query);
 
     let context_ssr = app_context(
@@ -319,193 +302,102 @@ pub async fn create_app_source(
     );
 
     Ok(create_app_source_for_directory(
+        app_structure,
         context_ssr,
         context,
         project_path,
-        SpecificityVc::exact(),
-        0,
-        app_dir,
-        next_config.page_extensions(),
         server_root,
         EcmascriptChunkPlaceablesVc::cell(server_runtime_entries),
         fallback_page,
-        server_root,
-        server_root,
-        LayoutSegmentsVc::cell(Vec::new()),
         output_path,
-    )
-    .into())
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
 #[turbo_tasks::function]
 async fn create_app_source_for_directory(
+    app_structure: AppStructureVc,
     context_ssr: AssetContextVc,
     context: AssetContextVc,
     project_path: FileSystemPathVc,
-    specificity: SpecificityVc,
-    position: u32,
-    input_dir: FileSystemPathVc,
-    page_extensions: StringsVc,
     server_root: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
-    target: FileSystemPathVc,
-    url: FileSystemPathVc,
-    layouts: LayoutSegmentsVc,
-    intermediate_output_path: FileSystemPathVc,
-) -> Result<CombinedContentSourceVc> {
-    let mut layouts = layouts;
+    intermediate_output_path_root: FileSystemPathVc,
+) -> Result<ContentSourceVc> {
+    let AppStructure {
+        item,
+        ref children,
+        directory,
+    } = *app_structure.await?;
     let mut sources = Vec::new();
-    let mut page = None;
-    let mut files = HashMap::new();
 
-    let DirectoryContent::Entries(entries) = &*input_dir.read_dir().await? else {
-        return Ok(CombinedContentSource { sources }.cell());
-    };
+    if let Some(item) = item {
+        match *item.await? {
+            AppStructureItem::Page {
+                segment,
+                url,
+                specificity,
+                page,
+                segments: layouts,
+            } => {
+                let LayoutSegment { target, .. } = *segment.await?;
+                let pathname = pathname_for_path(server_root, url, false);
+                let params_matcher = NextParamsMatcherVc::new(pathname);
 
-    let allowed_extensions = &*page_extensions.await?;
-
-    for (name, entry) in entries.iter() {
-        if let &DirectoryEntry::File(file) = entry {
-            if let Some((name, ext)) = name.rsplit_once('.') {
-                if !allowed_extensions.iter().any(|allowed| allowed == ext) {
-                    continue;
-                }
-
-                match name {
-                    "page" => {
-                        page = Some(file);
+                sources.push(create_node_rendered_source(
+                    project_path,
+                    specificity,
+                    server_root,
+                    params_matcher.into(),
+                    pathname,
+                    AppRenderer {
+                        context_ssr,
+                        context,
+                        server_root,
+                        layout_path: layouts,
+                        page_path: page,
+                        target,
+                        project_path,
+                        intermediate_output_path: rebase(
+                            directory,
+                            project_path,
+                            intermediate_output_path_root,
+                        ),
                     }
-                    "layout" | "error" | "loading" | "template" | "not-found" | "head" => {
-                        files.insert(name.to_string(), file);
-                    }
-                    _ => {
-                        // Any other file is ignored
-                    }
-                }
+                    .cell()
+                    .into(),
+                    runtime_entries,
+                    fallback_page,
+                ));
             }
         }
     }
 
-    let layout = files.get("layout");
-
-    // If a page exists but no layout exists, create a basic root layout
-    // in `app/layout.js` or `app/layout.tsx`.
-    //
-    // TODO: Use let Some(page_file) = page in expression below when
-    // https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands
-    if let (Some(page_file), None, true) = (page, layout, target == server_root) {
-        // Use the extension to determine if the page file is TypeScript.
-        // TODO: Use the presence of a tsconfig.json instead, like Next.js
-        // stable does.
-        let is_tsx = *page_file.extension().await? == "tsx";
-
-        let layout = if is_tsx {
-            input_dir.join("layout.tsx")
+    if children.is_empty() {
+        if let Some(source) = sources.into_iter().next() {
+            return Ok(source);
         } else {
-            input_dir.join("layout.js")
-        };
-        files.insert("layout".to_string(), layout);
-        let content = if is_tsx {
-            include_str!("assets/layout.tsx")
-        } else {
-            include_str!("assets/layout.js")
-        };
-
-        layout.write(FileContentVc::from(File::from(content)));
-
-        AppSourceIssue {
-            severity: IssueSeverity::Warning.into(),
-            path: page_file,
-            message: StringVc::cell(format!(
-                "Your page {} did not have a root layout, we created {} for you.",
-                page_file.await?.path,
-                layout.await?.path,
-            )),
+            return Ok(NoContentSourceVc::new().into());
         }
-        .cell()
-        .as_issue()
-        .emit();
     }
-
-    let mut list = layouts.await?.clone_value();
-    list.push(LayoutSegment { files, target }.cell());
-    layouts = LayoutSegmentsVc::cell(list);
-
-    if let Some(page_path) = page {
-        let pathname = pathname_for_path(server_root, url, false);
-        let params_matcher = NextParamsMatcherVc::new(pathname);
-
-        sources.push(create_node_rendered_source(
-            project_path,
-            specificity,
-            server_root,
-            params_matcher.into(),
-            pathname,
-            AppRenderer {
-                context_ssr,
-                context,
-                server_root,
-                layout_path: layouts,
-                page_path,
-                target,
-                project_path,
-                intermediate_output_path,
-            }
-            .cell()
-            .into(),
-            runtime_entries,
-            fallback_page,
-        ));
-    }
-
-    for (name, entry) in entries.iter() {
-        let DirectoryEntry::Directory(dir) = entry else {
-            continue;
-        };
-
-        let intermediate_output_path = intermediate_output_path.join(name);
-
-        let specificity = if name.starts_with("[[") || name.starts_with("[...") {
-            specificity.with_catch_all(position)
-        } else if name.starts_with('[') {
-            specificity.with_dynamic_segment(position)
-        } else {
-            specificity
-        };
-
-        let new_target = target.join(name);
-        let (new_url, position) = if name.starts_with('(') && name.ends_with(')') {
-            // This doesn't affect the url
-            (url, position)
-        } else {
-            // This adds to the url
-            (url.join(name), position + 1)
-        };
-
+    for child in children.iter() {
         sources.push(
             create_app_source_for_directory(
+                *child,
                 context_ssr,
                 context,
                 project_path,
-                specificity,
-                position,
-                *dir,
-                page_extensions,
                 server_root,
                 runtime_entries,
                 fallback_page,
-                new_target,
-                new_url,
-                layouts,
-                intermediate_output_path,
+                intermediate_output_path_root,
             )
             .into(),
         );
     }
 
-    Ok(CombinedContentSource { sources }.cell())
+    Ok(CombinedContentSource { sources }.cell().into())
 }
 
 #[turbo_tasks::value]
@@ -687,42 +579,5 @@ impl NodeEntry for AppRenderer {
         };
         // Call with only is_rsc as key
         self_vc.entry(is_rsc)
-    }
-}
-
-#[turbo_tasks::value(shared)]
-struct AppSourceIssue {
-    pub severity: IssueSeverityVc,
-    pub path: FileSystemPathVc,
-    pub message: StringVc,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for AppSourceIssue {
-    #[turbo_tasks::function]
-    fn severity(&self) -> IssueSeverityVc {
-        self.severity
-    }
-
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<StringVc> {
-        Ok(StringVc::cell(
-            "An issue occurred while preparing your Next.js app".to_string(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn category(&self) -> StringVc {
-        StringVc::cell("next app".to_string())
-    }
-
-    #[turbo_tasks::function]
-    fn context(&self) -> FileSystemPathVc {
-        self.path
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> StringVc {
-        self.message
     }
 }
