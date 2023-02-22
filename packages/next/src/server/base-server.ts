@@ -322,7 +322,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     forceReload?: boolean
   }): void
 
-  protected readonly matchers: RouteMatcherManager
+  // TODO-APP(@wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
+  public readonly matchers: RouteMatcherManager
   protected readonly handlers: RouteHandlerManager
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
