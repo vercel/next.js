@@ -7,7 +7,7 @@ export default function Test(): React.ReactElement | null {
   useEffect(() => {
     import("@turbo/pack-test-harness").then(() => {
       it("should have the correct title set", () => {
-        expect(document.title).toBe("Page - RootLayout");
+        expect(document.title).toBe("Page(slug_name) - RootLayout");
         let iconMeta = document.querySelector("link[rel=icon]");
         expect(iconMeta).toHaveProperty("href");
         expect(iconMeta.href).toMatch(/\/_next\/static\/assets/);
