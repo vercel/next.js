@@ -1,5 +1,13 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["output/a587c_tests_snapshot_typescript_tsconfig-baseurl_input_index_bec392.ts._.js", {
 
+"[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/prop.ts (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
+
+__turbopack_esm__({
+    "prop": ()=>prop
+});
+const prop = 1;
+
+})()),
 "[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/index.ts (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
 var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__ = __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/prop.ts (ecmascript)");
@@ -10,14 +18,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 ;
 ;
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__["prop"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__["prop"], __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$typescript$2f$tsconfig$2d$baseurl$2f$input$2f$prop$2e$ts__["prop"]);
-
-})()),
-"[project]/crates/turbopack-tests/tests/snapshot/typescript/tsconfig-baseurl/input/prop.ts (ecmascript)": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
-
-__turbopack_esm__({
-    "prop": ()=>prop
-});
-const prop = 1;
 
 })()),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {

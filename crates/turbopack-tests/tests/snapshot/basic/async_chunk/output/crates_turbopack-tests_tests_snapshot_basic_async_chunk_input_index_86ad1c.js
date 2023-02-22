@@ -1,12 +1,5 @@
 (self.TURBOPACK = self.TURBOPACK || []).push(["output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_86ad1c.js", {
 
-"[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
-
-__turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js/manifest-loader.js")(__turbopack_import__).then(({ foo  })=>{
-    foo(true);
-});
-
-}.call(this) }),
 "[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js/manifest-loader.js": (({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname }) => (() => {
 
 
@@ -16,6 +9,13 @@ __turbopack_export_value__((__turbopack_import__) => {
     }).then(() => __turbopack_import__("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js (ecmascript)"));
 });
 })()),
+"[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js (ecmascript)": (function({ r: __turbopack_require__, x: __turbopack_external_require__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, c: __turbopack_cache__, l: __turbopack_load__, j: __turbopack_cjs__, p: process, g: global, __dirname, m: module, e: exports }) { !function() {
+
+__turbopack_require__("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/import.js/manifest-loader.js")(__turbopack_import__).then(({ foo  })=>{
+    foo(true);
+});
+
+}.call(this) }),
 }, ({ loadedChunks, instantiateRuntimeModule }) => {
     if(!(true && loadedChunks.has("output/crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_index_015422.js"))) return true;
     instantiateRuntimeModule("[project]/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js (ecmascript)");
