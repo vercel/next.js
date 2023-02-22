@@ -6,7 +6,6 @@ use anyhow::{Context, Result};
 pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
-use turbo_tasks::primitives::StringVc;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack_core::{
     reference_type::{ReferenceType, UrlReferenceSubType},
@@ -21,12 +20,12 @@ use crate::evaluate_context::node_evaluate_asset_context;
 
 #[turbo_tasks::function]
 async fn package_import_map_from_import_mapping(
-    package_name: StringVc,
+    package_name: &str,
     package_mapping: ImportMappingVc,
 ) -> Result<ImportMapVc> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
-        format!("@vercel/turbopack/{}", package_name.await?),
+        format!("@vercel/turbopack/{}", package_name),
         package_mapping,
     );
     Ok(import_map.cell())
@@ -34,10 +33,9 @@ async fn package_import_map_from_import_mapping(
 
 #[turbo_tasks::function]
 async fn package_import_map_from_context(
-    package_name: StringVc,
+    package_name: &str,
     context_path: FileSystemPathVc,
 ) -> Result<ImportMapVc> {
-    let package_name = &*package_name.await?;
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
         format!("@vercel/turbopack/{}", package_name),
@@ -149,15 +147,9 @@ impl ModuleOptionsVc {
                             .join("postcss");
 
                         let import_map = if let Some(postcss_package) = options.postcss_package {
-                            package_import_map_from_import_mapping(
-                                StringVc::cell("postcss".to_owned()),
-                                postcss_package,
-                            )
+                            package_import_map_from_import_mapping("postcss", postcss_package)
                         } else {
-                            package_import_map_from_context(
-                                StringVc::cell("postcss".to_owned()),
-                                path,
-                            )
+                            package_import_map_from_context("postcss", path)
                         };
                         Some(ModuleRuleEffect::SourceTransforms(
                             SourceTransformsVc::cell(vec![PostCssTransformVc::new(
@@ -266,12 +258,9 @@ impl ModuleOptionsVc {
             let import_map = if let Some(loader_runner_package) =
                 webpack_loaders_options.loader_runner_package
             {
-                package_import_map_from_import_mapping(
-                    StringVc::cell("loader-runner".to_owned()),
-                    loader_runner_package,
-                )
+                package_import_map_from_import_mapping("loader-runner", loader_runner_package)
             } else {
-                package_import_map_from_context(StringVc::cell("loader-runner".to_owned()), path)
+                package_import_map_from_context("loader-runner", path)
             };
             for (ext, loaders) in webpack_loaders_options.extension_to_loaders.iter() {
                 rules.push(ModuleRule::new(
