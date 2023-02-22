@@ -15,6 +15,8 @@ import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from '../build/webpack/require-hook'
+import { getTracer } from './lib/trace/tracer'
+import { NextServerSpan } from './lib/trace/constants'
 
 loadRequireHook()
 
@@ -62,8 +64,10 @@ export class NextServer {
       res: ServerResponse,
       parsedUrl?: UrlWithParsedQuery
     ) => {
-      const requestHandler = await this.getServerRequestHandler()
-      return requestHandler(req, res, parsedUrl)
+      return getTracer().trace(NextServerSpan.getRequestHandler, async () => {
+        const requestHandler = await this.getServerRequestHandler()
+        return requestHandler(req, res, parsedUrl)
+      })
     }
   }
 
@@ -171,7 +175,10 @@ export class NextServer {
     // Memoize request handler creation
     if (!this.reqHandlerPromise) {
       this.reqHandlerPromise = this.getServer().then((server) =>
-        server.getRequestHandler().bind(server)
+        getTracer().wrap(
+          NextServerSpan.getServerRequestHandler,
+          server.getRequestHandler().bind(server)
+        )
       )
     }
     return this.reqHandlerPromise
