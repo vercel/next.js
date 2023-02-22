@@ -63,7 +63,8 @@ import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest
 import { getSupportedBrowsers } from './utils'
 import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
-const EXTERNAL_PACKAGES = require('../lib/server-external-packages.json')
+const EXTERNAL_PACKAGES =
+  require('../lib/server-external-packages.json') as string[]
 
 const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
@@ -99,14 +100,6 @@ const BABEL_CONFIG_FILES = [
   'babel.config.mjs',
   'babel.config.cjs',
 ]
-
-function appDirIssuerLayer(layer: string) {
-  return (
-    layer === WEBPACK_LAYERS.client ||
-    layer === WEBPACK_LAYERS.server ||
-    layer === WEBPACK_LAYERS.appClient
-  )
-}
 
 export const getBabelConfigFile = async (dir: string) => {
   const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
@@ -757,12 +750,8 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const getBabelOrSwcLoader = () => {
-    return useSWCLoader ? getSwcLoader() : getBabelLoader()
-  }
-
   const defaultLoaders = {
-    babel: getBabelOrSwcLoader(),
+    babel: useSWCLoader ? getSwcLoader() : getBabelLoader(),
   }
 
   const swcLoaderForRSC = hasServerComponents
@@ -1128,6 +1117,11 @@ export default async function getBaseWebpackConfig(
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
   )
+  const optOutBundlingPackageRegex = new RegExp(
+    `[/\\\\]node_modules[/\\\\](${optOutBundlingPackages
+      .map((p) => p.replace(/\//g, '[/\\\\]'))
+      .join('|')})[/\\\\]`
+  )
 
   let resolvedExternalPackageDirs: Map<string, string>
 
@@ -1341,7 +1335,7 @@ export default async function getBaseWebpackConfig(
       if (layer === WEBPACK_LAYERS.server) {
         // All packages should be bundled for the server layer if they're not opted out.
         // This option takes priority over the transpilePackages option.
-        if (isResourceInPackages(res, optOutBundlingPackages)) {
+        if (optOutBundlingPackageRegex.test(res)) {
           return `${externalType} ${request}`
         }
 
@@ -1776,7 +1770,13 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 test: codeCondition.test,
-                issuerLayer: appDirIssuerLayer,
+                issuerLayer: {
+                  or: [
+                    WEBPACK_LAYERS.server,
+                    WEBPACK_LAYERS.client,
+                    WEBPACK_LAYERS.appClient,
+                  ],
+                },
                 resolve: {
                   alias: {
                     // Alias next/head component to noop for RSC
@@ -1797,17 +1797,15 @@ export default async function getBaseWebpackConfig(
                   {
                     exclude: [staticGenerationAsyncStorageRegex],
                     issuerLayer: WEBPACK_LAYERS.server,
-                    test(req: string) {
-                      // If it's not a source code file, or has been opted out of
-                      // bundling, don't resolve it.
-                      if (
-                        !codeCondition.test.test(req) ||
-                        isResourceInPackages(req, optOutBundlingPackages)
-                      ) {
-                        return false
-                      }
-
-                      return true
+                    test: {
+                      // Resolve it if it is a source code file, and it has NOT been
+                      // opted out of bundling.
+                      and: [
+                        codeCondition.test,
+                        {
+                          not: [optOutBundlingPackageRegex],
+                        },
+                      ],
                     },
                     resolve: {
                       // It needs `conditionNames` here to require the proper asset,
