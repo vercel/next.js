@@ -2166,14 +2166,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-620 -> 625 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[0-9]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+620 -> 625 conditional = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 625 -> 627 member call = ???*0*["charAt"](???*1*)
@@ -2209,14 +2205,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-630 -> 637 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[0-9]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+630 -> 637 conditional = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 637 -> 639 member call = ???*0*["charAt"](???*1*)
@@ -2276,14 +2268,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-648 -> 653 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[0-9]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+648 -> 653 conditional = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 653 -> 655 member call = ???*0*["charAt"](???*1*)
@@ -2329,14 +2317,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-658 -> 665 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[0-9]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+658 -> 665 conditional = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 665 -> 667 member call = ???*0*["charAt"](???*1*)
@@ -2893,14 +2877,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 817 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[ \t\n\r]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+0 -> 817 conditional = /^[ \t\n\r]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 817 -> 819 member call = ???*0*["charAt"](???*1*)
@@ -2956,14 +2936,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-827 -> 832 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[\n\r]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+827 -> 832 conditional = /^[\n\r]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 832 -> 834 member call = ???*0*["charAt"](???*1*)
@@ -3001,14 +2977,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-827 -> 845 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[\n\r]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+827 -> 845 conditional = /^[\n\r]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 845 -> 847 member call = ???*0*["charAt"](???*1*)
@@ -4031,14 +4003,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 1140 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[a-zA-Z_]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+0 -> 1140 conditional = /^[a-zA-Z_]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 1140 -> 1142 member call = ???*0*["charAt"](???*1*)
@@ -4088,14 +4056,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1146 -> 1151 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[a-zA-Z0-9_]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+1146 -> 1151 conditional = /^[a-zA-Z0-9_]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 1151 -> 1153 member call = ???*0*["charAt"](???*1*)
@@ -4138,14 +4102,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1146 -> 1162 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[a-zA-Z0-9_]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+1146 -> 1162 conditional = /^[a-zA-Z0-9_]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 1162 -> 1164 member call = ???*0*["charAt"](???*1*)
@@ -4866,14 +4826,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 1349 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[0-9a-f]/i["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+0 -> 1349 conditional = /^[0-9a-f]/i["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 1349 -> 1351 member call = ???*0*["charAt"](???*1*)
@@ -7562,14 +7518,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 2144 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[0-9]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+0 -> 2144 conditional = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 2144 -> 2146 member call = ???*0*["charAt"](???*1*)
@@ -7619,14 +7571,10 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-2149 -> 2156 conditional = ???*0*
-- *0* ???*1*(???*2*)
-  ⚠️  unknown callee
-- *1* /^[0-9]/["test"]
-  ⚠️  nested operation
-- *2* ???*3*["charAt"](peg$currPos)
+2149 -> 2156 conditional = /^[0-9]/["test"](???*0*)
+- *0* ???*1*["charAt"](peg$currPos)
   ⚠️  unknown callee object
-- *3* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 2156 -> 2158 member call = ???*0*["charAt"](???*1*)

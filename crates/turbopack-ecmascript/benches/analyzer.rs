@@ -13,7 +13,7 @@ use swc_core::{
 use turbo_tasks::Value;
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
-    compile_time_info::CompileTimeInfo,
+    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo},
     environment::{EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment},
     target::CompileTargetVc,
 };
@@ -104,6 +104,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                         )),
                         Value::new(EnvironmentIntention::ServerRendering),
                     ),
+                    defines: CompileTimeDefinesVc::empty(),
                 }
                 .cell();
                 link(

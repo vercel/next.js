@@ -139,6 +139,7 @@ impl WebpackLoadersProcessedAssetVc {
         let ExecutionContext {
             project_root,
             intermediate_output_path,
+            env,
         } = *this.execution_context.await?;
         let source_content = this.source.content();
         let AssetContent::File(file) = *source_content.await? else {
@@ -161,6 +162,7 @@ impl WebpackLoadersProcessedAssetVc {
             project_root,
             webpack_loaders_executor,
             project_root,
+            env,
             this.source.path(),
             context,
             intermediate_output_path,

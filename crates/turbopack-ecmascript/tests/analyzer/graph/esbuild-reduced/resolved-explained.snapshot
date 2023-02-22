@@ -3,31 +3,27 @@ binPath = (???*0* | ???*1*)
   ⚠️  pattern without value
 - *1* require.resolve*2*(
         `${(
+              | undefined["pkg"]
               | ???*3*
-              | ???*4*
               | "esbuild-windows-arm64"
               | "esbuild-windows-32"
               | "esbuild-windows-64"
-              | ???*5*
-              | ???*7*
-            )}/${(???*8* | ???*9* | "esbuild.exe" | ???*10*)}`
+              | ???*4*
+              | ???*6*
+            )}/${(undefined["subpath"] | ???*7* | "esbuild.exe" | ???*8*)}`
     )
   ⚠️  resolve.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
-- *3* undefined["pkg"]
-  ⚠️  nested operation
-- *4* pkg
+- *3* pkg
   ⚠️  pattern without value
-- *5* {}[???*6*]
+- *4* {}[???*5*]
   ⚠️  unknown object prototype methods or values
-- *6* FreeVar(platformKey)
+- *5* FreeVar(platformKey)
   ⚠️  unknown global
-- *7* unknown mutation
-- *8* undefined["subpath"]
-  ⚠️  nested operation
-- *9* subpath
+- *6* unknown mutation
+- *7* subpath
   ⚠️  pattern without value
-- *10* unknown mutation
+- *8* unknown mutation
 
 e = ???*0*
 - *0* e
@@ -88,28 +84,24 @@ x = (undefined | ???*0* | ???*1*)
   ⚠️  pattern without value
 - *1* require.resolve*2*(
         `${(
+              | undefined["pkg"]
               | ???*3*
-              | ???*4*
               | "esbuild-windows-arm64"
               | "esbuild-windows-32"
               | "esbuild-windows-64"
-              | ???*5*
-              | ???*7*
-            )}/${(???*8* | ???*9* | "esbuild.exe" | ???*10*)}`
+              | ???*4*
+              | ???*6*
+            )}/${(undefined["subpath"] | ???*7* | "esbuild.exe" | ???*8*)}`
     )
   ⚠️  resolve.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
-- *3* undefined["pkg"]
-  ⚠️  nested operation
-- *4* pkg
+- *3* pkg
   ⚠️  pattern without value
-- *5* {}[???*6*]
+- *4* {}[???*5*]
   ⚠️  unknown object prototype methods or values
-- *6* FreeVar(platformKey)
+- *5* FreeVar(platformKey)
   ⚠️  unknown global
-- *7* unknown mutation
-- *8* undefined["subpath"]
-  ⚠️  nested operation
-- *9* subpath
+- *6* unknown mutation
+- *7* subpath
   ⚠️  pattern without value
-- *10* unknown mutation
+- *8* unknown mutation
