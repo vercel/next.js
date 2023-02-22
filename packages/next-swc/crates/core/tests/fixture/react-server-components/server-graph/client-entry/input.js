@@ -25,3 +25,10 @@ import "fs"
 export default function () {
   return null;
 }
+
+export const a = 1
+const b = 1
+export { b }
+export { c } from 'c'
+export * from 'd'
+export { e as f } from 'e'

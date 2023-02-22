@@ -43,6 +43,7 @@ struct ReactServerComponents<C: Comments> {
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
+    export_names: Vec<String>,
     invalid_server_imports: Vec<JsWord>,
     invalid_client_imports: Vec<JsWord>,
     invalid_server_react_apis: Vec<JsWord>,
@@ -78,7 +79,7 @@ impl<C: Comments> ReactServerComponents<C> {
     // Collects top level directives and imports, then removes specific ones
     // from the AST.
     fn collect_top_level_directives_and_imports(
-        &self,
+        &mut self,
         module: &mut Module,
     ) -> (bool, Vec<ModuleImports>) {
         let mut imports: Vec<ModuleImports> = vec![];
@@ -170,6 +171,52 @@ impl<C: Comments> ReactServerComponents<C> {
 
                     finished_directives = true;
                 }
+                // Collect all export names.
+                ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) => {
+                    for specifier in &e.specifiers {
+                        self.export_names.push(match specifier {
+                            ExportSpecifier::Default(_) => "default".to_string(),
+                            ExportSpecifier::Namespace(_) => "*".to_string(),
+                            ExportSpecifier::Named(named) => match &named.exported {
+                                Some(exported) => match &exported {
+                                    ModuleExportName::Ident(i) => i.sym.to_string(),
+                                    ModuleExportName::Str(s) => s.value.to_string(),
+                                },
+                                _ => match &named.orig {
+                                    ModuleExportName::Ident(i) => i.sym.to_string(),
+                                    ModuleExportName::Str(s) => s.value.to_string(),
+                                },
+                            },
+                        })
+                    }
+                }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
+                    match decl {
+                        Decl::Class(ClassDecl { ident, .. }) => {
+                            self.export_names.push(ident.sym.to_string());
+                        }
+                        Decl::Fn(FnDecl { ident, .. }) => {
+                            self.export_names.push(ident.sym.to_string());
+                        }
+                        Decl::Var(var) => {
+                            for decl in &var.decls {
+                                if let Pat::Ident(ident) = &decl.name {
+                                    self.export_names.push(ident.id.sym.to_string());
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
+                    decl: _,
+                    ..
+                })) => {
+                    self.export_names.push("default".to_string());
+                }
+                ModuleItem::ModuleDecl(ModuleDecl::ExportAll(_)) => {
+                    self.export_names.push("*".to_string());
+                }
                 _ => {
                     finished_directives = true;
                 }
@@ -245,7 +292,11 @@ impl<C: Comments> ReactServerComponents<C> {
             Comment {
                 span: DUMMY_SP,
                 kind: CommentKind::Block,
-                text: " __next_internal_client_entry_do_not_use__ ".into(),
+                text: format!(
+                    " __next_internal_client_entry_do_not_use__ {} ",
+                    self.export_names.join(",")
+                )
+                .into(),
             },
         );
     }
@@ -471,6 +522,7 @@ pub fn server_components<C: Comments>(
         comments,
         filepath: filename.to_string(),
         app_dir,
+        export_names: vec![],
         invalid_server_imports: vec![
             JsWord::from("client-only"),
             JsWord::from("react-dom/client"),
