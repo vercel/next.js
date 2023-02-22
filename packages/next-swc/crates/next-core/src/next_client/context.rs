@@ -27,6 +27,7 @@ use turbopack_node::execution_context::ExecutionContextVc;
 
 use super::transforms::get_next_client_transforms_rules;
 use crate::{
+    babel::maybe_add_babel_loader,
     embed_js::attached_next_js_package_path,
     env::env_for_js,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
@@ -123,21 +124,28 @@ pub async fn get_client_module_options_context(
             .await?
             .is_found();
 
-    let options = &*next_config.webpack_loaders_options().await?;
-    let enable_webpack_loaders = WebpackLoadersOptions {
-        extension_to_loaders: options.clone(),
-        loader_runner_package: Some(get_external_next_compiled_package_mapping(StringVc::cell(
-            "loader-runner".to_owned(),
-        ))),
-        placeholder_for_future_extensions: (),
-    }
-    .clone_if();
+    let enable_webpack_loaders = {
+        let options = &*next_config.webpack_loaders_options().await?;
+        let loaders_options = WebpackLoadersOptions {
+            extension_to_loaders: options.clone(),
+            loader_runner_package: Some(get_external_next_compiled_package_mapping(
+                StringVc::cell("loader-runner".to_owned()),
+            )),
+            placeholder_for_future_extensions: (),
+        }
+        .cell();
+
+        maybe_add_babel_loader(project_path, loaders_options)
+            .await?
+            .clone_if()
+    };
 
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         ..Default::default()
     };
+
     let module_options_context = ModuleOptionsContext {
         // We don't need to resolve React Refresh for each module. Instead,
         // we try resolve it once at the root and pass down a context to all
