@@ -22,6 +22,7 @@ type RunnerFn = (params: {
   useCache: boolean
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'wasm' | 'assets'>
   distDir: string
+  incrementalCache?: any
 }) => Promise<FetchEventResult>
 
 /**
@@ -52,6 +53,7 @@ export const getRuntimeContext = async (params: {
   edgeFunctionEntry: any
   distDir: string
   paths: string[]
+  incrementalCache?: any
 }): Promise<EdgeRuntime<any>> => {
   const { runtime, evaluateInContext } = await getModuleContext({
     moduleName: params.name,
@@ -61,6 +63,7 @@ export const getRuntimeContext = async (params: {
     edgeFunctionEntry: params.edgeFunctionEntry,
     distDir: params.distDir,
   })
+  runtime.context.globalThis.__incrementalCache = params.incrementalCache
 
   for (const paramPath of params.paths) {
     evaluateInContext(paramPath)

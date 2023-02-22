@@ -1,7 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NextConfig } from '../config'
-import type { Route } from '../router'
+import { RouteDefinition } from '../future/route-definitions/route-definition'
+import { RouteKind } from '../future/route-kind'
+import { DefaultRouteMatcherManager } from '../future/route-matcher-managers/default-route-matcher-manager'
+import { RouteMatch } from '../future/route-matches/route-match'
+import type { PageChecker, Route } from '../router'
 
 type RouteResult =
   | {
@@ -13,6 +16,37 @@ type RouteResult =
   | {
       type: 'none'
     }
+
+class DevRouteMatcherManager extends DefaultRouteMatcherManager {
+  private hasPage: PageChecker
+
+  constructor(hasPage: PageChecker) {
+    super()
+    this.hasPage = hasPage
+  }
+
+  async match(
+    pathname: string
+  ): Promise<RouteMatch<RouteDefinition<RouteKind>> | null> {
+    if (await this.hasPage(pathname)) {
+      return {
+        definition: {
+          kind: RouteKind.PAGES,
+          page: '',
+          pathname,
+          filename: '',
+          bundlePath: '',
+        },
+        params: {},
+      }
+    }
+    return null
+  }
+
+  async test(pathname: string) {
+    return (await this.match(pathname)) !== null
+  }
+}
 
 export async function makeResolver(dir: string, nextConfig: NextConfig) {
   const url = require('url') as typeof import('url')
@@ -31,52 +65,56 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
   const devServer = new DevServer({
     dir,
     conf: nextConfig,
-  }) as any as {
-    customRoutes: UnwrapPromise<ReturnType<typeof loadCustomRoutes>>
-    router: InstanceType<typeof Router>
-    generateRoutes: any
-  }
+  })
+  await devServer.matchers.reload()
+
+  // @ts-expect-error
   devServer.customRoutes = await loadCustomRoutes(nextConfig)
+
+  const routeResults = new WeakMap<any, string>()
   const routes = devServer.generateRoutes.bind(devServer)()
-  devServer.router = new Router(routes)
-  const routeResults = new Map<string, string>()
 
-  // @ts-expect-error internal field
-  devServer.router.catchAllRoute = {
-    match: getPathMatch('/:path*'),
-    name: 'catchall route',
-    fn: async (req, _res, _params, parsedUrl) => {
-      // clean up internal query values
-      for (const key of Object.keys(parsedUrl.query || {})) {
-        if (key.startsWith('_next')) {
-          delete parsedUrl.query[key]
-        }
-      }
-
-      routeResults.set(
-        (req as any)._initUrl,
-        url.format({
-          pathname: parsedUrl.pathname,
-          query: parsedUrl.query,
-          hash: parsedUrl.hash,
-        })
-      )
-      return { finished: true }
-    },
-  } as Route
-
-  // @ts-expect-error internal field
-  devServer.router.compiledRoutes = devServer.router.compiledRoutes.filter(
-    (route: Route) => {
-      return (
-        route.type === 'rewrite' ||
-        route.type === 'redirect' ||
-        route.type === 'header' ||
-        route.name === 'catchall route' ||
-        route.name?.includes('check')
-      )
-    }
+  routes.matchers = new DevRouteMatcherManager(
+    // @ts-expect-error internal method
+    devServer.hasPage.bind(devServer)
   )
+
+  const router = new Router({
+    ...routes,
+    catchAllRoute: {
+      match: getPathMatch('/:path*'),
+      name: 'catchall route',
+      fn: async (req, _res, _params, parsedUrl) => {
+        // clean up internal query values
+        for (const key of Object.keys(parsedUrl.query || {})) {
+          if (key.startsWith('_next')) {
+            delete parsedUrl.query[key]
+          }
+        }
+
+        routeResults.set(
+          req,
+          url.format({
+            pathname: parsedUrl.pathname,
+            query: parsedUrl.query,
+            hash: parsedUrl.hash,
+          })
+        )
+        return { finished: true }
+      },
+    } as Route,
+  })
+
+  // @ts-expect-error internal field
+  router.compiledRoutes = router.compiledRoutes.filter((route: Route) => {
+    const matches =
+      route.type === 'rewrite' ||
+      route.type === 'redirect' ||
+      route.type === 'header' ||
+      route.name === 'catchall route' ||
+      route.name?.includes('check')
+    return matches
+  })
 
   return async function resolveRoute(
     _req: IncomingMessage,
@@ -86,15 +124,12 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
     const res = new NodeNextResponse(_res)
     ;(req as any)._initUrl = req.url
 
-    await devServer.router.execute.bind(devServer.router)(
-      req,
-      res,
-      url.parse(req.url!, true)
-    )
+    await router.execute.bind(router)(req, res, url.parse(req.url!, true))
 
     if (!res.originalResponse.headersSent) {
       res.setHeader('x-nextjs-route-result', '1')
-      const resolvedUrl = routeResults.get((req as any)._initUrl)
+      const resolvedUrl = routeResults.get(req)
+      routeResults.delete(req)
 
       const routeResult: RouteResult =
         resolvedUrl == null
@@ -105,7 +140,7 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
               type: 'rewrite',
               url: resolvedUrl,
               statusCode: 200,
-              headers: {},
+              headers: res.originalResponse.getHeaders(),
             }
 
       res.body(JSON.stringify(routeResult)).send()

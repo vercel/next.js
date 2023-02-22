@@ -8,6 +8,7 @@ createNextDescribe(
     skipDeployment: true,
     dependencies: {
       swr: '2.0.0-rc.0',
+      '@picocss/pico': '1.5.7',
       react: 'latest',
       'react-dom': 'latest',
       sass: 'latest',
@@ -41,6 +42,15 @@ createNextDescribe(
               `window.getComputedStyle(document.querySelector('#server-cssm')).color`
             )
           ).toBe('rgb(0, 128, 0)')
+        })
+
+        it('should support external css imports', async () => {
+          const browser = await next.browser('/css/css-external')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('main')).paddingTop`
+            )
+          ).toBe('80px')
         })
       })
 
