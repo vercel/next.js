@@ -16,8 +16,10 @@ export function patchFetch({
 
   const { DynamicServerError } = serverHooks
 
-  const originFetch = globalThis.fetch
-  globalThis.fetch = async (input, init) => {
+  const originFetch = fetch
+  // @ts-ignore
+  // eslint-disable-next-line no-native-reassign
+  fetch = async (input: RequestInfo | URL, init: RequestInit | undefined) => {
     const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
     // If the staticGenerationStore is not available, we can't do any special
@@ -75,8 +77,6 @@ export function patchFetch({
             cacheKey,
             {
               kind: 'FETCH',
-              isStale: false,
-              age: 0,
               data: {
                 headers: Object.fromEntries(clonedRes.headers.entries()),
                 body: base64Body,
