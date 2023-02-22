@@ -25,6 +25,8 @@ import {
 } from './future/route-matcher-managers/route-matcher-manager'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { LocaleRouteNormalizer } from './future/normalizers/locale-route-normalizer'
+import { getTracer } from './lib/trace/tracer'
+import { RouterSpan } from './lib/trace/constants'
 
 type RouteResult = {
   finished: boolean
@@ -231,7 +233,23 @@ export default class Router {
       // We only check the catch-all route if public page routes hasn't been
       // disabled
       ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
-    ]
+    ].map((route) => {
+      if (route.fn) {
+        return {
+          ...route,
+          fn: getTracer().wrap(
+            RouterSpan.executeRoute,
+            {
+              attributes: {
+                route: route.name,
+              },
+            },
+            route.fn
+          ),
+        }
+      }
+      return route
+    })
   }
 
   private async checkFsRoutes(

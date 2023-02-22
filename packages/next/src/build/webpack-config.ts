@@ -913,6 +913,11 @@ export default async function getBaseWebpackConfig(
 
   const reactDir = path.dirname(require.resolve('react/package.json'))
   const reactDomDir = path.dirname(require.resolve('react-dom/package.json'))
+  let hasOptionalOTELAPIPackage = false
+  try {
+    require('@opentelemetry/api')
+    hasOptionalOTELAPIPackage = true
+  } catch {}
 
   const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
@@ -955,6 +960,9 @@ export default async function getBaseWebpackConfig(
               'next/dist/client/components/navigation',
             [require.resolve('next/dist/client/components/headers')]:
               'next/dist/client/components/headers',
+            '@opentelemetry/api': hasOptionalOTELAPIPackage
+              ? '@opentelemetry/api'
+              : 'next/dist/compiled/@opentelemetry/api',
           }
         : undefined),
 
@@ -1101,7 +1109,6 @@ export default async function getBaseWebpackConfig(
       // Returning from the function in case the directory has already been added and traversed
       if (topLevelFrameworkPaths.includes(directory)) return
       topLevelFrameworkPaths.push(directory)
-
       const dependencies = require(packageJsonPath).dependencies || {}
       for (const name of Object.keys(dependencies)) {
         addPackagePath(name, directory)

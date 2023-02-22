@@ -92,6 +92,8 @@ import { AppRouteRouteMatcherProvider } from './future/route-matcher-providers/a
 import { PagesAPIRouteMatcherProvider } from './future/route-matcher-providers/pages-api-route-matcher-provider'
 import { PagesRouteMatcherProvider } from './future/route-matcher-providers/pages-route-matcher-provider'
 import { ServerManifestLoader } from './future/route-matcher-providers/helpers/manifest-loaders/server-manifest-loader'
+import { getTracer } from './lib/trace/tracer'
+import { BaseServerSpan } from './lib/trace/constants'
 import { sendResponse } from './future/route-handlers/app-route-route-handler'
 
 export type FindComponentsResult = {
@@ -510,7 +512,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     console.error(err)
   }
 
-  private async handleRequest(
+  public async handleRequest(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl?: NextUrlWithParsedQuery
+  ): Promise<void> {
+    return getTracer().trace(
+      BaseServerSpan.handleRequest,
+      async () => await this.handleRequestImpl(req, res, parsedUrl)
+    )
+  }
+
+  private async handleRequestImpl(
     req: BaseNextRequest,
     res: BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
@@ -894,6 +907,16 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res: BaseNextResponse,
     parsedUrl: UrlWithParsedQuery
   ): Promise<void> {
+    return getTracer().trace(BaseServerSpan.run, async () =>
+      this.runImpl(req, res, parsedUrl)
+    )
+  }
+
+  private async runImpl(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    parsedUrl: UrlWithParsedQuery
+  ): Promise<void> {
     this.handleCompression(req, res)
 
     // set incremental cache to request meta so it can
@@ -926,6 +949,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async pipe(
+    fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
+    partialContext: {
+      req: BaseNextRequest
+      res: BaseNextResponse
+      pathname: string
+      query: NextParsedUrlQuery
+    }
+  ): Promise<void> {
+    return getTracer().trace(BaseServerSpan.pipe, async () =>
+      this.pipeImpl(fn, partialContext)
+    )
+  }
+
+  private async pipeImpl(
     fn: (ctx: RequestContext) => Promise<ResponsePayload | null>,
     partialContext: {
       req: BaseNextRequest
@@ -988,6 +1025,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   public async render(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery = {},
+    parsedUrl?: NextUrlWithParsedQuery,
+    internalRender = false
+  ): Promise<void> {
+    return getTracer().trace(BaseServerSpan.render, async () =>
+      this.renderImpl(req, res, pathname, query, parsedUrl, internalRender)
+    )
+  }
+
+  private async renderImpl(
     req: BaseNextRequest,
     res: BaseNextResponse,
     pathname: string,
@@ -1071,6 +1121,20 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   private async renderToResponseWithComponents(
+    requestContext: RequestContext,
+    findComponentsResult: FindComponentsResult
+  ): Promise<ResponsePayload | null> {
+    return getTracer().trace(
+      BaseServerSpan.renderToResponseWithComponents,
+      async () =>
+        this.renderToResponseWithComponentsImpl(
+          requestContext,
+          findComponentsResult
+        )
+    )
+  }
+
+  private async renderToResponseWithComponentsImpl(
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
@@ -1850,6 +1914,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   private async renderToResponse(
     ctx: RequestContext
   ): Promise<ResponsePayload | null> {
+    return getTracer().trace(BaseServerSpan.renderToResponse, async () => {
+      return this.renderToResponseImpl(ctx)
+    })
+  }
+
+  private async renderToResponseImpl(
+    ctx: RequestContext
+  ): Promise<ResponsePayload | null> {
     const { res, query, pathname } = ctx
     let page = pathname
     const bubbleNoFallback = !!query._nextBubbleNoFallback
@@ -1971,6 +2043,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
+    return getTracer().trace(BaseServerSpan.renderToHTML, async () => {
+      return this.renderToHTMLImpl(req, res, pathname, query)
+    })
+  }
+
+  private async renderToHTMLImpl(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: ParsedUrlQuery = {}
+  ): Promise<string | null> {
     return this.getStaticHTML((ctx) => this.renderToResponse(ctx), {
       req,
       res,
@@ -1980,6 +2063,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   }
 
   public async renderError(
+    err: Error | null,
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery = {},
+    setHeaders = true
+  ): Promise<void> {
+    return getTracer().trace(BaseServerSpan.renderError, async () => {
+      return this.renderErrorImpl(err, req, res, pathname, query, setHeaders)
+    })
+  }
+
+  private async renderErrorImpl(
     err: Error | null,
     req: BaseNextRequest,
     res: BaseNextResponse,
@@ -2013,6 +2109,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   })
 
   private async renderErrorToResponse(
+    ctx: RequestContext,
+    err: Error | null
+  ): Promise<ResponsePayload | null> {
+    return getTracer().trace(BaseServerSpan.renderErrorToResponse, async () => {
+      return this.renderErrorToResponseImpl(ctx, err)
+    })
+  }
+
+  private async renderErrorToResponseImpl(
     ctx: RequestContext,
     err: Error | null
   ): Promise<ResponsePayload | null> {
