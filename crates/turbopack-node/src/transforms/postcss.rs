@@ -196,6 +196,7 @@ impl PostCssTransformedAssetVc {
         let ExecutionContext {
             project_root,
             intermediate_output_path,
+            env,
         } = *this.execution_context.await?;
         let source_content = this.source.content();
         let AssetContent::File(file) = *source_content.await? else {
@@ -220,6 +221,7 @@ impl PostCssTransformedAssetVc {
             project_root,
             postcss_executor,
             project_root,
+            env,
             this.source.path(),
             context,
             intermediate_output_path,

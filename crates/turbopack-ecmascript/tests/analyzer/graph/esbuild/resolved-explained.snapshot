@@ -12,49 +12,43 @@
 args = ???*0*
 - *0* max number of linking steps reached
 
-binPath = (???*0* | ???*1* | ???*10*)
+binPath = (???*0* | ???*1* | ???*8*)
 - *0* binPath
   ⚠️  pattern without value
 - *1* require.resolve*2*(
-        `${(???*3* | ???*4* | ???*5* | ???*6* | "esbuild-linux-64")}/${(???*7* | ???*8* | "esbuild.exe" | "bin/esbuild" | ???*9*)}`
+        `${(undefined["pkg"] | ???*3* | ???*4* | ???*5* | "esbuild-linux-64")}/${(undefined["subpath"] | ???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)}`
     )
   ⚠️  resolve.resolve non constant
 - *2* require.resolve: The require.resolve method from CommonJS
-- *3* undefined["pkg"]
-  ⚠️  nested operation
-- *4* pkg
+- *3* pkg
   ⚠️  pattern without value
-- *5* FreeVar(undefined)
+- *4* FreeVar(undefined)
   ⚠️  unknown global
-- *6* unknown mutation
-- *7* undefined["subpath"]
-  ⚠️  nested operation
-- *8* subpath
+- *5* unknown mutation
+- *6* subpath
   ⚠️  pattern without value
-- *9* unknown mutation
-- *10* ???*11*(pkg, subpath)
+- *7* unknown mutation
+- *8* ???*9*(pkg, subpath)
   ⚠️  unknown callee
-- *11* FreeVar(downloadedBinPath)
+- *9* FreeVar(downloadedBinPath)
   ⚠️  unknown global
 
-binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(???*0* | ???*1* | ???*2* | ???*3* | "esbuild-linux-64")}-${???*4*}`
-- *0* undefined["pkg"]
-  ⚠️  nested operation
-- *1* pkg
+binTargetPath = `"esbuild"/resolved/lib${("/" | "")}pnpapi-${(undefined["pkg"] | ???*0* | ???*1* | ???*2* | "esbuild-linux-64")}-${???*3*}`
+- *0* pkg
   ⚠️  pattern without value
-- *2* FreeVar(undefined)
+- *1* FreeVar(undefined)
   ⚠️  unknown global
-- *3* unknown mutation
-- *4* ???*5*(
-        (undefined["subpath"] | ???*7* | "esbuild.exe" | "bin/esbuild" | ???*8*)
+- *2* unknown mutation
+- *3* ???*4*(
+        (undefined["subpath"] | ???*6* | "esbuild.exe" | "bin/esbuild" | ???*7*)
     )
   ⚠️  unknown callee
-- *5* path*6*["basename"]
+- *4* path*5*["basename"]
   ⚠️  unsupported property on Node.js path module
-- *6* path: The Node.js path module: https://nodejs.org/api/path.html
-- *7* subpath
+- *5* path: The Node.js path module: https://nodejs.org/api/path.html
+- *6* subpath
   ⚠️  pattern without value
-- *8* unknown mutation
+- *7* unknown mutation
 
 command = ???*0*
 - *0* max number of linking steps reached

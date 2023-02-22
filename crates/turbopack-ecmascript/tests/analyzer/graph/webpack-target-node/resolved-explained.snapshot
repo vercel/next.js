@@ -33,11 +33,7 @@ exports = {}
 
 handler = (...) => undefined
 
-hello = ???*0*
-- *0* ???*1*("./hello.txt", "utf-8")
-  ⚠️  unknown callee
-- *1* module<fs/promises, {}>["readFile"]
-  ⚠️  nested operation
+hello = module<fs/promises, {}>["readFile"]("./hello.txt", "utf-8")
 
 moduleId = ???*0*
 - *0* moduleId

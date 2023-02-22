@@ -14,21 +14,13 @@
 
 *anonymous function 5685* = (...) => (undefined | digestbytes | bin["bytesToString"](digestbytes) | crypt["bytesToHex"](digestbytes))
 
-FF = (...) => (undefined | ???*0*)["_ff"]
-- *0* crypt["endian"]([a, b, c, d])
-  ⚠️  nested operation
+FF = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ff"]
 
-GG = (...) => (undefined | ???*0*)["_gg"]
-- *0* crypt["endian"]([a, b, c, d])
-  ⚠️  nested operation
+GG = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_gg"]
 
-HH = (...) => (undefined | ???*0*)["_hh"]
-- *0* crypt["endian"]([a, b, c, d])
-  ⚠️  nested operation
+HH = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_hh"]
 
-II = (...) => (undefined | ???*0*)["_ii"]
-- *0* crypt["endian"]([a, b, c, d])
-  ⚠️  nested operation
+II = (...) => (undefined | crypt["endian"]([a, b, c, d]))["_ii"]
 
 a#3 = ???*0*
 - *0* max number of linking steps reached
@@ -132,69 +124,61 @@ isBuffer = module<is-buffer, {}>
 l = ???*0*
 - *0* unsupported expression
 
-m = ???*0*
-- *0* ???*1*((???*2* | ???*3* | ???*7* | ???*11*))
-  ⚠️  unknown callee
-- *1* module<crypt, {}>["bytesToWords"]
-  ⚠️  nested operation
-- *2* arguments[0]
+m = module<crypt, {}>["bytesToWords"]((???*0* | ???*1* | ???*3*))
+- *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *3* ???*4*(???*6*)
-  ⚠️  unknown callee
-- *4* ???*5*["stringToBytes"]
-  ⚠️  unknown object
-- *5* module<charenc, {}>["bin"]
+- *1* module<charenc, {}>["bin"]["stringToBytes"](???*2*)
   ⚠️  nested operation
-- *6* message
+- *2* message
   ⚠️  circular variable reference
-- *7* ???*8*["call"](message, 0)
+- *3* ???*4*["call"](message, 0)
   ⚠️  unknown callee object
-- *8* ???*9*["slice"]
+- *4* ???*5*["slice"]
   ⚠️  unknown object
-- *9* ???*10*["prototype"]
+- *5* ???*6*["prototype"]
   ⚠️  unknown object
-- *10* FreeVar(Array)
+- *6* FreeVar(Array)
   ⚠️  unknown global
-- *11* ???*12*()
-  ⚠️  nested operation
-- *12* ???*13*["toString"]
-  ⚠️  unknown object
-- *13* message
-  ⚠️  circular variable reference
 
 md5 = (...) => (undefined | crypt["endian"]([a, b, c, d]))
 
-message#3 = (???*0* | ???*1* | ???*15* | ???*19*())
+message#3 = (
+  | ???*0*
+  | module<charenc, {}>["bin"]["stringToBytes"]((???*1* | ???*2* | ???*4*))
+  | module<charenc, {}>["utf8"]["stringToBytes"]((???*8* | ???*9* | ???*11*))
+  | ???*15*
+  | ???*19*()
+)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* ???*2*((???*4* | ???*5* | ???*9* | ???*13*()))
-  ⚠️  unknown callee
-- *2* ???*3*["stringToBytes"]
-  ⚠️  unknown object
-- *3* module<charenc, {}>["bin"]
-  ⚠️  nested operation
-- *4* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *5* ???*6*(???*8*)
-  ⚠️  unknown callee
-- *6* ???*7*["stringToBytes"]
-  ⚠️  unknown object
-- *7* module<charenc, {}>["bin"]
+- *2* module<charenc, {}>["bin"]["stringToBytes"](???*3*)
   ⚠️  nested operation
-- *8* message
+- *3* message
   ⚠️  circular variable reference
-- *9* ???*10*["call"](message, 0)
+- *4* ???*5*["call"](message, 0)
   ⚠️  unknown callee object
-- *10* ???*11*["slice"]
+- *5* ???*6*["slice"]
   ⚠️  unknown object
-- *11* ???*12*["prototype"]
+- *6* ???*7*["prototype"]
   ⚠️  unknown object
-- *12* FreeVar(Array)
+- *7* FreeVar(Array)
   ⚠️  unknown global
-- *13* ???*14*["toString"]
-  ⚠️  unknown object
-- *14* message
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* module<charenc, {}>["bin"]["stringToBytes"](???*10*)
+  ⚠️  nested operation
+- *10* message
   ⚠️  circular variable reference
+- *11* ???*12*["call"](message, 0)
+  ⚠️  unknown callee object
+- *12* ???*13*["slice"]
+  ⚠️  unknown object
+- *13* ???*14*["prototype"]
+  ⚠️  unknown object
+- *14* FreeVar(Array)
+  ⚠️  unknown global
 - *15* ???*16*["call"](message, 0)
   ⚠️  unknown callee object
 - *16* ???*17*["slice"]

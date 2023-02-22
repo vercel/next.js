@@ -34,12 +34,11 @@ pub async fn replace_well_known(
             }
             (JsValue::Call(usize, callee, args), false)
         }
-        JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => (
-            well_known_object_member(kind, prop, compile_time_info).await?,
-            true,
-        ),
+        JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => {
+            well_known_object_member(kind, prop, compile_time_info).await?
+        }
         JsValue::Member(_, box JsValue::WellKnownFunction(kind), box prop) => {
-            (well_known_function_member(kind, prop), true)
+            well_known_function_member(kind, prop)
         }
         _ => (value, false),
     })
@@ -373,8 +372,8 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     }
 }
 
-pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> JsValue {
-    match (&kind, prop.as_str()) {
+pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> (JsValue, bool) {
+    let new_value = match (&kind, prop.as_str()) {
         (WellKnownFunctionKind::Require, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
@@ -387,22 +386,23 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
         (WellKnownFunctionKind::NodeResolveFrom, Some("silent")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
         }
-        _ => JsValue::Unknown(
-            Some(Arc::new(JsValue::member(
-                box JsValue::WellKnownFunction(kind),
-                box prop,
-            ))),
-            "unsupported property on function",
-        ),
-    }
+        #[allow(unreachable_patterns)]
+        _ => {
+            return (
+                JsValue::member(box JsValue::WellKnownFunction(kind), box prop),
+                false,
+            )
+        }
+    };
+    (new_value, true)
 }
 
 pub async fn well_known_object_member(
     kind: WellKnownObjectKind,
     prop: JsValue,
     compile_time_info: CompileTimeInfoVc,
-) -> Result<JsValue> {
-    Ok(match kind {
+) -> Result<(JsValue, bool)> {
+    let new_value = match kind {
         WellKnownObjectKind::GlobalObject => global_object(prop),
         WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => {
             path_module_member(kind, prop)
@@ -424,14 +424,14 @@ pub async fn well_known_object_member(
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
         #[allow(unreachable_patterns)]
-        _ => JsValue::Unknown(
-            Some(Arc::new(JsValue::member(
-                box JsValue::WellKnownObject(kind),
-                box prop,
-            ))),
-            "unsupported object kind",
-        ),
-    })
+        _ => {
+            return Ok((
+                JsValue::member(box JsValue::WellKnownObject(kind), box prop),
+                false,
+            ))
+        }
+    };
+    Ok((new_value, true))
 }
 
 fn global_object(prop: JsValue) -> JsValue {
@@ -576,6 +576,7 @@ async fn node_process_member(
             .as_str()
             .into(),
         Some("cwd") => JsValue::WellKnownFunction(WellKnownFunctionKind::ProcessCwd),
+        Some("env") => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessEnv),
         _ => JsValue::Unknown(
             Some(Arc::new(JsValue::member(
                 box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),

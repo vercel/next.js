@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cmp::Ordering,
     fmt::Display,
     future::Future,
@@ -18,6 +19,7 @@ use swc_core::{
         atoms::{Atom, JsWord},
     },
 };
+use turbopack_core::compile_time_info::CompileTimeDefineValue;
 use url::Url;
 
 use self::imports::ImportAnnotations;
@@ -482,6 +484,15 @@ impl From<ConstantValue> for JsValue {
     }
 }
 
+impl From<&CompileTimeDefineValue> for JsValue {
+    fn from(v: &CompileTimeDefineValue) -> Self {
+        match v {
+            CompileTimeDefineValue::String(s) => JsValue::Constant(s.as_str().into()),
+            CompileTimeDefineValue::Bool(b) => JsValue::Constant((*b).into()),
+        }
+    }
+}
+
 impl Default for JsValue {
     fn default() -> Self {
         JsValue::Unknown(None, "")
@@ -655,15 +666,15 @@ impl JsValue {
             JsValue::Array { .. }
             | JsValue::Object { .. }
             | JsValue::Alternatives(..)
-            | JsValue::Function(..) => JsValueMetaKind::Nested,
+            | JsValue::Function(..)
+            | JsValue::Member(..) => JsValueMetaKind::Nested,
             JsValue::Concat(..)
             | JsValue::Add(..)
             | JsValue::Not(..)
             | JsValue::Logical(..)
             | JsValue::Binary(..)
             | JsValue::Call(..)
-            | JsValue::MemberCall(..)
-            | JsValue::Member(..) => JsValueMetaKind::Operation,
+            | JsValue::MemberCall(..) => JsValueMetaKind::Operation,
             JsValue::Variable(..)
             | JsValue::Argument(..)
             | JsValue::FreeVar(..)
@@ -1296,6 +1307,10 @@ impl JsValue {
                         "process",
                         "The Node.js process module: https://nodejs.org/api/process.html",
                     ),
+                    WellKnownObjectKind::NodeProcessEnv => (
+                        "process.env",
+                        "The Node.js process.env property: https://nodejs.org/api/process.html#processenv",
+                    ),
                     WellKnownObjectKind::NodePreGyp => (
                         "@mapbox/node-pre-gyp",
                         "The Node.js @mapbox/node-pre-gyp module: https://github.com/mapbox/node-pre-gyp",
@@ -1474,6 +1489,77 @@ impl JsValue {
 
     pub fn add_unknown_mutations(&mut self) {
         self.add_alt(JsValue::Unknown(None, "unknown mutation"));
+    }
+}
+
+// Defineable name management
+impl JsValue {
+    pub fn get_defineable_name_len(&self) -> Option<usize> {
+        match self {
+            JsValue::FreeVar(_) => Some(1),
+            JsValue::Member(_, obj, prop) if prop.as_str().is_some() => {
+                Some(obj.get_defineable_name_len()? + 1)
+            }
+            JsValue::WellKnownObject(obj) => obj.as_define_name().map(|d| d.len()),
+            JsValue::WellKnownFunction(func) => func.as_define_name().map(|d| d.len()),
+            JsValue::MemberCall(_, callee, prop, args)
+                if args.is_empty() && prop.as_str().is_some() =>
+            {
+                Some(callee.get_defineable_name_len()? + 1)
+            }
+
+            _ => None,
+        }
+    }
+
+    pub fn iter_defineable_name_rev(&self) -> DefineableNameIter<'_> {
+        DefineableNameIter {
+            next: Some(self),
+            index: 0,
+        }
+    }
+}
+
+pub struct DefineableNameIter<'a> {
+    next: Option<&'a JsValue>,
+    index: usize,
+}
+
+impl<'a> Iterator for DefineableNameIter<'a> {
+    type Item = Cow<'a, str>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let value = self.next.take()?;
+        Some(match value {
+            JsValue::FreeVar(kind) => kind.as_str().into(),
+            JsValue::Member(_, obj, prop) => {
+                self.next = Some(obj);
+                prop.as_str()?.into()
+            }
+            JsValue::WellKnownObject(obj) => {
+                let name = obj.as_define_name()?;
+                let i = self.index;
+                self.index += 1;
+                if self.index < name.len() {
+                    self.next = Some(value);
+                }
+                name[name.len() - i - 1].into()
+            }
+            JsValue::WellKnownFunction(func) => {
+                let name = func.as_define_name()?;
+                let i = self.index;
+                self.index += 1;
+                if self.index < name.len() {
+                    self.next = Some(value);
+                }
+                name[name.len() - i - 1].into()
+            }
+            JsValue::MemberCall(_, callee, prop, args) if args.is_empty() => {
+                self.next = Some(callee);
+                format!("{}()", prop.as_str()?).into()
+            }
+            _ => return None,
+        })
     }
 }
 
@@ -2784,10 +2870,28 @@ pub enum WellKnownObjectKind {
     OsModule,
     OsModuleDefault,
     NodeProcess,
+    NodeProcessEnv,
     NodePreGyp,
     NodeExpressApp,
     NodeProtobufLoader,
     RequireCache,
+}
+
+impl WellKnownObjectKind {
+    pub fn as_define_name(&self) -> Option<&[&str]> {
+        match self {
+            Self::GlobalObject => Some(&["global"]),
+            Self::PathModule => Some(&["path"]),
+            Self::FsModule => Some(&["fs"]),
+            Self::UrlModule => Some(&["url"]),
+            Self::ChildProcess => Some(&["child_process"]),
+            Self::OsModule => Some(&["os"]),
+            Self::NodeProcess => Some(&["process"]),
+            Self::NodeProcessEnv => Some(&["process", "env"]),
+            Self::RequireCache => Some(&["require", "cache"]),
+            _ => None,
+        }
+    }
 }
 
 /// A list of well-known functions that have special meaning in the analysis.
@@ -2819,6 +2923,18 @@ pub enum WellKnownFunctionKind {
     NodeStrongGlobalizeSetRootDir,
     NodeResolveFrom,
     NodeProtobufLoad,
+}
+
+impl WellKnownFunctionKind {
+    pub fn as_define_name(&self) -> Option<&[&str]> {
+        match self {
+            Self::Import => Some(&["import"]),
+            Self::Require => Some(&["require"]),
+            Self::RequireResolve => Some(&["require", "resolve"]),
+            Self::Define => Some(&["define"]),
+            _ => None,
+        }
+    }
 }
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
@@ -2906,7 +3022,7 @@ mod tests {
     };
     use turbo_tasks::{util::FormatDuration, Value};
     use turbopack_core::{
-        compile_time_info::CompileTimeInfo,
+        compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo},
         environment::{
             EnvironmentIntention, EnvironmentVc, ExecutionEnvironment, NodeJsEnvironment,
         },
@@ -3186,6 +3302,7 @@ mod tests {
                     )),
                     Value::new(EnvironmentIntention::ServerRendering),
                 ),
+                defines: CompileTimeDefinesVc::empty(),
             }
             .cell();
             link(

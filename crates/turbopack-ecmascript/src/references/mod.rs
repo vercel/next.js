@@ -10,6 +10,7 @@ pub mod unreachable;
 pub mod util;
 
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, HashMap},
     future::Future,
     mem::take,
@@ -93,7 +94,7 @@ use crate::{
         builtin::early_replace_builtin,
         graph::{ConditionalKind, EffectArg, EvalContext},
         imports::Reexport,
-        ConstantValue, ModuleValue,
+        ModuleValue,
     },
     chunk::{EcmascriptExports, EcmascriptExportsVc},
     code_gen::{CodeGenerateableVc, CodeGenerateablesVc},
@@ -1595,6 +1596,20 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: CompileTimeInfoVc,
 ) -> Result<(JsValue, bool)> {
+    if let Some(def_name_len) = v.get_defineable_name_len() {
+        let compile_time_info = compile_time_info.await?;
+        let defines = compile_time_info.defines.await?;
+        for (name, value) in defines.iter() {
+            if name.len() != def_name_len {
+                continue;
+            }
+            if v.iter_defineable_name_rev()
+                .eq(name.iter().map(Cow::Borrowed).rev())
+            {
+                return Ok((value.into(), true));
+            }
+        }
+    }
     let value = match v {
         JsValue::Call(
             _,
@@ -1650,7 +1665,7 @@ async fn value_visitor_inner(
             FreeVarKind::Import => JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
             FreeVarKind::NodeProcess => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
             FreeVarKind::Object => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
-            _ => JsValue::Unknown(Some(Arc::new(v)), "unknown global"),
+            _ => return Ok((v, false)),
         },
         JsValue::Module(ModuleValue {
             module: ref name, ..
@@ -1697,11 +1712,6 @@ async fn value_visitor_inner(
             Some(Arc::new(v)),
             "cross function analyzing is not yet supported",
         ),
-        JsValue::Member(
-            _,
-            box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
-            box JsValue::Constant(value),
-        ) if value.as_str() == Some("turbopack") => JsValue::Constant(ConstantValue::True),
         _ => {
             let (mut v, mut modified) = replace_well_known(v, compile_time_info).await?;
             modified = replace_builtin(&mut v) || modified;

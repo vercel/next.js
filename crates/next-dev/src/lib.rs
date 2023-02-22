@@ -299,7 +299,7 @@ async fn source(
     let env = load_env(project_path);
     let build_output_root = output_fs.root().join(".next/build");
 
-    let execution_context = ExecutionContextVc::new(project_path, build_output_root);
+    let execution_context = ExecutionContextVc::new(project_path, build_output_root, env);
 
     let next_config = load_next_config(execution_context.join("next_config"));
 

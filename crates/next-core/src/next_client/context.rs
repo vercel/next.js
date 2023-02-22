@@ -16,7 +16,8 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{dev::DevChunkingContextVc, ChunkingContextVc},
-    compile_time_info::{CompileTimeInfo, CompileTimeInfoVc},
+    compile_time_defines,
+    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
     context::AssetContextVc,
     environment::{BrowserEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment},
     resolve::{parse::RequestVc, pattern::Pattern},
@@ -39,6 +40,14 @@ use crate::{
     util::foreign_code_context_condition,
 };
 
+pub fn next_client_defines() -> CompileTimeDefinesVc {
+    compile_time_defines!(
+        process.turbopack = true,
+        process.env.NODE_ENV = "development"
+    )
+    .cell()
+}
+
 #[turbo_tasks::function]
 pub fn get_client_compile_time_info(browserslist_query: &str) -> CompileTimeInfoVc {
     CompileTimeInfo {
@@ -54,6 +63,7 @@ pub fn get_client_compile_time_info(browserslist_query: &str) -> CompileTimeInfo
             )),
             Value::new(EnvironmentIntention::Client),
         ),
+        defines: next_client_defines(),
     }
     .cell()
 }

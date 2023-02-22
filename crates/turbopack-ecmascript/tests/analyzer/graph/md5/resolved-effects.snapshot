@@ -39,19 +39,15 @@
 0 -> 18 member call = "0123456789abcdef"["charAt"](???*0*)
 - *0* unsupported expression
 
-0 -> 19 call = ???*0*((???*1* + ???*4*), 16)
+0 -> 19 call = ???*0*((???*1* + ???*3*), 16)
 - *0* FreeVar(parseInt)
   ⚠️  unknown global
-- *1* ???*2*(???*3*)
-  ⚠️  unknown callee
-- *2* "0123456789abcdef"["charAt"]
+- *1* "0123456789abcdef"["charAt"](???*2*)
   ⚠️  nested operation
-- *3* unsupported expression
-- *4* ???*5*(???*6*)
-  ⚠️  unknown callee
-- *5* "0123456789abcdef"["charAt"]
+- *2* unsupported expression
+- *3* "0123456789abcdef"["charAt"](???*4*)
   ⚠️  nested operation
-- *6* unsupported expression
+- *4* unsupported expression
 
 0 -> 21 member call = []["push"]((???*0* | ???*1*))
 - *0* hex
