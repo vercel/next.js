@@ -304,15 +304,6 @@ async fn create_page_source_for_file(
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {
-    let entry_asset = server_context.process(
-        page_asset,
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
-    );
-    let data_asset = server_data_context.process(
-        page_asset,
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
-    );
-
     let server_chunking_context = DevChunkingContextVc::builder(
         project_path,
         intermediate_output_path,
@@ -349,14 +340,7 @@ async fn create_page_source_for_file(
     let pathname = pathname_for_path(server_root, server_path, true);
     let route_matcher = NextParamsMatcherVc::new(pathname);
 
-    let page_config = parse_config_from_source(entry_asset);
-
     Ok(if is_api_path {
-        let ty = if page_config.await?.runtime == NextRuntime::Edge {
-            SsrType::EdgeApi
-        } else {
-            SsrType::Api
-        };
         create_node_api_source(
             project_path,
             specificity,
@@ -365,8 +349,8 @@ async fn create_page_source_for_file(
             route_matcher.into(),
             SsrEntry {
                 context: server_context,
-                entry_asset,
-                ty,
+                entry_asset: page_asset,
+                ty: SsrType::AutoApi,
                 chunking_context: server_chunking_context,
                 intermediate_output_path,
                 output_root,
@@ -381,7 +365,7 @@ async fn create_page_source_for_file(
 
         let ssr_entry = SsrEntry {
             context: server_context,
-            entry_asset,
+            entry_asset: page_asset,
             ty: SsrType::Html,
             chunking_context: server_chunking_context,
             intermediate_output_path,
@@ -392,7 +376,7 @@ async fn create_page_source_for_file(
 
         let ssr_data_entry = SsrEntry {
             context: server_data_context,
-            entry_asset: data_asset,
+            entry_asset: page_asset,
             ty: SsrType::Data,
             chunking_context: server_data_chunking_context,
             intermediate_output_path: data_intermediate_output_path,
@@ -426,7 +410,7 @@ async fn create_page_source_for_file(
                 server_root,
                 client_context,
                 client_chunking_context,
-                entry_asset,
+                page_asset,
                 pathname,
             ),
         ])
@@ -635,6 +619,7 @@ async fn create_page_source_for_directory(
 enum SsrType {
     Api,
     EdgeApi,
+    AutoApi,
     Html,
     Data,
 }
@@ -655,7 +640,22 @@ impl SsrEntryVc {
     #[turbo_tasks::function]
     async fn entry(self) -> Result<NodeRenderingEntryVc> {
         let this = self.await?;
-        let virtual_asset = match this.ty {
+        let ty = if this.ty == SsrType::AutoApi {
+            let entry_asset = this.context.process(
+                this.entry_asset,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+            );
+            let page_config = parse_config_from_source(entry_asset);
+            if page_config.await?.runtime == NextRuntime::Edge {
+                SsrType::EdgeApi
+            } else {
+                SsrType::Api
+            }
+        } else {
+            this.ty
+        };
+        let virtual_asset = match ty {
+            SsrType::AutoApi => unreachable!(),
             SsrType::Api => VirtualAssetVc::new(
                 this.entry_asset.path().join("server-api.tsx"),
                 next_js_file("entry/server-api.tsx").into(),
