@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::IndexSet;
-use turbo_tasks::{primitives::StringVc, Value};
+use turbo_tasks::{primitives::StringVc, CompletionVc, Value};
 use turbopack_core::{
     environment::ServerAddrVc,
     introspect::{Introspectable, IntrospectableChildrenVc, IntrospectableVc},
@@ -23,6 +23,7 @@ pub struct NextRouterContentSource {
     execution_context: ExecutionContextVc,
     next_config: NextConfigVc,
     server_addr: ServerAddrVc,
+    routes_changed: CompletionVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -33,12 +34,14 @@ impl NextRouterContentSourceVc {
         execution_context: ExecutionContextVc,
         next_config: NextConfigVc,
         server_addr: ServerAddrVc,
+        routes_changed: CompletionVc,
     ) -> NextRouterContentSourceVc {
         NextRouterContentSource {
             inner,
             execution_context,
             next_config,
             server_addr,
+            routes_changed,
         }
         .cell()
     }
@@ -93,6 +96,7 @@ impl ContentSource for NextRouterContentSource {
             request,
             this.next_config,
             this.server_addr,
+            this.routes_changed,
         );
         let Ok(res) = res.await else {
             return Ok(this

@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use turbo_tasks::{primitives::JsonValueVc, trace::TraceRawVcs, Value};
+use turbo_tasks::{primitives::JsonValueVc, trace::TraceRawVcs, CompletionVc, Value};
 use turbo_tasks_fs::{
     json::parse_json_rope_with_source_context, File, FileContent, FileSystemPathVc,
 };
@@ -170,6 +170,7 @@ impl WebpackLoadersProcessedAssetVc {
                 JsonValueVc::cell(resource_path.into()),
                 JsonValueVc::cell(json!(*loaders)),
             ],
+            CompletionVc::immutable(),
             /* debug */ false,
         )
         .await?;

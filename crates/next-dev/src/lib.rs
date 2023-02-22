@@ -19,17 +19,18 @@ use anyhow::{anyhow, Context, Result};
 use devserver_options::DevServerOptions;
 use dunce::canonicalize;
 use next_core::{
-    create_app_source, create_page_source, create_web_entry_source, env::load_env,
-    manifest::DevManifestContentSource, next_config::load_next_config,
-    next_image::NextImageContentSourceVc, router_source::NextRouterContentSourceVc,
+    app_structure::find_app_structure, create_app_source, create_page_source,
+    create_web_entry_source, env::load_env, manifest::DevManifestContentSource,
+    next_config::load_next_config, next_image::NextImageContentSourceVc,
+    pages_structure::find_pages_structure, router_source::NextRouterContentSourceVc,
     source_map::NextSourceMapTraceContentSourceVc,
 };
 use owo_colors::OwoColorize;
 use turbo_malloc::TurboMalloc;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
-    CollectiblesSource, RawVc, StatsType, TransientInstance, TransientValue, TurboTasks,
-    TurboTasksBackendApi, Value,
+    CollectiblesSource, CompletionsVc, RawVc, StatsType, TransientInstance, TransientValue,
+    TurboTasks, TurboTasksBackendApi, Value,
 };
 use turbo_tasks_fs::{DiskFileSystemVc, FileSystem, FileSystemVc};
 use turbo_tasks_memory::MemoryBackend;
@@ -327,7 +328,9 @@ async fn source(
         &browserslist_query,
         next_config,
     );
+    let pages_structure = find_pages_structure(project_path, dev_server_root, next_config);
     let page_source = create_page_source(
+        pages_structure,
         project_path,
         execution_context,
         output_root.join("pages"),
@@ -337,7 +340,9 @@ async fn source(
         next_config,
         server_addr,
     );
+    let app_structure = find_app_structure(project_path, dev_server_root, next_config);
     let app_source = create_app_source(
+        app_structure,
         project_path,
         execution_context,
         output_root.join("app"),
@@ -379,9 +384,18 @@ async fn source(
         CombinedContentSourceVc::new(vec![static_source, page_source]).into(),
     )
     .into();
-    let router_source =
-        NextRouterContentSourceVc::new(main_source, execution_context, next_config, server_addr)
-            .into();
+    let router_source = NextRouterContentSourceVc::new(
+        main_source,
+        execution_context,
+        next_config,
+        server_addr,
+        CompletionsVc::cell(vec![
+            app_structure.routes_changed(),
+            pages_structure.routes_changed(),
+        ])
+        .all(),
+    )
+    .into();
     let source = RouterContentSource {
         routes: vec![
             ("__turbopack__/".to_string(), introspect),

@@ -1,14 +1,12 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    primitives::{BoolVc, StringVc, StringsVc},
+    primitives::{StringVc, StringsVc},
     trace::TraceRawVcs,
     Value,
 };
 use turbo_tasks_env::ProcessEnvVc;
-use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, FileContent, FileSystemEntryType, FileSystemPathVc,
-};
+use turbo_tasks_fs::{rebase, FileContent, FileSystemPathVc};
 use turbopack::{transition::TransitionsByNameVc, ModuleAssetContextVc};
 use turbopack_core::{
     asset::{Asset, AssetVc},
@@ -69,6 +67,9 @@ use crate::{
         get_server_resolve_options_context, ServerContextType,
     },
     page_loader::create_page_loader,
+    pages_structure::{
+        OptionPagesStructureVc, PagesStructure, PagesStructureItem, PagesStructureVc,
+    },
     util::{parse_config_from_source, pathname_for_path, NextRuntime},
 };
 
@@ -76,6 +77,7 @@ use crate::{
 /// Next.js pages folder.
 #[turbo_tasks::function]
 pub async fn create_page_source(
+    pages_structure: OptionPagesStructureVc,
     project_root: FileSystemPathVc,
     execution_context: ExecutionContextVc,
     output_path: FileSystemPathVc,
@@ -87,17 +89,10 @@ pub async fn create_page_source(
 ) -> Result<ContentSourceVc> {
     let project_path = wrap_with_next_js_fs(project_root);
 
-    let pages = project_path.join("pages");
-    let src_pages = project_path.join("src/pages");
-    let pages_dir = if *pages.get_type().await? == FileSystemEntryType::Directory {
-        pages
-    } else if *src_pages.get_type().await? == FileSystemEntryType::Directory {
-        src_pages
-    } else {
+    let Some(pages_structure) = *pages_structure.await? else {
         return Ok(NoContentSourceVc::new().into());
-    }
-    .resolve()
-    .await?;
+    };
+    let pages_dir = pages_structure.directory().resolve().await?;
 
     let client_ty = Value::new(ClientContextType::Pages { pages_dir });
     let server_ty = Value::new(ServerContextType::Pages { pages_dir });
@@ -264,21 +259,15 @@ pub async fn create_page_source(
         NextFallbackMatcherVc::new().into(),
     );
     let page_source = create_page_source_for_directory(
+        pages_structure,
         project_path,
         server_context,
         server_data_context,
         client_context,
         pages_dir,
-        page_extensions,
-        SpecificityVc::exact(),
-        0,
-        pages_dir,
         server_runtime_entries,
         fallback_page,
         server_root,
-        server_root,
-        server_root.join("api"),
-        output_path,
         output_path,
     );
     let fallback_source =
@@ -288,7 +277,7 @@ pub async fn create_page_source(
         sources: vec![
             // Match _next/404 first to ensure rewrites work properly.
             force_not_found_source,
-            page_source.into(),
+            page_source,
             fallback_source.into(),
             fallback_not_found_source,
         ],
@@ -311,7 +300,7 @@ async fn create_page_source_for_file(
     fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
     server_path: FileSystemPathVc,
-    is_api_path: BoolVc,
+    is_api_path: bool,
     intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
 ) -> Result<ContentSourceVc> {
@@ -362,7 +351,7 @@ async fn create_page_source_for_file(
 
     let page_config = parse_config_from_source(entry_asset);
 
-    Ok(if *is_api_path.await? {
+    Ok(if is_api_path {
         let ty = if page_config.await?.runtime == NextRuntime::Edge {
             SsrType::EdgeApi
         } else {
@@ -555,110 +544,89 @@ async fn create_not_found_page_source(
 /// [create_page_source_for_file] method for files.
 #[turbo_tasks::function]
 async fn create_page_source_for_directory(
+    pages_structure: PagesStructureVc,
     project_path: FileSystemPathVc,
     server_context: AssetContextVc,
     server_data_context: AssetContextVc,
     client_context: AssetContextVc,
     pages_dir: FileSystemPathVc,
-    page_extensions: StringsVc,
-    specificity: SpecificityVc,
-    position: u32,
-    input_dir: FileSystemPathVc,
     runtime_entries: EcmascriptChunkPlaceablesVc,
     fallback_page: DevHtmlAssetVc,
     server_root: FileSystemPathVc,
-    server_path: FileSystemPathVc,
-    server_api_path: FileSystemPathVc,
-    intermediate_output_path: FileSystemPathVc,
     output_root: FileSystemPathVc,
-) -> Result<CombinedContentSourceVc> {
-    let page_extensions_raw = &*page_extensions.await?;
-
+) -> Result<ContentSourceVc> {
+    let PagesStructure {
+        ref items,
+        ref children,
+        ..
+    } = *pages_structure.await?;
     let mut sources = vec![];
-    let dir_content = input_dir.read_dir().await?;
-    if let DirectoryContent::Entries(entries) = &*dir_content {
-        for (name, entry) in entries.iter() {
-            let specificity = if name.starts_with("[[") || name.starts_with("[...") {
-                specificity.with_catch_all(position)
-            } else if name.starts_with('[') {
-                specificity.with_dynamic_segment(position)
-            } else {
-                specificity
-            };
-            match entry {
-                DirectoryEntry::File(file) => {
-                    if let Some((basename, extension)) = name.rsplit_once('.') {
-                        if page_extensions_raw
-                            .iter()
-                            .any(|allowed| allowed == extension)
-                        {
-                            let (dev_server_path, intermediate_output_path) = if basename == "index"
-                            {
-                                (server_path.join("index.html"), intermediate_output_path)
-                            } else {
-                                (
-                                    server_path.join(basename).join("index.html"),
-                                    intermediate_output_path.join(basename),
-                                )
-                            };
-                            sources.push((
-                                name,
-                                create_page_source_for_file(
-                                    project_path,
-                                    server_context,
-                                    server_data_context,
-                                    client_context,
-                                    pages_dir,
-                                    specificity,
-                                    SourceAssetVc::new(*file).into(),
-                                    runtime_entries,
-                                    fallback_page,
-                                    server_root,
-                                    dev_server_path,
-                                    dev_server_path.is_inside(server_api_path),
-                                    intermediate_output_path,
-                                    output_root,
-                                ),
-                            ));
-                        }
-                    }
-                }
-                DirectoryEntry::Directory(dir) => {
-                    sources.push((
-                        name,
-                        create_page_source_for_directory(
-                            project_path,
-                            server_context,
-                            server_data_context,
-                            client_context,
-                            pages_dir,
-                            page_extensions,
-                            specificity,
-                            position + 1,
-                            *dir,
-                            runtime_entries,
-                            fallback_page,
-                            server_root,
-                            server_path.join(name),
-                            server_api_path,
-                            intermediate_output_path.join(name),
-                            output_root,
-                        )
-                        .into(),
-                    ));
-                }
-                _ => {}
+
+    for item in items.iter() {
+        match *item.await? {
+            PagesStructureItem::Page {
+                page,
+                specificity,
+                url,
+            } => {
+                sources.push(create_page_source_for_file(
+                    project_path,
+                    server_context,
+                    server_data_context,
+                    client_context,
+                    pages_dir,
+                    specificity,
+                    SourceAssetVc::new(page).into(),
+                    runtime_entries,
+                    fallback_page,
+                    server_root,
+                    url,
+                    false,
+                    rebase(page, project_path, output_root),
+                    output_root,
+                ));
+            }
+            PagesStructureItem::Api {
+                api,
+                specificity,
+                url,
+            } => {
+                sources.push(create_page_source_for_file(
+                    project_path,
+                    server_context,
+                    server_data_context,
+                    client_context,
+                    pages_dir,
+                    specificity,
+                    SourceAssetVc::new(api).into(),
+                    runtime_entries,
+                    fallback_page,
+                    server_root,
+                    url,
+                    true,
+                    rebase(api, project_path, output_root),
+                    output_root,
+                ));
             }
         }
     }
 
-    // Ensure deterministic order since read_dir is not deterministic
-    sources.sort_by_key(|(k, _)| *k);
-
-    Ok(CombinedContentSource {
-        sources: sources.into_iter().map(|(_, v)| v).collect(),
+    for child in children.iter() {
+        sources.push(create_page_source_for_directory(
+            *child,
+            project_path,
+            server_context,
+            server_data_context,
+            client_context,
+            pages_dir,
+            runtime_entries,
+            fallback_page,
+            server_root,
+            output_root,
+        ))
     }
-    .cell())
+
+    Ok(CombinedContentSource { sources }.cell().into())
 }
 
 #[derive(
