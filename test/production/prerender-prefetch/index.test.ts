@@ -335,7 +335,24 @@ describe('Prerender prefetch', () => {
     })
     afterAll(() => next.destroy())
 
-    runTests({ optimisticClientCache: true })
+    it('should prefetch the included page', async () => {
+      const browser = await webdriver(next.url, '/')
+      let requests = []
+
+      browser.on('request', (req) => {
+        requests.push(req.url())
+      })
+
+      await check(async () => {
+        const cacheKeys = await browser.eval(
+          'Object.keys(window.next.router.sdc)'
+        )
+        return cacheKeys.some((url) => url.includes('/blog/first')) &&
+          cacheKeys.some((url) => url.includes('/blog/second'))
+          ? 'success'
+          : JSON.stringify(requests, null, 2)
+      }, 'success')
+    })
   })
 
   describe('with opt-out prefetch urls defined', () => {
@@ -356,6 +373,23 @@ describe('Prerender prefetch', () => {
     })
     afterAll(() => next.destroy())
 
-    runTests({ optimisticClientCache: true })
+    it('should prefetch pages that are not excluded', async () => {
+      const browser = await webdriver(next.url, '/')
+      let requests = []
+
+      browser.on('request', (req) => {
+        requests.push(req.url())
+      })
+
+      await check(async () => {
+        const cacheKeys = await browser.eval(
+          'Object.keys(window.next.router.sdc)'
+        )
+        return cacheKeys.some((url) => url.includes('/blog/first')) &&
+          cacheKeys.some((url) => url.includes('/blog/second'))
+          ? 'success'
+          : JSON.stringify(requests, null, 2)
+      }, 'success')
+    })
   })
 })
