@@ -598,6 +598,10 @@ const configSchema = {
           minLength: 1,
           type: 'string',
         },
+        contentDispositionType: {
+          enum: ['inline', 'attachment'] as any, // automatic typing does not like enum
+          type: 'string',
+        },
         dangerouslyAllowSVG: {
           type: 'boolean',
         },
