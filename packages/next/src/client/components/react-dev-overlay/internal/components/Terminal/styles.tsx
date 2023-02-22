@@ -40,6 +40,9 @@ const styles = css`
   [data-with-open-in-editor-link] {
     margin-left: var(--size-gap-double);
   }
+  [data-nextjs-terminal] a {
+    color: inherit;
+  }
 `
 
 export { styles }
