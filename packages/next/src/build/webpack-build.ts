@@ -93,7 +93,6 @@ async function webpackBuildImpl(): Promise<{
     rewrites: NextBuildContext.rewrites!,
     reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
-    hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
   }
 
   const configs = await runWebpackSpan

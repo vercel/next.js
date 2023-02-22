@@ -1,5 +1,6 @@
 import type { StaticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage'
 import { AppRenderSpan } from './trace/constants'
+import { getTracer, SpanKind } from './trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 const CACHE_ONE_YEAR = 31536000
@@ -18,10 +19,14 @@ export function patchFetch({
   const { DynamicServerError } = serverHooks
 
   const originFetch = fetch
-  // @ts-ignore
+
+  // @ts-expect-error - we're patching fetch
   // eslint-disable-next-line no-native-reassign
   fetch = getTracer().wrap(
     AppRenderSpan.fetch,
+    {
+      kind: SpanKind.CLIENT,
+    },
     async (input: RequestInfo | URL, init: RequestInit | undefined) => {
       const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 

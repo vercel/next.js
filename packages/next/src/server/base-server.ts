@@ -1119,7 +1119,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
   }
 
-  public async renderToResponseWithComponents(
+  private async renderToResponseWithComponents(
     requestContext: RequestContext,
     findComponentsResult: FindComponentsResult
   ): Promise<ResponsePayload | null> {
