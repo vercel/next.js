@@ -11,7 +11,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
-import { cleanImagesDir, expectWidth, fsToJson, runTests } from './util'
+import { cleanImagesDir, expectWidth, fsToJson } from './util'
 
 const appDir = join(__dirname, '../app')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
