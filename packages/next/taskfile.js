@@ -1611,7 +1611,7 @@ export async function ncc_react(task, opts) {
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
-      // We replace the module/chunk loading code with our own implementaion in Next.js.
+      // We replace the module/chunk loading code with our own implementation in Next.js.
       file.data = source.replace(
         /require\(["']scheduler["']\)/g,
         'require("next/dist/compiled/scheduler")'
@@ -1658,61 +1658,28 @@ export async function ncc_rsc_poison_packages(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_react_server_dom_webpack(task, opts) {
-  // Use installed versions instead of bundled version
-  const peerDeps = {
-    react: 'react',
-    'react-dom': 'react-dom',
-  }
-  await fs.mkdir(join(__dirname, 'src/compiled/react-server-dom-webpack'), {
-    recursive: true,
-  })
-  await fs.writeFile(
-    join(__dirname, 'src/compiled/react-server-dom-webpack/package.json'),
-    JSON.stringify({ name: 'react-server-dom-webpack', main: './index.js' })
+  const reactServerDomDir = dirname(
+    relative(
+      __dirname,
+      require.resolve(`react-server-dom-webpack/package.json`)
+    )
   )
   await task
-    .source(require.resolve('react-server-dom-webpack/client'))
-    .target('src/compiled/react-server-dom-webpack')
+    .source(join(reactServerDomDir, 'LICENSE'))
+    .target(`src/compiled/react-server-dom-webpack`)
   await task
-    .source(require.resolve('react-server-dom-webpack/server.browser'))
-    .target('src/compiled/react-server-dom-webpack')
-
-  // Replace webpack internal apis before bundling
-  await task
-    .source(
-      join(
-        dirname(require.resolve('react-server-dom-webpack/package.json')),
-        'cjs/react-server-dom-webpack-*'
-      )
-    )
+    .source(join(reactServerDomDir, '{package.json,*.js,cjs/**/*.js}'))
     // eslint-disable-next-line require-yield
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // We replace the module/chunk loading code with our own implementation in Next.js.
+      // NOTE: We don't alias react and react-dom here since they could change while bundling,
+      // let bundling picking logic controlled by webpack.
       file.data = source
         .replace(/__webpack_chunk_load__/g, 'globalThis.__next_chunk_load__')
         .replace(/__webpack_require__/g, 'globalThis.__next_require__')
     })
-    .target('src/compiled/react-server-dom-webpack/cjs')
-
-  // Compile entries
-  await task
-    .source('src/compiled/react-server-dom-webpack/server.browser.js')
-    .ncc({
-      minify: false,
-      externals: peerDeps,
-    })
-    .target('src/compiled/react-server-dom-webpack')
-
-  await task
-    .source('src/compiled/react-server-dom-webpack/client.js')
-    .ncc({
-      minify: false,
-      externals: peerDeps,
-    })
-    .target('src/compiled/react-server-dom-webpack')
-
-  await fs.remove(join(__dirname, 'src/compiled/react-server-dom-webpack/cjs'))
+    .target(`src/compiled/react-server-dom-webpack`)
 }
 
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
