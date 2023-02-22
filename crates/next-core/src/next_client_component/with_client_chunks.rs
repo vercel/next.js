@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde_json::Value;
+use indoc::formatdoc;
 use turbo_tasks::{primitives::StringVc, ValueToString, ValueToStringVc};
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::ecmascript::{
@@ -116,31 +116,38 @@ impl EcmascriptChunkItem for WithClientChunksChunkItem {
         let group = ChunkGroupVc::from_asset(inner.asset.into(), self.context);
         let chunks = group.chunks().await?;
         let server_root = inner.server_root.await?;
-        let mut client_chunks = Vec::new();
+
+        let mut asset_paths = vec![];
         for chunk in chunks.iter() {
             for reference in chunk.references().await?.iter() {
                 let assets = &*reference.resolve_reference().primary_assets().await?;
                 for asset in assets.iter() {
-                    let path = &*asset.path().await?;
-
-                    // only client chunks have an path from the server root
-                    if let Some(path) = server_root.get_path_to(path) {
-                        client_chunks.push(Value::String(path.to_string()));
-                    }
+                    asset_paths.push(asset.path().await?);
                 }
             }
+
+            asset_paths.push(chunk.path().await?);
         }
+
+        let mut client_chunks = Vec::new();
+        for asset_path in asset_paths {
+            if let Some(path) = server_root.get_path_to(&asset_path) {
+                client_chunks.push(path.to_string());
+            }
+        }
+
         let module_id = stringify_js(&*inner.asset.as_chunk_item(self.context).id().await?);
         Ok(EcmascriptChunkItemContent {
-            inner_code: format!(
-                "__turbopack_esm__({{
-  default: () => __turbopack_import__({}),
-  chunks: () => chunks
-}});
-const chunks = {};
-",
+            inner_code: formatdoc!(
+                r#"
+                    __turbopack_esm__({{
+                        default: () => __turbopack_import__({}),
+                        chunks: () => chunks
+                    }});
+                    const chunks = {};
+                "#,
                 module_id,
-                Value::Array(client_chunks)
+                stringify_js(&client_chunks)
             )
             .into(),
             ..Default::default()

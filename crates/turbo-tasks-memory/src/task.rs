@@ -850,7 +850,7 @@ impl Task {
             }) => {
                 // Connect the task to the current task. This makes strongly consistent behaving
                 // as expected and we can look up the collectibles in the current scope.
-                self.connect_child_internal(state, task_id, backend, &*turbo_tasks);
+                self.connect_child_internal(state, task_id, backend, turbo_tasks);
                 // state was dropped by previous method
                 Box::pin(Self::execute_read_task_collectibles(
                     self.id,
@@ -1222,18 +1222,16 @@ impl Task {
                 *optimization_counter += 1;
                 if merging_scopes > 0 {
                     *optimization_counter = optimization_counter.saturating_sub(merging_scopes);
-                } else {
-                    if should_optimize_to_root_scoped(*optimization_counter, children.len()) {
-                        list.remove(id);
-                        drop(self.make_root_scoped_internal(state, backend, turbo_tasks));
-                        return self.add_to_scope_internal_shallow(
-                            id,
-                            merging_scopes,
-                            backend,
-                            turbo_tasks,
-                            queue,
-                        );
-                    }
+                } else if should_optimize_to_root_scoped(*optimization_counter, children.len()) {
+                    list.remove(id);
+                    drop(self.make_root_scoped_internal(state, backend, turbo_tasks));
+                    return self.add_to_scope_internal_shallow(
+                        id,
+                        merging_scopes,
+                        backend,
+                        turbo_tasks,
+                        queue,
+                    );
                 }
 
                 if queue.capacity() == 0 {
@@ -2132,7 +2130,7 @@ impl Task {
                 let backend = turbo_tasks.backend();
                 backend.with_task(task_id, |task| {
                     let state =
-                        task.ensure_root_scoped(task.full_state_mut(), backend, &*turbo_tasks);
+                        task.ensure_root_scoped(task.full_state_mut(), backend, turbo_tasks);
                     if let TaskScopes::Root(scope_id) = state.scopes {
                         backend.with_scope(scope_id, |scope| {
                             scope.read_collectibles_and_children(
