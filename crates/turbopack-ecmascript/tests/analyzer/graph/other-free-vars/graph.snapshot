@@ -13,8 +13,10 @@
                 Object,
             ),
             Constant(
-                StrWord(
-                    Atom('keys' type=inline),
+                Str(
+                    Word(
+                        Atom('keys' type=inline),
+                    ),
                 ),
             ),
             [
@@ -38,8 +40,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('keys' type=inline),
+                Str(
+                    Word(
+                        Atom('keys' type=inline),
+                    ),
                 ),
             ),
             [

@@ -6,8 +6,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('os' type=inline),
+                    Str(
+                        Word(
+                            Atom('os' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -56,8 +58,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('process' type=static),
+                    Str(
+                        Word(
+                            Atom('process' type=static),
+                        ),
                     ),
                 ),
             ),
@@ -104,8 +108,10 @@
             NodeProcess,
         ),
         prop: Constant(
-            StrWord(
-                Atom('arch' type=inline),
+            Str(
+                Word(
+                    Atom('arch' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -302,8 +308,10 @@
                     11,
                     [
                         Constant(
-                            StrAtom(
-                                "esbuild-",
+                            Str(
+                                Atom(
+                                    "esbuild-",
+                                ),
                             ),
                         ),
                         Member(
@@ -312,14 +320,18 @@
                                 NodeProcess,
                             ),
                             Constant(
-                                StrWord(
-                                    Atom('arch' type=inline),
+                                Str(
+                                    Word(
+                                        Atom('arch' type=inline),
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Call(
@@ -333,8 +345,10 @@
                             [],
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Call(
@@ -590,8 +604,10 @@
                     10,
                     [
                         Constant(
-                            StrAtom(
-                                "esbuild-",
+                            Str(
+                                Atom(
+                                    "esbuild-",
+                                ),
                             ),
                         ),
                         Call(
@@ -605,8 +621,10 @@
                             [],
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Call(
@@ -620,8 +638,10 @@
                             [],
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Call(
@@ -744,8 +764,10 @@
             NodeProcess,
         ),
         prop: Constant(
-            StrWord(
-                Atom('platform' type=dynamic),
+            Str(
+                Word(
+                    Atom('platform' type=dynamic),
+                ),
             ),
         ),
         ast_path: [
@@ -878,8 +900,10 @@
                     11,
                     [
                         Constant(
-                            StrAtom(
-                                "esbuild-",
+                            Str(
+                                Atom(
+                                    "esbuild-",
+                                ),
                             ),
                         ),
                         Call(
@@ -893,8 +917,10 @@
                             [],
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Member(
@@ -903,14 +929,18 @@
                                 NodeProcess,
                             ),
                             Constant(
-                                StrWord(
-                                    Atom('platform' type=dynamic),
+                                Str(
+                                    Word(
+                                        Atom('platform' type=dynamic),
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Call(
@@ -969,8 +999,10 @@
             NodeProcess,
         ),
         prop: Constant(
-            StrWord(
-                Atom('arch' type=inline),
+            Str(
+                Word(
+                    Atom('arch' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -1034,8 +1066,10 @@
             NodeProcess,
         ),
         prop: Constant(
-            StrWord(
-                Atom('platform' type=dynamic),
+            Str(
+                Word(
+                    Atom('platform' type=dynamic),
+                ),
             ),
         ),
         ast_path: [
@@ -1168,8 +1202,10 @@
                     12,
                     [
                         Constant(
-                            StrAtom(
-                                "esbuild-",
+                            Str(
+                                Atom(
+                                    "esbuild-",
+                                ),
                             ),
                         ),
                         Member(
@@ -1178,14 +1214,18 @@
                                 NodeProcess,
                             ),
                             Constant(
-                                StrWord(
-                                    Atom('arch' type=inline),
+                                Str(
+                                    Word(
+                                        Atom('arch' type=inline),
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Member(
@@ -1194,14 +1234,18 @@
                                 NodeProcess,
                             ),
                             Constant(
-                                StrWord(
-                                    Atom('platform' type=dynamic),
+                                Str(
+                                    Word(
+                                        Atom('platform' type=dynamic),
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Call(
@@ -1263,8 +1307,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('arch' type=inline),
+            Str(
+                Word(
+                    Atom('arch' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -1331,8 +1377,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('platform' type=dynamic),
+            Str(
+                Word(
+                    Atom('platform' type=dynamic),
+                ),
             ),
         ),
         ast_path: [
@@ -1465,8 +1513,10 @@
                     12,
                     [
                         Constant(
-                            StrAtom(
-                                "esbuild-",
+                            Str(
+                                Atom(
+                                    "esbuild-",
+                                ),
                             ),
                         ),
                         Member(
@@ -1478,14 +1528,18 @@
                                 ),
                             ),
                             Constant(
-                                StrWord(
-                                    Atom('arch' type=inline),
+                                Str(
+                                    Word(
+                                        Atom('arch' type=inline),
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Member(
@@ -1497,14 +1551,18 @@
                                 ),
                             ),
                             Constant(
-                                StrWord(
-                                    Atom('platform' type=dynamic),
+                                Str(
+                                    Word(
+                                        Atom('platform' type=dynamic),
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Call(
@@ -1566,8 +1624,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('arch' type=inline),
+            Str(
+                Word(
+                    Atom('arch' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -1700,8 +1760,10 @@
                     10,
                     [
                         Constant(
-                            StrAtom(
-                                "esbuild-",
+                            Str(
+                                Atom(
+                                    "esbuild-",
+                                ),
                             ),
                         ),
                         Member(
@@ -1713,14 +1775,18 @@
                                 ),
                             ),
                             Constant(
-                                StrWord(
-                                    Atom('arch' type=inline),
+                                Str(
+                                    Word(
+                                        Atom('arch' type=inline),
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Variable(
@@ -1730,8 +1796,10 @@
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "-",
+                            Str(
+                                Atom(
+                                    "-",
+                                ),
                             ),
                         ),
                         Call(

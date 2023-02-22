@@ -6,8 +6,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -56,8 +58,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('path' type=static),
+                    Str(
+                        Word(
+                            Atom('path' type=static),
+                        ),
                     ),
                 ),
             ),
@@ -107,8 +111,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -165,22 +171,28 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('bar' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -230,8 +242,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -288,22 +302,28 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('foo/' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo/' type=inline),
+                        ),
                     ),
                 ),
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('bar' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -353,8 +373,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -411,22 +433,28 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('/bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('/bar' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -476,8 +504,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -534,22 +564,28 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('foo/' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo/' type=inline),
+                        ),
                     ),
                 ),
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('/bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('/bar' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -599,8 +635,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -657,36 +695,46 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('join' type=inline),
+            Str(
+                Word(
+                    Atom('join' type=inline),
+                ),
             ),
         ),
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('bar' type=inline),
+                        ),
                     ),
                 ),
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('..' type=inline),
+                    Str(
+                        Word(
+                            Atom('..' type=inline),
+                        ),
                     ),
                 ),
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('baz' type=inline),
+                    Str(
+                        Word(
+                            Atom('baz' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -699,15 +747,19 @@
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('..' type=inline),
+                    Str(
+                        Word(
+                            Atom('..' type=inline),
+                        ),
                     ),
                 ),
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
             ),

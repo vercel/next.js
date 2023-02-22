@@ -68,8 +68,10 @@
     (
         "d",
         Constant(
-            StrWord(
-                Atom('hello' type=inline),
+            Str(
+                Word(
+                    Atom('hello' type=inline),
+                ),
             ),
         ),
     ),

@@ -6,8 +6,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('path' type=static),
+                    Str(
+                        Word(
+                            Atom('path' type=static),
+                        ),
                     ),
                 ),
             ),
@@ -56,8 +58,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('path' type=static),
+                    Str(
+                        Word(
+                            Atom('path' type=static),
+                        ),
                     ),
                 ),
             ),
@@ -106,8 +110,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('os' type=inline),
+                    Str(
+                        Word(
+                            Atom('os' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -154,8 +160,10 @@
             NodeProcess,
         ),
         prop: Constant(
-            StrWord(
-                Atom('platform' type=dynamic),
+            Str(
+                Word(
+                    Atom('platform' type=dynamic),
+                ),
             ),
         ),
         ast_path: [
@@ -228,8 +236,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('arch' type=inline),
+            Str(
+                Word(
+                    Atom('arch' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -311,8 +321,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('arch' type=inline),
+            Str(
+                Word(
+                    Atom('arch' type=inline),
+                ),
             ),
         ),
         args: [],
@@ -386,8 +398,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('endianness' type=dynamic),
+            Str(
+                Word(
+                    Atom('endianness' type=dynamic),
+                ),
             ),
         ),
         ast_path: [
@@ -469,8 +483,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('endianness' type=dynamic),
+            Str(
+                Word(
+                    Atom('endianness' type=dynamic),
+                ),
             ),
         ),
         args: [],
@@ -767,8 +783,10 @@
             Require,
         ),
         prop: Constant(
-            StrWord(
-                Atom('resolve' type=inline),
+            Str(
+                Word(
+                    Atom('resolve' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -848,8 +866,10 @@
             Require,
         ),
         prop: Constant(
-            StrWord(
-                Atom('resolve' type=inline),
+            Str(
+                Word(
+                    Atom('resolve' type=inline),
+                ),
             ),
         ),
         args: [
@@ -864,8 +884,10 @@
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "/",
+                            Str(
+                                Atom(
+                                    "/",
+                                ),
                             ),
                         ),
                         Variable(
@@ -1038,8 +1060,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('existsSync' type=dynamic),
+            Str(
+                Word(
+                    Atom('existsSync' type=dynamic),
+                ),
             ),
         ),
         ast_path: [
@@ -1124,8 +1148,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('existsSync' type=dynamic),
+            Str(
+                Word(
+                    Atom('existsSync' type=dynamic),
+                ),
             ),
         ),
         args: [
@@ -1215,8 +1241,10 @@
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('existsSync' type=dynamic),
+                    Str(
+                        Word(
+                            Atom('existsSync' type=dynamic),
+                        ),
                     ),
                 ),
                 [
@@ -1237,8 +1265,10 @@
                             Require,
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('resolve' type=inline),
+                            Str(
+                                Word(
+                                    Atom('resolve' type=inline),
+                                ),
                             ),
                         ),
                         ast_path: [
@@ -1340,8 +1370,10 @@
                             Require,
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('resolve' type=inline),
+                            Str(
+                                Word(
+                                    Atom('resolve' type=inline),
+                                ),
                             ),
                         ),
                         args: [
@@ -1553,8 +1585,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('pnpapi' type=inline),
+                    Str(
+                        Word(
+                            Atom('pnpapi' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -1634,8 +1668,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('dirname' type=inline),
+                            Str(
+                                Word(
+                                    Atom('dirname' type=inline),
+                                ),
                             ),
                         ),
                         ast_path: [
@@ -1720,8 +1756,10 @@
                             Require,
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('resolve' type=inline),
+                            Str(
+                                Word(
+                                    Atom('resolve' type=inline),
+                                ),
                             ),
                         ),
                         ast_path: [
@@ -1817,15 +1855,19 @@
                             Require,
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('resolve' type=inline),
+                            Str(
+                                Word(
+                                    Atom('resolve' type=inline),
+                                ),
                             ),
                         ),
                         args: [
                             Value(
                                 Constant(
-                                    StrWord(
-                                        Atom('esbuild' type=inline),
+                                    Str(
+                                        Word(
+                                            Atom('esbuild' type=inline),
+                                        ),
                                     ),
                                 ),
                             ),
@@ -1917,8 +1959,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('dirname' type=inline),
+                            Str(
+                                Word(
+                                    Atom('dirname' type=inline),
+                                ),
                             ),
                         ),
                         args: [
@@ -1929,14 +1973,18 @@
                                         Require,
                                     ),
                                     Constant(
-                                        StrWord(
-                                            Atom('resolve' type=inline),
+                                        Str(
+                                            Word(
+                                                Atom('resolve' type=inline),
+                                            ),
                                         ),
                                     ),
                                     [
                                         Constant(
-                                            StrWord(
-                                                Atom('esbuild' type=inline),
+                                            Str(
+                                                Word(
+                                                    Atom('esbuild' type=inline),
+                                                ),
                                             ),
                                         ),
                                     ],
@@ -2019,8 +2067,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('join' type=inline),
+                            Str(
+                                Word(
+                                    Atom('join' type=inline),
+                                ),
                             ),
                         ),
                         ast_path: [
@@ -2108,8 +2158,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('basename' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('basename' type=dynamic),
+                                ),
                             ),
                         ),
                         ast_path: [
@@ -2216,8 +2268,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('basename' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('basename' type=dynamic),
+                                ),
                             ),
                         ),
                         args: [
@@ -2325,8 +2379,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('join' type=inline),
+                            Str(
+                                Word(
+                                    Atom('join' type=inline),
+                                ),
                             ),
                         ),
                         args: [
@@ -2343,8 +2399,10 @@
                                     8,
                                     [
                                         Constant(
-                                            StrAtom(
-                                                "pnpapi-",
+                                            Str(
+                                                Atom(
+                                                    "pnpapi-",
+                                                ),
                                             ),
                                         ),
                                         Variable(
@@ -2354,8 +2412,10 @@
                                             ),
                                         ),
                                         Constant(
-                                            StrAtom(
-                                                "-",
+                                            Str(
+                                                Atom(
+                                                    "-",
+                                                ),
                                             ),
                                         ),
                                         MemberCall(
@@ -2367,8 +2427,10 @@
                                                 ),
                                             ),
                                             Constant(
-                                                StrWord(
-                                                    Atom('basename' type=dynamic),
+                                                Str(
+                                                    Word(
+                                                        Atom('basename' type=dynamic),
+                                                    ),
                                                 ),
                                             ),
                                             [
@@ -2459,8 +2521,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('existsSync' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('existsSync' type=dynamic),
+                                ),
                             ),
                         ),
                         ast_path: [
@@ -2545,8 +2609,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('existsSync' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('existsSync' type=dynamic),
+                                ),
                             ),
                         ),
                         args: [
@@ -2636,8 +2702,10 @@
                                     ),
                                 ),
                                 Constant(
-                                    StrWord(
-                                        Atom('existsSync' type=dynamic),
+                                    Str(
+                                        Word(
+                                            Atom('existsSync' type=dynamic),
+                                        ),
                                     ),
                                 ),
                                 [
@@ -2660,8 +2728,10 @@
                                             ),
                                         ),
                                         prop: Constant(
-                                            StrWord(
-                                                Atom('copyFileSync' type=dynamic),
+                                            Str(
+                                                Word(
+                                                    Atom('copyFileSync' type=dynamic),
+                                                ),
                                             ),
                                         ),
                                         ast_path: [
@@ -2754,8 +2824,10 @@
                                             ),
                                         ),
                                         prop: Constant(
-                                            StrWord(
-                                                Atom('copyFileSync' type=dynamic),
+                                            Str(
+                                                Word(
+                                                    Atom('copyFileSync' type=dynamic),
+                                                ),
                                             ),
                                         ),
                                         args: [
@@ -2857,8 +2929,10 @@
                                             ),
                                         ),
                                         prop: Constant(
-                                            StrWord(
-                                                Atom('chmodSync' type=dynamic),
+                                            Str(
+                                                Word(
+                                                    Atom('chmodSync' type=dynamic),
+                                                ),
                                             ),
                                         ),
                                         ast_path: [
@@ -2951,8 +3025,10 @@
                                             ),
                                         ),
                                         prop: Constant(
-                                            StrWord(
-                                                Atom('chmodSync' type=dynamic),
+                                            Str(
+                                                Word(
+                                                    Atom('chmodSync' type=dynamic),
+                                                ),
                                             ),
                                         ),
                                         args: [
@@ -3242,8 +3318,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('basename' type=dynamic),
+            Str(
+                Word(
+                    Atom('basename' type=dynamic),
+                ),
             ),
         ),
         ast_path: [
@@ -3344,8 +3422,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('basename' type=dynamic),
+            Str(
+                Word(
+                    Atom('basename' type=dynamic),
+                ),
             ),
         ),
         args: [
@@ -3444,8 +3524,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('basename' type=dynamic),
+            Str(
+                Word(
+                    Atom('basename' type=dynamic),
+                ),
             ),
         ),
         ast_path: [
@@ -3546,8 +3628,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('basename' type=dynamic),
+            Str(
+                Word(
+                    Atom('basename' type=dynamic),
+                ),
             ),
         ),
         args: [
@@ -3653,8 +3737,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('join' type=inline),
+                            Str(
+                                Word(
+                                    Atom('join' type=inline),
+                                ),
                             ),
                         ),
                         ast_path: [
@@ -3767,8 +3853,10 @@
                             ),
                         ),
                         prop: Constant(
-                            StrWord(
-                                Atom('join' type=inline),
+                            Str(
+                                Word(
+                                    Atom('join' type=inline),
+                                ),
                             ),
                         ),
                         args: [
@@ -3779,22 +3867,28 @@
                             ),
                             Value(
                                 Constant(
-                                    StrWord(
-                                        Atom('..' type=inline),
+                                    Str(
+                                        Word(
+                                            Atom('..' type=inline),
+                                        ),
                                     ),
                                 ),
                             ),
                             Value(
                                 Constant(
-                                    StrWord(
-                                        Atom('bin' type=inline),
+                                    Str(
+                                        Word(
+                                            Atom('bin' type=inline),
+                                        ),
                                     ),
                                 ),
                             ),
                             Value(
                                 Constant(
-                                    StrWord(
-                                        Atom('esbuild' type=inline),
+                                    Str(
+                                        Word(
+                                            Atom('esbuild' type=inline),
+                                        ),
                                     ),
                                 ),
                             ),
@@ -4122,8 +4216,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -4180,22 +4276,28 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('--service=0.14.12' type=dynamic),
+                    Str(
+                        Atom(
+                            "--service=0.14.12",
+                        ),
                     ),
                 ),
             ),
             Value(
                 Constant(
-                    StrWord(
-                        Atom('--ping' type=inline),
+                    Str(
+                        Word(
+                            Atom('--ping' type=inline),
+                        ),
                     ),
                 ),
             ),

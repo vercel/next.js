@@ -8,8 +8,10 @@
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
             ],
@@ -24,8 +26,10 @@
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('path' type=static),
+                    Str(
+                        Word(
+                            Atom('path' type=static),
+                        ),
                     ),
                 ),
             ],
@@ -42,19 +46,25 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('join' type=inline),
+                Str(
+                    Word(
+                        Atom('join' type=inline),
+                    ),
                 ),
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('bar' type=inline),
+                        ),
                     ),
                 ),
             ],
@@ -71,19 +81,25 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('join' type=inline),
+                Str(
+                    Word(
+                        Atom('join' type=inline),
+                    ),
                 ),
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('foo/' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo/' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('bar' type=inline),
+                        ),
                     ),
                 ),
             ],
@@ -100,19 +116,25 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('join' type=inline),
+                Str(
+                    Word(
+                        Atom('join' type=inline),
+                    ),
                 ),
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('/bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('/bar' type=inline),
+                        ),
                     ),
                 ),
             ],
@@ -129,19 +151,25 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('join' type=inline),
+                Str(
+                    Word(
+                        Atom('join' type=inline),
+                    ),
                 ),
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('foo/' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo/' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('/bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('/bar' type=inline),
+                        ),
                     ),
                 ),
             ],
@@ -158,29 +186,39 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('join' type=inline),
+                Str(
+                    Word(
+                        Atom('join' type=inline),
+                    ),
                 ),
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('bar' type=inline),
+                    Str(
+                        Word(
+                            Atom('bar' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('..' type=inline),
+                    Str(
+                        Word(
+                            Atom('..' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('baz' type=inline),
+                    Str(
+                        Word(
+                            Atom('baz' type=inline),
+                        ),
                     ),
                 ),
                 FreeVar(
@@ -189,13 +227,17 @@
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('..' type=inline),
+                    Str(
+                        Word(
+                            Atom('..' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
             ],

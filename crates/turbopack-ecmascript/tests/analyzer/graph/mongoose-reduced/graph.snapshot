@@ -17,8 +17,10 @@
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('/collection' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('/collection' type=dynamic),
+                                ),
                             ),
                         ),
                     ],
@@ -44,8 +46,10 @@
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('/connection' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('/connection' type=dynamic),
+                                ),
                             ),
                         ),
                     ],
@@ -67,14 +71,18 @@
                         ),
                     ),
                     Constant(
-                        StrWord(
-                            Atom('MONGOOSE_DRIVER_PATH' type=dynamic),
+                        Str(
+                            Word(
+                                Atom('MONGOOSE_DRIVER_PATH' type=dynamic),
+                            ),
                         ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('./drivers/node-mongodb-native' type=dynamic),
+                    Str(
+                        Word(
+                            Atom('./drivers/node-mongodb-native' type=dynamic),
+                        ),
                     ),
                 ),
             ],

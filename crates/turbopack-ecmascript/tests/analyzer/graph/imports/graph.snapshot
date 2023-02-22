@@ -12,8 +12,10 @@
                 },
             ),
             Constant(
-                StrWord(
-                    Atom('a' type=static),
+                Str(
+                    Word(
+                        Atom('a' type=static),
+                    ),
                 ),
             ),
         ),
@@ -31,8 +33,10 @@
                 },
             ),
             Constant(
-                StrWord(
-                    Atom('default' type=static),
+                Str(
+                    Word(
+                        Atom('default' type=static),
+                    ),
                 ),
             ),
         ),

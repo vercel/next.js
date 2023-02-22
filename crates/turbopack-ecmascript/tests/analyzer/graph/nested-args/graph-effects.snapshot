@@ -130,35 +130,192 @@
             ctxt: #0,
         },
     },
-    Call {
-        func: Variable(
-            (
-                Atom('r' type=inline),
-                #1,
+    Conditional {
+        condition: Binary(
+            3,
+            Unknown(
+                None,
+                "unsupported expression",
             ),
-        ),
-        args: [
-            Value(
-                Add(
-                    3,
-                    [
-                        Variable(
-                            (
-                                Atom('a' type=static),
-                                #5,
-                            ),
-                        ),
-                        Constant(
-                            Num(
-                                ConstantNumber(
-                                    1.0,
-                                ),
-                            ),
-                        ),
-                    ],
+            StrictEqual,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        0.0,
+                    ),
                 ),
             ),
-        ],
+        ),
+        kind: IfElse {
+            then: EffectsBlock {
+                effects: [],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            2,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Fn,
+                    ),
+                    FnDecl(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    BlockStmt(
+                        Stmts(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        If,
+                    ),
+                    IfStmt(
+                        Cons,
+                    ),
+                ],
+            },
+            else: EffectsBlock {
+                effects: [
+                    Call {
+                        func: Variable(
+                            (
+                                Atom('r' type=inline),
+                                #1,
+                            ),
+                        ),
+                        args: [
+                            Value(
+                                Add(
+                                    3,
+                                    [
+                                        Variable(
+                                            (
+                                                Atom('a' type=static),
+                                                #5,
+                                            ),
+                                        ),
+                                        Constant(
+                                            Num(
+                                                ConstantNumber(
+                                                    1.0,
+                                                ),
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                        ],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    2,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Alt,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                            ReturnStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
+                                Left,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                        ],
+                        span: Span {
+                            lo: BytePos(
+                                159,
+                            ),
+                            hi: BytePos(
+                                167,
+                            ),
+                            ctxt: #0,
+                        },
+                    },
+                ],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            2,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Fn,
+                    ),
+                    FnDecl(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    BlockStmt(
+                        Stmts(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        If,
+                    ),
+                    IfStmt(
+                        Alt,
+                    ),
+                ],
+            },
+        },
         ast_path: [
             Program(
                 Script,
@@ -189,38 +346,15 @@
                 If,
             ),
             IfStmt(
-                Alt,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Call,
+                Test,
             ),
         ],
         span: Span {
             lo: BytePos(
-                159,
+                105,
             ),
             hi: BytePos(
-                167,
+                176,
             ),
             ctxt: #0,
         },
@@ -290,8 +424,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('b' type=static),
+                    Str(
+                        Word(
+                            Atom('b' type=static),
+                        ),
                     ),
                 ),
             ),
@@ -352,8 +488,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('a' type=static),
+                    Str(
+                        Word(
+                            Atom('a' type=static),
+                        ),
                     ),
                 ),
             ),

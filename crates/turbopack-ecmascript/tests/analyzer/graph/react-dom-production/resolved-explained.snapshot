@@ -219,8 +219,7 @@ $k = (...) => (undefined | 1 | 0 | 11 | 14 | 2)
 
 *anonymous function 5213* = (...) => undefined
 
-*anonymous function 55504* = (...) => (undefined | ???*0* | !(1))
-- *0* unsupported expression
+*anonymous function 55504* = (...) => (undefined | (Vb(a) === a) | !(1))
 
 *anonymous function 55574* = (...) => undefined
 
@@ -479,7 +478,7 @@ De = (...) => (undefined | te(qe))
 Df = ???*0*
 - *0* max number of linking steps reached
 
-Dg = (...) => (undefined | (???*0* && ???*1*))
+Dg = (...) => (undefined | ((0 !== ???*0*) && (0 === ???*1*)))
 - *0* unsupported expression
 - *1* unsupported expression
 
@@ -520,15 +519,21 @@ Ee = (...) => (undefined | te(b))
 
 Ef = (...) => (
   | undefined
-  | (???*0* || ???*1* || ???*2* || ???*3* || (???*4* && ???*5* && ???*6*))
+  | (
+     || ("textarea" === a)
+     || ("noscript" === a)
+     || ("string" === ???*0*)
+     || ("number" === ???*1*)
+     || (
+         && ("object" === ???*2*)
+         && (null !== b["dangerouslySetInnerHTML"])
+         && (null != b["dangerouslySetInnerHTML"]["__html"])
+        )
+    )
 )
 - *0* unsupported expression
 - *1* unsupported expression
 - *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
 
 Eg = (...) => undefined
 
@@ -617,13 +622,10 @@ Gd = ???*0*
 
 Ge = (...) => (
   | undefined
-  | ((???*0* && (???*1* || ???*2*)) || (???*3* && ???*4*))
+  | (((a === b) && ((0 !== a) || (???*0* === ???*1*))) || ((a !== a) && (b !== b)))
 )
 - *0* unsupported expression
 - *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
 
 Gf = (???*0* | ???*1*)
 - *0* FreeVar(clearTimeout)
@@ -661,7 +663,7 @@ He = (
   | ???*0*
   | (...) => (
       | undefined
-      | ((???*2* && (???*3* || ???*4*)) || (???*5* && ???*6*))
+      | (((a === b) && ((0 !== a) || (???*2* === ???*3*))) || ((a !== a) && (b !== b)))
     )
 )
 - *0* ???*1*["is"]
@@ -670,9 +672,6 @@ He = (
   ⚠️  unknown global
 - *2* unsupported expression
 - *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
 
 Hf = (???*0* | ???*1*)
 - *0* FreeVar(Promise)
@@ -683,10 +682,7 @@ Hg = (...) => undefined
 
 Hh = (...) => (undefined | a)
 
-Hi = (...) => (undefined | (???*0* || (???*1* && ???*2*)))
-- *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
+Hi = (...) => (undefined | ((a === N) || ((null !== b) && (b === N))))
 
 Hj = (???*0* | (???*1* + 500))
 - *0* FreeVar(Infinity)
@@ -975,10 +971,49 @@ Mj = (...) => undefined
 
 Mk = (...) => undefined
 
-N = (null | ???*0* | ???*1*)
+N = (
+  | null
+  | ???*0*
+  | (null !== (
+      | null
+      | ???*1*
+      | ???*2*
+      | ???*3*
+      | {"memoizedState": ???*5*, "baseState": ???*7*, "baseQueue": ???*9*, "queue": ???*11*, "next": null}
+    ))
+  | (null !== (???*13* | ???*14* | null | ???*16*))
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
+- *2* null["alternate"]
+  ⚠️  nested operation
+- *3* ???*4*["alternate"]
+  ⚠️  unknown object
+- *4* b
+  ⚠️  circular variable reference
+- *5* ???*6*["memoizedState"]
+  ⚠️  unknown object
+- *6* O
+  ⚠️  circular variable reference
+- *7* ???*8*["baseState"]
+  ⚠️  unknown object
+- *8* O
+  ⚠️  circular variable reference
+- *9* ???*10*["baseQueue"]
+  ⚠️  unknown object
+- *10* O
+  ⚠️  circular variable reference
+- *11* ???*12*["queue"]
+  ⚠️  unknown object
+- *12* O
+  ⚠️  circular variable reference
+- *13* null["next"]
+  ⚠️  nested operation
+- *14* ???*15*["next"]
+  ⚠️  unknown object
+- *15* unsupported expression
+- *16* unknown mutation
 
 Na = (false | true)
 
@@ -1059,20 +1094,21 @@ Ne = (...) => (
   | (
      && b
      && (
-         || (???*0* && (???*1* || ???*2* || ???*3* || ???*4* || ???*5*))
-         || ???*6*
-         || ???*7*
+         || (
+             && ("input" === b)
+             && (
+                 || ("text" === a["type"])
+                 || ("search" === a["type"])
+                 || ("tel" === a["type"])
+                 || ("url" === a["type"])
+                 || ("password" === a["type"])
+                )
+            )
+         || ("textarea" === b)
+         || ("true" === a["contentEditable"])
         )
     )
 )
-- *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
 
 Nf = ???*0*
 - *0* ???*1*["slice"](2)
@@ -1183,41 +1219,8 @@ Oj = false
 
 Ok = (...) => (undefined | a)
 
-P = (
-  | null
-  | ???*0*
-  | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
-  | null["memoizedState"]
-  | ???*1*
-  | null["next"]
-  | ???*3*
-  | null["alternate"]
-  | {
-        "memoizedState": (null["memoizedState"] | ???*4*),
-        "baseState": (null["baseState"] | ???*6*),
-        "baseQueue": (null["baseQueue"] | ???*8*),
-        "queue": (null["queue"] | ???*10*),
-        "next": null
-    }
-)
-- *0* unsupported expression
-- *1* ???*2*["memoizedState"]
-  ⚠️  unknown object
-- *2* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *3* unknown mutation
-- *4* ???*5*["memoizedState"]
-  ⚠️  unknown object
-- *5* unsupported expression
-- *6* ???*7*["baseState"]
-  ⚠️  unknown object
-- *7* unsupported expression
-- *8* ???*9*["baseQueue"]
-  ⚠️  unknown object
-- *9* unsupported expression
-- *10* ???*11*["queue"]
-  ⚠️  unknown object
-- *11* unsupported expression
+P = ???*0*
+- *0* max number of linking steps reached
 
 Pa = (...) => (undefined | Ma(a["type"]) | Ma("Lazy") | Ma("Suspense") | Ma("SuspenseList") | a | "")
 
@@ -1230,9 +1233,11 @@ Pc = ???*0*
 
 Pd = (...) => (undefined | b["getModifierState"](a) | !(!(b[a])) | !(1))
 
-Pe = (!(???*0*) | ???*1*)
-- *0* unsupported expression
+Pe = (!(???*0*) | ???*2*)
+- *0* ("undefined" === ???*1*)
+  ⚠️  nested operation
 - *1* unsupported expression
+- *2* unsupported expression
 
 Pf = `__reactProps$${???*0*}`
 - *0* ???*1*["slice"](2)
@@ -1469,11 +1474,11 @@ Sk = (...) => (undefined | a())
 
 T = (3 | 0 | 1 | 2 | 4 | 6 | 5)
 
-Ta = (...) => (undefined | (???*0* && ???*1* && (???*2* || ???*3*)))
+Ta = (...) => (
+  | undefined
+  | (???*0* && ("input" === a["toLowerCase"]()) && (("checkbox" === b) || ("radio" === b)))
+)
 - *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
 
 Tb = (...) => undefined
 
@@ -1545,10 +1550,10 @@ Uh = 0
 
 Ui = (...) => undefined
 
-Uj = (...) => (undefined | (???*0* || ???*1* || ???*2*))
-- *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
+Uj = (...) => (
+  | undefined
+  | ((5 === a["tag"]) || (3 === a["tag"]) || (4 === a["tag"]))
+)
 
 Uk = (...) => undefined
 
@@ -1775,9 +1780,8 @@ Zd = (undefined | (...) => (undefined | ???*0*))
 Ze = (...) => (undefined | Xe[a] | a | ???*0*)
 - *0* unsupported expression
 
-Zf = (...) => (undefined | (???*0* && ???*1*))
+Zf = (...) => (undefined | ((null !== a) && (???*0* !== a)))
 - *0* unsupported expression
-- *1* unsupported expression
 
 Zg = (...) => (undefined | c["stateNode"] | null)
 
@@ -2845,8 +2849,7 @@ a#267 = (???*0* | ???*1*)
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
 
-a#268 = ???*0*
-- *0* unsupported expression
+a#268 = false
 
 a#269 = {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
 
@@ -2977,69 +2980,8 @@ a#281 = (
 - *10* unsupported expression
 - *11* unsupported expression
 
-a#282 = (
-  | ???*0*
-  | {
-        "tag": (
-          | ???*1*
-          | {
-                "tag": ???*2*,
-                "create": (???*3* | null["updateQueue"] | ???*4* | {"lastEffect": null, "stores": null}),
-                "destroy": (???*6* | ???*7* | null | ???*9*),
-                "deps": (???*10* | ???*11* | null["next"]),
-                "next": null
-            }
-        ),
-        "create": (???*13* | null["updateQueue"] | ???*14* | {"lastEffect": null, "stores": null}),
-        "destroy": (???*16* | ???*17* | null | ???*19*),
-        "deps": (???*20* | ???*21* | null["next"]),
-        "next": null
-    }
-)
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *1* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *2* a
-  ⚠️  circular variable reference
-- *3* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *4* ???*5*["updateQueue"]
-  ⚠️  unknown object
-- *5* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *6* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *7* ???*8*["lastEffect"]
-  ⚠️  unknown object
-- *8* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *9* unknown mutation
-- *10* arguments[3]
-  ⚠️  function calls are not analysed yet
-- *11* ???*12*["next"]
-  ⚠️  unknown object
-- *12* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *13* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *14* ???*15*["updateQueue"]
-  ⚠️  unknown object
-- *15* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *16* arguments[2]
-  ⚠️  function calls are not analysed yet
-- *17* ???*18*["lastEffect"]
-  ⚠️  unknown object
-- *18* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *19* unknown mutation
-- *20* arguments[3]
-  ⚠️  function calls are not analysed yet
-- *21* ???*22*["next"]
-  ⚠️  unknown object
-- *22* arguments[2]
-  ⚠️  function calls are not analysed yet
+a#282 = ???*0*
+- *0* max number of linking steps reached
 
 a#283 = ???*0*
 - *0* arguments[0]
@@ -4483,9 +4425,11 @@ ac = module<scheduler, {}>["unstable_scheduleCallback"]
 
 ad = (...) => undefined
 
-ae = (!(???*0*) | ???*1*)
-- *0* unsupported expression
+ae = (!(???*0*) | ???*2*)
+- *0* ("undefined" === ???*1*)
+  ⚠️  nested operation
 - *1* unsupported expression
+- *2* unsupported expression
 
 af = (undefined | ???*0* | ???*1* | "animationiteration" | ???*2*)
 - *0* FreeVar(undefined)
@@ -4782,7 +4726,7 @@ b#162 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#163 = (???*0* | ???*1*)
+b#163 = (???*0* | (0 !== ???*1*))
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
@@ -4832,11 +4776,7 @@ b#176 = (???*0* | undefined | ???*1*)
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["replace"](/\u0000|\uFFFD/g, "")
   ⚠️  unknown callee object
-- *2* ???*3*["replace"](
-        /\r\n?/g,
-        "
-"
-    )
+- *2* ???*3*["replace"](/\r\n?/g, "\n")
   ⚠️  unknown callee object
 - *3* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -5204,10 +5144,48 @@ b#266 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#267 = (???*0* | ???*1*)
+b#267 = (
+  | ???*0*
+  | (null !== (
+      | null
+      | ???*1*
+      | ???*2*
+      | ???*3*
+      | {"memoizedState": ???*5*, "baseState": ???*7*, "baseQueue": ???*9*, "queue": ???*11*, "next": null}
+    ))
+  | (null !== (???*13* | ???*14* | null | ???*16*))
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
+- *2* null["alternate"]
+  ⚠️  nested operation
+- *3* ???*4*["alternate"]
+  ⚠️  unknown object
+- *4* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *5* ???*6*["memoizedState"]
+  ⚠️  unknown object
+- *6* O
+  ⚠️  circular variable reference
+- *7* ???*8*["baseState"]
+  ⚠️  unknown object
+- *8* O
+  ⚠️  circular variable reference
+- *9* ???*10*["baseQueue"]
+  ⚠️  unknown object
+- *10* O
+  ⚠️  circular variable reference
+- *11* ???*12*["queue"]
+  ⚠️  unknown object
+- *12* O
+  ⚠️  circular variable reference
+- *13* null["next"]
+  ⚠️  nested operation
+- *14* ???*15*["next"]
+  ⚠️  unknown object
+- *15* unsupported expression
+- *16* unknown mutation
 
 b#27 = ???*0*
 - *0* ???*1*(/\n( *(at )?)/)
@@ -5221,12 +5199,8 @@ b#27 = ???*0*
 - *4* ???["stack"]
   ⚠️  unknown object
 
-b#270 = (null["memoizedState"] | ???*0* | null["next"] | null | ???*2*)
-- *0* ???*1*["memoizedState"]
-  ⚠️  unknown object
-- *1* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *2* unknown mutation
+b#270 = ???*0*
+- *0* max number of linking steps reached
 
 b#271 = ???*0*
 - *0* arguments[1]
@@ -5528,11 +5502,8 @@ b#307 = (
   ⚠️  unknown object
 - *10* unsupported expression
 
-b#309 = (undefined[0] | undefined["memoizedState"] | null["memoizedState"] | ???*0* | null | ???*2*)
-- *0* ???*1*["memoizedState"]
-  ⚠️  unknown object
-- *1* unsupported expression
-- *2* unknown mutation
+b#309 = ???*0*
+- *0* max number of linking steps reached
 
 b#310 = ???*0*
 - *0* arguments[1]
@@ -5647,13 +5618,16 @@ b#324 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-b#325 = (???*0* | ???*1* | ???*2* | true | false)
+b#325 = (???*0* | (13 === ???*1*) | ???*3* | true | false)
 - *0* b
   ⚠️  pattern without value
-- *1* unsupported expression
-- *2* ???*3*["memoizedState"]
+- *1* ???*2*["tag"]
   ⚠️  unknown object
-- *3* arguments[0]
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* ???*4*["memoizedState"]
+  ⚠️  unknown object
+- *4* arguments[0]
   ⚠️  function calls are not analysed yet
 
 b#326 = (
@@ -5799,8 +5773,21 @@ b#352 = (???*0* | ???*1*)
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-b#353 = ???*0*
-- *0* unsupported expression
+b#353 = ((null !== ???*0*) | (???*2* === ???*5*))
+- *0* ???*1*["alternate"]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* ???*3*["child"]
+  ⚠️  unknown object
+- *3* ???*4*["alternate"]
+  ⚠️  unknown object
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *5* ???*6*["child"]
+  ⚠️  unknown object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 b#354 = ???*0*
 - *0* max number of linking steps reached
@@ -6856,7 +6843,7 @@ c#152 = (
 - *8* c
   ⚠️  circular variable reference
 
-c#154 = (???*0* | false)
+c#154 = (("string" === ???*0*) | false)
 - *0* unsupported expression
 
 c#157 = ???*0*
@@ -7224,10 +7211,46 @@ c#273 = (undefined["queue"] | null["queue"] | ???*0* | null | ???*2*)
 - *1* unsupported expression
 - *2* unknown mutation
 
-c#274 = (null | ???*0* | ???*1*)
+c#274 = (
+  | null
+  | ???*0*
+  | (null !== (
+      | null
+      | ???*1*
+      | ???*2*
+      | {"memoizedState": ???*4*, "baseState": ???*6*, "baseQueue": ???*8*, "queue": ???*10*, "next": null}
+    ))
+  | (null !== (???*12* | ???*13* | null | ???*15*))
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
+- *2* ???*3*["alternate"]
+  ⚠️  unknown object
+- *3* N
+  ⚠️  circular variable reference
+- *4* ???*5*["memoizedState"]
+  ⚠️  unknown object
+- *5* O
+  ⚠️  circular variable reference
+- *6* ???*7*["baseState"]
+  ⚠️  unknown object
+- *7* O
+  ⚠️  circular variable reference
+- *8* ???*9*["baseQueue"]
+  ⚠️  unknown object
+- *9* O
+  ⚠️  circular variable reference
+- *10* ???*11*["queue"]
+  ⚠️  unknown object
+- *11* O
+  ⚠️  circular variable reference
+- *12* null["next"]
+  ⚠️  nested operation
+- *13* ???*14*["next"]
+  ⚠️  unknown object
+- *14* unsupported expression
+- *15* unknown mutation
 
 c#275 = (???*0* | ???*1* | null | ???*3*)
 - *0* arguments[2]
@@ -7550,14 +7573,13 @@ c#327 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#328 = (???*0* | ???*1* | undefined["render"] | undefined | ???*3*)
+c#328 = (???*0* | ???*1* | undefined["render"] | false["render"] | undefined | false)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["render"]
   ⚠️  unknown object
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
-- *3* unsupported expression
 
 c#329 = (
   | ???*0*
@@ -8175,15 +8197,22 @@ c#480 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-c#481 = (???*0* | ???*1* | null[(???*4* | 0)])
+c#481 = (???*0* | ???*1* | null[(???*7* | 0)])
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
-- *1* ???*2*[(???*3* | 0)]
+- *1* ???*2*[(???*6* | 0)]
   ⚠️  unknown object
-- *2* unsupported expression
-- *3* arguments[0]
+- *2* (null != (???*3* | ???*4*))
+  ⚠️  nested operation
+- *3* arguments[2]
   ⚠️  function calls are not analysed yet
-- *4* arguments[0]
+- *4* ???*5*[a]
+  ⚠️  unknown object
+- *5* d
+  ⚠️  circular variable reference
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* arguments[0]
   ⚠️  function calls are not analysed yet
 
 c#482 = ???*0*
@@ -8343,12 +8372,14 @@ cd = ???*0*
 - *1* module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]
   ⚠️  nested operation
 
-ce = (!(???*0*) | ???*1* | !((null | ???*2*)))
-- *0* unsupported expression
+ce = (!(???*0*) | ???*2* | !((null | ???*3*)))
+- *0* ("undefined" === ???*1*)
+  ⚠️  nested operation
 - *1* unsupported expression
-- *2* ???*3*["documentMode"]
+- *2* unsupported expression
+- *3* ???*4*["documentMode"]
   ⚠️  unknown object
-- *3* FreeVar(document)
+- *4* FreeVar(document)
   ⚠️  unknown global
 
 cf = (undefined | ???*0* | ???*1* | "transitionend" | ???*2*)
@@ -8639,12 +8670,28 @@ d#233 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#234 = (false | ???*0* | ???*2*)
+d#234 = (false | ???*0* | (null !== (false | ???*2* | ???*4*)) | (???*6* !== (false | ???*7* | ???*9*)))
 - *0* ???*1*["contextTypes"]
   ⚠️  unknown object
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
-- *2* unsupported expression
+- *2* ???*3*["contextTypes"]
+  ⚠️  unknown object
+- *3* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *4* (null !== ???*5*)
+  ⚠️  nested operation
+- *5* d
+  ⚠️  circular variable reference
+- *6* unsupported expression
+- *7* ???*8*["contextTypes"]
+  ⚠️  unknown object
+- *8* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *9* (null !== ???*10*)
+  ⚠️  nested operation
+- *10* d
+  ⚠️  circular variable reference
 
 d#235 = ???*0*
 - *0* arguments[3]
@@ -8742,44 +8789,8 @@ d#273 = (???*0* | null["dispatch"])
 - *1* undefined["queue"]
   ⚠️  nested operation
 
-d#274 = (
-  | undefined
-  | null
-  | ???*0*
-  | {"memoizedState": null, "baseState": null, "baseQueue": null, "queue": null, "next": null}
-  | null["memoizedState"]
-  | ???*1*
-  | null["alternate"]
-  | null["next"]
-  | {
-        "memoizedState": (null["memoizedState"] | ???*3*),
-        "baseState": (null["baseState"] | ???*5*),
-        "baseQueue": (null["baseQueue"] | ???*7*),
-        "queue": (null["queue"] | ???*9*),
-        "next": null
-    }
-  | undefined["queue"]
-  | null["queue"]
-  | ???*11*
-)
-- *0* unsupported expression
-- *1* ???*2*["memoizedState"]
-  ⚠️  unknown object
-- *2* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *3* ???*4*["memoizedState"]
-  ⚠️  unknown object
-- *4* unsupported expression
-- *5* ???*6*["baseState"]
-  ⚠️  unknown object
-- *6* unsupported expression
-- *7* ???*8*["baseQueue"]
-  ⚠️  unknown object
-- *8* unsupported expression
-- *9* ???*10*["queue"]
-  ⚠️  unknown object
-- *10* unsupported expression
-- *11* unknown mutation
+d#274 = ???*0*
+- *0* max number of linking steps reached
 
 d#276 = ???*0*
 - *0* arguments[3]
@@ -8894,10 +8905,46 @@ d#306 = (
   ⚠️  unknown object
 - *10* unsupported expression
 
-d#310 = (null | ???*0* | ???*1*)
+d#310 = (
+  | null
+  | ???*0*
+  | (null !== (
+      | null
+      | ???*1*
+      | ???*2*
+      | {"memoizedState": ???*4*, "baseState": ???*6*, "baseQueue": ???*8*, "queue": ???*10*, "next": null}
+    ))
+  | (null !== (???*12* | ???*13* | null | ???*15*))
+)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* unsupported expression
+- *2* ???*3*["alternate"]
+  ⚠️  unknown object
+- *3* N
+  ⚠️  circular variable reference
+- *4* ???*5*["memoizedState"]
+  ⚠️  unknown object
+- *5* O
+  ⚠️  circular variable reference
+- *6* ???*7*["baseState"]
+  ⚠️  unknown object
+- *7* O
+  ⚠️  circular variable reference
+- *8* ???*9*["baseQueue"]
+  ⚠️  unknown object
+- *9* O
+  ⚠️  circular variable reference
+- *10* ???*11*["queue"]
+  ⚠️  unknown object
+- *11* O
+  ⚠️  circular variable reference
+- *12* null["next"]
+  ⚠️  nested operation
+- *13* ???*14*["next"]
+  ⚠️  unknown object
+- *14* unsupported expression
+- *15* unknown mutation
 
 d#311 = ???*0*
 - *0* max number of linking steps reached
@@ -8942,7 +8989,7 @@ d#327 = ???*0*
 d#328 = (???*0* | undefined | ???*1*)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
-- *1* (???*2* | ???*3* | undefined | ???*5*)(d, e)
+- *1* (???*2* | ???*3* | undefined | false)(d, e)
   ⚠️  non-function callee
 - *2* arguments[2]
   ⚠️  function calls are not analysed yet
@@ -8950,7 +8997,6 @@ d#328 = (???*0* | undefined | ???*1*)
   ⚠️  unknown object
 - *4* c
   ⚠️  circular variable reference
-- *5* unsupported expression
 
 d#329 = ???*0*
 - *0* arguments[3]
@@ -8973,10 +9019,9 @@ d#331 = (???*0* | null["baseLanes"] | ???*2* | ???*3*)
   ⚠️  function calls are not analysed yet
 - *3* unsupported expression
 
-d#333 = (???*0* | undefined | ???*1*)
+d#333 = (???*0* | undefined | false)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
-- *1* unsupported expression
 
 d#334 = ???*0*
 - *0* max number of linking steps reached
@@ -9021,7 +9066,7 @@ d#345 = (???*0* | undefined["current"] | 0 | ???*2* | ???*3*)
 - *2* unknown mutation
 - *3* unsupported expression
 
-d#348 = (???*0* | ???*3*)
+d#348 = (???*0* | (0 !== ???*3*))
 - *0* ???*1*["_context"]
   ⚠️  unknown object
 - *1* ???*2*["type"]
@@ -9127,7 +9172,7 @@ d#389 = ???*0*
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-d#392 = ???*0*
+d#392 = (0 !== ???*0*)
 - *0* unsupported expression
 
 d#393 = ???*0*
@@ -9365,11 +9410,24 @@ d#48 = ???*0*
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-d#481 = (???*0* | ???*1* | null)
-- *0* unsupported expression
-- *1* ???*2*["hydratedSources"]
+d#481 = ((null != (???*0* | ???*1* | ???*5*)) | ???*7* | null)
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*[(???*4* | 0)]
   ⚠️  unknown object
-- *2* arguments[2]
+- *2* (null != ???*3*)
+  ⚠️  nested operation
+- *3* c
+  ⚠️  circular variable reference
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *5* null[(???*6* | 0)]
+  ⚠️  nested operation
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* ???*8*["hydratedSources"]
+  ⚠️  unknown object
+- *8* arguments[2]
   ⚠️  function calls are not analysed yet
 
 d#484 = ???*0*
@@ -9402,45 +9460,22 @@ d#61 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-d#67 = ???*0*
-- *0* unsupported expression
+d#67 = (0 === (???*0* | ???*2*))
+- *0* ???*1*["indexOf"]("--")
+  ⚠️  unknown callee object
+- *1* c
+  ⚠️  pattern without value
+- *2* ???*3*("--")
+  ⚠️  unknown callee
+- *3* "cssFloat"["indexOf"]
+  ⚠️  nested operation
 
 d#7 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 
-d#76 = (undefined | ???*0* | null | !((???*7* | ???*8*)) | !(???*15*))
-- *0* ???*1*[`__reactProps$${???*3*}`]
-  ⚠️  unknown object
-- *1* ???*2*["stateNode"]
-  ⚠️  unknown object
-- *2* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *3* ???*4*["slice"](2)
-  ⚠️  unknown callee object
-- *4* ???*5*(36)
-  ⚠️  unknown callee
-- *5* ???*6*["toString"]
-  ⚠️  unknown object
-- *6* ???()
-  ⚠️  nested operation
-- *7* undefined["disabled"]
-  ⚠️  nested operation
-- *8* ???*9*["disabled"]
-  ⚠️  unknown object
-- *9* ???*10*[`__reactProps$${???*12*}`]
-  ⚠️  unknown object
-- *10* ???*11*["stateNode"]
-  ⚠️  unknown object
-- *11* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *12* ???*13*["slice"](2)
-  ⚠️  unknown callee object
-- *13* ???*14*(36)
-  ⚠️  unknown callee
-- *14* ???["toString"]
-  ⚠️  unknown object
-- *15* unsupported expression
+d#76 = ???*0*
+- *0* max number of linking steps reached
 
 d#78 = ???*0*
 - *0* arguments[3]
@@ -9517,17 +9552,21 @@ dd = (true | false | !(???*0*))
 - *3* Cf
   ⚠️  circular variable reference
 
-de = (!(???*0*) | !((???*1* | ???*3*)) | null | ???*4* | ???*6*)
-- *0* unsupported expression
-- *1* !(???*2*)
+de = (!(???*0*) | !((???*2* | ???*5*)) | null | ???*6* | ???*8*)
+- *0* ("undefined" === ???*1*)
   ⚠️  nested operation
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* ???*5*["documentMode"]
+- *1* unsupported expression
+- *2* !(???*3*)
+  ⚠️  nested operation
+- *3* ("undefined" === ???*4*)
+  ⚠️  nested operation
+- *4* unsupported expression
+- *5* unsupported expression
+- *6* ???*7*["documentMode"]
   ⚠️  unknown object
-- *5* FreeVar(document)
+- *7* FreeVar(document)
   ⚠️  unknown global
-- *6* unsupported expression
+- *8* unsupported expression
 
 df = ???*0*
 - *0* unknown new expression
@@ -9633,35 +9672,8 @@ e#170 = (undefined | ???*0* | ???*2* | ???*3* | ???*4*)
   ⚠️  unknown global
 - *4* unknown new expression
 
-e#172 = (
-  | ???*0*
-  | ???*1*
-  | undefined
-  | null
-  | false["stateNode"]
-  | undefined[???*3*]
-  | null[???*5*]
-  | undefined[???*7*]
-  | null[???*8*]
-)
-- *0* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *1* ???*2*["return"]
-  ⚠️  unknown object
-- *2* a
-  ⚠️  circular variable reference
-- *3* `${???*4*}Capture`
-  ⚠️  nested operation
-- *4* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *5* `${???*6*}Capture`
-  ⚠️  nested operation
-- *6* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *7* arguments[1]
-  ⚠️  function calls are not analysed yet
-- *8* arguments[1]
-  ⚠️  function calls are not analysed yet
+e#172 = ???*0*
+- *0* max number of linking steps reached
 
 e#174 = ???*0*
 - *0* arguments[4]
@@ -9903,10 +9915,7 @@ e#284 = (
 - *10* unsupported expression
 
 e#29 = ???*0*
-- *0* ???*1*["split"](
-        "
-"
-    )
+- *0* ???*1*["split"]("\n")
   ⚠️  unknown callee object
 - *1* ???*2*["stack"]
   ⚠️  unknown object
@@ -10677,7 +10686,7 @@ f#274 = !(???*0*)
       | ???*1*
       | (...) => (
           | undefined
-          | ((???*3* && (???*4* || ???*5*)) || (???*6* && ???*7*))
+          | (((a === b) && ((0 !== a) || (???*3* === ???*4*))) || ((a !== a) && (b !== b)))
         )
     )(d["memoizedState"], e)
   ⚠️  non-function callee
@@ -10687,9 +10696,6 @@ f#274 = !(???*0*)
   ⚠️  unknown global
 - *3* unsupported expression
 - *4* unsupported expression
-- *5* unsupported expression
-- *6* unsupported expression
-- *7* unsupported expression
 
 f#284 = (???*0* | ???*1*)
 - *0* unsupported expression
@@ -10699,10 +10705,7 @@ f#284 = (???*0* | ???*1*)
   ⚠️  nested operation
 
 f#29 = ???*0*
-- *0* ???*1*["split"](
-        "
-"
-    )
+- *0* ???*1*["split"]("\n")
   ⚠️  unknown callee object
 - *1* ???*2*["stack"]
   ⚠️  unknown object
@@ -10826,12 +10829,17 @@ f#377 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-f#379 = (???*0* | ???*2*)
+f#379 = (???*0* | (null !== ???*2*))
 - *0* ???*1*["memoizedProps"]
   ⚠️  unknown object
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
-- *2* unsupported expression
+- *2* ???*3*["memoizedState"]
+  ⚠️  unknown object
+- *3* ???*4*["stateNode"]
+  ⚠️  unknown object
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 f#389 = (undefined | null | ???*0*)
 - *0* ???*1*["stateNode"]
@@ -10910,13 +10918,14 @@ f#415 = ???*0*
 f#416 = ???*0*
 - *0* max number of linking steps reached
 
-f#424 = (???*0* | ???*1* | null["pendingLanes"])
+f#424 = (???*0* | (0 !== ???*1*) | ???*2* | null["pendingLanes"])
 - *0* unsupported expression
-- *1* ???*2*["transition"]
+- *1* unsupported expression
+- *2* ???*3*["transition"]
   ⚠️  unknown object
-- *2* ???*3*["ReactCurrentBatchConfig"]
+- *3* ???*4*["ReactCurrentBatchConfig"]
   ⚠️  unknown object
-- *3* module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]
+- *4* module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]
   ⚠️  nested operation
 
 f#425 = ???*0*
@@ -11138,7 +11147,7 @@ g#334 = ???*0*
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-g#335 = ???*0*
+g#335 = (0 !== ???*0*)
 - *0* unsupported expression
 
 g#339 = ???*0*
@@ -11327,7 +11336,7 @@ gc = module<scheduler, {}>["unstable_UserBlockingPriority"]
 
 gd = (...) => undefined
 
-ge = (...) => (undefined | ???*0* | !(0) | !(1))
+ge = (...) => (undefined | (???*0* !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1))
 - *0* unsupported expression
 
 gf = 0
@@ -11565,7 +11574,9 @@ hk = (...) => undefined
 hl = (...) => (undefined | null | a["child"]["stateNode"])
 
 ia = !(???*0*)
-- *0* unsupported expression
+- *0* ("undefined" === ???*1*)
+  ⚠️  nested operation
+- *1* unsupported expression
 
 ib = (...) => undefined
 
@@ -11692,10 +11703,7 @@ ${???*0*}`
   ⚠️  unknown callee object
 - *1* ???*2*[g]
   ⚠️  unknown object
-- *2* ???*3*["split"](
-        "
-"
-    )
+- *2* ???*3*["split"]("\n")
   ⚠️  unknown callee object
 - *3* ???*4*["stack"]
   ⚠️  unknown object
@@ -12094,7 +12102,7 @@ m#257 = ???*0*
 m#272 = ???*0*
 - *0* max number of linking steps reached
 
-m#334 = (???*0* | ???*2*)
+m#334 = (???*0* | ("function" === ???*2*))
 - *0* ???*1*["getDerivedStateFromProps"]
   ⚠️  unknown object
 - *1* arguments[2]
@@ -12103,16 +12111,8 @@ m#334 = (???*0* | ???*2*)
 
 m#360 = 0
 
-m#379 = (???*0* | ???*3* | null["sibling"] | null | ???*4*)
-- *0* ???*1*[g]
-  ⚠️  unknown object
-- *1* ???*2*["updateQueue"]
-  ⚠️  unknown object
-- *2* arguments[0]
-  ⚠️  function calls are not analysed yet
-- *3* unsupported expression
-- *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+m#379 = ???*0*
+- *0* max number of linking steps reached
 
 m#393 = ???*0*
 - *0* max number of linking steps reached
@@ -12281,12 +12281,11 @@ ng = (0 | ???*0* | ???*1*)
 - *2* unsupported expression
 
 nh = {
-    "isMounted": (...) => (undefined | ???*0* | !(1)),
+    "isMounted": (...) => (undefined | (Vb(a) === a) | !(1)),
     "enqueueSetState": (...) => undefined,
     "enqueueReplaceState": (...) => undefined,
     "enqueueForceUpdate": (...) => undefined
 }
-- *0* unsupported expression
 
 ni = (...) => undefined
 
@@ -12345,19 +12344,20 @@ ok = ???*0*
 - *1* module<react, {}>["__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED"]
   ⚠️  nested operation
 
-ol = (...) => (undefined | !((!(a) || (???*0* && ???*1* && ???*2*))))
-- *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
+ol = (...) => (
+  | undefined
+  | !((
+     || !(a)
+     || ((1 !== a["nodeType"]) && (9 !== a["nodeType"]) && (11 !== a["nodeType"]))
+    ))
+)
 
 p = (...) => (
   | undefined
   | `Minified React error #${a}; visit ${b} for the full message or use the non-minified dev environment for full errors and additional helpful warnings.`
 )
 
-pa = (...) => (undefined | !(1) | !(0) | !(c["acceptsBooleans"]) | (???*0* && ???*1*))
-- *0* unsupported expression
-- *1* unsupported expression
+pa = (...) => (undefined | !(1) | !(0) | !(c["acceptsBooleans"]) | (("data-" !== a) && ("aria-" !== a)))
 
 pb = {
     "animationIterationCount": true,
@@ -12435,13 +12435,19 @@ pk = ???*0*
 
 pl = (...) => (
   | undefined
-  | !((!(a) || (???*0* && ???*1* && ???*2* && (???*3* || ???*4*))))
+  | !((
+     || !(a)
+     || (
+         && (1 !== a["nodeType"])
+         && (9 !== a["nodeType"])
+         && (11 !== a["nodeType"])
+         && (
+             || (8 !== a["nodeType"])
+             || (" react-mount-point-unstable " !== a["nodeValue"])
+            )
+        )
+    ))
 )
-- *0* unsupported expression
-- *1* unsupported expression
-- *2* unsupported expression
-- *3* unsupported expression
-- *4* unsupported expression
 
 q#226 = ???*0*
 - *0* max number of linking steps reached
@@ -12451,7 +12457,7 @@ q#241 = (...) => (undefined | b | c | q(a, d(b["_payload"]), c) | null)
 q#272 = ???*0*
 - *0* max number of linking steps reached
 
-q#334 = (???*0* | ???*1*)
+q#334 = (("function" === ???*0*) | ???*1*)
 - *0* unsupported expression
 - *1* ???*2*["pendingProps"]
   ⚠️  unknown object
@@ -12481,9 +12487,8 @@ q#416 = ???*0*
 q#425 = ???*0*
 - *0* max number of linking steps reached
 
-qa = (...) => (undefined | !(0) | !(1) | !(b) | ???*0* | FreeVar(isNaN)(b) | (FreeVar(isNaN)(b) || ???*1*))
+qa = (...) => (undefined | !(0) | !(1) | !(b) | (!(1) === b) | FreeVar(isNaN)(b) | (FreeVar(isNaN)(b) || ???*0*))
 - *0* unsupported expression
-- *1* unsupported expression
 
 qb = ["Webkit", "ms", "Moz", "O"]
 
@@ -12811,7 +12816,7 @@ va = ???*0*
 - *1* FreeVar(Symbol)
   ⚠️  unknown global
 
-vb = (...) => (undefined | ???*0* | !(1) | !(0))
+vb = (...) => (undefined | ("string" === ???*0*) | !(1) | !(0))
 - *0* unsupported expression
 
 vc = (...) => (undefined | (b + 250) | (b + 5000) | ???*0*)
@@ -12915,13 +12920,14 @@ wd = (???*0* | ???*1* | 0)
   ⚠️  pattern without value
 - *1* unsupported expression
 
-we = (false | ???*0* | ???*1* | !(???*2*))
+we = (false | ???*0* | ???*1* | ("function" === ???*2*) | !(???*3*))
 - *0* xe
   ⚠️  pattern without value
 - *1* unsupported expression
-- *2* ???*3*["documentMode"]
+- *2* unsupported expression
+- *3* ???*4*["documentMode"]
   ⚠️  unknown object
-- *3* FreeVar(document)
+- *4* FreeVar(document)
   ⚠️  unknown global
 
 wf = (...) => undefined
@@ -12970,10 +12976,11 @@ xd = (???*0* | ???*1*)
   ⚠️  pattern without value
 - *1* unsupported expression
 
-xe = (???*0* | ???*1* | false)
+xe = (???*0* | ???*1* | ("function" === ???*2*) | false)
 - *0* xe
   ⚠️  pattern without value
 - *1* unsupported expression
+- *2* unsupported expression
 
 xf = /\r\n?/g
 
@@ -13041,8 +13048,9 @@ yd = (???*0* | ???*1*)
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-ye = ???*0*
+ye = (???*0* | ("function" === ???*1*))
 - *0* unsupported expression
+- *1* unsupported expression
 
 yf = /\u0000|\uFFFD/g
 
@@ -13083,14 +13091,7 @@ ze = ???*0*
 - *1* FreeVar(document)
   ⚠️  unknown global
 
-zf = (...) => (
-  | undefined
-  | a["replace"](
-        xf,
-        "
-"
-    )["replace"](yf, "")
-)
+zf = (...) => (undefined | a["replace"](xf, "\n")["replace"](yf, ""))
 
 zg = (null | [???*0*])
 - *0* arguments[0]

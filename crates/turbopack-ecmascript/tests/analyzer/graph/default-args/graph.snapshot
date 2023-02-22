@@ -62,8 +62,10 @@
                         0,
                     ),
                     Constant(
-                        StrWord(
-                            Atom('value' type=inline),
+                        Str(
+                            Word(
+                                Atom('value' type=inline),
+                            ),
                         ),
                     ),
                 ),
@@ -78,8 +80,10 @@
                         },
                     ),
                     Constant(
-                        StrWord(
-                            Atom('named' type=inline),
+                        Str(
+                            Word(
+                                Atom('named' type=inline),
+                            ),
                         ),
                     ),
                 ),

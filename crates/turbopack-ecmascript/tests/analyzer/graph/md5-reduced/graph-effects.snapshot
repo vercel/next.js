@@ -154,8 +154,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('length' type=static),
+            Str(
+                Word(
+                    Atom('length' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -4950,8 +4952,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('exports' type=inline),
+            Str(
+                Word(
+                    Atom('exports' type=inline),
+                ),
             ),
         ),
         ast_path: [

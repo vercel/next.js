@@ -11,8 +11,8 @@ b = [(undefined | "../lib/a.js"), (undefined | "../lib/b.js")]
 c = [(undefined | ["../lib/a.js"]), (undefined | ["../lib/b.js"])]
 
 d = [
-    (undefined | ""../lib/a.js"/resolved/lib/index.js"),
-    (undefined | ""../lib/b.js"/resolved/lib/index.js")
+    (undefined | "\"../lib/a.js\"/resolved/lib/index.js"),
+    (undefined | "\"../lib/b.js\"/resolved/lib/index.js")
 ]
 
 file#2 = ???*0*

@@ -12,8 +12,10 @@
     (
         "b",
         Constant(
-            StrWord(
-                Atom('foo' type=inline),
+            Str(
+                Word(
+                    Atom('foo' type=inline),
+                ),
             ),
         ),
     ),
@@ -32,8 +34,10 @@
                         ),
                     ),
                     Constant(
-                        StrWord(
-                            Atom('foo' type=inline),
+                        Str(
+                            Word(
+                                Atom('foo' type=inline),
+                            ),
                         ),
                     ),
                 ],
@@ -47,8 +51,10 @@
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('index' type=inline),
+                    Str(
+                        Word(
+                            Atom('index' type=inline),
+                        ),
                     ),
                 ),
             ),
@@ -67,8 +73,10 @@
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
             ],
@@ -93,8 +101,10 @@
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('index' type=inline),
+                    Str(
+                        Word(
+                            Atom('index' type=inline),
+                        ),
                     ),
                 ),
             ),

@@ -19,8 +19,10 @@
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('endian' type=inline),
+                            Str(
+                                Word(
+                                    Atom('endian' type=inline),
+                                ),
                             ),
                         ),
                         [
@@ -206,8 +208,10 @@
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('bytesToString' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('bytesToString' type=dynamic),
+                                ),
                             ),
                         ),
                         [
@@ -228,8 +232,10 @@
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('bytesToHex' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('bytesToHex' type=dynamic),
+                                ),
                             ),
                         ),
                         [
@@ -256,8 +262,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('_ff' type=inline),
+                Str(
+                    Word(
+                        Atom('_ff' type=inline),
+                    ),
                 ),
             ),
         ),
@@ -273,8 +281,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('_gg' type=inline),
+                Str(
+                    Word(
+                        Atom('_gg' type=inline),
+                    ),
                 ),
             ),
         ),
@@ -290,8 +300,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('_hh' type=inline),
+                Str(
+                    Word(
+                        Atom('_hh' type=inline),
+                    ),
                 ),
             ),
         ),
@@ -307,8 +319,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('_ii' type=inline),
+                Str(
+                    Word(
+                        Atom('_ii' type=inline),
+                    ),
                 ),
             ),
         ),
@@ -2795,15 +2809,19 @@
                 ),
                 [
                     Constant(
-                        StrWord(
-                            Atom('charenc' type=inline),
+                        Str(
+                            Word(
+                                Atom('charenc' type=inline),
+                            ),
                         ),
                     ),
                 ],
             ),
             Constant(
-                StrWord(
-                    Atom('bin' type=inline),
+                Str(
+                    Word(
+                        Atom('bin' type=inline),
+                    ),
                 ),
             ),
         ),
@@ -4052,8 +4070,10 @@
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('crypt' type=inline),
+                    Str(
+                        Word(
+                            Atom('crypt' type=inline),
+                        ),
                     ),
                 ),
             ],
@@ -5306,8 +5326,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('wordsToBytes' type=dynamic),
+                Str(
+                    Word(
+                        Atom('wordsToBytes' type=dynamic),
+                    ),
                 ),
             ),
             [
@@ -5356,8 +5378,10 @@
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('is-buffer' type=dynamic),
+                    Str(
+                        Word(
+                            Atom('is-buffer' type=dynamic),
+                        ),
                     ),
                 ),
             ],
@@ -5381,8 +5405,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('bytesToWords' type=dynamic),
+                Str(
+                    Word(
+                        Atom('bytesToWords' type=dynamic),
+                    ),
                 ),
             ),
             [
@@ -5422,8 +5448,10 @@
                         ),
                     ),
                     Constant(
-                        StrWord(
-                            Atom('stringToBytes' type=dynamic),
+                        Str(
+                            Word(
+                                Atom('stringToBytes' type=dynamic),
+                            ),
                         ),
                     ),
                     [
@@ -5444,8 +5472,10 @@
                         ),
                     ),
                     Constant(
-                        StrWord(
-                            Atom('stringToBytes' type=dynamic),
+                        Str(
+                            Word(
+                                Atom('stringToBytes' type=dynamic),
+                            ),
                         ),
                     ),
                     [
@@ -5469,20 +5499,26 @@
                                 ),
                             ),
                             Constant(
-                                StrWord(
-                                    Atom('prototype' type=dynamic),
+                                Str(
+                                    Word(
+                                        Atom('prototype' type=dynamic),
+                                    ),
                                 ),
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('slice' type=static),
+                            Str(
+                                Word(
+                                    Atom('slice' type=static),
+                                ),
                             ),
                         ),
                     ),
                     Constant(
-                        StrWord(
-                            Atom('call' type=static),
+                        Str(
+                            Word(
+                                Atom('call' type=static),
+                            ),
                         ),
                     ),
                     [
@@ -5510,8 +5546,10 @@
                         ),
                     ),
                     Constant(
-                        StrWord(
-                            Atom('toString' type=static),
+                        Str(
+                            Word(
+                                Atom('toString' type=static),
+                            ),
                         ),
                     ),
                     [],
@@ -5719,15 +5757,19 @@
                 ),
                 [
                     Constant(
-                        StrWord(
-                            Atom('charenc' type=inline),
+                        Str(
+                            Word(
+                                Atom('charenc' type=inline),
+                            ),
                         ),
                     ),
                 ],
             ),
             Constant(
-                StrWord(
-                    Atom('utf8' type=inline),
+                Str(
+                    Word(
+                        Atom('utf8' type=inline),
+                    ),
                 ),
             ),
         ),

@@ -10,12 +10,23 @@
 0 -> 6 call = require*0*("charenc")
 - *0* require: The require method from CommonJS
 
-0 -> 9 conditional = (???*0* | ???*1*)
+0 -> 8 conditional = (???*0* == ???*2*)
+- *0* ???*1*["constructor"]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* FreeVar(String)
+  ⚠️  unknown global
+
+8 -> 10 conditional = (???*0* | (???*1* === "binary"))
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* unsupported expression
+- *1* ???*2*["encoding"]
+  ⚠️  unknown object
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
 
-9 -> 11 member call = module<charenc, {}>["bin"]["stringToBytes"]((???*0* | ???*1* | ???*5* | ???*9*()))
+10 -> 12 member call = module<charenc, {}>["bin"]["stringToBytes"]((???*0* | ???*1* | ???*5* | ???*9*()))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*(???*4*)
@@ -39,7 +50,7 @@
 - *10* message
   ⚠️  circular variable reference
 
-9 -> 13 member call = module<charenc, {}>["utf8"]["stringToBytes"]((???*0* | ???*1* | ???*5* | ???*9*()))
+10 -> 14 member call = module<charenc, {}>["utf8"]["stringToBytes"]((???*0* | ???*1* | ???*5* | ???*9*()))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*(???*4*)
@@ -63,7 +74,7 @@
 - *10* message
   ⚠️  circular variable reference
 
-0 -> 14 call = module<is-buffer, {}>((???*0* | ???*1* | ???*5* | ???*9*()))
+8 -> 15 call = module<is-buffer, {}>((???*0* | ???*1* | ???*5* | ???*9*()))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*(???*4*)
@@ -87,7 +98,7 @@
 - *10* message
   ⚠️  circular variable reference
 
-0 -> 15 conditional = module<is-buffer, {}>((???*0* | ???*1* | ???*5* | ???*9*))
+8 -> 16 conditional = module<is-buffer, {}>((???*0* | ???*1* | ???*5* | ???*9*))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*(???*4*)
@@ -113,7 +124,7 @@
 - *11* message
   ⚠️  circular variable reference
 
-15 -> 19 member call = ???*0*["call"]((???*3* | ???*4* | ???*8* | ???*12*()), 0)
+16 -> 20 member call = ???*0*["call"]((???*3* | ???*4* | ???*8* | ???*12*()), 0)
 - *0* ???*1*["slice"]
   ⚠️  unknown object
 - *1* ???*2*["prototype"]
@@ -143,7 +154,7 @@
 - *13* message
   ⚠️  circular variable reference
 
-15 -> 21 member call = ???*0*["isArray"]((???*1* | ???*2* | ???*6* | ???*10*()))
+16 -> 22 member call = ???*0*["isArray"]((???*1* | ???*2* | ???*6* | ???*10*()))
 - *0* FreeVar(Array)
   ⚠️  unknown global
 - *1* arguments[0]
@@ -169,13 +180,13 @@
 - *11* message
   ⚠️  circular variable reference
 
-15 -> 22 conditional = !(???*0*)
+16 -> 23 conditional = !(???*0*)
 - *0* ???*1*["isArray"](message)
   ⚠️  unknown callee object
 - *1* FreeVar(Array)
   ⚠️  unknown global
 
-22 -> 24 member call = (???*0* | ???*1* | ???*5* | ???*9*())["toString"]()
+23 -> 25 member call = (???*0* | ???*1* | ???*5* | ???*9*())["toString"]()
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*(???*4*)
@@ -199,7 +210,7 @@
 - *10* message
   ⚠️  circular variable reference
 
-0 -> 26 member call = module<crypt, {}>["bytesToWords"]((???*0* | ???*1* | ???*5* | ???*9*()))
+0 -> 27 member call = module<crypt, {}>["bytesToWords"]((???*0* | ???*1* | ???*5* | ???*9*()))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*(???*4*)
@@ -223,7 +234,7 @@
 - *10* message
   ⚠️  circular variable reference
 
-0 -> 42 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, ???*19*)
+0 -> 43 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -260,7 +271,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 44 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*19*)
+0 -> 45 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -297,7 +308,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 46 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, 606105819)
+0 -> 47 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, 606105819)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -333,7 +344,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 48 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*19*)
+0 -> 49 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -370,7 +381,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 50 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, ???*19*)
+0 -> 51 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -407,7 +418,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 52 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, 1200080426)
+0 -> 53 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, 1200080426)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -443,7 +454,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 54 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*19*)
+0 -> 55 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -480,7 +491,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 56 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*19*)
+0 -> 57 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -517,7 +528,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 58 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, 1770035416)
+0 -> 59 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, 1770035416)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -553,7 +564,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 60 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*19*)
+0 -> 61 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -590,7 +601,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 62 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*19*)
+0 -> 63 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -627,7 +638,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 64 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*19*)
+0 -> 65 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -664,7 +675,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 66 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, 1804603682)
+0 -> 67 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 7, 1804603682)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -700,7 +711,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 68 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*19*)
+0 -> 69 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 12, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -737,7 +748,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 70 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*19*)
+0 -> 71 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 17, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -774,7 +785,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 72 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, 1236535329)
+0 -> 73 call = (...) => (undefined | ???*0*)["_ff"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 22, 1236535329)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -810,7 +821,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 74 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*19*)
+0 -> 75 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -847,7 +858,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 76 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*19*)
+0 -> 77 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -884,7 +895,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 78 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, 643717713)
+0 -> 79 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, 643717713)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -920,7 +931,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 80 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*19*)
+0 -> 81 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -957,7 +968,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 82 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*19*)
+0 -> 83 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -994,7 +1005,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 84 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, 38016083)
+0 -> 85 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, 38016083)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1030,7 +1041,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 86 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, ???*19*)
+0 -> 87 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1067,7 +1078,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 88 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*19*)
+0 -> 89 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1104,7 +1115,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 90 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, 568446438)
+0 -> 91 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, 568446438)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1140,7 +1151,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 92 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*19*)
+0 -> 93 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1177,7 +1188,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 94 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, ???*19*)
+0 -> 95 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1214,7 +1225,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 96 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, 1163531501)
+0 -> 97 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, 1163531501)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1250,7 +1261,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 98 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*19*)
+0 -> 99 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 5, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1287,7 +1298,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 100 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*19*)
+0 -> 101 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 9, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1324,7 +1335,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 102 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, 1735328473)
+0 -> 103 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 14, 1735328473)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1360,7 +1371,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 104 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*19*)
+0 -> 105 call = (...) => (undefined | ???*0*)["_gg"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 20, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1397,7 +1408,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 106 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*19*)
+0 -> 107 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1434,7 +1445,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 108 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*19*)
+0 -> 109 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1471,7 +1482,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 110 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, 1839030562)
+0 -> 111 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, 1839030562)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1507,7 +1518,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 112 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*19*)
+0 -> 113 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1544,7 +1555,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 114 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*19*)
+0 -> 115 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1581,7 +1592,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 116 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, 1272893353)
+0 -> 117 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, 1272893353)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1617,7 +1628,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 118 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, ???*19*)
+0 -> 119 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1654,7 +1665,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 120 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*19*)
+0 -> 121 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1691,7 +1702,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 122 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, 681279174)
+0 -> 123 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, 681279174)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1727,7 +1738,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 124 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*19*)
+0 -> 125 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1764,7 +1775,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 126 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, ???*19*)
+0 -> 127 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1801,7 +1812,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 128 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, 76029189)
+0 -> 129 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, 76029189)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1837,7 +1848,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 130 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*19*)
+0 -> 131 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 4, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1874,7 +1885,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 132 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*19*)
+0 -> 133 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 11, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1911,7 +1922,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 134 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, 530742520)
+0 -> 135 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 16, 530742520)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1947,7 +1958,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 136 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*19*)
+0 -> 137 call = (...) => (undefined | ???*0*)["_hh"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 23, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -1984,7 +1995,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 138 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, ???*19*)
+0 -> 139 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2021,7 +2032,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 140 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, 1126891415)
+0 -> 141 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, 1126891415)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2057,7 +2068,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 142 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*19*)
+0 -> 143 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2094,7 +2105,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 144 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*19*)
+0 -> 145 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2131,7 +2142,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 146 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, 1700485571)
+0 -> 147 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, 1700485571)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2167,7 +2178,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 148 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*19*)
+0 -> 149 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2204,7 +2215,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 150 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*19*)
+0 -> 151 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2241,7 +2252,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 152 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*19*)
+0 -> 153 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2278,7 +2289,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 154 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, 1873313359)
+0 -> 155 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, 1873313359)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2314,7 +2325,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 156 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*19*)
+0 -> 157 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2351,7 +2362,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 158 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*19*)
+0 -> 159 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2388,7 +2399,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 160 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, 1309151649)
+0 -> 161 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, 1309151649)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2424,7 +2435,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 162 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, ???*19*)
+0 -> 163 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 6, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2461,7 +2472,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 164 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*19*)
+0 -> 165 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 10, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2498,7 +2509,7 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 166 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, 718787259)
+0 -> 167 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 15, 718787259)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2534,7 +2545,7 @@
 - *18* message
   ⚠️  circular variable reference
 
-0 -> 168 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*19*)
+0 -> 169 call = (...) => (undefined | ???*0*)["_ii"](???*1*, ???*2*, ???*3*, ???*4*, ???*5*, 21, ???*19*)
 - *0* crypt["endian"]([a, b, c, d])
   ⚠️  nested operation
 - *1* max number of linking steps reached
@@ -2571,20 +2582,20 @@
   ⚠️  circular variable reference
 - *19* unsupported expression
 
-0 -> 170 member call = module<crypt, {}>["endian"](???*0*)
+0 -> 171 member call = module<crypt, {}>["endian"](???*0*)
 - *0* max number of linking steps reached
 
-0 -> 179 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))(???*0*, ???*1*)
+0 -> 180 call = (...) => (undefined | crypt["endian"]([a, b, c, d]))(???*0*, ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 180 member call = module<crypt, {}>["wordsToBytes"](???*0*)
+0 -> 181 member call = module<crypt, {}>["wordsToBytes"](???*0*)
 - *0* max number of linking steps reached
 
-0 -> 184 member call = module<charenc, {}>["bin"]["bytesToString"](???*0*)
+0 -> 185 member call = module<charenc, {}>["bin"]["bytesToString"](???*0*)
 - *0* max number of linking steps reached
 
-0 -> 186 member call = module<crypt, {}>["bytesToHex"](???*0*)
+0 -> 187 member call = module<crypt, {}>["bytesToHex"](???*0*)
 - *0* max number of linking steps reached

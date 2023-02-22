@@ -98,7 +98,7 @@
 21 -> 24 member call = require*0*["resolve"]("esbuild")
 - *0* require: The require method from CommonJS
 
-21 -> 25 member call = path*0*["dirname"](""esbuild"/resolved/lib/index.js")
+21 -> 25 member call = path*0*["dirname"]("\"esbuild\"/resolved/lib/index.js")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
 21 -> 28 member call = path*0*["basename"](
@@ -110,7 +110,7 @@
 - *2* unknown mutation
 
 21 -> 29 member call = path*0*["join"](
-    ""esbuild"/resolved/lib",
+    "\"esbuild\"/resolved/lib",
     `pnpapi-${(???*1* | ???*2* | ???*3* | ???*4* | "esbuild-linux-64")}-${???*5*}`
 )
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
