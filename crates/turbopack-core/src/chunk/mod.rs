@@ -3,16 +3,20 @@ pub mod dev;
 pub mod optimize;
 
 use std::{
-    collections::VecDeque,
+    collections::HashSet,
     fmt::{Debug, Display},
+    future::Future,
+    marker::PhantomData,
 };
 
 use anyhow::{anyhow, Result};
-use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat,
-    graph::{GraphTraversal, ReverseTopological, SkipDuplicates},
+    graph::{
+        GraphTraversal, GraphTraversalControlFlow, GraphTraversalResult, ReverseTopological,
+        SkipDuplicates, Visit,
+    },
     primitives::{BoolVc, StringVc},
     trace::TraceRawVcs,
     TryJoinIterExt, ValueToString, ValueToStringVc,
@@ -130,7 +134,8 @@ impl ChunkGroupVc {
             [self.await?.entry],
             SkipDuplicates::new(get_chunk_children),
         )
-        .await?
+        .await
+        .completed()?
         .into_iter()
         .collect();
 
@@ -362,188 +367,328 @@ pub trait FromChunkableAsset: ChunkItem + Sized + Debug {
     ) -> Result<Option<Self>>;
 }
 
-pub async fn chunk_content_split<I: FromChunkableAsset>(
+pub async fn chunk_content_split<I>(
     context: ChunkingContextVc,
     entry: AssetVc,
     additional_entries: Option<AssetsVc>,
-) -> Result<ChunkContentResult<I>> {
-    chunk_content_internal(context, entry, additional_entries, true)
+) -> Result<ChunkContentResult<I>>
+where
+    I: FromChunkableAsset + Eq + std::hash::Hash + Clone,
+{
+    chunk_content_internal_parallel(context, entry, additional_entries, true)
         .await
         .map(|o| o.unwrap())
 }
 
-pub async fn chunk_content<I: FromChunkableAsset>(
+pub async fn chunk_content<I>(
     context: ChunkingContextVc,
     entry: AssetVc,
     additional_entries: Option<AssetsVc>,
-) -> Result<Option<ChunkContentResult<I>>> {
-    chunk_content_internal(context, entry, additional_entries, false).await
+) -> Result<Option<ChunkContentResult<I>>>
+where
+    I: FromChunkableAsset + Eq + std::hash::Hash + Clone,
+{
+    chunk_content_internal_parallel(context, entry, additional_entries, false).await
 }
 
-enum ChunkContentWorkItem {
-    AssetReferences(AssetReferencesVc),
-    ResolveResult {
-        result: ResolveResultVc,
-        reference: AssetReferenceVc,
-        chunking_type: ChunkingType,
-    },
+#[derive(Eq, PartialEq, Clone, Hash)]
+enum ChunkContentGraphNode<I> {
+    // Chunk items that are placed into the current chunk
+    ChunkItem(I),
+    // Chunks that are loaded in parallel to the current chunk
+    Chunk(ChunkVc),
+    // Chunk groups that are referenced from the current chunk, but
+    // not loaded in parallel
+    AsyncChunkGroup(ChunkGroupVc),
+    ExternalAssetReference(AssetReferenceVc),
 }
 
-async fn chunk_content_internal<I: FromChunkableAsset>(
-    context: ChunkingContextVc,
+#[derive(Clone, Copy)]
+struct ChunkContentContext {
+    chunking_context: ChunkingContextVc,
     entry: AssetVc,
-    additional_entries: Option<AssetsVc>,
     split: bool,
-) -> Result<Option<ChunkContentResult<I>>> {
-    let mut chunk_items = Vec::new();
-    let mut processed_assets = IndexSet::new();
-    let mut chunks = Vec::new();
-    let mut async_chunk_groups = Vec::new();
-    let mut external_asset_references = Vec::new();
-    let mut queue = VecDeque::with_capacity(32);
+}
 
-    let chunk_item = I::from_asset(context, entry).await?.unwrap();
-    queue.push_back(ChunkContentWorkItem::AssetReferences(
-        chunk_item.references(),
-    ));
-    chunk_items.push(chunk_item);
-    processed_assets.insert((ChunkingType::Placed, entry));
+async fn reference_to_graph_nodes<I>(
+    context: ChunkContentContext,
+    reference: AssetReferenceVc,
+) -> Result<Vec<(Option<(AssetVc, ChunkingType)>, ChunkContentGraphNode<I>)>>
+where
+    I: FromChunkableAsset + Eq + std::hash::Hash + Clone,
+{
+    let Some(chunkable_asset_reference) = ChunkableAssetReferenceVc::resolve_from(reference).await? else {
+        return Ok(vec![(None, ChunkContentGraphNode::ExternalAssetReference(reference))]);
+    };
 
-    if let Some(additional_entries) = additional_entries {
-        for entry in &*additional_entries.await? {
-            let chunk_item = I::from_asset(context, *entry).await?.unwrap();
-            queue.push_back(ChunkContentWorkItem::AssetReferences(
-                chunk_item.references(),
-            ));
-            chunk_items.push(chunk_item);
-            processed_assets.insert((ChunkingType::Placed, *entry));
+    let Some(chunking_type) = *chunkable_asset_reference.chunking_type(context.chunking_context).await? else {
+        return Ok(vec![(None, ChunkContentGraphNode::ExternalAssetReference(reference))]);
+    };
+
+    let result = reference.resolve_reference().await?;
+
+    let assets = result.primary.iter().filter_map({
+        |result| {
+            if let PrimaryResolveResult::Asset(asset) = *result {
+                return Some(asset);
+            }
+            None
+        }
+    });
+
+    let mut graph_nodes = vec![];
+
+    for asset in assets {
+        let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
+            Some(chunkable_asset) => chunkable_asset,
+            _ => {
+                return Ok(vec![(
+                    None,
+                    ChunkContentGraphNode::ExternalAssetReference(reference),
+                )]);
+            }
+        };
+
+        match chunking_type {
+            ChunkingType::Placed => {
+                if let Some(chunk_item) = I::from_asset(context.chunking_context, asset).await? {
+                    graph_nodes.push((
+                        Some((asset, chunking_type)),
+                        ChunkContentGraphNode::ChunkItem(chunk_item),
+                    ));
+                } else {
+                    return Err(anyhow!(
+                        "Asset {} was requested to be placed into the  same chunk, but this \
+                         wasn't possible",
+                        asset.path().to_string().await?
+                    ));
+                }
+            }
+            ChunkingType::Parallel => {
+                let chunk = chunkable_asset.as_chunk(context.chunking_context);
+                graph_nodes.push((
+                    Some((asset, chunking_type)),
+                    ChunkContentGraphNode::Chunk(chunk),
+                ));
+            }
+            ChunkingType::PlacedOrParallel => {
+                // heuristic for being in the same chunk
+                if !context.split
+                    && *context
+                        .chunking_context
+                        .can_be_in_same_chunk(context.entry, asset)
+                        .await?
+                {
+                    // chunk item, chunk or other asset?
+                    if let Some(chunk_item) = I::from_asset(context.chunking_context, asset).await?
+                    {
+                        graph_nodes.push((
+                            Some((asset, chunking_type)),
+                            ChunkContentGraphNode::ChunkItem(chunk_item),
+                        ));
+                        continue;
+                    }
+                }
+
+                let chunk = chunkable_asset.as_chunk(context.chunking_context);
+                graph_nodes.push((
+                    Some((asset, chunking_type)),
+                    ChunkContentGraphNode::Chunk(chunk),
+                ));
+            }
+            ChunkingType::Separate => {
+                graph_nodes.push((
+                    Some((asset, chunking_type)),
+                    ChunkContentGraphNode::AsyncChunkGroup(ChunkGroupVc::from_asset(
+                        chunkable_asset,
+                        context.chunking_context,
+                    )),
+                ));
+            }
+            ChunkingType::SeparateAsync => {
+                if let Some(manifest_loader_item) =
+                    I::from_async_asset(context.chunking_context, chunkable_asset).await?
+                {
+                    graph_nodes.push((
+                        Some((asset, chunking_type)),
+                        ChunkContentGraphNode::ChunkItem(manifest_loader_item),
+                    ));
+                } else {
+                    return Ok(vec![(
+                        None,
+                        ChunkContentGraphNode::ExternalAssetReference(reference),
+                    )]);
+                }
+            }
         }
     }
 
-    'outer: while let Some(item) = queue.pop_front() {
-        match item {
-            ChunkContentWorkItem::AssetReferences(item) => {
-                for r in item.await?.iter() {
-                    if let Some(pc) = ChunkableAssetReferenceVc::resolve_from(r).await? {
-                        if let Some(chunking_type) = *pc.chunking_type(context).await? {
-                            queue.push_back(ChunkContentWorkItem::ResolveResult {
-                                result: r.resolve_reference(),
-                                reference: *r,
-                                chunking_type,
-                            });
-                            continue;
-                        }
+    Ok(graph_nodes)
+}
+
+async fn chunk_item_to_graph_nodes<I>(
+    context: ChunkContentContext,
+    chunk_item: I,
+) -> Result<ChunkItemToGraphNodesChildren<I>>
+where
+    I: FromChunkableAsset + Eq + std::hash::Hash + Clone,
+{
+    Ok(chunk_item
+        .references()
+        .await?
+        .into_iter()
+        .map(|reference| reference_to_graph_nodes::<I>(context, *reference))
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten())
+}
+
+/// The maximum number of chunk items that can be in a chunk before we split it
+/// into multiple chunks.
+const MAX_CHUNK_ITEMS_COUNT: usize = 5000;
+
+struct ChunkContentVisit<I> {
+    context: ChunkContentContext,
+    chunk_items_count: usize,
+    processed_assets: HashSet<(ChunkingType, AssetVc)>,
+    _phantom: PhantomData<I>,
+}
+
+type ChunkItemToGraphNodesChildren<I> =
+    impl Iterator<Item = (Option<(AssetVc, ChunkingType)>, ChunkContentGraphNode<I>)>;
+
+type ChunkItemToGraphNodesFuture<I> =
+    impl Future<Output = Result<ChunkItemToGraphNodesChildren<I>>>;
+
+impl<I> Visit<ChunkContentGraphNode<I>, ()> for ChunkContentVisit<I>
+where
+    I: FromChunkableAsset + Eq + std::hash::Hash + Clone,
+{
+    type Children = ChunkItemToGraphNodesChildren<I>;
+    type MapChildren = Vec<ChunkContentGraphNode<I>>;
+    type Future = ChunkItemToGraphNodesFuture<I>;
+
+    fn get_children(
+        &mut self,
+        node: &ChunkContentGraphNode<I>,
+    ) -> GraphTraversalControlFlow<Self::Future, ()> {
+        // TODO(alexkirsz) Right now the output type of the traversal is the same as the
+        // input type. If we can have them be separate types, we wouldn't need
+        // to call `get_children` on graph nodes that we know not to have any children
+        // (i.e. anything that's not a chunk item).
+        let ChunkContentGraphNode::ChunkItem(chunk_item) = node else {
+            return GraphTraversalControlFlow::Skip;
+        };
+
+        GraphTraversalControlFlow::Continue(chunk_item_to_graph_nodes::<I>(
+            self.context,
+            chunk_item.clone(),
+        ))
+    }
+
+    fn map_children(
+        &mut self,
+        children: Self::Children,
+    ) -> GraphTraversalControlFlow<Self::MapChildren, ()> {
+        let mut map_children = vec![];
+
+        for (option_key, child) in children {
+            if let Some((asset, chunking_type)) = option_key {
+                if self.processed_assets.insert((chunking_type, asset)) {
+                    if let ChunkContentGraphNode::ChunkItem(_) = &child {
+                        self.chunk_items_count += 1;
                     }
-                    external_asset_references.push(*r);
+                    map_children.push(child);
                 }
+            } else {
+                map_children.push(child);
             }
-            ChunkContentWorkItem::ResolveResult {
-                result,
-                reference,
-                chunking_type,
-            } => {
-                // It's important to temporary store these results in these variables
-                // so that we can cancel to complete list of assets by that references together
-                // and fallback to an external reference completely
-                // The cancellation is at these "continue 'outer;" lines
+        }
 
-                // Chunk items that are placed into the current chunk
-                let mut inner_chunk_items = Vec::new();
+        // Make sure the chunk doesn't become too large.
+        // This will hurt performance in many aspects.
+        if !self.context.split && self.chunk_items_count >= MAX_CHUNK_ITEMS_COUNT {
+            // Chunk is too large, cancel this algorithm and restart with splitting from the
+            // start.
+            return GraphTraversalControlFlow::Abort(());
+        }
 
-                // Chunks that are loaded in parallel to the current chunk
-                let mut inner_chunks = Vec::new();
+        GraphTraversalControlFlow::Continue(map_children)
+    }
+}
 
-                // Chunk groups that are referenced from the current chunk, but
-                // not loaded in parallel
-                let mut inner_chunk_groups = Vec::new();
+async fn chunk_content_internal_parallel<I>(
+    chunking_context: ChunkingContextVc,
+    entry: AssetVc,
+    additional_entries: Option<AssetsVc>,
+    split: bool,
+) -> Result<Option<ChunkContentResult<I>>>
+where
+    I: FromChunkableAsset + Eq + std::hash::Hash + Clone,
+{
+    let mut processed_assets: HashSet<(ChunkingType, AssetVc)> = HashSet::default();
 
-                let result = result.await?;
-                let assets = result.primary.iter().filter_map(|result| {
-                    if let PrimaryResolveResult::Asset(asset) = *result {
-                        if processed_assets.insert((chunking_type, asset)) {
-                            return Some(asset);
-                        }
-                    }
-                    None
-                });
-                for asset in assets {
-                    let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
-                        Some(chunkable_asset) => chunkable_asset,
-                        _ => {
-                            external_asset_references.push(reference);
-                            continue 'outer;
-                        }
-                    };
+    let additional_entries = if let Some(additional_entries) = additional_entries {
+        additional_entries.await?.clone_value().into_iter()
+    } else {
+        vec![].into_iter()
+    };
 
-                    match chunking_type {
-                        ChunkingType::Placed => {
-                            if let Some(chunk_item) = I::from_asset(context, asset).await? {
-                                inner_chunk_items.push(chunk_item);
-                            } else {
-                                return Err(anyhow!(
-                                    "Asset {} was requested to be placed into the same chunk, but \
-                                     this wasn't possible",
-                                    asset.path().to_string().await?
-                                ));
-                            }
-                        }
-                        ChunkingType::Parallel => {
-                            let chunk = chunkable_asset.as_chunk(context);
-                            inner_chunks.push(chunk);
-                        }
-                        ChunkingType::PlacedOrParallel => {
-                            // heuristic for being in the same chunk
-                            if !split && *context.can_be_in_same_chunk(entry, asset).await? {
-                                // chunk item, chunk or other asset?
-                                if let Some(chunk_item) = I::from_asset(context, asset).await? {
-                                    inner_chunk_items.push(chunk_item);
-                                    continue;
-                                }
-                            }
+    let entries = [entry].into_iter().chain(additional_entries);
+    for entry in entries.clone() {
+        processed_assets.insert((ChunkingType::Placed, entry));
+    }
 
-                            let chunk = chunkable_asset.as_chunk(context);
-                            inner_chunks.push(chunk);
-                        }
-                        ChunkingType::Separate => {
-                            inner_chunk_groups
-                                .push(ChunkGroupVc::from_asset(chunkable_asset, context));
-                        }
-                        ChunkingType::SeparateAsync => {
-                            if let Some(chunk_item) =
-                                I::from_async_asset(context, chunkable_asset).await?
-                            {
-                                inner_chunk_items.push(chunk_item);
-                            } else {
-                                external_asset_references.push(reference);
-                                continue 'outer;
-                            }
-                        }
-                    }
-                }
+    let root_graph_nodes = entries
+        .map(|entry| async move {
+            Ok(ChunkContentGraphNode::ChunkItem(
+                I::from_asset(chunking_context, entry).await?.unwrap(),
+            ))
+        })
+        .try_join()
+        .await?;
 
-                let prev_chunk_items = chunk_items.len();
+    processed_assets.insert((ChunkingType::Placed, entry));
 
-                for chunk_item in inner_chunk_items {
-                    queue.push_back(ChunkContentWorkItem::AssetReferences(
-                        chunk_item.references(),
-                    ));
-                    chunk_items.push(chunk_item);
-                }
-                chunks.extend(inner_chunks);
-                async_chunk_groups.extend(inner_chunk_groups);
+    let context = ChunkContentContext {
+        chunking_context,
+        entry,
+        split,
+    };
 
-                // Make sure the chunk doesn't become too large.
-                // This will hurt performance in many aspects.
-                let chunk_items_count = chunk_items.len();
-                if !split
-                    && prev_chunk_items != chunk_items_count
-                    && chunk_items_count > 5000
-                    && prev_chunk_items > 1
-                {
-                    // Chunk is too large, cancel this algorithm and
-                    // restart with splitting from the start
-                    return Ok(None);
-                }
+    let visit = ChunkContentVisit {
+        context,
+        chunk_items_count: root_graph_nodes.len(),
+        processed_assets,
+        _phantom: PhantomData,
+    };
+
+    let GraphTraversalResult::Completed(traversal_result) =
+        GraphTraversal::<ReverseTopological<_>>::visit(root_graph_nodes, visit).await else {
+            return Ok(None);
+        };
+
+    let graph_nodes: Vec<_> = traversal_result?.into_iter().collect();
+
+    let mut chunk_items = Vec::new();
+    let mut chunks = Vec::new();
+    let mut async_chunk_groups = Vec::new();
+    let mut external_asset_references = Vec::new();
+
+    for graph_node in graph_nodes {
+        match graph_node {
+            ChunkContentGraphNode::ChunkItem(chunk_item) => {
+                chunk_items.push(chunk_item);
+            }
+            ChunkContentGraphNode::Chunk(chunk) => {
+                chunks.push(chunk);
+            }
+            ChunkContentGraphNode::AsyncChunkGroup(async_chunk_group) => {
+                async_chunk_groups.push(async_chunk_group);
+            }
+            ChunkContentGraphNode::ExternalAssetReference(reference) => {
+                external_asset_references.push(reference);
             }
         }
     }
