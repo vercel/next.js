@@ -5,8 +5,8 @@ use turbo_tasks::{primitives::StringVc, Value};
 use turbopack_core::introspect::{Introspectable, IntrospectableVc};
 use turbopack_dev_server::source::{
     query::QueryValue, ContentSource, ContentSourceContent, ContentSourceData,
-    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc,
-    ContentSourceVc, NeededData, ProxyResult,
+    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
+    NeededData, ProxyResult,
 };
 
 /// Serves, resizes, optimizes, and re-encodes images to be used with
@@ -65,11 +65,7 @@ impl ContentSource for NextImageContentSource {
         // TODO: consume the assets, resize and reduce quality, re-encode into next-gen
         // formats.
         if let Some(path) = url.strip_prefix('/') {
-            let asset = this.asset_source.get(path, Default::default());
-            let inner = asset.await?;
-            if let ContentSourceResult::Result { .. } = &*inner {
-                return Ok(asset);
-            }
+            return Ok(this.asset_source.get(path, Default::default()));
         }
 
         // TODO: This should be downloaded by the server, and resized, etc.
