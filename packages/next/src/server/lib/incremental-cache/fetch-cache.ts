@@ -61,9 +61,6 @@ export default class FetchCache implements CacheHandler {
     if (!data) {
       try {
         const start = Date.now()
-        if (this.debug) {
-          console.log(`getting fetch cache entry for ${key}`)
-        }
         const res = await fetch(
           `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
           {
@@ -116,11 +113,9 @@ export default class FetchCache implements CacheHandler {
         }
       } catch (err) {
         // unable to get data from fetch-cache
-        console.error(`Failed to get from fetch-cache`, err)
-      }
-    } else {
-      if (this.debug) {
-        console.log(`got fetch cache entry for ${key} from memory`)
+        if (this.debug) {
+          console.error(`Failed to get from fetch-cache`, err)
+        }
       }
     }
     return data || null
@@ -147,9 +142,6 @@ export default class FetchCache implements CacheHandler {
         this.headers['x-vercel-cache-control'] =
           data.data.headers['cache-control']
       }
-      if (this.debug) {
-        console.log(`setting fetch cache entry for ${key}`)
-      }
       const body = JSON.stringify(data)
       const res = await fetch(
         `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
@@ -174,7 +166,9 @@ export default class FetchCache implements CacheHandler {
       }
     } catch (err) {
       // unable to set to fetch-cache
-      console.error(`Failed to update fetch cache`, err)
+      if (this.debug) {
+        console.error(`Failed to update fetch cache`, err)
+      }
     }
     return
   }

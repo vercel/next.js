@@ -8,7 +8,7 @@ import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig, NextConfigComplete } from './config-shared'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 import type { RenderOpts, RenderOptsPartial } from './render'
 import type {
@@ -895,6 +895,19 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     this.handleCompression(req, res)
 
+    // set incremental cache to request meta so it can
+    // be passed down for edge functions and the fetch disk
+    // cache can be leveraged locally
+    if (
+      !(globalThis as any).__incrementalCache &&
+      !getRequestMeta(req, '_nextIncrementalCache')
+    ) {
+      const incrementalCache = this.getIncrementalCache({
+        requestHeaders: Object.assign({}, req.headers),
+      })
+      addRequestMeta(req, '_nextIncrementalCache', incrementalCache)
+    }
+
     try {
       const matched = await this.router.execute(req, res, parsedUrl)
       if (matched) {
@@ -1346,14 +1359,15 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       ssgCacheKey =
         ssgCacheKey === '/index' && pathname === '/' ? '/' : ssgCacheKey
     }
-    const incrementalCache = this.getIncrementalCache({
-      requestHeaders: Object.assign({}, req.headers),
-    })
-    if (
-      this.nextConfig.experimental.fetchCache &&
-      (!isEdgeRuntime(opts.runtime) ||
-        (this.serverOptions as any).webServerConfig)
-    ) {
+
+    // use existing incrementalCache instance if available
+    const incrementalCache =
+      (globalThis as any).__incrementalCache ||
+      this.getIncrementalCache({
+        requestHeaders: Object.assign({}, req.headers),
+      })
+
+    if (this.nextConfig.experimental.fetchCache) {
       delete req.headers[FETCH_CACHE_HEADER]
     }
     let isRevalidate = false
