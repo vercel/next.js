@@ -58,8 +58,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -116,8 +118,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         args: [
@@ -182,8 +186,10 @@
                     3,
                     [
                         Constant(
-                            StrAtom(
-                                "hello ",
+                            Str(
+                                Atom(
+                                    "hello ",
+                                ),
                             ),
                         ),
                         Variable(
@@ -278,8 +284,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -466,8 +474,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         args: [
@@ -588,8 +598,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -776,8 +788,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         args: [
@@ -912,8 +926,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -970,8 +986,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('concat' type=static),
+            Str(
+                Word(
+                    Atom('concat' type=static),
+                ),
             ),
         ),
         args: [

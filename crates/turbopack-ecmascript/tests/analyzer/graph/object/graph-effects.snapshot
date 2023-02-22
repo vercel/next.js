@@ -7,8 +7,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('a' type=static),
+            Str(
+                Word(
+                    Atom('a' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -56,8 +58,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('a' type=static),
+            Str(
+                Word(
+                    Atom('a' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -105,8 +109,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('b' type=static),
+            Str(
+                Word(
+                    Atom('b' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -154,8 +160,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('b' type=static),
+            Str(
+                Word(
+                    Atom('b' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -203,8 +211,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('c' type=inline),
+            Str(
+                Word(
+                    Atom('c' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -252,8 +262,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('c' type=inline),
+            Str(
+                Word(
+                    Atom('c' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -301,8 +313,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('d' type=static),
+            Str(
+                Word(
+                    Atom('d' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -350,8 +364,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('d' type=static),
+            Str(
+                Word(
+                    Atom('d' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -399,8 +415,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('a' type=static),
+            Str(
+                Word(
+                    Atom('a' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -448,8 +466,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('b' type=static),
+            Str(
+                Word(
+                    Atom('b' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -497,8 +517,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('c' type=inline),
+            Str(
+                Word(
+                    Atom('c' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -546,8 +568,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('d' type=static),
+            Str(
+                Word(
+                    Atom('d' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -595,8 +619,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('a' type=static),
+            Str(
+                Word(
+                    Atom('a' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -644,8 +670,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('b' type=static),
+            Str(
+                Word(
+                    Atom('b' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -693,8 +721,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('c' type=inline),
+            Str(
+                Word(
+                    Atom('c' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -742,8 +772,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('a' type=static),
+            Str(
+                Word(
+                    Atom('a' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -791,8 +823,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('b' type=static),
+            Str(
+                Word(
+                    Atom('b' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -840,8 +874,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('c' type=inline),
+            Str(
+                Word(
+                    Atom('c' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -889,8 +925,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('d' type=static),
+            Str(
+                Word(
+                    Atom('d' type=static),
+                ),
             ),
         ),
         ast_path: [
@@ -938,8 +976,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('e' type=static),
+            Str(
+                Word(
+                    Atom('e' type=static),
+                ),
             ),
         ),
         ast_path: [

@@ -11,8 +11,10 @@
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('foo' type=inline),
+                    Str(
+                        Word(
+                            Atom('foo' type=inline),
+                        ),
                     ),
                 ),
             ],
@@ -26,8 +28,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('index' type=inline),
+                Str(
+                    Word(
+                        Atom('index' type=inline),
+                    ),
                 ),
             ),
         ),
@@ -75,8 +79,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('index' type=inline),
+            Str(
+                Word(
+                    Atom('index' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -143,8 +149,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('index' type=inline),
+                Str(
+                    Word(
+                        Atom('index' type=inline),
+                    ),
                 ),
             ),
         ),
@@ -192,8 +200,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('index' type=inline),
+            Str(
+                Word(
+                    Atom('index' type=inline),
+                ),
             ),
         ),
         ast_path: [

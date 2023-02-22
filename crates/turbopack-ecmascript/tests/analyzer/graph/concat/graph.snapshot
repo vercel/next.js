@@ -2,32 +2,40 @@
     (
         "a",
         Constant(
-            StrAtom(
-                "",
+            Str(
+                Atom(
+                    "",
+                ),
             ),
         ),
     ),
     (
         "b",
         Constant(
-            StrAtom(
-                "hello",
+            Str(
+                Atom(
+                    "hello",
+                ),
             ),
         ),
     ),
     (
         "c",
         Constant(
-            StrWord(
-                Atom('--service=0.14.12' type=dynamic),
+            Str(
+                Atom(
+                    "--service=0.14.12",
+                ),
             ),
         ),
     ),
     (
         "d",
         Constant(
-            StrWord(
-                Atom('--service=0.14.12' type=dynamic),
+            Str(
+                Atom(
+                    "--service=0.14.12",
+                ),
             ),
         ),
     ),

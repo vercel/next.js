@@ -21,8 +21,10 @@
                         Require,
                     ),
                     Constant(
-                        StrWord(
-                            Atom('resolve' type=inline),
+                        Str(
+                            Word(
+                                Atom('resolve' type=inline),
+                            ),
                         ),
                     ),
                     [
@@ -36,8 +38,10 @@
                                     ),
                                 ),
                                 Constant(
-                                    StrAtom(
-                                        "/",
+                                    Str(
+                                        Atom(
+                                            "/",
+                                        ),
                                     ),
                                 ),
                                 Variable(
@@ -95,37 +99,49 @@
             parts: [
                 KeyValue(
                     Constant(
-                        StrWord(
-                            Atom('win32 arm64 LE' type=dynamic),
+                        Str(
+                            Word(
+                                Atom('win32 arm64 LE' type=dynamic),
+                            ),
                         ),
                     ),
                     Constant(
-                        StrWord(
-                            Atom('esbuild-windows-arm64' type=dynamic),
-                        ),
-                    ),
-                ),
-                KeyValue(
-                    Constant(
-                        StrWord(
-                            Atom('win32 ia32 LE' type=dynamic),
-                        ),
-                    ),
-                    Constant(
-                        StrWord(
-                            Atom('esbuild-windows-32' type=dynamic),
+                        Str(
+                            Word(
+                                Atom('esbuild-windows-arm64' type=dynamic),
+                            ),
                         ),
                     ),
                 ),
                 KeyValue(
                     Constant(
-                        StrWord(
-                            Atom('win32 x64 LE' type=dynamic),
+                        Str(
+                            Word(
+                                Atom('win32 ia32 LE' type=dynamic),
+                            ),
                         ),
                     ),
                     Constant(
-                        StrWord(
-                            Atom('esbuild-windows-64' type=dynamic),
+                        Str(
+                            Word(
+                                Atom('esbuild-windows-32' type=dynamic),
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        Str(
+                            Word(
+                                Atom('win32 x64 LE' type=dynamic),
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Word(
+                                Atom('esbuild-windows-64' type=dynamic),
+                            ),
                         ),
                     ),
                 ),
@@ -142,8 +158,10 @@
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('path' type=static),
+                    Str(
+                        Word(
+                            Atom('path' type=static),
+                        ),
                     ),
                 ),
             ],
@@ -158,8 +176,10 @@
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('path' type=static),
+                    Str(
+                        Word(
+                            Atom('path' type=static),
+                        ),
                     ),
                 ),
             ],
@@ -213,8 +233,10 @@
                 [],
             ),
             Constant(
-                StrWord(
-                    Atom('pkg' type=inline),
+                Str(
+                    Word(
+                        Atom('pkg' type=inline),
+                    ),
                 ),
             ),
         ),
@@ -235,8 +257,10 @@
                         parts: [
                             KeyValue(
                                 Constant(
-                                    StrWord(
-                                        Atom('pkg' type=inline),
+                                    Str(
+                                        Word(
+                                            Atom('pkg' type=inline),
+                                        ),
                                     ),
                                 ),
                                 Variable(
@@ -248,8 +272,10 @@
                             ),
                             KeyValue(
                                 Constant(
-                                    StrWord(
-                                        Atom('subpath' type=inline),
+                                    Str(
+                                        Word(
+                                            Atom('subpath' type=inline),
+                                        ),
                                     ),
                                 ),
                                 Variable(
@@ -283,8 +309,10 @@
                     "pattern without value",
                 ),
                 Constant(
-                    StrWord(
-                        Atom('esbuild.exe' type=dynamic),
+                    Str(
+                        Word(
+                            Atom('esbuild.exe' type=dynamic),
+                        ),
                     ),
                 ),
             ],
@@ -305,8 +333,10 @@
                 [],
             ),
             Constant(
-                StrWord(
-                    Atom('subpath' type=inline),
+                Str(
+                    Word(
+                        Atom('subpath' type=inline),
+                    ),
                 ),
             ),
         ),

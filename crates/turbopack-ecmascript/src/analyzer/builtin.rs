@@ -212,7 +212,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 match &mut **prop {
                     // matching constant string property access on an object like `{a: 1, b:
                     // 2}["a"]`
-                    JsValue::Constant(ConstantValue::StrAtom(_) | ConstantValue::StrWord(_)) => {
+                    JsValue::Constant(ConstantValue::Str(_)) => {
                         let prop_str = prop.as_str().unwrap();
                         let mut potential_values = Vec::new();
                         for (i, part) in parts.iter_mut().enumerate().rev() {
@@ -461,6 +461,20 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 // If not, we know that it will be one of the remaining values.
                 *value = JsValue::alternatives(take(parts));
                 true
+            }
+        }
+        // match a binary operator like `a == b`
+        JsValue::Binary(..) => {
+            if let Some(v) = value.is_truthy() {
+                let v = if v {
+                    ConstantValue::True
+                } else {
+                    ConstantValue::False
+                };
+                *value = JsValue::Constant(v);
+                true
+            } else {
+                false
             }
         }
         // match the not operator like `!a`

@@ -87,8 +87,10 @@
                         ),
                         [
                             Constant(
-                                StrWord(
-                                    Atom('b' type=static),
+                                Str(
+                                    Word(
+                                        Atom('b' type=static),
+                                    ),
                                 ),
                             ),
                         ],
@@ -225,8 +227,10 @@
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('a' type=static),
+                    Str(
+                        Word(
+                            Atom('a' type=static),
+                        ),
                     ),
                 ),
             ],

@@ -406,6 +406,34 @@ impl EvalContext {
                 ..
             }) => JsValue::nullish_coalescing(vec![self.eval(left), self.eval(right)]),
 
+            Expr::Bin(BinExpr {
+                op: op!("=="),
+                left,
+                right,
+                ..
+            }) => JsValue::equal(self.eval(left), self.eval(right)),
+
+            Expr::Bin(BinExpr {
+                op: op!("!="),
+                left,
+                right,
+                ..
+            }) => JsValue::not_equal(self.eval(left), self.eval(right)),
+
+            Expr::Bin(BinExpr {
+                op: op!("==="),
+                left,
+                right,
+                ..
+            }) => JsValue::strict_equal(self.eval(left), self.eval(right)),
+
+            Expr::Bin(BinExpr {
+                op: op!("!=="),
+                left,
+                right,
+                ..
+            }) => JsValue::strict_not_equal(self.eval(left), self.eval(right)),
+
             &Expr::Cond(CondExpr {
                 box ref cons,
                 box ref alt,

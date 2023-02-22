@@ -16,8 +16,10 @@
                         args: [
                             Value(
                                 Constant(
-                                    StrWord(
-                                        Atom('test' type=inline),
+                                    Str(
+                                        Word(
+                                            Atom('test' type=inline),
+                                        ),
                                     ),
                                 ),
                             ),

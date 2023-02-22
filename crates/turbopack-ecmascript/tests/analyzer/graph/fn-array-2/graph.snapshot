@@ -69,13 +69,17 @@
             ),
             [
                 Constant(
-                    StrWord(
-                        Atom('1' type=inline),
+                    Str(
+                        Word(
+                            Atom('1' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('2' type=inline),
+                    Str(
+                        Word(
+                            Atom('2' type=inline),
+                        ),
                     ),
                 ),
             ],

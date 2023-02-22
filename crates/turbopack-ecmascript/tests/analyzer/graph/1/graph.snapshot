@@ -51,8 +51,10 @@
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('.js' type=inline),
+                            Str(
+                                Word(
+                                    Atom('.js' type=inline),
+                                ),
                             ),
                         ),
                     ],
@@ -66,13 +68,17 @@
             3,
             [
                 Constant(
-                    StrWord(
-                        Atom('hello' type=inline),
+                    Str(
+                        Word(
+                            Atom('hello' type=inline),
+                        ),
                     ),
                 ),
                 Constant(
-                    StrWord(
-                        Atom('world' type=inline),
+                    Str(
+                        Word(
+                            Atom('world' type=inline),
+                        ),
                     ),
                 ),
             ],

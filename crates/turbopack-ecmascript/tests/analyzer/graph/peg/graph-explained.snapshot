@@ -12,19 +12,15 @@
 
 *anonymous function 11725* = (...) => (undefined | seq)
 
-*anonymous function 11890* = (...) => (undefined | "")
+*anonymous function 11890* = (...) => (undefined | "\b")
 
-*anonymous function 12016* = (...) => (undefined | "")
+*anonymous function 12016* = (...) => (undefined | "\f")
 
-*anonymous function 12142* = (...) => (
-  | undefined
-  | "
-"
-)
+*anonymous function 12142* = (...) => (undefined | "\n")
 
-*anonymous function 12268* = (...) => (undefined | "")
+*anonymous function 12268* = (...) => (undefined | "\r")
 
-*anonymous function 12394* = (...) => (undefined | "	")
+*anonymous function 12394* = (...) => (undefined | "\t")
 
 *anonymous function 12449* = (...) => (undefined | text())
 
@@ -319,7 +315,7 @@ child = arguments[0]
 
 classEscape = (...) => (
   | undefined
-  | ...[...](..., ...)["replace"](/\^/g, "\^")["replace"](/-/g, "\-")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  | ...[...](..., ...)["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
 )
 
 condition = arguments[0]
@@ -496,7 +492,7 @@ list = arguments[1]
 
 literalEscape = (...) => (
   | undefined
-  | s["replace"](/\\/g, "\\")["replace"](/"/g, "\"")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
+  | s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
 )
 
 location#21 = (...) => (undefined | peg$computeLocation(peg$savedPos, peg$currPos))
@@ -632,11 +628,11 @@ peg$c127 = "~"
 
 peg$c128 = peg$literalExpectation("~", false)
 
-peg$c129 = "\"
+peg$c129 = "\\"
 
 peg$c13 = *anonymous function 4902*
 
-peg$c130 = peg$literalExpectation("\", false)
+peg$c130 = peg$literalExpectation("\\", false)
 
 peg$c131 = *anonymous function 11668*
 
@@ -894,9 +890,9 @@ peg$c52 = peg$classExpectation([["0", "9"]], false, false)
 
 peg$c53 = *anonymous function 7869*
 
-peg$c54 = """
+peg$c54 = "\""
 
-peg$c55 = peg$literalExpectation(""", false)
+peg$c55 = peg$literalExpectation("\"", false)
 
 peg$c56 = *anonymous function 8139*
 
@@ -912,17 +908,7 @@ peg$c60 = *anonymous function 8472*
 
 peg$c61 = /^[ \t\n\r]/
 
-peg$c62 = peg$classExpectation(
-    [
-        " ",
-        "	",
-        "
-",
-        ""
-    ],
-    false,
-    false
-)
+peg$c62 = peg$classExpectation([" ", "\t", "\n", "\r"], false, false)
 
 peg$c63 = "--"
 
@@ -930,15 +916,7 @@ peg$c64 = peg$literalExpectation("--", false)
 
 peg$c65 = /^[\n\r]/
 
-peg$c66 = peg$classExpectation(
-    [
-        "
-",
-        ""
-    ],
-    false,
-    false
-)
+peg$c66 = peg$classExpectation(["\n", "\r"], false, false)
 
 peg$c67 = "select"
 

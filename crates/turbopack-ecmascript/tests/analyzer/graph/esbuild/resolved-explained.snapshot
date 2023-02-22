@@ -78,7 +78,7 @@ esbuildCommandAndArgs = (...) => (
   | [generateBinPath(), []]
 )
 
-esbuildLibDir = ""esbuild"/resolved/lib"
+esbuildLibDir = "\"esbuild\"/resolved/lib"
 
 generateBinPath = (...) => (undefined | FreeVar(ESBUILD_BINARY_PATH) | binTargetPath | binPath)
 

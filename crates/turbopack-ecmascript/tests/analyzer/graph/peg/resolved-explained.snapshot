@@ -12,19 +12,15 @@
 
 *anonymous function 11725* = (...) => (undefined | seq)
 
-*anonymous function 11890* = (...) => (undefined | "")
+*anonymous function 11890* = (...) => (undefined | "\b")
 
-*anonymous function 12016* = (...) => (undefined | "")
+*anonymous function 12016* = (...) => (undefined | "\f")
 
-*anonymous function 12142* = (...) => (
-  | undefined
-  | "
-"
-)
+*anonymous function 12142* = (...) => (undefined | "\n")
 
-*anonymous function 12268* = (...) => (undefined | "")
+*anonymous function 12268* = (...) => (undefined | "\r")
 
-*anonymous function 12394* = (...) => (undefined | "	")
+*anonymous function 12394* = (...) => (undefined | "\t")
 
 *anonymous function 12449* = (...) => (undefined | text())
 
@@ -351,7 +347,7 @@ child = ???*0*
 
 classEscape = (...) => (
   | undefined
-  | ...[...](..., ...)["replace"](/\^/g, "\^")["replace"](/-/g, "\-")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
+  | ...[...](..., ...)["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
 )
 
 condition = ???*0*
@@ -674,7 +670,7 @@ list = ???*0*
 
 literalEscape = (...) => (
   | undefined
-  | s["replace"](/\\/g, "\\")["replace"](/"/g, "\"")["replace"](/\0/g, "\0")["replace"](/\t/g, "\t")["replace"](/\n/g, "\n")["replace"](/\r/g, "\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
+  | s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
 )
 
 location#21 = (...) => (undefined | peg$computeLocation(peg$savedPos, peg$currPos))
@@ -891,13 +887,13 @@ peg$c128 = (
   | {"type": "literal", "text": "~", "ignoreCase": false}
 )
 
-peg$c129 = "\"
+peg$c129 = "\\"
 
 peg$c13 = (...) => (undefined | v)
 
 peg$c130 = (
   | undefined
-  | {"type": "literal", "text": "\", "ignoreCase": false}
+  | {"type": "literal", "text": "\\", "ignoreCase": false}
 )
 
 peg$c131 = (...) => (undefined | text())
@@ -913,7 +909,7 @@ peg$c135 = (
   | {"type": "literal", "text": "b", "ignoreCase": false}
 )
 
-peg$c136 = (...) => (undefined | "")
+peg$c136 = (...) => (undefined | "\b")
 
 peg$c137 = "f"
 
@@ -922,7 +918,7 @@ peg$c138 = (
   | {"type": "literal", "text": "f", "ignoreCase": false}
 )
 
-peg$c139 = (...) => (undefined | "")
+peg$c139 = (...) => (undefined | "\f")
 
 peg$c14 = (...) => (
   | undefined
@@ -937,11 +933,7 @@ peg$c141 = (
   | {"type": "literal", "text": "n", "ignoreCase": false}
 )
 
-peg$c142 = (...) => (
-  | undefined
-  | "
-"
-)
+peg$c142 = (...) => (undefined | "\n")
 
 peg$c143 = "r"
 
@@ -950,7 +942,7 @@ peg$c144 = (
   | {"type": "literal", "text": "r", "ignoreCase": false}
 )
 
-peg$c145 = (...) => (undefined | "")
+peg$c145 = (...) => (undefined | "\r")
 
 peg$c146 = "t"
 
@@ -959,7 +951,7 @@ peg$c147 = (
   | {"type": "literal", "text": "t", "ignoreCase": false}
 )
 
-peg$c148 = (...) => (undefined | "	")
+peg$c148 = (...) => (undefined | "\t")
 
 peg$c149 = (...) => (undefined | text())
 
@@ -1362,11 +1354,11 @@ peg$c53 = (...) => (
     }
 )
 
-peg$c54 = """
+peg$c54 = "\""
 
 peg$c55 = (
   | undefined
-  | {"type": "literal", "text": """, "ignoreCase": false}
+  | {"type": "literal", "text": "\"", "ignoreCase": false}
 )
 
 peg$c56 = (...) => (
@@ -1393,18 +1385,7 @@ peg$c61 = /^[ \t\n\r]/
 
 peg$c62 = (
   | undefined
-  | {
-        "type": "class",
-        "parts": [
-            " ",
-            "	",
-            "
-",
-            ""
-        ],
-        "inverted": false,
-        "ignoreCase": false
-    }
+  | {"type": "class", "parts": [" ", "\t", "\n", "\r"], "inverted": false, "ignoreCase": false}
 )
 
 peg$c63 = "--"
@@ -1418,16 +1399,7 @@ peg$c65 = /^[\n\r]/
 
 peg$c66 = (
   | undefined
-  | {
-        "type": "class",
-        "parts": [
-            "
-",
-            ""
-        ],
-        "inverted": false,
-        "ignoreCase": false
-    }
+  | {"type": "class", "parts": ["\n", "\r"], "inverted": false, "ignoreCase": false}
 )
 
 peg$c67 = "select"
@@ -2141,7 +2113,7 @@ s1#102 = (???*0* | "-" | {} | null | undefined | {"type": "number_constant", "va
 
 s1#103 = (
   | ???*0*
-  | """
+  | "\""
   | {}
   | undefined
   | {"type": "string_constant", "value": (???*1* | ???*3*)}
@@ -2338,22 +2310,7 @@ s1#137 = ???*0*
 s1#138 = ???*0*
 - *0* max number of linking steps reached
 
-s1#142 = (
-  | ???*0*
-  | "b"
-  | {}
-  | undefined
-  | ""
-  | "f"
-  | ""
-  | "n"
-  | "
-"
-  | "r"
-  | ""
-  | "t"
-  | "	"
-)
+s1#142 = (???*0* | "b" | {} | undefined | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t")
 - *0* s1
   ⚠️  pattern without value
 

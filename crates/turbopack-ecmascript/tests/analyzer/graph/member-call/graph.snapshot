@@ -102,8 +102,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('concat' type=static),
+                Str(
+                    Word(
+                        Atom('concat' type=static),
+                    ),
                 ),
             ),
             [
@@ -159,8 +161,10 @@
                     3,
                     [
                         Constant(
-                            StrAtom(
-                                "hello ",
+                            Str(
+                                Atom(
+                                    "hello ",
+                                ),
                             ),
                         ),
                         Variable(
@@ -185,8 +189,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('concat' type=static),
+                Str(
+                    Word(
+                        Atom('concat' type=static),
+                    ),
                 ),
             ),
             [
@@ -306,8 +312,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('concat' type=static),
+                Str(
+                    Word(
+                        Atom('concat' type=static),
+                    ),
                 ),
             ),
             [
@@ -394,8 +402,10 @@
                 ),
             ),
             Constant(
-                StrWord(
-                    Atom('concat' type=static),
+                Str(
+                    Word(
+                        Atom('concat' type=static),
+                    ),
                 ),
             ),
             [

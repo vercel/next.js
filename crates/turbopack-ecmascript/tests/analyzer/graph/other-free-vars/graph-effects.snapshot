@@ -4,8 +4,10 @@
             Object,
         ),
         prop: Constant(
-            StrWord(
-                Atom('keys' type=inline),
+            Str(
+                Word(
+                    Atom('keys' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -59,8 +61,10 @@
             Object,
         ),
         prop: Constant(
-            StrWord(
-                Atom('keys' type=inline),
+            Str(
+                Word(
+                    Atom('keys' type=inline),
+                ),
             ),
         ),
         args: [
@@ -118,8 +122,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('keys' type=inline),
+            Str(
+                Word(
+                    Atom('keys' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -176,8 +182,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('keys' type=inline),
+            Str(
+                Word(
+                    Atom('keys' type=inline),
+                ),
             ),
         ),
         args: [

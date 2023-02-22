@@ -6,8 +6,10 @@
             ),
         ),
         prop: Constant(
-            StrWord(
-                Atom('MONGOOSE_DRIVER_PATH' type=dynamic),
+            Str(
+                Word(
+                    Atom('MONGOOSE_DRIVER_PATH' type=dynamic),
+                ),
             ),
         ),
         ast_path: [
@@ -69,8 +71,10 @@
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('/connection' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('/connection' type=dynamic),
+                                ),
                             ),
                         ),
                     ],
@@ -130,8 +134,10 @@
                             ),
                         ),
                         Constant(
-                            StrWord(
-                                Atom('/collection' type=dynamic),
+                            Str(
+                                Word(
+                                    Atom('/collection' type=dynamic),
+                                ),
                             ),
                         ),
                     ],

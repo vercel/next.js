@@ -6,8 +6,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('path' type=static),
+                    Str(
+                        Word(
+                            Atom('path' type=static),
+                        ),
                     ),
                 ),
             ),
@@ -56,8 +58,10 @@
         args: [
             Value(
                 Constant(
-                    StrWord(
-                        Atom('path' type=static),
+                    Str(
+                        Word(
+                            Atom('path' type=static),
+                        ),
                     ),
                 ),
             ),
@@ -230,8 +234,10 @@
             Require,
         ),
         prop: Constant(
-            StrWord(
-                Atom('resolve' type=inline),
+            Str(
+                Word(
+                    Atom('resolve' type=inline),
+                ),
             ),
         ),
         ast_path: [
@@ -311,8 +317,10 @@
             Require,
         ),
         prop: Constant(
-            StrWord(
-                Atom('resolve' type=inline),
+            Str(
+                Word(
+                    Atom('resolve' type=inline),
+                ),
             ),
         ),
         args: [
@@ -327,8 +335,10 @@
                             ),
                         ),
                         Constant(
-                            StrAtom(
-                                "/",
+                            Str(
+                                Atom(
+                                    "/",
+                                ),
                             ),
                         ),
                         Variable(
