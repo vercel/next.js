@@ -108,7 +108,7 @@ createNextDescribe(
           }
         })
 
-        expect(manifest.version).toBe(3)
+        expect(manifest.version).toBe(4)
         expect(manifest.routes).toEqual({
           '/blog/tim': {
             initialRevalidateSeconds: 10,

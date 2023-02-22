@@ -1,3 +1,10 @@
+import { cookies } from 'next/headers'
+
 export async function GET() {
-  throw new Error('this is a runtime error')
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    // don't error during build
+    cookies()
+  } else {
+    throw new Error('this is a runtime error')
+  }
 }
