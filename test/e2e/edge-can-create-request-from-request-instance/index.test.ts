@@ -22,6 +22,6 @@ describe('Edge runtime creates request form request instance', () => {
     const res = await fetchViaHTTP(next.url, '/api/edge', {}, { method: 'GET' })
 
     expect(res.status).toBe(200)
-    expect(await res.text()).toBe('Created Request from Request instanced')
+    expect(await res.text()).toBe('Created Request from Request instance')
   })
 })
