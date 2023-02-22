@@ -1,16 +1,25 @@
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
+import { CacheFs } from '../../../shared/lib/utils'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from './'
+
+type FileSystemCacheContext = Omit<
+  CacheHandlerContext,
+  'fs' | 'serverDistDir'
+> & {
+  fs: CacheFs
+  serverDistDir: string
+}
 
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
 export default class FileSystemCache implements CacheHandler {
-  private fs: CacheHandlerContext['fs']
-  private flushToDisk?: CacheHandlerContext['flushToDisk']
-  private serverDistDir: CacheHandlerContext['serverDistDir']
+  private fs: FileSystemCacheContext['fs']
+  private flushToDisk?: FileSystemCacheContext['flushToDisk']
+  private serverDistDir: FileSystemCacheContext['serverDistDir']
   private appDir: boolean
 
-  constructor(ctx: CacheHandlerContext) {
+  constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
     this.flushToDisk = ctx.flushToDisk
     this.serverDistDir = ctx.serverDistDir

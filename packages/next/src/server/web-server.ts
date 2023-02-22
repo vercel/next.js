@@ -26,6 +26,7 @@ import {
   normalizeVercelUrl,
 } from '../build/webpack/loaders/next-serverless-loader/utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { IncrementalCache } from './lib/incremental-cache'
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
@@ -52,8 +53,39 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // For the web server layer, compression is automatically handled by the
     // upstream proxy (edge runtime or node server) and we can simply skip here.
   }
-  protected getIncrementalCache() {
-    return {} as any
+  protected getIncrementalCache({
+    requestHeaders,
+  }: {
+    requestHeaders: IncrementalCache['requestHeaders']
+  }) {
+    const dev = !!this.renderOpts.dev
+    // incremental-cache is request specific with a shared
+    // although can have shared caches in module scope
+    // per-cache handler
+    return new IncrementalCache({
+      dev,
+      requestHeaders,
+      appDir: this.hasAppDir,
+      minimalMode: this.minimalMode,
+      fetchCache: this.nextConfig.experimental.fetchCache,
+      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+      flushToDisk: false,
+      incrementalCacheHandlerPath:
+        this.nextConfig.experimental?.incrementalCacheHandlerPath,
+      getPrerenderManifest: () => {
+        if (dev) {
+          return {
+            version: -1 as any, // letting us know this doesn't conform to spec
+            routes: {},
+            dynamicRoutes: {},
+            notFoundRoutes: [],
+            preview: null as any, // `preview` is special case read in next-dev-server
+          }
+        } else {
+          return this.getPrerenderManifest()
+        }
+      },
+    })
   }
   protected getResponseCache() {
     return new WebResponseCache(this.minimalMode)
