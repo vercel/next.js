@@ -8,6 +8,7 @@ export const TYPE_BEFORE_REFRESH = "before-fast-refresh";
 export const TYPE_REFRESH = "fast-refresh";
 export const TYPE_UNHANDLED_ERROR = "unhandled-error";
 export const TYPE_UNHANDLED_REJECTION = "unhandled-rejection";
+export const TYPE_REACT_ERROR = "react-error";
 
 export type BuildOk = { type: typeof TYPE_BUILD_OK };
 export type TurbopackIssues = {
@@ -26,13 +27,20 @@ export type UnhandledRejection = {
   reason: Error;
   frames: StackFrame[];
 };
+export type ReactError = {
+  type: typeof TYPE_REACT_ERROR;
+  error: Error;
+  componentStack: string | null;
+};
+
 export type BusEvent =
   | BuildOk
   | TurbopackIssues
   | BeforeFastRefresh
   | FastRefresh
   | UnhandledError
-  | UnhandledRejection;
+  | UnhandledRejection
+  | ReactError;
 
 export type BusEventHandler = (ev: BusEvent) => void;
 

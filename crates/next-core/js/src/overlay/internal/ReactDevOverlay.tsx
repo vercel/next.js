@@ -32,6 +32,8 @@ type OverlayState = {
   errors: SupportedErrorEvent[];
 
   refreshState: RefreshState;
+
+  reactError: Error | null;
 };
 
 function pushErrorFilterDuplicates(
@@ -50,6 +52,13 @@ function pushErrorFilterDuplicates(
 function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
   switch (ev.type) {
     case Bus.TYPE_BUILD_OK: {
+      if (state.reactError != null) {
+        console.warn(
+          "[Fast Refresh] performing full reload because your application had an unrecoverable error"
+        );
+        window.location.reload();
+      }
+
       return { ...state };
     }
     case Bus.TYPE_TURBOPACK_ISSUES: {
@@ -104,6 +113,9 @@ function reducer(state: OverlayState, ev: Bus.BusEvent): OverlayState {
           return state;
       }
     }
+    case Bus.TYPE_REACT_ERROR: {
+      return { ...state, reactError: ev.error };
+    }
     default: {
       return state;
     }
@@ -142,6 +154,7 @@ export default function ReactDevOverlay({
     refreshState: {
       type: "idle",
     },
+    reactError: null,
   });
 
   React.useEffect(() => {
@@ -152,8 +165,12 @@ export default function ReactDevOverlay({
   }, [dispatch]);
 
   const onComponentError = React.useCallback(
-    (_error: Error, _componentStack: string | null) => {
-      // TODO: special handling
+    (error: Error, componentStack: string | null) => {
+      Bus.emit({
+        type: Bus.TYPE_REACT_ERROR,
+        error,
+        componentStack,
+      });
     },
     []
   );
