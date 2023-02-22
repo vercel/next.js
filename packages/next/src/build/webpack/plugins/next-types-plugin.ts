@@ -75,7 +75,7 @@ export interface PageProps {
   searchParams?: any
 }
 export interface LayoutProps {
-  children: React.ReactNode
+  children?: React.ReactNode
 ${
   options.slots
     ? options.slots.map((slot) => `  ${slot}: React.ReactNode`).join('\n')
