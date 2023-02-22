@@ -10,12 +10,274 @@
 
 'use strict';
 
-'use strict';const m=require("acorn"),n=require("url"),q=require("module");
-module.exports=function(){const h=Symbol.for("react.client.reference"),k=Symbol.for("react.server.reference"),r=Promise.prototype,t=Function.prototype.bind;Function.prototype.bind=function(a){const b=t.apply(this,arguments);if(this.$$typeof===k){const a=Array.prototype.slice.call(arguments,1);b.$$typeof=k;b.$$filepath=this.$$filepath;b.$$name=this.$$name;b.$$bound=this.$$bound.concat(a)}return b};const u={get:function(a,b){switch(b){case "$$typeof":return a.$$typeof;case "filepath":return a.filepath;
-case "name":return a.name;case "displayName":return;case "async":return a.async;case "defaultProps":return;case "toJSON":return;case Symbol.toPrimitive:return Object.prototype[Symbol.toPrimitive];case "Provider":throw Error("Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider.");}switch(a.name){case "":a=String(b);break;case "*":a=String(b);break;default:a=String(a.name)+"."+String(b)}throw Error("Cannot access "+
-a+" on the server. You cannot dot into a client module from a server component. You can only pass the imported name through.");},set:function(){throw Error("Cannot assign to a client module from a server module.");}},p={get:function(a,b){switch(b){case "$$typeof":return a.$$typeof;case "filepath":return a.filepath;case "name":return a.name;case "async":return a.async;case "defaultProps":return;case "toJSON":return;case Symbol.toPrimitive:return Object.prototype[Symbol.toPrimitive];case "__esModule":const d=
-a.filepath;a.default=Object.defineProperties(function(){throw Error("Attempted to call the default export of "+d+" from the server but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.");},{name:{value:""},$$typeof:{value:h},filepath:{value:a.filepath},async:{value:a.async}});return!0;case "then":if(a.then)return a.then;if(a.async)return;{var c=Object.defineProperties({},{name:{value:"*"},
-$$typeof:{value:h},filepath:{value:a.filepath},async:{value:!0}});const b=new Proxy(c,p);a.status="fulfilled";a.value=b;return a.then=Object.defineProperties(function(a){return Promise.resolve(a(b))},{name:{value:"then"},$$typeof:{value:h},filepath:{value:a.filepath},async:{value:!1}})}}c=a[b];c||(c=Object.defineProperties(function(){throw Error("Attempted to call "+String(b)+"() from the server but "+String(b)+" is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.");
-},{name:{value:b},$$typeof:{value:h},filepath:{value:a.filepath},async:{value:a.async}}),c=a[b]=new Proxy(c,u));return c},getPrototypeOf(){return r},set:function(){throw Error("Cannot assign to a client module from a server module.");}},l=q.prototype._compile;q.prototype._compile=function(a,b){if(-1===a.indexOf("use client")&&-1===a.indexOf("use server"))return l.apply(this,arguments);var c=m.parse(a,{ecmaVersion:"2019",sourceType:"source"}).body,d=!1,f=!1;for(var e=0;e<c.length;e++){var g=c[e];if("ExpressionStatement"!==
-g.type||!g.directive)break;"use client"===g.directive&&(d=!0);"use server"===g.directive&&(f=!0)}if(!d&&!f)return l.apply(this,arguments);if(d&&f)throw Error('Cannot have both "use client" and "use server" directives in the same file.');d&&(c=n.pathToFileURL(b).href,c=Object.defineProperties({},{name:{value:"*"},$$typeof:{value:h},filepath:{value:c},async:{value:!1}}),this.exports=new Proxy(c,p));if(f)if(l.apply(this,arguments),f=n.pathToFileURL(b).href,c=this.exports,"function"===typeof c)Object.defineProperties(c,
-{$$typeof:{value:k},$$filepath:{value:f},$$name:{value:"*"},$$bound:{value:[]}});else for(d=Object.keys(c),e=0;e<d.length;e++){g=d[e];const a=c[d[e]];"function"===typeof a&&Object.defineProperties(a,{$$typeof:{value:k},$$filepath:{value:f},$$name:{value:g},$$bound:{value:[]}})}}};
+'use strict';
+
+var acorn = require('acorn');
+
+var url = require('url');
+
+var Module = require('module');
+
+module.exports = function register() {
+  var CLIENT_REFERENCE = Symbol.for('react.client.reference');
+  var PROMISE_PROTOTYPE = Promise.prototype;
+  var deepProxyHandlers = {
+    get: function (target, name, receiver) {
+      switch (name) {
+        // These names are read by the Flight runtime if you end up using the exports object.
+        case '$$typeof':
+          // These names are a little too common. We should probably have a way to
+          // have the Flight runtime extract the inner target instead.
+          return target.$$typeof;
+
+        case 'filepath':
+          return target.filepath;
+
+        case 'name':
+          return target.name;
+
+        case 'async':
+          return target.async;
+        // We need to special case this because createElement reads it if we pass this
+        // reference.
+
+        case 'defaultProps':
+          return undefined;
+        // Avoid this attempting to be serialized.
+
+        case 'toJSON':
+          return undefined;
+
+        case Symbol.toPrimitive:
+          // $FlowFixMe[prop-missing]
+          return Object.prototype[Symbol.toPrimitive];
+
+        case 'Provider':
+          throw new Error("Cannot render a Client Context Provider on the Server. " + "Instead, you can export a Client Component wrapper " + "that itself renders a Client Context Provider.");
+      }
+
+      var expression;
+
+      switch (target.name) {
+        case '':
+          // eslint-disable-next-line react-internal/safe-string-coercion
+          expression = String(name);
+          break;
+
+        case '*':
+          // eslint-disable-next-line react-internal/safe-string-coercion
+          expression = String(name);
+          break;
+
+        default:
+          // eslint-disable-next-line react-internal/safe-string-coercion
+          expression = String(target.name) + '.' + String(name);
+      }
+
+      throw new Error("Cannot access " + expression + " on the server. " + 'You cannot dot into a client module from a server component. ' + 'You can only pass the imported name through.');
+    },
+    set: function () {
+      throw new Error('Cannot assign to a client module from a server module.');
+    }
+  };
+  var proxyHandlers = {
+    get: function (target, name, receiver) {
+      switch (name) {
+        // These names are read by the Flight runtime if you end up using the exports object.
+        case '$$typeof':
+          // These names are a little too common. We should probably have a way to
+          // have the Flight runtime extract the inner target instead.
+          return target.$$typeof;
+
+        case 'filepath':
+          return target.filepath;
+
+        case 'name':
+          return target.name;
+
+        case 'async':
+          return target.async;
+        // We need to special case this because createElement reads it if we pass this
+        // reference.
+
+        case 'defaultProps':
+          return undefined;
+        // Avoid this attempting to be serialized.
+
+        case 'toJSON':
+          return undefined;
+
+        case Symbol.toPrimitive:
+          // $FlowFixMe[prop-missing]
+          return Object.prototype[Symbol.toPrimitive];
+
+        case '__esModule':
+          // Something is conditionally checking which export to use. We'll pretend to be
+          // an ESM compat module but then we'll check again on the client.
+          var moduleId = target.filepath;
+          target.default = Object.defineProperties(function () {
+            throw new Error("Attempted to call the default export of " + moduleId + " from the server " + "but it's on the client. It's not possible to invoke a client function from " + "the server, it can only be rendered as a Component or passed to props of a " + "Client Component.");
+          }, {
+            // This a placeholder value that tells the client to conditionally use the
+            // whole object or just the default export.
+            name: {
+              value: ''
+            },
+            $$typeof: {
+              value: CLIENT_REFERENCE
+            },
+            filepath: {
+              value: target.filepath
+            },
+            async: {
+              value: target.async
+            }
+          });
+          return true;
+
+        case 'then':
+          if (target.then) {
+            // Use a cached value
+            return target.then;
+          }
+
+          if (!target.async) {
+            // If this module is expected to return a Promise (such as an AsyncModule) then
+            // we should resolve that with a client reference that unwraps the Promise on
+            // the client.
+            var clientReference = Object.defineProperties({}, {
+              // Represents the whole Module object instead of a particular import.
+              name: {
+                value: '*'
+              },
+              $$typeof: {
+                value: CLIENT_REFERENCE
+              },
+              filepath: {
+                value: target.filepath
+              },
+              async: {
+                value: true
+              }
+            });
+            var proxy = new Proxy(clientReference, proxyHandlers); // Treat this as a resolved Promise for React's use()
+
+            target.status = 'fulfilled';
+            target.value = proxy;
+            var then = target.then = Object.defineProperties(function then(resolve, reject) {
+              // Expose to React.
+              return Promise.resolve(resolve(proxy));
+            }, // If this is not used as a Promise but is treated as a reference to a `.then`
+            // export then we should treat it as a reference to that name.
+            {
+              name: {
+                value: 'then'
+              },
+              $$typeof: {
+                value: CLIENT_REFERENCE
+              },
+              filepath: {
+                value: target.filepath
+              },
+              async: {
+                value: false
+              }
+            });
+            return then;
+          } else {
+            // Since typeof .then === 'function' is a feature test we'd continue recursing
+            // indefinitely if we return a function. Instead, we return an object reference
+            // if we check further.
+            return undefined;
+          }
+
+      }
+
+      var cachedReference = target[name];
+
+      if (!cachedReference) {
+        var reference = Object.defineProperties(function () {
+          throw new Error( // eslint-disable-next-line react-internal/safe-string-coercion
+          "Attempted to call " + String(name) + "() from the server but " + String(name) + " is on the client. " + "It's not possible to invoke a client function from the server, it can " + "only be rendered as a Component or passed to props of a Client Component.");
+        }, {
+          name: {
+            value: name
+          },
+          $$typeof: {
+            value: CLIENT_REFERENCE
+          },
+          filepath: {
+            value: target.filepath
+          },
+          async: {
+            value: target.async
+          }
+        });
+        cachedReference = target[name] = new Proxy(reference, deepProxyHandlers);
+      }
+
+      return cachedReference;
+    },
+    getPrototypeOf: function (target) {
+      // Pretend to be a Promise in case anyone asks.
+      return PROMISE_PROTOTYPE;
+    },
+    set: function () {
+      throw new Error('Cannot assign to a client module from a server module.');
+    }
+  }; // $FlowFixMe[prop-missing] found when upgrading Flow
+
+  var originalCompile = Module.prototype._compile; // $FlowFixMe[prop-missing] found when upgrading Flow
+
+  Module.prototype._compile = function (content, filename) {
+    // Do a quick check for the exact string. If it doesn't exist, don't
+    // bother parsing.
+    if (content.indexOf('use client') === -1) {
+      return originalCompile.apply(this, arguments);
+    }
+
+    var _acorn$parse = acorn.parse(content, {
+      ecmaVersion: '2019',
+      sourceType: 'source'
+    }),
+        body = _acorn$parse.body;
+
+    var useClient = false;
+
+    for (var i = 0; i < body.length; i++) {
+      var node = body[i];
+
+      if (node.type !== 'ExpressionStatement' || !node.directive) {
+        break;
+      }
+
+      if (node.directive === 'use client') {
+        useClient = true;
+        break;
+      }
+    }
+
+    if (!useClient) {
+      return originalCompile.apply(this, arguments);
+    }
+
+    var moduleId = url.pathToFileURL(filename).href;
+    var clientReference = Object.defineProperties({}, {
+      // Represents the whole Module object instead of a particular import.
+      name: {
+        value: '*'
+      },
+      $$typeof: {
+        value: CLIENT_REFERENCE
+      },
+      filepath: {
+        value: moduleId
+      },
+      async: {
+        value: false
+      }
+    }); // $FlowFixMe[incompatible-call] found when upgrading Flow
+
+    this.exports = new Proxy(clientReference, proxyHandlers);
+  };
+};

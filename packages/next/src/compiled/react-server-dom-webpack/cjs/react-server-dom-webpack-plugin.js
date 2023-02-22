@@ -10,11 +10,250 @@
 
 'use strict';
 
-'use strict';var k=require("path"),l=require("url"),n=require("neo-async"),p=require("webpack/lib/dependencies/ModuleDependency"),q=require("webpack/lib/dependencies/NullDependency"),r=require("webpack/lib/Template"),t=require("webpack");const u=Array.isArray;class v extends p{constructor(a){super(a)}get type(){return"client-reference"}}const w=require.resolve("../client.browser.js");
-class x{constructor(a){this.manifestFilename=this.chunkName=this.clientReferences=void 0;if(!a||"boolean"!==typeof a.isServer)throw Error("React Server Plugin: You must specify the isServer option as a boolean.");if(a.isServer)throw Error("TODO: Implement the server compiler.");a.clientReferences?"string"!==typeof a.clientReferences&&u(a.clientReferences)?this.clientReferences=a.clientReferences:this.clientReferences=[a.clientReferences]:this.clientReferences=[{directory:".",recursive:!0,include:/\.(js|ts|jsx|tsx)$/}];
-"string"===typeof a.chunkName?(this.chunkName=a.chunkName,/\[(index|request)\]/.test(this.chunkName)||(this.chunkName+="[index]")):this.chunkName="client[index]";this.manifestFilename=a.manifestFilename||"react-client-manifest.json"}apply(a){const e=this;let f,m=!1;a.hooks.beforeCompile.tapAsync("React Server Plugin",(c,b)=>{c=c.contextModuleFactory;const d=a.resolverFactory.get("context",{});e.resolveAllClientFiles(a.context,d,a.inputFileSystem,c,function(a,c){a?b(a):(f=c,b())})});a.hooks.thisCompilation.tap("React Server Plugin",
-(a,b)=>{b=b.normalModuleFactory;a.dependencyFactories.set(v,b);a.dependencyTemplates.set(v,new q.Template);a=a=>{a.hooks.program.tap("React Server Plugin",()=>{const b=a.state.module;if(b.resource===w&&(m=!0,f))for(let a=0;a<f.length;a++){const g=f[a];var c=e.chunkName.replace(/\[index\]/g,""+a).replace(/\[request\]/g,r.toPath(g.userRequest));c=new t.AsyncDependenciesBlock({name:c},null,g.request);c.addDependency(g);b.addBlock(c)}})};b.hooks.parser.for("javascript/auto").tap("HarmonyModulesPlugin",
-a);b.hooks.parser.for("javascript/esm").tap("HarmonyModulesPlugin",a);b.hooks.parser.for("javascript/dynamic").tap("HarmonyModulesPlugin",a)});a.hooks.make.tap("React Server Plugin",a=>{a.hooks.processAssets.tap({name:"React Server Plugin",stage:t.Compilation.PROCESS_ASSETS_STAGE_REPORT},function(){if(!1===m)a.warnings.push(new t.WebpackError("Client runtime at react-server-dom-webpack/client was not found. React Server Components module map file "+e.manifestFilename+" was not created."));else{var b=
-{};a.chunkGroups.forEach(function(c){function d(c,h){if(/\.(js|ts)x?$/.test(h.resource)){var d=a.moduleGraph.getExportsInfo(h).getProvidedExports(),g={};["","*"].concat(Array.isArray(d)?d:[]).forEach(function(a){g[a]={id:c,chunks:e,name:a}});h=l.pathToFileURL(h.resource).href;void 0!==h&&(b[h]=g)}}const e=c.chunks.map(function(a){return a.id});c.chunks.forEach(function(b){b=a.chunkGraph.getChunkModulesIterable(b);Array.from(b).forEach(function(b){const c=a.chunkGraph.getModuleId(b);d(c,b);b.modules&&
-b.modules.forEach(a=>{d(c,a)})})})});var c=JSON.stringify(b,null,2);a.emitAsset(e.manifestFilename,new t.sources.RawSource(c,!1))}})})}resolveAllClientFiles(a,e,f,m,c){n.map(this.clientReferences,(b,c)=>{"string"===typeof b?c(null,[new v(b)]):e.resolve({},a,b.directory,{},(a,d)=>{if(a)return c(a);m.resolveDependencies(f,{resource:d,resourceQuery:"",recursive:void 0===b.recursive?!0:b.recursive,regExp:b.include,include:void 0,exclude:b.exclude},(a,b)=>{if(a)return c(a);a=b.map(a=>{var b=k.join(d,a.userRequest);
-b=new v(b);b.userRequest=a.userRequest;return b});c(null,a)})})},(a,d)=>{if(a)return c(a);a=[];for(let b=0;b<d.length;b++)a.push.apply(a,d[b]);c(null,a)})}}module.exports=x;
+'use strict';
+
+var path = require('path');
+var url = require('url');
+var asyncLib = require('neo-async');
+var ModuleDependency = require('webpack/lib/dependencies/ModuleDependency');
+var NullDependency = require('webpack/lib/dependencies/NullDependency');
+var Template = require('webpack/lib/Template');
+var webpack = require('webpack');
+
+var isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
+
+function isArray(a) {
+  return isArrayImpl(a);
+}
+
+class ClientReferenceDependency extends ModuleDependency {
+  constructor(request) {
+    super(request);
+  }
+
+  get type() {
+    return 'client-reference';
+  }
+
+} // This is the module that will be used to anchor all client references to.
+// I.e. it will have all the client files as async deps from this point on.
+// We use the Flight client implementation because you can't get to these
+// without the client runtime so it's the first time in the loading sequence
+// you might want them.
+
+
+var clientImportName = 'react-server-dom-webpack/client';
+
+var clientFileName = require.resolve('../client');
+
+var PLUGIN_NAME = 'React Server Plugin';
+class ReactFlightWebpackPlugin {
+  constructor(options) {
+    this.clientReferences = void 0;
+    this.chunkName = void 0;
+    this.manifestFilename = void 0;
+
+    if (!options || typeof options.isServer !== 'boolean') {
+      throw new Error(PLUGIN_NAME + ': You must specify the isServer option as a boolean.');
+    }
+
+    if (options.isServer) {
+      throw new Error('TODO: Implement the server compiler.');
+    }
+
+    if (!options.clientReferences) {
+      this.clientReferences = [{
+        directory: '.',
+        recursive: true,
+        include: /\.(js|ts|jsx|tsx)$/
+      }];
+    } else if (typeof options.clientReferences === 'string' || !isArray(options.clientReferences)) {
+      this.clientReferences = [options.clientReferences];
+    } else {
+      // $FlowFixMe[incompatible-type] found when upgrading Flow
+      this.clientReferences = options.clientReferences;
+    }
+
+    if (typeof options.chunkName === 'string') {
+      this.chunkName = options.chunkName;
+
+      if (!/\[(index|request)\]/.test(this.chunkName)) {
+        this.chunkName += '[index]';
+      }
+    } else {
+      this.chunkName = 'client[index]';
+    }
+
+    this.manifestFilename = options.manifestFilename || 'react-client-manifest.json';
+  }
+
+  apply(compiler) {
+    var _this = this;
+
+    var resolvedClientReferences;
+    var clientFileNameFound = false; // Find all client files on the file system
+
+    compiler.hooks.beforeCompile.tapAsync(PLUGIN_NAME, function (_ref, callback) {
+      var contextModuleFactory = _ref.contextModuleFactory;
+      var contextResolver = compiler.resolverFactory.get('context', {});
+
+      _this.resolveAllClientFiles(compiler.context, contextResolver, compiler.inputFileSystem, contextModuleFactory, function (err, resolvedClientRefs) {
+        if (err) {
+          callback(err);
+          return;
+        }
+
+        resolvedClientReferences = resolvedClientRefs;
+        callback();
+      });
+    });
+    compiler.hooks.thisCompilation.tap(PLUGIN_NAME, function (compilation, _ref2) {
+      var normalModuleFactory = _ref2.normalModuleFactory;
+      compilation.dependencyFactories.set(ClientReferenceDependency, normalModuleFactory);
+      compilation.dependencyTemplates.set(ClientReferenceDependency, new NullDependency.Template()); // $FlowFixMe[missing-local-annot]
+
+      var handler = function (parser) {
+        // We need to add all client references as dependency of something in the graph so
+        // Webpack knows which entries need to know about the relevant chunks and include the
+        // map in their runtime. The things that actually resolves the dependency is the Flight
+        // client runtime. So we add them as a dependency of the Flight client runtime.
+        // Anything that imports the runtime will be made aware of these chunks.
+        parser.hooks.program.tap(PLUGIN_NAME, function () {
+          var module = parser.state.module;
+
+          if (module.resource !== clientFileName) {
+            return;
+          }
+
+          clientFileNameFound = true;
+
+          if (resolvedClientReferences) {
+            // $FlowFixMe[incompatible-use] found when upgrading Flow
+            for (var i = 0; i < resolvedClientReferences.length; i++) {
+              // $FlowFixMe[incompatible-use] found when upgrading Flow
+              var dep = resolvedClientReferences[i];
+
+              var chunkName = _this.chunkName.replace(/\[index\]/g, '' + i).replace(/\[request\]/g, Template.toPath(dep.userRequest));
+
+              var block = new webpack.AsyncDependenciesBlock({
+                name: chunkName
+              }, null, dep.request);
+              block.addDependency(dep);
+              module.addBlock(block);
+            }
+          }
+        });
+      };
+
+      normalModuleFactory.hooks.parser.for('javascript/auto').tap('HarmonyModulesPlugin', handler);
+      normalModuleFactory.hooks.parser.for('javascript/esm').tap('HarmonyModulesPlugin', handler);
+      normalModuleFactory.hooks.parser.for('javascript/dynamic').tap('HarmonyModulesPlugin', handler);
+    });
+    compiler.hooks.make.tap(PLUGIN_NAME, function (compilation) {
+      compilation.hooks.processAssets.tap({
+        name: PLUGIN_NAME,
+        stage: webpack.Compilation.PROCESS_ASSETS_STAGE_REPORT
+      }, function () {
+        if (clientFileNameFound === false) {
+          compilation.warnings.push(new webpack.WebpackError("Client runtime at " + clientImportName + " was not found. React Server Components module map file " + _this.manifestFilename + " was not created."));
+          return;
+        }
+
+        var json = {};
+        compilation.chunkGroups.forEach(function (chunkGroup) {
+          var chunkIds = chunkGroup.chunks.map(function (c) {
+            return c.id;
+          }); // $FlowFixMe[missing-local-annot]
+
+          function recordModule(id, module) {
+            // TODO: Hook into deps instead of the target module.
+            // That way we know by the type of dep whether to include.
+            // It also resolves conflicts when the same module is in multiple chunks.
+            if (!/\.(js|ts)x?$/.test(module.resource)) {
+              return;
+            }
+
+            var moduleProvidedExports = compilation.moduleGraph.getExportsInfo(module).getProvidedExports();
+            var moduleExports = {};
+            ['', '*'].concat(Array.isArray(moduleProvidedExports) ? moduleProvidedExports : []).forEach(function (name) {
+              moduleExports[name] = {
+                id: id,
+                chunks: chunkIds,
+                name: name
+              };
+            });
+            var href = url.pathToFileURL(module.resource).href;
+
+            if (href !== undefined) {
+              json[href] = moduleExports;
+            }
+          }
+
+          chunkGroup.chunks.forEach(function (chunk) {
+            var chunkModules = compilation.chunkGraph.getChunkModulesIterable(chunk);
+            Array.from(chunkModules).forEach(function (module) {
+              var moduleId = compilation.chunkGraph.getModuleId(module);
+              recordModule(moduleId, module); // If this is a concatenation, register each child to the parent ID.
+
+              if (module.modules) {
+                module.modules.forEach(function (concatenatedMod) {
+                  recordModule(moduleId, concatenatedMod);
+                });
+              }
+            });
+          });
+        });
+        var output = JSON.stringify(json, null, 2);
+        compilation.emitAsset(_this.manifestFilename, new webpack.sources.RawSource(output, false));
+      });
+    });
+  } // This attempts to replicate the dynamic file path resolution used for other wildcard
+  // resolution in Webpack is using.
+
+
+  resolveAllClientFiles(context, contextResolver, fs, contextModuleFactory, callback) {
+    asyncLib.map(this.clientReferences, function (clientReferencePath, cb) {
+      if (typeof clientReferencePath === 'string') {
+        cb(null, [new ClientReferenceDependency(clientReferencePath)]);
+        return;
+      }
+
+      var clientReferenceSearch = clientReferencePath;
+      contextResolver.resolve({}, context, clientReferencePath.directory, {}, function (err, resolvedDirectory) {
+        if (err) return cb(err);
+        var options = {
+          resource: resolvedDirectory,
+          resourceQuery: '',
+          recursive: clientReferenceSearch.recursive === undefined ? true : clientReferenceSearch.recursive,
+          regExp: clientReferenceSearch.include,
+          include: undefined,
+          exclude: clientReferenceSearch.exclude
+        };
+        contextModuleFactory.resolveDependencies(fs, options, function (err2, deps) {
+          if (err2) return cb(err2);
+          var clientRefDeps = deps.map(function (dep) {
+            // use userRequest instead of request. request always end with undefined which is wrong
+            var request = path.join(resolvedDirectory, dep.userRequest);
+            var clientRefDep = new ClientReferenceDependency(request);
+            clientRefDep.userRequest = dep.userRequest;
+            return clientRefDep;
+          });
+          cb(null, clientRefDeps);
+        });
+      });
+    }, function (err, result) {
+      if (err) return callback(err);
+      var flat = [];
+
+      for (var i = 0; i < result.length; i++) {
+        // $FlowFixMe[method-unbinding]
+        flat.push.apply(flat, result[i]);
+      }
+
+      callback(null, flat);
+    });
+  }
+
+}
+
+module.exports = ReactFlightWebpackPlugin;

@@ -1,6 +1,6 @@
 {
   "name": "react-dom",
-  "version": "18.3.0-next-4fcc9184a-20230217",
+  "version": "18.3.0-next-6ddcbd4f9-20230209",
   "description": "React package for working with the DOM.",
   "main": "index.js",
   "repository": {
@@ -18,10 +18,10 @@
   "homepage": "https://reactjs.org/",
   "dependencies": {
     "loose-envify": "^1.1.0",
-    "scheduler": "0.24.0-next-4fcc9184a-20230217"
+    "scheduler": "0.24.0-next-6ddcbd4f9-20230209"
   },
   "peerDependencies": {
-    "react": "18.3.0-next-4fcc9184a-20230217"
+    "react": "18.3.0-next-6ddcbd4f9-20230209"
   },
   "files": [
     "LICENSE",
