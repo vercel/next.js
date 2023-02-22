@@ -1435,10 +1435,30 @@ export default async function build(
                           isSsg = true
                         }
 
+                        const appConfig = workerResult.appConfig || {}
                         if (workerResult.appConfig?.revalidate !== 0) {
-                          if (!isDynamicRoute(page)) {
+                          const isDynamic = isDynamicRoute(page)
+                          const hasGenerateStaticParams =
+                            !!workerResult.prerenderRoutes?.length
+
+                          if (
+                            // Mark the app as static if:
+                            // - It has no dynamic param
+                            // - It doesn't have generateStaticParams but `dynamic` is set to
+                            //   `error` or `force-static`
+                            !isDynamic
+                          ) {
                             appStaticPaths.set(originalAppPath, [page])
                             appStaticPathsEncoded.set(originalAppPath, [page])
+                            isStatic = true
+                          } else if (
+                            isDynamic &&
+                            !hasGenerateStaticParams &&
+                            (appConfig.dynamic === 'error' ||
+                              appConfig.dynamic === 'force-static')
+                          ) {
+                            appStaticPaths.set(originalAppPath, [])
+                            appStaticPathsEncoded.set(originalAppPath, [])
                             isStatic = true
                           }
                         }
@@ -1448,10 +1468,7 @@ export default async function build(
                           // returned from generateStaticParams
                           appDynamicParamPaths.add(originalAppPath)
                         }
-                        appDefaultConfigs.set(
-                          originalAppPath,
-                          workerResult.appConfig || {}
-                        )
+                        appDefaultConfigs.set(originalAppPath, appConfig)
                       }
                     } else {
                       if (isEdgeRuntime(pageRuntime)) {
