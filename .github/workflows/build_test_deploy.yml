@@ -90,6 +90,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - run: pnpm run build
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
 
       - id: check-release
         run: |
@@ -666,7 +667,7 @@ jobs:
   testCodemods:
     name: Test Codemods
     runs-on: ubuntu-latest
-    needs: [build, build-native-test]
+    needs: [build]
     timeout-minutes: 5
     env:
       NEXT_TELEMETRY_DISABLED: 1

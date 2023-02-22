@@ -1,7 +1,6 @@
 import type { FontManifest, FontConfig } from '../server/font-utils'
-import type { IncomingMessage, ServerResponse } from 'http'
 import type { DomainLocale, NextConfigComplete } from '../server/config-shared'
-import type { NextParsedUrlQuery } from '../server/request-meta'
+import { NextParsedUrlQuery } from '../server/request-meta'
 
 // `NEXT_PREBUNDLED_REACT` env var is inherited from parent process,
 // then override react packages here for export worker.
@@ -11,10 +10,13 @@ if (process.env.NEXT_PREBUNDLED_REACT) {
 import '../server/node-polyfill-fetch'
 import { loadRequireHook } from '../build/webpack/require-hook'
 
-import { extname, join, dirname, sep } from 'path'
+import { extname, join, dirname, sep, posix } from 'path'
 import fs, { promises } from 'fs'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
-import { loadComponents } from '../server/load-components'
+import {
+  loadComponents,
+  LoadComponentsReturnType,
+} from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -34,6 +36,11 @@ import { IncrementalCache } from '../server/lib/incremental-cache'
 import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
+import { mockRequest } from '../server/lib/mock-request'
+import { RouteKind } from '../server/future/route-kind'
+import { NodeNextRequest, NodeNextResponse } from '../server/base-http/node'
+import { StaticGenerationContext } from '../server/future/route-handlers/app-route-route-handler'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
 
 loadRequireHook()
 
@@ -75,11 +82,17 @@ interface ExportPageInput {
   appPaths: string[]
   enableUndici: NextConfigComplete['experimental']['enableUndici']
   debugOutput?: boolean
+  isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
+  fetchCache?: boolean
 }
 
 interface ExportPageResults {
   ampValidations: AmpValidation[]
-  fromBuildExportRevalidate?: number
+  fromBuildExportRevalidate?: number | false
+  fromBuildExportMeta?: {
+    status?: number
+    headers?: Record<string, string>
+  }
   error?: boolean
   ssgNotFound?: boolean
   duration: number
@@ -126,6 +139,8 @@ export default async function exportPage({
   serverComponents,
   enableUndici,
   debugOutput,
+  isrMemoryCacheSize,
+  fetchCache,
 }: ExportPageInput): Promise<ExportPageResults> {
   setHttpClientAndAgentOptions({
     httpAgentOptions,
@@ -150,6 +165,7 @@ export default async function exportPage({
       let renderAmpPath = ampPath
       let query = { ...originalQuery }
       let params: { [key: string]: string | string[] } | undefined
+      const isRouteHandler = isAppDir && isAppRouteRoute(page)
 
       if (isAppDir) {
         outDir = join(distDir, 'server/app')
@@ -208,25 +224,18 @@ export default async function exportPage({
         }
       }
 
-      const headerMocks = {
-        headers: {},
-        getHeader: () => ({}),
-        setHeader: () => {},
-        hasHeader: () => false,
-        removeHeader: () => {},
-        getHeaderNames: () => [],
-      }
+      const { req, res } = mockRequest(updatedPath, {}, 'GET')
 
-      const req = {
-        url: updatedPath,
-        ...headerMocks,
-      } as unknown as IncomingMessage
-      const res = {
-        ...headerMocks,
-      } as unknown as ServerResponse
-
-      if (updatedPath === '/500' && page === '/_error') {
-        res.statusCode = 500
+      for (const statusCode of [404, 500]) {
+        if (
+          [
+            `/${statusCode}`,
+            `/${statusCode}.html`,
+            `/${statusCode}/index.html`,
+          ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
+        ) {
+          res.statusCode = statusCode
+        }
       }
 
       if (renderOpts.trailingSlash && !req.url?.endsWith('/')) {
@@ -256,8 +265,8 @@ export default async function exportPage({
 
       // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an
       // extension of `.slug]`
-      const pageExt = isDynamic ? '' : extname(page)
-      const pathExt = isDynamic ? '' : extname(path)
+      const pageExt = isDynamic || isAppDir ? '' : extname(page)
+      const pathExt = isDynamic || isAppDir ? '' : extname(path)
 
       // force output 404.html for backwards compat
       if (path === '/404.html') {
@@ -292,114 +301,208 @@ export default async function exportPage({
         return !buildExport && getStaticProps && !isDynamicRoute(path)
       }
 
-      const components = await loadComponents({
-        distDir,
-        pathname: page,
-        hasServerComponents: !!serverComponents,
-        isAppPath: isAppDir,
-      })
-      curRenderOpts = {
-        ...components,
-        ...renderOpts,
-        ampPath: renderAmpPath,
-        params,
-        optimizeFonts,
-        optimizeCss,
-        disableOptimizedLoading,
-        fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
-        locale: locale as string,
-        supportsDynamicHTML: false,
+      let components: LoadComponentsReturnType | null = null
+
+      if (!isRouteHandler) {
+        components = await loadComponents({
+          distDir,
+          pathname: page,
+          hasServerComponents: !!serverComponents,
+          isAppPath: isAppDir,
+        })
+        curRenderOpts = {
+          ...components,
+          ...renderOpts,
+          ampPath: renderAmpPath,
+          params,
+          optimizeFonts,
+          optimizeCss,
+          disableOptimizedLoading,
+          fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
+          locale: locale as string,
+          supportsDynamicHTML: false,
+        }
       }
 
       // during build we attempt rendering app dir paths
       // and bail when dynamic dependencies are detected
       // only fully static paths are fully generated here
       if (isAppDir) {
-        curRenderOpts.incrementalCache = new IncrementalCache({
-          dev: false,
-          requestHeaders: {},
-          flushToDisk: true,
-          maxMemoryCacheSize: 50 * 1024 * 1024,
-          getPrerenderManifest: () => ({
-            version: 3,
-            routes: {},
-            dynamicRoutes: {},
-            preview: {
-              previewModeEncryptionKey: '',
-              previewModeId: '',
-              previewModeSigningKey: '',
+        if (fetchCache) {
+          curRenderOpts.incrementalCache = new IncrementalCache({
+            dev: false,
+            requestHeaders: {},
+            flushToDisk: true,
+            maxMemoryCacheSize: isrMemoryCacheSize,
+            getPrerenderManifest: () => ({
+              version: 4,
+              routes: {},
+              dynamicRoutes: {},
+              preview: {
+                previewModeEncryptionKey: '',
+                previewModeId: '',
+                previewModeSigningKey: '',
+              },
+              notFoundRoutes: [],
+            }),
+            fs: {
+              readFile: (f) => fs.promises.readFile(f, 'utf8'),
+              readFileSync: (f) => fs.readFileSync(f, 'utf8'),
+              writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
+              mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
+              stat: (f) => fs.promises.stat(f),
             },
-            notFoundRoutes: [],
-          }),
-          fs: {
-            readFile: (f) => fs.promises.readFile(f, 'utf8'),
-            readFileSync: (f) => fs.readFileSync(f, 'utf8'),
-            writeFile: (f, d) => fs.promises.writeFile(f, d, 'utf8'),
-            mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
-            stat: (f) => fs.promises.stat(f),
-          },
-          serverDistDir: join(distDir, 'server'),
-        })
-        const { renderToHTMLOrFlight } =
-          require('../server/app-render') as typeof import('../server/app-render')
-
-        try {
-          curRenderOpts.params ||= {}
-
-          const result = await renderToHTMLOrFlight(
-            req as any,
-            res as any,
-            page,
-            query,
-            curRenderOpts as any
-          )
-          const html = result?.toUnchunkedString()
-          const flightData = (curRenderOpts as any).pageData
-          const revalidate = (curRenderOpts as any).revalidate
-          results.fromBuildExportRevalidate = revalidate
-
-          if (revalidate !== 0) {
-            await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
-            await promises.writeFile(
-              htmlFilepath.replace(/\.html$/, '.rsc'),
-              flightData
-            )
-          } else if (isDynamicError) {
-            throw new Error(
-              `Page with dynamic = "error" encountered dynamic data method on ${path}.`
-            )
-          }
-
-          const { staticBailoutInfo = {} } = curRenderOpts as any
-
-          if (
-            revalidate === 0 &&
-            debugOutput &&
-            staticBailoutInfo?.description
-          ) {
-            const bailErr = new Error(
-              `Static generation failed due to dynamic usage on ${path}, reason: ${staticBailoutInfo.description}`
-            )
-            const stack = staticBailoutInfo.stack
-
-            if (stack) {
-              bailErr.stack =
-                bailErr.message + stack.substring(stack.indexOf('\n'))
-            }
-            console.warn(bailErr)
-          }
-        } catch (err: any) {
-          if (
-            err.digest !== DYNAMIC_ERROR_CODE &&
-            !isNotFoundError(err) &&
-            err.digest !== NEXT_DYNAMIC_NO_SSR_CODE &&
-            !isRedirectError(err)
-          ) {
-            throw err
-          }
+            serverDistDir: join(distDir, 'server'),
+          })
         }
 
+        const isDynamicUsageError = (err: any) =>
+          err.digest === DYNAMIC_ERROR_CODE ||
+          isNotFoundError(err) ||
+          err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
+          isRedirectError(err)
+
+        if (isRouteHandler) {
+          const { AppRouteRouteHandler } =
+            require('../server/future/route-handlers/app-route-route-handler') as typeof import('../server/future/route-handlers/app-route-route-handler')
+
+          const nodeReq = new NodeNextRequest(req)
+          const nodeRes = new NodeNextResponse(res)
+
+          addRequestMeta(
+            nodeReq.originalRequest,
+            '__NEXT_INIT_URL',
+            `http://localhost:3000${req.url}`
+          )
+          const staticContext: StaticGenerationContext = {
+            supportsDynamicHTML: false,
+            incrementalCache: curRenderOpts.incrementalCache,
+          }
+
+          try {
+            const routeHandler = new AppRouteRouteHandler()
+            const response: Response = await routeHandler.handle(
+              {
+                params: query,
+                definition: {
+                  filename: posix.join(distDir, 'server', 'app', page),
+                  bundlePath: posix.join('app', page),
+                  kind: RouteKind.APP_ROUTE,
+                  page,
+                  pathname: path,
+                },
+              },
+              nodeReq,
+              nodeRes,
+              staticContext,
+              true
+            )
+            // we don't consider error status for static generation
+            // except for 404
+            // TODO: do we want to cache other status codes?
+            const isValidStatus =
+              response.status < 400 || response.status === 404
+
+            if (isValidStatus) {
+              const body = await response.blob()
+              const revalidate =
+                (staticContext as any as { revalidate?: number }).revalidate ||
+                false
+
+              results.fromBuildExportRevalidate = revalidate
+              const headers = Object.fromEntries(response.headers)
+
+              if (!headers['content-type'] && body.type) {
+                headers['content-type'] = body.type
+              }
+              results.fromBuildExportMeta = {
+                status: response.status,
+                headers,
+              }
+
+              await promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.body'),
+                Buffer.from(await body.arrayBuffer()),
+                'utf8'
+              )
+              await promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.meta'),
+                JSON.stringify({
+                  status: response.status,
+                  headers,
+                })
+              )
+            } else {
+              results.fromBuildExportRevalidate = 0
+            }
+          } catch (err) {
+            if (!isDynamicUsageError(err)) {
+              throw err
+            }
+            results.fromBuildExportRevalidate = 0
+          }
+        } else {
+          const { renderToHTMLOrFlight } =
+            require('../server/app-render') as typeof import('../server/app-render')
+
+          try {
+            curRenderOpts.params ||= {}
+
+            const result = await renderToHTMLOrFlight(
+              req as any,
+              res as any,
+              page,
+              query,
+              curRenderOpts as any
+            )
+            const html = result?.toUnchunkedString()
+            const flightData = (curRenderOpts as any).pageData
+            const revalidate = (curRenderOpts as any).revalidate
+            results.fromBuildExportRevalidate = revalidate
+
+            if (revalidate !== 0) {
+              await promises.writeFile(htmlFilepath, html ?? '', 'utf8')
+              await promises.writeFile(
+                htmlFilepath.replace(/\.html$/, '.rsc'),
+                flightData
+              )
+            } else if (isDynamicError) {
+              throw new Error(
+                `Page with dynamic = "error" encountered dynamic data method on ${path}.`
+              )
+            }
+
+            const { staticBailoutInfo = {} } = curRenderOpts as any
+
+            if (
+              revalidate === 0 &&
+              debugOutput &&
+              staticBailoutInfo?.description
+            ) {
+              const bailErr = new Error(
+                `Static generation failed due to dynamic usage on ${path}, reason: ${staticBailoutInfo.description}`
+              )
+              const stack = staticBailoutInfo.stack
+
+              if (stack) {
+                bailErr.stack =
+                  bailErr.message + stack.substring(stack.indexOf('\n'))
+              }
+              console.warn(bailErr)
+            }
+          } catch (err: any) {
+            if (!isDynamicUsageError(err)) {
+              throw err
+            }
+          }
+        }
         return { ...results, duration: Date.now() - start }
+      }
+
+      if (!components) {
+        throw new Error(
+          `invariant: components were not loaded correctly during export for path: ${path}`
+        )
       }
 
       const ampState = {

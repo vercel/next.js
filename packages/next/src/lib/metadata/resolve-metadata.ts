@@ -52,7 +52,7 @@ function mergeStaticMetadata(
         card: 'summary_large_image',
         images: twitter,
       },
-      null
+      metadata.metadataBase
     )
     metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
   }
@@ -62,7 +62,7 @@ function mergeStaticMetadata(
       {
         images: opengraph,
       },
-      null
+      metadata.metadataBase
     )
     metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
   }
@@ -81,7 +81,7 @@ function merge(
     openGraph: string | null
   }
 ) {
-  const metadataBase = source?.metadataBase || null
+  const metadataBase = source?.metadataBase || target.metadataBase
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 

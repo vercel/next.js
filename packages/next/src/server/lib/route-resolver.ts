@@ -1,6 +1,10 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfig } from '../config'
-import type { Route } from '../router'
+import { RouteDefinition } from '../future/route-definitions/route-definition'
+import { RouteKind } from '../future/route-kind'
+import { DefaultRouteMatcherManager } from '../future/route-matcher-managers/default-route-matcher-manager'
+import { RouteMatch } from '../future/route-matches/route-match'
+import type { PageChecker, Route } from '../router'
 
 type RouteResult =
   | {
@@ -12,6 +16,37 @@ type RouteResult =
   | {
       type: 'none'
     }
+
+class DevRouteMatcherManager extends DefaultRouteMatcherManager {
+  private hasPage: PageChecker
+
+  constructor(hasPage: PageChecker) {
+    super()
+    this.hasPage = hasPage
+  }
+
+  async match(
+    pathname: string
+  ): Promise<RouteMatch<RouteDefinition<RouteKind>> | null> {
+    if (await this.hasPage(pathname)) {
+      return {
+        definition: {
+          kind: RouteKind.PAGES,
+          page: '',
+          pathname,
+          filename: '',
+          bundlePath: '',
+        },
+        params: {},
+      }
+    }
+    return null
+  }
+
+  async test(pathname: string) {
+    return (await this.match(pathname)) !== null
+  }
+}
 
 export async function makeResolver(dir: string, nextConfig: NextConfig) {
   const url = require('url') as typeof import('url')
@@ -31,12 +66,19 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
     dir,
     conf: nextConfig,
   })
-  await devServer.startWatcher.bind(devServer)()
+  await devServer.matchers.reload()
+
   // @ts-expect-error
   devServer.customRoutes = await loadCustomRoutes(nextConfig)
 
   const routeResults = new WeakMap<any, string>()
   const routes = devServer.generateRoutes.bind(devServer)()
+
+  routes.matchers = new DevRouteMatcherManager(
+    // @ts-expect-error internal method
+    devServer.hasPage.bind(devServer)
+  )
+
   const router = new Router({
     ...routes,
     catchAllRoute: {
@@ -98,7 +140,7 @@ export async function makeResolver(dir: string, nextConfig: NextConfig) {
               type: 'rewrite',
               url: resolvedUrl,
               statusCode: 200,
-              headers: {},
+              headers: res.originalResponse.getHeaders(),
             }
 
       res.body(JSON.stringify(routeResult)).send()
