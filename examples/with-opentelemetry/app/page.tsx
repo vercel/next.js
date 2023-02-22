@@ -1,13 +1,8 @@
 import Link from 'next/link'
+import { fetchGithubStars } from '../shared/fetch-github-stars'
 
 export default async function Page() {
-  const stars = await fetch('https://api.github.com/repos/vercel/next.js', {
-    next: {
-      revalidate: 0,
-    },
-  })
-    .then((res) => res.json())
-    .then((data) => data.stargazers_count)
+  const stars = await fetchGithubStars()
   return (
     <>
       <p>Next.js has {stars} ⭐️</p>
