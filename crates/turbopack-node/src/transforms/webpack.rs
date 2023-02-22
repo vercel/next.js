@@ -35,7 +35,7 @@ struct WebpackLoadersProcessingResult {
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum WebpackLoaderConfig {
+pub enum WebpackLoaderConfigItem {
     LoaderName(String),
     LoaderNameWithOptions {
         loader: String,
@@ -45,14 +45,14 @@ pub enum WebpackLoaderConfig {
 }
 
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(shared)]
-pub struct WebpackLoaderConfigs(Vec<WebpackLoaderConfig>);
+#[turbo_tasks::value(shared, transparent)]
+pub struct WebpackLoaderConfigItems(pub Vec<WebpackLoaderConfigItem>);
 
 #[turbo_tasks::value]
 pub struct WebpackLoaders {
     evaluate_context: AssetContextVc,
     execution_context: ExecutionContextVc,
-    loaders: WebpackLoaderConfigsVc,
+    loaders: WebpackLoaderConfigItemsVc,
 }
 
 #[turbo_tasks::value_impl]
@@ -61,7 +61,7 @@ impl WebpackLoadersVc {
     pub fn new(
         evaluate_context: AssetContextVc,
         execution_context: ExecutionContextVc,
-        loaders: WebpackLoaderConfigsVc,
+        loaders: WebpackLoaderConfigItemsVc,
     ) -> Self {
         WebpackLoaders {
             evaluate_context,
@@ -91,7 +91,7 @@ impl SourceTransform for WebpackLoaders {
 struct WebpackLoadersProcessedAsset {
     evaluate_context: AssetContextVc,
     execution_context: ExecutionContextVc,
-    loaders: WebpackLoaderConfigsVc,
+    loaders: WebpackLoaderConfigItemsVc,
     source: AssetVc,
 }
 
