@@ -5,9 +5,9 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, GenerateSourceMapVc},
 };
 use turbopack_dev_server::source::{
+    wrapping_source::{ContentSourceProcessor, ContentSourceProcessorVc, WrappedContentSourceVc},
     ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
-    ContentSourceDataVary, ContentSourceResult, ContentSourceResultVc, ContentSourceVc,
-    ContentSourcesVc, GetContentSourceContent, NeededData,
+    ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc, ContentSourcesVc, NeededData,
 };
 use url::Url;
 
@@ -69,42 +69,19 @@ impl ContentSource for NextSourceMapTraceContentSource {
             Some(p) => p,
             _ => return Ok(ContentSourceResultVc::not_found()),
         };
-        let id = file
-            .query_pairs()
-            .find_map(|(k, v)| if k == "id" { Some(v) } else { None });
-
-        let this = self_vc.await?;
-        let result = this.asset_source.get(path, Default::default()).await?;
-        let content = match &*result {
-            ContentSourceResult::Result { get_content, .. } => {
-                get_content.get(Default::default()).await?
+        let id = file.query_pairs().find_map(|(k, v)| {
+            if k == "id" {
+                Some(v.into_owned())
+            } else {
+                None
             }
-            _ => return Ok(ContentSourceResultVc::not_found()),
-        };
-        let file = match &*content {
-            ContentSourceContent::Static(static_content) => static_content.await?.content,
-            _ => return Ok(ContentSourceResultVc::not_found()),
-        };
+        });
 
-        let gen = match GenerateSourceMapVc::resolve_from(file).await? {
-            Some(f) => f,
-            _ => return Ok(ContentSourceResultVc::not_found()),
-        };
-
-        let sm = if let Some(id) = id {
-            let section = gen.by_section(&id).await?;
-            match &*section {
-                Some(sm) => *sm,
-                None => return Ok(ContentSourceResultVc::not_found()),
-            }
-        } else {
-            gen.generate_source_map()
-        };
-
-        let traced = SourceMapTraceVc::new(sm, line, column, frame.name);
-        Ok(ContentSourceResultVc::exact(
-            ContentSourceContentVc::static_content(traced.content().into()).into(),
-        ))
+        let wrapped = WrappedContentSourceVc::new(
+            self_vc.await?.asset_source,
+            NextSourceMapTraceContentProcessorVc::new(id, line, column, frame.name).into(),
+        );
+        Ok(wrapped.as_content_source().get(path, Default::default()))
     }
 
     #[turbo_tasks::function]
@@ -125,5 +102,70 @@ impl Introspectable for NextSourceMapTraceContentSource {
         StringVc::cell(
             "supports tracing an error stack frame to its original source location".to_string(),
         )
+    }
+}
+
+/// Processes the eventual [ContentSourceContent] to transform it into a source
+/// map trace's JSON content.
+#[turbo_tasks::value]
+pub struct NextSourceMapTraceContentProcessor {
+    /// An optional section id to use when tracing the map. Specifying a
+    /// section id trace starting at that section. Otherwise, it traces starting
+    /// at the full source map.
+    id: Option<String>,
+
+    /// The generated line we are trying to trace.
+    line: usize,
+
+    /// The generated column we are trying to trace.
+    column: usize,
+
+    /// An optional name originally assigned to the stack frame, used as a
+    /// default if the trace finds an unnamed source map segment.
+    name: Option<String>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextSourceMapTraceContentProcessorVc {
+    #[turbo_tasks::function]
+    fn new(id: Option<String>, line: usize, column: usize, name: Option<String>) -> Self {
+        NextSourceMapTraceContentProcessor {
+            id,
+            line,
+            column,
+            name,
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ContentSourceProcessor for NextSourceMapTraceContentProcessor {
+    #[turbo_tasks::function]
+    async fn process(&self, content: ContentSourceContentVc) -> Result<ContentSourceContentVc> {
+        let file = match &*content.await? {
+            ContentSourceContent::Static(static_content) => static_content.await?.content,
+            _ => return Ok(ContentSourceContentVc::not_found()),
+        };
+
+        let gen = match GenerateSourceMapVc::resolve_from(file).await? {
+            Some(f) => f,
+            _ => return Ok(ContentSourceContentVc::not_found()),
+        };
+
+        let sm = if let Some(id) = &self.id {
+            let section = gen.by_section(id).await?;
+            match &*section {
+                Some(sm) => *sm,
+                None => return Ok(ContentSourceContentVc::not_found()),
+            }
+        } else {
+            gen.generate_source_map()
+        };
+
+        let traced = SourceMapTraceVc::new(sm, self.line, self.column, self.name.clone());
+        Ok(ContentSourceContentVc::static_content(
+            traced.content().into(),
+        ))
     }
 }

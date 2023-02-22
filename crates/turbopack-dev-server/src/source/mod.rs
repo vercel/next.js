@@ -10,6 +10,7 @@ pub mod router;
 pub mod source_maps;
 pub mod specificity;
 pub mod static_assets;
+pub mod wrapping_source;
 
 use std::{collections::BTreeSet, sync::Arc};
 

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use mime::APPLICATION_JSON;
 use turbo_tasks::{primitives::StringVc, Value};
 use turbo_tasks_fs::File;
 use turbopack_core::{
@@ -8,11 +9,12 @@ use turbopack_core::{
 };
 
 use super::{
-    query::QueryValue, ContentSource, ContentSourceContent, ContentSourceContentVc,
-    ContentSourceData, ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResult,
-    ContentSourceResultVc, ContentSourceVc, NeededData,
+    query::QueryValue,
+    wrapping_source::{ContentSourceProcessor, ContentSourceProcessorVc, WrappedContentSourceVc},
+    ContentSource, ContentSourceContent, ContentSourceContentVc, ContentSourceData,
+    ContentSourceDataFilter, ContentSourceDataVary, ContentSourceResultVc, ContentSourceVc,
+    NeededData,
 };
-use crate::source::GetContentSourceContent;
 
 /// SourceMapContentSource allows us to serve full source maps, and individual
 /// sections of source maps, of any found asset in the graph without adding
@@ -66,43 +68,17 @@ impl ContentSource for SourceMapContentSource {
         };
 
         let id = match query.get("id") {
-            Some(QueryValue::String(s)) => Some(s),
+            Some(QueryValue::String(s)) => Some(s.clone()),
             _ => None,
         };
 
-        let this = self_vc.await?;
-        let result = this.asset_source.get(pathname, Default::default()).await?;
-        let content = match &*result {
-            ContentSourceResult::Result { get_content, .. } => {
-                get_content.get(Default::default()).await?
-            }
-            _ => return Ok(ContentSourceResultVc::not_found()),
-        };
-        let file = match &*content {
-            ContentSourceContent::Static(static_content) => static_content.await?.content,
-            _ => return Ok(ContentSourceResultVc::not_found()),
-        };
-
-        let gen = match GenerateSourceMapVc::resolve_from(file).await? {
-            Some(f) => f,
-            None => return Ok(ContentSourceResultVc::not_found()),
-        };
-
-        let sm = if let Some(id) = id {
-            let section = gen.by_section(id).await?;
-            match &*section {
-                Some(sm) => *sm,
-                None => return Ok(ContentSourceResultVc::not_found()),
-            }
-        } else {
-            gen.generate_source_map()
-        };
-        let content = sm.to_rope().await?;
-
-        let asset = AssetContentVc::from(File::from(content));
-        Ok(ContentSourceResultVc::exact(
-            ContentSourceContentVc::static_content(asset.into()).into(),
-        ))
+        let wrapped = WrappedContentSourceVc::new(
+            self_vc.await?.asset_source,
+            SourceMapContentProcessorVc::new(id).into(),
+        );
+        Ok(wrapped
+            .as_content_source()
+            .get(pathname, Default::default()))
     }
 }
 
@@ -116,5 +92,53 @@ impl Introspectable for SourceMapContentSource {
     #[turbo_tasks::function]
     fn details(&self) -> StringVc {
         StringVc::cell("serves chunk and chunk item source maps".to_string())
+    }
+}
+
+/// Processes the eventual [ContentSourceContent] to transform it into a source
+/// map JSON content.
+#[turbo_tasks::value]
+pub struct SourceMapContentProcessor {
+    /// An optional section id to use when generating the map. Specifying a
+    /// section id will only output that section. Otherwise, it prints the
+    /// full source map.
+    id: Option<String>,
+}
+
+#[turbo_tasks::value_impl]
+impl SourceMapContentProcessorVc {
+    #[turbo_tasks::function]
+    fn new(id: Option<String>) -> Self {
+        SourceMapContentProcessor { id }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ContentSourceProcessor for SourceMapContentProcessor {
+    #[turbo_tasks::function]
+    async fn process(&self, content: ContentSourceContentVc) -> Result<ContentSourceContentVc> {
+        let file = match &*content.await? {
+            ContentSourceContent::Static(static_content) => static_content.await?.content,
+            _ => return Ok(ContentSourceContentVc::not_found()),
+        };
+
+        let gen = match GenerateSourceMapVc::resolve_from(file).await? {
+            Some(f) => f,
+            None => return Ok(ContentSourceContentVc::not_found()),
+        };
+
+        let sm = if let Some(id) = &self.id {
+            let section = gen.by_section(id).await?;
+            match &*section {
+                Some(sm) => *sm,
+                None => return Ok(ContentSourceContentVc::not_found()),
+            }
+        } else {
+            gen.generate_source_map()
+        };
+
+        let content = sm.to_rope().await?;
+        let asset = AssetContentVc::from(File::from(content).with_content_type(APPLICATION_JSON));
+        Ok(ContentSourceContentVc::static_content(asset.into()))
     }
 }
