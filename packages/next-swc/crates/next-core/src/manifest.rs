@@ -65,7 +65,8 @@ impl DevManifestContentSourceVc {
             this.page_roots.iter().copied(),
             get_content_source_children,
         )
-        .await?
+        .await
+        .completed()?
         .into_iter()
         .map(content_source_to_pathname)
         .try_join()
