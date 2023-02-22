@@ -69,6 +69,16 @@ export function resolveOpenGraph(
       }
     }
     resolved.images = resolveAsArrayOrUndefined(og.images)
+    resolved.images?.forEach((item, index, array) => {
+      if (isStringOrURL(item)) {
+        array[index] = {
+          url: metadataBase ? resolveUrl(item, metadataBase)! : item,
+        }
+      } else {
+        // Update image descriptor url
+        item.url = metadataBase ? resolveUrl(item.url, metadataBase)! : item.url
+      }
+    })
   }
 
   assignProps(openGraph)
