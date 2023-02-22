@@ -10,5 +10,4 @@ export const urlForImage = (source) =>
 export const usePreview = definePreview({
   projectId: sanityConfig.projectId,
   dataset: sanityConfig.dataset,
-  onPublicAccessOnly: () => console.log('lol'),
 })
