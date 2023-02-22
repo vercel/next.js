@@ -20,7 +20,7 @@ import {
 import { parse, ParsedUrlQuery } from "querystring";
 import type { Params } from "next/dist/shared/lib/router/utils/route-matcher";
 import { FetchEventResult } from "next/dist/server/web/types";
-import { getClonableBody } from "next/dist/server/body-streams";
+import { getCloneableBody } from "next/dist/server/body-streams";
 
 startHandler(async ({ request, response, query, params, path }) => {
   await runEdgeFunction({
@@ -97,7 +97,7 @@ async function runEdgeFunction({
         name: path,
         ...(params && { params: params }),
       },
-      body: getClonableBody(req.body),
+      body: getCloneableBody(req.body),
     },
     useCache: false,
     onWarning,
