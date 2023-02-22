@@ -5,7 +5,7 @@ export const helloHandler = async (
   request: NextRequest,
   { params }: { params?: Record<string, string | string[]> }
 ): Promise<Response> => {
-  const { pathname } = new URL(request.url)
+  const { pathname } = request.nextUrl
 
   return new Response('hello, world', {
     headers: withRequestMeta({
