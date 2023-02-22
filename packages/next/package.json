@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "13.1.7-canary.22",
+  "version": "13.1.7-canary.24",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -80,7 +80,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "13.1.7-canary.22",
+    "@next/env": "13.1.7-canary.24",
     "@swc/helpers": "0.4.14",
     "caniuse-lite": "^1.0.30001406",
     "postcss": "8.4.14",
@@ -131,11 +131,11 @@
     "@hapi/accept": "5.0.2",
     "@napi-rs/cli": "2.14.7",
     "@napi-rs/triples": "1.1.0",
-    "@next/polyfill-module": "13.1.7-canary.22",
-    "@next/polyfill-nomodule": "13.1.7-canary.22",
-    "@next/react-dev-overlay": "13.1.7-canary.22",
-    "@next/react-refresh-utils": "13.1.7-canary.22",
-    "@next/swc": "13.1.7-canary.22",
+    "@next/polyfill-module": "13.1.7-canary.24",
+    "@next/polyfill-nomodule": "13.1.7-canary.24",
+    "@next/react-dev-overlay": "13.1.7-canary.24",
+    "@next/react-refresh-utils": "13.1.7-canary.24",
+    "@next/swc": "13.1.7-canary.24",
     "@segment/ajv-human-errors": "2.1.2",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",

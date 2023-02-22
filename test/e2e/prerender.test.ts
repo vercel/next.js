@@ -1567,7 +1567,7 @@ describe('Prerender', () => {
             }
           })
 
-          expect(manifest.version).toBe(3)
+          expect(manifest.version).toBe(4)
           expect(manifest.routes).toEqual(expectedManifestRoutes())
           expect(manifest.dynamicRoutes).toEqual({
             '/api-docs/[...slug]': {

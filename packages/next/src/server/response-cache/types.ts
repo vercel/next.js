@@ -14,9 +14,11 @@ export interface ResponseCacheBase {
 
 export interface CachedFetchValue {
   kind: 'FETCH'
-  data: any
-  isStale: boolean
-  age: number
+  data: {
+    headers: { [k: string]: string }
+    body: string
+    status?: number
+  }
   revalidate: number
 }
 
@@ -31,6 +33,15 @@ interface CachedPageValue {
   // expects that type instead of a string
   html: RenderResult
   pageData: Object
+}
+
+export interface CachedRouteValue {
+  kind: 'ROUTE'
+  // this needs to be a RenderResult so since renderResponse
+  // expects that type instead of a string
+  body: Buffer
+  status: number
+  headers: Record<string, undefined | string | string[]>
 }
 
 export interface CachedImageValue {
@@ -63,11 +74,13 @@ export type IncrementalCacheValue =
   | IncrementalCachedPageValue
   | CachedImageValue
   | CachedFetchValue
+  | CachedRouteValue
 
 export type ResponseCacheValue =
   | CachedRedirectValue
   | CachedPageValue
   | CachedImageValue
+  | CachedRouteValue
 
 export type ResponseCacheEntry = {
   revalidate?: number | false
