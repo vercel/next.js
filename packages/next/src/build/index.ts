@@ -2196,7 +2196,9 @@ export default async function build(
             exportPageWorker: sharedPool
               ? staticWorkers.exportPage.bind(staticWorkers)
               : undefined,
-            endWorker: sharedPool ? () => staticWorkers.end() : undefined,
+            endWorker: sharedPool
+              ? (staticWorkers.end as unknown as () => Promise<void>)
+              : undefined,
             appPaths,
           }
           const exportConfig: any = {
