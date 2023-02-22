@@ -1164,7 +1164,7 @@ export default async function getBaseWebpackConfig(
     if (layer === WEBPACK_LAYERS.server) {
       if (
         reactPackagesRegex.test(request) ||
-        request === 'next/dist/compiled/react-server-dom-webpack/server.browser'
+        request === 'next/dist/compiled/react-server-dom-webpack/server.edge'
       ) {
         return
       }
