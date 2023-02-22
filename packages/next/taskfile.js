@@ -2170,8 +2170,8 @@ export async function ncc(task, opts) {
         'ncc_ws',
         'ncc_ua_parser_js',
         'ncc_minimatch',
-        'ncc_mini_css_extract_plugin',
         'ncc_opentelemetry_api',
+        'ncc_mini_css_extract_plugin',
       ],
       opts
     )
