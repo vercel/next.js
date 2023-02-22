@@ -1,4 +1,3 @@
-import { check, waitFor } from 'next-test-utils'
 import { createNextDescribe, FileRef } from 'e2e-utils'
 import path from 'path'
 import { sandbox } from './helpers'
