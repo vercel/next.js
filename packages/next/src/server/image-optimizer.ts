@@ -573,17 +573,21 @@ export async function imageOptimizer(
     }
   }
 
-  if (upstreamType === SVG && !nextConfig.images.dangerouslyAllowSVG) {
-    console.error(
-      `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
-    )
-    throw new ImageError(
-      400,
-      '"url" parameter is valid but image type is not allowed'
-    )
-  }
-
   if (upstreamType) {
+    upstreamType = upstreamType.toLowerCase().trim()
+
+    if (
+      upstreamType.startsWith('image/svg') &&
+      !nextConfig.images.dangerouslyAllowSVG
+    ) {
+      console.error(
+        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
+      )
+      throw new ImageError(
+        400,
+        '"url" parameter is valid but image type is not allowed'
+      )
+    }
     const vector = VECTOR_TYPES.includes(upstreamType)
     const animate =
       ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
@@ -591,7 +595,7 @@ export async function imageOptimizer(
     if (vector || animate) {
       return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
     }
-    if (!upstreamType.startsWith('image/')) {
+    if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
       console.error(
         "The requested resource isn't a valid image for",
         href,
