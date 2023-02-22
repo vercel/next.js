@@ -28,7 +28,7 @@ use turbopack_ecmascript::{
 use turbopack_node::{
     evaluate::{evaluate, JavaScriptValue},
     execution_context::{ExecutionContext, ExecutionContextVc},
-    transforms::webpack::{WebpackLoaderConfigs, WebpackLoaderConfigsVc},
+    transforms::webpack::{WebpackLoaderConfigItems, WebpackLoaderConfigItemsVc},
 };
 
 use crate::embed_js::next_asset;
@@ -333,7 +333,7 @@ pub enum RemotePatternProtocal {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalTurboConfig {
-    pub loaders: Option<IndexMap<String, WebpackLoaderConfigs>>,
+    pub loaders: Option<IndexMap<String, WebpackLoaderConfigItems>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
 }
 
@@ -445,7 +445,7 @@ pub enum RemoveConsoleConfig {
 
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]
-pub struct WebpackExtensionToLoaders(IndexMap<String, WebpackLoaderConfigsVc>);
+pub struct WebpackExtensionToLoaders(IndexMap<String, WebpackLoaderConfigItemsVc>);
 
 #[turbo_tasks::value_impl]
 impl NextConfigVc {
@@ -508,7 +508,10 @@ impl NextConfigVc {
         };
         let mut extension_to_loaders = IndexMap::new();
         for (ext, loaders) in turbo_loaders {
-            extension_to_loaders.insert(ext.clone(), WebpackLoaderConfigsVc::cell(loaders.clone()));
+            extension_to_loaders.insert(
+                ext.clone(),
+                WebpackLoaderConfigItemsVc::cell(loaders.0.clone()),
+            );
         }
         Ok(WebpackExtensionToLoaders(extension_to_loaders).cell())
     }

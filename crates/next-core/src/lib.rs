@@ -4,6 +4,7 @@
 mod app_render;
 mod app_source;
 pub mod app_structure;
+mod babel;
 mod embed_js;
 pub mod env;
 mod fallback;

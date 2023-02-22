@@ -4,7 +4,7 @@ use turbo_tasks::trace::TraceRawVcs;
 use turbopack_core::{environment::EnvironmentVc, resolve::options::ImportMappingVc};
 use turbopack_ecmascript::EcmascriptInputTransform;
 use turbopack_node::{
-    execution_context::ExecutionContextVc, transforms::webpack::WebpackLoaderConfigsVc,
+    execution_context::ExecutionContextVc, transforms::webpack::WebpackLoaderConfigItemsVc,
 };
 
 use super::ModuleRule;
@@ -19,7 +19,7 @@ pub struct PostCssTransformOptions {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct WebpackLoadersOptions {
-    pub extension_to_loaders: IndexMap<String, WebpackLoaderConfigsVc>,
+    pub extension_to_loaders: IndexMap<String, WebpackLoaderConfigItemsVc>,
     pub loader_runner_package: Option<ImportMappingVc>,
     pub placeholder_for_future_extensions: (),
 }
