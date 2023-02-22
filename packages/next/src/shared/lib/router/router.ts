@@ -520,6 +520,18 @@ function fetchNextData({
           return { dataHref, response, text: '', json: {}, cacheKey }
         }
 
+        // This condition ensures that when navigating from `pages` to `app` the app route is hard navigated to.
+        // It also ensures that when e.g. middleware ends up rewriting to a HTML page it doesn't cause the router to have empty props for a page.
+        if (
+          response.ok &&
+          response.headers.get('Content-Type') !== 'application/json'
+        ) {
+          // TODO: This shouldn't log an error
+          const err = new Error('Different Content-Type returned')
+          markAssetError(err)
+          throw err
+        }
+
         return response.text().then((text) => {
           if (!response.ok) {
             /**
