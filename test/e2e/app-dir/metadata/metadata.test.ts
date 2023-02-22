@@ -330,6 +330,17 @@ createNextDescribe(
         )
       })
 
+      it('should support notFound and redirect in generateMetadata', async () => {
+        const resNotFound = await next.fetch('/async/not-found')
+        expect(resNotFound.status).toBe(404)
+        const notFoundHtml = await resNotFound.text()
+        expect(notFoundHtml).not.toBe('not-found-text')
+        expect(notFoundHtml).toContain('This page could not be found.')
+
+        const resRedirect = await next.fetch('/async/redirect')
+        expect(resRedirect.status).toBe(307)
+      })
+
       if (isNextDev) {
         it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
           const pagePath = 'app/mutate/page.tsx'
