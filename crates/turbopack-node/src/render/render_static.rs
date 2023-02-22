@@ -7,7 +7,7 @@ use turbopack_core::{
 };
 use turbopack_dev_server::{
     html::DevHtmlAssetVc,
-    source::{HeaderListVc, RewriteVc},
+    source::{HeaderListVc, RewriteBuilder, RewriteVc},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceablesVc, EcmascriptModuleAssetVc};
 
@@ -120,7 +120,7 @@ async fn run_static_operation(
             .context("receiving from node.js process")?
         {
             RenderStaticIncomingMessage::Rewrite { path } => {
-                StaticResultVc::rewrite(RewriteVc::new_path_query(path))
+                StaticResultVc::rewrite(RewriteBuilder::new(path).build())
             }
             RenderStaticIncomingMessage::Response {
                 status_code,

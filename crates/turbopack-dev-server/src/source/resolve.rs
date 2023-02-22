@@ -13,7 +13,7 @@ use super::{
     query::Query,
     request::SourceRequest,
     ContentSourceContent, ContentSourceDataVary, ContentSourceResult, ContentSourceVc,
-    ProxyResultVc, StaticContentVc,
+    HeaderListVc, ProxyResultVc, StaticContentVc,
 };
 use crate::{
     handle_issues,
@@ -26,7 +26,7 @@ use crate::{
 #[turbo_tasks::value(serialization = "none")]
 pub enum ResolveSourceRequestResult {
     NotFound,
-    Static(StaticContentVc),
+    Static(StaticContentVc, HeaderListVc),
     HttpProxy(ProxyResultVc),
 }
 
@@ -44,6 +44,7 @@ pub async fn resolve_source_request(
     let original_path = request.uri.path().to_string();
     let mut current_asset_path = urlencoding::decode(&original_path[1..])?.into_owned();
     let mut request_overwrites = (*request).clone();
+    let mut response_header_overwrites = Vec::new();
     loop {
         let result = current_source.get(&current_asset_path, Value::new(data));
         handle_issues(
@@ -79,6 +80,9 @@ pub async fn resolve_source_request(
 
                         current_source = new_source.resolve().await?;
                         request_overwrites.uri = new_uri;
+                        if let Some(headers) = &rewrite.response_headers {
+                            response_header_overwrites.extend(headers.await?.iter().cloned());
+                        }
                         current_asset_path = new_asset_path;
                         data = ContentSourceData::default();
                     } // _ => ,
@@ -86,7 +90,11 @@ pub async fn resolve_source_request(
                         break Ok(ResolveSourceRequestResult::NotFound.cell())
                     }
                     ContentSourceContent::Static(static_content) => {
-                        break Ok(ResolveSourceRequestResult::Static(*static_content).cell())
+                        break Ok(ResolveSourceRequestResult::Static(
+                            *static_content,
+                            HeaderListVc::new(response_header_overwrites),
+                        )
+                        .cell())
                     }
                     ContentSourceContent::HttpProxy(proxy_result) => {
                         break Ok(ResolveSourceRequestResult::HttpProxy(*proxy_result).cell())

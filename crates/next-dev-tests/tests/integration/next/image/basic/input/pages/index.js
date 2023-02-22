@@ -27,7 +27,6 @@ export default function Home() {
 }
 
 function runTests() {
-  console.log(document.querySelectorAll("img"));
   it("it should link to imported image", function () {
     const img = document.querySelector("#imported");
     expect(img.src).toContain(encodeURIComponent("_next/static/assets"));

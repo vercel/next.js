@@ -18,6 +18,7 @@ enum GetFromSourceResult {
         content: FileContentReadRef,
         status_code: u16,
         headers: HeaderListReadRef,
+        header_overwrites: HeaderListReadRef,
     },
     HttpProxy(ProxyResultReadRef),
     NotFound,
@@ -33,13 +34,14 @@ async fn get_from_source(
 ) -> Result<GetFromSourceResultVc> {
     Ok(
         match &*resolve_source_request(source, request, issue_repoter).await? {
-            ResolveSourceRequestResult::Static(static_content_vc) => {
+            ResolveSourceRequestResult::Static(static_content_vc, header_overwrites) => {
                 let static_content = static_content_vc.await?;
                 if let AssetContent::File(file) = &*static_content.content.content().await? {
                     GetFromSourceResult::Static {
                         content: file.await?,
                         status_code: static_content.status_code,
                         headers: static_content.headers.await?,
+                        header_overwrites: header_overwrites.await?,
                     }
                 } else {
                     GetFromSourceResult::NotFound
@@ -69,6 +71,7 @@ pub async fn process_request_with_content_source(
             content,
             status_code,
             headers,
+            header_overwrites,
         } => {
             if let FileContent::Content(file) = &**content {
                 let mut response = Response::builder().status(*status_code);
@@ -79,6 +82,13 @@ pub async fn process_request_with_content_source(
                     header_map.append(
                         HeaderName::try_from(header_name.clone())?,
                         hyper::header::HeaderValue::try_from(header_value.as_str())?,
+                    );
+                }
+
+                for (header_name, header_value) in header_overwrites.iter() {
+                    header_map.insert(
+                        HeaderName::try_from(header_name.clone())?,
+                        hyper::header::HeaderValue::try_from(header_value)?,
                     );
                 }
 
