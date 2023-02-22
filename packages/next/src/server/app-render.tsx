@@ -56,6 +56,8 @@ import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { patchFetch } from './lib/patch-fetch'
+import { AppRenderSpan } from './lib/trace/constants'
+import { getTracer } from './lib/trace/tracer'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
