@@ -1434,15 +1434,26 @@ export default async function build(
                           ssgPageRoutes = workerResult.prerenderRoutes
                           isSsg = true
                         }
-                        if (
-                          (!isDynamicRoute(page) ||
-                            !workerResult.prerenderRoutes?.length) &&
-                          workerResult.appConfig?.revalidate !== 0
-                        ) {
-                          appStaticPaths.set(originalAppPath, [page])
-                          appStaticPathsEncoded.set(originalAppPath, [page])
-                          isStatic = true
+
+                        const isDynamic = isDynamicRoute(page)
+                        const isDynamicPageWithoutGenerateStaticParams =
+                          isDynamic && !workerResult.prerenderRoutes
+
+                        if (workerResult.appConfig?.revalidate !== 0) {
+                          if (!isDynamic) {
+                            appStaticPaths.set(originalAppPath, [page])
+                            appStaticPathsEncoded.set(originalAppPath, [page])
+                            isStatic = true
+                          } else if (isDynamicPageWithoutGenerateStaticParams) {
+                            // Do not prerender with the empty slug name if there
+                            // is no generateStaticParams provided.
+                            // https://github.com/vercel/next.js/issues/45850
+                            appStaticPaths.set(originalAppPath, [])
+                            appStaticPathsEncoded.set(originalAppPath, [])
+                            isStatic = true
+                          }
                         }
+
                         if (workerResult.prerenderFallback) {
                           // whether or not to allow requests for paths not
                           // returned from generateStaticParams
