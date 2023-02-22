@@ -1648,17 +1648,18 @@ createNextDescribe(
           const browser = await next.browser('/script')
 
           // Wait for lazyOnload scripts to be ready.
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-
-          expect(await browser.eval(`window._script_order`)).toStrictEqual([
-            1,
-            1.5,
-            2,
-            2.5,
-            'render',
-            3,
-            4,
-          ])
+          await check(async () => {
+            expect(await browser.eval(`window._script_order`)).toStrictEqual([
+              1,
+              1.5,
+              2,
+              2.5,
+              'render',
+              3,
+              4,
+            ])
+            return 'yes'
+          }, 'yes')
         })
       }
 

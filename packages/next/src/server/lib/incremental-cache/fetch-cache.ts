@@ -22,6 +22,8 @@ export default class FetchCache implements CacheHandler {
             throw new Error('invariant image should not be incremental-cache')
           } else if (value.kind === 'FETCH') {
             return JSON.stringify(value.data || '').length
+          } else if (value.kind === 'ROUTE') {
+            return value.body.length
           }
           // rough estimate of size of cache value
           return (
