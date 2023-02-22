@@ -6,7 +6,7 @@ let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
 export default class FetchCache implements CacheHandler {
   private headers: Record<string, string>
-  private cacheEndpoint: string
+  private cacheEndpoint?: string
   private debug: boolean
 
   constructor(ctx: CacheHandlerContext) {
@@ -44,11 +44,15 @@ export default class FetchCache implements CacheHandler {
         this.headers[k] = newHeaders[k]
       }
     }
-    this.cacheEndpoint = `https://${ctx._requestHeaders['x-vercel-sc-host']}${
-      ctx._requestHeaders['x-vercel-sc-basepath'] || ''
-    }`
-    if (this.debug) {
-      console.log('using cache endpoint', this.cacheEndpoint)
+    if (ctx._requestHeaders['x-vercel-sc-host']) {
+      this.cacheEndpoint = `https://${ctx._requestHeaders['x-vercel-sc-host']}${
+        ctx._requestHeaders['x-vercel-sc-basepath'] || ''
+      }`
+      if (this.debug) {
+        console.log('using cache endpoint', this.cacheEndpoint)
+      }
+    } else if (this.debug) {
+      console.log('no cache endpoint available')
     }
   }
 
@@ -58,7 +62,7 @@ export default class FetchCache implements CacheHandler {
     let data = memoryCache?.get(key)
 
     // get data from fetch cache
-    if (!data) {
+    if (!data && this.cacheEndpoint) {
       try {
         const start = Date.now()
         const res = await fetch(
@@ -133,41 +137,43 @@ export default class FetchCache implements CacheHandler {
       lastModified: Date.now(),
     })
 
-    try {
-      const start = Date.now()
-      if (data !== null && 'revalidate' in data) {
-        this.headers['x-vercel-revalidate'] = data.revalidate.toString()
-      }
-      if (data !== null && 'data' in data) {
-        this.headers['x-vercel-cache-control'] =
-          data.data.headers['cache-control']
-      }
-      const body = JSON.stringify(data)
-      const res = await fetch(
-        `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
-        {
-          method: 'POST',
-          headers: this.headers,
-          body: body,
+    if (this.cacheEndpoint) {
+      try {
+        const start = Date.now()
+        if (data !== null && 'revalidate' in data) {
+          this.headers['x-vercel-revalidate'] = data.revalidate.toString()
         }
-      )
-
-      if (!res.ok) {
-        this.debug && console.log(await res.text())
-        throw new Error(`invalid response ${res.status}`)
-      }
-
-      if (this.debug) {
-        console.log(
-          `successfully set to fetch-cache for ${key}, duration: ${
-            Date.now() - start
-          }ms, size: ${body.length}`
+        if (data !== null && 'data' in data) {
+          this.headers['x-vercel-cache-control'] =
+            data.data.headers['cache-control']
+        }
+        const body = JSON.stringify(data)
+        const res = await fetch(
+          `${this.cacheEndpoint}/v1/suspense-cache/${key}`,
+          {
+            method: 'POST',
+            headers: this.headers,
+            body: body,
+          }
         )
-      }
-    } catch (err) {
-      // unable to set to fetch-cache
-      if (this.debug) {
-        console.error(`Failed to update fetch cache`, err)
+
+        if (!res.ok) {
+          this.debug && console.log(await res.text())
+          throw new Error(`invalid response ${res.status}`)
+        }
+
+        if (this.debug) {
+          console.log(
+            `successfully set to fetch-cache for ${key}, duration: ${
+              Date.now() - start
+            }ms, size: ${body.length}`
+          )
+        }
+      } catch (err) {
+        // unable to set to fetch-cache
+        if (this.debug) {
+          console.error(`Failed to update fetch cache`, err)
+        }
       }
     }
     return
