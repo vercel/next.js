@@ -72,6 +72,17 @@ export default class FetchCache implements CacheHandler {
           }
         )
 
+        if (res.status === 404) {
+          if (this.debug) {
+            console.log(
+              `no fetch cache entry for ${key}, duration: ${
+                Date.now() - start
+              }ms`
+            )
+          }
+          return null
+        }
+
         if (!res.ok) {
           console.error(await res.text())
           throw new Error(`invalid response from cache ${res.status}`)
