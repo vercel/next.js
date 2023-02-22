@@ -18,6 +18,7 @@ export const createDefaultMetadata = (): ResolvedMetadata => {
     creator: null,
     publisher: null,
     robots: null,
+    manifest: null,
     alternates: {
       canonical: null,
       languages: null,

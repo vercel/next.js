@@ -19,7 +19,6 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      '@next/font': 'canary',
       react: 'latest',
       'react-dom': 'latest',
       swr: '2.0.0-rc.0',
@@ -143,7 +142,7 @@ createNextDescribe(
       ).toBe('rgb(255, 0, 0)')
     })
 
-    it('should handle external @next/font', async () => {
+    it('should handle external next/font', async () => {
       const browser = await next.browser('/font')
 
       expect(
@@ -178,5 +177,34 @@ createNextDescribe(
         expect(v1).toBe(v2)
       })
     })
+
+    it('should export client module references in esm', async () => {
+      const html = await next.render('/esm-client-ref')
+      expect(html).toContain('hello')
+    })
+
+    if ((global as any).isNextDev) {
+      it('should error for wildcard exports of client module references in esm', async () => {
+        const page = 'app/esm-client-ref/page.js'
+        const pageSource = await next.readFile(page)
+
+        try {
+          await next.patchFile(
+            page,
+            pageSource.replace(
+              "'client-esm-module'",
+              "'client-esm-module-wildcard'"
+            )
+          )
+          await next.render('/esm-client-ref')
+        } finally {
+          await next.patchFile(page, pageSource)
+        }
+
+        expect(next.cliOutput).toInclude(
+          `It's currently unsupport to use "export *" in a client boundary. Please use named exports instead.`
+        )
+      })
+    }
   }
 )

@@ -18,7 +18,10 @@ function resolveUrl(
     return parsedUrl
   } catch (_) {}
 
-  if (!metadataBase) throw new Error('missing metadataBase')
+  if (!metadataBase)
+    throw new Error(
+      `metadata.metadataBase needs to be provided for resolving absolute URLs: ${url}`
+    )
 
   // Handle relative or absolute paths
   const basePath = metadataBase.pathname || '/'

@@ -1,4 +1,16 @@
 import type { NextConfigComplete } from '../server/config-shared'
+import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
+import type { AssetBinding } from './webpack/loaders/get-module-build-info'
+import type { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
+import type { BuildManifest } from '../server/get-page-files'
+import type {
+  Redirect,
+  Rewrite,
+  Header,
+  CustomRoutes,
+} from '../lib/load-custom-routes'
+import type { UnwrapPromise } from '../lib/coalesced-function'
+import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 
 import '../server/node-polyfill-fetch'
 import chalk from 'next/dist/compiled/chalk'
@@ -10,16 +22,11 @@ import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import browserslist from 'next/dist/compiled/browserslist'
 import {
-  Redirect,
-  Rewrite,
-  Header,
-  CustomRoutes,
-} from '../lib/load-custom-routes'
-import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
+  INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -28,10 +35,7 @@ import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import escapePathDelimiters from '../shared/lib/router/utils/escape-path-delimiters'
 import { findPageFile } from '../server/lib/find-page-file'
-import { GetStaticPaths, PageConfig, ServerRuntime } from 'next/types'
-import { BuildManifest } from '../server/get-page-files'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { UnwrapPromise } from '../lib/coalesced-function'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
@@ -43,16 +47,13 @@ import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/config'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { Sema } from 'next/dist/compiled/async-sema'
-import { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import { getRuntimeContext } from '../server/web/sandbox'
 import {
   loadRequireHook,
   overrideBuiltInReactPackages,
 } from './webpack/require-hook'
-import { AssetBinding } from './webpack/loaders/get-module-build-info'
 import { isClientReference } from './is-client-reference'
 
 loadRequireHook()
@@ -284,6 +285,13 @@ export async function computeFromManifest(
 
 export function isMiddlewareFilename(file?: string) {
   return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+}
+
+export function isInstrumentationHookFilename(file?: string) {
+  return (
+    file === INSTRUMENTATION_HOOK_FILENAME ||
+    file === `src/${INSTRUMENTATION_HOOK_FILENAME}`
+  )
 }
 
 export interface PageInfo {
@@ -1470,6 +1478,12 @@ export async function isPageStatic({
         ? {}
         : componentsResult.pageConfig
 
+      if (config.unstable_includeFiles || config.unstable_excludeFiles) {
+        Log.warn(
+          `unstable_includeFiles/unstable_excludeFiles has been removed in favor of the option in next.config.js.\nSee more info here: https://nextjs.org/docs/advanced-features/output-file-tracing#caveats`
+        )
+      }
+
       return {
         isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
         isHybridAmp: config.amp === 'hybrid',
@@ -1480,8 +1494,6 @@ export async function isPageStatic({
         hasStaticProps,
         hasServerProps,
         isNextImageImported,
-        traceIncludes: config.unstable_includeFiles || [],
-        traceExcludes: config.unstable_excludeFiles || [],
         appConfig,
       }
     })
@@ -1550,6 +1562,17 @@ export function detectConflictingPaths(
   >()
 
   const dynamicSsgPages = [...ssgPages].filter((page) => isDynamicRoute(page))
+  const additionalSsgPathsByPath: {
+    [page: string]: { [path: string]: string }
+  } = {}
+
+  additionalSsgPaths.forEach((paths, pathsPage) => {
+    additionalSsgPathsByPath[pathsPage] ||= {}
+    paths.forEach((curPath) => {
+      const currentPath = curPath.toLowerCase()
+      additionalSsgPathsByPath[pathsPage][currentPath] = curPath
+    })
+  })
 
   additionalSsgPaths.forEach((paths, pathsPage) => {
     paths.forEach((curPath) => {
@@ -1569,9 +1592,10 @@ export function detectConflictingPaths(
         conflictingPage = dynamicSsgPages.find((page) => {
           if (page === pathsPage) return false
 
-          conflictingPath = additionalSsgPaths
-            .get(page)
-            ?.find((compPath) => compPath.toLowerCase() === lowerPath)
+          conflictingPath =
+            additionalSsgPaths.get(page) == null
+              ? undefined
+              : additionalSsgPathsByPath[page][lowerPath]
           return conflictingPath
         })
 
@@ -1821,6 +1845,22 @@ export function isCustomErrorPage(page: string) {
 export function isMiddlewareFile(file: string) {
   return (
     file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+  )
+}
+
+export function isInstrumentationHookFile(file: string) {
+  return (
+    file === `/${INSTRUMENTATION_HOOK_FILENAME}` ||
+    file === `/src/${INSTRUMENTATION_HOOK_FILENAME}`
+  )
+}
+
+export function getPossibleInstrumentationHookFilenames(
+  folder: string,
+  extensions: string[]
+) {
+  return extensions.map((extension) =>
+    path.join(folder, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`)
   )
 }
 

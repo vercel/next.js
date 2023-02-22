@@ -15,7 +15,12 @@ import { removePagePathTail } from '../../shared/lib/page-path/remove-page-path-
 import { reportTrigger } from '../../build/output'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import { getPageStaticInfo } from '../../build/analysis/get-page-static-info'
-import { isMiddlewareFile, isMiddlewareFilename } from '../../build/utils'
+import {
+  isInstrumentationHookFile,
+  isInstrumentationHookFilename,
+  isMiddlewareFile,
+  isMiddlewareFilename,
+} from '../../build/utils'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import {
   CompilerNameValues,
@@ -23,6 +28,9 @@ import {
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
+import { RouteMatch } from '../future/route-matches/route-match'
+import { RouteKind } from '../future/route-kind'
+import { AppPageRouteMatch } from '../future/route-matches/app-page-route-match'
 
 const debug = origDebug('next:on-demand-entry-handler')
 
@@ -150,7 +158,7 @@ interface Entry extends EntryType {
    * All parallel pages that match the same entry, for example:
    * ['/parallel/@bar/nested/@a/page', '/parallel/@bar/nested/@b/page', '/parallel/@foo/nested/@a/page', '/parallel/@foo/nested/@b/page']
    */
-  appPaths: string[] | null
+  appPaths: ReadonlyArray<string> | null
 }
 
 interface ChildEntry extends EntryType {
@@ -293,7 +301,10 @@ async function findPagePathData(
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
-  if (isMiddlewareFile(normalizedPagePath)) {
+  if (
+    isMiddlewareFile(normalizedPagePath) ||
+    isInstrumentationHookFile(normalizedPagePath)
+  ) {
     pagePath = await findPageFile(
       rootDir,
       normalizedPagePath,
@@ -331,7 +342,7 @@ async function findPagePathData(
 
       return {
         absolutePagePath: join(appDir, pagePath),
-        bundlePath: posix.join('app', normalizePagePath(pageUrl)),
+        bundlePath: posix.join('app', pageUrl),
         page: posix.normalize(pageUrl),
       }
     }
@@ -369,6 +380,27 @@ async function findPagePathData(
   } else {
     throw new PageNotFoundError(normalizedPagePath)
   }
+}
+
+async function findRoutePathData(
+  rootDir: string,
+  page: string,
+  extensions: string[],
+  pagesDir?: string,
+  appDir?: string,
+  match?: RouteMatch
+): ReturnType<typeof findPagePathData> {
+  if (match) {
+    // If the match is available, we don't have to discover the data from the
+    // filesystem.
+    return {
+      absolutePagePath: match.definition.filename,
+      page: match.definition.page,
+      bundlePath: match.definition.bundlePath,
+    }
+  }
+
+  return findPagePathData(rootDir, page, extensions, pagesDir, appDir)
 }
 
 export function onDemandEntryHandler({
@@ -410,7 +442,8 @@ export function onDemandEntryHandler({
         pagePaths.push(`${type}${page}`)
       } else if (
         (root && entrypoint.name === 'root') ||
-        isMiddlewareFilename(entrypoint.name)
+        isMiddlewareFilename(entrypoint.name) ||
+        isInstrumentationHookFilename(entrypoint.name)
       ) {
         pagePaths.push(`${type}/${entrypoint.name}`)
       }
@@ -558,10 +591,12 @@ export function onDemandEntryHandler({
       page,
       clientOnly,
       appPaths = null,
+      match,
     }: {
       page: string
       clientOnly: boolean
-      appPaths?: string[] | null
+      appPaths?: ReadonlyArray<string> | null
+      match?: RouteMatch
     }): Promise<void> {
       const stalledTime = 60
       const stalledEnsureTimeout = setTimeout(() => {
@@ -570,13 +605,21 @@ export function onDemandEntryHandler({
         )
       }, stalledTime * 1000)
 
+      // If the route is actually an app page route, then we should have access
+      // to the app route match, and therefore, the appPaths from it.
+      if (match?.definition.kind === RouteKind.APP_PAGE) {
+        const { definition: route } = match as AppPageRouteMatch
+        appPaths = route.appPaths
+      }
+
       try {
-        const pagePathData = await findPagePathData(
+        const pagePathData = await findRoutePathData(
           rootDir,
           page,
           nextConfig.pageExtensions,
           pagesDir,
-          appDir
+          appDir,
+          match
         )
 
         const isInsideAppDir =
@@ -590,8 +633,13 @@ export function onDemandEntryHandler({
           shouldInvalidate: boolean
         } => {
           const entryKey = `${compilerType}${pagePathData.page}`
-
-          if (entries[entryKey]) {
+          if (
+            entries[entryKey] &&
+            // there can be an overlap in the entryKey for the instrumentation hook file and a page named the same
+            // this is a quick fix to support this scenario by overwriting the instrumentation hook entry, since we only use it one time
+            // any changes to the instrumentation hook file will require a restart of the dev server anyway
+            !isInstrumentationHookFilename(entries[entryKey].bundlePath)
+          ) {
             entries[entryKey].dispose = false
             entries[entryKey].lastActiveTime = Date.now()
             if (entries[entryKey].status === BUILT) {
@@ -619,7 +667,6 @@ export function onDemandEntryHandler({
             lastActiveTime: Date.now(),
             status: ADDED,
           }
-
           return {
             entryKey: entryKey,
             newEntry: true,
@@ -637,10 +684,15 @@ export function onDemandEntryHandler({
         const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
         const isServerComponent =
           isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-
+        const pageType = pagePathData.bundlePath.startsWith('pages/')
+          ? 'pages'
+          : pagePathData.bundlePath.startsWith('app/')
+          ? 'app'
+          : 'root'
         await runDependingOnPageType({
           page: pagePathData.page,
           pageRuntime: staticInfo.runtime,
+          pageType,
           onClient: () => {
             // Skip adding the client entry for app / Server Components.
             if (isServerComponent || isInsideAppDir) {
@@ -651,7 +703,10 @@ export function onDemandEntryHandler({
           onServer: () => {
             added.set(COMPILER_NAMES.server, addEntry(COMPILER_NAMES.server))
             const edgeServerEntry = `${COMPILER_NAMES.edgeServer}${pagePathData.page}`
-            if (entries[edgeServerEntry]) {
+            if (
+              entries[edgeServerEntry] &&
+              !isInstrumentationHookFile(pagePathData.page)
+            ) {
               // Runtime switched from edge to server
               delete entries[edgeServerEntry]
             }
@@ -662,7 +717,10 @@ export function onDemandEntryHandler({
               addEntry(COMPILER_NAMES.edgeServer)
             )
             const serverEntry = `${COMPILER_NAMES.server}${pagePathData.page}`
-            if (entries[serverEntry]) {
+            if (
+              entries[serverEntry] &&
+              !isInstrumentationHookFile(pagePathData.page)
+            ) {
               // Runtime switched from server to edge
               delete entries[serverEntry]
             }

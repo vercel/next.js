@@ -37,6 +37,68 @@ createNextDescribe(
       await cleanup()
     })
 
+    it('should throw an error when metadata export is used in client components', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/client-with-errors/metadata-export'
+      )
+
+      const pageFile = 'app/client-with-errors/metadata-export/page.js'
+      const content = await next.readFile(pageFile)
+
+      // Add `metadata` error
+      let uncomment = content.replace(
+        '// export const metadata',
+        'export const metadata'
+      )
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        '"metadata" is not supported in app/'
+      )
+
+      // Restore file
+      await session.patch(pageFile, content)
+      expect(await session.hasRedbox(false)).toBe(false)
+
+      // Add `generateMetadata` error
+      uncomment = content.replace(
+        '// export async function generateMetadata',
+        'export async function generateMetadata'
+      )
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        '"generateMetadata" is not supported in app/'
+      )
+
+      await cleanup()
+    })
+
+    it('should throw an error when metadata exports are used together in server components', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/server-with-errors/metadata-export'
+      )
+
+      const pageFile = 'app/server-with-errors/metadata-export/page.js'
+      const content = await next.readFile(pageFile)
+      const uncomment = content.replace(
+        '// export async function generateMetadata',
+        'export async function generateMetadata'
+      )
+
+      await session.patch(pageFile, uncomment)
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        'export generateMetadata and metadata together'
+      )
+
+      await cleanup()
+    })
+
     it('should throw an error when getStaticProps is used', async () => {
       const { session, cleanup } = await sandbox(
         next,
@@ -57,34 +119,6 @@ createNextDescribe(
       expect(await session.getRedboxSource()).toInclude(
         '"getStaticProps" is not supported in app/'
       )
-
-      await cleanup()
-    })
-
-    it('should error for styled-jsx imports on server side', async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/server-with-errors/styled-jsx'
-      )
-
-      const pageFile = 'app/server-with-errors/styled-jsx/page.js'
-      const content = await next.readFile(pageFile)
-      const withoutUseClient = content.replace("'use client'", '')
-      await session.patch(pageFile, withoutUseClient)
-
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "app/server-with-errors/styled-jsx/comp2.js
-        'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
-
-        The error was caused by importing 'styled-jsx/style.js' in 'app/server-with-errors/styled-jsx/comp2.js'.
-
-        Import trace for requested module:
-        app/server-with-errors/styled-jsx/comp2.js
-        app/server-with-errors/styled-jsx/comp1.js
-        app/server-with-errors/styled-jsx/page.js"
-      `)
 
       await cleanup()
     })
@@ -237,6 +271,7 @@ createNextDescribe(
       )
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:
@@ -252,17 +287,21 @@ createNextDescribe(
         app/server-with-errors/error-file/error.js"
       `)
 
-      // Add "use client"
-      await session.patch(
-        'app/server-with-errors/error-file/error.js',
-        '"use client"'
+      await cleanup()
+    })
+
+    it('should throw an error when error file is a server component with empty error file', async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        '/server-with-errors/error-file'
       )
-      expect(await session.hasRedbox(false)).toBe(false)
 
       // Empty file
       await session.patch('app/server-with-errors/error-file/error.js', '')
 
       expect(await session.hasRedbox(true)).toBe(true)
+      await check(() => session.getRedboxSource(), /must be a Client Component/)
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/server-with-errors/error-file/error.js
         ReactServerComponentsError:

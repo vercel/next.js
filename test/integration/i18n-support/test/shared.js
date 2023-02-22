@@ -386,6 +386,9 @@ export function runTests(ctx) {
       const href = await browser.elementByCss(element).getAttribute('href')
       expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
 
     browser = await webdriver(
       ctx.appPort,
@@ -405,6 +408,9 @@ export function runTests(ctx) {
         `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
       )
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
   })
 
   // The page is accessible on subpath as well as on the domain url without subpath.
@@ -428,6 +434,9 @@ export function runTests(ctx) {
         expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
       }
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
 
     browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go-BE`)
 
@@ -448,6 +457,9 @@ export function runTests(ctx) {
         )
       }
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
   })
 
   it('should render the correct href with locale domains but not on a locale domain', async () => {
@@ -1355,8 +1367,9 @@ export function runTests(ctx) {
     })
   })
 
-  it('should rewrite to API route correctly', async () => {
-    for (const locale of locales) {
+  it.each(locales)(
+    'should rewrite to API route correctly for %s locale',
+    async (locale) => {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath || ''}${
@@ -1368,13 +1381,14 @@ export function runTests(ctx) {
         }
       )
 
+      expect(res.headers.get('content-type')).toContain('application/json')
       const data = await res.json()
       expect(data).toEqual({
         hello: true,
         query: {},
       })
     }
-  })
+  )
 
   it('should apply rewrites correctly', async () => {
     let res = await fetchViaHTTP(

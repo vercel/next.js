@@ -30,18 +30,16 @@ import {
 } from '../build/webpack/plugins/flight-manifest-plugin'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html'
 import { stripInternalQueries } from './internal-utils'
-// import type { ComponentsType } from '../build/webpack/loaders/next-app-loader'
-import { REDIRECT_ERROR_CODE } from '../client/components/redirect'
 import { RequestCookies } from './web/spec-extension/cookies'
 import { DYNAMIC_ERROR_CODE } from '../client/components/hooks-server-context'
-import { NOT_FOUND_ERROR_CODE } from '../client/components/not-found'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/app-dynamic/no-ssr-error'
 import { HeadManagerContext } from '../shared/lib/head-manager-context'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
+  ACTION,
   NEXT_ROUTER_PREFETCH,
   NEXT_ROUTER_STATE_TREE,
   RSC,
+  RSC_CONTENT_TYPE_HEADER,
 } from '../client/components/app-router-headers'
 import type { StaticGenerationAsyncStorage } from '../client/components/static-generation-async-storage'
 import type { RequestAsyncStorage } from '../client/components/request-async-storage'
@@ -54,6 +52,10 @@ import type { MetadataItems } from '../lib/metadata/resolve-metadata'
 import { isClientReference } from '../build/is-client-reference'
 import { getLayoutOrPageModule, LoaderTree } from './lib/app-dir-module'
 import { warnOnce } from '../shared/lib/utils/warn-once'
+import { isNotFoundError } from '../client/components/not-found'
+import { isRedirectError } from '../client/components/redirect'
+import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
+import { patchFetch } from './lib/patch-fetch'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -89,7 +91,6 @@ function preloadComponent(Component: any, props: any) {
   return Component
 }
 
-const CACHE_ONE_YEAR = 31536000
 const INTERNAL_HEADERS_INSTANCE = Symbol('internal for headers readonly')
 
 function readonlyHeadersError() {
@@ -190,16 +191,26 @@ export type RenderOptsPartial = {
   incrementalCache?: import('./lib/incremental-cache').IncrementalCache
   isRevalidate?: boolean
   nextExport?: boolean
+  appDirDevErrorLogger?: (err: any) => Promise<void>
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
 
 /**
- * Flight Response is always set to application/octet-stream to ensure it does not get interpreted as HTML.
+ * Flight Response is always set to RSC_CONTENT_TYPE_HEADER to ensure it does not get interpreted as HTML.
  */
 class FlightRenderResult extends RenderResult {
   constructor(response: string | ReadableStream<Uint8Array>) {
-    super(response, { contentType: 'application/octet-stream' })
+    super(response, { contentType: RSC_CONTENT_TYPE_HEADER })
+  }
+}
+
+/**
+ * Action Response is set to application/json for now, but could be changed in the future.
+ */
+class ActionRenderResult extends RenderResult {
+  constructor(response: string) {
+    super(response, { contentType: 'application/json' })
   }
 }
 
@@ -215,30 +226,39 @@ function interopDefault(mod: any) {
 /**
  * Create error handler for renderers.
  */
-function createErrorHandler(
+function createErrorHandler({
   /**
    * Used for debugging
    */
-  _source: string,
-  isNextExport: boolean,
-  capturedErrors: Error[],
+  _source,
+  dev,
+  isNextExport,
+  errorLogger,
+  capturedErrors,
+  allCapturedErrors,
+}: {
+  _source: string
+  dev?: boolean
+  isNextExport?: boolean
+  errorLogger?: (err: any) => Promise<void>
+  capturedErrors: Error[]
   allCapturedErrors?: Error[]
-) {
+}) {
   return (err: any): string => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     if (
       err &&
       (err.digest === DYNAMIC_ERROR_CODE ||
-        err.digest === NOT_FOUND_ERROR_CODE ||
+        isNotFoundError(err) ||
         err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-        err.digest?.startsWith(REDIRECT_ERROR_CODE))
+        isRedirectError(err))
     ) {
       return err.digest
     }
 
     // Format server errors in development to add more helpful error messages
-    if (process.env.NODE_ENV !== 'production') {
+    if (dev) {
       formatServerError(err)
     }
     // Used for debugging error source
@@ -253,204 +273,27 @@ function createErrorHandler(
         )
       )
     ) {
-      console.error(err)
+      if (errorLogger) {
+        errorLogger(err).catch(() => {})
+      } else {
+        // The error logger is currently not provided in the edge runtime.
+        // Use `log-app-dir-error` instead.
+        // It won't log the source code, but the error will be more useful.
+        if (process.env.NODE_ENV !== 'production') {
+          const { logAppDirError } =
+            require('./dev/log-app-dir-error') as typeof import('./dev/log-app-dir-error')
+          logAppDirError(err)
+        }
+        if (process.env.NODE_ENV === 'production') {
+          console.error(err)
+        }
+      }
     }
 
     capturedErrors.push(err)
     // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
     return stringHash(err.message + err.stack + (err.digest || '')).toString()
   }
-}
-
-// we patch fetch to collect cache information used for
-// determining if a page is static or not
-function patchFetch(ComponentMod: any) {
-  if ((globalThis.fetch as any).patched) return
-
-  const { DynamicServerError } =
-    ComponentMod.serverHooks as typeof import('../client/components/hooks-server-context')
-
-  const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
-    ComponentMod.staticGenerationAsyncStorage
-
-  const originFetch = globalThis.fetch
-  globalThis.fetch = async (input, init) => {
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-
-    // If the staticGenerationStore is not available, we can't do any special
-    // treatment of fetch, therefore fallback to the original fetch
-    // implementation.
-    if (!staticGenerationStore) {
-      return originFetch(input, init)
-    }
-
-    let revalidate: number | undefined | boolean
-
-    if (typeof init?.next?.revalidate === 'number') {
-      revalidate = init.next.revalidate
-    }
-
-    if (init?.next?.revalidate === false) {
-      revalidate = CACHE_ONE_YEAR
-    }
-
-    if (
-      !staticGenerationStore.revalidate ||
-      (typeof revalidate === 'number' &&
-        revalidate < staticGenerationStore.revalidate)
-    ) {
-      staticGenerationStore.revalidate = revalidate
-    }
-
-    let cacheKey: string | undefined
-
-    const doOriginalFetch = async () => {
-      return originFetch(input, init).then(async (res) => {
-        if (
-          staticGenerationStore.incrementalCache &&
-          cacheKey &&
-          typeof revalidate === 'number' &&
-          revalidate > 0
-        ) {
-          const clonedRes = res.clone()
-
-          let base64Body = ''
-
-          if (process.env.NEXT_RUNTIME === 'edge') {
-            let string = ''
-            new Uint8Array(await clonedRes.arrayBuffer()).forEach((byte) => {
-              string += String.fromCharCode(byte)
-            })
-            base64Body = btoa(string)
-          } else {
-            base64Body = Buffer.from(await clonedRes.arrayBuffer()).toString(
-              'base64'
-            )
-          }
-
-          await staticGenerationStore.incrementalCache.set(
-            cacheKey,
-            {
-              kind: 'FETCH',
-              isStale: false,
-              age: 0,
-              data: {
-                headers: Object.fromEntries(clonedRes.headers.entries()),
-                body: base64Body,
-              },
-              revalidate,
-            },
-            revalidate,
-            true
-          )
-        }
-        return res
-      })
-    }
-
-    if (
-      staticGenerationStore.incrementalCache &&
-      typeof revalidate === 'number' &&
-      revalidate > 0
-    ) {
-      cacheKey = await staticGenerationStore.incrementalCache.fetchCacheKey(
-        input.toString(),
-        init
-      )
-      const entry = await staticGenerationStore.incrementalCache.get(
-        cacheKey,
-        true
-      )
-
-      if (entry?.value && entry.value.kind === 'FETCH') {
-        // when stale and is revalidating we wait for fresh data
-        // so the revalidated entry has the updated data
-        if (!staticGenerationStore.isRevalidate || !entry.isStale) {
-          if (entry.isStale) {
-            if (!staticGenerationStore.pendingRevalidates) {
-              staticGenerationStore.pendingRevalidates = []
-            }
-            staticGenerationStore.pendingRevalidates.push(
-              doOriginalFetch().catch(console.error)
-            )
-          }
-
-          const resData = entry.value.data
-          let decodedBody = ''
-
-          // TODO: handle non-text response bodies
-          if (process.env.NEXT_RUNTIME === 'edge') {
-            decodedBody = atob(resData.body)
-          } else {
-            decodedBody = Buffer.from(resData.body, 'base64').toString()
-          }
-
-          return new Response(decodedBody, {
-            headers: resData.headers,
-            status: resData.status,
-          })
-        }
-      }
-    }
-
-    if (staticGenerationStore.isStaticGeneration) {
-      if (init && typeof init === 'object') {
-        const cache = init.cache
-        // Delete `cache` property as Cloudflare Workers will throw an error
-        if (isEdgeRuntime) {
-          delete init.cache
-        }
-        if (cache === 'no-store') {
-          staticGenerationStore.revalidate = 0
-          // TODO: ensure this error isn't logged to the user
-          // seems it's slipping through currently
-          const dynamicUsageReason = `no-store fetch ${input}${
-            staticGenerationStore.pathname
-              ? ` ${staticGenerationStore.pathname}`
-              : ''
-          }`
-          const err = new DynamicServerError(dynamicUsageReason)
-          staticGenerationStore.dynamicUsageStack = err.stack
-          staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-
-          throw err
-        }
-
-        const hasNextConfig = 'next' in init
-        const next = init.next || {}
-        if (
-          typeof next.revalidate === 'number' &&
-          (typeof staticGenerationStore.revalidate === 'undefined' ||
-            next.revalidate < staticGenerationStore.revalidate)
-        ) {
-          const forceDynamic = staticGenerationStore.forceDynamic
-
-          if (!forceDynamic || next.revalidate !== 0) {
-            staticGenerationStore.revalidate = next.revalidate
-          }
-
-          if (!forceDynamic && next.revalidate === 0) {
-            const dynamicUsageReason = `revalidate: ${
-              next.revalidate
-            } fetch ${input}${
-              staticGenerationStore.pathname
-                ? ` ${staticGenerationStore.pathname}`
-                : ''
-            }`
-            const err = new DynamicServerError(dynamicUsageReason)
-            staticGenerationStore.dynamicUsageStack = err.stack
-            staticGenerationStore.dynamicUsageDescription = dynamicUsageReason
-
-            throw err
-          }
-        }
-        if (hasNextConfig) delete init.next
-      }
-    }
-
-    return doOriginalFetch()
-  }
-  ;(globalThis.fetch as any).patched = true
 }
 
 interface FlightResponseRef {
@@ -895,32 +738,17 @@ export async function renderToHTMLOrFlight(
   renderOpts: RenderOpts
 ): Promise<RenderResult | null> {
   const isFlight = req.headers[RSC.toLowerCase()] !== undefined
-
-  const capturedErrors: Error[] = []
-  const allCapturedErrors: Error[] = []
-
-  const isNextExport = !!renderOpts.nextExport
-  const serverComponentsErrorHandler = createErrorHandler(
-    'serverComponentsRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const flightDataRendererErrorHandler = createErrorHandler(
-    'flightDataRenderer',
-    isNextExport,
-    capturedErrors
-  )
-  const htmlRendererErrorHandler = createErrorHandler(
-    'htmlRenderer',
-    isNextExport,
-    capturedErrors,
-    allCapturedErrors
-  )
+  const actionId = req.headers[ACTION.toLowerCase()]
+  const isAction =
+    actionId !== undefined &&
+    typeof actionId === 'string' &&
+    req.method === 'POST'
 
   const {
     buildManifest,
     subresourceIntegrityManifest,
     serverComponentManifest,
+    serverActionsManifest,
     serverCSSManifest = {},
     ComponentMod,
     dev,
@@ -928,7 +756,46 @@ export async function renderToHTMLOrFlight(
     supportsDynamicHTML,
   } = renderOpts
 
+  const capturedErrors: Error[] = []
+  const allCapturedErrors: Error[] = []
+  const isNextExport = !!renderOpts.nextExport
+  const serverComponentsErrorHandler = createErrorHandler({
+    _source: 'serverComponentsRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+  })
+  const flightDataRendererErrorHandler = createErrorHandler({
+    _source: 'flightDataRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+  })
+  const htmlRendererErrorHandler = createErrorHandler({
+    _source: 'htmlRenderer',
+    dev,
+    isNextExport,
+    errorLogger: renderOpts.appDirDevErrorLogger,
+    capturedErrors,
+    allCapturedErrors,
+  })
+
   patchFetch(ComponentMod)
+  /**
+   * Rules of Static & Dynamic HTML:
+   *
+   *    1.) We must generate static HTML unless the caller explicitly opts
+   *        in to dynamic HTML support.
+   *
+   *    2.) If dynamic HTML support is requested, we must honor that request
+   *        or throw an error. It is the sole responsibility of the caller to
+   *        ensure they aren't e.g. requesting dynamic HTML for an AMP page.
+   *
+   * These rules help ensure that other existing features like request caching,
+   * coalescing, and ISR continue working as intended.
+   */
   const generateStaticHTML = supportsDynamicHTML !== true
 
   const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
@@ -1793,6 +1660,23 @@ export async function renderToHTMLOrFlight(
       return generateFlight()
     }
 
+    // For action requests, we handle them differently with a sepcial render result.
+    if (isAction && process.env.NEXT_RUNTIME !== 'edge') {
+      const workerName = 'app' + renderOpts.pathname
+      const actionModId = serverActionsManifest[actionId].workers[workerName]
+
+      const { parseBody } =
+        require('./api-utils/node') as typeof import('./api-utils/node')
+      const actionData = (await parseBody(req, '1mb')) || {}
+
+      const actionHandler =
+        ComponentMod.__next_app_webpack_require__(actionModId).default
+
+      return new ActionRenderResult(
+        JSON.stringify(await actionHandler(actionId, actionData.bound || []))
+      )
+    }
+
     // Below this line is handling for rendering to HTML.
 
     // AppRouter is provided by next-app-loader
@@ -1982,9 +1866,12 @@ export async function renderToHTMLOrFlight(
 
         return result
       } catch (err: any) {
-        const shouldNotIndex = err.digest === NOT_FOUND_ERROR_CODE
-        if (err.digest === NOT_FOUND_ERROR_CODE) {
+        const shouldNotIndex = isNotFoundError(err)
+        if (isNotFoundError(err)) {
           res.statusCode = 404
+        }
+        if (isRedirectError(err)) {
+          res.statusCode = 307
         }
 
         const renderStream = await renderToInitialStream({

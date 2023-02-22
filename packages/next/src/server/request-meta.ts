@@ -3,7 +3,8 @@ import type { IncomingMessage } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
-import type { ClonableBody } from './body-streams'
+import type { CloneableBody } from './body-streams'
+import { RouteMatch } from './future/route-matches/route-match'
 
 export const NEXT_REQUEST_META = Symbol('NextRequestMeta')
 
@@ -14,7 +15,7 @@ export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
 export interface RequestMeta {
   __NEXT_INIT_QUERY?: ParsedUrlQuery
   __NEXT_INIT_URL?: string
-  __NEXT_CLONABLE_BODY?: ClonableBody
+  __NEXT_CLONABLE_BODY?: CloneableBody
   __nextHadTrailingSlash?: boolean
   __nextIsLocaleDomain?: boolean
   __nextStrippedLocale?: boolean
@@ -24,6 +25,8 @@ export interface RequestMeta {
   _nextMiddlewareCookie?: string[]
   _protocol?: string
   _nextDataNormalizing?: boolean
+  _nextMatch?: RouteMatch
+  _nextIncrementalCache?: any
 }
 
 export function getRequestMeta(

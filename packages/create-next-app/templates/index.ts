@@ -7,6 +7,7 @@ import fs from 'fs'
 import path from 'path'
 import chalk from 'chalk'
 import util from 'util'
+import { Sema } from 'async-sema'
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from './types'
 
@@ -40,77 +41,6 @@ export const installTemplate = async ({
   importAlias,
 }: InstallTemplateArgs) => {
   console.log(chalk.bold(`Using ${packageManager}.`))
-
-  /**
-   * Create a package.json for the new project.
-   */
-  const packageJson = {
-    name: appName,
-    version: '0.1.0',
-    private: true,
-    scripts: {
-      dev: 'next dev',
-      build: 'next build',
-      start: 'next start',
-      lint: 'next lint',
-    },
-  }
-  /**
-   * Write it to disk.
-   */
-  fs.writeFileSync(
-    path.join(root, 'package.json'),
-    JSON.stringify(packageJson, null, 2) + os.EOL
-  )
-  /**
-   * These flags will be passed to `install()`, which calls the package manager
-   * install process.
-   */
-  const installFlags = { packageManager, isOnline }
-  /**
-   * Default dependencies.
-   */
-  const dependencies = [
-    'react',
-    'react-dom',
-    `next${
-      process.env.NEXT_PRIVATE_TEST_VERSION
-        ? `@${process.env.NEXT_PRIVATE_TEST_VERSION}`
-        : ''
-    }`,
-    '@next/font',
-  ]
-  /**
-   * TypeScript projects will have type definitions and other devDependencies.
-   */
-  if (mode === 'ts') {
-    dependencies.push(
-      'typescript',
-      '@types/react',
-      '@types/node',
-      '@types/react-dom'
-    )
-  }
-
-  /**
-   * Default eslint dependencies.
-   */
-  if (eslint) {
-    dependencies.push('eslint', 'eslint-config-next')
-  }
-  /**
-   * Install package.json dependencies if they exist.
-   */
-  if (dependencies.length) {
-    console.log()
-    console.log('Installing dependencies:')
-    for (const dependency of dependencies) {
-      console.log(`- ${chalk.cyan(dependency)}`)
-    }
-    console.log()
-
-    await install(root, dependencies, installFlags)
-  }
 
   /**
    * Copy the template files to the target directory.
@@ -155,8 +85,12 @@ export const installTemplate = async ({
   // update import alias in any files if not using the default
   if (importAlias !== '@/*') {
     const files = await glob('**/*', { cwd: root, dot: true })
+    const writeSema = new Sema(8, { capacity: files.length })
     await Promise.all(
       files.map(async (file) => {
+        // We don't want to modify compiler options in [ts/js]config.json
+        if (file === 'tsconfig.json' || file === 'jsconfig.json') return
+        await writeSema.acquire()
         const filePath = path.join(root, file)
         if ((await fs.promises.stat(filePath)).isFile()) {
           await fs.promises.writeFile(
@@ -166,6 +100,7 @@ export const installTemplate = async ({
             ).replace(`@/`, `${importAlias.replace(/\*/g, '')}`)
           )
         }
+        await writeSema.release()
       })
     )
   }
@@ -203,6 +138,76 @@ export const installTemplate = async ({
   if (!eslint) {
     // remove un-necessary template file if eslint is not desired
     await fs.promises.unlink(path.join(root, '.eslintrc.json'))
+  }
+
+  /**
+   * Create a package.json for the new project.
+   */
+  const packageJson = {
+    name: appName,
+    version: '0.1.0',
+    private: true,
+    scripts: {
+      dev: 'next dev',
+      build: 'next build',
+      start: 'next start',
+      lint: 'next lint',
+    },
+  }
+  /**
+   * Write it to disk.
+   */
+  fs.writeFileSync(
+    path.join(root, 'package.json'),
+    JSON.stringify(packageJson, null, 2) + os.EOL
+  )
+  /**
+   * These flags will be passed to `install()`, which calls the package manager
+   * install process.
+   */
+  const installFlags = { packageManager, isOnline }
+  /**
+   * Default dependencies.
+   */
+  const dependencies = [
+    'react',
+    'react-dom',
+    `next${
+      process.env.NEXT_PRIVATE_TEST_VERSION
+        ? `@${process.env.NEXT_PRIVATE_TEST_VERSION}`
+        : ''
+    }`,
+  ]
+  /**
+   * TypeScript projects will have type definitions and other devDependencies.
+   */
+  if (mode === 'ts') {
+    dependencies.push(
+      'typescript',
+      '@types/react',
+      '@types/node',
+      '@types/react-dom'
+    )
+  }
+
+  /**
+   * Default eslint dependencies.
+   */
+  if (eslint) {
+    dependencies.push('eslint', 'eslint-config-next')
+  }
+  /**
+   * Install package.json dependencies if they exist.
+   */
+  if (dependencies.length) {
+    console.log()
+    console.log('Installing dependencies:')
+    for (const dependency of dependencies) {
+      console.log(`- ${chalk.cyan(dependency)}`)
+    }
+    console.log()
+
+    await install(root, dependencies, installFlags)
   }
 }
 

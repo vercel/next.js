@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import arg from 'next/dist/compiled/arg/index.js'
-import { startServer } from '../server/lib/start-server'
+import { startServer, WORKER_SELF_EXIT_CODE } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
@@ -13,19 +13,23 @@ import type { NextConfig } from '../../types'
 import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { isIPv6 } from 'net'
-import cluster from 'cluster'
+import { ChildProcess, fork } from 'child_process'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists } from '../lib/file-exists'
 import Watchpack from 'next/dist/compiled/watchpack'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { warn } from '../build/output/log'
+import { getPossibleInstrumentationHookFilenames } from '../build/utils'
 
 let isTurboSession = false
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 let dir: string
 let unwatchConfigFiles: () => void
+
+const isChildProcess = !!process.env.__NEXT_DEV_CHILD_PROCESS
 
 const handleSessionStop = async () => {
   if (sessionStopHandled) return
@@ -51,14 +55,14 @@ const handleSessionStop = async () => {
         distDir: path.join(dir, config.distDir),
       })
 
-    let appDir: boolean = !!traceGlobals.get('pagesDir')
-    let pagesDir: boolean = !!traceGlobals.get('appDir')
+    let pagesDir: boolean = !!traceGlobals.get('pagesDir')
+    let appDir: boolean = !!traceGlobals.get('appDir')
 
     if (
       typeof traceGlobals.get('pagesDir') === 'undefined' ||
       typeof traceGlobals.get('appDir') === 'undefined'
     ) {
-      const pagesResult = await findPagesDir(dir, !!config.experimental.appDir)
+      const pagesResult = findPagesDir(dir, !!config.experimental.appDir)
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
@@ -78,10 +82,15 @@ const handleSessionStop = async () => {
     // errors here aren't actionable so don't add
     // noise to the output
   }
+
+  // ensure we re-enable the terminal cursor before exiting
+  // the program, or the cursor could remain hidden
+  process.stdout.write('\x1B[?25h')
+  process.stdout.write('\n')
   process.exit(0)
 }
 
-if (cluster.isMaster) {
+if (!isChildProcess) {
   process.on('SIGINT', handleSessionStop)
   process.on('SIGTERM', handleSessionStop)
 } else {
@@ -162,9 +171,10 @@ const nextDev: CliCommand = async (argv) => {
   }
 
   async function preflight() {
-    const { getPackageVersion } = await Promise.resolve(
+    const { getPackageVersion, getDependencies } = (await Promise.resolve(
       require('../lib/get-package-version')
-    )
+    )) as typeof import('../lib/get-package-version')
+
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
@@ -174,6 +184,23 @@ const nextDev: CliCommand = async (argv) => {
         'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
           'Please remove the `node-sass` dependency from your project. ' +
           ' Read more: https://nextjs.org/docs/messages/duplicate-sass'
+      )
+    }
+
+    const { dependencies, devDependencies } = await getDependencies({
+      cwd: dir,
+    })
+
+    // Warn if @next/font is installed as a dependency. Ignore `workspace:*` to not warn in the Next.js monorepo.
+    if (
+      dependencies['@next/font'] ||
+      (devDependencies['@next/font'] &&
+        devDependencies['@next/font'] !== 'workspace:*')
+    ) {
+      Log.warn(
+        'Your project has `@next/font` installed as a dependency, please use the built-in `next/font` instead. ' +
+          'The `@next/font` package will be removed in Next.js 14. ' +
+          'You can migrate by running the `built-in-next-font` codemod. Read more: https://nextjs.org/docs/messages/built-in-next-font'
       )
     }
   }
@@ -299,7 +326,9 @@ const nextDev: CliCommand = async (argv) => {
     if (!hasWarningOrError) {
       thankYouMsg = chalk.dim(thankYouMsg)
     }
-    console.log(turbopackGradient + thankYouMsg)
+    if (!isCustomTurbopack) {
+      console.log(turbopackGradient + thankYouMsg)
+    }
 
     let feedbackMessage = `Learn more about Next.js v13 and Turbopack: ${chalk.underline(
       'https://nextjs.link/with-turbopack'
@@ -328,7 +357,7 @@ const nextDev: CliCommand = async (argv) => {
       )}   `
     }
 
-    if (unsupportedParts) {
+    if (unsupportedParts && !isCustomTurbopack) {
       const pkgManager = getPkgManager(dir)
 
       console.error(
@@ -346,9 +375,10 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
   )}\n  cd with-turbopack-app\n  ${pkgManager} run dev
         `
       )
-      console.warn(feedbackMessage)
 
       if (!isCustomTurbopack) {
+        console.warn(feedbackMessage)
+
         process.exit(1)
       } else {
         console.warn(
@@ -358,7 +388,10 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
         )
       }
     }
-    console.log(feedbackMessage)
+
+    if (!isCustomTurbopack) {
+      console.log(feedbackMessage)
+    }
 
     return rawNextConfig
   }
@@ -432,16 +465,79 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
     // we're using a sub worker to avoid memory leaks. When memory usage exceeds 90%, we kill the worker and restart it.
     // this is a temporary solution until we can fix the memory leaks.
     // the logic for the worker killing itself is in `packages/next/server/lib/start-server.ts`
-    if (!process.env.__NEXT_DISABLE_MEMORY_WATCHER && cluster.isMaster) {
+    if (!process.env.__NEXT_DISABLE_MEMORY_WATCHER && !isChildProcess) {
       let config: NextConfig
+      let childProcess: ChildProcess | null = null
 
-      const setupFork = (env?: Parameters<typeof cluster.fork>[0]) => {
-        const startDir = dir
-        let shouldFilter = false
-        cluster.fork({
-          ...env,
-          FORCE_COLOR: '1',
+      const isDebugging = process.execArgv.some((localArg) =>
+        localArg.startsWith('--inspect')
+      )
+
+      const isDebuggingWithBrk = process.execArgv.some((localArg) =>
+        localArg.startsWith('--inspect-brk')
+      )
+
+      const debugPort = (() => {
+        const debugPortStr = process.execArgv
+          .find(
+            (localArg) =>
+              localArg.startsWith('--inspect') ||
+              localArg.startsWith('--inspect-brk')
+          )
+          ?.split('=')[1]
+        return debugPortStr ? parseInt(debugPortStr, 10) : 9229
+      })()
+
+      if (isDebugging || isDebuggingWithBrk) {
+        warn(
+          `the --inspect${
+            isDebuggingWithBrk ? '-brk' : ''
+          } option was detected, the Next.js server should be inspected at port ${
+            debugPort + 1
+          }.`
+        )
+      }
+
+      const genExecArgv = () => {
+        const execArgv = process.execArgv.filter((localArg) => {
+          return (
+            !localArg.startsWith('--inspect') &&
+            !localArg.startsWith('--inspect-brk')
+          )
         })
+
+        if (isDebugging || isDebuggingWithBrk) {
+          execArgv.push(
+            `--inspect${isDebuggingWithBrk ? '-brk' : ''}=${debugPort + 1}`
+          )
+        }
+
+        return execArgv
+      }
+      let childProcessExitUnsub: (() => void) | null = null
+
+      const setupFork = (env?: NodeJS.ProcessEnv, newDir?: string) => {
+        childProcessExitUnsub?.()
+        childProcess?.kill()
+
+        const startDir = dir
+        const [, script, ...nodeArgs] = process.argv
+        let shouldFilter = false
+        childProcess = fork(
+          newDir ? script.replace(startDir, newDir) : script,
+          nodeArgs,
+          {
+            env: {
+              ...(env ? env : process.env),
+              FORCE_COLOR: '1',
+              __NEXT_DEV_CHILD_PROCESS: '1',
+            },
+            // @ts-ignore TODO: remove ignore when types are updated
+            windowsHide: true,
+            stdio: ['ipc', 'pipe', 'pipe'],
+            execArgv: genExecArgv(),
+          }
+        )
 
         // since errors can start being logged from the fork
         // before we detect the project directory rename
@@ -473,40 +569,28 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
           process[fd].write(chunk)
         }
 
-        for (const workerId in cluster.workers) {
-          cluster.workers[workerId]?.process.stdout?.on('data', (chunk) => {
-            filterForkErrors(chunk, 'stdout')
-          })
-          cluster.workers[workerId]?.process.stderr?.on('data', (chunk) => {
-            filterForkErrors(chunk, 'stderr')
-          })
-        }
-      }
+        childProcess?.stdout?.on('data', (chunk) => {
+          filterForkErrors(chunk, 'stdout')
+        })
+        childProcess?.stderr?.on('data', (chunk) => {
+          filterForkErrors(chunk, 'stderr')
+        })
 
-      const handleClusterExit = () => {
-        const callback = async (worker: cluster.Worker) => {
-          // ignore if we killed the worker
-          if ((worker as any).killed) return
-
-          // TODO: we should track how many restarts are
-          // occurring and how long in-between them
-          if (worker.exitedAfterDisconnect) {
+        const callback = async (code: number | null) => {
+          if (code === WORKER_SELF_EXIT_CODE) {
             setupFork()
           } else if (!sessionStopHandled) {
             await handleSessionStop()
             process.exit(1)
           }
         }
-        cluster.addListener('exit', callback)
-        return () => cluster.removeListener('exit', callback)
+        childProcess?.addListener('exit', callback)
+        childProcessExitUnsub = () =>
+          childProcess?.removeListener('exit', callback)
       }
-      let clusterExitUnsub = handleClusterExit()
-      // x-ref: https://nodejs.org/api/cluster.html#clustersettings
-      // @ts-expect-error type is incorrect
-      cluster.settings.windowsHide = true
-      cluster.settings.stdio = ['ipc', 'pipe', 'pipe']
 
       setupFork()
+
       config = await loadConfig(
         PHASE_DEVELOPMENT_SERVER,
         dir,
@@ -516,45 +600,86 @@ If you cannot make the changes above, but still want to try out\nNext.js v13 wit
       )
 
       const handleProjectDirRename = (newDir: string) => {
-        clusterExitUnsub()
-
-        for (const workerId in cluster.workers) {
-          try {
-            // @ts-expect-error custom field
-            cluster.workers[workerId].killed = true
-            cluster.workers[workerId]!.process.kill('SIGKILL')
-          } catch (_) {}
-        }
         process.chdir(newDir)
-        // @ts-expect-error type is incorrect
-        cluster.settings.cwd = newDir
-        cluster.settings.exec = cluster.settings.exec?.replace(dir, newDir)
-        setupFork({
-          ...Object.keys(process.env).reduce((newEnv, key) => {
-            newEnv[key] = process.env[key]?.replace(dir, newDir)
-            return newEnv
-          }, {} as typeof process.env),
-          NEXT_PRIVATE_DEV_DIR: newDir,
-        })
-        clusterExitUnsub = handleClusterExit()
+        setupFork(
+          {
+            ...Object.keys(process.env).reduce((newEnv, key) => {
+              newEnv[key] = process.env[key]?.replace(dir, newDir)
+              return newEnv
+            }, {} as typeof process.env),
+            NEXT_PRIVATE_DEV_DIR: newDir,
+          },
+          newDir
+        )
       }
       const parentDir = path.join('/', dir, '..')
       const watchedEntryLength = parentDir.split('/').length + 1
-      const previousItems = new Set()
+      const previousItems = new Set<string>()
+
+      const instrumentationFilePaths = !!config.experimental
+        ?.instrumentationHook
+        ? getPossibleInstrumentationHookFilenames(dir, config.pageExtensions!)
+        : []
 
       const wp = new Watchpack({
         ignored: (entry: string) => {
-          // watch only one level
-          return !(entry.split('/').length <= watchedEntryLength)
+          return (
+            !(entry.split('/').length <= watchedEntryLength) &&
+            !instrumentationFilePaths.includes(entry)
+          )
         },
       })
 
       wp.watch({ directories: [parentDir], startTime: 0 })
+      let instrumentationFileLastHash: string | undefined = undefined
 
-      wp.on('aggregated', () => {
+      wp.on('aggregated', async () => {
         const knownFiles = wp.getTimeInfoEntries()
         const newFiles: string[] = []
         let hasPagesApp = false
+        // check if the `instrumentation.js` has changed
+        // if it has we need to restart the server
+        const instrumentationFile = [...knownFiles.keys()].find((key) =>
+          instrumentationFilePaths.includes(key)
+        )
+
+        if (instrumentationFile) {
+          const fs = require('fs') as typeof import('fs')
+          const instrumentationFileHash = (
+            require('crypto') as typeof import('crypto')
+          )
+            .createHash('sha256')
+            .update(await fs.promises.readFile(instrumentationFile, 'utf8'))
+            .digest('hex')
+
+          if (
+            instrumentationFileLastHash &&
+            instrumentationFileHash !== instrumentationFileLastHash
+          ) {
+            warn(
+              `The instrumentation file has changed, restarting the server to apply changes.`
+            )
+            return setupFork()
+          } else {
+            if (!instrumentationFileLastHash && previousItems.size !== 0) {
+              warn(
+                'An instrumentation file was added, restarting the server to apply changes.'
+              )
+              return setupFork()
+            }
+            instrumentationFileLastHash = instrumentationFileHash
+          }
+        } else if (
+          [...previousItems.keys()].find((key) =>
+            instrumentationFilePaths.includes(key)
+          )
+        ) {
+          warn(
+            `The instrumentation file has been removed, restarting the server to apply changes.`
+          )
+          instrumentationFileLastHash = undefined
+          return setupFork()
+        }
 
         // if the dir still exists nothing to check
         try {

@@ -1,5 +1,13 @@
 import { existsSync } from 'fs'
-import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
+import {
+  basename,
+  extname,
+  join,
+  relative,
+  isAbsolute,
+  resolve,
+  dirname,
+} from 'path'
 import { pathToFileURL } from 'url'
 import { Agent as HttpAgent } from 'http'
 import { Agent as HttpsAgent } from 'https'
@@ -93,40 +101,6 @@ export function setHttpClientAndAgentOptions(
   ;(globalThis as any).__NEXT_HTTPS_AGENT = new HttpsAgent(
     config.httpAgentOptions
   )
-}
-
-function setFontLoaderDefaults(config: NextConfigComplete) {
-  try {
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    require('@next/font/package.json')
-
-    const googleFontLoader = {
-      loader: '@next/font/google',
-    }
-    const localFontLoader = {
-      loader: '@next/font/local',
-    }
-    if (!config.experimental) {
-      config.experimental = {}
-    }
-    if (!config.experimental.fontLoaders) {
-      config.experimental.fontLoaders = []
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === googleFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(googleFontLoader)
-    }
-    if (
-      !config.experimental.fontLoaders.find(
-        ({ loader }: any) => loader === localFontLoader.loader
-      )
-    ) {
-      config.experimental.fontLoaders.push(localFontLoader)
-    }
-  } catch {}
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -292,6 +266,25 @@ function assignDefaults(
   if (typeof result.basePath !== 'string') {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`
+    )
+  }
+
+  // TODO: remove after next minor (current v13.1.1)
+  if (Array.isArray(result.experimental?.outputFileTracingIgnores)) {
+    if (!result.experimental) {
+      result.experimental = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes) {
+      result.experimental.outputFileTracingExcludes = {}
+    }
+    if (!result.experimental.outputFileTracingExcludes['**/*']) {
+      result.experimental.outputFileTracingExcludes['**/*'] = []
+    }
+    result.experimental.outputFileTracingExcludes['**/*'].push(
+      ...(result.experimental.outputFileTracingIgnores || [])
+    )
+    Log.warn(
+      `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
     )
   }
 
@@ -614,10 +607,10 @@ function assignDefaults(
     silent
   )
 
-  if (result.experimental?.swcMinifyDebugOptions) {
+  if (typeof result.experimental?.swcMinifyDebugOptions !== 'undefined') {
     if (!silent) {
       Log.warn(
-        'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
+        'SWC minify debug option is not supported anymore, please remove it from your config.'
       )
     }
   }
@@ -664,6 +657,28 @@ function assignDefaults(
       Log.warn(
         `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
       )
+    }
+  }
+
+  // use the closest lockfile as tracing root
+  if (!result.experimental?.outputFileTracingRoot) {
+    const lockFiles: string[] = [
+      'package-lock.json',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+    ]
+    const foundLockfile = findUp.sync(lockFiles, { cwd: dir })
+
+    if (foundLockfile) {
+      if (!result.experimental) {
+        result.experimental = {}
+      }
+      if (!defaultConfig.experimental) {
+        defaultConfig.experimental = {}
+      }
+      result.experimental.outputFileTracingRoot = dirname(foundLockfile)
+      defaultConfig.experimental.outputFileTracingRoot =
+        result.experimental.outputFileTracingRoot
     }
   }
 
@@ -973,7 +988,6 @@ export default async function loadConfig(
       },
       silent
     ) as NextConfigComplete
-    setFontLoaderDefaults(completeConfig)
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
@@ -1004,6 +1018,5 @@ export default async function loadConfig(
   ) as NextConfigComplete
   completeConfig.configFileName = configFileName
   setHttpClientAndAgentOptions(completeConfig, silent)
-  setFontLoaderDefaults(completeConfig)
   return completeConfig
 }

@@ -1,4 +1,3 @@
-import path from 'path'
 import curry from 'next/dist/compiled/lodash.curry'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
@@ -181,32 +180,54 @@ export const css = curry(async function css(
 
   const fns: ConfigurationFn[] = []
 
-  // Resolve the configured font loaders, the resolved files are noop files that next-font-loader will match
-  let fontLoaders: [string, string][] | undefined = ctx.experimental.fontLoaders
-    ? ctx.experimental.fontLoaders.map(({ loader: fontLoader, options }) => [
-        path.join(require.resolve(fontLoader), '../target.css'),
-        options,
-      ])
-    : undefined
+  const googleLoader = require.resolve(
+    'next/dist/compiled/@next/font/google/loader'
+  )
+  const localLoader = require.resolve(
+    'next/dist/compiled/@next/font/local/loader'
+  )
+  const googleLoaderOptions =
+    ctx.experimental?.fontLoaders?.find(
+      (loaderConfig) => loaderConfig.loader === '@next/font/google'
+    )?.options ?? {}
+  const fontLoaders: Array<[string | RegExp, string, any?]> = [
+    [
+      require.resolve('next/font/google/target.css'),
+      googleLoader,
+      googleLoaderOptions,
+    ],
+    [require.resolve('next/font/local/target.css'), localLoader],
 
-  fontLoaders?.forEach(([fontLoaderPath, fontLoaderOptions]) => {
-    // Matches the resolved font loaders noop files to run next-font-loader
-    fns.push(
-      loader({
-        oneOf: [
-          markRemovable({
-            sideEffects: false,
-            test: fontLoaderPath,
-            use: getNextFontLoader(
-              ctx,
-              lazyPostCSSInitializer,
-              fontLoaderOptions
-            ),
-          }),
-        ],
-      })
-    )
-  })
+    // TODO: remove this in the next major version
+    [
+      /node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/,
+      googleLoader,
+      googleLoaderOptions,
+    ],
+    [/node_modules[\\/]@next[\\/]font[\\/]local[\\/]target.css/, localLoader],
+  ]
+
+  fontLoaders.forEach(
+    ([fontLoaderTarget, fontLoaderPath, fontLoaderOptions]) => {
+      // Matches the resolved font loaders noop files to run next-font-loader
+      fns.push(
+        loader({
+          oneOf: [
+            markRemovable({
+              sideEffects: false,
+              test: fontLoaderTarget,
+              use: getNextFontLoader(
+                ctx,
+                lazyPostCSSInitializer,
+                fontLoaderPath,
+                fontLoaderOptions
+              ),
+            }),
+          ],
+        })
+      )
+    }
+  )
 
   // CSS cannot be imported in _document. This comes before everything because
   // global CSS nor CSS modules work in said file.
@@ -337,22 +358,32 @@ export const css = curry(async function css(
     )
   } else {
     // External CSS files are allowed to be loaded when any of the following is true:
-    // - hasAppDir: If the issuerLayer is RSC
+    // - hasAppDir: all CSS files are allowed
     // - If the CSS file is located in `node_modules`
     // - If the CSS file is located in another package in a monorepo (outside of the current rootDir)
     // - If the issuer is pages/_app (matched later)
-    const allowedExternalCSSImports = {
-      and: [
-        {
-          or: [
-            /node_modules/,
+    const allowedPagesGlobalCSSPath = ctx.hasAppDir
+      ? undefined
+      : {
+          and: [
             {
-              not: [ctx.rootDirectory],
+              or: [
+                /node_modules/,
+                {
+                  not: [ctx.rootDirectory],
+                },
+              ],
             },
           ],
-        },
-      ],
-    }
+        }
+    const allowedPagesGlobalCSSIssuer = ctx.hasAppDir
+      ? undefined
+      : shouldIncludeExternalCSSImports
+      ? undefined
+      : {
+          and: [ctx.rootDirectory],
+          not: [/node_modules/],
+        }
 
     fns.push(
       loader({
@@ -387,26 +418,16 @@ export const css = curry(async function css(
           markRemovable({
             sideEffects: true,
             test: regexCssGlobal,
-            include: allowedExternalCSSImports,
-            issuer: shouldIncludeExternalCSSImports
-              ? undefined
-              : {
-                  and: [ctx.rootDirectory],
-                  not: [/node_modules/],
-                },
+            include: allowedPagesGlobalCSSPath,
+            issuer: allowedPagesGlobalCSSIssuer,
             issuerLayer: PAGES_LAYER_RULE,
             use: getGlobalCssLoader(ctx, false, lazyPostCSSInitializer),
           }),
           markRemovable({
             sideEffects: true,
             test: regexSassGlobal,
-            include: allowedExternalCSSImports,
-            issuer: shouldIncludeExternalCSSImports
-              ? undefined
-              : {
-                  and: [ctx.rootDirectory],
-                  not: [/node_modules/],
-                },
+            include: allowedPagesGlobalCSSPath,
+            issuer: allowedPagesGlobalCSSIssuer,
             issuerLayer: PAGES_LAYER_RULE,
             use: getGlobalCssLoader(
               ctx,

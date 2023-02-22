@@ -3,10 +3,10 @@ import type {
   ResolvedMetadata,
   ResolvingMetadata,
 } from './types/metadata-interface'
-import type { AbsoluteTemplateString } from './types/metadata-types'
+import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
 import { createDefaultMetadata } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
-import { mergeTitle } from './resolvers/resolve-title'
+import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 import { isClientReference } from '../../build/is-client-reference'
 import {
@@ -25,26 +25,69 @@ import {
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
 
+type StaticMetadata = Awaited<ReturnType<typeof resolveStaticMetadata>>
+
+type MetadataResolver = (
+  _parent: ResolvingMetadata
+) => Metadata | Promise<Metadata>
+export type MetadataItems = [
+  Metadata | MetadataResolver | null,
+  StaticMetadata
+][]
+
+function mergeStaticMetadata(
+  metadata: ResolvedMetadata,
+  staticFilesMetadata: StaticMetadata
+) {
+  if (!staticFilesMetadata) return
+  const { icon, apple, opengraph, twitter } = staticFilesMetadata
+  if (icon || apple) {
+    if (!metadata.icons) metadata.icons = { icon: [], apple: [] }
+    if (icon) metadata.icons.icon.push(...icon)
+    if (apple) metadata.icons.apple.push(...apple)
+  }
+  if (twitter) {
+    const resolvedTwitter = resolveTwitter(
+      {
+        card: 'summary_large_image',
+        images: twitter,
+      },
+      metadata.metadataBase
+    )
+    metadata.twitter = { ...metadata.twitter, ...resolvedTwitter! }
+  }
+
+  if (opengraph) {
+    const resolvedOg = resolveOpenGraph(
+      {
+        images: opengraph,
+      },
+      metadata.metadataBase
+    )
+    metadata.openGraph = { ...metadata.openGraph, ...resolvedOg! }
+  }
+
+  return metadata
+}
+
 // Merge the source metadata into the resolved target metadata.
 function merge(
   target: ResolvedMetadata,
-  source: Metadata,
-  templateStrings: {
+  source: Metadata | null,
+  staticFilesMetadata: StaticMetadata,
+  titleTemplates: {
     title: string | null
-    openGraph: string | null
     twitter: string | null
+    openGraph: string | null
   }
 ) {
-  const metadataBase = source.metadataBase || null
+  const metadataBase = source?.metadataBase || target.metadataBase
   for (const key_ in source) {
     const key = key_ as keyof Metadata
 
     switch (key) {
       case 'title': {
-        if (source.title) {
-          target.title = source.title as AbsoluteTemplateString
-          mergeTitle(target, templateStrings.title)
-        }
+        target.title = resolveTitle(source.title, titleTemplates.title)
         break
       }
       case 'alternates': {
@@ -54,14 +97,20 @@ function merge(
       case 'openGraph': {
         target.openGraph = resolveOpenGraph(source.openGraph, metadataBase)
         if (target.openGraph) {
-          mergeTitle(target.openGraph, templateStrings.openGraph)
+          target.openGraph.title = resolveTitle(
+            target.openGraph.title,
+            titleTemplates.openGraph
+          )
         }
         break
       }
       case 'twitter': {
         target.twitter = resolveTwitter(source.twitter, metadataBase)
         if (target.twitter) {
-          mergeTitle(target.twitter, templateStrings.twitter)
+          target.twitter.title = resolveTitle(
+            target.twitter.title,
+            titleTemplates.twitter
+          )
         }
         break
       }
@@ -109,6 +158,7 @@ function merge(
       case 'colorScheme':
       case 'itunes':
       case 'formatDetection':
+      case 'manifest':
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
         break
@@ -122,33 +172,18 @@ function merge(
         break
     }
   }
+  mergeStaticMetadata(target, staticFilesMetadata)
 }
-
-type MetadataResolver = (
-  _parent: ResolvingMetadata
-) => Metadata | Promise<Metadata>
-export type MetadataItems = [
-  Metadata | MetadataResolver | null,
-  Metadata | null
-][]
 
 async function getDefinedMetadata(
   mod: any,
   props: any
 ): Promise<Metadata | MetadataResolver | null> {
-  // Layer is a client component, we just skip it. It can't have metadata
-  // exported. Note that during our SWC transpilation, it should check if
-  // the exports are valid and give specific error messages.
+  // Layer is a client component, we just skip it. It can't have metadata exported.
+  // Return early to avoid accessing properties error for client references.
   if (isClientReference(mod)) {
     return null
   }
-
-  if (mod.metadata && mod.generateMetadata) {
-    throw new Error(
-      `${mod.path} is exporting both metadata and generateMetadata which is not supported. If all of the metadata you want to associate to this page/layout is static use the metadata export, otherwise use generateMetadata. File: ${mod.path}`
-    )
-  }
-
   return (
     (mod.generateMetadata
       ? (parent: ResolvingMetadata) => mod.generateMetadata(props, parent)
@@ -156,35 +191,39 @@ async function getDefinedMetadata(
   )
 }
 
-async function collectStaticFsBasedIcons(
+async function collectStaticImagesFiles(
   metadata: ComponentsType['metadata'],
-  type: 'icon' | 'apple'
+  type: keyof NonNullable<ComponentsType['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
-  const iconPromises = metadata[type].map(
+
+  const iconPromises = metadata[type as 'icon' | 'apple'].map(
     // TODO-APP: share the typing between next-metadata-image-loader and here
-    async (iconResolver) =>
-      interopDefault(await iconResolver()) as { url: string; sizes: string }
+    async (iconResolver: any) =>
+      interopDefault(await iconResolver()) as MetadataImageModule
   )
   return iconPromises?.length > 0 ? await Promise.all(iconPromises) : undefined
 }
 
-async function resolveStaticMetadata(
-  components: ComponentsType
-): Promise<Metadata | null> {
+async function resolveStaticMetadata(components: ComponentsType) {
   const { metadata } = components
   if (!metadata) return null
 
-  const [icon, apple] = await Promise.all([
-    collectStaticFsBasedIcons(metadata, 'icon'),
-    collectStaticFsBasedIcons(metadata, 'apple'),
+  const [icon, apple, opengraph, twitter] = await Promise.all([
+    collectStaticImagesFiles(metadata, 'icon'),
+    collectStaticImagesFiles(metadata, 'apple'),
+    collectStaticImagesFiles(metadata, 'opengraph'),
+    collectStaticImagesFiles(metadata, 'twitter'),
   ])
 
-  const icons: Metadata['icons'] = {}
-  if (icon) icons.icon = icon
-  if (apple) icons.apple = apple
+  const staticMetadata = {
+    icon,
+    apple,
+    opengraph,
+    twitter,
+  }
 
-  return { icons }
+  return staticMetadata
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
@@ -204,37 +243,83 @@ export async function accumulateMetadata(
   metadataItems: MetadataItems
 ): Promise<ResolvedMetadata> {
   const resolvedMetadata = createDefaultMetadata()
-  let parentPromise = Promise.resolve(resolvedMetadata)
 
-  for (const item of metadataItems) {
-    const [metadataExport, staticFilesMetadata] = item
-    const layerMetadataPromise = Promise.resolve(
-      typeof metadataExport === 'function'
-        ? metadataExport(parentPromise)
-        : metadataExport
-    )
+  const resolvers: ((value: ResolvedMetadata) => void)[] = []
+  const generateMetadataResults: (Metadata | Promise<Metadata>)[] = []
 
-    parentPromise = parentPromise.then((resolved) => {
-      return layerMetadataPromise.then((exportedMetadata) => {
-        const metadata = exportedMetadata || staticFilesMetadata
-
-        if (metadata) {
-          // Overriding the metadata if static files metadata is present
-          merge(
-            resolved,
-            { ...metadata, ...staticFilesMetadata },
-            {
-              title: resolved.title?.template || null,
-              openGraph: resolved.openGraph?.title?.template || null,
-              twitter: resolved.twitter?.title?.template || null,
-            }
-          )
-        }
-
-        return resolved
-      })
-    })
+  let titleTemplates: {
+    title: string | null
+    twitter: string | null
+    openGraph: string | null
+  } = {
+    title: null,
+    twitter: null,
+    openGraph: null,
   }
 
-  return await parentPromise
+  // Loop over all metadata items again, merging synchronously any static object exports,
+  // awaiting any static promise exports, and resolving parent metadata and awaiting any generated metadata
+
+  let resolvingIndex = 0
+  for (let i = 0; i < metadataItems.length; i++) {
+    const [metadataExport, staticFilesMetadata] = metadataItems[i]
+    let metadata: Metadata | null = null
+    if (typeof metadataExport === 'function') {
+      if (!resolvers.length) {
+        for (let j = i; j < metadataItems.length; j++) {
+          const [preloadMetadataExport] = metadataItems[j]
+          // call each `generateMetadata function concurrently and stash their resolver
+          if (typeof preloadMetadataExport === 'function') {
+            generateMetadataResults.push(
+              preloadMetadataExport(
+                new Promise((resolve) => {
+                  resolvers.push(resolve)
+                })
+              )
+            )
+          }
+        }
+      }
+
+      const resolveParent = resolvers[resolvingIndex]
+      const generatedMetadata = generateMetadataResults[resolvingIndex++]
+
+      // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
+      // In prod we just pass resolvedMetadata through without any copying.
+      const currentResolvedMetadata: ResolvedMetadata =
+        process.env.NODE_ENV === 'development'
+          ? Object.freeze(
+              require('next/dist/compiled/@edge-runtime/primitives/structured-clone').structuredClone(
+                resolvedMetadata
+              )
+            )
+          : resolvedMetadata
+
+      // This resolve should unblock the generateMetadata function if it awaited the parent
+      // argument. If it didn't await the parent argument it might already have a value since it was
+      // called concurrently. Regardless we await the return value before continuing on to the next layer
+      resolveParent(currentResolvedMetadata)
+      metadata =
+        generatedMetadata instanceof Promise
+          ? await generatedMetadata
+          : generatedMetadata
+    } else if (metadataExport !== null && typeof metadataExport === 'object') {
+      // This metadataExport is the object form
+      metadata = metadataExport
+    }
+
+    merge(resolvedMetadata, metadata, staticFilesMetadata, titleTemplates)
+
+    // If the layout is the same layer with page, skip the leaf layout and leaf page
+    // The leaf layout and page are the last two items
+    if (i < metadataItems.length - 2) {
+      titleTemplates = {
+        title: resolvedMetadata.title?.template || null,
+        openGraph: resolvedMetadata.openGraph?.title?.template || null,
+        twitter: resolvedMetadata.twitter?.title?.template || null,
+      }
+    }
+  }
+
+  return resolvedMetadata
 }
