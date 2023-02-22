@@ -63,7 +63,8 @@ import { FontLoaderManifestPlugin } from './webpack/plugins/font-loader-manifest
 import { getSupportedBrowsers } from './utils'
 import { METADATA_IMAGE_RESOURCE_QUERY } from './webpack/loaders/metadata/discover'
 
-const EXTERNAL_PACKAGES = require('../lib/server-external-packages.json')
+const EXTERNAL_PACKAGES =
+  require('../lib/server-external-packages.json') as string[]
 
 const NEXT_PROJECT_ROOT = path.join(__dirname, '..', '..')
 const NEXT_PROJECT_ROOT_DIST = path.join(NEXT_PROJECT_ROOT, 'dist')
@@ -99,14 +100,6 @@ const BABEL_CONFIG_FILES = [
   'babel.config.mjs',
   'babel.config.cjs',
 ]
-
-function appDirIssuerLayer(layer: string) {
-  return (
-    layer === WEBPACK_LAYERS.client ||
-    layer === WEBPACK_LAYERS.server ||
-    layer === WEBPACK_LAYERS.appClient
-  )
-}
 
 export const getBabelConfigFile = async (dir: string) => {
   const babelConfigFile = await BABEL_CONFIG_FILES.reduce(
@@ -647,7 +640,6 @@ export default async function getBaseWebpackConfig(
     rewrites.fallback.length > 0
 
   const hasAppDir = !!config.experimental.appDir && !!appDir
-  const hasServerComponents = hasAppDir
   const disableOptimizedLoading = true
   const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
 
@@ -715,7 +707,7 @@ export default async function getBaseWebpackConfig(
         pagesDir,
         cwd: dir,
         development: dev,
-        hasServerComponents,
+        hasServerComponents: hasAppDir,
         hasReactRefresh: dev && isClient,
         hasJsxRuntime: true,
       },
@@ -745,7 +737,7 @@ export default async function getBaseWebpackConfig(
         rootDir: dir,
         pagesDir,
         appDir,
-        hasServerComponents,
+        hasServerComponents: hasAppDir,
         hasReactRefresh: dev && isClient,
         fileReading: config.experimental.swcFileReading,
         nextConfig: config,
@@ -757,15 +749,11 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const getBabelOrSwcLoader = () => {
-    return useSWCLoader ? getSwcLoader() : getBabelLoader()
-  }
-
   const defaultLoaders = {
-    babel: getBabelOrSwcLoader(),
+    babel: useSWCLoader ? getSwcLoader() : getBabelLoader(),
   }
 
-  const swcLoaderForRSC = hasServerComponents
+  const swcLoaderForRSC = hasAppDir
     ? useSWCLoader
       ? getSwcLoader({ isServerLayer: true })
       : // When using Babel, we will have to add the SWC loader
@@ -966,7 +954,7 @@ export default async function getBaseWebpackConfig(
 
       next: NEXT_PROJECT_ROOT,
 
-      ...(hasServerComponents
+      ...(hasAppDir
         ? {
             // For react and react-dom, alias them dynamically for server layer
             // and others in the loaders configuration
@@ -1120,6 +1108,11 @@ export default async function getBaseWebpackConfig(
 
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
+  )
+  const optOutBundlingPackageRegex = new RegExp(
+    `[/\\\\]node_modules[/\\\\](${optOutBundlingPackages
+      .map((p) => p.replace(/\//g, '[/\\\\]'))
+      .join('|')})[/\\\\]`
   )
 
   let resolvedExternalPackageDirs: Map<string, string>
@@ -1682,22 +1675,19 @@ export default async function getBaseWebpackConfig(
       rules: [
         ...(hasAppDir && !isClient
           ? [
+              // For modules in the server layer, we need to load them with the
+              // subset React version and the `react-server` export condition.
               {
                 issuerLayer: WEBPACK_LAYERS.server,
-                test: (req: string) => {
-                  // If it's not a source code file, or has been opted out of
-                  // bundling, don't resolve it.
-                  if (
-                    !codeCondition.test.test(req) ||
-                    isResourceInPackages(
-                      req,
-                      config.experimental.serverComponentsExternalPackages
-                    )
-                  ) {
-                    return false
-                  }
-
-                  return true
+                test: {
+                  // Resolve it if it is a source code file, and it has NOT been
+                  // opted out of bundling.
+                  and: [
+                    codeCondition.test,
+                    {
+                      not: [optOutBundlingPackageRegex],
+                    },
+                  ],
                 },
                 resolve: {
                   conditionNames: [
@@ -1719,6 +1709,9 @@ export default async function getBaseWebpackConfig(
                     'react-dom$':
                       'next/dist/compiled/react-dom/server-rendering-stub',
                   },
+                },
+                use: {
+                  loader: 'next-flight-loader',
                 },
               },
             ]
@@ -1752,24 +1745,18 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
-        ...(hasServerComponents && !isClient
+        ...(hasAppDir
           ? [
-              // RSC server compilation loaders
+              // For all app layers, deprecate specific APIs
               {
                 test: codeCondition.test,
-                exclude: [staticGenerationAsyncStorageRegex],
-                issuerLayer: WEBPACK_LAYERS.server,
-                use: {
-                  loader: 'next-flight-loader',
+                issuerLayer: {
+                  or: [
+                    WEBPACK_LAYERS.server,
+                    WEBPACK_LAYERS.client,
+                    WEBPACK_LAYERS.appClient,
+                  ],
                 },
-              },
-            ]
-          : []),
-        ...(hasServerComponents
-          ? [
-              {
-                test: codeCondition.test,
-                issuerLayer: appDirIssuerLayer,
                 resolve: {
                   alias: {
                     // Alias next/head component to noop for RSC
@@ -1784,61 +1771,15 @@ export default async function getBaseWebpackConfig(
                 },
               },
               {
-                // Alias react-dom for ReactDOM.preload usage.
-                // Alias react for switching between default set and share subset.
-                oneOf: [
-                  {
-                    exclude: [staticGenerationAsyncStorageRegex],
-                    issuerLayer: WEBPACK_LAYERS.server,
-                    test(req: string) {
-                      // If it's not a source code file, or has been opted out of
-                      // bundling, don't resolve it.
-                      if (
-                        !codeCondition.test.test(req) ||
-                        isResourceInPackages(req, optOutBundlingPackages)
-                      ) {
-                        return false
-                      }
-
-                      return true
-                    },
-                    resolve: {
-                      // It needs `conditionNames` here to require the proper asset,
-                      // when react is acting as dependency of compiled/react-dom.
-                      alias: {
-                        react: 'next/dist/compiled/react/react.shared-subset',
-                        // Use server rendering stub for RSC
-                        // x-ref: https://github.com/facebook/react/pull/25436
-                        'react-dom$':
-                          'next/dist/compiled/react-dom/server-rendering-stub',
-                      },
-                    },
+                issuerLayer: WEBPACK_LAYERS.client,
+                test: codeCondition.test,
+                resolve: {
+                  alias: {
+                    react: 'next/dist/compiled/react',
+                    'react-dom$':
+                      'next/dist/compiled/react-dom/server-rendering-stub',
                   },
-                  {
-                    issuerLayer: WEBPACK_LAYERS.client,
-                    test: codeCondition.test,
-                    resolve: {
-                      alias: {
-                        react: 'next/dist/compiled/react',
-                        'react-dom$':
-                          'next/dist/compiled/react-dom/server-rendering-stub',
-                      },
-                    },
-                  },
-                  {
-                    test: codeCondition.test,
-                    resolve: {
-                      alias: {
-                        react: 'next/dist/compiled/react',
-                        'react-dom$': reactProductionProfiling
-                          ? 'next/dist/compiled/react-dom/cjs/react-dom.profiling.min'
-                          : 'next/dist/compiled/react-dom',
-                        'react-dom/client$':
-                          'next/dist/compiled/react-dom/client',
-                      },
-                    },
-                  },
-                ],
+                },
               },
             ]
           : []),
@@ -1866,14 +1807,16 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: defaultLoaders.babel,
             },
-            ...(hasServerComponents
+            ...(hasAppDir
               ? [
+                  // Actual SWC compilation loader for server components
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.server,
                     exclude: [staticGenerationAsyncStorageRegex],
                     use: swcLoaderForRSC,
                   },
+                  // Special loader for Edge's server layer entry
                   {
                     test: codeCondition.test,
                     resourceQuery: /__edge_ssr_entry__/,
@@ -2098,7 +2041,7 @@ export default async function getBaseWebpackConfig(
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
             const devPlugins = [
               new NextJsRequireCacheHotReloader({
-                hasServerComponents,
+                hasServerComponents: hasAppDir,
               }),
             ]
 
@@ -2164,7 +2107,7 @@ export default async function getBaseWebpackConfig(
           },
         }),
       hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
-      hasServerComponents &&
+      hasAppDir &&
         (isClient
           ? new FlightManifestPlugin({
               dev,
@@ -2333,7 +2276,7 @@ export default async function getBaseWebpackConfig(
 
     // For Server Components, it's necessary to have provided exports collected
     // to generate the correct flight manifest.
-    if (!hasServerComponents) {
+    if (!hasAppDir) {
       webpack5Config.optimization.providedExports = false
     }
     webpack5Config.optimization.usedExports = false

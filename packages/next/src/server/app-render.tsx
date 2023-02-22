@@ -56,6 +56,7 @@ import { isNotFoundError } from '../client/components/not-found'
 import { isRedirectError } from '../client/components/redirect'
 import { NEXT_DYNAMIC_NO_SSR_CODE } from '../shared/lib/lazy-dynamic/no-ssr-error'
 import { patchFetch } from './lib/patch-fetch'
+import { createFromReadableStream } from 'next/dist/compiled/react-server-dom-webpack/client'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -315,9 +316,6 @@ function useFlightResponse(
   if (flightResponseRef.current !== null) {
     return flightResponseRef.current
   }
-  const {
-    createFromReadableStream,
-  } = require('next/dist/compiled/react-server-dom-webpack/client')
 
   const [renderStream, forwardStream] = readableStreamTee(req)
   const res = createFromReadableStream(renderStream, {

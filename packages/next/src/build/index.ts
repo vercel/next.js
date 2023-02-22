@@ -2196,11 +2196,7 @@ export default async function build(
             exportPageWorker: sharedPool
               ? staticWorkers.exportPage.bind(staticWorkers)
               : undefined,
-            endWorker: sharedPool
-              ? async () => {
-                  await staticWorkers.end()
-                }
-              : undefined,
+            endWorker: sharedPool ? staticWorkers.end : undefined,
             appPaths,
           }
           const exportConfig: any = {
