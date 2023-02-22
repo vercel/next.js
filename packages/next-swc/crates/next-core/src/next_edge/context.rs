@@ -3,7 +3,8 @@ use turbo_tasks::Value;
 use turbo_tasks_fs::FileSystemPathVc;
 use turbopack::resolve_options_context::{ResolveOptionsContext, ResolveOptionsContextVc};
 use turbopack_core::{
-    compile_time_info::{CompileTimeInfo, CompileTimeInfoVc},
+    compile_time_defines,
+    compile_time_info::{CompileTimeDefinesVc, CompileTimeInfo, CompileTimeInfoVc},
     environment::{
         EdgeWorkerEnvironment, EnvironmentIntention, EnvironmentVc, ExecutionEnvironment,
         ServerAddrVc,
@@ -14,6 +15,14 @@ use crate::{
     next_config::NextConfigVc, next_import_map::get_next_edge_import_map,
     next_server::context::ServerContextType, util::foreign_code_context_condition,
 };
+
+pub fn next_edge_defines() -> CompileTimeDefinesVc {
+    compile_time_defines!(
+        process.turbopack = true,
+        process.env.NODE_ENV = "development"
+    )
+    .cell()
+}
 
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
@@ -27,6 +36,7 @@ pub fn get_edge_compile_time_info(
             )),
             intention,
         ),
+        defines: next_edge_defines(),
     }
     .cell()
 }

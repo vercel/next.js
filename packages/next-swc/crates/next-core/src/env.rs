@@ -18,6 +18,14 @@ pub async fn load_env(project_path: FileSystemPathVc) -> Result<ProcessEnvVc> {
     let node_env = env.read("NODE_ENV").await?;
     let node_env = node_env.as_deref().unwrap_or("development");
 
+    let env = CustomProcessEnvVc::new(
+        env,
+        EnvMapVc::cell(indexmap! {
+            "NODE_ENV".to_string() => node_env.to_string(),
+        }),
+    )
+    .as_process_env();
+
     let files = [
         Some(format!(".env.{node_env}.local")),
         if node_env == "test" {
@@ -55,7 +63,11 @@ pub async fn env_for_js(
     let test_mode = test_mode.as_deref().unwrap_or("");
 
     let env = if client {
-        FilterProcessEnvVc::new(env, "NEXT_PUBLIC_".to_string()).into()
+        FilterProcessEnvVc::new(
+            env,
+            vec!["NEXT_PUBLIC_".to_string(), "NODE_ENV".to_string()],
+        )
+        .into()
     } else {
         env
     };
