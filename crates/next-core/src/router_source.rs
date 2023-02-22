@@ -7,7 +7,7 @@ use turbopack_core::{
 };
 use turbopack_dev_server::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    ContentSourceResultVc, ContentSourceVc, NeededData, ProxyResult, RewriteVc,
+    ContentSourceResultVc, ContentSourceVc, HeaderListVc, NeededData, ProxyResult, RewriteBuilder,
 };
 use turbopack_node::execution_context::ExecutionContextVc;
 
@@ -110,11 +110,12 @@ impl ContentSource for NextRouterContentSource {
                 .inner
                 .get(path, Value::new(ContentSourceData::default())),
             RouterResult::Rewrite(data) => {
-                // TODO: We can't set response headers on the returned content.
+                let mut rewrite = RewriteBuilder::new(data.url.clone()).content_source(this.inner);
+                if !data.headers.is_empty() {
+                    rewrite = rewrite.response_headers(HeaderListVc::new(data.headers.clone()));
+                }
                 ContentSourceResultVc::exact(
-                    ContentSourceContent::Rewrite(RewriteVc::new(data.url.clone(), this.inner))
-                        .cell()
-                        .into(),
+                    ContentSourceContent::Rewrite(rewrite.build()).cell().into(),
                 )
             }
             RouterResult::FullMiddleware(data) => ContentSourceResultVc::exact(

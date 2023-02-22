@@ -168,7 +168,12 @@ pub struct HeaderList(Vec<(String, String)>);
 #[turbo_tasks::value_impl]
 impl HeaderListVc {
     #[turbo_tasks::function]
-    pub fn empty() -> HeaderListVc {
+    pub fn new(headers: Vec<(String, String)>) -> Self {
+        HeaderList(headers).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn empty() -> Self {
         HeaderList(vec![]).cell()
     }
 }
@@ -497,32 +502,45 @@ pub struct Rewrite {
 
     /// A [ContentSource] from which to restart the lookup process. This _does
     /// not_ need to be the original content source. Having [None] source will
-    /// restart the lookup process from the original ContentSource.
+    /// restart the lookup process from the original root ContentSource.
     pub source: Option<ContentSourceVc>,
+
+    /// A [Headers] which will be appended to the eventual, fully resolved
+    /// content result. This overwrites any previous matching headers.
+    pub response_headers: Option<HeaderListVc>,
 }
 
-#[turbo_tasks::value_impl]
-impl RewriteVc {
-    /// Creates a new [RewriteVc] and starts lookup from the provided
-    /// [ContentSource].
-    #[turbo_tasks::function]
-    pub fn new(path_query: String, source: ContentSourceVc) -> RewriteVc {
-        debug_assert!(path_query.starts_with('/'));
-        Rewrite {
-            path_and_query: path_query,
-            source: Some(source),
+pub struct RewriteBuilder {
+    rewrite: Rewrite,
+}
+
+impl RewriteBuilder {
+    pub fn new(path_and_query: String) -> Self {
+        Self {
+            rewrite: Rewrite {
+                path_and_query,
+                source: None,
+                response_headers: None,
+            },
         }
-        .cell()
     }
 
-    /// Creates a new [RewriteVc] and restarts lookup from the root.
-    #[turbo_tasks::function]
-    pub fn new_path_query(path_query: String) -> RewriteVc {
-        debug_assert!(path_query.starts_with('/'));
-        Rewrite {
-            path_and_query: path_query,
-            source: None,
-        }
-        .cell()
+    /// Sets the [ContentSource] from which to restart the lookup process.
+    /// Without a source, the lookup will restart from the original root
+    /// ContentSource.
+    pub fn content_source(mut self, source: ContentSourceVc) -> Self {
+        self.rewrite.source = Some(source);
+        self
+    }
+
+    /// Sets response headers to append to the eventual, fully resolved content
+    /// result.
+    pub fn response_headers(mut self, headers: HeaderListVc) -> Self {
+        self.rewrite.response_headers = Some(headers);
+        self
+    }
+
+    pub fn build(self) -> RewriteVc {
+        self.rewrite.cell()
     }
 }
