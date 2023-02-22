@@ -314,6 +314,17 @@ describe('ESLint', () => {
         expect(output).toContain('Cancel')
       })
 
+      test('should generate next-env.d.ts before lint command', async () => {
+        await nextLint(dirBaseDirectories, [], {
+          stdout: true,
+          stderr: true,
+        })
+
+        const files = await fs.readdir(dirBaseDirectories)
+
+        expect(files).toContain('next-env.d.ts')
+      })
+
       for (const { packageManger, lockFile } of [
         { packageManger: 'yarn', lockFile: 'yarn.lock' },
         { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml' },

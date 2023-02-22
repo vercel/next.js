@@ -18,6 +18,8 @@ import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { writeAppTypeDeclarations } from '../lib/typescript/writeAppTypeDeclarations'
+import { findPagesDir } from '../lib/find-pages-dir'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
@@ -196,6 +198,14 @@ const nextLint: CliCommand = async (argv) => {
   const distDir = join(baseDir, nextConfig.distDir)
   const defaultCacheLocation = join(distDir, 'cache', 'eslint/')
   const hasAppDir = !!nextConfig.experimental.appDir
+  const { pagesDir } = findPagesDir(baseDir, !!nextConfig.experimental.appDir)
+
+  await writeAppTypeDeclarations({
+    baseDir,
+    imageImportsEnabled: !nextConfig.images.disableStaticImages,
+    hasPagesDir: !!pagesDir,
+    isAppDirEnabled: hasAppDir,
+  })
 
   runLintCheck(baseDir, pathsToLint, hasAppDir, {
     lintDuringBuild: false,
