@@ -50,7 +50,7 @@ export class CacheHandler {
 
 export class IncrementalCache {
   dev?: boolean
-  cacheHandler: CacheHandler
+  cacheHandler?: CacheHandler
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
   minimalMode?: boolean
@@ -103,15 +103,18 @@ export class IncrementalCache {
     this.minimalMode = minimalMode
     this.requestHeaders = requestHeaders
     this.prerenderManifest = getPrerenderManifest()
-    this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
-      dev,
-      fs,
-      flushToDisk: flushToDisk && !dev,
-      serverDistDir,
-      maxMemoryCacheSize,
-      _appDir: !!appDir,
-      _requestHeaders: requestHeaders,
-    })
+
+    if (cacheHandlerMod) {
+      this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
+        dev,
+        fs,
+        flushToDisk: flushToDisk && !dev,
+        serverDistDir,
+        maxMemoryCacheSize,
+        _appDir: !!appDir,
+        _requestHeaders: requestHeaders,
+      })
+    }
   }
 
   private calculateRevalidate(
@@ -190,7 +193,7 @@ export class IncrementalCache {
 
     pathname = this._getPathname(pathname, fetchCache)
     let entry: IncrementalCacheEntry | null = null
-    const cacheData = await this.cacheHandler.get(pathname, fetchCache)
+    const cacheData = await this.cacheHandler?.get(pathname, fetchCache)
 
     if (cacheData?.value?.kind === 'FETCH') {
       const revalidate = cacheData.value.revalidate
@@ -280,7 +283,7 @@ export class IncrementalCache {
           initialRevalidateSeconds: revalidateSeconds,
         }
       }
-      await this.cacheHandler.set(pathname, data, fetchCache)
+      await this.cacheHandler?.set(pathname, data, fetchCache)
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }
