@@ -689,7 +689,6 @@ importers:
       ws: 8.2.3
     dependencies:
       '@next/env': link:../next-env
-      '@opentelemetry/api': 1.4.0
       '@swc/helpers': 0.4.14
       caniuse-lite: 1.0.30001406
       fibers: 5.0.3
@@ -731,6 +730,7 @@ importers:
       '@next/react-dev-overlay': link:../react-dev-overlay
       '@next/react-refresh-utils': link:../react-refresh-utils
       '@next/swc': link:../next-swc
+      '@opentelemetry/api': 1.4.0
       '@segment/ajv-human-errors': 2.1.2_ajv@8.11.0
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -6119,7 +6119,7 @@ packages:
     resolution: {integrity: sha512-IgMK9i3sFGNUqPMbjABm0G26g0QCKCUBfglhQ7rQq6WcxbKfEHRcmwsoER4hZcuYqJgkYn2OeuoJIv7Jsftp7g==}
     engines: {node: '>=8.0.0'}
     requiresBuild: true
-    dev: false
+    dev: true
 
   /@pkgr/utils/2.3.1:
     resolution: {integrity: sha512-wfzX8kc1PMyUILA+1Z/EqoE4UCXGy0iRGMhPwdfae1+f0OXlLqCk+By+aMzgJBzR9AzS4CDizioG6Ss1gvAFJw==}
