@@ -596,7 +596,7 @@ export class FlightClientEntryPlugin {
         ? clientImports.map((importPath) =>
             importPath.replace(
               /next[\\/]dist[\\/]esm[\\/]/,
-              path.join('next', 'dist')
+              'next/dist/'.replace(/\//g, path.sep)
             )
           )
         : clientImports,
