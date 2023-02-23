@@ -31,6 +31,7 @@ pub async fn get_next_server_transforms_rules(
         }
         ServerContextType::AppSSR { .. } => (false, None),
         ServerContextType::AppRSC { .. } => (true, None),
+        ServerContextType::AppRoute { .. } => (false, None),
         ServerContextType::Middleware { .. } => (false, None),
     };
 

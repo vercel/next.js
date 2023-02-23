@@ -154,6 +154,7 @@ pub async fn create_page_source(
         edge_resolve_options_context,
         output_path,
         base_path: project_path,
+        bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
     }
     .cell()
     .into();
@@ -345,8 +346,8 @@ async fn create_page_source_for_file(
             project_path,
             specificity,
             server_root,
-            pathname,
             route_matcher.into(),
+            pathname,
             SsrEntry {
                 context: server_context,
                 entry_asset: page_asset,

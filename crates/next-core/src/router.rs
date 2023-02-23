@@ -32,7 +32,7 @@ use turbopack_node::{
 };
 
 use crate::{
-    embed_js::{next_asset, wrap_with_next_js_fs},
+    embed_js::{next_asset, next_js_file, wrap_with_next_js_fs},
     next_config::NextConfigVc,
     next_edge::{
         context::{get_edge_compile_time_info, get_edge_resolve_options_context},
@@ -264,6 +264,7 @@ fn edge_transition_map(
         edge_resolve_options_context,
         output_path,
         base_path: project_path,
+        bootstrap_file: next_js_file("entry/edge-bootstrap.ts"),
     }
     .cell()
     .into();
