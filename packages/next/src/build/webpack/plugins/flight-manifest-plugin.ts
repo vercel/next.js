@@ -329,8 +329,8 @@ export class FlightManifestPlugin {
         if (/[\\/]next[\\/]dist[\\/]/.test(resource)) {
           manifest[
             resource.replace(
-              /next[\\/]dist[\\/]/,
-              path.join('next', 'dist', 'esm')
+              /[\\/]next[\\/]dist[\\/]/,
+              path.sep + path.join('next', 'dist', 'esm') + path.sep
             )
           ] = moduleExports
         }
