@@ -152,6 +152,7 @@ export class IncrementalCache {
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
   async fetchCacheKey(url: string, init: RequestInit = {}): Promise<string> {
     const cacheString = JSON.stringify([
+      this.fetchCacheKey || '',
       url,
       init.method,
       init.headers,
