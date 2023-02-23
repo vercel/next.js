@@ -585,7 +585,9 @@ export default class DevServer extends Server {
         if (this.nextConfig.experimental.clientRouterFilter) {
           clientRouterFilters = createClientRouterFilter(
             Object.keys(appPaths),
-            this.customRoutes.redirects.filter((r) => !(r as any).internal)
+            ((this.nextConfig as any)._originalRedirects || []).filter(
+              (r: any) => !r.internal
+            )
           )
 
           if (
