@@ -67,7 +67,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       requestHeaders,
       appDir: this.hasAppDir,
       minimalMode: this.minimalMode,
-      fetchCache: this.nextConfig.experimental.fetchCache,
+      fetchCache: this.nextConfig.experimental.appDir,
+      fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk: false,
       incrementalCacheHandlerPath:

@@ -21,6 +21,7 @@ export interface CacheHandlerContext {
   maxMemoryCacheSize?: number
   _appDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
+  fetchCacheKeyPrefix?: string
 }
 
 export interface CacheHandlerValue {
@@ -67,6 +68,7 @@ export class IncrementalCache {
     maxMemoryCacheSize,
     getPrerenderManifest,
     incrementalCacheHandlerPath,
+    fetchCacheKeyPrefix,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -79,6 +81,7 @@ export class IncrementalCache {
     maxMemoryCacheSize?: number
     incrementalCacheHandlerPath?: string
     getPrerenderManifest: () => PrerenderManifest
+    fetchCacheKeyPrefix?: string
   }) {
     let cacheHandlerMod: any
 
@@ -108,11 +111,12 @@ export class IncrementalCache {
       this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
         dev,
         fs,
-        flushToDisk: flushToDisk && !dev,
+        flushToDisk,
         serverDistDir,
         maxMemoryCacheSize,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
+        fetchCacheKeyPrefix,
       })
     }
   }
@@ -148,6 +152,7 @@ export class IncrementalCache {
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
   async fetchCacheKey(url: string, init: RequestInit = {}): Promise<string> {
     const cacheString = JSON.stringify([
+      this.fetchCacheKey || '',
       url,
       init.method,
       init.headers,

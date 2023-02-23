@@ -30,25 +30,53 @@ export function patchFetch({
     async (input: RequestInfo | URL, init: RequestInit | undefined) => {
       const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
-      // If the staticGenerationStore is not available, we can't do any special
-      // treatment of fetch, therefore fallback to the original fetch
-      // implementation.
+      // If the staticGenerationStore is not available, we can't do any
+      // special treatment of fetch, therefore fallback to the original
+      // fetch implementation.
       if (!staticGenerationStore) {
         return originFetch(input, init)
       }
 
-      let revalidate: number | undefined | boolean
+      let revalidate: number | undefined | false = undefined
+      let curRevalidate = init?.next?.revalidate
 
-      if (typeof init?.next?.revalidate === 'number') {
-        revalidate = init.next.revalidate
+      if (init?.cache === 'force-cache') {
+        curRevalidate = false
+      }
+      if (['no-cache', 'no-store'].includes(init?.cache || '')) {
+        curRevalidate = 0
+      }
+      if (typeof curRevalidate === 'number') {
+        revalidate = curRevalidate
       }
 
-      if (init?.next?.revalidate === false) {
+      if (curRevalidate === false) {
         revalidate = CACHE_ONE_YEAR
+      }
+      const initHeaders: Headers =
+        typeof (init?.headers as Headers)?.get === 'function'
+          ? (init?.headers as Headers)
+          : new Headers(init?.headers || {})
+
+      const hasUnCacheableHeader =
+        initHeaders.get('authorization') || initHeaders.get('cookie')
+
+      if (typeof revalidate === 'undefined') {
+        // if there are uncacheable headers and the cache value
+        // wasn't overridden then we must bail static generation
+        if (hasUnCacheableHeader) {
+          revalidate = 0
+        } else {
+          revalidate =
+            typeof staticGenerationStore.revalidate === 'boolean' ||
+            typeof staticGenerationStore.revalidate === 'undefined'
+              ? CACHE_ONE_YEAR
+              : staticGenerationStore.revalidate
+        }
       }
 
       if (
-        !staticGenerationStore.revalidate ||
+        typeof staticGenerationStore.revalidate === 'undefined' ||
         (typeof revalidate === 'number' &&
           revalidate < staticGenerationStore.revalidate)
       ) {

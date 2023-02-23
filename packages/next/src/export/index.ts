@@ -652,7 +652,7 @@ export default async function exportApp(
             enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
-            fetchCache: nextConfig.experimental.fetchCache,
+            fetchCache: nextConfig.experimental.appDir,
           })
 
           for (const validation of result.ampValidations || []) {
