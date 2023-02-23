@@ -121,7 +121,7 @@ describe.each(table)(
 
     // It should not throw any errors when re-fetching the route info:
     // https://github.com/vercel/next.js/issues/44293
-    it.only('should not throw any errors when re-fetching the route info', async () => {
+    it('should not throw any errors when re-fetching the route info', async () => {
       const browser = await webdriver(next.url, '/?test=1')
       await check(
         () => browser.eval('next.router.isReady ? "yes" : "no"'),
