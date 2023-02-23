@@ -6,7 +6,7 @@ export { staticGenerationAsyncStorage } from "next/dist/client/components/static
 export { requestAsyncStorage } from "next/dist/client/components/request-async-storage.js";
 import * as serverHooks from "next/dist/client/components/hooks-server-context.js";
 export { serverHooks };
-export { renderToReadableStream } from "next/dist/compiled/react-server-dom-webpack/server.browser";
+export { renderToReadableStream } from "next/dist/compiled/react-server-dom-webpack/server.edge";
 
 import * as module from ".";
 export { module };
