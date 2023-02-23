@@ -1,7 +1,7 @@
 import type { Route } from 'next'
 import Link from 'next/link'
 
-function Card<T extends string>({ href }: { href: Route<T> | URL }) {
+export function Card<T>({ href }: { href: Route<T> }) {
   return (
     <Link href={href}>
       <div>My Card</div>
@@ -20,6 +20,8 @@ export default function page() {
       <Link href="/button">test</Link>
       <Link href="/buttooon">test</Link>
       <Link href="/blog/">test</Link>
+      <Link href="/blog/a?1/b">test</Link>
+      <Link href="/blog/a#1/b">test</Link>
       <Link href="/blog/v/w/z">test</Link>
       <Link href="/dashboard/">test</Link>
       <Link href={`/blog/a/${test}`}>test</Link>
@@ -29,6 +31,7 @@ export default function page() {
   const shouldPass = (
     <>
       <Card href="/aaa" />
+      <Card href="/blog/a/b?1" />
       <Link href="/about">test</Link>
       <Link href="/aaa#aaa">test</Link>
       <Link href="/aaa?q=1">test</Link>
@@ -38,8 +41,11 @@ export default function page() {
       <Link href="/dashboard/user">test</Link>
       <Link href="/dashboard/user/">test</Link>
       <Link href="/dashboard/user/x">test</Link>
+      <Link href="/dashboard/x/x">test</Link>
       <Link href={`/blog/${test}`}>test</Link>
       <Link href={('/blog/' + test) as Route}>test</Link>
+      <Link href="/rewrite">test</Link>
+      <Link href="/redirect">test</Link>
     </>
   )
 

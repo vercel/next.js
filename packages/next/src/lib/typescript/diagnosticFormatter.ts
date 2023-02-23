@@ -30,9 +30,12 @@ function getFormattedLinkDiagnosticMessageText(
         href
       )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
     } else if (message === "Type 'string' is not assignable to type 'never'.") {
+      const relatedMessage = diagnostic.relatedInformation?.[0]?.messageText
       if (
-        diagnostic.relatedInformation?.[0]?.messageText ===
-        `The expected type comes from property 'href' which is declared here on type 'IntrinsicAttributes & LinkRestProps & { href: never; }`
+        typeof relatedMessage === 'string' &&
+        relatedMessage.match(
+          /The expected type comes from property 'href' which is declared here on type 'IntrinsicAttributes & /
+        )
       ) {
         return `Invalid \`href\` property of \`Link\`: the route does not exist. If it is intentional, please type it explicitly with \`as Route\`.`
       }

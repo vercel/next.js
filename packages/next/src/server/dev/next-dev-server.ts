@@ -81,7 +81,7 @@ import {
 import { getDefineEnv } from '../../build/webpack-config'
 import loadJsConfig from '../../build/load-jsconfig'
 import { formatServerError } from '../../lib/format-server-error'
-import { pageFiles } from '../../build/webpack/plugins/next-types-plugin'
+import { devPageFiles } from '../../build/webpack/plugins/next-types-plugin'
 import {
   DevRouteMatcherManager,
   RouteEnsurer,
@@ -428,7 +428,7 @@ export default class DevServer extends Server {
         let envChange = false
         let tsconfigChange = false
 
-        pageFiles.clear()
+        devPageFiles.clear()
 
         for (const [fileName, meta] of knownFiles) {
           if (
@@ -473,7 +473,7 @@ export default class DevServer extends Server {
               )
           )
 
-          pageFiles.add(fileName)
+          devPageFiles.add(fileName)
 
           const rootFile = absolutePathToPage(fileName, {
             pagesDir: this.dir,
@@ -837,6 +837,7 @@ export default class DevServer extends Server {
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
       rewrites,
+      redirects,
       appDir: this.appDir,
       telemetry,
     })

@@ -5,8 +5,15 @@ import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
+import type { Rewrite, Redirect } from '../../../lib/load-custom-routes'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
+
+type Rewrites = {
+  fallback: Rewrite[]
+  afterFiles: Rewrite[]
+  beforeFiles: Rewrite[]
+}
 
 interface Options {
   dir: string
@@ -15,6 +22,8 @@ interface Options {
   dev: boolean
   isEdgeServer: boolean
   typedRoutes: boolean
+  rewrites: Rewrites
+  redirects: Redirect[]
 }
 
 function createTypeGuardFile(
@@ -118,18 +127,61 @@ async function collectNamedSlots(layoutPath: string) {
   return slots
 }
 
-const nodeRouteTypes: string[] = []
-const edgeRouteTypes: string[] = []
+const nodeRoutes: string[] = []
+const edgeRoutes: string[] = []
 
-export const pageFiles = new Set<string>()
+export const devPageFiles = new Set<string>()
 
-function createRouteDefinitions() {
-  const fallback =
-    !edgeRouteTypes.length && !nodeRouteTypes.length ? 'string' : ''
+function routeToRouteType(route: string) {
+  if (isDynamicRoute(route)) {
+    route = route
+      .split('/')
+      .map((part) => {
+        if (part.startsWith('[') && part.endsWith(']')) {
+          if (part.startsWith('[...')) {
+            // /[...slug]
+            return `\${CatchAllSlug<T>}`
+          } else if (part.startsWith('[[...') && part.endsWith(']]')) {
+            // /[[...slug]]
+            return `\${OptionalCatchAllSlug<T>}`
+          }
+          // /[slug]
+          return `\${SafeSlug<T>}`
+        }
+        return part
+      })
+      .join('/')
+  }
+
+  return `\`${route}\``
+}
+
+function createRouteDefinitions(rewrites: Rewrites, redirects: Redirect[]) {
+  const extraRoutes: string[] = []
+  function addExtraRoute(route: string) {
+    // TODO: For now, we only handle absolute rewrite sources strictly, and ignore
+    // these with parameters or regexps.
+    if (!/\/:/.test(route)) {
+      extraRoutes.push(route)
+    }
+  }
+  for (const rewrite of rewrites.beforeFiles) {
+    addExtraRoute(rewrite.source)
+  }
+  for (const rewrite of rewrites.afterFiles) {
+    addExtraRoute(rewrite.source)
+  }
+  for (const rewrite of rewrites.fallback) {
+    addExtraRoute(rewrite.source)
+  }
+  for (const redirect of redirects) {
+    addExtraRoute(redirect.source)
+  }
+
+  const fallback = !edgeRoutes.length && !nodeRoutes.length ? 'string' : ''
 
   return `
 type SearchOrHash = \`?\${string}\` | \`#\${string}\`
-type Suffix = '' | SearchOrHash
 
 type SafeSlug<S extends string> = 
   S extends \`\${string}/\${string}\`
@@ -152,12 +204,15 @@ type OptionalCatchAllSlug<S extends string> =
     ? never
     : S
 
-type Route<T extends string = string> = ${fallback}
-${
-  edgeRouteTypes.map((route) => `  | ${route}`).join('\n') +
-  nodeRouteTypes.map((route) => `  | ${route}`).join('\n')
-}
+type RouteList<T extends string = string> = ${fallback}
+${[...edgeRoutes, ...nodeRoutes, ...extraRoutes]
+  .map((route) => `  | ${routeToRouteType(route)}`)
+  .join('\n')}
 
+type RouteImpl<T> = T extends \`\${RouteList<infer _>}\${'' | SearchOrHash}\` ? T : never
+
+type Route<T = any> = RouteImpl<T>
+  
 declare module 'next/link' {
   import React from 'react'
   import { UrlObject } from 'url'
@@ -166,20 +221,13 @@ declare module 'next/link' {
   type LinkRestProps = Omit<Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof OriginalLinkProps> & OriginalLinkProps, 'href'>;
 
   // If the href prop can be a Route type with an infer-able S, it's valid.
-  type HrefProp<T> = T extends (Route<infer S> | UrlObject) ? {
+  type HrefProp<T> = {
     /**
      * The path or URL to navigate to. This is the only required prop. It can also be an object.
      *
      * https://nextjs.org/docs/api-reference/next/link
      */
-    href: T
-  } : {
-    /**
-     * The path or URL to navigate to. This is the only required prop. It can also be an object.
-     *
-     * https://nextjs.org/docs/api-reference/next/link
-     */
-    href: never
+    href: RouteImpl<T>
   }
 
   export type LinkProps<T> = LinkRestProps & HrefProp<T>
@@ -199,6 +247,8 @@ export class NextTypesPlugin {
   dev: boolean
   isEdgeServer: boolean
   typedRoutes: boolean
+  rewrites: Rewrites
+  redirects: Redirect[]
 
   constructor(options: Options) {
     this.dir = options.dir
@@ -208,6 +258,8 @@ export class NextTypesPlugin {
     this.isEdgeServer = options.isEdgeServer
     this.pagesDir = path.join(this.appDir, '..', 'pages')
     this.typedRoutes = options.typedRoutes
+    this.rewrites = options.rewrites
+    this.redirects = options.redirects
   }
 
   collectPage(filePath: string) {
@@ -238,29 +290,7 @@ export class NextTypesPlugin {
         : page.replace(/\.[^./]+$/, '').replace(/[/\\]index$/, '')
       ).replace(/\\/g, '/') || '/'
 
-    if (isDynamicRoute(route)) {
-      route = route
-        .split('/')
-        .map((part) => {
-          if (part.startsWith('[') && part.endsWith(']')) {
-            if (part.startsWith('[...')) {
-              // /[...slug]
-              return `\${CatchAllSlug<T>}`
-            } else if (part.startsWith('[[...') && part.endsWith(']]')) {
-              // /[[...slug]]
-              return `\${OptionalCatchAllSlug<T>}`
-            }
-            // /[slug]
-            return `\${SafeSlug<T>}`
-          }
-          return part
-        })
-        .join('/')
-    }
-
-    ;(this.isEdgeServer ? edgeRouteTypes : nodeRouteTypes).push(
-      `\`${route}\${Suffix}\``
-    )
+    ;(this.isEdgeServer ? edgeRoutes : nodeRoutes).push(route)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -345,9 +375,9 @@ export class NextTypesPlugin {
 
           // Clear routes
           if (this.isEdgeServer) {
-            edgeRouteTypes.length = 0
+            edgeRoutes.length = 0
           } else {
-            nodeRouteTypes.length = 0
+            nodeRoutes.length = 0
           }
 
           compilation.chunkGroups.forEach((chunkGroup: any) => {
@@ -383,15 +413,16 @@ export class NextTypesPlugin {
           await Promise.all(promises)
 
           if (this.typedRoutes) {
-            pageFiles.forEach((file) => {
-              this.collectPage(file)
-            })
+            // `devPageFiles` applies to both edge and node compilation.
+            if (!this.isEdgeServer) {
+              devPageFiles.forEach((file) => this.collectPage(file))
+            }
 
             const linkTypePath = path.join('types', 'link.d.ts')
             const assetPath =
               assetDirRelative + '/' + linkTypePath.replace(/\\/g, '/')
             assets[assetPath] = new sources.RawSource(
-              createRouteDefinitions()
+              createRouteDefinitions(this.rewrites, this.redirects)
             ) as unknown as webpack.sources.RawSource
           }
 

@@ -26,10 +26,7 @@ describe('app type checking', () => {
 
       // Check type checking errors
       expect(errors).toContain(
-        'Type error: "/dashboard" is not an existing route. If it is intentional, please type it explicitly with `as Route`.'
-      )
-      expect(errors).toContain(
-        'Type error: "/blog/a/b/c/d" is not an existing route.'
+        'Invalid `href` property of `Link`: the route does not exist. If it is intentional, please type it explicitly with `as Route`.'
       )
 
       // Make sure all errors were reported and other links passed type checking
@@ -38,7 +35,7 @@ describe('app type checking', () => {
           /\.\/src\/app\/type-checks\/link\/page\.tsx:(\d+):/g
         ),
       ].map(([, line]) => +line)
-      expect(errorLines).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25])
+      expect(errorLines).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27])
     })
 
     it('should type check invalid entry exports', () => {
