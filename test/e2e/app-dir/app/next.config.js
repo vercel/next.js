@@ -54,6 +54,11 @@ module.exports = {
         destination: 'https://example.vercel.sh',
         permanent: false,
       },
+      {
+        source: '/:path/to-redirect',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
     ]
   },
 }

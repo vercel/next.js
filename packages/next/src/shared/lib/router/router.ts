@@ -1069,7 +1069,7 @@ export default class Router implements BaseRouter {
     const isQueryUpdating = (options as any)._h === 1
 
     if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
-      const asNoSlash = removeTrailingSlash(as)
+      const asNoSlash = removeTrailingSlash(new URL(as, 'http://n').pathname)
       const matchesBflStatic = this._bfl_s?.has(asNoSlash)
       let matchesBflDynamic = false
       const asNoSlashParts = asNoSlash.split('/')
@@ -1087,7 +1087,10 @@ export default class Router implements BaseRouter {
       // if the client router filter is matched then we trigger
       // a hard navigation
       if (!isQueryUpdating && (matchesBflStatic || matchesBflDynamic)) {
-        handleHardNavigation({ url: as, router: this })
+        handleHardNavigation({
+          url: addBasePath(addLocale(as, options.locale || this.locale)),
+          router: this,
+        })
         return false
       }
     }
