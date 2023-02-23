@@ -27,13 +27,27 @@ createNextDescribe(
     ])(
       'should match redirects in pages correctly $path',
       async ({ pathname }) => {
-        const browser = await next.browser('/')
+        let browser = await next.browser('/')
 
         await browser.eval(`next.router.push("${pathname}")`)
         await check(async () => {
           const href = await browser.eval('location.href')
           return href.includes('example.vercel.sh') ? 'yes' : href
         }, 'yes')
+
+        if (pathname.includes('/blog')) {
+          browser = await next.browser('/blog/first')
+          await browser.eval('window.beforeNav = 1')
+
+          // check 5 times to ensure a reload didn't occur
+          for (let i = 0; i < 5; i++) {
+            await waitFor(500)
+            expect(
+              await browser.eval('document.documentElement.innerHTML')
+            ).toContain('hello from pages/blog/[slug]')
+            expect(await browser.eval('window.beforeNav')).toBe(1)
+          }
+        }
       }
     )
 
