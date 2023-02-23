@@ -610,9 +610,12 @@ const configSchema = {
         },
         deviceSizes: {
           items: {
-            type: 'number',
+            type: 'integer',
+            minimum: 1,
+            maximum: 10000,
           },
           minItems: 1,
+          maxItems: 25,
           type: 'array',
         },
         disableStaticImages: {
@@ -633,9 +636,12 @@ const configSchema = {
         },
         imageSizes: {
           items: {
-            type: 'number',
+            type: 'integer',
+            minimum: 1,
+            maximum: 10000,
           },
           minItems: 1,
+          maxItems: 25,
           type: 'array',
         },
         loader: {

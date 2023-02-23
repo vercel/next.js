@@ -405,59 +405,6 @@ function assignDefaults(
       }
     }
 
-    if (images.deviceSizes) {
-      const { deviceSizes } = images
-      if (!Array.isArray(deviceSizes)) {
-        throw new Error(
-          `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      if (deviceSizes.length > 25) {
-        throw new Error(
-          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = deviceSizes.filter((d: unknown) => {
-        return typeof d !== 'number' || d < 1 || d > 10000
-      })
-
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.deviceSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-    if (images.imageSizes) {
-      const { imageSizes } = images
-      if (!Array.isArray(imageSizes)) {
-        throw new Error(
-          `Specified images.imageSizes should be an Array received ${typeof imageSizes}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      if (imageSizes.length > 25) {
-        throw new Error(
-          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-
-      const invalid = imageSizes.filter((d: unknown) => {
-        return typeof d !== 'number' || d < 1 || d > 10000
-      })
-
-      if (invalid.length > 0) {
-        throw new Error(
-          `Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
-            ', '
-          )}).\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
-        )
-      }
-    }
-
     if (!images.loader) {
       images.loader = 'default'
     }
