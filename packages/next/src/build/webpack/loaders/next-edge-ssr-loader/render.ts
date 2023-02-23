@@ -31,6 +31,7 @@ export function getRender({
   config,
   buildId,
   fontLoaderManifest,
+  incrementalCacheHandler,
 }: {
   pagesType: 'app' | 'pages' | 'root'
   dev: boolean
@@ -51,6 +52,7 @@ export function getRender({
   config: NextConfigComplete
   buildId: string
   fontLoaderManifest: FontLoaderManifest
+  incrementalCacheHandler?: any
 }) {
   const isAppPath = pagesType === 'app'
   const baseLoadComponentResult = {
@@ -80,6 +82,7 @@ export function getRender({
       },
       appRenderToHTML,
       pagesRenderToHTML,
+      incrementalCacheHandler,
       loadComponent: async (pathname) => {
         if (isAppPath) return null
 

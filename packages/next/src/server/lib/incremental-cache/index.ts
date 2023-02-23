@@ -67,8 +67,8 @@ export class IncrementalCache {
     requestHeaders,
     maxMemoryCacheSize,
     getPrerenderManifest,
-    incrementalCacheHandlerPath,
     fetchCacheKeyPrefix,
+    CurCacheHandler,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -79,23 +79,18 @@ export class IncrementalCache {
     flushToDisk?: boolean
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
-    incrementalCacheHandlerPath?: string
     getPrerenderManifest: () => PrerenderManifest
     fetchCacheKeyPrefix?: string
+    CurCacheHandler?: typeof CacheHandler
   }) {
-    let cacheHandlerMod: any
+    if (!CurCacheHandler) {
+      if (fs && serverDistDir) {
+        CurCacheHandler = FileSystemCache
+      }
 
-    if (fs && serverDistDir) {
-      cacheHandlerMod = FileSystemCache
-    }
-
-    if (process.env.NEXT_RUNTIME !== 'edge' && incrementalCacheHandlerPath) {
-      cacheHandlerMod = require(incrementalCacheHandlerPath)
-      cacheHandlerMod = cacheHandlerMod.default || cacheHandlerMod
-    }
-
-    if (!incrementalCacheHandlerPath && minimalMode && fetchCache) {
-      cacheHandlerMod = FetchCache
+      if (minimalMode && fetchCache) {
+        CurCacheHandler = FetchCache
+      }
     }
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
@@ -107,8 +102,8 @@ export class IncrementalCache {
     this.requestHeaders = requestHeaders
     this.prerenderManifest = getPrerenderManifest()
 
-    if (cacheHandlerMod) {
-      this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
+    if (CurCacheHandler) {
+      this.cacheHandler = new CurCacheHandler({
         dev,
         fs,
         flushToDisk,
