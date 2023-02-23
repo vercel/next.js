@@ -785,18 +785,6 @@ for (const variant of ['default', 'turbo']) {
           .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
           .click()
 
-        const collapsedFrameworkGroups = await browser.elementsByCss(
-          "[data-nextjs-call-stack-framework-button][data-state='closed']"
-        )
-        for (const collapsedFrameworkButton of collapsedFrameworkGroups) {
-          // Open the collapsed framework groups, the callstack count should increase with each opened group
-          const callStackCountBeforeGroupOpened = await getCallStackCount()
-          await collapsedFrameworkButton.click()
-          expect(await getCallStackCount()).toBeGreaterThan(
-            callStackCountBeforeGroupOpened
-          )
-        }
-
         // Expect more than the default amount of frames
         // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
         expect(await getCallStackCount()).toBeGreaterThan(9)

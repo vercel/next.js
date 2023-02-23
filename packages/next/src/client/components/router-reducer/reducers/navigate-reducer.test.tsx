@@ -156,6 +156,7 @@ describe('navigateReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -324,6 +325,7 @@ describe('navigateReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -333,6 +335,7 @@ describe('navigateReducer', () => {
 
     const state2 = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -504,6 +507,7 @@ describe('navigateReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -513,6 +517,7 @@ describe('navigateReducer', () => {
 
     const state2 = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -658,6 +663,7 @@ describe('navigateReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -667,6 +673,7 @@ describe('navigateReducer', () => {
 
     const state2 = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -812,6 +819,7 @@ describe('navigateReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -821,6 +829,7 @@ describe('navigateReducer', () => {
 
     const state2 = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -983,6 +992,7 @@ describe('navigateReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -994,6 +1004,7 @@ describe('navigateReducer', () => {
 
     const state2 = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -1255,6 +1266,7 @@ describe('navigateReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -1264,6 +1276,7 @@ describe('navigateReducer', () => {
 
     const state2 = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,

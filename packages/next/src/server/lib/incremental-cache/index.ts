@@ -14,17 +14,20 @@ function toRoute(pathname: string): string {
 }
 
 export interface CacheHandlerContext {
-  fs: CacheFs
+  fs?: CacheFs
   dev?: boolean
   flushToDisk?: boolean
-  serverDistDir: string
+  serverDistDir?: string
   maxMemoryCacheSize?: number
   _appDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
+  fetchCacheKeyPrefix?: string
 }
 
 export interface CacheHandlerValue {
   lastModified?: number
+  age?: number
+  cacheState?: string
   value: IncrementalCacheValue | null
 }
 
@@ -48,7 +51,7 @@ export class CacheHandler {
 
 export class IncrementalCache {
   dev?: boolean
-  cacheHandler: CacheHandler
+  cacheHandler?: CacheHandler
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
   minimalMode?: boolean
@@ -64,29 +67,30 @@ export class IncrementalCache {
     requestHeaders,
     maxMemoryCacheSize,
     getPrerenderManifest,
-    incrementalCacheHandlerPath,
+    fetchCacheKeyPrefix,
+    CurCacheHandler,
   }: {
-    fs: CacheFs
+    fs?: CacheFs
     dev: boolean
     appDir?: boolean
     fetchCache?: boolean
     minimalMode?: boolean
-    serverDistDir: string
+    serverDistDir?: string
     flushToDisk?: boolean
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
-    incrementalCacheHandlerPath?: string
     getPrerenderManifest: () => PrerenderManifest
+    fetchCacheKeyPrefix?: string
+    CurCacheHandler?: typeof CacheHandler
   }) {
-    let cacheHandlerMod: any = FileSystemCache
+    if (!CurCacheHandler) {
+      if (fs && serverDistDir) {
+        CurCacheHandler = FileSystemCache
+      }
 
-    if (process.env.NEXT_RUNTIME !== 'edge' && incrementalCacheHandlerPath) {
-      cacheHandlerMod = require(incrementalCacheHandlerPath)
-      cacheHandlerMod = cacheHandlerMod.default || cacheHandlerMod
-    }
-
-    if (!incrementalCacheHandlerPath && minimalMode && fetchCache) {
-      cacheHandlerMod = FetchCache
+      if (minimalMode && fetchCache) {
+        CurCacheHandler = FetchCache
+      }
     }
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
@@ -97,15 +101,19 @@ export class IncrementalCache {
     this.minimalMode = minimalMode
     this.requestHeaders = requestHeaders
     this.prerenderManifest = getPrerenderManifest()
-    this.cacheHandler = new (cacheHandlerMod as typeof CacheHandler)({
-      dev,
-      fs,
-      flushToDisk: flushToDisk && !dev,
-      serverDistDir,
-      maxMemoryCacheSize,
-      _appDir: !!appDir,
-      _requestHeaders: requestHeaders,
-    })
+
+    if (CurCacheHandler) {
+      this.cacheHandler = new CurCacheHandler({
+        dev,
+        fs,
+        flushToDisk,
+        serverDistDir,
+        maxMemoryCacheSize,
+        _appDir: !!appDir,
+        _requestHeaders: requestHeaders,
+        fetchCacheKeyPrefix,
+      })
+    }
   }
 
   private calculateRevalidate(
@@ -139,6 +147,7 @@ export class IncrementalCache {
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
   async fetchCacheKey(url: string, init: RequestInit = {}): Promise<string> {
     const cacheString = JSON.stringify([
+      this.fetchCacheKey || '',
       url,
       init.method,
       init.headers,
@@ -184,23 +193,25 @@ export class IncrementalCache {
 
     pathname = this._getPathname(pathname, fetchCache)
     let entry: IncrementalCacheEntry | null = null
-    const cacheData = await this.cacheHandler.get(pathname, fetchCache)
+    const cacheData = await this.cacheHandler?.get(pathname, fetchCache)
 
     if (cacheData?.value?.kind === 'FETCH') {
-      const data = cacheData.value.data
-      const age = Math.round(
-        (Date.now() - (cacheData.lastModified || 0)) / 1000
-      )
       const revalidate = cacheData.value.revalidate
+      const age =
+        cacheData.age ||
+        Math.round((Date.now() - (cacheData.lastModified || 0)) / 1000)
+
+      const isStale = cacheData.cacheState
+        ? cacheData.cacheState !== 'fresh'
+        : age > revalidate
+      const data = cacheData.value.data
 
       return {
-        isStale: age > revalidate,
+        isStale: isStale,
         value: {
           kind: 'FETCH',
           data,
-          age,
-          revalidate,
-          isStale: age > revalidate,
+          revalidate: revalidate,
         },
         revalidateAfter:
           (cacheData.lastModified || Date.now()) + revalidate * 1000,
@@ -272,7 +283,7 @@ export class IncrementalCache {
           initialRevalidateSeconds: revalidateSeconds,
         }
       }
-      await this.cacheHandler.set(pathname, data, fetchCache)
+      await this.cacheHandler?.set(pathname, data, fetchCache)
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }

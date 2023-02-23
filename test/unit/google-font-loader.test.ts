@@ -3,7 +3,7 @@ import fetch from 'next/dist/compiled/node-fetch'
 
 jest.mock('next/dist/compiled/node-fetch')
 
-describe('@next/font/google loader', () => {
+describe('next/font/google loader', () => {
   afterEach(() => {
     jest.resetAllMocks()
   })
@@ -148,7 +148,7 @@ describe('@next/font/google loader', () => {
           variableName: 'myFont',
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"@next/font/google has no default export"`
+        `"next/font/google has no default export"`
       )
     })
 

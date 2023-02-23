@@ -119,6 +119,7 @@ export interface TurbotraceContext {
   }
   chunksTrace?: {
     action: TurbotraceAction
+    outputPath: string
   }
 }
 
@@ -795,6 +796,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               showAll: this.turbotrace?.logAll,
               logLevel: this.turbotrace?.logLevel,
             },
+            outputPath: compiler.outputPath,
           }
         }
       })

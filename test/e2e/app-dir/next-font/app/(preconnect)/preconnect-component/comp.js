@@ -1,4 +1,4 @@
-import localFont from '@next/font/local'
+import localFont from 'next/font/local'
 
 const componentFont = localFont({ src: './comp.woff2', preload: false })
 

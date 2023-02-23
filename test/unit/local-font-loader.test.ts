@@ -1,6 +1,6 @@
 import loader from '@next/font/local/loader'
 
-describe('@next/font/local', () => {
+describe('next/font/local', () => {
   describe('generated CSS', () => {
     test('Default CSS', async () => {
       const { css } = await loader({
@@ -251,7 +251,7 @@ describe('@next/font/local', () => {
           loaderContext: {} as any,
         })
       ).rejects.toThrowErrorMatchingInlineSnapshot(
-        `"@next/font/local has no named exports"`
+        `"next/font/local has no named exports"`
       )
     })
 

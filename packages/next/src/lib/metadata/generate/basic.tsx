@@ -7,12 +7,22 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
   return (
     <>
       <meta charSet="utf-8" />
-      {metadata.title !== null ? (
+      {metadata.title !== null && metadata.title.absolute ? (
         <title>{metadata.title.absolute}</title>
       ) : null}
       <Meta name="description" content={metadata.description} />
       <Meta name="application-name" content={metadata.applicationName} />
-      <Meta name="author" content={metadata.authors?.join(',')} />
+      {metadata.authors
+        ? metadata.authors.map((author, index) => (
+            <React.Fragment key={index}>
+              {author.url && <link rel="author" href={author.url.toString()} />}
+              <Meta name="author" content={author.name} />
+            </React.Fragment>
+          ))
+        : null}
+      {metadata.manifest ? (
+        <link rel="manifest" href={metadata.manifest.toString()} />
+      ) : null}
       <Meta name="generator" content={metadata.generator} />
       <Meta name="keywords" content={metadata.keywords?.join(',')} />
       <Meta name="referrer" content={metadata.referrer} />
@@ -79,7 +89,7 @@ export function FormatDetectionMeta({
   if (!formatDetection) return null
   let content = ''
   for (const key of formatDetectionKeys) {
-    if (formatDetection[key]) {
+    if (key in formatDetection) {
       if (content) content += ', '
       content += `${key}=no`
     }

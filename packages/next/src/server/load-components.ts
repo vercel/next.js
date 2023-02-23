@@ -12,13 +12,15 @@ import type {
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
-  FLIGHT_MANIFEST,
-  ACTIONS_MANIFEST,
+  CLIENT_REFERENCE_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
 import { BuildManifest } from './get-page-files'
 import { interopDefault } from '../lib/interop-default'
+import { getTracer } from './lib/trace/tracer'
+import { LoadComponentsSpan } from './lib/trace/constants'
 
 export type ManifestItem = {
   id: number | string
@@ -45,7 +47,7 @@ export type LoadComponentsReturnType = {
   pathname: string
 }
 
-export async function loadDefaultErrorComponents(distDir: string) {
+async function loadDefaultErrorComponentsImpl(distDir: string) {
   const Document = interopDefault(require('next/dist/pages/_document'))
   const AppMod = require('next/dist/pages/_app')
   const App = interopDefault(AppMod)
@@ -76,7 +78,7 @@ async function loadManifest<T>(manifestPath: string, attempts = 1): Promise<T> {
   }
 }
 
-export async function loadComponents({
+async function loadComponentsImpl({
   distDir,
   pathname,
   hasServerComponents,
@@ -108,12 +110,14 @@ export async function loadComponents({
     loadManifest<BuildManifest>(join(distDir, BUILD_MANIFEST)),
     loadManifest<ReactLoadableManifest>(join(distDir, REACT_LOADABLE_MANIFEST)),
     hasServerComponents
-      ? loadManifest(join(distDir, 'server', FLIGHT_MANIFEST + '.json'))
+      ? loadManifest(
+          join(distDir, 'server', CLIENT_REFERENCE_MANIFEST + '.json')
+        )
       : null,
     hasServerComponents
-      ? loadManifest(join(distDir, 'server', ACTIONS_MANIFEST + '.json')).catch(
-          () => null
-        )
+      ? loadManifest(
+          join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
+        ).catch(() => null)
       : null,
   ])
 
@@ -140,3 +144,13 @@ export async function loadComponents({
     pathname,
   }
 }
+
+export const loadComponents = getTracer().wrap(
+  LoadComponentsSpan.loadComponents,
+  loadComponentsImpl
+)
+
+export const loadDefaultErrorComponents = getTracer().wrap(
+  LoadComponentsSpan.loadDefaultErrorComponents,
+  loadDefaultErrorComponentsImpl
+)

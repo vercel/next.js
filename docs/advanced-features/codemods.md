@@ -17,6 +17,24 @@ Codemods are transformations that run on your codebase programmatically. This al
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
 
+## Next.js 13.2
+
+### `built-in-next-font`
+
+This codemod uninstalls `@next/font` and transforms `@next/font` imports into the built-in `next/font`.
+
+For example:
+
+```jsx
+import { Inter } from '@next/font/google'
+```
+
+Transforms into:
+
+```jsx
+import { Inter } from 'next/font/google'
+```
+
 ## Next.js 13
 
 ### `new-link`

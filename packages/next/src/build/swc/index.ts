@@ -8,6 +8,7 @@ import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadWasmSwc } from '../../lib/download-wasm-swc'
+import { spawn } from 'child_process'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -37,6 +38,16 @@ export const __isCustomTurbopackBinary = async (): Promise<boolean> => {
     !!__INTERNAL_CUSTOM_TURBOPACK_BINARY ||
     !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
   )
+}
+
+function checkVersionMismatch(pkgData: any) {
+  const version = pkgData.version
+
+  if (version && version !== nextVersion) {
+    Log.warn(
+      `Mismatching @next/swc version, detected: ${version} while Next.js is on ${nextVersion}. Please ensure these match`
+    )
+  }
 }
 
 // These are the platforms we'll try to load wasm bindings first,
@@ -291,6 +302,7 @@ function loadNative(isCustomTurbopack = false) {
       let pkg = `@next/swc-${triple.platformArchABI}`
       try {
         bindings = require(pkg)
+        checkVersionMismatch(require(`${pkg}/package.json`))
         break
       } catch (e: any) {
         if (e?.code === 'MODULE_NOT_FOUND') {
@@ -392,7 +404,6 @@ function loadNative(isCustomTurbopack = false) {
             )
 
             return new Promise((resolve, reject) => {
-              const spawn = require('next/dist/compiled/cross-spawn')
               const args: any[] = []
 
               Object.entries(devOptions).forEach(([key, value]) => {
@@ -411,8 +422,8 @@ function loadNative(isCustomTurbopack = false) {
 
               console.warn(`Running turbopack with args: [${args.join(' ')}]`)
 
-              const child = spawn(__INTERNAL_CUSTOM_TURBOPACK_BINARY, args, {
-                stdio: 'inherit',
+              let child = spawn(__INTERNAL_CUSTOM_TURBOPACK_BINARY, args, {
+                stdio: 'pipe',
                 env: {
                   ...process.env,
                 },
@@ -430,6 +441,14 @@ function loadNative(isCustomTurbopack = false) {
                   return
                 }
                 resolve(0)
+              })
+
+              process.on('beforeExit', () => {
+                if (child) {
+                  console.log('Killing turbopack process')
+                  child.kill()
+                  child = null as any
+                }
               })
             })
           } else if (!!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS) {

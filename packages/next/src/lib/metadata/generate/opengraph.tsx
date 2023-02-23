@@ -260,16 +260,16 @@ export function TwitterMetadata({
       <Meta name="twitter:title" content={twitter.title?.absolute} />
       <Meta name="twitter:description" content={twitter.description} />
       {twitter.images
-        ? twitter.images.map((image) => (
-            <>
+        ? twitter.images.map((image, index) => (
+            <React.Fragment key={index}>
               <Meta name="twitter:image" content={image.url} />
               <Meta name="twitter:image:alt" content={image.alt} />
-            </>
+            </React.Fragment>
           ))
         : null}
       {card === 'player'
-        ? twitter.players.map((player) => (
-            <>
+        ? twitter.players.map((player, index) => (
+            <React.Fragment key={index}>
               <Meta
                 name="twitter:player"
                 content={player.playerUrl.toString()}
@@ -280,7 +280,7 @@ export function TwitterMetadata({
               />
               <Meta name="twitter:player:width" content={player.width} />
               <Meta name="twitter:player:height" content={player.height} />
-            </>
+            </React.Fragment>
           ))
         : null}
       {card === 'app' ? (

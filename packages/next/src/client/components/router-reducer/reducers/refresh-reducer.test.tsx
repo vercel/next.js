@@ -120,6 +120,7 @@ describe('refreshReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -262,6 +263,7 @@ describe('refreshReducer', () => {
 
     const state = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,
@@ -271,6 +273,7 @@ describe('refreshReducer', () => {
 
     const state2 = createInitialRouterState({
       initialTree,
+      initialHead: null,
       initialCanonicalUrl,
       children,
       initialParallelRoutes,

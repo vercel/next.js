@@ -460,7 +460,7 @@ describe('app dir - rsc basics', () => {
       const files = [
         'middleware-build-manifest.js',
         'middleware-manifest.json',
-        'flight-manifest.json',
+        'client-reference-manifest.json',
       ]
 
       files.forEach((file) => {

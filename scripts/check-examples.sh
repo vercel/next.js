@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 for folder in examples/* ; do
   if [ -f "$folder/package.json" ]; then
