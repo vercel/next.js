@@ -99,7 +99,6 @@ export async function loadStaticPaths({
           },
         ]
       : await collectGenerateParams(components.ComponentMod.tree)
-    console.log('idk', generateParams)
     return buildAppStaticPaths({
       page: pathname,
       generateParams,
