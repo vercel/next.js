@@ -653,6 +653,8 @@ export default async function exportApp(
             debugOutput: options.debugOutput,
             isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
             fetchCache: nextConfig.experimental.appDir,
+            incrementalCacheHandlerPath:
+              nextConfig.experimental.incrementalCacheHandlerPath,
           })
 
           for (const validation of result.ampValidations || []) {

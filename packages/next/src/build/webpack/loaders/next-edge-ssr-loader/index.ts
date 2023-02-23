@@ -15,6 +15,7 @@ export type EdgeSSRLoaderQuery = {
   appDirLoader?: string
   pagesType: 'app' | 'pages' | 'root'
   sriEnabled: boolean
+  incrementalCacheHandlerPath?: string
 }
 
 /*
@@ -44,6 +45,7 @@ export default async function edgeSSRLoader(this: any) {
     appDirLoader: appDirLoaderBase64,
     pagesType,
     sriEnabled,
+    incrementalCacheHandlerPath,
   } = this.getOptions()
 
   const appDirLoader = Buffer.from(
@@ -117,6 +119,12 @@ export default async function edgeSSRLoader(this: any) {
       const appRenderToHTML = null
     `
     }
+    
+    const incrementalCacheHandler = ${
+      incrementalCacheHandlerPath
+        ? `require("${incrementalCacheHandlerPath}")`
+        : 'null'
+    }
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
@@ -146,6 +154,7 @@ export default async function edgeSSRLoader(this: any) {
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
       fontLoaderManifest,
+      incrementalCacheHandler,
     })
 
     export const ComponentMod = pageMod

@@ -913,6 +913,13 @@ export default async function build(
             experimental: {
               ...config.experimental,
               trustHostHeader: ciEnvironment.hasNextSupport,
+              incrementalCacheHandlerPath: config.experimental
+                .incrementalCacheHandlerPath
+                ? path.relative(
+                    distDir,
+                    config.experimental.incrementalCacheHandlerPath
+                  )
+                : undefined,
             },
           },
           appDir: dir,

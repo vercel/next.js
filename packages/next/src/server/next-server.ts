@@ -277,6 +277,15 @@ export default class NextNodeServer extends BaseServer {
     requestHeaders: IncrementalCache['requestHeaders']
   }) {
     const dev = !!this.renderOpts.dev
+    let CacheHandler: any
+    const { incrementalCacheHandlerPath } = this.nextConfig.experimental
+
+    if (incrementalCacheHandlerPath) {
+      CacheHandler = require(this.minimalMode
+        ? join(this.distDir, incrementalCacheHandlerPath)
+        : incrementalCacheHandlerPath)
+      CacheHandler = CacheHandler.default || CacheHandler
+    }
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
@@ -292,8 +301,6 @@ export default class NextNodeServer extends BaseServer {
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      incrementalCacheHandlerPath:
-        this.nextConfig.experimental?.incrementalCacheHandlerPath,
       getPrerenderManifest: () => {
         if (dev) {
           return {
@@ -307,6 +314,7 @@ export default class NextNodeServer extends BaseServer {
           return this.getPrerenderManifest()
         }
       },
+      CurCacheHandler: CacheHandler,
     })
   }
 
