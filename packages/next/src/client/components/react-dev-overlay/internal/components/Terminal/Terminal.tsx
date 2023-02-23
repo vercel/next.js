@@ -1,5 +1,6 @@
 import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
+import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './EditorLink'
 
 export type TerminalProps = { content: string }
@@ -59,7 +60,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
                 : undefined),
             }}
           >
-            {entry.content}
+            <HotlinkedText text={entry.content} />
           </span>
         ))}
         {editorLinks.map((file) => (
