@@ -26,6 +26,7 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
+  INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -110,6 +111,10 @@ function sum(a: ReadonlyArray<number>): number {
 }
 
 function denormalizeAppPagePath(page: string): string {
+  // `/` is normalized to `/index` and `/index` is normalized to `/index/index`
+  if (page.endsWith('/index')) {
+    page = page.replace(/\/index$/, '')
+  }
   return page + '/page'
 }
 
@@ -284,6 +289,13 @@ export async function computeFromManifest(
 
 export function isMiddlewareFilename(file?: string) {
   return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+}
+
+export function isInstrumentationHookFilename(file?: string) {
+  return (
+    file === INSTRUMENTATION_HOOK_FILENAME ||
+    file === `src/${INSTRUMENTATION_HOOK_FILENAME}`
+  )
 }
 
 export interface PageInfo {
@@ -1053,7 +1065,7 @@ export type AppConfig = {
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
-type GenerateParams = Array<{
+export type GenerateParams = Array<{
   config?: AppConfig
   segmentPath: string
   getStaticPaths?: GetStaticPaths
@@ -1322,7 +1334,21 @@ export async function isPageStatic({
       if (pageType === 'app') {
         isClientComponent = isClientReference(componentsResult.ComponentMod)
         const tree = componentsResult.ComponentMod.tree
-        const generateParams = await collectGenerateParams(tree)
+        const handlers = componentsResult.ComponentMod.handlers
+
+        const generateParams: GenerateParams = handlers
+          ? [
+              {
+                config: {
+                  revalidate: handlers.revalidate,
+                  dynamic: handlers.dynamic,
+                  dynamicParams: handlers.dynamicParams,
+                },
+                generateStaticParams: handlers.generateStaticParams,
+                segmentPath: page,
+              },
+            ]
+          : await collectGenerateParams(tree)
 
         appConfig = generateParams.reduce(
           (builtConfig: AppConfig, curGenParams): AppConfig => {
@@ -1554,6 +1580,17 @@ export function detectConflictingPaths(
   >()
 
   const dynamicSsgPages = [...ssgPages].filter((page) => isDynamicRoute(page))
+  const additionalSsgPathsByPath: {
+    [page: string]: { [path: string]: string }
+  } = {}
+
+  additionalSsgPaths.forEach((paths, pathsPage) => {
+    additionalSsgPathsByPath[pathsPage] ||= {}
+    paths.forEach((curPath) => {
+      const currentPath = curPath.toLowerCase()
+      additionalSsgPathsByPath[pathsPage][currentPath] = curPath
+    })
+  })
 
   additionalSsgPaths.forEach((paths, pathsPage) => {
     paths.forEach((curPath) => {
@@ -1573,9 +1610,10 @@ export function detectConflictingPaths(
         conflictingPage = dynamicSsgPages.find((page) => {
           if (page === pathsPage) return false
 
-          conflictingPath = additionalSsgPaths
-            .get(page)
-            ?.find((compPath) => compPath.toLowerCase() === lowerPath)
+          conflictingPath =
+            additionalSsgPaths.get(page) == null
+              ? undefined
+              : additionalSsgPathsByPath[page][lowerPath]
           return conflictingPath
         })
 
@@ -1825,6 +1863,22 @@ export function isCustomErrorPage(page: string) {
 export function isMiddlewareFile(file: string) {
   return (
     file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+  )
+}
+
+export function isInstrumentationHookFile(file: string) {
+  return (
+    file === `/${INSTRUMENTATION_HOOK_FILENAME}` ||
+    file === `/src/${INSTRUMENTATION_HOOK_FILENAME}`
+  )
+}
+
+export function getPossibleInstrumentationHookFilenames(
+  folder: string,
+  extensions: string[]
+) {
+  return extensions.map((extension) =>
+    path.join(folder, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`)
   )
 }
 

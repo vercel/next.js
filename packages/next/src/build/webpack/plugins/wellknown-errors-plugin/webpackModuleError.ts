@@ -68,7 +68,8 @@ export async function getModuleBuildError(
   const notFoundError = await getNotFoundError(
     compilation,
     input,
-    sourceFilename
+    sourceFilename,
+    input.module
   )
   if (notFoundError !== false) {
     return notFoundError

@@ -247,6 +247,9 @@ const configSchema = {
           },
           type: 'object',
         },
+        clientRouterFilter: {
+          type: 'boolean',
+        },
         cpus: {
           type: 'number',
         },
@@ -284,8 +287,8 @@ const configSchema = {
         fallbackNodePolyfills: {
           type: 'boolean',
         },
-        fetchCache: {
-          type: 'boolean',
+        fetchCacheKeyPrefix: {
+          type: 'string',
         },
         forceSwcTransforms: {
           type: 'boolean',
@@ -393,18 +396,6 @@ const configSchema = {
         swcMinify: {
           type: 'boolean',
         },
-        swcMinifyDebugOptions: {
-          additionalProperties: false,
-          properties: {
-            compress: {
-              type: 'object',
-            },
-            mangle: {
-              type: 'object',
-            },
-          },
-          type: 'object',
-        },
         swcPlugins: {
           type: 'array',
         },
@@ -464,6 +455,9 @@ const configSchema = {
               type: 'object',
             },
           },
+        },
+        instrumentationHook: {
+          type: 'boolean',
         },
         turbotrace: {
           type: 'object',
@@ -605,6 +599,10 @@ const configSchema = {
         },
         contentSecurityPolicy: {
           minLength: 1,
+          type: 'string',
+        },
+        contentDispositionType: {
+          enum: ['inline', 'attachment'] as any, // automatic typing does not like enum
           type: 'string',
         },
         dangerouslyAllowSVG: {

@@ -697,6 +697,10 @@ export default class Router implements BaseRouter {
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
   _initialMatchesMiddlewarePromise: Promise<boolean>
+  // static entries filter
+  _bfl_s?: import('../../lib/bloom-filter').BloomFilter
+  // dynamic entires filter
+  _bfl_d?: import('../../lib/bloom-filter').BloomFilter
 
   private state: Readonly<{
     route: string
@@ -770,6 +774,34 @@ export default class Router implements BaseRouter {
       styleSheets: [
         /* /_app does not need its stylesheets managed */
       ],
+    }
+
+    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      const { BloomFilter } =
+        require('../../lib/bloom-filter') as typeof import('../../lib/bloom-filter')
+
+      const staticFilterData:
+        | ReturnType<import('../../lib/bloom-filter').BloomFilter['export']>
+        | undefined = process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
+
+      const dynamicFilterData: typeof staticFilterData = process.env
+        .__NEXT_CLIENT_ROUTER_D_FILTER as any
+
+      if (staticFilterData?.hashes) {
+        this._bfl_s = new BloomFilter(
+          staticFilterData.size,
+          staticFilterData.hashes
+        )
+        this._bfl_s.import(staticFilterData)
+      }
+
+      if (dynamicFilterData?.hashes) {
+        this._bfl_d = new BloomFilter(
+          dynamicFilterData.size,
+          dynamicFilterData.hashes
+        )
+        this._bfl_d.import(dynamicFilterData)
+      }
     }
 
     // Backwards compat for Router.router.events
@@ -1035,6 +1067,34 @@ export default class Router implements BaseRouter {
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
     const isQueryUpdating = (options as any)._h === 1
+
+    if (process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED) {
+      const asNoSlash = removeTrailingSlash(new URL(as, 'http://n').pathname)
+      const matchesBflStatic = this._bfl_s?.has(asNoSlash)
+      let matchesBflDynamic = false
+      const asNoSlashParts = asNoSlash.split('/')
+
+      // if any sub-path of as matches a dynamic filter path
+      // it should be hard navigated
+      for (let i = 0; i < asNoSlashParts.length + 1; i++) {
+        const currentPart = asNoSlashParts.slice(0, i).join('/')
+        if (this._bfl_d?.has(currentPart)) {
+          matchesBflDynamic = true
+          break
+        }
+      }
+
+      // if the client router filter is matched then we trigger
+      // a hard navigation
+      if (!isQueryUpdating && (matchesBflStatic || matchesBflDynamic)) {
+        handleHardNavigation({
+          url: addBasePath(addLocale(as, options.locale || this.locale)),
+          router: this,
+        })
+        return false
+      }
+    }
+
     let shouldResolveHref =
       isQueryUpdating ||
       (options as any)._shouldResolveHref ||
@@ -1399,6 +1459,8 @@ export default class Router implements BaseRouter {
       Router.events.emit('routeChangeStart', as, routeProps)
     }
 
+    const isErrorRoute = this.pathname === '/404' || this.pathname === '/_error'
+
     try {
       let routeInfo = await this.getRouteInfo({
         route,
@@ -1588,10 +1650,7 @@ export default class Router implements BaseRouter {
       // wasn't originally present. This is also why this block is before the
       // below `changeState` call which updates the browser's history (changing
       // the URL).
-      if (
-        isQueryUpdating &&
-        (this.pathname === '/404' || this.pathname === '/_error')
-      ) {
+      if (isQueryUpdating && isErrorRoute) {
         routeInfo = await this.getRouteInfo({
           route: this.pathname,
           pathname: this.pathname,
@@ -1601,6 +1660,7 @@ export default class Router implements BaseRouter {
           routeProps: { shallow: false },
           locale: nextState.locale,
           isPreview: nextState.isPreview,
+          isQueryUpdating: isQueryUpdating && !this.isFallback,
         })
 
         if ('type' in routeInfo) {

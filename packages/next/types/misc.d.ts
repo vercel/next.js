@@ -11,7 +11,12 @@ declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
+declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
+declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
+declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
+declare module 'next/dist/compiled/react-dom/server'
+declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
 declare module 'react-dom/server.browser'
@@ -347,6 +352,10 @@ declare module 'next/dist/compiled/edge-runtime' {
   export = m
 }
 
+declare module 'next/dist/compiled/@edge-runtime/cookies' {
+  export * from '@edge-runtime/cookies'
+}
+
 declare module 'next/dist/compiled/@edge-runtime/primitives' {
   import * as m from '@edge-runtime/primitives'
   export = m
@@ -429,4 +438,9 @@ declare module 'next/dist/compiled/watchpack' {
 
 declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
+}
+
+declare module 'next/dist/compiled/@opentelemetry/api' {
+  import * as m from '@opentelemetry/api'
+  export = m
 }

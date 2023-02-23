@@ -16,6 +16,27 @@ createNextDescribe(
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
+    it.each([
+      { pathname: '/redirect-1' },
+      { pathname: '/redirect-2' },
+      { pathname: '/blog/old-post' },
+      { pathname: '/redirect-3/some/value' },
+      { pathname: '/redirect-3/some' },
+      { pathname: '/redirect-4' },
+      { pathname: '/redirect-4/another' },
+    ])(
+      'should match redirects in pages correctly $path',
+      async ({ pathname }) => {
+        const browser = await next.browser('/')
+
+        await browser.eval(`next.router.push("${pathname}")`)
+        await check(async () => {
+          const href = await browser.eval('location.href')
+          return href.includes('example.vercel.sh') ? 'yes' : href
+        }, 'yes')
+      }
+    )
+
     if (isDev) {
       it('should not have duplicate config warnings', async () => {
         await next.fetch('/')
@@ -98,6 +119,27 @@ createNextDescribe(
         },
       })
       expect(res.headers.get('Content-Type')).toBe('text/x-component')
+    })
+
+    it('should return the `vary` header from edge runtime', async () => {
+      const res = await next.fetch('/dashboard')
+      expect(res.headers.get('x-edge-runtime')).toBe('1')
+      expect(res.headers.get('vary')).toBe(
+        'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+      )
+    })
+
+    it('should return the `vary` header from pages for flight requests', async () => {
+      const res = await next.fetch('/', {
+        headers: {
+          ['RSC'.toString()]: '1',
+        },
+      })
+      expect(res.headers.get('vary')).toBe(
+        isNextDeploy
+          ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+          : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+      )
     })
 
     it('should pass props from getServerSideProps in root layout', async () => {
@@ -570,8 +612,8 @@ createNextDescribe(
         try {
           // Click the link.
           await browser.elementById('pages-link').click()
-          expect(await browser.waitForElementByCss('#pages-text').text()).toBe(
-            'hello from pages/dynamic-pages-route-app-overlap/[slug]'
+          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
+            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
           )
 
           // When refreshing the browser, the app page should be rendered
@@ -1455,6 +1497,36 @@ createNextDescribe(
           const val2 = await browser.elementByCss('#value-2').text()
           expect(val1).toBe(val2)
         })
+
+        it('middleware overriding headers', async () => {
+          const browser = await next.browser('/searchparams-normalization-bug')
+          await browser.eval(`window.didFullPageTransition = 'no'`)
+          expect(await browser.elementByCss('#header-empty').text()).toBe(
+            'Header value: empty'
+          )
+          expect(
+            await browser
+              .elementByCss('#button-a')
+              .click()
+              .waitForElementByCss('#header-a')
+              .text()
+          ).toBe('Header value: a')
+          expect(
+            await browser
+              .elementByCss('#button-b')
+              .click()
+              .waitForElementByCss('#header-b')
+              .text()
+          ).toBe('Header value: b')
+          expect(
+            await browser
+              .elementByCss('#button-c')
+              .click()
+              .waitForElementByCss('#header-c')
+              .text()
+          ).toBe('Header value: c')
+          expect(await browser.eval(`window.didFullPageTransition`)).toBe('no')
+        })
       })
 
       describe('should support React fetch instrumentation', () => {
@@ -1599,17 +1671,18 @@ createNextDescribe(
           const browser = await next.browser('/script')
 
           // Wait for lazyOnload scripts to be ready.
-          await new Promise((resolve) => setTimeout(resolve, 1000))
-
-          expect(await browser.eval(`window._script_order`)).toStrictEqual([
-            1,
-            1.5,
-            2,
-            2.5,
-            'render',
-            3,
-            4,
-          ])
+          await check(async () => {
+            expect(await browser.eval(`window._script_order`)).toStrictEqual([
+              1,
+              1.5,
+              2,
+              2.5,
+              'render',
+              3,
+              4,
+            ])
+            return 'yes'
+          }, 'yes')
         })
       }
 

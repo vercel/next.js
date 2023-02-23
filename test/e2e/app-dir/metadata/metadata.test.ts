@@ -62,9 +62,9 @@ createNextDescribe(
 
     const checkLink = (
       browser: BrowserInterface,
-      name: string,
+      rel: string,
       content: string | string[]
-    ) => checkMeta(browser, name, content, 'rel', 'link', 'href')
+    ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
     describe('basic', () => {
       it('should support title and description', async () => {
@@ -81,20 +81,30 @@ createNextDescribe(
 
       it('should support title template', async () => {
         const browser = await next.browser('/title-template')
-        expect(await browser.eval(`document.title`)).toBe('Page | Layout')
+        // Use the parent layout (root layout) instead of app/title-template/layout.tsx
+        expect(await browser.eval(`document.title`)).toBe('Page')
       })
 
       it('should support stashed title in one layer of page and layout', async () => {
         const browser = await next.browser('/title-template/extra')
+        // Use the parent layout (app/title-template/layout.tsx) instead of app/title-template/extra/layout.tsx
+        expect(await browser.eval(`document.title`)).toBe('Extra Page | Layout')
+      })
+
+      it('should use parent layout title when no title is defined in page', async () => {
+        const browser = await next.browser('/title-template/use-layout-title')
         expect(await browser.eval(`document.title`)).toBe(
-          'Extra Page | Extra Layout'
+          'title template layout default'
         )
       })
 
       it('should support stashed title in two layers of page and layout', async () => {
-        const browser = await next.browser('/title-template/extra/inner')
-        expect(await browser.eval(`document.title`)).toBe(
-          'Inner Page | Extra Layout'
+        const $inner = await next.render$('/title-template/extra/inner')
+        expect(await $inner('title').text()).toBe('Inner Page | Extra Layout')
+
+        const $deep = await next.render$('/title-template/extra/inner/deep')
+        expect(await $deep('title').text()).toBe(
+          'extra layout default | Layout'
         )
       })
 
@@ -102,11 +112,7 @@ createNextDescribe(
         const browser = await next.browser('/basic')
         await checkMetaNameContentPair(browser, 'generator', 'next.js')
         await checkMetaNameContentPair(browser, 'application-name', 'test')
-        await checkMetaNameContentPair(
-          browser,
-          'manifest',
-          'https://github.com/manifest.json'
-        )
+        await checkLink(browser, 'manifest', 'https://github.com/manifest.json')
 
         await checkMetaNameContentPair(
           browser,
@@ -324,6 +330,17 @@ createNextDescribe(
         )
       })
 
+      it('should support notFound and redirect in generateMetadata', async () => {
+        const resNotFound = await next.fetch('/async/not-found')
+        expect(resNotFound.status).toBe(404)
+        const notFoundHtml = await resNotFound.text()
+        expect(notFoundHtml).not.toBe('not-found-text')
+        expect(notFoundHtml).toContain('This page could not be found.')
+
+        const resRedirect = await next.fetch('/async/redirect')
+        expect(resRedirect.status).toBe(307)
+      })
+
       if (isNextDev) {
         it('should freeze parent resolved metadata to avoid mutating in generateMetadata', async () => {
           const pagePath = 'app/mutate/page.tsx'
@@ -354,11 +371,6 @@ createNextDescribe(
           )
         })
       }
-
-      it('should support synchronous generateMetadata export', async () => {
-        const browser = await next.browser('/basic/sync-generate-metadata')
-        expect(await getTitle(browser)).toBe('synchronous generateMetadata')
-      })
 
       it('should handle metadataBase for urls resolved as only URL type', async () => {
         // including few urls in opengraph and alternates
@@ -449,7 +461,7 @@ createNextDescribe(
       it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
         const $ = await next.render$('/opengraph/static')
         expect($('[property="og:image:url"]').attr('content')).toMatch(
-          /_next\/static\/media\/metadata\/opengraph-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/opengraph-image.\w+.png/
         )
         expect($('[property="og:image:type"]').attr('content')).toBe(
           'image/png'
@@ -458,7 +470,7 @@ createNextDescribe(
         expect($('[property="og:image:height"]').attr('content')).toBe('114')
 
         expect($('[name="twitter:image"]').attr('content')).toMatch(
-          /_next\/static\/media\/metadata\/twitter-image.\w+.png/
+          /https:\/\/example.com\/_next\/static\/media\/metadata\/twitter-image.\w+.png/
         )
         expect($('[name="twitter:card"]').attr('content')).toBe(
           'summary_large_image'
@@ -479,11 +491,7 @@ createNextDescribe(
         await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
         await checkLink(browser, 'icon', '/icon.png')
         await checkLink(browser, 'apple-touch-icon', '/apple-icon.png')
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
       })
 
       it('should support basic string icons field', async () => {
@@ -504,11 +512,7 @@ createNextDescribe(
           '/apple-icon-x3.png',
         ])
 
-        await checkLink(
-          browser,
-          'apple-touch-icon-precomposed',
-          '/apple-touch-icon-precomposed.png'
-        )
+        await checkLink(browser, 'other-touch-icon', '/other-touch-icon.png')
 
         expect(
           await queryMetaProps(browser, 'link', 'href="/apple-icon-x3.png"', [

@@ -167,14 +167,20 @@ function assignDefaults(
             value
           ) as (keyof ExperimentalConfig)[]) {
             const featureValue = value[featureName]
-            if (
-              featureName === 'appDir' &&
-              featureValue === true &&
-              !isAboveNodejs16
-            ) {
-              throw new Error(
-                `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
-              )
+            if (featureName === 'appDir' && featureValue === true) {
+              if (!isAboveNodejs16) {
+                throw new Error(
+                  `experimental.appDir requires Node v${NODE_16_VERSION} or later.`
+                )
+              }
+              // auto enable clientRouterFilter if not manually set
+              // when appDir is enabled
+              if (
+                typeof userConfig.experimental.clientRouterFilter ===
+                'undefined'
+              ) {
+                userConfig.experimental.clientRouterFilter = true
+              }
             }
             if (
               value[featureName] !== defaultConfig.experimental[featureName]
@@ -607,10 +613,10 @@ function assignDefaults(
     silent
   )
 
-  if (result.experimental?.swcMinifyDebugOptions) {
+  if (typeof result.experimental?.swcMinifyDebugOptions !== 'undefined') {
     if (!silent) {
       Log.warn(
-        'SWC minify debug option specified. This option is for debugging minifier issues and will be removed once SWC minifier is stable.'
+        'SWC minify debug option is not supported anymore, please remove it from your config.'
       )
     }
   }

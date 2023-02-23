@@ -58,7 +58,7 @@ export class DevPagesRouteMatcherProvider extends FileCacheRouteMatcherProvider<
     // so we need to include the pages directory.
 
     // TODO: could path separator normalization be needed here?
-    if (filename.startsWith(`${this.pagesDir}/api/`)) return false
+    if (filename.startsWith(path.join(this.pagesDir, '/api/'))) return false
 
     for (const extension of this.extensions) {
       // We can also match if we have `pages/api.${extension}`, so check to
