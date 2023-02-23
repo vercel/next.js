@@ -832,8 +832,7 @@ describe.each([[''], ['/docs']])(
              \`----
 
           Caused by:
-              0: failed to process input file
-              1: Syntax Error
+              Syntax Error
 
           Import trace for requested module:
           ./components/parse-error.js"
