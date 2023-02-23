@@ -78,7 +78,6 @@ import {
   RSC,
   RSC_VARY_HEADER,
   FLIGHT_PARAMETERS,
-  FETCH_CACHE_HEADER,
 } from '../client/components/app-router-headers'
 import {
   MatchOptions,
