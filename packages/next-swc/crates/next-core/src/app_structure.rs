@@ -27,6 +27,12 @@ pub enum AppStructureItem {
         specificity: SpecificityVc,
         page: FileSystemPathVc,
     },
+    Route {
+        segment: LayoutSegmentVc,
+        url: FileSystemPathVc,
+        specificity: SpecificityVc,
+        route: FileSystemPathVc,
+    },
 }
 
 #[turbo_tasks::value_impl]
@@ -35,6 +41,7 @@ impl AppStructureItemVc {
     pub async fn routes_changed(self) -> Result<CompletionVc> {
         match *self.await? {
             AppStructureItem::Page { url, .. } => url.await?,
+            AppStructureItem::Route { url, .. } => url.await?,
         };
         Ok(CompletionVc::new())
     }
@@ -152,6 +159,7 @@ async fn get_app_structure_for_directory(
 ) -> Result<AppStructureVc> {
     let mut layouts = layouts;
     let mut page = None;
+    let mut route = None;
     let mut files = HashMap::new();
 
     let DirectoryContent::Entries(entries) = &*input_dir.read_dir().await? else {
@@ -171,6 +179,9 @@ async fn get_app_structure_for_directory(
                     "page" => {
                         page = Some(file);
                     }
+                    "route" => {
+                        route = Some(file);
+                    }
                     "layout" | "error" | "loading" | "template" | "not-found" | "head" => {
                         files.insert(name.to_string(), file);
                     }
@@ -183,6 +194,23 @@ async fn get_app_structure_for_directory(
     }
 
     let layout = files.get("layout");
+
+    if let (Some(_), Some(route_path)) = (page, route) {
+        AppStructureIssue {
+            severity: IssueSeverity::Error.into(),
+            path: route_path,
+            message: StringVc::cell(
+                "It's not possible to have a page and a route in the same directory. The route \
+                 will be ignored in favor of the page."
+                    .to_string(),
+            ),
+        }
+        .cell()
+        .as_issue()
+        .emit();
+
+        route = None;
+    }
 
     // If a page exists but no layout exists, create a basic root layout
     // in `app/layout.js` or `app/layout.tsx`.
@@ -262,21 +290,32 @@ async fn get_app_structure_for_directory(
                 new_url,
                 layouts,
                 page_extensions,
-            )
-            .into(),
+            ),
         ));
     }
 
-    let item = page.map(|page| {
-        AppStructureItem::Page {
-            page,
-            segment,
-            segments: layouts,
-            url,
-            specificity,
-        }
-        .cell()
-    });
+    let item = page
+        .map(|page| {
+            AppStructureItem::Page {
+                page,
+                segment,
+                segments: layouts,
+                url,
+                specificity,
+            }
+            .cell()
+        })
+        .or_else(|| {
+            route.map(|route| {
+                AppStructureItem::Route {
+                    route,
+                    segment,
+                    url,
+                    specificity,
+                }
+                .cell()
+            })
+        });
 
     // Ensure deterministic order since read_dir is not deterministic
     children.sort_by_key(|(k, _)| *k);

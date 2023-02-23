@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, bail, Result};
-use turbo_tasks::ValueToString;
-use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPathVc};
+use turbo_tasks::Value;
+use turbo_tasks_fs::{rope::RopeBuilder, File, FileContent, FileContentVc, FileSystemPathVc};
 use turbopack::{
     module_options::ModuleOptionsContextVc,
     resolve_options_context::ResolveOptionsContextVc,
@@ -9,13 +11,15 @@ use turbopack::{
 };
 use turbopack_core::{
     asset::{Asset, AssetVc},
-    chunk::{ChunkableAssetVc, ChunkingContextVc},
+    chunk::ChunkingContextVc,
     compile_time_info::CompileTimeInfoVc,
+    context::AssetContext,
     virtual_asset::VirtualAssetVc,
 };
-use turbopack_ecmascript::{chunk_group_files_asset::ChunkGroupFilesAsset, utils::stringify_js};
-
-use crate::embed_js::next_js_file;
+use turbopack_ecmascript::{
+    chunk_group_files_asset::ChunkGroupFilesAsset, utils::stringify_js, EcmascriptInputTransform,
+    EcmascriptInputTransformsVc, EcmascriptModuleAssetType, EcmascriptModuleAssetVc, InnerAssetsVc,
+};
 
 #[turbo_tasks::value(shared)]
 pub struct NextEdgeTransition {
@@ -24,36 +28,11 @@ pub struct NextEdgeTransition {
     pub edge_resolve_options_context: ResolveOptionsContextVc,
     pub output_path: FileSystemPathVc,
     pub base_path: FileSystemPathVc,
+    pub bootstrap_file: FileContentVc,
 }
 
 #[turbo_tasks::value_impl]
 impl Transition for NextEdgeTransition {
-    #[turbo_tasks::function]
-    async fn process_source(&self, asset: AssetVc) -> Result<AssetVc> {
-        let FileContent::Content(base) = &*next_js_file("entry/edge-bootstrap.ts").await? else {
-            bail!("runtime code not found");
-        };
-        let mut new_content = RopeBuilder::from(
-            format!(
-                "const PAGE = {};\n",
-                stringify_js(
-                    self.base_path
-                        .await?
-                        .get_path_to(&*asset.path().await?)
-                        .ok_or_else(|| anyhow!("asset is not in base_path"))?
-                )
-            )
-            .into_bytes(),
-        );
-        new_content.concat(base.content());
-        let file = File::from(new_content.build());
-        Ok(VirtualAssetVc::new(
-            asset.path().join("next-edge-bootstrap.ts"),
-            FileContent::Content(file).cell().into(),
-        )
-        .into())
-    }
-
     #[turbo_tasks::function]
     fn process_compile_time_info(
         &self,
@@ -82,15 +61,46 @@ impl Transition for NextEdgeTransition {
     async fn process_module(
         &self,
         asset: AssetVc,
-        _context: ModuleAssetContextVc,
+        context: ModuleAssetContextVc,
     ) -> Result<AssetVc> {
-        let chunkable_asset = match ChunkableAssetVc::resolve_from(asset).await? {
-            Some(chunkable_asset) => chunkable_asset,
-            None => bail!("asset {} is not chunkable", asset.path().to_string().await?),
+        let FileContent::Content(base) = &*self.bootstrap_file.await? else {
+            bail!("runtime code not found");
         };
+        let path = asset.path().await?;
+        let path = self
+            .base_path
+            .await?
+            .get_path_to(&path)
+            .ok_or_else(|| anyhow!("asset is not in base_path"))?;
+        let path = if let Some((name, ext)) = path.rsplit_once('.') {
+            if !ext.contains('/') {
+                name
+            } else {
+                path
+            }
+        } else {
+            path
+        };
+        let mut new_content =
+            RopeBuilder::from(format!("const PAGE = {};\n", stringify_js(path)).into_bytes());
+        new_content.concat(base.content());
+        let file = File::from(new_content.build());
+        let virtual_asset = VirtualAssetVc::new(
+            asset.path().join("next-edge-bootstrap.ts"),
+            FileContent::Content(file).cell().into(),
+        );
+
+        let new_asset = EcmascriptModuleAssetVc::new_with_inner_assets(
+            virtual_asset.into(),
+            context.into(),
+            Value::new(EcmascriptModuleAssetType::Typescript),
+            EcmascriptInputTransformsVc::cell(vec![EcmascriptInputTransform::TypeScript]),
+            context.compile_time_info(),
+            InnerAssetsVc::cell(HashMap::from([("ENTRY".to_string(), asset)])),
+        );
 
         let asset = ChunkGroupFilesAsset {
-            asset: chunkable_asset,
+            asset: new_asset.into(),
             chunking_context: self.edge_chunking_context,
             base_path: self.output_path,
             runtime_entries: None,
