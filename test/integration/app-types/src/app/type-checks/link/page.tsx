@@ -1,7 +1,7 @@
 import type { Route } from 'next'
 import Link from 'next/link'
 
-export function Card<T>({ href }: { href: Route<T> }) {
+export function Card<T>({ href }: { href: Route<T> | URL }) {
   return (
     <Link href={href}>
       <div>My Card</div>
@@ -46,6 +46,7 @@ export default function page() {
       <Link href={('/blog/' + test) as Route}>test</Link>
       <Link href="/rewrite">test</Link>
       <Link href="/redirect">test</Link>
+      <Link href={new URL('/about')}>test</Link>
     </>
   )
 

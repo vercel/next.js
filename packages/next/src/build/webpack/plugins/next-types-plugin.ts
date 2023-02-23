@@ -227,7 +227,7 @@ declare module 'next/link' {
      *
      * https://nextjs.org/docs/api-reference/next/link
      */
-    href: RouteImpl<T>
+    href: RouteImpl<T> | UrlObject
   }
 
   export type LinkProps<T> = LinkRestProps & HrefProp<T>
