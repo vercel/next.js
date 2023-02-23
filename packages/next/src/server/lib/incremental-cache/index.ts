@@ -21,6 +21,7 @@ export interface CacheHandlerContext {
   maxMemoryCacheSize?: number
   _appDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
+  fetchCacheKeyPrefix?: string
 }
 
 export interface CacheHandlerValue {
@@ -67,6 +68,7 @@ export class IncrementalCache {
     maxMemoryCacheSize,
     getPrerenderManifest,
     incrementalCacheHandlerPath,
+    fetchCacheKeyPrefix,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -79,6 +81,7 @@ export class IncrementalCache {
     maxMemoryCacheSize?: number
     incrementalCacheHandlerPath?: string
     getPrerenderManifest: () => PrerenderManifest
+    fetchCacheKeyPrefix?: string
   }) {
     let cacheHandlerMod: any
 
@@ -113,6 +116,7 @@ export class IncrementalCache {
         maxMemoryCacheSize,
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
+        fetchCacheKeyPrefix,
       })
     }
   }

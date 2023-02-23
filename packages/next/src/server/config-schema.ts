@@ -287,8 +287,8 @@ const configSchema = {
         fallbackNodePolyfills: {
           type: 'boolean',
         },
-        fetchCache: {
-          type: 'boolean',
+        fetchCacheKeyPrefix: {
+          type: 'string',
         },
         forceSwcTransforms: {
           type: 'boolean',

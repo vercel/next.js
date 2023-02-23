@@ -1432,7 +1432,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         requestHeaders: Object.assign({}, req.headers),
       })
 
-    if (this.nextConfig.experimental.fetchCache) {
+    if (this.nextConfig.experimental.appDir) {
       delete req.headers[FETCH_CACHE_HEADER]
     }
     let isRevalidate = false
@@ -1510,7 +1510,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       const renderOpts: RenderOpts = {
         ...components,
         ...opts,
-        ...(isAppPath && this.nextConfig.experimental.fetchCache
+        ...(isAppPath && this.nextConfig.experimental.appDir
           ? {
               incrementalCache,
               isRevalidate: this.minimalMode || isRevalidate,

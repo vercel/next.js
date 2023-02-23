@@ -30,21 +30,40 @@ export function patchFetch({
     async (input: RequestInfo | URL, init: RequestInit | undefined) => {
       const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
-      // If the staticGenerationStore is not available, we can't do any special
-      // treatment of fetch, therefore fallback to the original fetch
-      // implementation.
+      // If the staticGenerationStore is not available, we can't do any
+      // special treatment of fetch, therefore fallback to the original
+      // fetch implementation.
       if (!staticGenerationStore) {
         return originFetch(input, init)
       }
 
-      let revalidate: number | undefined | boolean
+      let revalidate: number | undefined | false = undefined
+      const curRevalidate = init?.next?.revalidate
 
-      if (typeof init?.next?.revalidate === 'number') {
-        revalidate = init.next.revalidate
+      if (typeof curRevalidate === 'number') {
+        revalidate = curRevalidate
+      }
+      if (curRevalidate === false) {
+        revalidate = CACHE_ONE_YEAR
       }
 
-      if (init?.next?.revalidate === false) {
-        revalidate = CACHE_ONE_YEAR
+      const getHeader = (key: string) => {
+        if (init?.headers) {
+          return typeof (init?.headers as Headers)?.get === 'function'
+            ? (init.headers as Headers).get(key)
+            : (init.headers as Record<string, string>)[key]
+        }
+      }
+
+      if (
+        typeof revalidate === 'undefined' &&
+        !(getHeader('authorization') || getHeader('cookie'))
+      ) {
+        revalidate =
+          typeof staticGenerationStore.revalidate === 'boolean' ||
+          typeof staticGenerationStore.revalidate === 'undefined'
+            ? CACHE_ONE_YEAR
+            : staticGenerationStore.revalidate
       }
 
       if (

@@ -117,7 +117,7 @@ export interface ExperimentalConfig {
   externalMiddlewareRewritesResolve?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
-  fetchCache?: boolean
+  fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   preCompiledNextServer?: boolean
@@ -622,7 +622,7 @@ export const defaultConfig: NextConfig = {
   experimental: {
     clientRouterFilter: false,
     preCompiledNextServer: false,
-    fetchCache: false,
+    fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
     runtime: undefined,
