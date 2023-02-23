@@ -945,21 +945,37 @@ export default async function loadConfig(
     const validateResult = validateConfig(userConfig)
 
     if (!silent && validateResult.errors) {
-      curLog.warn(`Invalid next.config.js options detected: `)
-
       // Only load @segment/ajv-human-errors when invalid config is detected
       const { AggregateAjvError } =
         require('next/dist/compiled/@segment/ajv-human-errors') as typeof import('next/dist/compiled/@segment/ajv-human-errors')
       const aggregatedAjvErrors = new AggregateAjvError(validateResult.errors, {
         fieldLabels: 'js',
       })
+
+      let shouldExit = false
+      let messages = [`Invalid ${configFileName} options detected: `]
+
       for (const error of aggregatedAjvErrors) {
-        console.error(`  - ${error.message}`)
+        messages.push(`    ${error.message}`)
+        if (/^The value at \.images(\.| )/.test(error.message)) {
+          shouldExit = true
+        }
       }
 
-      console.error(
-        '\nSee more info here: https://nextjs.org/docs/messages/invalid-next-config'
+      messages.push(
+        'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
       )
+
+      if (shouldExit) {
+        for (const message of messages) {
+          curLog.error(message)
+        }
+        process.exit(1)
+      } else {
+        for (const message of messages) {
+          curLog.warn(message)
+        }
+      }
     }
 
     if (Object.keys(userConfig).length === 0) {
