@@ -594,7 +594,10 @@ export class FlightClientEntryPlugin {
     const clientLoader = `next-flight-client-entry-loader?${stringify({
       modules: this.isEdgeServer
         ? clientImports.map((importPath) =>
-            importPath.replace('next/dist/esm/', 'next/dist/')
+            importPath.replace(
+              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+              '/next/dist/'.replace(/\//g, path.sep)
+            )
           )
         : clientImports,
       server: false,
