@@ -31,11 +31,16 @@ module.exports = {
     return [
       {
         source: '/redirect-1',
-        destination: '/somewhere',
+        destination: 'https://example.vercel.sh',
         permanent: false,
       },
       {
         source: '/redirect-2',
+        destination: 'https://example.vercel.sh',
+        permanent: false,
+      },
+      {
+        source: '/blog/old-post',
         destination: 'https://example.vercel.sh',
         permanent: false,
       },
