@@ -842,8 +842,8 @@ export default async function build(
       ]
 
       if (config.experimental.clientRouterFilter) {
-        const nonInternalRedirects = redirects.filter(
-          (redir) => !(redir as any).internal
+        const nonInternalRedirects = (config._originalRedirects || []).filter(
+          (r: any) => !r.internal
         )
         const clientRouterFilters = createClientRouterFilter(
           appPageKeys,

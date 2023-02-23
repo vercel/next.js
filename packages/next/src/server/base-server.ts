@@ -1469,7 +1469,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
                 headers,
               },
               revalidate:
-                (context as any as { revalidate?: number }).revalidate || false,
+                ((context as any).store as any as { revalidate?: number })
+                  .revalidate || false,
             }
             return cacheEntry
           }

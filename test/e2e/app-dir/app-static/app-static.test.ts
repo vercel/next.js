@@ -14,7 +14,11 @@ createNextDescribe(
     files: __dirname,
     env: {
       NEXT_DEBUG_BUILD: '1',
-      CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
+      ...(process.env.CUSTOM_CACHE_HANDLER
+        ? {
+            CUSTOM_CACHE_HANDLER: process.env.CUSTOM_CACHE_HANDLER,
+          }
+        : {}),
     },
   },
   ({ next, isNextDev: isDev, isNextStart, isNextDeploy }) => {
