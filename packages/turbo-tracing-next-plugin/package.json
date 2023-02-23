@@ -18,5 +18,8 @@
   },
   "devDependencies": {
     "next": "^13.0.6"
+  },
+  "scripts": {
+    "lint": "eslint src/**/*.ts"
   }
 }
