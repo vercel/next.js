@@ -23,6 +23,7 @@ import { IncrementalCacheEntry, IncrementalCacheValue } from './response-cache'
 import { mockRequest } from './lib/mock-request'
 import { hasMatch } from '../shared/lib/match-remote-pattern'
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
+import { ImageConfigComplete } from '../shared/lib/image-config'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -672,11 +673,11 @@ export async function imageOptimizer(
 function getFileNameWithExtension(
   url: string,
   contentType: string | null
-): string | void {
+): string {
   const [urlWithoutQueryParams] = url.split('?')
   const fileNameWithExtension = urlWithoutQueryParams.split('/').pop()
   if (!contentType || !fileNameWithExtension) {
-    return
+    return 'image.bin'
   }
 
   const [fileName] = fileNameWithExtension.split('.')
@@ -692,7 +693,7 @@ function setResponseHeaders(
   contentType: string | null,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string,
+  imagesConfig: ImageConfigComplete,
   maxAge: number,
   isDev: boolean
 ) {
@@ -712,16 +713,12 @@ function setResponseHeaders(
   }
 
   const fileName = getFileNameWithExtension(url, contentType)
-  if (fileName) {
-    res.setHeader(
-      'Content-Disposition',
-      contentDisposition(fileName, { type: 'inline' })
-    )
-  }
+  res.setHeader(
+    'Content-Disposition',
+    contentDisposition(fileName, { type: imagesConfig.contentDispositionType })
+  )
 
-  if (contentSecurityPolicy) {
-    res.setHeader('Content-Security-Policy', contentSecurityPolicy)
-  }
+  res.setHeader('Content-Security-Policy', imagesConfig.contentSecurityPolicy)
   res.setHeader('X-Nextjs-Cache', xCache)
 
   return { finished: false }
@@ -735,7 +732,7 @@ export function sendResponse(
   buffer: Buffer,
   isStatic: boolean,
   xCache: XCacheHeader,
-  contentSecurityPolicy: string,
+  imagesConfig: ImageConfigComplete,
   maxAge: number,
   isDev: boolean
 ) {
@@ -749,7 +746,7 @@ export function sendResponse(
     contentType,
     isStatic,
     xCache,
-    contentSecurityPolicy,
+    imagesConfig,
     maxAge,
     isDev
   )

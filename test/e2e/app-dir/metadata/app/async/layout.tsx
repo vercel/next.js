@@ -7,3 +7,5 @@ export async function generateMetadata() {
     keywords: 'parent',
   }
 }
+
+export const revalidate = 0

@@ -247,6 +247,9 @@ const configSchema = {
           },
           type: 'object',
         },
+        clientRouterFilter: {
+          type: 'boolean',
+        },
         cpus: {
           type: 'number',
         },
@@ -284,8 +287,8 @@ const configSchema = {
         fallbackNodePolyfills: {
           type: 'boolean',
         },
-        fetchCache: {
-          type: 'boolean',
+        fetchCacheKeyPrefix: {
+          type: 'string',
         },
         forceSwcTransforms: {
           type: 'boolean',
@@ -614,6 +617,10 @@ const configSchema = {
         },
         contentSecurityPolicy: {
           minLength: 1,
+          type: 'string',
+        },
+        contentDispositionType: {
+          enum: ['inline', 'attachment'] as any, // automatic typing does not like enum
           type: 'string',
         },
         dangerouslyAllowSVG: {

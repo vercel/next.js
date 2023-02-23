@@ -5,6 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   CLIENT_REFERENCE_MANIFEST,
@@ -325,9 +326,13 @@ export class FlightManifestPlugin {
 
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
-        if (/\/next\/dist\//.test(resource)) {
-          manifest[resource.replace(/\/next\/dist\//, '/next/dist/esm/')] =
-            moduleExports
+        if (/[\\/]next[\\/]dist[\\/]/.test(resource)) {
+          manifest[
+            resource.replace(
+              /[\\/]next[\\/]dist[\\/]/,
+              '/next/dist/esm/'.replace(/\//g, path.sep)
+            )
+          ] = moduleExports
         }
 
         manifest.__ssr_module_mapping__ = moduleIdMapping
