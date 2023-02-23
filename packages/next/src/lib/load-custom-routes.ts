@@ -563,12 +563,14 @@ async function loadRedirects(config: NextConfig) {
     return []
   }
   let redirects = await config.redirects()
-  // save original redirects before transforms
-  ;(config as any)._originalRedirects = redirects.map((r) => ({ ...r }))
   // check before we process the routes and after to ensure
   // they are still valid
   checkCustomRoutes(redirects, 'redirect')
 
+  // save original redirects before transforms
+  if (Array.isArray(redirects)) {
+    ;(config as any)._originalRedirects = redirects.map((r) => ({ ...r }))
+  }
   redirects = processRoutes(redirects, config, 'redirect')
   checkCustomRoutes(redirects, 'redirect')
   return redirects
