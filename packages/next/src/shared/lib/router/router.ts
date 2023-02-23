@@ -1456,6 +1456,8 @@ export default class Router implements BaseRouter {
       Router.events.emit('routeChangeStart', as, routeProps)
     }
 
+    const isErrorRoute = this.pathname === '/404' || this.pathname === '/_error'
+
     try {
       let routeInfo = await this.getRouteInfo({
         route,
@@ -1645,10 +1647,7 @@ export default class Router implements BaseRouter {
       // wasn't originally present. This is also why this block is before the
       // below `changeState` call which updates the browser's history (changing
       // the URL).
-      if (
-        isQueryUpdating &&
-        (this.pathname === '/404' || this.pathname === '/_error')
-      ) {
+      if (isQueryUpdating && isErrorRoute) {
         routeInfo = await this.getRouteInfo({
           route: this.pathname,
           pathname: this.pathname,
@@ -1658,6 +1657,7 @@ export default class Router implements BaseRouter {
           routeProps: { shallow: false },
           locale: nextState.locale,
           isPreview: nextState.isPreview,
+          isQueryUpdating: isQueryUpdating && !this.isFallback,
         })
 
         if ('type' in routeInfo) {
