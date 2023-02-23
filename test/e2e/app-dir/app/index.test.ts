@@ -591,8 +591,8 @@ createNextDescribe(
         try {
           // Click the link.
           await browser.elementById('pages-link').click()
-          expect(await browser.waitForElementByCss('#pages-text').text()).toBe(
-            'hello from pages/dynamic-pages-route-app-overlap/[slug]'
+          expect(await browser.waitForElementByCss('#app-text').text()).toBe(
+            'hello from app/dynamic-pages-route-app-overlap/app-dir/page'
           )
 
           // When refreshing the browser, the app page should be rendered
