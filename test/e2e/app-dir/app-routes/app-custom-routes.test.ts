@@ -49,29 +49,50 @@ createNextDescribe(
     })
 
     describe('works with generateStaticParams correctly', () => {
-      describe.each(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])(
-        'made via a %s request',
-        (method) => {
-          it.each([
-            '/static/first/data.json',
-            '/static/second/data.json',
-            '/static/three/data.json',
-          ])('responds correctly on %s', async (path) => {
-            if (isNextStart) {
-              expect(
-                await next.readFile(`.next/server/app/${path}.body`)
-              ).toBeTruthy()
-              expect(
-                await next.readFile(`.next/server/app/${path}.meta`)
-              ).toBeTruthy()
-            }
-            expect(JSON.parse(await next.render(path))).toEqual({
-              params: { slug: path.split('/')[2] },
-              now: expect.any(Number),
-            })
-          })
+      it.each([
+        '/static/first/data.json',
+        '/static/second/data.json',
+        '/static/three/data.json',
+      ])('responds correctly on %s', async (path) => {
+        expect(JSON.parse(await next.render(path))).toEqual({
+          params: { slug: path.split('/')[2] },
+          now: expect.any(Number),
+        })
+        if (isNextStart) {
+          expect(
+            await next.readFile(`.next/server/app/${path}.body`)
+          ).toBeTruthy()
+          expect(
+            await next.readFile(`.next/server/app/${path}.meta`)
+          ).toBeTruthy()
         }
-      )
+      })
+
+      it.each([
+        '/revalidate-1/first/data.json',
+        '/revalidate-1/second/data.json',
+        '/revalidate-1/three/data.json',
+      ])('revalidates correctly on %s', async (path) => {
+        const data = JSON.parse(await next.render(path))
+        expect(data).toEqual({
+          params: { slug: path.split('/')[2] },
+          now: expect.any(Number),
+        })
+
+        await check(async () => {
+          expect(data).not.toEqual(JSON.parse(await next.render(path)))
+          return 'success'
+        }, 'success')
+
+        if (isNextStart) {
+          expect(
+            await next.readFile(`.next/server/app/${path}.body`)
+          ).toBeTruthy()
+          expect(
+            await next.readFile(`.next/server/app/${path}.meta`)
+          ).toBeTruthy()
+        }
+      })
     })
 
     describe('basic fetch request with a response', () => {
