@@ -33,7 +33,7 @@ export function patchFetch({
       // If the staticGenerationStore is not available, we can't do any
       // special treatment of fetch, therefore fallback to the original
       // fetch implementation.
-      if (!staticGenerationStore) {
+      if (!staticGenerationStore || (init?.next as any)?.internal) {
         return originFetch(input, init)
       }
 
@@ -109,19 +109,23 @@ export function patchFetch({
               )
             }
 
-            await staticGenerationStore.incrementalCache.set(
-              cacheKey,
-              {
-                kind: 'FETCH',
-                data: {
-                  headers: Object.fromEntries(clonedRes.headers.entries()),
-                  body: base64Body,
+            try {
+              await staticGenerationStore.incrementalCache.set(
+                cacheKey,
+                {
+                  kind: 'FETCH',
+                  data: {
+                    headers: Object.fromEntries(clonedRes.headers.entries()),
+                    body: base64Body,
+                  },
+                  revalidate,
                 },
                 revalidate,
-              },
-              revalidate,
-              true
-            )
+                true
+              )
+            } catch (err) {
+              console.warn(`Failed to set fetch cache`, input, err)
+            }
           }
           return res
         })

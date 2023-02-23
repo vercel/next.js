@@ -416,8 +416,8 @@ export default async function exportPage({
             if (isValidStatus) {
               const body = await response.blob()
               const revalidate =
-                (staticContext as any as { revalidate?: number }).revalidate ||
-                false
+                ((staticContext as any).store as any as { revalidate?: number })
+                  .revalidate || false
 
               results.fromBuildExportRevalidate = revalidate
               const headers = Object.fromEntries(response.headers)
