@@ -21,6 +21,7 @@ import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
+import { HotlinkedText } from '../components/hot-linked-text'
 
 export type SupportedErrorEvent = {
   id: number
@@ -50,35 +51,6 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _: never = event
   return ''
-}
-
-const HotlinkedText: React.FC<{
-  text: string
-}> = function HotlinkedText(props) {
-  const { text } = props
-
-  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i
-  return (
-    <>
-      {linkRegex.test(text)
-        ? text.split(' ').map((word, index, array) => {
-            if (linkRegex.test(word)) {
-              return (
-                <React.Fragment key={`link-${index}`}>
-                  <a href={word}>{word}</a>
-                  {index === array.length - 1 ? '' : ' '}
-                </React.Fragment>
-              )
-            }
-            return index === array.length - 1 ? (
-              <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
-            ) : (
-              <React.Fragment key={`text-${index}`}>{word} </React.Fragment>
-            )
-          })
-        : text}
-    </>
-  )
 }
 
 export const Errors: React.FC<ErrorsProps> = function Errors({
