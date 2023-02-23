@@ -29,7 +29,9 @@ function getFormattedLinkDiagnosticMessageText(
       return `"${chalk.bold(
         href
       )}" is not an existing route. If it is intentional, please type it explicitly with \`as Route\`.`
-    } else if (message === "Type 'string' is not assignable to type 'never'.") {
+    } else if (
+      message === "Type 'string' is not assignable to type 'UrlObject'."
+    ) {
       const relatedMessage = diagnostic.relatedInformation?.[0]?.messageText
       if (
         typeof relatedMessage === 'string' &&
