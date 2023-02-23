@@ -148,3 +148,10 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
   'TransformStreamDefaultController',
   'WritableStreamDefaultController',
 ]
+
+export const SYSTEM_ENTRYPOINTS = new Set<string>([
+  CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
+])

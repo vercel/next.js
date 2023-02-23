@@ -138,7 +138,7 @@ var require_dist = __commonJS({
         const [firstArg] = args;
         if (!kind(firstArg, "string")) {
           if (hasCustomSymbol(firstArg, customInspectSymbol)) {
-            return format2(firstArg[customInspectSymbol]());
+            return format2(firstArg[customInspectSymbol]({ format: format2 }));
           } else {
             return args.map((item) => inspect(item, { customInspectSymbol })).join(" ");
           }
@@ -153,7 +153,7 @@ var require_dist = __commonJS({
             case "%s": {
               const arg = args[index++];
               if (hasCustomSymbol(arg, customInspectSymbol)) {
-                return format2(arg[customInspectSymbol]());
+                return format2(arg[customInspectSymbol]({ format: format2 }));
               } else if (isDate(arg) || isError(arg) || kind(arg, "bigint")) {
                 return format2(arg);
               } else {
@@ -204,7 +204,7 @@ var require_dist = __commonJS({
       __name(format2, "format");
       function formatValue(ctx, value, recurseTimes) {
         if (hasCustomSymbol(value, customInspectSymbol)) {
-          return format2(value[customInspectSymbol]());
+          return format2(value[customInspectSymbol]({ format: format2 }));
         }
         const formattedPrimitive = formatPrimitive(value);
         if (formattedPrimitive !== void 0) {
@@ -310,7 +310,7 @@ var require_dist = __commonJS({
             }
             base = " " + base;
           } else if (hasCustomSymbol(value, ctx.customInspectSymbol)) {
-            base = format2(value[ctx.customInspectSymbol]());
+            base = format2(value[ctx.customInspectSymbol]({ format: format2 }));
             if (keys.length === 0) {
               return base;
             }

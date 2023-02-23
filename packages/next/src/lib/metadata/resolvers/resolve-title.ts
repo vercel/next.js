@@ -1,22 +1,21 @@
 import type { Metadata } from '../types/metadata-interface'
 import type { AbsoluteTemplateString } from '../types/metadata-types'
 
-function resolveTitleTemplate(template: string | null, title: string) {
+function resolveTitleTemplate(
+  template: string | null | undefined,
+  title: string
+) {
   return template ? template.replace(/%s/g, title) : title
 }
 
-export function mergeTitle<T extends { title?: Metadata['title'] }>(
-  source: T,
-  stashedTemplate: string | null
-) {
-  const { title } = source
-
+export function resolveTitle(
+  title: Metadata['title'],
+  stashedTemplate: string | null | undefined
+): AbsoluteTemplateString {
   let resolved
   const template =
-    typeof source.title !== 'string' &&
-    source.title &&
-    'template' in source.title
-      ? source.title.template
+    typeof title !== 'string' && title && 'template' in title
+      ? title.template
       : null
 
   if (typeof title === 'string') {
@@ -30,12 +29,12 @@ export function mergeTitle<T extends { title?: Metadata['title'] }>(
     }
   }
 
-  const target = source
   if (title && typeof title !== 'string') {
-    const targetTitle = title as AbsoluteTemplateString
-    targetTitle.template = template
-    targetTitle.absolute = resolved || ''
+    return {
+      template,
+      absolute: resolved || '',
+    }
   } else {
-    target.title = { absolute: resolved || title || '', template }
+    return { absolute: resolved || title || '', template }
   }
 }

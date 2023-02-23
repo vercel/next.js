@@ -10,6 +10,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
+  SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
 import { BuildManifest } from '../../../server/get-page-files'
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
@@ -188,15 +189,8 @@ export default class BuildManifestPlugin {
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_AMP)
       )
 
-      const systemEntrypoints = new Set([
-        CLIENT_STATIC_FILES_RUNTIME_MAIN,
-        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-        CLIENT_STATIC_FILES_RUNTIME_AMP,
-        ...(this.appDirEnabled ? [CLIENT_STATIC_FILES_RUNTIME_MAIN_APP] : []),
-      ])
-
       for (const entrypoint of compilation.entrypoints.values()) {
-        if (systemEntrypoints.has(entrypoint.name)) continue
+        if (SYSTEM_ENTRYPOINTS.has(entrypoint.name)) continue
         const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
         if (!pagePath) {

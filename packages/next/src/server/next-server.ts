@@ -19,10 +19,7 @@ import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { PayloadOptions } from './send-payload'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type {
-  Params,
-  RouteMatchFn,
-} from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 
 import fs from 'fs'
@@ -67,7 +64,6 @@ import BaseServer, {
   Options,
   FindComponentsResult,
   MiddlewareRoutingItem,
-  RoutingItem,
   NoFallbackError,
   RequestContext,
 } from './base-server'
@@ -81,7 +77,6 @@ import { splitCookiesString, toNodeHeaders } from './web/utils'
 import { relativizeURL } from '../shared/lib/router/utils/relativize-url'
 import { prepareDestination } from '../shared/lib/router/utils/prepare-destination'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
 import { loadEnvConfig } from '@next/env'
 import { getCustomRoute, stringifyQuery } from './server-route-utils'
@@ -101,6 +96,9 @@ import { RouteKind } from './future/route-kind'
 import { AppRouteRouteHandler } from './future/route-handlers/app-route-route-handler'
 import { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../lib/constants'
+import { getTracer } from './lib/trace/tracer'
+import { NextNodeServerSpan } from './lib/trace/constants'
 
 export * from './base-server'
 
@@ -121,11 +119,6 @@ export interface NodeRequestHandler {
 const MiddlewareMatcherCache = new WeakMap<
   MiddlewareManifest['middleware'][string],
   MiddlewareRouteMatch
->()
-
-const EdgeMatcherCache = new WeakMap<
-  MiddlewareManifest['functions'][string],
-  RouteMatchFn
 >()
 
 function getMiddlewareMatcher(
@@ -182,28 +175,6 @@ const POSSIBLE_ERROR_CODE_FROM_SERVE_STATIC = new Set([
   416,
 ])
 
-function getEdgeMatcher(
-  info: MiddlewareManifest['functions'][string]
-): RouteMatchFn {
-  const stored = EdgeMatcherCache.get(info)
-  if (stored) {
-    return stored
-  }
-
-  if (!Array.isArray(info.matchers) || info.matchers.length !== 1) {
-    throw new Error(
-      `Invariant: invalid matchers for middleware ${JSON.stringify(info)}`
-    )
-  }
-
-  const matcher = getRouteMatcher({
-    re: new RegExp(info.matchers[0].regexp),
-    groups: {},
-  })
-  EdgeMatcherCache.set(info, matcher)
-  return matcher
-}
-
 export default class NextNodeServer extends BaseServer {
   private imageResponseCache?: ResponseCache
   private compression?: ExpressMiddleware
@@ -235,6 +206,24 @@ export default class NextNodeServer extends BaseServer {
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
+    }
+
+    if (!options.dev && this.nextConfig.experimental.instrumentationHook) {
+      try {
+        const instrumentationHook = require(join(
+          options.dir || '.',
+          options.conf.distDir!,
+          'server',
+          INSTRUMENTATION_HOOK_FILENAME
+        ))
+
+        instrumentationHook.register?.()
+      } catch (err: any) {
+        if (err.code !== 'MODULE_NOT_FOUND') {
+          err.message = `An error occurred while loading instrumentation hook: ${err.message}`
+          throw err
+        }
+      }
     }
 
     if (!options.dev) {
@@ -288,6 +277,15 @@ export default class NextNodeServer extends BaseServer {
     requestHeaders: IncrementalCache['requestHeaders']
   }) {
     const dev = !!this.renderOpts.dev
+    let CacheHandler: any
+    const { incrementalCacheHandlerPath } = this.nextConfig.experimental
+
+    if (incrementalCacheHandlerPath) {
+      CacheHandler = require(this.minimalMode
+        ? join(this.distDir, incrementalCacheHandlerPath)
+        : incrementalCacheHandlerPath)
+      CacheHandler = CacheHandler.default || CacheHandler
+    }
     // incremental-cache is request specific with a shared
     // although can have shared caches in module scope
     // per-cache handler
@@ -298,12 +296,11 @@ export default class NextNodeServer extends BaseServer {
       appDir: this.hasAppDir,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
-      fetchCache: this.nextConfig.experimental.fetchCache,
+      fetchCache: this.nextConfig.experimental.appDir,
+      fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
-      incrementalCacheHandlerPath:
-        this.nextConfig.experimental?.incrementalCacheHandlerPath,
       getPrerenderManifest: () => {
         if (dev) {
           return {
@@ -317,6 +314,7 @@ export default class NextNodeServer extends BaseServer {
           return this.getPrerenderManifest()
         }
       },
+      CurCacheHandler: CacheHandler,
     })
   }
 
@@ -477,7 +475,7 @@ export default class NextNodeServer extends BaseServer {
               cacheEntry.value.buffer,
               paramsResult.isStatic,
               cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
-              imagesConfig.contentSecurityPolicy,
+              imagesConfig,
               cacheEntry.revalidate || 0,
               Boolean(this.renderOpts.dev)
             )
@@ -783,10 +781,10 @@ export default class NextNodeServer extends BaseServer {
     page: string,
     builtPagePath: string
   ): Promise<boolean> {
-    const edgeFunctions = this.getEdgeFunctions()
+    const edgeFunctionsPages = this.getEdgeFunctionsPages()
 
-    for (const item of edgeFunctions) {
-      if (item.page === page) {
+    for (const edgeFunctionsPage of edgeFunctionsPages) {
+      if (edgeFunctionsPage === page) {
         const handledAsEdgeFunction = await this.runEdgeFunction({
           req,
           res,
@@ -834,6 +832,18 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async renderHTML(
+    req: NodeNextRequest,
+    res: NodeNextResponse,
+    pathname: string,
+    query: NextParsedUrlQuery,
+    renderOpts: RenderOpts
+  ): Promise<RenderResult | null> {
+    return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
+      this.renderHTMLImpl(req, res, pathname, query, renderOpts)
+    )
+  }
+
+  private async renderHTMLImpl(
     req: NodeNextRequest,
     res: NodeNextResponse,
     pathname: string,
@@ -907,8 +917,8 @@ export default class NextNodeServer extends BaseServer {
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const edgeFunctions = this.getEdgeFunctions() || []
-    if (edgeFunctions.length) {
+    const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
+    if (edgeFunctionsPages.length) {
       const appPaths = this.getOriginalAppPaths(ctx.pathname)
       const isAppPath = Array.isArray(appPaths)
 
@@ -918,8 +928,8 @@ export default class NextNodeServer extends BaseServer {
         page = appPaths[0]
       }
 
-      for (const item of edgeFunctions) {
-        if (item.page === page) {
+      for (const edgeFunctionsPage of edgeFunctionsPages) {
+        if (edgeFunctionsPage === page) {
           await this.runEdgeFunction({
             req: ctx.req,
             res: ctx.res,
@@ -937,6 +947,22 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async findPageComponents({
+    pathname,
+    query,
+    params,
+    isAppPath,
+  }: {
+    pathname: string
+    query: NextParsedUrlQuery
+    params: Params | null
+    isAppPath: boolean
+  }): Promise<FindComponentsResult | null> {
+    return getTracer().trace(NextNodeServerSpan.findPageComponents, () =>
+      this.findPageComponentsImpl({ pathname, query, params, isAppPath })
+    )
+  }
+
+  private async findPageComponentsImpl({
     pathname,
     query,
     params,
@@ -1032,7 +1058,6 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getFontLoaderManifest() {
-    if (!this.nextConfig.experimental.fontLoaders) return undefined
     return require(join(this.distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
   }
 
@@ -1198,13 +1223,35 @@ export default class NextNodeServer extends BaseServer {
         }
 
         const bubbleNoFallback = !!query._nextBubbleNoFallback
-
         const match = await this.matchers.match(pathname, options)
+
+        if (match) {
+          addRequestMeta(req, '_nextMatch', match)
+        }
 
         // Try to handle the given route with the configured handlers.
         if (match) {
-          let handled = await this.handlers.handle(match, req, res)
-          if (handled) return { finished: true }
+          // TODO-APP: move this to a route handler
+          const edgeFunctionsPages = this.getEdgeFunctionsPages()
+          for (const edgeFunctionsPage of edgeFunctionsPages) {
+            if (edgeFunctionsPage === match.definition.page) {
+              delete query._nextBubbleNoFallback
+
+              const handledAsEdgeFunction = await this.runEdgeFunction({
+                req,
+                res,
+                query,
+                params: match.params,
+                page: match.definition.page,
+                appPaths: null,
+              })
+
+              if (handledAsEdgeFunction) {
+                return { finished: true }
+              }
+            }
+          }
+          let handled = false
 
           // If the route was detected as being a Pages API route, then handle
           // it.
@@ -1494,7 +1541,7 @@ export default class NextNodeServer extends BaseServer {
     restrictedRedirectPaths,
   }: {
     restrictedRedirectPaths: string[]
-  }) {
+  }): { beforeFiles: Route[]; afterFiles: Route[]; fallback: Route[] } {
     let beforeFiles: Route[] = []
     let afterFiles: Route[] = []
     let fallback: Route[] = []
@@ -1591,16 +1638,13 @@ export default class NextNodeServer extends BaseServer {
     }
   }
 
-  protected getEdgeFunctions(): RoutingItem[] {
+  protected getEdgeFunctionsPages(): string[] {
     const manifest = this.getMiddlewareManifest()
     if (!manifest) {
       return []
     }
 
-    return Object.keys(manifest.functions).map((page) => ({
-      match: getEdgeMatcher(manifest.functions[page]),
-      page,
-    }))
+    return Object.keys(manifest.functions)
   }
 
   /**
@@ -1612,11 +1656,17 @@ export default class NextNodeServer extends BaseServer {
     page: string
     /** Whether we should look for a middleware or not */
     middleware: boolean
-  }) {
-    const manifest: MiddlewareManifest = require(join(
-      this.serverDistDir,
-      MIDDLEWARE_MANIFEST
-    ))
+  }): {
+    name: string
+    paths: string[]
+    env: string[]
+    wasm: { filePath: string; name: string }[]
+    assets: { filePath: string; name: string }[]
+  } | null {
+    const manifest = this.getMiddlewareManifest()
+    if (!manifest) {
+      return null
+    }
 
     let foundPage: string
 
@@ -2034,7 +2084,9 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getRoutesManifest() {
-    return require(join(this.distDir, ROUTES_MANIFEST))
+    return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () =>
+      require(join(this.distDir, ROUTES_MANIFEST))
+    )
   }
 
   protected attachRequestMeta(
@@ -2132,6 +2184,7 @@ export default class NextNodeServer extends BaseServer {
       },
       useCache: !this.renderOpts.dev,
       onWarning: params.onWarning,
+      incrementalCache: getRequestMeta(params.req, '_nextIncrementalCache'),
     })
 
     params.res.statusCode = result.response.status

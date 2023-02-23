@@ -19,7 +19,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7
       '@babel/preset-flow': 7.14.5
       '@babel/preset-react': 7.14.5
-      '@edge-runtime/jest-environment': 2.0.0
+      '@edge-runtime/jest-environment': 2.0.5
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 2.2.1
       '@mdx-js/react': 2.2.1
@@ -150,11 +150,11 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: npm:react@17.0.2
-      react-builtin: npm:react@18.3.0-next-4bf2113a1-20230206
+      react-builtin: npm:react@18.3.0-next-6ddcbd4f9-20230209
       react-dom: 18.2.0
       react-dom-17: npm:react-dom@17.0.2
-      react-dom-builtin: npm:react-dom@18.3.0-next-4bf2113a1-20230206
-      react-server-dom-webpack: 18.3.0-next-4bf2113a1-20230206
+      react-dom-builtin: npm:react-dom@18.3.0-next-6ddcbd4f9-20230209
+      react-server-dom-webpack: 18.3.0-next-6ddcbd4f9-20230209
       react-ssr-prepass: 1.0.8
       react-virtualized: 9.22.3
       relay-compiler: 13.0.2
@@ -194,7 +194,7 @@ importers:
       '@babel/plugin-proposal-object-rest-spread': 7.14.7_@babel+core@7.18.0
       '@babel/preset-flow': 7.14.5_@babel+core@7.18.0
       '@babel/preset-react': 7.14.5_@babel+core@7.18.0
-      '@edge-runtime/jest-environment': 2.0.0
+      '@edge-runtime/jest-environment': 2.0.5
       '@fullhuman/postcss-purgecss': 1.3.0
       '@mdx-js/loader': 2.2.1_webpack@5.74.0
       '@mdx-js/react': 2.2.1_react@18.2.0
@@ -325,11 +325,11 @@ importers:
       random-seed: 0.3.0
       react: 18.2.0
       react-17: /react/17.0.2
-      react-builtin: /react/18.3.0-next-4bf2113a1-20230206
+      react-builtin: /react/18.3.0-next-6ddcbd4f9-20230209
       react-dom: 18.2.0_react@18.2.0
       react-dom-17: /react-dom/17.0.2_react@18.2.0
-      react-dom-builtin: /react-dom/18.3.0-next-4bf2113a1-20230206_react@18.2.0
-      react-server-dom-webpack: 18.3.0-next-4bf2113a1-20230206_4ifzx734of5j5ymg4ksx54vtqi
+      react-dom-builtin: /react-dom/18.3.0-next-6ddcbd4f9-20230209_react@18.2.0
+      react-server-dom-webpack: 18.3.0-next-6ddcbd4f9-20230209_4ifzx734of5j5ymg4ksx54vtqi
       react-ssr-prepass: 1.0.8_qncsgtzehe3fgiqp6tr7lwq6fm
       react-virtualized: 9.22.3_biqbaboplfbrettd7655fr4n2y
       relay-compiler: 13.0.2
@@ -438,7 +438,7 @@ importers:
 
   packages/eslint-config-next:
     specifiers:
-      '@next/eslint-plugin-next': 13.1.7-canary.15
+      '@next/eslint-plugin-next': 13.1.7-canary.29
       '@rushstack/eslint-patch': ^1.1.3
       '@typescript-eslint/parser': ^5.42.0
       eslint: ^7.23.0 || ^8.0.0
@@ -506,16 +506,18 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 2.0.0
+      '@edge-runtime/cookies': 3.0.4
+      '@edge-runtime/primitives': 2.0.5
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
-      '@next/env': 13.1.7-canary.15
-      '@next/polyfill-module': 13.1.7-canary.15
-      '@next/polyfill-nomodule': 13.1.7-canary.15
-      '@next/react-dev-overlay': 13.1.7-canary.15
-      '@next/react-refresh-utils': 13.1.7-canary.15
-      '@next/swc': 13.1.7-canary.15
+      '@next/env': 13.1.7-canary.29
+      '@next/polyfill-module': 13.1.7-canary.29
+      '@next/polyfill-nomodule': 13.1.7-canary.29
+      '@next/react-dev-overlay': 13.1.7-canary.29
+      '@next/react-refresh-utils': 13.1.7-canary.29
+      '@next/swc': 13.1.7-canary.29
+      '@opentelemetry/api': 1.4.0
       '@segment/ajv-human-errors': 2.1.2
       '@swc/helpers': 0.4.14
       '@taskr/clear': 1.1.0
@@ -534,6 +536,7 @@ importers:
       '@types/cookie': 0.3.3
       '@types/cross-spawn': 6.0.0
       '@types/debug': 4.1.5
+      '@types/express-serve-static-core': 4.17.33
       '@types/fresh': 0.5.0
       '@types/glob': 7.1.1
       '@types/jsonwebtoken': 9.0.0
@@ -611,6 +614,7 @@ importers:
       jest-worker: 27.0.0-next.5
       json5: 2.2.3
       jsonwebtoken: 9.0.0
+      loader-runner: 4.3.0
       loader-utils2: npm:loader-utils@2.0.0
       loader-utils3: npm:loader-utils@3.1.3
       lodash.curry: 4.1.1
@@ -716,7 +720,8 @@ importers:
       '@babel/runtime': 7.15.4
       '@babel/traverse': 7.18.0
       '@babel/types': 7.18.0
-      '@edge-runtime/primitives': 2.0.0
+      '@edge-runtime/cookies': 3.0.4
+      '@edge-runtime/primitives': 2.0.5
       '@hapi/accept': 5.0.2
       '@napi-rs/cli': 2.14.7
       '@napi-rs/triples': 1.1.0
@@ -725,6 +730,7 @@ importers:
       '@next/react-dev-overlay': link:../react-dev-overlay
       '@next/react-refresh-utils': link:../react-refresh-utils
       '@next/swc': link:../next-swc
+      '@opentelemetry/api': 1.4.0
       '@segment/ajv-human-errors': 2.1.2_ajv@8.11.0
       '@taskr/clear': 1.1.0
       '@taskr/esnext': 1.1.0
@@ -742,6 +748,7 @@ importers:
       '@types/cookie': 0.3.3
       '@types/cross-spawn': 6.0.0
       '@types/debug': 4.1.5
+      '@types/express-serve-static-core': 4.17.33
       '@types/fresh': 0.5.0
       '@types/glob': 7.1.1
       '@types/jsonwebtoken': 9.0.0
@@ -817,6 +824,7 @@ importers:
       jest-worker: 27.0.0-next.5
       json5: 2.2.3
       jsonwebtoken: 9.0.0
+      loader-runner: 4.3.0
       loader-utils2: /loader-utils/2.0.0
       loader-utils3: /loader-utils/3.1.3
       lodash.curry: 4.1.1
@@ -3118,7 +3126,7 @@ packages:
       '@babel/helper-hoist-variables': 7.16.7
       '@babel/helper-module-transforms': 7.19.6
       '@babel/helper-plugin-utils': 7.19.0
-      '@babel/helper-validator-identifier': 7.19.1
+      '@babel/helper-validator-identifier': 7.16.7
       babel-plugin-dynamic-import-node: 2.3.3
     transitivePeerDependencies:
       - supports-color
@@ -4350,14 +4358,20 @@ packages:
       protobufjs: 6.11.2
     dev: true
 
+  /@edge-runtime/cookies/3.0.4:
+    resolution: {integrity: sha512-q+Hm3Ekj7n/B/BRYSCGWkKspSuxlDIEeht6MI5SbYr0Xus1Zy20ZpazmcaKQYEqEdGdazEEV2zRgqRQ6NIjZWg==}
+    engines: {node: '>=14'}
+    dev: true
+
   /@edge-runtime/format/1.1.0:
     resolution: {integrity: sha512-MkLDDtPhXZIMx83NykdFmOpF7gVWIdd6GBHYb8V/E+PKWvD2pK/qWx9B30oN1iDJ2XBm0SGDjz02S8nDHI9lMQ==}
     dev: true
 
-  /@edge-runtime/jest-environment/2.0.0:
-    resolution: {integrity: sha512-Bic/DlNqVFIoHzO1rvSR+XE+xHoHRFD3oLoQ3w5VfjpyWEzCtPeY9bWJ0KuhdVAhbmcsS+62Ym8eoJXsJEb3hw==}
+  /@edge-runtime/jest-environment/2.0.5:
+    resolution: {integrity: sha512-ACyaujVJb+Ewsnpn6XXp5DLnaPO8uLtKg6EuwXThIk9bPDyOdFbNkpBAuW/pZgCJIpfVi2XE2cGcuXjLK3T9ew==}
+    engines: {node: '>=14'}
     dependencies:
-      '@edge-runtime/vm': 2.0.0
+      '@edge-runtime/vm': 2.0.5
       '@jest/environment': 28.1.3
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
@@ -4369,10 +4383,22 @@ packages:
     resolution: {integrity: sha512-AXqUq1zruTJAICrllUvZcgciIcEGHdF6KJ3r6FM0n4k8LpFxZ62tPWVIJ9HKm+xt+ncTBUZxwgUaQ73QMUQEKw==}
     dev: true
 
+  /@edge-runtime/primitives/2.0.5:
+    resolution: {integrity: sha512-jETA9w1MDTf2n0KMYl9b2eZqG7FZXSTaiB8y4CpMwZOD/0ZL/HBdq9Pj48o1c2jbvlDWjxxsn0NaoPWsqBCUGg==}
+    engines: {node: '>=14'}
+    dev: true
+
   /@edge-runtime/vm/2.0.0:
     resolution: {integrity: sha512-BOLrAX8IWHRXu1siZocwLguKJPEUv7cr+rG8tI4hvHgMdIsBWHJlLeB8EjuUVnIURFrUiM49lVKn8DRrECmngw==}
     dependencies:
       '@edge-runtime/primitives': 2.0.0
+    dev: true
+
+  /@edge-runtime/vm/2.0.5:
+    resolution: {integrity: sha512-6orUuYOUTWxVPoBjhQ7bQxqvkTICUFvlhumcsULb3FfBPQ6RRb9tjtTX6u06KNCPtvX0L4Fc5OicjEUZvvz8Nw==}
+    engines: {node: '>=14'}
+    dependencies:
+      '@edge-runtime/primitives': 2.0.5
     dev: true
 
   /@emotion/unitless/0.7.5:
@@ -6100,6 +6126,11 @@ packages:
       '@types/node': 18.11.18
     dev: true
 
+  /@opentelemetry/api/1.4.0:
+    resolution: {integrity: sha512-IgMK9i3sFGNUqPMbjABm0G26g0QCKCUBfglhQ7rQq6WcxbKfEHRcmwsoER4hZcuYqJgkYn2OeuoJIv7Jsftp7g==}
+    engines: {node: '>=8.0.0'}
+    dev: true
+
   /@pkgr/utils/2.3.1:
     resolution: {integrity: sha512-wfzX8kc1PMyUILA+1Z/EqoE4UCXGy0iRGMhPwdfae1+f0OXlLqCk+By+aMzgJBzR9AzS4CDizioG6Ss1gvAFJw==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
@@ -6247,7 +6278,7 @@ packages:
     engines: {node: '>= 8.0.0'}
     dependencies:
       estree-walker: 2.0.2
-      picomatch: 2.2.3
+      picomatch: 2.3.1
     dev: true
 
   /@rushstack/eslint-patch/1.1.3:
@@ -6872,10 +6903,11 @@ packages:
     resolution: {integrity: sha512-EaObqwIvayI5a8dCzhFrjKzVwKLxjoG9T6Ppd5CEo07LRKfQ8Yokw54r5+Wq7FaBQ+yXRvQAYPrHwya1/UFt9g==}
     dev: true
 
-  /@types/express-serve-static-core/4.17.1:
-    resolution: {integrity: sha512-9e7jj549ZI+RxY21Cl0t8uBnWyb22HzILupyHZjYEVK//5TT/1bZodU+yUbLnPdoYViBBnNWbxp4zYjGV0zUGw==}
+  /@types/express-serve-static-core/4.17.33:
+    resolution: {integrity: sha512-TPBqmR/HRYI3eC2E5hmiivIzv+bidAfXofM+sbonAGvyDhySGw9/PQZFt2BLOrjUUR++4eJVpx6KnLQK1Fk9tA==}
     dependencies:
       '@types/node': 18.11.18
+      '@types/qs': 6.9.7
       '@types/range-parser': 1.2.3
     dev: true
 
@@ -6883,7 +6915,7 @@ packages:
     resolution: {integrity: sha512-5mHFNyavtLoJmnusB8OKJ5bshSzw+qkMIBAobLrIM48HJvunFva9mOa6aBwh64lBFyNwBbs0xiEFuj4eU/NjCA==}
     dependencies:
       '@types/body-parser': 1.17.1
-      '@types/express-serve-static-core': 4.17.1
+      '@types/express-serve-static-core': 4.17.33
       '@types/serve-static': 1.13.3
     dev: true
 
@@ -7132,6 +7164,10 @@ packages:
     resolution: {integrity: sha512-ce5d3q03Ex0sy4R14722Rmt6MT07Ua+k4FwDfdcToYJcMKNtRVQvJ6JCAPdAmAnbRb6CsX6aYb9m96NGod9uTw==}
     dev: true
 
+  /@types/qs/6.9.7:
+    resolution: {integrity: sha512-FGa1F62FT09qcrueBA6qYTrJPVDzah9a+493+o2PCXsesWHIn27G98TsSMs3WPNbZIEj4+VJf6saSFpvD+3Zsw==}
+    dev: true
+
   /@types/range-parser/1.2.3:
     resolution: {integrity: sha512-ewFXqrQHlFsgc09MK5jP5iR7vumV/BYayNC6PgJO2LPe8vrnNFyjQjSppfEngITi0qvfKtzFvgKymGheFM9UOA==}
     dev: true
@@ -7207,7 +7243,7 @@ packages:
   /@types/serve-static/1.13.3:
     resolution: {integrity: sha512-oprSwp094zOglVrXdlo/4bAHtKTAxX6VT8FOZlBKrmyLbNvE1zxZyJ6yikMVtHIvwP45+ZQGJn+FdXGKTozq0g==}
     dependencies:
-      '@types/express-serve-static-core': 4.17.1
+      '@types/express-serve-static-core': 4.17.33
       '@types/mime': 2.0.1
     dev: true
 
@@ -16159,8 +16195,8 @@ packages:
       resolve-from: 5.0.0
     dev: true
 
-  /loader-runner/4.2.0:
-    resolution: {integrity: sha512-92+huvxMvYlMzMt0iIOukcwYBFpkYJdpl2xsZ7LrlayO7E8SOv+JJUEK17B/dJIHAOLMfh2dZZ/Y18WgmGtYNw==}
+  /loader-runner/4.3.0:
+    resolution: {integrity: sha512-3R/1M+yS3j5ou80Me59j7F9IMs4PXs3VqRrm0TU3AbKPxlmpoY1TNscJV/oGJXo8qCatFGTfDbY6W6ipGOYXfg==}
     engines: {node: '>=6.11.5'}
 
   /loader-utils/1.4.0:
@@ -20283,14 +20319,14 @@ packages:
       react: 18.2.0
       scheduler: 0.23.0
 
-  /react-dom/18.3.0-next-4bf2113a1-20230206_react@18.2.0:
-    resolution: {integrity: sha512-ZhRBPosy2OyQaYB/gLgmV23fX2+m3b4f3qrnAKLsFgVRPHkkafHtUb53I/7jfnuLseUgY0uqHH9L2CyARYfzEw==}
+  /react-dom/18.3.0-next-6ddcbd4f9-20230209_react@18.2.0:
+    resolution: {integrity: sha512-L6o2DvkQ243RcqFHEav2yYiw9bWEKZ1VbdyusrZ9or1ELShZfFHrZe4/tLnI9Wsadmba/8DinuuZNzBXVhXPgg==}
     peerDependencies:
-      react: 18.3.0-next-4bf2113a1-20230206
+      react: 18.3.0-next-6ddcbd4f9-20230209
     dependencies:
       loose-envify: 1.4.0
       react: 18.2.0
-      scheduler: 0.24.0-next-4bf2113a1-20230206
+      scheduler: 0.24.0-next-6ddcbd4f9-20230209
     dev: true
 
   /react-is/16.13.1:
@@ -20313,12 +20349,12 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /react-server-dom-webpack/18.3.0-next-4bf2113a1-20230206_4ifzx734of5j5ymg4ksx54vtqi:
-    resolution: {integrity: sha512-Bf9AcbE2k0ujuFbvcfUQC05Xnr2WhIjtxboaz5rTWWvkjmoX7Rj9c5YXradGHkxSsLx86BPoTvUUFFES6qGE7g==}
+  /react-server-dom-webpack/18.3.0-next-6ddcbd4f9-20230209_4ifzx734of5j5ymg4ksx54vtqi:
+    resolution: {integrity: sha512-S9oHclrIFDsXhxjGRcDtudv8Y5C2CFGgmJqYo9OPo+e0BmOHum7LlP7zAmb+xGX+q0mk0OSKAns8yHRNKp6dXA==}
     engines: {node: '>=0.10.0'}
     peerDependencies:
-      react: 18.3.0-next-4bf2113a1-20230206
-      react-dom: 18.3.0-next-4bf2113a1-20230206
+      react: 18.3.0-next-6ddcbd4f9-20230209
+      react-dom: 18.3.0-next-6ddcbd4f9-20230209
       webpack: ^5.59.0
     dependencies:
       acorn: 6.4.2
@@ -20369,8 +20405,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /react/18.3.0-next-4bf2113a1-20230206:
-    resolution: {integrity: sha512-dXmfVmkxw+wsy7uMUTGeClhbqVm6TKOB2vqxoqsNJH8BL+763Ko63m1Aoz36gcnw9W6lZxmVAwFdmu9yxls41A==}
+  /react/18.3.0-next-6ddcbd4f9-20230209:
+    resolution: {integrity: sha512-roGw+wu3DTA4KLNPkoKwgEVJNSbQhAzd6SmA0CaEGuS56mYro3eqaVhvOdV7r8SJ35PHnyrnAp6WkBcqha0bfg==}
     engines: {node: '>=0.10.0'}
     dependencies:
       loose-envify: 1.4.0
@@ -21423,8 +21459,8 @@ packages:
     dependencies:
       loose-envify: 1.4.0
 
-  /scheduler/0.24.0-next-4bf2113a1-20230206:
-    resolution: {integrity: sha512-B2+m9CzYPNeQgHKudkSFTVxEjFsLioaJO85tpND9kntJ1aOLkR0/qgBItNZyVUoz5TkwWFn4r9v9hN6ChsA6pQ==}
+  /scheduler/0.24.0-next-6ddcbd4f9-20230209:
+    resolution: {integrity: sha512-7N137hCqbrHmfJXrq1glb369dNu5RrujffqNMaBkIU5Y+oVvOm7XumsCWW7Yt96tFJp81uoRmUdsWz11tm5AZg==}
     dependencies:
       loose-envify: 1.4.0
     dev: true
@@ -24020,7 +24056,7 @@ packages:
       glob-to-regexp: 0.4.1
       graceful-fs: 4.2.10
       json-parse-even-better-errors: 2.3.1
-      loader-runner: 4.2.0
+      loader-runner: 4.3.0
       mime-types: 2.1.30
       neo-async: 2.6.2
       schema-utils: 3.1.1
@@ -24059,7 +24095,7 @@ packages:
       glob-to-regexp: 0.4.1
       graceful-fs: 4.2.10
       json-parse-even-better-errors: 2.3.1
-      loader-runner: 4.2.0
+      loader-runner: 4.3.0
       mime-types: 2.1.30
       neo-async: 2.6.2
       schema-utils: 3.1.1

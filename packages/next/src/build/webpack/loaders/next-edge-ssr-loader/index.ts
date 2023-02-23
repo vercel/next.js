@@ -15,7 +15,7 @@ export type EdgeSSRLoaderQuery = {
   appDirLoader?: string
   pagesType: 'app' | 'pages' | 'root'
   sriEnabled: boolean
-  hasFontLoaders: boolean
+  incrementalCacheHandlerPath?: string
 }
 
 /*
@@ -45,7 +45,7 @@ export default async function edgeSSRLoader(this: any) {
     appDirLoader: appDirLoaderBase64,
     pagesType,
     sriEnabled,
-    hasFontLoaders,
+    incrementalCacheHandlerPath,
   } = this.getOptions()
 
   const appDirLoader = Buffer.from(
@@ -92,7 +92,7 @@ export default async function edgeSSRLoader(this: any) {
     import { getRender } from 'next/dist/esm/build/webpack/loaders/next-edge-ssr-loader/render'
 
     enhanceGlobals()
-
+    
     const pageType = ${JSON.stringify(pagesType)}
     ${
       isAppDir
@@ -119,6 +119,12 @@ export default async function edgeSSRLoader(this: any) {
       const appRenderToHTML = null
     `
     }
+    
+    const incrementalCacheHandler = ${
+      incrementalCacheHandlerPath
+        ? `require("${incrementalCacheHandlerPath}")`
+        : 'null'
+    }
 
     const buildManifest = self.__BUILD_MANIFEST
     const reactLoadableManifest = self.__REACT_LOADABLE_MANIFEST
@@ -127,9 +133,7 @@ export default async function edgeSSRLoader(this: any) {
     const subresourceIntegrityManifest = ${
       sriEnabled ? 'self.__SUBRESOURCE_INTEGRITY_MANIFEST' : 'undefined'
     }
-    const fontLoaderManifest = ${
-      hasFontLoaders ? 'self.__FONT_LOADER_MANIFEST' : 'undefined'
-    }
+    const fontLoaderManifest = self.__FONT_LOADER_MANIFEST
 
     const render = getRender({
       pageType,
@@ -150,6 +154,7 @@ export default async function edgeSSRLoader(this: any) {
       config: ${stringifiedConfig},
       buildId: ${JSON.stringify(buildId)},
       fontLoaderManifest,
+      incrementalCacheHandler,
     })
 
     export const ComponentMod = pageMod

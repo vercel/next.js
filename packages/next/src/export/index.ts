@@ -404,9 +404,11 @@ export default async function exportApp(
       optimizeFonts: nextConfig.optimizeFonts as FontConfig,
       largePageDataBytes: nextConfig.experimental.largePageDataBytes,
       serverComponents: hasAppDir,
-      fontLoaderManifest: nextConfig.experimental.fontLoaders
-        ? require(join(distDir, 'server', `${FONT_LOADER_MANIFEST}.json`))
-        : undefined,
+      fontLoaderManifest: require(join(
+        distDir,
+        'server',
+        `${FONT_LOADER_MANIFEST}.json`
+      )),
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -479,7 +481,9 @@ export default async function exportApp(
 
     const filteredPaths = exportPaths.filter(
       // Remove API routes
-      (route) => !isAPIRoute(exportPathMap[route].page)
+      (route) =>
+        (exportPathMap[route] as any)._isAppDir ||
+        !isAPIRoute(exportPathMap[route].page)
     )
 
     if (filteredPaths.length !== exportPaths.length) {
@@ -647,6 +651,10 @@ export default async function exportApp(
             appPaths: options.appPaths || [],
             enableUndici: nextConfig.experimental.enableUndici,
             debugOutput: options.debugOutput,
+            isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+            fetchCache: nextConfig.experimental.appDir,
+            incrementalCacheHandlerPath:
+              nextConfig.experimental.incrementalCacheHandlerPath,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -667,6 +675,11 @@ export default async function exportApp(
             if (typeof result.fromBuildExportRevalidate !== 'undefined') {
               configuration.initialPageRevalidationMap[path] =
                 result.fromBuildExportRevalidate
+            }
+
+            if (typeof result.fromBuildExportMeta !== 'undefined') {
+              configuration.initialPageMetaMap[path] =
+                result.fromBuildExportMeta
             }
 
             if (result.ssgNotFound === true) {

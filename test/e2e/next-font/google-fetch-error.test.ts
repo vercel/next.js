@@ -7,7 +7,7 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
-describe('@next/font/google fetch error', () => {
+describe('next/font/google fetch error', () => {
   const isDev = (global as any).isNextDev
   let next: NextInstance
 
@@ -20,12 +20,6 @@ describe('@next/font/google fetch error', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'google-fetch-error/pages')),
-        'next.config.js': new FileRef(
-          join(__dirname, 'google-fetch-error/next.config.js')
-        ),
-      },
-      dependencies: {
-        '@next/font': 'canary',
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,

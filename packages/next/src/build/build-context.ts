@@ -4,6 +4,7 @@ import { Rewrite } from '../lib/load-custom-routes'
 import { __ApiPreviewProps } from '../server/api-utils'
 import { NextConfigComplete } from '../server/config-shared'
 import { Span } from '../trace'
+import type getBaseWebpackConfig from './webpack-config'
 import { TelemetryPlugin } from './webpack/plugins/telemetry-plugin'
 
 // a global object to store context for the current build
@@ -37,6 +38,7 @@ export const NextBuildContext: Partial<{
   mappedRootPaths: {
     [page: string]: string
   }
+  hasInstrumentationHook: boolean
 
   // misc fields
   telemetryPlugin: TelemetryPlugin
@@ -47,4 +49,7 @@ export const NextBuildContext: Partial<{
   reactProductionProfiling: boolean
   noMangling: boolean
   appDirOnly: boolean
+  clientRouterFilters: Parameters<
+    typeof getBaseWebpackConfig
+  >[1]['clientRouterFilters']
 }> = {}

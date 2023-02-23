@@ -37,6 +37,7 @@ export default async function nextFontLoader(this: any) {
       isDev,
       isServer,
       assetPrefix,
+      fontLoaderPath,
       fontLoaderOptions,
       postcss: getPostcss,
     } = this.getOptions()
@@ -82,10 +83,7 @@ export default async function nextFontLoader(this: any) {
     }
 
     try {
-      const fontLoader: FontLoader = require(path.join(
-        this.resourcePath,
-        '../loader.js'
-      )).default
+      const fontLoader: FontLoader = require(fontLoaderPath).default
       let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
         await fontLoader({
           functionName,

@@ -26,6 +26,7 @@ import {
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   MIDDLEWARE_FILENAME,
+  INSTRUMENTATION_HOOK_FILENAME,
 } from '../lib/constants'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -284,6 +285,13 @@ export async function computeFromManifest(
 
 export function isMiddlewareFilename(file?: string) {
   return file === MIDDLEWARE_FILENAME || file === `src/${MIDDLEWARE_FILENAME}`
+}
+
+export function isInstrumentationHookFilename(file?: string) {
+  return (
+    file === INSTRUMENTATION_HOOK_FILENAME ||
+    file === `src/${INSTRUMENTATION_HOOK_FILENAME}`
+  )
 }
 
 export interface PageInfo {
@@ -1554,6 +1562,17 @@ export function detectConflictingPaths(
   >()
 
   const dynamicSsgPages = [...ssgPages].filter((page) => isDynamicRoute(page))
+  const additionalSsgPathsByPath: {
+    [page: string]: { [path: string]: string }
+  } = {}
+
+  additionalSsgPaths.forEach((paths, pathsPage) => {
+    additionalSsgPathsByPath[pathsPage] ||= {}
+    paths.forEach((curPath) => {
+      const currentPath = curPath.toLowerCase()
+      additionalSsgPathsByPath[pathsPage][currentPath] = curPath
+    })
+  })
 
   additionalSsgPaths.forEach((paths, pathsPage) => {
     paths.forEach((curPath) => {
@@ -1573,9 +1592,10 @@ export function detectConflictingPaths(
         conflictingPage = dynamicSsgPages.find((page) => {
           if (page === pathsPage) return false
 
-          conflictingPath = additionalSsgPaths
-            .get(page)
-            ?.find((compPath) => compPath.toLowerCase() === lowerPath)
+          conflictingPath =
+            additionalSsgPaths.get(page) == null
+              ? undefined
+              : additionalSsgPathsByPath[page][lowerPath]
           return conflictingPath
         })
 
@@ -1825,6 +1845,22 @@ export function isCustomErrorPage(page: string) {
 export function isMiddlewareFile(file: string) {
   return (
     file === `/${MIDDLEWARE_FILENAME}` || file === `/src/${MIDDLEWARE_FILENAME}`
+  )
+}
+
+export function isInstrumentationHookFile(file: string) {
+  return (
+    file === `/${INSTRUMENTATION_HOOK_FILENAME}` ||
+    file === `/src/${INSTRUMENTATION_HOOK_FILENAME}`
+  )
+}
+
+export function getPossibleInstrumentationHookFilenames(
+  folder: string,
+  extensions: string[]
+) {
+  return extensions.map((extension) =>
+    path.join(folder, `${INSTRUMENTATION_HOOK_FILENAME}.${extension}`)
   )
 }
 
