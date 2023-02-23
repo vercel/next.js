@@ -407,10 +407,11 @@ describe('create-next-app --experimental-app-dir', () => {
         mode: 'js',
         srcDir: true,
       })
-      await startsWithoutError(path.join(cwd, projectName), [
-        'default',
-        'turbo',
-      ])
+      await startsWithoutError(
+        path.join(cwd, projectName),
+        ['default', 'turbo'],
+        true
+      )
     })
   })
 })
